@@ -1,0 +1,28 @@
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0, "rep": 1, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 3.0, "secondary": 3.0, "late_shift": 10.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 10.0, "max_oceniane": 3.0}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0, "rep": 2, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 3.0, "secondary": 3.0, "late_shift": 10.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 10.0, "max_oceniane": 3.0}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0, "rep": 3, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 3.0, "secondary": 3.0, "late_shift": 10.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 10.0, "max_oceniane": 3.0}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0.1, "rep": 1, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 1.0, "secondary": 3.07, "late_shift": 9.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 9.0, "max_oceniane": 3.07}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0.1, "rep": 2, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 2.0, "secondary": 3.07, "late_shift": 10.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 10.0, "max_oceniane": 3.07}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0.1, "rep": 3, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 1.0, "secondary": 3.0, "late_shift": 9.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 9.0, "max_oceniane": 3.0}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0.25, "rep": 1, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 3.0, "secondary": 3.0, "late_shift": 9.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 9.0, "max_oceniane": 3.0}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0.25, "rep": 2, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 3.0, "secondary": 3.07, "late_shift": 9.0, "weekends": 2.0, "holidays": 2.0}, "max_po_raport": 9.0, "max_oceniane": 3.07}
+{"start": "2026-09-07", "days": 28, "workers": 2, "seconds": 90, "tie": 0.25, "rep": 3, "status": "FEASIBLE", "elapsed": 90.1, "po_raport": {"primary": 2.0, "secondary": 4.0, "late_shift": 10.0, "weekends": 3.07, "holidays": 2.0}, "max_po_raport": 10.0, "max_oceniane": 4.0}
+Traceback (most recent call last):
+  File "/tmp/variant5.py", line 187, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "/usr/local/lib/python3.13/asyncio/runners.py", line 196, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/usr/local/lib/python3.13/asyncio/runners.py", line 119, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/usr/local/lib/python3.13/asyncio/base_events.py", line 726, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/tmp/variant5.py", line 158, in main
+    module = build(case.get("limit", 0), case.get("tie"))
+  File "/tmp/variant5.py", line 89, in build
+    assert TIE_RANGE_NEEDLE in source, "nie znaleziono petli celu nad soczewkami"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: nie znaleziono petli celu nad soczewkami

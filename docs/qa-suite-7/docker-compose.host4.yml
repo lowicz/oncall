@@ -1,0 +1,14 @@
+# QA7: wspolna pula 4 rdzeni i 8 GB RAM dla calego stosu (jeden host docelowy).
+services:
+  db:
+    cpuset: "0-3"
+    mem_limit: 2g
+  api:
+    cpuset: "0-3"
+    mem_limit: 2g
+  worker:
+    cpuset: "0-3"
+    mem_limit: 3g
+  web:
+    cpuset: "0-3"
+    mem_limit: 256m

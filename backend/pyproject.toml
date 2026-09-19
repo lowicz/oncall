@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "erste-oncall"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+  "aiosmtplib>=3.0,<4",
+  "alembic>=1.14,<2",
+  "argon2-cffi>=23.1,<26",
+  "asyncpg>=0.30,<1",
+  "email-validator>=2.0,<3",
+  "fastapi>=0.116,<1",
+  "holidays>=0.80,<1",
+  "ldap3>=2.9.1,<3",
+  "ortools>=9.14,<10",
+  "pydantic-settings>=2.7,<3",
+  "python-multipart>=0.0.20,<1",
+  "sqlalchemy[asyncio]>=2.0,<3",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "aiosqlite>=0.20,<1",
+  "httpx>=0.28,<1",
+  "mypy>=1.15,<2",
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.25,<1",
+  "ruff>=0.9,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oncall"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+  "contract: externally observable compatibility behavior",
+]
+filterwarnings = [
+  # QA7-L17: these come from inside pytest-asyncio and ldap3/pyasn1, not from
+  # this application's own code - there is nothing here to fix, only to stop
+  # drowning real warnings in noise. Revisit once the dependency is upgraded
+  # past the version that still triggers them.
+  "ignore:'asyncio.get_event_loop_policy' is deprecated:DeprecationWarning:pytest_asyncio",
+  "ignore:'asyncio.set_event_loop_policy' is deprecated:DeprecationWarning:pytest_asyncio",
+  "ignore:tagMap is deprecated. Please use TAG_MAP instead:DeprecationWarning:ldap3",
+  "ignore:typeMap is deprecated. Please use TYPE_MAP instead:DeprecationWarning:ldap3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = [
+  "src/oncall/domain/clock.py",
+  "src/oncall/database.py",
+  "src/oncall/metrics.py",
+  "scripts/openapi_snapshot.py",
+  "tests/architecture/test_dependencies.py",
+  # Every presentation module except calendar.py, whose typing waits on the
+  # `Duty.schedule_version` question recorded in the phase 4a note.
+  "src/oncall/presentation/access.py",
+  "src/oncall/presentation/admin.py",
+  "src/oncall/presentation/assignments.py",
+  "src/oncall/presentation/availability.py",
+  "src/oncall/presentation/history.py",
+  "src/oncall/presentation/overrides.py",
+  "src/oncall/presentation/published.py",
+  "src/oncall/presentation/reports.py",
+  "src/oncall/presentation/rules.py",
+  "src/oncall/presentation/scheduling.py",
+  "src/oncall/presentation/sharing.py",
+  "src/oncall/presentation/swaps.py",
+  "src/oncall/presentation/system.py",
+  "src/oncall/presentation/validation.py",
+  # The solver. Typed once phases 4h-4o had given every piece of the model
+  # builder a name and a signature; `generate_schedule` came with it.
+  "src/oncall/scheduler.py",
+]

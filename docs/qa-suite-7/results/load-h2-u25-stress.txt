@@ -1,0 +1,25 @@
+endpoint                 n     p50     p95     p99     max  err
+login                   25     518    1020    1032    1032  0 
+draft_impact            98     339     534     858     858  0 
+fairness_asof           51     250     484     610     610  0 
+me                      25      74     283     587     587  0 
+fairness               960     230     467     668     861  0 
+swap_options           276     233     460     607     732  0 
+calendar_35d_past      367     208     423     674    1154  0 
+calendar_30d          1960     198     422     608    1156  0 
+swaps                  610     162     369     472     701  0 
+fairness_duties         87     191     355     505     505  0 
+draft_get               42     160     329     438     438  0 
+team                    52     131     335     361     361  0 
+published             1957     135     328     417     697  0 
+availability_me        659     138     326     446     558  33 {200: 626, 403: 33}
+drafts                  45     118     305     355     355  0 
+audit                   62     153     304     425     425  62 {403: 62}
+report_csv              33      97     261     340     340  0 
+report_monthly          84     121     238     349     349  0 
+TOTAL 7393 req, 122.8 rps, wall 60s
+JSON {"label": "h2-u25-stress", "users": 25, "seconds": 60.2, "think": [0.0, 0.0], "requests": 7393, "rps": 122.8, "errors": {"audit": 62, "availability_me": 33}, "endpoints": {"login": {"n": 25, "p50": 518, "p95": 1020, "p99": 1032, "max": 1032}, "draft_impact": {"n": 98, "p50": 339, "p95": 534, "p99": 858, "max": 858}, "fairness_asof": {"n": 51, "p50": 250, "p95": 484, "p99": 610, "max": 610}, "me": {"n": 25, "p50": 74, "p95": 283, "p99": 587, "max": 587}, "fairness": {"n": 960, "p50": 230, "p95": 467, "p99": 668, "max": 861}, "swap_options": {"n": 276, "p50": 233, "p95": 460, "p99": 607, "max": 732}, "calendar_35d_past": {"n": 367, "p50": 208, "p95": 423, "p99": 674, "max": 1154}, "calendar_30d": {"n": 1960, "p50": 198, "p95": 422, "p99": 608, "max": 1156}, "swaps": {"n": 610, "p50": 162, "p95": 369, "p99": 472, "max": 701}, "fairness_duties": {"n": 87, "p50": 191, "p95": 355, "p99": 505, "max": 505}, "draft_get": {"n": 42, "p50": 160, "p95": 329, "p99": 438, "max": 438}, "team": {"n": 52, "p50": 131, "p95": 335, "p99": 361, "max": 361}, "published": {"n": 1957, "p50": 135, "p95": 328, "p99": 417, "max": 697}, "availability_me": {"n": 659, "p50": 138, "p95": 326, "p99": 446, "max": 558}, "drafts": {"n": 45, "p50": 118, "p95": 305, "p99": 355, "max": 355}, "audit": {"n": 62, "p50": 153, "p95": 304, "p99": 425, "max": 425}, "report_csv": {"n": 33, "p50": 97, "p95": 261, "p99": 340, "max": 340}, "report_monthly": {"n": 84, "p50": 121, "p95": 238, "p99": 349, "max": 349}}}
+  oncall-db-1 avg=19%
+  oncall-api-1 avg=176%
+  oncall-worker-1 avg=0%
+  oncall-web-1 avg=1%

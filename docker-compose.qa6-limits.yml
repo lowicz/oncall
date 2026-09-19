@@ -1,0 +1,15 @@
+# QA6: odwzorowanie docelowych zasobow sprzetowych (2-4 rdzenie, 8 GB RAM).
+# Uzywane wylacznie do pomiarow wydajnosciowych, nie do produkcji.
+services:
+  api:
+    cpus: 2.0
+    mem_limit: 3g
+  db:
+    cpus: 1.0
+    mem_limit: 2g
+  worker:
+    cpus: 2.0
+    mem_limit: 2g
+  web:
+    cpus: 0.5
+    mem_limit: 256m
