@@ -1,0 +1,1363 @@
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-width: 320px;
+}
+
+.center {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding-block: 48px;
+}
+
+.wordmark {
+  width: fit-content;
+  font: 700 0.9rem/1.2 "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  color: #edf5fc;
+  background: #005ea8;
+  padding: 10px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.wordmark span {
+  color: #d7ebff;
+}
+
+.wordmark.small {
+  font-size: 0.75rem;
+  padding: 7px 9px;
+}
+
+.login-panel {
+  margin-top: 16px;
+  padding: 24px;
+  border-color: rgba(143, 200, 255, 0.2) !important;
+}
+
+.eyebrow,
+.role-label,
+.date-code {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace !important;
+  letter-spacing: 0.04em !important;
+}
+
+.eyebrow,
+.role-label {
+  color: var(--accent-label);
+  font-size: 0.75rem !important;
+  font-weight: 650 !important;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--mui-palette-background-default);
+}
+
+.topbar {
+  height: 64px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--topbar-border);
+  background: var(--topbar-bg);
+}
+
+.topnav {
+  display: flex;
+  gap: 4px;
+  margin-inline: auto;
+}
+
+.topnav .active,
+.topnav-active {
+  background: var(--nav-active-bg);
+}
+
+.nav-toggle { display: none !important; }
+
+.nav-drawer {
+  width: min(78vw, 300px);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.nav-drawer-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 16px 12px;
+}
+
+.nav-drawer-heading { padding-inline: 16px; }
+.nav-drawer .active { background: var(--nav-active-bg); }
+
+.topbar .MuiButton-root,
+.topbar .MuiTypography-root {
+  color: var(--topbar-fg);
+}
+
+main {
+  padding-block: 48px;
+}
+
+.duty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.duty-card {
+  min-width: 0;
+  min-height: 0;
+  padding: 20px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.duty-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #3a8dde;
+}
+
+.duty-secondary::before { background: #8f9eb0; }
+.duty-late_shift::before { background: #d8a340; }
+
+/* "Not applicable" must not borrow the warning colour of a missing duty. */
+.duty-card.duty-na::before { background: #5a6b7d; }
+.duty-card.duty-na .assignee { color: var(--mui-palette-text-secondary); font-weight: 500; }
+
+/* The 26px gap existed to pad out a card that held only a name and a date. */
+.assignee {
+  margin-top: 12px !important;
+  font-size: clamp(1.15rem, 1.8vw, 1.5rem) !important;
+  font-weight: 650 !important;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.duty-meta {
+  margin-top: 10px;
+  display: grid;
+  gap: 3px;
+}
+
+.duty-window {
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+  font-size: 0.82rem !important;
+  font-weight: 650 !important;
+}
+
+.duty-window-day { font-weight: 400; color: var(--cal-header-subtle); }
+
+.duty-contact {
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.duty-next { font-size: 0.8rem !important; }
+
+.date-code {
+  margin-top: 8px !important;
+  font-size: 0.78rem !important;
+}
+
+.readonly-note {
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  border-color: rgba(143, 200, 255, 0.12) !important;
+}
+
+.schedule-list {
+  padding: 4px 20px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.7fr) repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+  padding-block: 14px;
+  border-bottom: 1px solid rgba(143, 200, 255, 0.1);
+}
+
+.schedule-row:last-child { border-bottom: 0; }
+.schedule-person { min-width: 0; }
+.schedule-person p:last-child { overflow-wrap: anywhere; }
+
+.availability-section {
+  margin-top: 40px;
+  display: grid;
+  gap: 20px;
+}
+
+.history-section {
+  margin-top: 40px;
+  display: grid;
+  gap: 20px;
+}
+
+.generator-section {
+  margin-top: 40px;
+  display: grid;
+  gap: 20px;
+}
+
+.swaps-section {
+  margin-top: 40px;
+  display: grid;
+  gap: 20px;
+}
+
+.calendar-section {
+  margin-top: 40px;
+  display: grid;
+  gap: 20px;
+}
+
+.calendar-controls {
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.calendar-scroll {
+  max-width: 100%;
+  overflow: auto;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+  scrollbar-gutter: stable;
+  /* The stable gutter is a strip the sticky header cells never cover; without a
+   *  background of its own it showed as a white rectangle poking past the
+   *  rounded border in the light theme (LOW6-04). */
+  background: var(--cal-header-bg);
+}
+
+:root,
+[data-mui-color-scheme='light'] {
+  --accent-label: #0a5c9e;
+  --topbar-bg: rgba(255, 255, 255, 0.92);
+  --topbar-fg: #122232;
+  --topbar-border: rgba(18, 34, 50, 0.14);
+  --nav-active-bg: rgba(0, 94, 168, 0.12);
+  --cal-week-line: rgba(18, 34, 50, 0.34);
+  --cal-today-bg: rgba(0, 94, 168, 0.09);
+  --cal-today-line: #005ea8;
+  --cal-today-fg: #005ea8;
+  --cal-gap-bg: rgba(176, 42, 42, 0.10);
+  --cal-gap-fg: #a01b1b;
+  --cal-event-blue-bg: #dceeff; --cal-event-blue-fg: #07538d;
+  --cal-event-green-bg: #ddf4e7; --cal-event-green-fg: #175d38;
+  --cal-event-amber-bg: #fff0c7; --cal-event-amber-fg: #704d00;
+  --cal-event-red-bg: #fde2e2; --cal-event-red-fg: #8a1c1c;
+  --cal-event-violet-bg: #eee4ff; --cal-event-violet-fg: #59338c;
+  --cal-event-teal-bg: #d8f2f0; --cal-event-teal-fg: #12605b;
+  --deviation-track: rgba(18, 34, 50, 0.10);
+  --deviation-over: #a35c00;
+  --deviation-under: #0a5c9e;
+  --deviation-neutral: #5a6b7a;
+  --line-card: rgba(18, 34, 50, 0.16);
+  --cal-grid-line: rgba(18, 34, 50, 0.14);
+  --cal-cell-bg: #ffffff;
+  --cal-header-bg: #f2f7fb;
+  --cal-header-subtle: #526579;
+  --cal-member-bg: #f8fbfd;
+  --cal-dayoff-bg: #fff8e8;
+  --cal-hover: rgba(0, 94, 168, 0.07);
+  --cal-focus: #005ea8;
+  --cal-duty-primary-fg: #07538d;
+  --cal-duty-primary-bg: #dceeff;
+  --cal-duty-secondary-fg: #3e4c5b;
+  --cal-duty-secondary-bg: #e8edf2;
+  --cal-duty-late-fg: #704d00;
+  --cal-duty-late-bg: #fff0c7;
+  --cal-state-neutral-fg: #4d3720;
+  --cal-state-neutral-bg: #f3e7d8;
+  --cal-state-unavailable-fg: #8a1c1c;
+  --cal-state-unavailable-bg: #fde2e2;
+  --cal-state-prefer-fg: #175d38;
+  --cal-state-prefer-bg: #ddf4e7;
+}
+
+[data-mui-color-scheme='dark'] {
+  --accent-label: #79bfff;
+  --topbar-bg: rgba(8, 19, 31, 0.88);
+  --topbar-fg: #edf5fc;
+  --topbar-border: rgba(143, 200, 255, 0.14);
+  --nav-active-bg: rgba(143, 200, 255, 0.16);
+  --cal-week-line: rgba(143, 200, 255, 0.34);
+  --cal-today-bg: rgba(58, 141, 222, 0.16);
+  --cal-today-line: #3a8dde;
+  --cal-today-fg: #8fc8ff;
+  --cal-gap-bg: rgba(211, 47, 47, 0.16);
+  --cal-gap-fg: #ff9c9c;
+  --cal-event-blue-bg: #163d60; --cal-event-blue-fg: #a8d5ff;
+  --cal-event-green-bg: #163f2a; --cal-event-green-fg: #9be3b8;
+  --cal-event-amber-bg: #493812; --cal-event-amber-fg: #f5cf78;
+  --cal-event-red-bg: #531f25; --cal-event-red-fg: #ffb1b1;
+  --cal-event-violet-bg: #382452; --cal-event-violet-fg: #d9bcff;
+  --cal-event-teal-bg: #123f3d; --cal-event-teal-fg: #94dfda;
+  --deviation-track: rgba(143, 200, 255, 0.12);
+  --deviation-over: #f0c670;
+  --deviation-under: #8fc8ff;
+  --deviation-neutral: #94a9bc;
+  --line-card: rgba(143, 200, 255, 0.16);
+  --cal-grid-line: rgba(143, 200, 255, 0.12);
+  --cal-cell-bg: #0e1c2b;
+  --cal-header-bg: #132538;
+  --cal-header-subtle: #94a9bc;
+  --cal-member-bg: #112134;
+  --cal-dayoff-bg: rgba(216, 163, 64, 0.12);
+  --cal-hover: rgba(143, 200, 255, 0.09);
+  --cal-focus: #3a8dde;
+  --cal-duty-primary-fg: #8fc8ff;
+  --cal-duty-primary-bg: rgba(58, 141, 222, 0.24);
+  --cal-duty-secondary-fg: #c6d3e0;
+  --cal-duty-secondary-bg: rgba(143, 158, 176, 0.2);
+  --cal-duty-late-fg: #f0c670;
+  --cal-duty-late-bg: rgba(216, 163, 64, 0.22);
+  --cal-state-neutral-fg: #e2c9a8;
+  --cal-state-neutral-bg: rgba(216, 163, 64, 0.15);
+  --cal-state-unavailable-fg: #ff9c9c;
+  --cal-state-unavailable-bg: rgba(211, 47, 47, 0.24);
+  --cal-state-prefer-fg: #8fdcb0;
+  --cal-state-prefer-bg: rgba(46, 125, 50, 0.28);
+}
+
+.calendar-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: max-content;
+  font-size: 0.72rem;
+}
+
+/* Only the day grid sizes its columns from a colgroup; the fairness and impact
+   tables still size themselves from their content. */
+.calendar-matrix.matrix-grid {
+  table-layout: fixed;
+  min-width: 0;
+}
+
+/* 44px is the narrowest column that still fits the "11-19" code and stays a
+   usable touch target. It is what lets 28 of the default 30 days show at once;
+   at the old 112px only about 9 days were visible. */
+.calendar-matrix th,
+.calendar-matrix td {
+  width: 44px;
+  min-width: 44px;
+  height: 60px;
+  padding: 0;
+  border-right: 1px solid var(--cal-grid-line);
+  border-bottom: 1px solid var(--cal-grid-line);
+  background: var(--cal-cell-bg);
+}
+
+.calendar-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 4px 2px;
+  text-align: center;
+  background: var(--cal-header-bg);
+}
+
+.calendar-matrix .month-row th {
+  top: 0;
+  height: 24px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding-inline: 8px;
+  color: var(--cal-header-subtle);
+  border-bottom: 1px solid var(--cal-grid-line);
+  white-space: nowrap;
+}
+
+.month-label {
+  position: sticky;
+  left: 158px;
+  display: inline-block;
+}
+
+.calendar-matrix .day-row th {
+  top: 24px;
+  height: 56px;
+}
+
+/* Week and today markers: the matrix previously ran as one undifferentiated
+   band of columns with no anchor for the eye. */
+.calendar-matrix .week-start { border-left: 2px solid var(--cal-week-line); }
+
+.calendar-matrix .is-today {
+  background: var(--cal-today-bg);
+  box-shadow: inset 2px 0 0 var(--cal-today-line), inset -2px 0 0 var(--cal-today-line);
+}
+
+.calendar-matrix thead .is-today { color: var(--cal-today-fg); }
+.today-flag { color: var(--cal-today-fg) !important; font-weight: 650 !important; }
+
+.coverage-flag {
+  display: inline-block;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--cal-gap-fg);
+}
+
+.calendar-matrix .has-gap { background: var(--cal-gap-bg); }
+
+.calendar-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.calendar-legend {
+  min-height: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--cal-header-subtle);
+}
+
+.calendar-legend b {
+  display: inline-block;
+  min-width: 18px;
+  margin-right: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-align: center;
+  font-size: 0.7rem;
+}
+
+.member-you {
+  margin-left: 6px !important;
+  height: 18px !important;
+  font-size: 0.65rem !important;
+}
+
+.calendar-filter { margin-left: 4px !important; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.calendar-matrix thead th span,
+.calendar-matrix thead th strong,
+.calendar-matrix thead th small {
+  display: block;
+}
+
+.calendar-matrix thead th span,
+.calendar-matrix thead th small {
+  color: var(--cal-header-subtle);
+  font-weight: 500;
+}
+
+/* Must stay inline-block to shrink to its text; see .month-label below. */
+.calendar-matrix thead th span.month-label { display: inline-block; }
+
+.calendar-matrix .member-column {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 150px;
+  min-width: 150px;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--cal-member-bg);
+}
+
+.calendar-matrix thead .member-column { z-index: 3; }
+.calendar-matrix .day-off { background: var(--cal-dayoff-bg); }
+
+.event-blue { --cal-event-bg: var(--cal-event-blue-bg); --cal-event-fg: var(--cal-event-blue-fg); }
+.event-green { --cal-event-bg: var(--cal-event-green-bg); --cal-event-fg: var(--cal-event-green-fg); }
+.event-amber { --cal-event-bg: var(--cal-event-amber-bg); --cal-event-fg: var(--cal-event-amber-fg); }
+.event-red { --cal-event-bg: var(--cal-event-red-bg); --cal-event-fg: var(--cal-event-red-fg); }
+.event-violet { --cal-event-bg: var(--cal-event-violet-bg); --cal-event-fg: var(--cal-event-violet-fg); }
+.event-teal { --cal-event-bg: var(--cal-event-teal-bg); --cal-event-fg: var(--cal-event-teal-fg); }
+
+/* This rule intentionally follows .day-off: an event is an independent visual
+   layer and its stripe must survive holiday, gap and today backgrounds. */
+.calendar-matrix .has-event { box-shadow: inset 0 -3px 0 var(--cal-event-fg); }
+.calendar-matrix .is-today.has-event {
+  box-shadow: inset 2px 0 0 var(--cal-today-line), inset -2px 0 0 var(--cal-today-line), inset 0 -3px 0 var(--cal-event-fg);
+}
+
+.calendar-event-key {
+  width: 18px;
+  height: 8px;
+  border-bottom: 3px solid var(--cal-event-blue-fg);
+}
+
+.calendar-event-chip {
+  color: var(--cal-event-fg) !important;
+  background: var(--cal-event-bg) !important;
+}
+
+.calendar-event-alert .MuiAlert-message { width: 100%; display: grid; gap: 6px; }
+.calendar-event-dialog-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.calendar-event-dialog-row .MuiChip-root { min-width: 0; }
+.calendar-event-dialog-row .MuiChip-label { overflow: hidden; text-overflow: ellipsis; }
+.calendar-event-form { display: grid; gap: 10px; padding-top: 8px; }
+.calendar-event-admin-form { padding: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.calendar-event-admin-form h2 { grid-column: 1 / -1; }
+.calendar-event-admin-row { padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; }
+
+@media (max-width: 760px) {
+  .calendar-event-admin-form,
+  .calendar-event-admin-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+.calendar-cell {
+  width: 100%;
+  height: 100%;
+  padding: 4px 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  color: inherit;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.calendar-cell:hover { background: var(--cal-hover); }
+.calendar-cell:focus-visible { outline: 3px solid var(--cal-focus); outline-offset: -3px; }
+
+.calendar-duty,
+.calendar-state {
+  padding: 1px 3px;
+  border-radius: 3px;
+  text-align: center;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.calendar-duty sup {
+  margin-left: 1px;
+  font-size: 0.62em;
+  vertical-align: super;
+}
+
+.calendar-duty { color: var(--cal-duty-primary-fg); background: var(--cal-duty-primary-bg); }
+.calendar-duty.duty-secondary { color: var(--cal-duty-secondary-fg); background: var(--cal-duty-secondary-bg); }
+.calendar-duty.duty-late_shift { color: var(--cal-duty-late-fg); background: var(--cal-duty-late-bg); }
+.calendar-state { color: var(--cal-state-neutral-fg); background: var(--cal-state-neutral-bg); font-weight: 500; }
+.calendar-state.state-unavailable { color: var(--cal-state-unavailable-fg); background: var(--cal-state-unavailable-bg); }
+.calendar-state.state-prefer { color: var(--cal-state-prefer-fg); background: var(--cal-state-prefer-bg); }
+
+.calendar-dialog-content {
+  padding-top: 8px !important;
+  display: grid;
+  gap: 16px;
+}
+
+.day-staffing {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.day-staffing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.day-staffing-row dt {
+  min-width: 96px;
+  font-weight: 600;
+}
+
+.day-staffing-row dd {
+  margin: 0;
+}
+
+.day-staffing-row .grow {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.day-staffing-na { color: var(--mui-palette-text-secondary); }
+
+.calendar-staff-form { display: grid; gap: 12px; }
+
+.swap-form {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) auto;
+  gap: 12px;
+  align-items: center;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.swap-impact-slot { grid-column: 1 / -1; }
+
+.impact-preview {
+  padding: 16px 20px;
+  display: grid;
+  gap: 12px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.impact-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.impact-side { min-width: 0; display: grid; gap: 6px; align-content: start; }
+.impact-direction { font-size: 0.8rem !important; }
+.impact-rows { display: grid; gap: 6px; }
+
+/* A grid with a `minmax(0, 1fr)` last column let the points text collapse to
+ * near nothing and wrap word-by-word once the two-column `.impact-sides`
+ * layout left it little room (QA7 par. 8, D2 review); flex-wrap instead lets
+ * the three detail lines wrap as whole lines, at any width. */
+.impact-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px 12px;
+  font-size: 0.82rem;
+}
+
+.impact-row .role-label { flex: 0 0 auto; }
+
+.impact-row-detail {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.impact-row .MuiTypography-root { font-size: 0.82rem !important; }
+
+.swap-relative { opacity: 0.7; }
+
+.swap-resolved {
+  border-color: rgba(143, 200, 255, 0.16) !important;
+  background-image: none !important;
+}
+
+.swap-resolved .MuiAccordionDetails-root { padding-top: 0; }
+.nav-badge { padding-right: 10px; }
+.nav-badge .MuiBadge-badge { transform: translate(12px, -8px); }
+
+.swap-list {
+  padding: 8px 20px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.swap-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-block: 14px;
+  border-bottom: 1px solid rgba(143, 200, 255, 0.1);
+}
+
+.swap-row:last-child { border-bottom: 0; }
+
+.swap-actions {
+  min-width: min(100%, 360px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.swap-actions .MuiTextField-root {
+  flex: 1 1 240px;
+}
+
+.generator-form {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, .8fr)) auto;
+  gap: 12px;
+  align-items: center;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.generator-active-policy {
+  grid-column: 1 / -1;
+  font-size: 0.8rem !important;
+}
+
+.draft-result {
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.draft-matrix {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.draft-impact,
+.reports-section {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.impact-table th,
+.impact-table td {
+  min-width: 170px;
+  width: 170px;
+  height: auto;
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+.impact-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.impact-cell .MuiTypography-root:last-child {
+  font-size: 0.75rem;
+}
+
+.reports-section { margin-top: 40px; }
+
+.history-panel,
+.history-preview {
+  padding: 20px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.history-preview {
+  display: grid;
+  gap: 16px;
+}
+
+.history-errors { margin-block: 4px; }
+
+.history-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.6fr) minmax(110px, 0.7fr) minmax(0, 1.5fr);
+  gap: 16px;
+  padding-block: 10px;
+  border-bottom: 1px solid rgba(143, 200, 255, 0.1);
+}
+
+.history-more { padding-top: 4px; }
+
+.availability-form {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: minmax(140px, 0.8fr) repeat(2, minmax(150px, 0.8fr)) minmax(220px, 1.6fr) auto;
+  gap: 12px;
+  align-items: center;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.availability-list {
+  padding: 8px 20px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.availability-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-block: 14px;
+  border-bottom: 1px solid rgba(143, 200, 255, 0.1);
+}
+
+.availability-row:last-child { border-bottom: 0; }
+.grow { min-width: 0; flex: 1; }
+
+.availability-submit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.on-behalf-label {
+  font-size: 0.8rem;
+  line-height: 1.25;
+  max-width: 240px;
+}
+
+.share-section {
+  margin-top: 40px;
+  display: grid;
+  gap: 20px;
+}
+
+.share-form {
+  padding: 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.share-form .MuiTextField-root { flex: 1 1 170px; }
+.share-form .MuiButton-root { flex-shrink: 0; }
+
+.share-list {
+  padding: 8px 20px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.share-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-block: 14px;
+  border-bottom: 1px solid rgba(143, 200, 255, 0.1);
+}
+
+.share-row:last-child { border-bottom: 0; }
+.share-row .grow { min-width: 0; }
+.share-row .grow .MuiTypography-root { overflow-wrap: anywhere; }
+
+.fairness-section {
+  margin-top: 40px;
+  display: grid;
+  gap: 20px;
+}
+
+/* Full width: the table used to cover half the window and waste the rest. */
+.fairness-table { width: 100%; }
+
+.fairness-table th,
+.fairness-table td {
+  height: auto;
+  padding: 8px 10px;
+  vertical-align: top;
+}
+
+.fairness-table thead th { height: auto; text-align: left; }
+.fairness-table thead th small {
+  display: block;
+  font-weight: 500;
+  font-size: 0.68rem;
+  color: var(--cal-header-subtle);
+}
+.fairness-table .member-column { min-width: 150px; padding: 10px 12px; }
+
+/* The monthly report reuses the fairness table shell but has no member-column
+ *  class on its name cells, so they fell back to the 44px grid width and read
+ *  as right-aligned against the left-aligned „Osoba" header (LOW6-06). */
+.report-table tbody th[scope="row"],
+.report-table tfoot th[scope="row"] {
+  min-width: 160px;
+  text-align: left;
+  white-space: nowrap;
+}
+.report-table td { text-align: right; font-variant-numeric: tabular-nums; }
+
+.fairness-table tfoot th,
+.fairness-table tfoot td {
+  border-top: 2px solid var(--cal-header-subtle);
+  font-weight: 600;
+}
+
+.fairness-sort {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 650;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fairness-sort:hover { text-decoration: underline; }
+
+.fairness-cell { display: grid; gap: 5px; }
+
+.fairness-actual {
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+  font-weight: 650 !important;
+  font-size: 0.95rem !important;
+}
+
+.fairness-expected {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--cal-header-subtle);
+}
+
+.deviation {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Centre line is the fair share; the fill grows to whichever side is out. */
+.deviation-track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--deviation-track);
+}
+
+.deviation-track::before {
+  content: "";
+  position: absolute;
+  inset: -2px auto -2px 50%;
+  width: 1px;
+  background: var(--cal-grid-line);
+}
+
+.deviation-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+}
+
+.deviation-over { left: 50%; background: var(--deviation-over); }
+.deviation-under { right: 50%; background: var(--deviation-under); }
+.deviation-neutral { left: calc(50% - 2px); width: 4px; background: var(--deviation-neutral); }
+
+.deviation-value {
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+  font-size: 0.72rem !important;
+  min-width: 30px;
+  text-align: right;
+}
+
+.deviation-value.deviation-over { color: var(--deviation-over); background: none; position: static; }
+.deviation-value.deviation-under { color: var(--deviation-under); background: none; position: static; }
+.deviation-value.deviation-neutral {
+  color: var(--cal-header-subtle);
+  background: none;
+  position: static;
+  width: auto;
+}
+
+.fairness-member {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 650;
+  color: var(--cal-duty-primary-fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.fairness-member:hover { text-decoration: underline; }
+.fairness-member:focus-visible { outline: 3px solid var(--cal-focus); outline-offset: 2px; }
+
+.audit-time { min-width: 132px; }
+
+.audit-action {
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+  font-size: 0.7rem !important;
+}
+
+.calendar-controls .audit-filter { min-width: 260px; }
+
+.weights-form {
+  grid-template-columns: repeat(3, minmax(180px, 1fr)) !important;
+  align-items: start;
+}
+
+.weights-explainer {
+  grid-column: 1 / -1;
+}
+
+.weights-form .MuiButton-root {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+@media (max-width: 760px) {
+  .weights-form { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 760px) {
+  .topbar { padding-inline: 16px; gap: 8px; }
+  .topnav { display: none; }
+  .nav-toggle { display: inline-flex !important; }
+  .topbar-user { display: none; }
+  .topbar-actions { display: none !important; }
+  main { padding-block: 28px; }
+  .duty-grid { grid-template-columns: 1fr; }
+  .readonly-note { grid-template-columns: 1fr; gap: 8px; }
+  .availability-form { grid-template-columns: 1fr; }
+  .generator-form { grid-template-columns: 1fr; }
+  .swap-form { grid-template-columns: 1fr; }
+  .swap-row { flex-direction: column; align-items: stretch; }
+  .swap-actions { min-width: 0; width: 100%; justify-content: flex-start; }
+  .schedule-row { grid-template-columns: 1fr; gap: 8px; }
+  .schedule-person { display: grid; grid-template-columns: 100px minmax(0, 1fr); }
+  .calendar-controls { align-items: stretch; }
+  .calendar-controls .MuiTextField-root { flex: 1 1 140px; }
+  .calendar-matrix .member-column { width: 120px; min-width: 120px; }
+  .share-row { flex-direction: column; align-items: stretch; }
+  .share-row .grow { width: 100%; }
+  .audit-time { min-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+.confirm-content {
+  padding-top: 8px !important;
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .impact-row { flex-direction: column; gap: 2px; }
+}
+
+.draft-list-section {
+  display: grid;
+  gap: 12px;
+}
+
+.draft-list {
+  padding: 4px 20px;
+  border-color: rgba(143, 200, 255, 0.16) !important;
+}
+
+.draft-list-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-block: 14px;
+  border-bottom: 1px solid rgba(143, 200, 255, 0.1);
+}
+
+.draft-list-row:last-child { border-bottom: 0; }
+.draft-list-row.is-active { background: var(--nav-active-bg); }
+.draft-list-meta { font-size: 0.8rem !important; }
+.draft-list-more { margin-block: 8px !important; }
+
+.generator-settings {
+  border-color: rgba(143, 200, 255, 0.16) !important;
+  background-image: none !important;
+}
+
+.generator-settings .MuiAccordionDetails-root { padding: 0 16px 16px; }
+.generator-settings .generator-form { border: 0 !important; padding: 0; }
+
+.draft-stepper { padding-block: 8px; }
+
+@media (max-width: 760px) {
+  .draft-list-row { flex-direction: column; align-items: stretch; }
+}
+
+/* Account table: readable columns, not the 44px day grid. */
+.people-table th,
+.people-table td {
+  width: auto;
+  min-width: 150px;
+  height: auto;
+  padding: 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.people-table .member-column { min-width: 200px; }
+.people-table thead th { text-align: left; }
+
+.people-email {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.people-eligibility {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.people-form,
+.people-detail {
+  display: grid;
+  gap: 16px;
+}
+
+.people-detail { padding-top: 8px !important; }
+
+/* The action bar sits below the scrollable content; give the last form row
+   room so it is never clipped behind it. */
+.people-detail { padding-bottom: 24px !important; }
+
+.people-actions .grow {
+  flex: 1;
+  min-width: 0;
+  align-self: center;
+}
+
+.people-detail-form {
+  display: grid;
+  gap: 16px;
+}
+
+.people-two-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.people-period-form {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) repeat(2, minmax(140px, 1fr)) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.people-period-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) repeat(2, minmax(140px, 1fr)) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.people-link-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.people-link-result .date-code {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .people-two-columns,
+  .people-period-form,
+  .people-period-row { grid-template-columns: minmax(0, 1fr); }
+  .people-link-result { align-items: flex-start; flex-direction: column; }
+}
+
+/* The date picker root is a different class than MuiTextField, so the existing
+   form rules would not reach it. */
+.calendar-controls .MuiPickersTextField-root { min-width: 170px; }
+.share-form .MuiPickersTextField-root { flex: 1 1 170px; }
+.availability-form .MuiPickersTextField-root,
+.generator-form .MuiPickersTextField-root { width: 100%; }
+
+/* Day-by-day view: the small-screen alternative to the people x days matrix. */
+.day-list { display: grid; gap: 10px; }
+
+.day-card {
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+  border-color: var(--line-card) !important;
+}
+
+.day-card.is-day-off { background: var(--cal-dayoff-bg); }
+.day-card.has-gap { border-color: var(--cal-gap-fg) !important; }
+
+.day-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.day-card-date {
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+  font-weight: 650 !important;
+  font-size: 0.9rem !important;
+}
+
+.day-card-roles { display: grid; gap: 4px; }
+
+.day-role {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.day-role:hover { background: var(--cal-hover); }
+.day-role:focus-visible { outline: 3px solid var(--cal-focus); outline-offset: -3px; }
+
+.day-role-tag {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  font-weight: 650;
+  padding: 3px 5px;
+  border-radius: 3px;
+  text-align: center;
+}
+
+.day-role-name { min-width: 0; overflow-wrap: anywhere; font-size: 0.88rem; }
+
+.day-role-mark {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.66rem;
+  color: var(--cal-header-subtle);
+  white-space: nowrap;
+}
+
+.day-card-availability {
+  font-size: 0.8rem !important;
+  padding: 4px 7px;
+  border-radius: 4px;
+}
+
+.calendar-view-toggle .MuiToggleButton-root {
+  padding: 5px 11px;
+  font-size: 0.78rem;
+  text-transform: none;
+}
+
+.empty-state {
+  padding: 22px 4px;
+  display: grid;
+  gap: 5px;
+  max-width: 62ch;
+}
+
+.empty-title { font-weight: 650 !important; }
+.empty-description { font-size: 0.88rem !important; }
+.empty-action { margin-top: 8px; }
+
+.swap-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.swap-option-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--mui-palette-text-secondary);
+}
+
+.swap-option-blocked {
+  color: var(--mui-palette-error-main);
+  white-space: normal;
+}
+
+.swap-violations {
+  margin-top: 4px;
+}
+
+.swap-violations ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.82rem;
+}
+
+.swap-violations li { margin-bottom: 2px; }
+
+.swap-coupled-note { margin-top: 4px; }
+
+/* QA7-L15: a short range left the matrix table hugging the left edge of a
+   full-width wrapper, with an empty band of container to its right. Sizing
+   the wrapper to the table's own width removes the dead space; the existing
+   `max-width: 100%` on `.calendar-scroll` still caps it and `overflow: auto`
+   takes over once the range is long enough to overflow again. */
+.calendar-scroll-fit {
+  width: fit-content;
+}
+
+/* Decision D10: rows are „Ty", then whoever is on duty in the range, then the
+   rest - a caption above each group makes that order legible instead of
+   reading as a broken alphabetical sort. */
+.calendar-matrix .calendar-group-row th {
+  position: sticky;
+  left: 0;
+  height: auto;
+  padding: 4px 10px;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--cal-header-subtle);
+  background: var(--cal-header-bg);
+  border-bottom: 1px solid var(--cal-grid-line);
+}

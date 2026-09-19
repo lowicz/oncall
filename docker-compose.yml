@@ -1,0 +1,97 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-oncall}
+      POSTGRES_USER: ${POSTGRES_USER:-oncall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oncall}
+    volumes:
+      - oncall-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oncall} -d ${POSTGRES_DB:-oncall}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    environment:
+      ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
+      ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS: ${ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS:-1}
+      ONCALL_SESSION_COOKIE_SECURE: ${ONCALL_SESSION_COOKIE_SECURE:-false}
+      ONCALL_ADMIN_USERNAME: ${ONCALL_ADMIN_USERNAME:-}
+      ONCALL_ADMIN_PASSWORD: ${ONCALL_ADMIN_PASSWORD:-}
+      ONCALL_ADMIN_DISPLAY_NAME: ${ONCALL_ADMIN_DISPLAY_NAME:-Administrator}
+      ONCALL_LDAP_ENABLED: ${ONCALL_LDAP_ENABLED:-false}
+      ONCALL_LDAP_SERVER_URI: ${ONCALL_LDAP_SERVER_URI:-}
+      ONCALL_LDAP_BIND_DN: ${ONCALL_LDAP_BIND_DN:-}
+      ONCALL_LDAP_BIND_PASSWORD: ${ONCALL_LDAP_BIND_PASSWORD:-}
+      ONCALL_LDAP_BASE_DN: ${ONCALL_LDAP_BASE_DN:-}
+      ONCALL_LDAP_USER_FILTER: ${ONCALL_LDAP_USER_FILTER:-}
+      ONCALL_LDAP_START_TLS: ${ONCALL_LDAP_START_TLS:-true}
+      ONCALL_LDAP_ATTRIBUTE_PERSONNEL_NUMBER: ${ONCALL_LDAP_ATTRIBUTE_PERSONNEL_NUMBER:-employeeNumber}
+      ONCALL_LDAP_ATTRIBUTE_FIRST_NAME: ${ONCALL_LDAP_ATTRIBUTE_FIRST_NAME:-givenName}
+      ONCALL_LDAP_ATTRIBUTE_LAST_NAME: ${ONCALL_LDAP_ATTRIBUTE_LAST_NAME:-sn}
+      ONCALL_LDAP_ATTRIBUTE_EMAIL: ${ONCALL_LDAP_ATTRIBUTE_EMAIL:-mail}
+      ONCALL_SMTP_HOST: ${ONCALL_SMTP_HOST:-}
+      ONCALL_SMTP_PORT: ${ONCALL_SMTP_PORT:-587}
+      ONCALL_SMTP_USERNAME: ${ONCALL_SMTP_USERNAME:-}
+      ONCALL_SMTP_PASSWORD: ${ONCALL_SMTP_PASSWORD:-}
+      ONCALL_SMTP_LOCAL_HOSTNAME: ${ONCALL_SMTP_LOCAL_HOSTNAME:-}
+      ONCALL_SMTP_USE_TLS: ${ONCALL_SMTP_USE_TLS:-false}
+      ONCALL_SMTP_STARTTLS: ${ONCALL_SMTP_STARTTLS:-true}
+      ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-Erste On-call <oncall@example.com>}
+      ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
+      ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
+      ONCALL_SOLVER_SECONDS: ${ONCALL_SOLVER_SECONDS:-15}
+      ONCALL_SOLVER_LOG: ${ONCALL_SOLVER_LOG:-false}
+      ONCALL_API_WORKERS: ${ONCALL_API_WORKERS:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: ["python", "-m", "oncall.worker"]
+    environment:
+      ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
+      ONCALL_SMTP_HOST: ${ONCALL_SMTP_HOST:-}
+      ONCALL_SMTP_PORT: ${ONCALL_SMTP_PORT:-587}
+      ONCALL_SMTP_USERNAME: ${ONCALL_SMTP_USERNAME:-}
+      ONCALL_SMTP_PASSWORD: ${ONCALL_SMTP_PASSWORD:-}
+      ONCALL_SMTP_LOCAL_HOSTNAME: ${ONCALL_SMTP_LOCAL_HOSTNAME:-}
+      ONCALL_SMTP_USE_TLS: ${ONCALL_SMTP_USE_TLS:-false}
+      ONCALL_SMTP_STARTTLS: ${ONCALL_SMTP_STARTTLS:-true}
+      ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-Erste On-call <oncall@example.com>}
+      ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
+      ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
+      ONCALL_SOLVER_SECONDS: ${ONCALL_SOLVER_SECONDS:-15}
+      ONCALL_SOLVER_LOG: ${ONCALL_SOLVER_LOG:-false}
+      ONCALL_GENERATION_CONCURRENCY: ${ONCALL_GENERATION_CONCURRENCY:-1}
+    # The default CP-SAT worker count is derived from this cgroup CPU quota.
+    # ONCALL_SOLVER_WORKERS remains available as an explicit deployment override.
+    # ONCALL_GENERATION_CONCURRENCY runs more than one solve in parallel; keep it
+    # at 1 unless the worker has cores to spare (two solves on two cores are
+    # slower than two in sequence).
+    cpus: 2.0
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  web:
+    build: ./frontend
+    environment:
+      ONCALL_TLS_ENABLED: ${ONCALL_TLS_ENABLED:-false}
+    ports:
+      - "${ONCALL_WEB_HTTP_PORT:-8080}:80"
+      - "${ONCALL_WEB_HTTPS_PORT:-8443}:443"
+    volumes:
+      # Certificate, key and optional CA; see docs/TLS.md.
+      - ${ONCALL_TLS_DIR:-./tls}:/etc/nginx/tls:ro
+    depends_on:
+      - api
+
+volumes:
+  oncall-db:

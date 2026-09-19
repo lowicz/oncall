@@ -1,0 +1,54 @@
+# --- Sekrety i konfiguracja lokalna ---
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Certyfikaty generowane lokalnie (docs/TLS.md opisuje jak je odtworzyc)
+tls/
+*.pem
+*.key
+*.crt
+*.p12
+
+# --- Python / backend ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# --- Dane i stan runtime ---
+*.db
+*.sqlite
+*.sqlite3
+state_*.json
+
+# --- Narzedzia agentowe: generowane powierzchnie i konfiguracja osobista ---
+# .lavish/ to generowane HTML-e i zrzuty do przegladu - zostaja lokalnie.
+.lavish/
+.codex/
+.claude/settings.local.json
+.aider*
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

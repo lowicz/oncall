@@ -1,0 +1,14 @@
+200
+window: 2025-09-06 - 2026-09-06
+totals: {'primary_points': 481.0, 'secondary_points': 481.0, 'late_shift_count': 251.0, 'weekend_duties': 212.0, 'holiday_duties': 18.0}
+osoba                                    primary                 secondary                late_shift                  weekends                  holidays
+Anna Kowalska             59.0/   57.0/  +2.0    49.0/   51.0/  -2.0    33.0/   29.8/  +3.2    24.0/   22.5/  +1.5     1.0/    1.9/  -0.9  dni={'primary': 366, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Bartosz Mazur             25.0/   24.7/  +0.3    21.0/   22.1/  -1.1    14.0/   13.0/  +1.0    10.0/    9.8/  +0.2     1.0/    0.6/  +0.4  dni={'primary': 159, 'secondary': 159, 'late_shift': 159, 'oncall': 159}
+Julia Nowak               53.0/   57.0/  -4.0    54.0/   51.0/  +3.0    27.0/   29.8/  -2.8    22.0/   22.5/  -0.5     2.0/    1.9/  +0.1  dni={'primary': 366, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Katarzyna Dąbrowska       56.0/   57.0/  -1.0    50.0/   51.0/  -1.0    28.0/   29.8/  -1.8    22.0/   22.5/  -0.5     2.0/    1.9/  +0.1  dni={'primary': 366, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Magdalena Woźniak         58.0/   57.0/  +1.0    54.0/   51.0/  +3.0    30.0/   29.8/  +0.2    22.0/   22.5/  -0.5     3.0/    1.9/  +1.1  dni={'primary': 366, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Marek Wiśniewski          57.0/   57.0/  -0.0    52.0/   51.0/  +1.0    29.0/   29.8/  -0.8    22.0/   22.5/  -0.5     1.0/    1.9/  -0.9  dni={'primary': 366, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Ola Zielińska             58.0/   57.0/  +1.0    48.0/   51.0/  -3.0    31.0/   29.8/  +1.2    22.0/   22.5/  -0.5     1.0/    1.9/  -0.9  dni={'primary': 366, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Piotr Lewandowski         55.0/   57.0/  -2.0    47.0/   51.0/  -4.0    31.0/   29.8/  +1.2    22.0/   22.5/  -0.5     2.0/    1.9/  +0.1  dni={'primary': 366, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Rafał Kamiński             0.0/    0.0/  +0.0    54.0/   51.0/  +3.0    28.0/   29.8/  -1.8    22.0/   22.5/  -0.5     3.0/    1.9/  +1.1  dni={'primary': 0, 'secondary': 366, 'late_shift': 366, 'oncall': 366}
+Tomasz Szymański          60.0/   57.0/  +3.0    52.0/   51.0/  +1.0     0.0/    0.0/  +0.0    24.0/   22.5/  +1.5     2.0/    1.9/  +0.1  dni={'primary': 366, 'secondary': 366, 'late_shift': 0, 'oncall': 366}
