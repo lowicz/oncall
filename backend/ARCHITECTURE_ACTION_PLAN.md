@@ -1,6 +1,6 @@
 # Backend architecture review and action plan
 
-Status: phases 4 and 5 complete; phase 6 items 1, 4 and 5 done; items 2-3 remain  
+Status: phases 4 and 5 complete; phase 6 items 1, 3, 4 and 5 done; item 2 remains  
 Review date: 2026-09-15  
 Decisions approved: 2026-09-15  
 Scope: `backend/src/oncall`, runtime configuration, migrations as persistence context  
@@ -1823,6 +1823,47 @@ Rules for the target:
   before, since no behaviour was touched; Ruff, the strict mypy ratchet over
   20 files and the OpenAPI snapshot, which after the revert matches the
   approved contract exactly.
+
+- **Phase 6c completed on 2026-09-19.** Phase 6 item 3, finding A16, on two
+  procedures. Not on the list of long functions: „only where names improve
+  reading" is the item's own condition, and most of what the measurement turned
+  up is phase 4's solver, which was left alone.
+  `check_history` was 77 lines asking four unrelated questions of the same
+  file. It is now 24 lines that name them - the people may hold these duties,
+  the 11-19 shifts fall on working days, the days are free of publications,
+  nobody holds both on-call roles - and four pure functions, none of which
+  touches a port. The order is load-bearing and now says so: the checks run
+  rule by rule rather than row by row, so the screen groups all the unknown
+  names together instead of interleaving one row's three complaints with the
+  next row's.
+  `_preview` was 101 lines and 28 branches. It is now 43 lines and two named
+  steps: `_protected_changes` (which replaced slots somebody put there on
+  purpose, and whether each can be carried) and `_pending_swap_notices` (which
+  pending swaps this publication would cancel underneath their requesters).
+  **Coverage was measured before either one was touched, not assumed.** Six
+  mutations against `check_history`, one per rule - all six already failed a
+  test, so the extraction had a real check behind it and all six still fail
+  after it. Five against `_preview`, and **one survived**: widening the range
+  filter so a pending swap on an overlapping schedule but outside the new
+  plan's days is still reported as a notice. Nothing anywhere failed. That is
+  a behaviour worth keeping - a swap on a day this publication does not touch
+  survives it, so warning about it asks the coordinator to weigh something
+  that is not going to happen - so it was pinned with a test *before* the code
+  moved, and the mutation now fails.
+  One transcription error was caught by the same discipline rather than by the
+  suite: the first draft of `_protected_changes` narrowed the approved-swap
+  lookup from every schedule in force over the range to only the schedules the
+  changed slots came from. The tests would very likely have missed it. The
+  parameter list carries `current` for that reason, and the line now says why.
+  Validation: 623 tests passed, 1 of them new, with 22 PostgreSQL-gated skips;
+  all 22 concurrency tests passed on the contract PostgreSQL database; Ruff,
+  the strict mypy ratchet over 20 files and the unchanged OpenAPI snapshot
+  passed.
+  **Still not done, and still needing the owner's word:** the four internal
+  defect IDs that phase 6b found in the published OpenAPI descriptions. The
+  edit was prepared and then not applied - updating `contracts/openapi.json`
+  is a deliberate contract change, and this session has no approval for one.
+  Phase 6 item 2 (vocabulary, finding A15) is untouched.
 
 ### Phase 0 — Contract freeze and decisions (mandatory)
 

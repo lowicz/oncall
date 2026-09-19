@@ -23,6 +23,7 @@ from oncall.domain.scheduling.models import (
     ChangeRecord,
     PendingSwapNotice,
     Plan,
+    PlannedDuty,
     PlanView,
     ProtectedChange,
     PublicationPreview,
@@ -375,6 +376,13 @@ async def _rest_violations(
 
 
 async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> PublicationPreview:
+    """What publishing this proposal would do to the roster in force.
+
+    Three questions, asked in the order the screen puts them: which slots this
+    plan replaces, which of those replacements undo somebody's deliberate
+    change and whether each can be carried across, and which pending swaps
+    this publication would cancel underneath their requesters.
+    """
     current = await ports.roster.duties_in_force(plan.starts_on, plan.ends_on)
     replacement = {item.slot: item for item in plan.assignments}
     changed = [
@@ -382,6 +390,53 @@ async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> Publicati
         for key, old in current.items()
         if key in replacement and replacement[key].assignee_name != old.assignee_name
     ]
+    protected = await _protected_changes(plan, current, changed, ports)
+    carried_changes = [item for item in protected if item.reason is None]
+    lost_changes = [item for item in protected if item.reason is not None]
+    notices = await _pending_swap_notices(plan, ports)
+    return PublicationPreview(
+        lost_changes=tuple(
+            sorted(lost_changes, key=lambda item: (item.service_date, item.role.value))
+        ),
+        carried_changes=tuple(
+            sorted(carried_changes, key=lambda item: (item.service_date, item.role.value))
+        ),
+        pending_swaps=tuple(sorted(notices, key=lambda item: (item.service_date, item.role.value))),
+        uncovered_before=tuple(await uncovered_dates(plan.starts_on, ports.roster, today)),
+        stale_changes_count=await stale_changes_count(plan, ports.changes),
+        rest_violations=await _rest_violations(plan, current, carried_changes, ports.roster),
+        replaced=tuple(
+            ReplacedDuty(
+                schedule_id=old.schedule_id,
+                service_date=old.service_date,
+                role=old.role,
+                assignee_name=old.assignee_name,
+                member_id=old.member_id,
+                is_override=old.is_override,
+                new_assignee_name=new.assignee_name,
+            )
+            for old, new in changed
+        ),
+    )
+
+
+async def _protected_changes(
+    plan: Plan,
+    current: dict[Slot, Duty],
+    changed: list[tuple[Duty, PlannedDuty]],
+    ports: SchedulingPorts,
+) -> list[ProtectedChange]:
+    """The replaced slots somebody put there on purpose, and their fate.
+
+    A slot that was swapped or corrected by hand is not just data the
+    generator may overwrite: somebody decided it. Each one is offered back to
+    the coordinator with the person it came from, and with `reason` set when
+    carrying it across would break a hard rule - which is what separates a
+    change that can be kept from one this publication costs.
+    """
+    # Approved swaps are looked for across every schedule in force over this
+    # range, not only the schedules the changed slots came from: a swap can
+    # have moved a slot that this plan happens to fill the same way.
     effective_schedule_ids = {item.schedule_id for item in current.values()}
     approved = (
         await ports.swaps.approved_on(effective_schedule_ids) if effective_schedule_ids else []
@@ -415,9 +470,17 @@ async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> Publicati
                 reason=reason,
             )
         )
-    carried_changes = [item for item in protected if item.reason is None]
-    lost_changes = [item for item in protected if item.reason is not None]
+    return protected
 
+
+async def _pending_swap_notices(plan: Plan, ports: SchedulingPorts) -> list[PendingSwapNotice]:
+    """Swaps still awaiting a decision that this publication would cancel.
+
+    Only the ones it actually takes the slots of: every slot of a schedule it
+    fully covers, and otherwise only the days inside its own range. A swap on
+    a day this plan does not touch survives the publication, so naming it here
+    would ask the coordinator to weigh something that is not going to happen.
+    """
     overlapping = await ports.plans.published_overlapping(plan)
     fully_covered = {
         schedule_id
@@ -440,7 +503,7 @@ async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> Publicati
         for member_id in (swap.requester_member_id, swap.replacement_member_id)
     }
     names = await ports.team.display_names(member_ids) if member_ids else {}
-    notices = [
+    return [
         PendingSwapNotice(
             id=swap.id,
             service_date=swap.service_date,
@@ -451,30 +514,6 @@ async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> Publicati
         )
         for swap in pending
     ]
-    return PublicationPreview(
-        lost_changes=tuple(
-            sorted(lost_changes, key=lambda item: (item.service_date, item.role.value))
-        ),
-        carried_changes=tuple(
-            sorted(carried_changes, key=lambda item: (item.service_date, item.role.value))
-        ),
-        pending_swaps=tuple(sorted(notices, key=lambda item: (item.service_date, item.role.value))),
-        uncovered_before=tuple(await uncovered_dates(plan.starts_on, ports.roster, today)),
-        stale_changes_count=await stale_changes_count(plan, ports.changes),
-        rest_violations=await _rest_violations(plan, current, carried_changes, ports.roster),
-        replaced=tuple(
-            ReplacedDuty(
-                schedule_id=old.schedule_id,
-                service_date=old.service_date,
-                role=old.role,
-                assignee_name=old.assignee_name,
-                member_id=old.member_id,
-                is_override=old.is_override,
-                new_assignee_name=new.assignee_name,
-            )
-            for old, new in changed
-        ),
-    )
 
 
 async def preview_publication(

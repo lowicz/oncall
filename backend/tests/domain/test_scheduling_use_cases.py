@@ -27,6 +27,7 @@ from oncall.domain.scheduling.models import (
 from oncall.domain.scheduling.policy import change_policy
 from oncall.domain.scheduling.publication import (
     override_original_assignees,
+    preview_publication,
     publish,
     stale_changes_count,
 )
@@ -579,3 +580,38 @@ async def test_a_kept_change_checks_eligibility_periods_not_membership_dates(wor
 
     (carried,) = world.plans.carried
     assert (carried.slot, carried.assignee_name) == ((MONDAY, AssignmentRole.primary), "Gosia")
+
+
+async def test_a_pending_swap_outside_the_published_range_is_not_a_publication_notice(
+    world,
+) -> None:
+    """The warning is about swaps this publication would cancel.
+
+    A publication cancels the pending swaps it takes the slots of. A month is
+    published, a fortnight inside it is about to replace part of it, and a swap
+    is pending on a day in the half the fortnight does not touch: that swap
+    survives, so warning about it would ask the coordinator to worry about
+    something that is not going to happen.
+    """
+    month = complete_plan(MONDAY, _rotation(world), days=28, status=ScheduleStatus.published)
+    world.publish_roster_from(month)
+    fortnight = world.plans.put(
+        complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.proposed, name="Szkic marzec")
+    )
+    untouched_day = MONDAY + timedelta(days=20)
+    world.swaps.pending.append(
+        PendingSwap(
+            uuid.uuid4(),
+            world.roster.schedule_ref.id,
+            untouched_day,
+            AssignmentRole.primary,
+            "pending_coordinator",
+            world.celina.id,
+            world.dawid.id,
+            (untouched_day,),
+        )
+    )
+
+    preview = await preview_publication(fortnight.id, world.ports, today=MONDAY)
+
+    assert preview.pending_swaps == ()

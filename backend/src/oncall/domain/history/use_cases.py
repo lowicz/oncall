@@ -21,6 +21,8 @@ from oncall.domain.history.models import (
     ParsedHistoryRow,
 )
 from oncall.domain.history.ports import HistoryPorts
+from oncall.domain.roster import Slot
+from oncall.domain.team import Member
 from oncall.domain.vocabulary import ROLE_LABELS, AssignmentRole
 from oncall.workdays import is_working_day, polish_holidays
 
@@ -32,7 +34,37 @@ async def list_history_imports(ports: HistoryPorts) -> list[HistoryImport]:
 async def check_history(
     rows: list[ParsedHistoryRow], ports: HistoryPorts
 ) -> list[HistoryImportError]:
+    """Every reason this file would be refused, in the order a reader gets them.
+
+    Four rules, each asked of every row before the next rule starts. Applying
+    them rule by rule rather than row by row is what the import screen shows:
+    all the unknown names together, then all the wrong days, rather than one
+    row's three complaints interleaved with the next row's.
+    """
     members = await ports.archive.members()
+    problems = _people_may_hold_these_duties(rows, members)
+    if not rows:
+        # The remaining rules are all asked over the file's date range, and an
+        # empty file has none.
+        return problems
+    starts_on = min(row.service_date for row in rows)
+    ends_on = max(row.service_date for row in rows)
+    problems += _late_shifts_fall_on_working_days(rows, starts_on, ends_on)
+    problems += _days_are_free_of_publications(
+        rows, await ports.archive.published_slots(starts_on, ends_on)
+    )
+    problems += _nobody_holds_both_oncall_roles(rows)
+    return problems
+
+
+def _people_may_hold_these_duties(
+    rows: list[ParsedHistoryRow], members: list[Member]
+) -> list[HistoryImportError]:
+    """The person is in the rotation, was in it that day, and held that role.
+
+    One complaint per row, the first that applies: somebody who is not on the
+    roster at all cannot be asked the other two questions.
+    """
     names = {member.display_name.casefold(): member for member in members}
     problems = []
     for row in rows:
@@ -68,28 +100,43 @@ async def check_history(
                     f"Osoba nie ma eligibility do roli {ROLE_LABELS[row.role]} w tym dniu",
                 )
             )
-    if not rows:
-        return problems
-    starts_on = min(row.service_date for row in rows)
-    ends_on = max(row.service_date for row in rows)
+    return problems
+
+
+def _late_shifts_fall_on_working_days(
+    rows: list[ParsedHistoryRow], starts_on: date, ends_on: date
+) -> list[HistoryImportError]:
+    """The 11-19 shift exists only on Polish working days."""
     holidays = polish_holidays(starts_on, ends_on)
-    for row in rows:
-        if row.role == AssignmentRole.late_shift and not is_working_day(row.service_date, holidays):
-            problems.append(
-                HistoryImportError(
-                    row.row_number, "role", "Zmiana 11–19 jest dozwolona tylko w dni robocze"
-                )
-            )
-    published = await ports.archive.published_slots(starts_on, ends_on)
-    for row in rows:
-        if (row.service_date, row.role) in published:
-            problems.append(
-                HistoryImportError(
-                    row.row_number,
-                    "service_date",
-                    "Data dyżuru jest objęta grafikiem opublikowanym",
-                )
-            )
+    return [
+        HistoryImportError(
+            row.row_number, "role", "Zmiana 11–19 jest dozwolona tylko w dni robocze"
+        )
+        for row in rows
+        if row.role == AssignmentRole.late_shift and not is_working_day(row.service_date, holidays)
+    ]
+
+
+def _days_are_free_of_publications(
+    rows: list[ParsedHistoryRow], published: set[Slot]
+) -> list[HistoryImportError]:
+    """History never overwrites a slot a real publication already holds."""
+    return [
+        HistoryImportError(
+            row.row_number, "service_date", "Data dyżuru jest objęta grafikiem opublikowanym"
+        )
+        for row in rows
+        if (row.service_date, row.role) in published
+    ]
+
+
+def _nobody_holds_both_oncall_roles(rows: list[ParsedHistoryRow]) -> list[HistoryImportError]:
+    """One person cannot be primary and secondary on the same day.
+
+    The row that is flagged is the later of the pair: the first one is not
+    wrong until something contradicts it.
+    """
+    problems = []
     oncall_by_day: dict[date, dict[str, ParsedHistoryRow]] = {}
     for row in rows:
         if row.role not in (AssignmentRole.primary, AssignmentRole.secondary):
