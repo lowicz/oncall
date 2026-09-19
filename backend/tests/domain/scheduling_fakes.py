@@ -11,9 +11,9 @@ from oncall.domain.scheduling.models import (
     CoveredSpan,
     GenerationRun,
     PendingSwap,
-    Plan,
-    PlannedDuty,
-    PlanSummary,
+    Schedule,
+    ScheduledDuty,
+    ScheduleSummary,
     SchedulingPolicy,
 )
 from oncall.domain.scheduling.ports import SchedulingPorts
@@ -29,7 +29,7 @@ from oncall.workdays import is_working_day, polish_holidays
 from tests.domain.fakes import FakeJournal, FakeRoster, FakeTeam
 
 
-def complete_plan(
+def complete_schedule(
     starts_on: date,
     rotation: list[Member],
     *,
@@ -37,8 +37,8 @@ def complete_plan(
     status: ScheduleStatus = ScheduleStatus.draft,
     name: str = "Szkic testowy",
     version: int = 1,
-) -> Plan:
-    """A plan covering every slot: rotation[i] on primary, the next person on
+) -> Schedule:
+    """A schedule covering every slot: rotation[i] on primary, the next person on
     secondary and on 11-19 on working days."""
     ends_on = starts_on + timedelta(days=days - 1)
     holidays = polish_holidays(starts_on, ends_on)
@@ -52,10 +52,10 @@ def complete_plan(
         if is_working_day(day, holidays):
             holders[AssignmentRole.late_shift] = holders[AssignmentRole.secondary]
         assignments += [
-            PlannedDuty(day, role, holder.display_name, holder.id, False)
+            ScheduledDuty(day, role, holder.display_name, holder.id, False)
             for role, holder in holders.items()
         ]
-    return Plan(
+    return Schedule(
         id=uuid.uuid4(),
         name=name,
         starts_on=starts_on,
@@ -73,9 +73,9 @@ def complete_plan(
     )
 
 
-class FakePlans:
+class FakeSchedules:
     def __init__(self) -> None:
-        self.by_id: dict[uuid.UUID, Plan] = {}
+        self.by_id: dict[uuid.UUID, Schedule] = {}
         self.published_spans: dict[uuid.UUID, CoveredSpan] = {}
         self.stored: list = []
         self.deleted: list[uuid.UUID] = []
@@ -84,21 +84,21 @@ class FakePlans:
         self.published: list[tuple[uuid.UUID, str, datetime]] = []
         self.held_publication = False
 
-    def put(self, plan: Plan) -> Plan:
-        self.by_id[plan.id] = plan
-        return plan
+    def put(self, schedule: Schedule) -> Schedule:
+        self.by_id[schedule.id] = schedule
+        return schedule
 
-    async def plan(self, schedule_id):
+    async def schedule(self, schedule_id):
         return self.by_id.get(schedule_id)
 
-    async def plans(self, schedule_ids):
+    async def schedules(self, schedule_ids):
         return {item: self.by_id[item] for item in schedule_ids if item in self.by_id}
 
-    async def plan_to_correct(self, schedule_id):
+    async def schedule_to_correct(self, schedule_id):
         return self.by_id.get(schedule_id)
 
-    async def plan_to_publish(self, schedule_id):
-        assert self.held_publication, "publication must be serialised before the plan is read"
+    async def schedule_to_publish(self, schedule_id):
+        assert self.held_publication, "publication must be serialised before the read"
         return self.by_id.get(schedule_id)
 
     async def hold_publication(self):
@@ -106,7 +106,7 @@ class FakePlans:
 
     async def open_drafts(self, limit):
         return [
-            PlanSummary(
+            ScheduleSummary(
                 item.id,
                 item.name,
                 item.starts_on,
@@ -127,11 +127,13 @@ class FakePlans:
             item for item in self.published_spans.values() if item.ends_on >= ending_on_or_after
         ]
 
-    async def published_overlapping(self, plan):
+    async def published_overlapping(self, schedule):
         return {
             key: span
             for key, span in self.published_spans.items()
-            if key != plan.id and span.starts_on <= plan.ends_on and span.ends_on >= plan.starts_on
+            if key != schedule.id
+            and span.starts_on <= schedule.ends_on
+            and span.ends_on >= schedule.starts_on
         }
 
     async def store_draft(self, draft):
@@ -140,16 +142,20 @@ class FakePlans:
         return stored
 
     async def correct(self, schedule_id, slot, to):
-        plan = self.by_id[schedule_id]
+        schedule = self.by_id[schedule_id]
         self.by_id[schedule_id] = replace(
-            plan.with_holder(slot, to.display_name, to.id), version=plan.version + 1
+            schedule.with_holder(slot, to.display_name, to.id), version=schedule.version + 1
         )
 
     async def change_status(self, schedule_id, *, from_status, to_status, expected_version):
-        plan = self.by_id.get(schedule_id)
-        if plan is None or plan.status != from_status or plan.version != expected_version:
+        schedule = self.by_id.get(schedule_id)
+        if (
+            schedule is None
+            or schedule.status != from_status
+            or schedule.version != expected_version
+        ):
             return False
-        self.by_id[schedule_id] = replace(plan, status=to_status, version=plan.version + 1)
+        self.by_id[schedule_id] = replace(schedule, status=to_status, version=schedule.version + 1)
         return True
 
     async def delete(self, schedule_id):
@@ -159,8 +165,8 @@ class FakePlans:
     async def carry(self, schedule_id, changes):
         self.carried.extend(changes)
 
-    async def retire_covered_by(self, plan):
-        self.retired_by.append(plan.id)
+    async def retire_covered_by(self, schedule):
+        self.retired_by.append(schedule.id)
 
     async def mark_published(self, schedule_id, *, name, published_at):
         self.published.append((schedule_id, name, published_at))
@@ -371,7 +377,7 @@ class FakeSolver:
 class SchedulingWorld:
     team: FakeTeam = field(default_factory=FakeTeam)
     roster: FakeRoster = field(default_factory=FakeRoster)
-    plans: FakePlans = field(default_factory=FakePlans)
+    schedules: FakeSchedules = field(default_factory=FakeSchedules)
     policy: FakePolicyStore = field(default_factory=FakePolicyStore)
     changes: FakeChangeLog = field(default_factory=FakeChangeLog)
     journal: FakeJournal = field(default_factory=FakeJournal)
@@ -383,7 +389,7 @@ class SchedulingWorld:
     @property
     def ports(self) -> SchedulingPorts:
         return SchedulingPorts(
-            plans=self.plans,
+            schedules=self.schedules,
             roster=self.roster,
             team=self.team,
             policy=self.policy,
@@ -396,9 +402,9 @@ class SchedulingWorld:
             solver=self.solver,
         )
 
-    def publish_roster_from(self, plan: Plan) -> None:
-        """Make the plan's assignments the roster in force."""
-        for item in plan.assignments:
+    def publish_roster_from(self, schedule: Schedule) -> None:
+        """Make the schedule's assignments the roster in force."""
+        for item in schedule.assignments:
             self.roster.schedule_ref.slots[item.slot] = Duty(
                 item.service_date,
                 item.role,
@@ -407,6 +413,6 @@ class SchedulingWorld:
                 False,
                 self.roster.schedule_ref.id,
             )
-        self.plans.published_spans[self.roster.schedule_ref.id] = CoveredSpan(
-            plan.starts_on, plan.ends_on
+        self.schedules.published_spans[self.roster.schedule_ref.id] = CoveredSpan(
+            schedule.starts_on, schedule.ends_on
         )

@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from oncall.domain.scheduling.errors import IncompleteSchedule, SamePersonOnBothOnCallRoles
-from oncall.domain.scheduling.models import CoveredSpan, Plan, SuggestedRange, VariantMetrics
+from oncall.domain.scheduling.models import CoveredSpan, Schedule, SuggestedRange, VariantMetrics
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.rules import ONCALL_ROLES, exempt_days, oncall_rest_violations, summarise
 from oncall.workdays import is_working_day, polish_holidays
@@ -72,49 +72,49 @@ def suggested_range(today: date, spans: list[CoveredSpan]) -> SuggestedRange:
     return SuggestedRange(first_uncovered=start, starts_on=start, ends_on=range_end(start))
 
 
-def member_rest_warnings(plan: Plan, member_id: uuid.UUID) -> list[str]:
+def member_rest_warnings(schedule: Schedule, member_id: uuid.UUID) -> list[str]:
     """Thin wrapper over `rules.oncall_rest_violations`, so the draft warnings
     and the post-publication blocks can never drift apart."""
     name = next(
-        (item.assignee_name for item in plan.assignments if item.member_id == member_id),
+        (item.assignee_name for item in schedule.assignments if item.member_id == member_id),
         str(member_id),
     )
     oncall_days = {
         item.service_date
-        for item in plan.assignments
+        for item in schedule.assignments
         if item.member_id == member_id and item.role in ONCALL_ROLES
     }
     if not oncall_days:
         return []
-    holidays = polish_holidays(plan.starts_on, plan.ends_on)
-    days = sorted({item.service_date for item in plan.assignments})
+    holidays = polish_holidays(schedule.starts_on, schedule.ends_on)
+    days = sorted({item.service_date for item in schedule.assignments})
     return summarise(oncall_rest_violations(name, oncall_days, exempt_days(days, holidays)))
 
 
-def rule_warnings(plan: Plan) -> list[str]:
+def rule_warnings(schedule: Schedule) -> list[str]:
     """Hard rules the schedule breaks as it stands, one sentence per person
     and rule, people taken in the order a set of their ids yields them."""
     warnings: list[str] = []
-    for member_id in {item.member_id for item in plan.assignments if item.member_id}:
-        for warning in member_rest_warnings(plan, member_id):
+    for member_id in {item.member_id for item in schedule.assignments if item.member_id}:
+        for warning in member_rest_warnings(schedule, member_id):
             if warning not in warnings:
                 warnings.append(warning)
     return warnings
 
 
-def validate_complete(plan: Plan) -> None:
-    days = (plan.ends_on - plan.starts_on).days + 1
-    polish_days = polish_holidays(plan.starts_on, plan.ends_on)
+def validate_complete(schedule: Schedule) -> None:
+    days = (schedule.ends_on - schedule.starts_on).days + 1
+    polish_days = polish_holidays(schedule.starts_on, schedule.ends_on)
     by_day: dict[date, dict[AssignmentRole, uuid.UUID | str]] = defaultdict(dict)
-    for assignment in plan.assignments:
+    for assignment in schedule.assignments:
         by_day[assignment.service_date][assignment.role] = (
             assignment.member_id or assignment.assignee_name
         )
     expected_count = days * 2 + sum(
-        is_working_day(plan.starts_on + timedelta(days=offset), polish_days)
+        is_working_day(schedule.starts_on + timedelta(days=offset), polish_days)
         for offset in range(days)
     )
-    if len(plan.assignments) != expected_count or len(by_day) != days:
+    if len(schedule.assignments) != expected_count or len(by_day) != days:
         raise IncompleteSchedule()
     for day, assignments in by_day.items():
         expected_roles = {AssignmentRole.primary, AssignmentRole.secondary}
@@ -126,8 +126,10 @@ def validate_complete(plan: Plan) -> None:
             raise SamePersonOnBothOnCallRoles(day)
 
 
-def comparison_metrics(plan: Plan) -> VariantMetrics:
-    assignments = sorted(plan.assignments, key=lambda item: (item.role.value, item.service_date))
+def comparison_metrics(schedule: Schedule) -> VariantMetrics:
+    assignments = sorted(
+        schedule.assignments, key=lambda item: (item.role.value, item.service_date)
+    )
     handovers = 0
     max_streak = 0
     counts: dict[tuple[AssignmentRole, uuid.UUID | str], int] = defaultdict(int)
@@ -150,9 +152,9 @@ def comparison_metrics(plan: Plan) -> VariantMetrics:
         if values:
             role_spreads.append(max(values) - min(values))
     return VariantMetrics(
-        id=plan.id,
-        name=plan.name,
-        rotation_mode=plan.rotation_mode,
+        id=schedule.id,
+        name=schedule.name,
+        rotation_mode=schedule.rotation_mode,
         assignment_count=len(assignments),
         handovers=handovers,
         max_consecutive_days=max_streak,

@@ -9,12 +9,12 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 from oncall.domain.scheduling.models import (
     Comparison,
     PendingSwapNotice,
-    PlanSummary,
-    PlanView,
     ProtectedChange,
     PublicationPreview,
     QueuedGeneration,
     RunView,
+    ScheduleSummary,
+    ScheduleView,
     SuggestedRange,
 )
 from oncall.domain.scheduling.solver import total_time_budget
@@ -256,21 +256,21 @@ def suggested_range_response(suggestion: SuggestedRange) -> SuggestedRangeRespon
     }
 
 
-def schedule_response(view: PlanView) -> DraftScheduleResponse:
+def schedule_response(view: ScheduleView) -> DraftScheduleResponse:
     """The draft as the generator screen sees it."""
-    plan = view.plan
+    schedule = view.schedule
     return DraftScheduleResponse(
-        id=plan.id,
-        name=plan.name,
-        starts_on=plan.starts_on,
-        ends_on=plan.ends_on,
-        status=plan.status.value,
-        version=plan.version,
-        rotation_mode=plan.rotation_mode or RotationMode.hybrid,
-        solver_status=plan.solver_status or "UNKNOWN",
-        acceptance_floor=plan.acceptance_floor,
-        fairness_proven=plan.fairness_proven,
-        continuity_gap=plan.continuity_gap,
+        id=schedule.id,
+        name=schedule.name,
+        starts_on=schedule.starts_on,
+        ends_on=schedule.ends_on,
+        status=schedule.status.value,
+        version=schedule.version,
+        rotation_mode=schedule.rotation_mode or RotationMode.hybrid,
+        solver_status=schedule.solver_status or "UNKNOWN",
+        acceptance_floor=schedule.acceptance_floor,
+        fairness_proven=schedule.fairness_proven,
+        continuity_gap=schedule.continuity_gap,
         assignments=[
             AssignmentResponse(
                 service_date=item.service_date,
@@ -279,13 +279,13 @@ def schedule_response(view: PlanView) -> DraftScheduleResponse:
                 is_override=item.is_override,
             )
             for item in sorted(
-                plan.assignments,
+                schedule.assignments,
                 key=lambda assignment: (assignment.service_date, assignment.role.value),
             )
         ],
         warnings=[
             ScheduleWarningResponse(source="solver", message=message)
-            for message in plan.solver_warnings
+            for message in schedule.solver_warnings
         ]
         + [
             ScheduleWarningResponse(source="rules", message=message)
@@ -304,7 +304,7 @@ def schedule_response(view: PlanView) -> DraftScheduleResponse:
     )
 
 
-def schedule_summary_response(item: PlanSummary) -> ScheduleSummaryResponse:
+def schedule_summary_response(item: ScheduleSummary) -> ScheduleSummaryResponse:
     return ScheduleSummaryResponse(
         id=item.id,
         name=item.name,

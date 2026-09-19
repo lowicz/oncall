@@ -1,4 +1,9 @@
-"""SQLAlchemy persistence for schedule plans and their assignments."""
+"""SQLAlchemy persistence for schedules and their assignments.
+
+The ORM row and the domain value both want the name `Schedule`, so the row is
+imported here as `ScheduleRow`: inside this module `Schedule` is always the
+value the domain works with, and `ScheduleRow` is always the table.
+"""
 
 import uuid
 from collections.abc import Iterable
@@ -13,22 +18,23 @@ from oncall.domain.scheduling.models import (
     HISTORY_IMPORT_PREFIX,
     CarriedChange,
     CoveredSpan,
-    Plan,
-    PlannedDuty,
-    PlanSummary,
+    Schedule,
+    ScheduledDuty,
+    ScheduleSummary,
 )
-from oncall.domain.scheduling.ports import NewDraft, Plans, StoredPlan
+from oncall.domain.scheduling.ports import NewDraft, Schedules, StoredSchedule
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import ScheduleStatus
-from oncall.models import Assignment, Schedule
+from oncall.models import Assignment
+from oncall.models import Schedule as ScheduleRow
 
 #: PostgreSQL advisory lock serialising publication of overlapping ranges.
 PUBLICATION_LOCK_KEY = 20260902
 
 
-def _to_plan(row: Schedule) -> Plan:
+def _to_schedule(row: ScheduleRow) -> Schedule:
     """Map a schedule whose assignments have already been loaded."""
-    return Plan(
+    return Schedule(
         id=row.id,
         name=row.name,
         starts_on=row.starts_on,
@@ -43,7 +49,7 @@ def _to_plan(row: Schedule) -> Plan:
         continuity_gap=row.continuity_gap,
         solver_warnings=tuple(row.solver_warnings or ()),
         assignments=tuple(
-            PlannedDuty(
+            ScheduledDuty(
                 service_date=item.service_date,
                 role=item.role,
                 assignee_name=item.assignee_name,
@@ -58,42 +64,46 @@ def _to_plan(row: Schedule) -> Plan:
 def _with_assignments():
     # Status may be changed by UPDATE, so repeated reads refresh loaded rows.
     return (
-        select(Schedule)
-        .options(selectinload(Schedule.assignments))
+        select(ScheduleRow)
+        .options(selectinload(ScheduleRow.assignments))
         .execution_options(populate_existing=True)
     )
 
 
-class SqlAlchemyPlans(Plans):
+class SqlAlchemySchedules(Schedules):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-        self._rows: dict[uuid.UUID, Schedule] = {}
+        self._rows: dict[uuid.UUID, ScheduleRow] = {}
 
-    async def _one(self, schedule_id: uuid.UUID, *, for_update: bool = False) -> Plan | None:
-        query = _with_assignments().where(Schedule.id == schedule_id)
+    async def _one(self, schedule_id: uuid.UUID, *, for_update: bool = False) -> ScheduleRow | None:
+        query = _with_assignments().where(ScheduleRow.id == schedule_id)
         if for_update:
             query = query.with_for_update()
         row = await self._session.scalar(query)
         if row is None:
             return None
         self._rows[row.id] = row
-        return _to_plan(row)
+        return _to_schedule(row)
 
-    async def plan(self, schedule_id: uuid.UUID) -> Plan | None:
+    async def schedule(self, schedule_id: uuid.UUID) -> Schedule | None:
         return await self._one(schedule_id)
 
-    async def plans(self, schedule_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Plan]:
+    async def schedules(self, schedule_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Schedule]:
         rows = (
-            (await self._session.scalars(_with_assignments().where(Schedule.id.in_(schedule_ids))))
+            (
+                await self._session.scalars(
+                    _with_assignments().where(ScheduleRow.id.in_(schedule_ids))
+                )
+            )
             .unique()
             .all()
         )
-        return {row.id: _to_plan(row) for row in rows}
+        return {row.id: _to_schedule(row) for row in rows}
 
-    async def plan_to_correct(self, schedule_id: uuid.UUID) -> Plan | None:
+    async def schedule_to_correct(self, schedule_id: uuid.UUID) -> Schedule | None:
         return await self._one(schedule_id, for_update=True)
 
-    async def plan_to_publish(self, schedule_id: uuid.UUID) -> Plan | None:
+    async def schedule_to_publish(self, schedule_id: uuid.UUID) -> Schedule | None:
         return await self._one(schedule_id, for_update=True)
 
     async def hold_publication(self) -> None:
@@ -103,14 +113,14 @@ class SqlAlchemyPlans(Plans):
                 text(f"SELECT pg_advisory_xact_lock({PUBLICATION_LOCK_KEY})")
             )
 
-    async def open_drafts(self, limit: int) -> list[PlanSummary]:
+    async def open_drafts(self, limit: int) -> list[ScheduleSummary]:
         rows = (
             (
                 await self._session.scalars(
-                    select(Schedule)
-                    .options(selectinload(Schedule.assignments))
-                    .where(Schedule.status.in_((ScheduleStatus.draft, ScheduleStatus.proposed)))
-                    .order_by(Schedule.starts_on.desc())
+                    select(ScheduleRow)
+                    .options(selectinload(ScheduleRow.assignments))
+                    .where(ScheduleRow.status.in_((ScheduleStatus.draft, ScheduleStatus.proposed)))
+                    .order_by(ScheduleRow.starts_on.desc())
                     .limit(limit)
                 )
             )
@@ -118,7 +128,7 @@ class SqlAlchemyPlans(Plans):
             .all()
         )
         return [
-            PlanSummary(
+            ScheduleSummary(
                 id=row.id,
                 name=row.name,
                 starts_on=row.starts_on,
@@ -136,35 +146,35 @@ class SqlAlchemyPlans(Plans):
     async def covering_spans(self, ending_on_or_after: date) -> list[CoveredSpan]:
         rows = (
             await self._session.scalars(
-                select(Schedule)
+                select(ScheduleRow)
                 .where(
                     (
-                        (Schedule.status == ScheduleStatus.published)
-                        | Schedule.name.startswith(HISTORY_IMPORT_PREFIX)
+                        (ScheduleRow.status == ScheduleStatus.published)
+                        | ScheduleRow.name.startswith(HISTORY_IMPORT_PREFIX)
                     ),
-                    Schedule.ends_on >= ending_on_or_after,
+                    ScheduleRow.ends_on >= ending_on_or_after,
                 )
-                .order_by(Schedule.starts_on, Schedule.ends_on)
+                .order_by(ScheduleRow.starts_on, ScheduleRow.ends_on)
             )
         ).all()
         return [CoveredSpan(row.starts_on, row.ends_on) for row in rows]
 
-    async def published_overlapping(self, plan: Plan) -> dict[uuid.UUID, CoveredSpan]:
+    async def published_overlapping(self, schedule: Schedule) -> dict[uuid.UUID, CoveredSpan]:
         rows = (
             await self._session.execute(
-                select(Schedule.id, Schedule.starts_on, Schedule.ends_on).where(
-                    Schedule.id != plan.id,
-                    Schedule.status == ScheduleStatus.published,
-                    Schedule.starts_on <= plan.ends_on,
-                    Schedule.ends_on >= plan.starts_on,
+                select(ScheduleRow.id, ScheduleRow.starts_on, ScheduleRow.ends_on).where(
+                    ScheduleRow.id != schedule.id,
+                    ScheduleRow.status == ScheduleStatus.published,
+                    ScheduleRow.starts_on <= schedule.ends_on,
+                    ScheduleRow.ends_on >= schedule.starts_on,
                 )
             )
         ).all()
         return {row.id: CoveredSpan(row.starts_on, row.ends_on) for row in rows}
 
-    async def store_draft(self, draft: NewDraft) -> StoredPlan:
+    async def store_draft(self, draft: NewDraft) -> StoredSchedule:
         result = draft.result
-        schedule = Schedule(
+        schedule = ScheduleRow(
             name=draft.name,
             starts_on=draft.starts_on,
             ends_on=draft.ends_on,
@@ -209,19 +219,19 @@ class SqlAlchemyPlans(Plans):
         expected_version: int,
     ) -> bool:
         result = await self._session.execute(
-            update(Schedule)
+            update(ScheduleRow)
             .where(
-                Schedule.id == schedule_id,
-                Schedule.status == from_status,
-                Schedule.version == expected_version,
+                ScheduleRow.id == schedule_id,
+                ScheduleRow.status == from_status,
+                ScheduleRow.version == expected_version,
             )
-            .values(status=to_status, version=Schedule.version + 1)
-            .returning(Schedule.id)
+            .values(status=to_status, version=ScheduleRow.version + 1)
+            .returning(ScheduleRow.id)
         )
         return result.scalar_one_or_none() is not None
 
     async def delete(self, schedule_id: uuid.UUID) -> None:
-        # Assignments follow through the Schedule.assignments cascade.
+        # Assignments follow through the ScheduleRow.assignments cascade.
         await self._session.delete(self._rows.pop(schedule_id))
 
     async def carry(self, schedule_id: uuid.UUID, changes: list[CarriedChange]) -> None:
@@ -233,16 +243,16 @@ class SqlAlchemyPlans(Plans):
             assignment.member_id = change.member_id
             assignment.is_override = True
 
-    async def retire_covered_by(self, plan: Plan) -> None:
+    async def retire_covered_by(self, schedule: Schedule) -> None:
         await self._session.execute(
-            update(Schedule)
+            update(ScheduleRow)
             .where(
-                Schedule.id != plan.id,
-                Schedule.status == ScheduleStatus.published,
-                Schedule.starts_on >= plan.starts_on,
-                Schedule.ends_on <= plan.ends_on,
+                ScheduleRow.id != schedule.id,
+                ScheduleRow.status == ScheduleStatus.published,
+                ScheduleRow.starts_on >= schedule.starts_on,
+                ScheduleRow.ends_on <= schedule.ends_on,
             )
-            .values(status=ScheduleStatus.superseded, version=Schedule.version + 1)
+            .values(status=ScheduleStatus.superseded, version=ScheduleRow.version + 1)
         )
 
     async def mark_published(
@@ -256,4 +266,4 @@ class SqlAlchemyPlans(Plans):
             row.name = name
 
 
-__all__ = ["PUBLICATION_LOCK_KEY", "SqlAlchemyPlans"]
+__all__ = ["PUBLICATION_LOCK_KEY", "SqlAlchemySchedules"]

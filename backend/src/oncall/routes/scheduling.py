@@ -118,16 +118,16 @@ def _scheduling_errors():
     return domain_errors_as_http(SCHEDULING_ERROR_STATUSES, SCHEDULING_ERROR_DETAILS)
 
 
-async def _written_plan(
+async def _written_schedule(
     schedule_id: uuid.UUID, ports: SchedulingPorts, *, warnings: list[str] | None = None
 ) -> DraftScheduleResponse:
     """The schedule read back after its unit of work is written."""
-    plan = await ports.plans.plan(schedule_id)
-    if plan is None:
+    schedule = await ports.schedules.schedule(schedule_id)
+    if schedule is None:
         with _scheduling_errors():
             raise errors.ScheduleNotFound(schedule_id)
     return schedule_response(
-        await publication.view_plan(plan, ports, today=_utc_today(), warnings=warnings)
+        await publication.view_schedule(schedule, ports, today=_utc_today(), warnings=warnings)
     )
 
 
@@ -225,7 +225,7 @@ async def override_draft_assignment(
             ),
             ports,
         )
-    return await _written_plan(schedule_id, ports, warnings=warnings)
+    return await _written_schedule(schedule_id, ports, warnings=warnings)
 
 
 @router.get("/drafts", response_model=list[ScheduleSummaryResponse])
@@ -260,7 +260,7 @@ async def get_schedule(
 ) -> DraftScheduleResponse:
     """One schedule with its assignments, so a draft survives a page reload."""
     with _scheduling_errors():
-        view = await publication.show_plan(schedule_id, ports, today=_utc_today())
+        view = await publication.show_schedule(schedule_id, ports, today=_utc_today())
     return schedule_response(view)
 
 
@@ -274,8 +274,8 @@ async def draft_fairness_impact(
         impact = await drafts.fairness_impact(schedule_id, ports)
     criterion_ids = set(impact.criterion_ids)
     return DraftFairnessImpactResponse(
-        schedule_id=impact.plan.id,
-        schedule_version=impact.plan.version,
+        schedule_id=impact.schedule.id,
+        schedule_version=impact.schedule.version,
         baseline_as_of=impact.as_of,
         projected_as_of=impact.as_of,
         baseline_members=[member_response(item, criterion_ids) for item in impact.baseline],
@@ -292,7 +292,7 @@ async def draft_fairness_impact(
             )
             for item in impact.spreads
         ],
-        acceptance_floor=impact.plan.acceptance_floor,
+        acceptance_floor=impact.schedule.acceptance_floor,
     )
 
 
@@ -306,7 +306,7 @@ async def delete_schedule(
     they are never deletable; abandoned drafts otherwise pile up in the listing.
     """
     with _scheduling_errors():
-        await drafts.delete_plan(schedule_id, ports)
+        await drafts.delete_schedule(schedule_id, ports)
 
 
 @router.post("/{schedule_id}/propose", response_model=DraftScheduleResponse)
@@ -321,7 +321,7 @@ async def propose_schedule(
         await drafts.propose(
             Transition(actor_from(user), schedule_id, payload.expected_version), ports
         )
-    return await _written_plan(schedule_id, ports)
+    return await _written_schedule(schedule_id, ports)
 
 
 @router.post("/{schedule_id}/withdraw", response_model=DraftScheduleResponse)
@@ -336,7 +336,7 @@ async def withdraw_schedule(
         await drafts.withdraw(
             Transition(actor_from(user), schedule_id, payload.expected_version), ports
         )
-    return await _written_plan(schedule_id, ports)
+    return await _written_schedule(schedule_id, ports)
 
 
 @router.get("/{schedule_id}/publish-preview", response_model=PublishPreviewResponse)
@@ -371,4 +371,4 @@ async def publish_schedule(
             today=_utc_today(),
             now=utc_now(),
         )
-    return await _written_plan(schedule_id, ports)
+    return await _written_schedule(schedule_id, ports)

@@ -10,8 +10,8 @@ from oncall.domain.scheduling.models import (
     DraftCorrection,
     FairnessImpact,
     LensImpact,
-    Plan,
-    PlanSummary,
+    Schedule,
+    ScheduleSummary,
     Transition,
     UnavailabilityConflict,
 )
@@ -31,15 +31,15 @@ from oncall.workdays import is_working_day, polish_holidays
 
 
 async def unavailability_conflicts(
-    plan: Plan, team: TeamDirectory
+    schedule: Schedule, team: TeamDirectory
 ) -> tuple[UnavailabilityConflict, ...]:
-    member_ids = {item.member_id for item in plan.assignments if item.member_id is not None}
+    member_ids = {item.member_id for item in schedule.assignments if item.member_id is not None}
     if not member_ids:
         return ()
     members = await team.members(member_ids)
     conflicts = [
         UnavailabilityConflict(item.service_date, item.role, item.assignee_name)
-        for item in plan.assignments
+        for item in schedule.assignments
         if item.member_id is not None
         and (member := members.get(item.member_id)) is not None
         and member.is_unavailable(item.service_date)
@@ -48,14 +48,14 @@ async def unavailability_conflicts(
     return tuple(conflicts)
 
 
-async def open_drafts(limit: int, ports: SchedulingPorts) -> list[PlanSummary]:
-    return await ports.plans.open_drafts(limit)
+async def open_drafts(limit: int, ports: SchedulingPorts) -> list[ScheduleSummary]:
+    return await ports.schedules.open_drafts(limit)
 
 
 async def compare_variants(
     left_id: uuid.UUID, right_id: uuid.UUID, ports: SchedulingPorts
 ) -> Comparison:
-    by_id = await ports.plans.plans((left_id, right_id))
+    by_id = await ports.schedules.schedules((left_id, right_id))
     if left_id not in by_id or right_id not in by_id:
         raise errors.VariantNotFound()
     left, right = by_id[left_id], by_id[right_id]
@@ -69,12 +69,12 @@ async def compare_variants(
 
 
 async def fairness_impact(schedule_id: uuid.UUID, ports: SchedulingPorts) -> FairnessImpact:
-    plan = await ports.plans.plan(schedule_id)
-    if plan is None:
+    schedule = await ports.schedules.schedule(schedule_id)
+    if schedule is None:
         raise errors.ScheduleNotFound(schedule_id)
     # Both sides use one rolling window. The draft replaces regenerated slots
     # instead of adding a second duty on top of the published assignment.
-    projected_end = plan.ends_on
+    projected_end = schedule.ends_on
     projected_start = projected_end - timedelta(days=365)
     members = await ports.members.active_between(projected_start, projected_end)
     historical = await ports.history.duties_in_force(projected_start, projected_end)
@@ -85,7 +85,7 @@ async def fairness_impact(schedule_id: uuid.UUID, ports: SchedulingPorts) -> Fai
             assignee_name=item.assignee_name,
             member_id=item.member_id,
         )
-        for item in plan.assignments
+        for item in schedule.assignments
     ]
     holidays = polish_holidays(projected_start, projected_end)
     baseline = compute_fairness(
@@ -116,7 +116,7 @@ async def fairness_impact(schedule_id: uuid.UUID, ports: SchedulingPorts) -> Fai
         for lens in graded_lenses(late_shift_balanced)
     )
     return FairnessImpact(
-        plan=plan,
+        schedule=schedule,
         as_of=projected_end,
         baseline=tuple(baseline.members),
         projected=tuple(projected.members),
@@ -129,13 +129,13 @@ async def fairness_impact(schedule_id: uuid.UUID, ports: SchedulingPorts) -> Fai
 
 async def correct_draft(correction: DraftCorrection, ports: SchedulingPorts) -> list[str]:
     """Give one draft slot to another eligible and available member."""
-    plan = await ports.plans.plan_to_correct(correction.schedule_id)
-    if plan is None or plan.status != ScheduleStatus.draft:
+    schedule = await ports.schedules.schedule_to_correct(correction.schedule_id)
+    if schedule is None or schedule.status != ScheduleStatus.draft:
         raise errors.EditableDraftNotFound(correction.schedule_id)
-    if plan.version != correction.expected_version:
-        raise errors.DraftChanged(plan.id)
+    if schedule.version != correction.expected_version:
+        raise errors.DraftChanged(schedule.id)
     day, role = correction.service_date, correction.role
-    if not plan.starts_on <= day <= plan.ends_on:
+    if not schedule.starts_on <= day <= schedule.ends_on:
         raise errors.DateOutsideDraft(day)
     if role == AssignmentRole.late_shift and not is_working_day(day, polish_holidays(day, day)):
         raise errors.LateShiftOnlyOnWorkingDays(day)
@@ -146,7 +146,7 @@ async def correct_draft(correction: DraftCorrection, ports: SchedulingPorts) -> 
         raise errors.ReplacementNotEligible(replacement.id, (day, role))
     if replacement.is_unavailable(day):
         raise errors.ReplacementUnavailable(replacement.id, day)
-    assignment = next((item for item in plan.assignments if item.slot == (day, role)), None)
+    assignment = next((item for item in schedule.assignments if item.slot == (day, role)), None)
     if assignment is None:
         raise errors.DraftSlotNotFound((day, role))
     if role in (AssignmentRole.primary, AssignmentRole.secondary):
@@ -155,55 +155,58 @@ async def correct_draft(correction: DraftCorrection, ports: SchedulingPorts) -> 
         )
         if any(
             item.slot == (day, opposite) and item.member_id == replacement.id
-            for item in plan.assignments
+            for item in schedule.assignments
         ):
             raise errors.SecondOnCallSameDay(replacement.id, day)
-    corrected = plan.with_holder((day, role), replacement.display_name, replacement.id)
+    corrected = schedule.with_holder((day, role), replacement.display_name, replacement.id)
     warnings = member_rest_warnings(corrected, replacement.id)
-    await ports.plans.correct(plan.id, (day, role), replacement)
+    await ports.schedules.correct(schedule.id, (day, role), replacement)
     await ports.journal.draft_corrected(
-        plan.id, (day, role), assignment.assignee_name, replacement.display_name
+        schedule.id, (day, role), assignment.assignee_name, replacement.display_name
     )
     return warnings
 
 
-async def delete_plan(schedule_id: uuid.UUID, ports: SchedulingPorts) -> None:
-    plan = await ports.plans.plan(schedule_id)
-    if plan is None:
+async def delete_schedule(schedule_id: uuid.UUID, ports: SchedulingPorts) -> None:
+    schedule = await ports.schedules.schedule(schedule_id)
+    if schedule is None:
         raise errors.ScheduleNotFound(schedule_id)
-    imported_history = plan.is_imported_history
-    if plan.status not in (ScheduleStatus.draft, ScheduleStatus.proposed) and not imported_history:
-        raise errors.ScheduleNotDeletable(plan.id)
+    imported_history = schedule.is_imported_history
+    if (
+        schedule.status not in (ScheduleStatus.draft, ScheduleStatus.proposed)
+        and not imported_history
+    ):
+        raise errors.ScheduleNotDeletable(schedule.id)
     kind = (
         "zaimportowaną historię"
         if imported_history
         else "propozycję"
-        if plan.status == ScheduleStatus.proposed
+        if schedule.status == ScheduleStatus.proposed
         else "szkic"
     )
-    await ports.journal.schedule_deleted(plan, kind)
-    await ports.plans.delete(plan.id)
+    await ports.journal.schedule_deleted(schedule, kind)
+    await ports.schedules.delete(schedule.id)
 
 
 async def propose(transition: Transition, ports: SchedulingPorts) -> None:
-    plan = await ports.plans.plan(transition.schedule_id)
-    if plan is None:
+    schedule = await ports.schedules.schedule(transition.schedule_id)
+    if schedule is None:
         raise errors.ScheduleNotFound(transition.schedule_id)
-    conflicts = await unavailability_conflicts(plan, ports.team)
+    conflicts = await unavailability_conflicts(schedule, ports.team)
     if conflicts:
         raise errors.ProposalHasUnavailablePeople(conflicts)
-    if not await ports.plans.change_status(
-        plan.id,
+    if not await ports.schedules.change_status(
+        schedule.id,
         from_status=ScheduleStatus.draft,
         to_status=ScheduleStatus.proposed,
         expected_version=transition.expected_version,
     ):
-        raise errors.DraftStateChanged(plan.id)
-    await ports.journal.schedule_proposed(plan.id)
+        raise errors.DraftStateChanged(schedule.id)
+    await ports.journal.schedule_proposed(schedule.id)
 
 
 async def withdraw(transition: Transition, ports: SchedulingPorts) -> None:
-    if not await ports.plans.change_status(
+    if not await ports.schedules.change_status(
         transition.schedule_id,
         from_status=ScheduleStatus.proposed,
         to_status=ScheduleStatus.draft,

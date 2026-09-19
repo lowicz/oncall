@@ -12,8 +12,8 @@ from oncall.infrastructure.sqlalchemy.scheduling_generation import (
     SqlAlchemyPolicyStore,
 )
 from oncall.infrastructure.sqlalchemy.scheduling_journal import SqlAlchemySchedulingJournal
-from oncall.infrastructure.sqlalchemy.scheduling_plans import SqlAlchemyPlans
 from oncall.infrastructure.sqlalchemy.scheduling_publication import SqlAlchemyPublicationSwaps
+from oncall.infrastructure.sqlalchemy.scheduling_schedules import SqlAlchemySchedules
 from oncall.infrastructure.sqlalchemy.scheduling_team import SqlAlchemySchedulingTeam
 from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
 from oncall.models import User
@@ -21,7 +21,7 @@ from oncall.models import User
 
 def scheduling_ports(session: AsyncSession, actor: User | None = None) -> SchedulingPorts:
     return SchedulingPorts(
-        plans=SqlAlchemyPlans(session),
+        schedules=SqlAlchemySchedules(session),
         roster=SqlAlchemyPublishedRoster(session),
         team=SqlAlchemyTeamDirectory(session),
         policy=SqlAlchemyPolicyStore(session),

@@ -1,6 +1,6 @@
 # Backend architecture review and action plan
 
-Status: phases 4 and 5 complete; phase 6 items 1, 3, 4 and 5 done; item 2 (vocabulary) remains  
+Status: all six phases complete; the mypy ratchet was never widened into `domain/` (16 errors, 11 files), recorded in the phase 6e note  
 Review date: 2026-09-15  
 Decisions approved: 2026-09-15  
 Scope: `backend/src/oncall`, runtime configuration, migrations as persistence context  
@@ -1887,6 +1887,53 @@ Rules for the target:
   Validation: 623 tests passed with 22 PostgreSQL-gated skips; Ruff, the
   strict mypy ratchet over 20 files, and the contract check against the newly
   approved snapshot passed.
+
+- **Phase 6e completed on 2026-09-19.** Phase 6 item 2, finding A15, and with
+  it the last item of the plan. The glossary written in phase 1 says „prefer
+  `schedule`, avoid `plan`"; the scheduling domain had said `Plan` ever since.
+  A reader following one command from the HTTP contract to the table crossed
+  `schedule` -> `plan` -> `schedules` on the way, which is exactly the trace
+  phase 6's acceptance is about. The domain now says `schedule` too.
+  **The owner chose this over the alternative**, which was to declare `Plan`
+  and `Schedule` deliberately different words and write that into the
+  glossary instead. The measurement that informed the choice: 295 uses in
+  `src`, zero occurrences of `plan` in the database and zero in the published
+  contract, and exactly one module importing both the domain value and the ORM
+  row - so the rename was contract-safe by construction and the one collision
+  was namable.
+  `Plan` -> `Schedule`, `PlanSummary` -> `ScheduleSummary`, `PlanView` ->
+  `ScheduleView`, `PlannedDuty` -> `ScheduledDuty`, `StoredPlan` ->
+  `StoredSchedule`, the `Plans` port -> `Schedules`, `SqlAlchemyPlans` ->
+  `SqlAlchemySchedules`, and the module behind it `scheduling_plans.py` ->
+  `scheduling_schedules.py`. 486 identifiers in 15 files.
+  **Renamed by tokenizing, not by substituting text.** Only `NAME` tokens were
+  rewritten, so no string, no comment and no docstring could be caught in the
+  sweep - which matters because `docs/PLAN.md` is cited in eleven comments and
+  is the product specification, not this vocabulary. The prose was then read
+  and changed by hand where it named the object (twelve docstrings in `src`,
+  three in the fakes), and left alone where it named the document.
+  **The collision was looked for rather than waited for.** Before trusting the
+  rename, every scope in every touched file was parsed *as it stood before the
+  change* and checked for binding both a `plan` name and a `schedule` name -
+  the failure mode where a rename silently merges two different variables and
+  no linter complains. Two scopes came back. One was a false positive (a route
+  named `delete_schedule` calling a use case named `delete_plan`, in different
+  modules). The other was real: `scheduling_plans.py` imports the ORM
+  `Schedule`, and the rename made the domain value collide with the table.
+  The ORM row is now `ScheduleRow` there, the module says so in its docstring,
+  and the glossary has a row for it.
+  The glossary also gained `change log` - the read side of the audit trail,
+  next to `journal`, which only writes - because the two were the other half
+  of A15's complaint and nothing said which was which.
+  Validation: 623 tests passed with 22 PostgreSQL-gated skips; all 22
+  concurrency tests passed on the contract PostgreSQL database; Ruff, the
+  strict mypy ratchet over 20 files and the unchanged OpenAPI snapshot passed.
+  The snapshot is the proof that this was internal: 446 lines changed across
+  16 files and the published contract did not move.
+  **Every phase of this plan is now complete.** What remains is recorded
+  elsewhere and is not part of it: the mypy ratchet has not been widened into
+  `domain/` (16 errors across 11 files), and the weekly-rotation rule-evaluator
+  divergence is still a product question for the owner.
 
 ### Phase 0 — Contract freeze and decisions (mandatory)
 

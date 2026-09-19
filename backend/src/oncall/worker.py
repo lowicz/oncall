@@ -40,7 +40,7 @@ from oncall.domain.handover import remind_of_handover
 from oncall.domain.scheduling import generation
 from oncall.domain.scheduling.errors import GenerationFailed
 from oncall.domain.scheduling.models import GenerationRequest, RunOutcome, RunState
-from oncall.domain.scheduling.ports import StoredPlan
+from oncall.domain.scheduling.ports import StoredSchedule
 from oncall.domain.scheduling.solver import ProgressCallback
 from oncall.domain.team import Actor
 from oncall.infrastructure.sqlalchemy.handover import handover_ports
@@ -88,7 +88,7 @@ async def generate_draft(
     user: User,
     db: AsyncSession,
     progress: ProgressCallback | None = None,
-) -> StoredPlan:
+) -> StoredSchedule:
     """Generate one draft and store it in its own unit of work."""
     stored = await generation.generate_draft(request, scheduling_ports(db, user), progress)
     await db.commit()

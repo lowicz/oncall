@@ -11,7 +11,7 @@ from oncall.domain.scheduling import errors
 from oncall.domain.scheduling.drafts import (
     compare_variants,
     correct_draft,
-    delete_plan,
+    delete_schedule,
     propose,
     withdraw,
 )
@@ -41,7 +41,7 @@ from oncall.domain.vocabulary import (
     UserRole,
 )
 from tests.domain.fakes import member
-from tests.domain.scheduling_fakes import SchedulingWorld, complete_plan, queued_run
+from tests.domain.scheduling_fakes import SchedulingWorld, complete_schedule, queued_run
 
 MONDAY = date(2030, 3, 4)
 SATURDAY = date(2030, 3, 9)
@@ -66,26 +66,26 @@ def _rotation(world):
 # --- correcting a draft -----------------------------------------------------
 
 
-def _correction(plan, day, role, who, *, version=None) -> DraftCorrection:
+def _correction(schedule, day, role, who, *, version=None) -> DraftCorrection:
     return DraftCorrection(
-        COORDINATOR, plan.id, plan.version if version is None else version, day, role, who
+        COORDINATOR, schedule.id, schedule.version if version is None else version, day, role, who
     )
 
 
 async def test_a_correction_hands_the_slot_over_and_reports_the_rules_it_breaks(world) -> None:
-    plan = world.plans.put(complete_plan(MONDAY, _rotation(world)))
+    schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
 
     warnings = await correct_draft(
-        _correction(plan, MONDAY, AssignmentRole.primary, world.dawid.id), world.ports
+        _correction(schedule, MONDAY, AssignmentRole.primary, world.dawid.id), world.ports
     )
 
-    corrected = world.plans.by_id[plan.id]
+    corrected = world.schedules.by_id[schedule.id]
     held = next(item for item in corrected.assignments if item.slot == (MONDAY, "primary"))
     assert (held.assignee_name, held.member_id, held.is_override) == ("Dawid", world.dawid.id, True)
-    assert corrected.version == plan.version + 1
+    assert corrected.version == schedule.version + 1
     assert warnings == []
     assert world.journal.events == [
-        ("draft_corrected", {"args": (plan.id, (MONDAY, "primary"), "Anna", "Dawid")})
+        ("draft_corrected", {"args": (schedule.id, (MONDAY, "primary"), "Anna", "Dawid")})
     ]
 
 
@@ -97,15 +97,19 @@ async def test_a_correction_hands_the_slot_over_and_reports_the_rules_it_breaks(
     ],
 )
 async def test_only_the_current_version_of_a_draft_can_be_corrected(world, change, error) -> None:
-    plan = complete_plan(MONDAY, _rotation(world))
+    schedule = complete_schedule(MONDAY, _rotation(world))
     if "status" in change:
-        plan = replace(plan, status=change["status"])
-    world.plans.put(plan)
+        schedule = replace(schedule, status=change["status"])
+    world.schedules.put(schedule)
 
     with pytest.raises(error):
         await correct_draft(
             _correction(
-                plan, MONDAY, AssignmentRole.primary, world.dawid.id, version=change.get("version")
+                schedule,
+                MONDAY,
+                AssignmentRole.primary,
+                world.dawid.id,
+                version=change.get("version"),
             ),
             world.ports,
         )
@@ -113,7 +117,7 @@ async def test_only_the_current_version_of_a_draft_can_be_corrected(world, chang
 
 
 async def test_a_correction_is_refused_for_what_the_slot_cannot_take(world) -> None:
-    plan = world.plans.put(complete_plan(MONDAY, _rotation(world)))
+    schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
     unavailable = world.team.add(member("Ela", unavailable=[MONDAY]))
     no_late_shift = world.team.add(member("Filip", roles=[AssignmentRole.primary]))
     cases = [
@@ -132,20 +136,20 @@ async def test_a_correction_is_refused_for_what_the_slot_cannot_take(world) -> N
     ]
     for day, role, who, error in cases:
         with pytest.raises(error):
-            await correct_draft(_correction(plan, day, role, who), world.ports)
-    assert world.plans.by_id[plan.id] == plan
+            await correct_draft(_correction(schedule, day, role, who), world.ports)
+    assert world.schedules.by_id[schedule.id] == schedule
 
 
 async def test_a_slot_the_draft_does_not_have_cannot_be_corrected(world) -> None:
-    plan = complete_plan(MONDAY, _rotation(world))
+    schedule = complete_schedule(MONDAY, _rotation(world))
     without_late_shift = tuple(
-        item for item in plan.assignments if item.slot != (MONDAY, AssignmentRole.late_shift)
+        item for item in schedule.assignments if item.slot != (MONDAY, AssignmentRole.late_shift)
     )
-    plan = world.plans.put(replace(plan, assignments=without_late_shift))
+    schedule = world.schedules.put(replace(schedule, assignments=without_late_shift))
 
     with pytest.raises(errors.DraftSlotNotFound):
         await correct_draft(
-            _correction(plan, MONDAY, AssignmentRole.late_shift, world.dawid.id), world.ports
+            _correction(schedule, MONDAY, AssignmentRole.late_shift, world.dawid.id), world.ports
         )
 
 
@@ -154,37 +158,37 @@ async def test_a_slot_the_draft_does_not_have_cannot_be_corrected(world) -> None
 
 async def test_a_draft_with_hard_unavailability_cannot_be_proposed(world) -> None:
     blocked = world.team.add(member("Ela", unavailable=[MONDAY]))
-    plan = world.plans.put(complete_plan(MONDAY, [blocked, world.anna, world.bartek]))
+    schedule = world.schedules.put(complete_schedule(MONDAY, [blocked, world.anna, world.bartek]))
 
     with pytest.raises(errors.ProposalHasUnavailablePeople) as refused:
-        await propose(Transition(COORDINATOR, plan.id, plan.version), world.ports)
+        await propose(Transition(COORDINATOR, schedule.id, schedule.version), world.ports)
 
     assert [item.message for item in refused.value.conflicts] == [
         "2030-03-04 · primary: Ela ma twardą niedostępność"
     ]
-    assert world.plans.by_id[plan.id].status == ScheduleStatus.draft
+    assert world.schedules.by_id[schedule.id].status == ScheduleStatus.draft
 
 
 async def test_propose_and_withdraw_move_the_version_or_refuse_a_stale_one(world) -> None:
-    plan = world.plans.put(complete_plan(MONDAY, _rotation(world)))
+    schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
 
     with pytest.raises(errors.DraftStateChanged):
-        await propose(Transition(COORDINATOR, plan.id, plan.version + 1), world.ports)
-    await propose(Transition(COORDINATOR, plan.id, plan.version), world.ports)
+        await propose(Transition(COORDINATOR, schedule.id, schedule.version + 1), world.ports)
+    await propose(Transition(COORDINATOR, schedule.id, schedule.version), world.ports)
     with pytest.raises(errors.ProposalStateChanged):
-        await withdraw(Transition(COORDINATOR, plan.id, plan.version), world.ports)
-    await withdraw(Transition(COORDINATOR, plan.id, plan.version + 1), world.ports)
+        await withdraw(Transition(COORDINATOR, schedule.id, schedule.version), world.ports)
+    await withdraw(Transition(COORDINATOR, schedule.id, schedule.version + 1), world.ports)
 
-    assert world.plans.by_id[plan.id].version == plan.version + 2
+    assert world.schedules.by_id[schedule.id].version == schedule.version + 2
     assert world.journal.names == ["schedule_proposed", "proposal_withdrawn"]
 
 
 async def test_published_schedules_stay_but_imported_history_can_be_deleted(world) -> None:
-    published = world.plans.put(
-        complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.published)
+    published = world.schedules.put(
+        complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.published)
     )
-    imported = world.plans.put(
-        complete_plan(
+    imported = world.schedules.put(
+        complete_schedule(
             MONDAY,
             _rotation(world),
             status=ScheduleStatus.superseded,
@@ -193,10 +197,10 @@ async def test_published_schedules_stay_but_imported_history_can_be_deleted(worl
     )
 
     with pytest.raises(errors.ScheduleNotDeletable):
-        await delete_plan(published.id, world.ports)
-    await delete_plan(imported.id, world.ports)
+        await delete_schedule(published.id, world.ports)
+    await delete_schedule(imported.id, world.ports)
 
-    assert world.plans.deleted == [imported.id]
+    assert world.schedules.deleted == [imported.id]
     assert world.journal.events == [
         ("schedule_deleted", {"args": (imported, "zaimportowaną historię")})
     ]
@@ -288,7 +292,7 @@ async def test_a_failed_solve_stores_nothing_and_says_why(world) -> None:
         "INFEASIBLE",
         ("PRIMARY: brak osoby",),
     )
-    assert world.plans.stored == [] and world.journal.events == []
+    assert world.schedules.stored == [] and world.journal.events == []
 
 
 async def test_a_solved_draft_is_named_after_its_mode_and_linked_to_its_people(world) -> None:
@@ -305,7 +309,7 @@ async def test_a_solved_draft_is_named_after_its_mode_and_linked_to_its_people(w
         GenerationRequest(COORDINATOR, MONDAY, MONDAY + timedelta(days=6)), world.ports
     )
 
-    ((kept, draft),) = world.plans.stored
+    ((kept, draft),) = world.schedules.stored
     assert kept is stored
     assert draft.name == "Szkic hybrydowy 04-03-2030 - 10-03-2030"
     assert [member_id for _item, member_id in draft.assignments] == [world.anna.id, None]
@@ -318,15 +322,15 @@ async def test_a_solved_draft_is_named_after_its_mode_and_linked_to_its_people(w
 
 
 async def test_only_a_daily_and_a_weekly_variant_of_one_range_compare(world) -> None:
-    daily = world.plans.put(
-        replace(complete_plan(MONDAY, _rotation(world)), rotation_mode=RotationMode.daily)
+    daily = world.schedules.put(
+        replace(complete_schedule(MONDAY, _rotation(world)), rotation_mode=RotationMode.daily)
     )
-    weekly = world.plans.put(
-        replace(complete_plan(MONDAY, _rotation(world)), rotation_mode=RotationMode.weekly)
+    weekly = world.schedules.put(
+        replace(complete_schedule(MONDAY, _rotation(world)), rotation_mode=RotationMode.weekly)
     )
-    later = world.plans.put(
+    later = world.schedules.put(
         replace(
-            complete_plan(MONDAY + timedelta(days=1), _rotation(world)),
+            complete_schedule(MONDAY + timedelta(days=1), _rotation(world)),
             rotation_mode=RotationMode.weekly,
         )
     )
@@ -344,7 +348,7 @@ async def test_only_a_daily_and_a_weekly_variant_of_one_range_compare(world) -> 
 
 
 async def test_only_changes_touching_the_draft_window_make_it_stale(world) -> None:
-    plan = complete_plan(MONDAY, _rotation(world))
+    schedule = complete_schedule(MONDAY, _rotation(world))
     near, far = uuid.uuid4(), uuid.uuid4()
     world.changes.availability = {near: (MONDAY, MONDAY), far: (date(2040, 1, 1), date(2040, 1, 2))}
     world.changes.add("availability.created", entity_id=near)
@@ -356,7 +360,7 @@ async def test_only_changes_touching_the_draft_window_make_it_stale(world) -> No
     world.changes.add("policy.updated", at=datetime(2029, 1, 1, tzinfo=UTC))
 
     # The nearby entry, the policy change and Anna, who is in the draft.
-    assert await stale_changes_count(plan, world.changes) == 3
+    assert await stale_changes_count(schedule, world.changes) == 3
 
 
 async def test_the_original_holder_is_read_from_moves_or_from_an_old_summary(world) -> None:
@@ -410,16 +414,18 @@ def _override_in_force(world, day, role, holder, original):
     )
 
 
-def _request(plan, **flags) -> PublicationRequest:
-    return PublicationRequest(COORDINATOR, plan.id, plan.version, **flags)
+def _request(schedule, **flags) -> PublicationRequest:
+    return PublicationRequest(COORDINATOR, schedule.id, schedule.version, **flags)
 
 
 async def test_publication_carries_a_safe_change_and_replaces_the_rest(world) -> None:
-    published = complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.published)
+    published = complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.published)
     world.publish_roster_from(published)
     _override_in_force(world, MONDAY, AssignmentRole.primary, world.dawid, "Anna")
-    proposal = world.plans.put(
-        complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.proposed, name="Szkic marzec")
+    proposal = world.schedules.put(
+        complete_schedule(
+            MONDAY, _rotation(world), status=ScheduleStatus.proposed, name="Szkic marzec"
+        )
     )
     pending = PendingSwap(
         uuid.uuid4(),
@@ -435,21 +441,21 @@ async def test_publication_carries_a_safe_change_and_replaces_the_rest(world) ->
 
     with pytest.raises(errors.RestViolationsNotAcknowledged):
         await publish(_request(proposal), world.ports, today=MONDAY, now=NOW)
-    assert world.plans.carried == []
+    assert world.schedules.carried == []
 
     await publish(
         _request(proposal, acknowledge_rest_violations=True), world.ports, today=MONDAY, now=NOW
     )
 
-    (carried,) = world.plans.carried
+    (carried,) = world.schedules.carried
     assert (carried.slot, carried.assignee_name, carried.member_id) == (
         (MONDAY, AssignmentRole.primary),
         "Dawid",
         world.dawid.id,
     )
     assert world.swaps.cancelled == [pending.id]
-    assert world.plans.retired_by == [proposal.id]
-    assert world.plans.published == [(proposal.id, "Grafik marzec", NOW)]
+    assert world.schedules.retired_by == [proposal.id]
+    assert world.schedules.published == [(proposal.id, "Grafik marzec", NOW)]
     assert world.journal.names == [
         "change_carried",
         "swap_cancelled_by_publication",
@@ -462,14 +468,14 @@ async def test_publication_carries_a_safe_change_and_replaces_the_rest(world) ->
 
 
 async def test_publication_asks_for_every_decision_in_turn(world) -> None:
-    published = complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.published)
+    published = complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.published)
     world.publish_roster_from(published)
     # Tuesday: the new draft puts Celina on primary and Anna on secondary.
     tuesday = MONDAY + timedelta(days=1)
     _override_in_force(world, MONDAY, AssignmentRole.primary, world.dawid, "Anna")
     _override_in_force(world, tuesday, AssignmentRole.primary, world.anna, "Bartek")
-    proposal = world.plans.put(
-        complete_plan(
+    proposal = world.schedules.put(
+        complete_schedule(
             MONDAY,
             [world.bartek, world.celina, world.anna],
             status=ScheduleStatus.proposed,
@@ -501,7 +507,7 @@ async def test_publication_asks_for_every_decision_in_turn(world) -> None:
     assert invalid.value.conflicts == {
         (tuesday, AssignmentRole.primary): "Ta osoba miałaby już drugi dyżur on-call tego dnia"
     }
-    assert world.plans.carried == [] and world.journal.events == []
+    assert world.schedules.carried == [] and world.journal.events == []
 
     await attempt(
         acknowledge_lost_changes=True,
@@ -509,29 +515,33 @@ async def test_publication_asks_for_every_decision_in_turn(world) -> None:
         acknowledge_rest_violations=True,
         change_resolutions={keys[0]: "change", keys[1]: "draft"},
     )
-    assert [item.slot for item in world.plans.carried] == [(MONDAY, AssignmentRole.primary)]
+    assert [item.slot for item in world.schedules.carried] == [(MONDAY, AssignmentRole.primary)]
 
 
 async def test_only_a_complete_current_proposal_is_published(world) -> None:
-    proposal = world.plans.put(
-        complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.proposed)
+    proposal = world.schedules.put(
+        complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.proposed)
     )
     with pytest.raises(errors.PublicationStateChanged):
         await publish(
             replace(_request(proposal), expected_version=9), world.ports, today=MONDAY, now=NOW
         )
 
-    gap = world.plans.put(replace(proposal, id=uuid.uuid4(), assignments=proposal.assignments[1:]))
+    gap = world.schedules.put(
+        replace(proposal, id=uuid.uuid4(), assignments=proposal.assignments[1:])
+    )
     with pytest.raises(errors.IncompleteSchedule):
         await publish(_request(gap), world.ports, today=MONDAY, now=NOW)
 
     blocked = world.team.add(member("Ela", unavailable=[MONDAY]))
-    unavailable = world.plans.put(
-        complete_plan(MONDAY, [blocked, world.anna, world.bartek], status=ScheduleStatus.proposed)
+    unavailable = world.schedules.put(
+        complete_schedule(
+            MONDAY, [blocked, world.anna, world.bartek], status=ScheduleStatus.proposed
+        )
     )
     with pytest.raises(errors.PublicationHasUnavailablePeople):
         await publish(_request(unavailable), world.ports, today=MONDAY, now=NOW)
-    assert world.plans.published == [] and world.journal.events == []
+    assert world.schedules.published == [] and world.journal.events == []
 
 
 async def test_soft_preferences_never_block_a_publication(world) -> None:
@@ -541,14 +551,16 @@ async def test_soft_preferences_never_block_a_publication(world) -> None:
             availability=[AvailabilityPeriod(AvailabilityKind.prefer_not, MONDAY, MONDAY)],
         )
     )
-    proposal = world.plans.put(
-        complete_plan(MONDAY, [reluctant, world.anna, world.bartek], status=ScheduleStatus.proposed)
+    proposal = world.schedules.put(
+        complete_schedule(
+            MONDAY, [reluctant, world.anna, world.bartek], status=ScheduleStatus.proposed
+        )
     )
 
     await publish(
         _request(proposal, acknowledge_rest_violations=True), world.ports, today=MONDAY, now=NOW
     )
-    assert len(world.plans.published) == 1
+    assert len(world.schedules.published) == 1
 
 
 async def test_a_kept_change_checks_eligibility_periods_not_membership_dates(world) -> None:
@@ -557,11 +569,11 @@ async def test_a_kept_change_checks_eligibility_periods_not_membership_dates(wor
     period is still open keeps a change resolved as "change"."""
     departed = world.team.add(replace(member("Gosia"), active_until=MONDAY - timedelta(days=30)))
     world.publish_roster_from(
-        complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.published)
+        complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.published)
     )
     _override_in_force(world, MONDAY, AssignmentRole.primary, departed, "Anna")
-    proposal = world.plans.put(
-        complete_plan(
+    proposal = world.schedules.put(
+        complete_schedule(
             MONDAY, [world.bartek, world.celina, world.anna], status=ScheduleStatus.proposed
         )
     )
@@ -578,7 +590,7 @@ async def test_a_kept_change_checks_eligibility_periods_not_membership_dates(wor
         now=NOW,
     )
 
-    (carried,) = world.plans.carried
+    (carried,) = world.schedules.carried
     assert (carried.slot, carried.assignee_name) == ((MONDAY, AssignmentRole.primary), "Gosia")
 
 
@@ -593,10 +605,12 @@ async def test_a_pending_swap_outside_the_published_range_is_not_a_publication_n
     survives, so warning about it would ask the coordinator to worry about
     something that is not going to happen.
     """
-    month = complete_plan(MONDAY, _rotation(world), days=28, status=ScheduleStatus.published)
+    month = complete_schedule(MONDAY, _rotation(world), days=28, status=ScheduleStatus.published)
     world.publish_roster_from(month)
-    fortnight = world.plans.put(
-        complete_plan(MONDAY, _rotation(world), status=ScheduleStatus.proposed, name="Szkic marzec")
+    fortnight = world.schedules.put(
+        complete_schedule(
+            MONDAY, _rotation(world), status=ScheduleStatus.proposed, name="Szkic marzec"
+        )
     )
     untouched_day = MONDAY + timedelta(days=20)
     world.swaps.pending.append(

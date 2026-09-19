@@ -8,8 +8,8 @@ from oncall.domain.scheduling.ports import NewDraft
 from oncall.domain.scheduling.solver import GeneratedAssignment, SolverResult
 from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
 from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
-from oncall.infrastructure.sqlalchemy.scheduling_plans import SqlAlchemyPlans
 from oncall.infrastructure.sqlalchemy.scheduling_publication import SqlAlchemyPublicationSwaps
+from oncall.infrastructure.sqlalchemy.scheduling_schedules import SqlAlchemySchedules
 from oncall.models import (
     AssignmentRole,
     AuditEvent,
@@ -25,18 +25,18 @@ from tests.conftest import create_member, create_published_schedule, create_user
 DAY = date.today() + timedelta(days=30)
 
 
-async def test_a_plan_read_again_shows_a_status_written_by_statement(db) -> None:
+async def test_a_schedule_read_again_shows_a_status_written_by_statement(db) -> None:
     schedule = await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
-    plans = SqlAlchemyPlans(db)
-    assert (await plans.plan(schedule.id)).version == 1
+    schedules = SqlAlchemySchedules(db)
+    assert (await schedules.schedule(schedule.id)).version == 1
 
-    moved = await plans.change_status(
+    moved = await schedules.change_status(
         schedule.id,
         from_status=ScheduleStatus.published,
         to_status=ScheduleStatus.superseded,
         expected_version=1,
     )
-    stale = await plans.change_status(
+    stale = await schedules.change_status(
         schedule.id,
         from_status=ScheduleStatus.published,
         to_status=ScheduleStatus.superseded,
@@ -44,7 +44,7 @@ async def test_a_plan_read_again_shows_a_status_written_by_statement(db) -> None
     )
     await db.commit()
 
-    reread = await plans.plan(schedule.id)
+    reread = await schedules.schedule(schedule.id)
     assert (moved, stale) == (True, False)
     assert (reread.status, reread.version) == (ScheduleStatus.superseded, 2)
 
@@ -52,9 +52,9 @@ async def test_a_plan_read_again_shows_a_status_written_by_statement(db) -> None
 async def test_a_stored_draft_has_no_id_until_its_unit_of_work_is_written(db) -> None:
     user = await create_user(db, "anna", display_name="Anna")
     anna = await create_member(db, user, display_name="Anna")
-    plans = SqlAlchemyPlans(db)
+    schedules = SqlAlchemySchedules(db)
 
-    stored = await plans.store_draft(
+    stored = await schedules.store_draft(
         NewDraft(
             name="Szkic dzienny",
             starts_on=DAY,
@@ -72,9 +72,9 @@ async def test_a_stored_draft_has_no_id_until_its_unit_of_work_is_written(db) ->
     assert stored.id is None
     await db.commit()
 
-    plan = await plans.plan(stored.id)
-    assert (plan.status, plan.solver_warnings) == (ScheduleStatus.draft, ("uwaga",))
-    assert [(item.assignee_name, item.member_id) for item in plan.assignments] == [
+    schedule = await schedules.schedule(stored.id)
+    assert (schedule.status, schedule.solver_warnings) == (ScheduleStatus.draft, ("uwaga",))
+    assert [(item.assignee_name, item.member_id) for item in schedule.assignments] == [
         ("Anna", anna.id)
     ]
 

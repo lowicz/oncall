@@ -21,7 +21,7 @@ from oncall.domain.scheduling.ports import (
     GenerationQueue,
     NewDraft,
     SchedulingPorts,
-    StoredPlan,
+    StoredSchedule,
 )
 from oncall.domain.scheduling.solver import (
     DateRange,
@@ -166,7 +166,7 @@ async def generation_status(run_id: uuid.UUID, ports: SchedulingPorts, *, lanes:
 
 
 async def suggest_range(ports: SchedulingPorts, *, today: date) -> SuggestedRange:
-    spans = await ports.plans.covering_spans(today - timedelta(days=7))
+    spans = await ports.schedules.covering_spans(today - timedelta(days=7))
     return calculate_suggested_range(today, spans)
 
 
@@ -199,7 +199,7 @@ async def generate_draft(
     request: GenerationRequest,
     ports: SchedulingPorts,
     progress: ProgressCallback | None = None,
-) -> StoredPlan:
+) -> StoredSchedule:
     """Build and store one draft. The worker owns the surrounding transaction."""
     policy = await ports.policy.current()
     members = await ports.members.everyone()
@@ -247,6 +247,6 @@ async def generate_draft(
             (item, member_ids.get(item.assignee_name)) for item in result.assignments
         ),
     )
-    stored = await ports.plans.store_draft(draft)
+    stored = await ports.schedules.store_draft(draft)
     await ports.journal.draft_generated(stored, draft)
     return stored

@@ -14,10 +14,10 @@ from oncall.domain.scheduling.models import (
     GenerationRun,
     PendingSwap,
     PendingSwapNotice,
-    Plan,
-    PlanSummary,
     PolicyChange,
     QueueBacklog,
+    Schedule,
+    ScheduleSummary,
     SchedulingPolicy,
 )
 from oncall.domain.scheduling.solver import (
@@ -31,8 +31,8 @@ from oncall.domain.vocabulary import AssignmentRole, RotationMode, ScheduleStatu
 from oncall.fairness import FairnessDuty, FairnessMemberInput
 
 
-class StoredPlan(Protocol):
-    """A plan handed to storage; its id is known once the unit of work is
+class StoredSchedule(Protocol):
+    """A schedule handed to storage; its id is known once the unit of work is
     written."""
 
     @property
@@ -49,20 +49,20 @@ class NewDraft:
     assignments: tuple[tuple[GeneratedAssignment, uuid.UUID | None], ...]
 
 
-class Plans(Protocol):
+class Schedules(Protocol):
     """Schedules with their assignments, whatever their status."""
 
-    async def plan(self, schedule_id: uuid.UUID) -> Plan | None: ...
+    async def schedule(self, schedule_id: uuid.UUID) -> Schedule | None: ...
 
-    async def plans(self, schedule_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Plan]: ...
+    async def schedules(self, schedule_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Schedule]: ...
 
-    async def plan_to_correct(self, schedule_id: uuid.UUID) -> Plan | None:
-        """The plan, held against concurrent corrections until the unit of
+    async def schedule_to_correct(self, schedule_id: uuid.UUID) -> Schedule | None:
+        """The schedule, held against concurrent corrections until the unit of
         work ends."""
         ...
 
-    async def plan_to_publish(self, schedule_id: uuid.UUID) -> Plan | None:
-        """The plan, held against concurrent writers until the unit of work
+    async def schedule_to_publish(self, schedule_id: uuid.UUID) -> Schedule | None:
+        """The schedule, held against concurrent writers until the unit of work
         ends. Call `hold_publication` first."""
         ...
 
@@ -71,7 +71,7 @@ class Plans(Protocol):
         at the same time."""
         ...
 
-    async def open_drafts(self, limit: int) -> list[PlanSummary]:
+    async def open_drafts(self, limit: int) -> list[ScheduleSummary]:
         """Drafts and proposals, latest horizon first."""
         ...
 
@@ -79,14 +79,14 @@ class Plans(Protocol):
         """Published schedules and imported history, by start then end."""
         ...
 
-    async def published_overlapping(self, plan: Plan) -> dict[uuid.UUID, CoveredSpan]:
-        """Other published schedules that share a day with the plan."""
+    async def published_overlapping(self, schedule: Schedule) -> dict[uuid.UUID, CoveredSpan]:
+        """Other published schedules that share a day with this one."""
         ...
 
-    async def store_draft(self, draft: NewDraft) -> StoredPlan: ...
+    async def store_draft(self, draft: NewDraft) -> StoredSchedule: ...
 
     async def correct(self, schedule_id: uuid.UUID, slot: Slot, to: Member) -> None:
-        """Give a slot of a held plan to someone and move the plan's version."""
+        """Give a slot of a held schedule to someone and move its version."""
         ...
 
     async def change_status(
@@ -104,8 +104,8 @@ class Plans(Protocol):
 
     async def carry(self, schedule_id: uuid.UUID, changes: list[CarriedChange]) -> None: ...
 
-    async def retire_covered_by(self, plan: Plan) -> None:
-        """Supersede every other published schedule wholly inside the plan's
+    async def retire_covered_by(self, schedule: Schedule) -> None:
+        """Supersede every other published schedule wholly inside this one's
         range."""
         ...
 
@@ -242,13 +242,13 @@ class SchedulingJournal(Protocol):
 
     async def policy_updated(self, policy: SchedulingPolicy) -> None: ...
 
-    async def draft_generated(self, stored: StoredPlan, draft: NewDraft) -> None: ...
+    async def draft_generated(self, stored: StoredSchedule, draft: NewDraft) -> None: ...
 
     async def draft_corrected(
         self, schedule_id: uuid.UUID, slot: Slot, previous_name: str, new_name: str
     ) -> None: ...
 
-    async def schedule_deleted(self, plan: Plan, kind: str) -> None: ...
+    async def schedule_deleted(self, schedule: Schedule, kind: str) -> None: ...
 
     async def schedule_proposed(self, schedule_id: uuid.UUID) -> None: ...
 
@@ -272,14 +272,14 @@ class SchedulingJournal(Protocol):
         self, schedule_id: uuid.UUID, changes: list[tuple[date, AssignmentRole, str, str]]
     ) -> None: ...
 
-    async def schedule_published(self, plan: Plan, name: str) -> None:
+    async def schedule_published(self, schedule: Schedule, name: str) -> None:
         """Tell the team, then record who published it."""
         ...
 
 
 @dataclass(frozen=True)
 class SchedulingPorts:
-    plans: Plans
+    schedules: Schedules
     roster: PublishedRoster
     team: TeamDirectory
     policy: PolicyStore

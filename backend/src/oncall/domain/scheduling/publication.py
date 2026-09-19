@@ -22,13 +22,13 @@ from oncall.domain.scheduling.models import (
     CarriedChange,
     ChangeRecord,
     PendingSwapNotice,
-    Plan,
-    PlannedDuty,
-    PlanView,
     ProtectedChange,
     PublicationPreview,
     PublicationRequest,
     ReplacedDuty,
+    Schedule,
+    ScheduledDuty,
+    ScheduleView,
 )
 from oncall.domain.scheduling.planning import (
     rule_warnings,
@@ -98,7 +98,7 @@ STALE_INPUT_ACTIONS = (
 )
 
 
-async def stale_changes_count(plan: Plan, changes: ChangeLog) -> int:
+async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
     """How many audit events since generation could have changed this draft's
     inputs.
 
@@ -113,15 +113,15 @@ async def stale_changes_count(plan: Plan, changes: ChangeLog) -> int:
     which is checked against this schedule's own roster instead - a person
     who never appears in it cannot make this draft stale.
     """
-    if plan.created_at is None:
+    if schedule.created_at is None:
         return 0
-    history_start, _ = generator_history_window(plan.starts_on, plan.ends_on)
-    window_start, window_end = history_start, plan.ends_on
+    history_start, _ = generator_history_window(schedule.starts_on, schedule.ends_on)
+    window_start, window_end = history_start, schedule.ends_on
 
     def relevant(day: date) -> bool:
         return window_start <= day <= window_end
 
-    events = await changes.changes_since(plan.created_at, STALE_INPUT_ACTIONS)
+    events = await changes.changes_since(schedule.created_at, STALE_INPUT_ACTIONS)
     by_action: dict[str, list[ChangeRecord]] = defaultdict(list)
     for event in events:
         by_action[event.action].append(event)
@@ -157,7 +157,7 @@ async def stale_changes_count(plan: Plan, changes: ChangeLog) -> int:
 
     membership_events, membership_ids = entity_ids(_MEMBERSHIP_ACTIONS)
     if membership_ids:
-        roster = {item.member_id for item in plan.assignments if item.member_id}
+        roster = {item.member_id for item in schedule.assignments if item.member_id}
         count += sum(1 for event in membership_events if uuid.UUID(event.entity_id) in roster)
 
     swap_events, swap_ids = entity_ids(_SWAP_ACTIONS)
@@ -184,32 +184,34 @@ async def stale_changes_count(plan: Plan, changes: ChangeLog) -> int:
     return count
 
 
-async def view_plan(
-    plan: Plan,
+async def view_schedule(
+    schedule: Schedule,
     ports: SchedulingPorts,
     *,
     today: date,
     warnings: list[str] | None = None,
-) -> PlanView:
-    """The plan with everything the generator screen shows next to it.
+) -> ScheduleView:
+    """The schedule with everything the generator screen shows next to it.
 
-    `warnings` replaces the rule warnings computed from the plan, for a
+    `warnings` replaces the rule warnings computed from the schedule, for a
     correction that reports the rules its replacement breaks.
     """
-    return PlanView(
-        plan=plan,
-        rule_warnings=tuple(rule_warnings(plan) if warnings is None else warnings),
-        unavailability_conflicts=await drafts.unavailability_conflicts(plan, ports.team),
-        uncovered_before=tuple(await uncovered_dates(plan.starts_on, ports.roster, today)),
-        stale_changes_count=await stale_changes_count(plan, ports.changes),
+    return ScheduleView(
+        schedule=schedule,
+        rule_warnings=tuple(rule_warnings(schedule) if warnings is None else warnings),
+        unavailability_conflicts=await drafts.unavailability_conflicts(schedule, ports.team),
+        uncovered_before=tuple(await uncovered_dates(schedule.starts_on, ports.roster, today)),
+        stale_changes_count=await stale_changes_count(schedule, ports.changes),
     )
 
 
-async def show_plan(schedule_id: uuid.UUID, ports: SchedulingPorts, *, today: date) -> PlanView:
-    plan = await ports.plans.plan(schedule_id)
-    if plan is None:
+async def show_schedule(
+    schedule_id: uuid.UUID, ports: SchedulingPorts, *, today: date
+) -> ScheduleView:
+    schedule = await ports.schedules.schedule(schedule_id)
+    if schedule is None:
         raise errors.ScheduleNotFound(schedule_id)
-    return await view_plan(plan, ports, today=today)
+    return await view_schedule(schedule, ports, today=today)
 
 
 # --- publication ------------------------------------------------------------
@@ -286,7 +288,7 @@ def _holds_role_period(member: Member, role: AssignmentRole, day: date) -> bool:
 
 
 async def _carry_conflict_reason(
-    plan: Plan,
+    schedule: Schedule,
     old: Duty,
     original_name: str | None,
     moves: list[Slot],
@@ -301,7 +303,7 @@ async def _carry_conflict_reason(
     )
     if replacement is None:
         return "Zastępca nie jest już członkiem zespołu"
-    draft = {item.slot: item for item in plan.assignments}
+    draft = {item.slot: item for item in schedule.assignments}
     if any(draft.get(move) is None or draft[move].assignee_name != original_name for move in moves):
         return "Nowy szkic ma w tym slocie innego pierwotnego wykonawcę"
     for service_date, role in moves:
@@ -313,7 +315,7 @@ async def _carry_conflict_reason(
     window_end = max(day for day, _role in moves) + timedelta(days=10)
     resolved = await ports.roster.duties_in_force(window_start, window_end)
     slots = {key: item.assignee_name for key, item in resolved.items()}
-    for item in plan.assignments:
+    for item in schedule.assignments:
         slots[item.slot] = item.assignee_name
     policy = await ports.policy.current()
     violations = substitution_violations(
@@ -335,26 +337,26 @@ async def _carry_conflict_reason(
 
 
 async def _rest_violations(
-    plan: Plan,
+    schedule: Schedule,
     current_in_range: dict[Slot, Duty],
     carried_changes: list[ProtectedChange],
     roster: PublishedRoster,
 ) -> tuple[RuleViolation, ...]:
-    history_start = plan.starts_on - timedelta(days=7)
+    history_start = schedule.starts_on - timedelta(days=7)
     # `current_in_range` is already loaded for the replacement comparison. The
     # caller supplies it to keep publication preview at one read of the duties
     # in force for the draft range; only the seven-day boundary needs another.
-    boundary = await roster.duties_in_force(history_start, plan.starts_on - timedelta(days=1))
+    boundary = await roster.duties_in_force(history_start, schedule.starts_on - timedelta(days=1))
     slots = {key: item.assignee_name for key, item in {**boundary, **current_in_range}.items()}
-    for assignment in plan.assignments:
+    for assignment in schedule.assignments:
         slots[assignment.slot] = assignment.assignee_name
     for change in carried_changes:
         slots[change.slot] = change.previous_assignee_name
     all_days = [
         history_start + timedelta(days=offset)
-        for offset in range((plan.ends_on - history_start).days + 1)
+        for offset in range((schedule.ends_on - history_start).days + 1)
     ]
-    exemptions = exempt_days(all_days, polish_holidays(history_start, plan.ends_on))
+    exemptions = exempt_days(all_days, polish_holidays(history_start, schedule.ends_on))
     by_member: dict[str, set[date]] = defaultdict(set)
     for (service_date, role), assignee_name in slots.items():
         if role in ONCALL_ROLES:
@@ -363,7 +365,7 @@ async def _rest_violations(
         violation
         for name, days in by_member.items()
         for violation in oncall_rest_violations(name, days, exemptions)
-        if any(day >= plan.starts_on for day in violation.days)
+        if any(day >= schedule.starts_on for day in violation.days)
     ]
     grouped: dict[tuple[str, str], tuple[str, set[date]]] = {}
     for item in violations:
@@ -375,25 +377,25 @@ async def _rest_violations(
     )
 
 
-async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> PublicationPreview:
+async def _preview(schedule: Schedule, ports: SchedulingPorts, today: date) -> PublicationPreview:
     """What publishing this proposal would do to the roster in force.
 
     Three questions, asked in the order the screen puts them: which slots this
-    plan replaces, which of those replacements undo somebody's deliberate
+    schedule replaces, which of those replacements undo somebody's deliberate
     change and whether each can be carried across, and which pending swaps
     this publication would cancel underneath their requesters.
     """
-    current = await ports.roster.duties_in_force(plan.starts_on, plan.ends_on)
-    replacement = {item.slot: item for item in plan.assignments}
+    current = await ports.roster.duties_in_force(schedule.starts_on, schedule.ends_on)
+    replacement = {item.slot: item for item in schedule.assignments}
     changed = [
         (old, replacement[key])
         for key, old in current.items()
         if key in replacement and replacement[key].assignee_name != old.assignee_name
     ]
-    protected = await _protected_changes(plan, current, changed, ports)
+    protected = await _protected_changes(schedule, current, changed, ports)
     carried_changes = [item for item in protected if item.reason is None]
     lost_changes = [item for item in protected if item.reason is not None]
-    notices = await _pending_swap_notices(plan, ports)
+    notices = await _pending_swap_notices(schedule, ports)
     return PublicationPreview(
         lost_changes=tuple(
             sorted(lost_changes, key=lambda item: (item.service_date, item.role.value))
@@ -402,9 +404,9 @@ async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> Publicati
             sorted(carried_changes, key=lambda item: (item.service_date, item.role.value))
         ),
         pending_swaps=tuple(sorted(notices, key=lambda item: (item.service_date, item.role.value))),
-        uncovered_before=tuple(await uncovered_dates(plan.starts_on, ports.roster, today)),
-        stale_changes_count=await stale_changes_count(plan, ports.changes),
-        rest_violations=await _rest_violations(plan, current, carried_changes, ports.roster),
+        uncovered_before=tuple(await uncovered_dates(schedule.starts_on, ports.roster, today)),
+        stale_changes_count=await stale_changes_count(schedule, ports.changes),
+        rest_violations=await _rest_violations(schedule, current, carried_changes, ports.roster),
         replaced=tuple(
             ReplacedDuty(
                 schedule_id=old.schedule_id,
@@ -421,9 +423,9 @@ async def _preview(plan: Plan, ports: SchedulingPorts, today: date) -> Publicati
 
 
 async def _protected_changes(
-    plan: Plan,
+    schedule: Schedule,
     current: dict[Slot, Duty],
-    changed: list[tuple[Duty, PlannedDuty]],
+    changed: list[tuple[Duty, ScheduledDuty]],
     ports: SchedulingPorts,
 ) -> list[ProtectedChange]:
     """The replaced slots somebody put there on purpose, and their fate.
@@ -436,7 +438,7 @@ async def _protected_changes(
     """
     # Approved swaps are looked for across every schedule in force over this
     # range, not only the schedules the changed slots came from: a swap can
-    # have moved a slot that this plan happens to fill the same way.
+    # have moved a slot that this schedule happens to fill the same way.
     effective_schedule_ids = {item.schedule_id for item in current.values()}
     approved = (
         await ports.swaps.approved_on(effective_schedule_ids) if effective_schedule_ids else []
@@ -458,7 +460,7 @@ async def _protected_changes(
         source = "approved_swap" if swap is not None else "override"
         original = swap.requester_name if swap is not None else override_originals.get(slot_key)
         moves = list(swap.slots) if swap is not None else [old.slot]
-        reason = await _carry_conflict_reason(plan, old, original, moves, ports)
+        reason = await _carry_conflict_reason(schedule, old, original, moves, ports)
         protected.append(
             ProtectedChange(
                 service_date=old.service_date,
@@ -473,19 +475,21 @@ async def _protected_changes(
     return protected
 
 
-async def _pending_swap_notices(plan: Plan, ports: SchedulingPorts) -> list[PendingSwapNotice]:
+async def _pending_swap_notices(
+    schedule: Schedule, ports: SchedulingPorts
+) -> list[PendingSwapNotice]:
     """Swaps still awaiting a decision that this publication would cancel.
 
     Only the ones it actually takes the slots of: every slot of a schedule it
     fully covers, and otherwise only the days inside its own range. A swap on
-    a day this plan does not touch survives the publication, so naming it here
+    a day this schedule does not touch survives the publication, so naming it
     would ask the coordinator to weigh something that is not going to happen.
     """
-    overlapping = await ports.plans.published_overlapping(plan)
+    overlapping = await ports.schedules.published_overlapping(schedule)
     fully_covered = {
         schedule_id
         for schedule_id, span in overlapping.items()
-        if span.starts_on >= plan.starts_on and span.ends_on <= plan.ends_on
+        if span.starts_on >= schedule.starts_on and span.ends_on <= schedule.ends_on
     }
     candidates = await ports.swaps.pending_on(set(overlapping)) if overlapping else []
     pending = [
@@ -493,8 +497,8 @@ async def _pending_swap_notices(plan: Plan, ports: SchedulingPorts) -> list[Pend
         for swap in candidates
         if (
             swap.schedule_id in fully_covered
-            or any(plan.starts_on <= day <= plan.ends_on for day in swap.slot_dates)
-            or (not swap.slot_dates and plan.starts_on <= swap.service_date <= plan.ends_on)
+            or any(schedule.starts_on <= day <= schedule.ends_on for day in swap.slot_dates)
+            or (not swap.slot_dates and schedule.starts_on <= swap.service_date <= schedule.ends_on)
         )
     ]
     member_ids = {
@@ -519,16 +523,16 @@ async def _pending_swap_notices(plan: Plan, ports: SchedulingPorts) -> list[Pend
 async def preview_publication(
     schedule_id: uuid.UUID, ports: SchedulingPorts, *, today: date
 ) -> PublicationPreview:
-    plan = await ports.plans.plan(schedule_id)
-    if plan is None:
+    schedule = await ports.schedules.schedule(schedule_id)
+    if schedule is None:
         raise errors.ScheduleNotFound(schedule_id)
-    if plan.status != ScheduleStatus.proposed:
-        raise errors.OnlyProposalPublishable(plan.id)
-    return await _preview(plan, ports, today)
+    if schedule.status != ScheduleStatus.proposed:
+        raise errors.OnlyProposalPublishable(schedule.id)
+    return await _preview(schedule, ports, today)
 
 
 async def change_resolution_conflicts(
-    plan: Plan, selected_carries: list[ProtectedChange], team: TeamDirectory
+    schedule: Schedule, selected_carries: list[ProtectedChange], team: TeamDirectory
 ) -> dict[Slot, str]:
     """Hard checks a "change" resolution is not allowed to skip.
 
@@ -543,7 +547,7 @@ async def change_resolution_conflicts(
     # the same day's opposite roles are checked against each other too, not
     # just against the draft as it stood before any resolution was applied.
     final_names = {item.slot: item.previous_assignee_name for item in selected_carries}
-    for item in plan.assignments:
+    for item in schedule.assignments:
         final_names.setdefault((item.service_date, item.role), item.assignee_name)
 
     conflicts: dict[Slot, str] = {}
@@ -573,17 +577,17 @@ async def change_resolution_conflicts(
 async def publish(
     request: PublicationRequest, ports: SchedulingPorts, *, today: date, now: datetime
 ) -> None:
-    await ports.plans.hold_publication()
-    plan = await ports.plans.plan_to_publish(request.schedule_id)
-    if plan is None:
+    await ports.schedules.hold_publication()
+    schedule = await ports.schedules.schedule_to_publish(request.schedule_id)
+    if schedule is None:
         raise errors.ScheduleNotFound(request.schedule_id)
-    if plan.status != ScheduleStatus.proposed or plan.version != request.expected_version:
-        raise errors.PublicationStateChanged(plan.id)
-    validate_complete(plan)
-    conflicts = await drafts.unavailability_conflicts(plan, ports.team)
+    if schedule.status != ScheduleStatus.proposed or schedule.version != request.expected_version:
+        raise errors.PublicationStateChanged(schedule.id)
+    validate_complete(schedule)
+    conflicts = await drafts.unavailability_conflicts(schedule, ports.team)
     if conflicts:
         raise errors.PublicationHasUnavailablePeople(conflicts)
-    preview = await _preview(plan, ports, today)
+    preview = await _preview(schedule, ports, today)
     if preview.lost_changes and not request.acknowledge_lost_changes:
         raise errors.LostChangesNotAcknowledged(preview.lost_changes, preview.pending_swaps)
     conflict_keys = {item.key for item in preview.lost_changes}
@@ -595,19 +599,19 @@ async def publish(
     selected_carries = list(preview.carried_changes) + [
         item for item in preview.lost_changes if request.change_resolutions[item.key] == "change"
     ]
-    change_conflicts = await change_resolution_conflicts(plan, selected_carries, ports.team)
+    change_conflicts = await change_resolution_conflicts(schedule, selected_carries, ports.team)
     if change_conflicts:
         raise errors.ChangeResolutionInvalid(change_conflicts)
-    current = await ports.roster.duties_in_force(plan.starts_on, plan.ends_on)
-    rest_violations = await _rest_violations(plan, current, selected_carries, ports.roster)
+    current = await ports.roster.duties_in_force(schedule.starts_on, schedule.ends_on)
+    rest_violations = await _rest_violations(schedule, current, selected_carries, ports.roster)
     if rest_violations and not request.acknowledge_rest_violations:
         raise errors.RestViolationsNotAcknowledged(rest_violations)
 
     carried_slots = {item.slot for item in selected_carries}
     carried_names = {item.previous_assignee_name for item in selected_carries}
     carried_ids = await ports.members.ids_by_name(carried_names) if carried_names else {}
-    await ports.plans.carry(
-        plan.id,
+    await ports.schedules.carry(
+        schedule.id,
         [
             CarriedChange(
                 item.slot, item.previous_assignee_name, carried_ids.get(item.previous_assignee_name)
@@ -617,7 +621,7 @@ async def publish(
     )
     for change in selected_carries:
         await ports.journal.change_carried(
-            plan.id,
+            schedule.id,
             change.slot,
             original_name=change.original_assignee_name,
             carried_name=change.previous_assignee_name,
@@ -628,7 +632,7 @@ async def publish(
         for swap_id in await ports.swaps.cancel_for_publication(set(notices)):
             await ports.journal.swap_cancelled_by_publication(notices[swap_id], swap_id)
     await ports.journal.assignments_changed_by_publication(
-        plan.id,
+        schedule.id,
         [
             (old.service_date, old.role, old.assignee_name, old.new_assignee_name)
             for old in preview.replaced
@@ -641,11 +645,11 @@ async def publish(
     # month, leaving the days it does not replace with no published schedule
     # at all. Partial overlaps stay published and lose slot by slot in the
     # roster.
-    await ports.plans.retire_covered_by(plan)
+    await ports.schedules.retire_covered_by(schedule)
     name = (
-        f"Grafik {plan.name.removeprefix('Szkic ')}"
-        if plan.name.startswith("Szkic ")
-        else plan.name
+        f"Grafik {schedule.name.removeprefix('Szkic ')}"
+        if schedule.name.startswith("Szkic ")
+        else schedule.name
     )
-    await ports.plans.mark_published(plan.id, name=name, published_at=now)
-    await ports.journal.schedule_published(plan, name)
+    await ports.schedules.mark_published(schedule.id, name=name, published_at=now)
+    await ports.journal.schedule_published(schedule, name)

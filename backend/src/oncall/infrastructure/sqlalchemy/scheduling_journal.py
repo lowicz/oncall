@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
 from oncall.domain.roster import Slot
-from oncall.domain.scheduling.models import PendingSwapNotice, Plan, SchedulingPolicy
-from oncall.domain.scheduling.ports import NewDraft, SchedulingJournal, StoredPlan
+from oncall.domain.scheduling.models import PendingSwapNotice, Schedule, SchedulingPolicy
+from oncall.domain.scheduling.ports import NewDraft, SchedulingJournal, StoredSchedule
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.models import User
 from oncall.notifications import triggers
@@ -59,7 +59,7 @@ class SqlAlchemySchedulingJournal(SchedulingJournal):
             },
         )
 
-    async def draft_generated(self, stored: StoredPlan, draft: NewDraft) -> None:
+    async def draft_generated(self, stored: StoredSchedule, draft: NewDraft) -> None:
         result = draft.result
         # The id is assigned when the unit of work is written, after this event.
         self._schedule_event(
@@ -100,11 +100,11 @@ class SqlAlchemySchedulingJournal(SchedulingJournal):
             },
         )
 
-    async def schedule_deleted(self, plan: Plan, kind: str) -> None:
+    async def schedule_deleted(self, schedule: Schedule, kind: str) -> None:
         self._schedule_event(
             "schedule.deleted",
-            plan.id,
-            f"Usunięto {kind} „{plan.name}” ({plan.starts_on} - {plan.ends_on})",
+            schedule.id,
+            f"Usunięto {kind} „{schedule.name}” ({schedule.starts_on} - {schedule.ends_on})",
         )
 
     async def schedule_proposed(self, schedule_id: uuid.UUID) -> None:
@@ -156,14 +156,14 @@ class SqlAlchemySchedulingJournal(SchedulingJournal):
             self._session, changes=changes, schedule_id=schedule_id
         )
 
-    async def schedule_published(self, plan: Plan, name: str) -> None:
+    async def schedule_published(self, schedule: Schedule, name: str) -> None:
         await triggers.notify_schedule_published(
-            self._session, name=name, starts_on=plan.starts_on, ends_on=plan.ends_on
+            self._session, name=name, starts_on=schedule.starts_on, ends_on=schedule.ends_on
         )
         self._schedule_event(
             "schedule.published",
-            plan.id,
-            f"Opublikowano grafik „{name}” ({plan.starts_on} – {plan.ends_on})",
+            schedule.id,
+            f"Opublikowano grafik „{name}” ({schedule.starts_on} – {schedule.ends_on})",
         )
 
 

@@ -115,7 +115,7 @@ class QueueHealth:
 
 
 @dataclass(frozen=True)
-class PlannedDuty:
+class ScheduledDuty:
     """One slot of a schedule as the schedule itself has it."""
 
     service_date: date
@@ -130,7 +130,7 @@ class PlannedDuty:
 
 
 @dataclass(frozen=True)
-class Plan:
+class Schedule:
     """A schedule with its assignments, in any status.
 
     `assignments` keeps the order the store returned them in: the warnings
@@ -150,7 +150,7 @@ class Plan:
     fairness_proven: bool
     continuity_gap: float | None
     solver_warnings: tuple[str, ...]
-    assignments: tuple[PlannedDuty, ...]
+    assignments: tuple[ScheduledDuty, ...]
 
     @property
     def is_imported_history(self) -> bool:
@@ -158,8 +158,8 @@ class Plan:
             HISTORY_IMPORT_PREFIX
         )
 
-    def with_holder(self, slot: Slot, name: str, member_id: uuid.UUID) -> Plan:
-        """The plan with one slot handed to someone as a manual correction."""
+    def with_holder(self, slot: Slot, name: str, member_id: uuid.UUID) -> Schedule:
+        """The schedule with one slot handed to someone as a correction."""
         return replace(
             self,
             assignments=tuple(
@@ -172,7 +172,7 @@ class Plan:
 
 
 @dataclass(frozen=True)
-class PlanSummary:
+class ScheduleSummary:
     """A schedule without its assignments, for the drafts listing."""
 
     id: uuid.UUID
@@ -204,7 +204,7 @@ class UnavailabilityConflict:
 
 
 @dataclass(frozen=True)
-class PlanView:
+class ScheduleView:
     """The schedule as the generator screen sees it.
 
     Hard-unavailability conflicts ride along with every view, so the draft
@@ -213,7 +213,7 @@ class PlanView:
     warnings stay apart.
     """
 
-    plan: Plan
+    schedule: Schedule
     rule_warnings: tuple[str, ...]
     unavailability_conflicts: tuple[UnavailabilityConflict, ...]
     uncovered_before: tuple[date, ...]
@@ -329,7 +329,7 @@ class LensImpact:
 
 @dataclass(frozen=True)
 class FairnessImpact:
-    plan: Plan
+    schedule: Schedule
     as_of: date
     baseline: tuple[MemberBalance, ...]
     projected: tuple[MemberBalance, ...]
