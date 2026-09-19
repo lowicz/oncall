@@ -155,9 +155,9 @@ async def list_runs(
 ) -> list[RunResponse]:
     """This coordinator's generations that are still in flight.
 
-    A reload used to lose the running job even though the database had it, and
-    the natural reaction to a screen that shows nothing is to start a second
-    generation - which leaves two indistinguishable drafts (MED5-11, LOW5-09).
+    A screen that shows nothing invites the coordinator to start a second
+    generation of the same range, which is why a reload must never lose a job
+    the database still holds.
     """
     views = await generation.runs_in_flight(user.id, run_status, ports, lanes=_lanes())
     return [run_response(view) for view in views]

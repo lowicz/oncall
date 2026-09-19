@@ -47,7 +47,7 @@ class SchedulingPolicyResponse(BaseModel):
     def time_budget_seconds(self) -> float:
         """Hard wall-clock ceiling for one whole generation: a generation runs
         several solver passes in sequence, so this is what the coordinator
-        actually waits for (HGH6-02)."""
+        actually waits for."""
         return total_time_budget(self.solve_seconds)
 
 

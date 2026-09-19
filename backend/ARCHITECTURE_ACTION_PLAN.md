@@ -1,6 +1,6 @@
 # Backend architecture review and action plan
 
-Status: phases 4 and 5 complete; phase 6 items 1, 3, 4 and 5 done; item 2 remains  
+Status: phases 4 and 5 complete; phase 6 items 1, 3, 4 and 5 done; item 2 (vocabulary) remains  
 Review date: 2026-09-15  
 Decisions approved: 2026-09-15  
 Scope: `backend/src/oncall`, runtime configuration, migrations as persistence context  
@@ -1864,6 +1864,29 @@ Rules for the target:
   edit was prepared and then not applied - updating `contracts/openapi.json`
   is a deliberate contract change, and this session has no approval for one.
   Phase 6 item 2 (vocabulary, finding A15) is untouched.
+
+- **Phase 6d completed on 2026-09-19, approved contract change.** The owner
+  approved the defect phase 6b found: internal defect numbers were published
+  to every API client through the OpenAPI descriptions. Four IDs in three
+  descriptions - `HGH6-02` on `SchedulingPolicyResponse.time_budget_seconds`,
+  `MED5-09` on `SwapOptionResponse`, and `MED5-11, LOW5-09` on
+  `GET /api/v1/scheduling/runs` - are gone, and `contracts/openapi.json` was
+  regenerated with `--update`. **The only use of `--update` in this plan's
+  execution, and it took an explicit owner decision to earn it.**
+  The change was verified structurally rather than read: the snapshot before
+  and after were walked as JSON trees, and the comparison reports exactly
+  three differences, every one of them a `/description` value at one of the
+  three known paths. No path, operation id, schema, property, type, status
+  code or enum moved. The repository holds one copy of the contract, and the
+  frontend reads the fields rather than the prose, so nothing downstream
+  follows from it.
+  With this, finding A14 is closed everywhere it reaches: no QA round, defect
+  number or repair document is named anywhere in the production code or in the
+  published contract. Tests and commit messages keep theirs, which is where
+  A14 says they belong.
+  Validation: 623 tests passed with 22 PostgreSQL-gated skips; Ruff, the
+  strict mypy ratchet over 20 files, and the contract check against the newly
+  approved snapshot passed.
 
 ### Phase 0 — Contract freeze and decisions (mandatory)
 

@@ -20,8 +20,8 @@ class SwapOptionResponse(BaseModel):
     """One candidate replacement, with what deciding between two of them needs.
 
     The impact preview only appears once a candidate is picked, so comparing
-    two people meant selecting each in turn and remembering the numbers
-    (MED5-09). These facts travel with the name instead. The current balance
+    two people any other way means selecting each in turn and remembering the
+    numbers. These facts travel with the name instead. The current balance
     is not among them: `/swaps/impact` already carries it for every option and
     the screen fetches those anyway, so computing it again here only made this
     endpoint as slow as the whole fairness report.

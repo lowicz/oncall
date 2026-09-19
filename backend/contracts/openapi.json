@@ -2816,7 +2816,7 @@
             "type": "number"
           },
           "time_budget_seconds": {
-            "description": "Hard wall-clock ceiling for one whole generation: a generation runs\nseveral solver passes in sequence, so this is what the coordinator\nactually waits for (HGH6-02).",
+            "description": "Hard wall-clock ceiling for one whole generation: a generation runs\nseveral solver passes in sequence, so this is what the coordinator\nactually waits for.",
             "readOnly": true,
             "title": "Time Budget Seconds",
             "type": "number"
@@ -3246,7 +3246,7 @@
         "type": "object"
       },
       "SwapOptionResponse": {
-        "description": "One candidate replacement, with what deciding between two of them needs.\n\nThe impact preview only appears once a candidate is picked, so comparing\ntwo people meant selecting each in turn and remembering the numbers\n(MED5-09). These facts travel with the name instead. The current balance\nis not among them: `/swaps/impact` already carries it for every option and\nthe screen fetches those anyway, so computing it again here only made this\nendpoint as slow as the whole fairness report.",
+        "description": "One candidate replacement, with what deciding between two of them needs.\n\nThe impact preview only appears once a candidate is picked, so comparing\ntwo people any other way means selecting each in turn and remembering the\nnumbers. These facts travel with the name instead. The current balance\nis not among them: `/swaps/impact` already carries it for every option and\nthe screen fetches those anyway, so computing it again here only made this\nendpoint as slow as the whole fairness report.",
         "properties": {
           "availability": {
             "anyOf": [
@@ -7459,7 +7459,7 @@
     },
     "/api/v1/scheduling/runs": {
       "get": {
-        "description": "This coordinator's generations that are still in flight.\n\nA reload used to lose the running job even though the database had it, and\nthe natural reaction to a screen that shows nothing is to start a second\ngeneration - which leaves two indistinguishable drafts (MED5-11, LOW5-09).",
+        "description": "This coordinator's generations that are still in flight.\n\nA screen that shows nothing invites the coordinator to start a second\ngeneration of the same range, which is why a reload must never lose a job\nthe database still holds.",
         "operationId": "list_runs_api_v1_scheduling_runs_get",
         "parameters": [
           {
