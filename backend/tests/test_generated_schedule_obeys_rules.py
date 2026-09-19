@@ -12,8 +12,9 @@ entry says which constraint is missing and why:
 
 * `weekly` rotation compiles **no** rest rule at all (`scheduler.py` gates
   `max_consecutive` and the spacing rules on `mode != weekly`), because one
-  person holding a whole week is what weekly rotation means. The evaluator has
-  no notion of rotation mode and flags every such week.
+  person holding a whole week is what weekly rotation means. The evaluator is
+  told the mode and suspends the same three, so this needs no waiver: the two
+  statements agree instead of being excused from each other.
 * A run that announced suspended spacing dropped `three_in_seven` and
   `rest_after_run` to find any solution at all. `max_consecutive` is gated
   separately and stays in force even then, so it is never waived here.
@@ -54,7 +55,6 @@ HOLIDAYS = polish_holidays(STARTS - timedelta(days=365), ENDS)
 BUDGET = 10.0
 
 SPACING_RULES = {"three_in_seven", "rest_after_run"}
-REST_RULES = SPACING_RULES | {"max_consecutive"}
 SUSPENDED_SPACING = "Reguły rozrzedzania"
 
 
@@ -86,15 +86,19 @@ def _slots(result: SolverResult) -> Slots:
 
 
 def _waived_rules(result: SolverResult, mode: RotationMode) -> set[str]:
-    """Which rules this particular run was never asked to satisfy."""
-    if mode == RotationMode.weekly:
-        return REST_RULES
+    """Which rules this particular run was never asked to satisfy.
+
+    Weekly rotation is no longer among them: the evaluator takes the mode and
+    suspends exactly what the model builder does.
+    """
     if any(warning.startswith(SUSPENDED_SPACING) for warning in result.warnings):
         return SPACING_RULES
     return set()
 
 
-def _violations(result: SolverResult, anchor: LateShiftAnchor) -> list[RuleViolation]:
+def _violations(
+    result: SolverResult, anchor: LateShiftAnchor, mode: RotationMode = RotationMode.hybrid
+) -> list[RuleViolation]:
     slots = _slots(result)
     days = sorted({day for day, _role in slots})
     exempt = exempt_days(days, HOLIDAYS)
@@ -103,7 +107,7 @@ def _violations(result: SolverResult, anchor: LateShiftAnchor) -> list[RuleViola
         oncall_days = {
             day for (day, role), holder in slots.items() if role in ONCALL_ROLES and holder == name
         }
-        found += oncall_rest_violations(name, oncall_days, exempt)
+        found += oncall_rest_violations(name, oncall_days, exempt, mode=mode)
         found += anchor_violations(name, slots, anchor, HOLIDAYS)
     found += day_off_block_violations(slots, HOLIDAYS)
     found += late_shift_on_day_off(slots, HOLIDAYS)
@@ -149,7 +153,7 @@ def test_the_evaluator_finds_only_rules_the_solver_never_compiled(
     waived = _waived_rules(result, mode)
     unexpected = [
         violation
-        for violation in _violations(result, anchor)
+        for violation in _violations(result, anchor, mode)
         if violation.rule not in waived and violation.rule != "late_shift_anchor"
     ]
 
@@ -226,13 +230,15 @@ def test_the_solver_and_the_evaluator_name_the_same_anchor_mismatches() -> None:
     assert evaluator_days == solver_days
 
 
-def test_weekly_rotation_is_the_only_mode_that_waives_the_consecutive_limit() -> None:
+def test_only_a_suspended_run_waives_anything_and_it_keeps_the_consecutive_limit() -> None:
     """Pins the waiver itself, so a future run cannot quietly widen it.
 
     A suspended-spacing run drops the rolling windows but keeps
-    `max_consecutive`, which is gated separately in the model builder.
+    `max_consecutive`, which is gated separately in the model builder. Weekly
+    rotation waives nothing here any more - the evaluator knows the mode, so
+    there is nothing left to excuse.
     """
-    assert _waived_rules(SolverResult((), (), "OPTIMAL"), RotationMode.weekly) == REST_RULES
+    assert _waived_rules(SolverResult((), (), "OPTIMAL"), RotationMode.weekly) == set()
 
     suspended = SolverResult((), (), "FEASIBLE", warnings=(f"{SUSPENDED_SPACING} zawieszone",))
     assert _waived_rules(suspended, RotationMode.hybrid) == SPACING_RULES

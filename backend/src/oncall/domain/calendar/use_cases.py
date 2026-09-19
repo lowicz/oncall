@@ -7,6 +7,7 @@ than its own date range. Nothing here commits.
 """
 
 import uuid
+from collections.abc import Iterable
 from datetime import date, timedelta
 
 from oncall.coverage import coverage_window, is_day_off
@@ -33,7 +34,7 @@ from oncall.domain.vocabulary import AssignmentRole
 from oncall.workdays import polish_holiday_names, polish_holidays
 
 
-def _sorted(duties) -> list[Duty]:
+def _sorted(duties: Iterable[Duty]) -> list[Duty]:
     return sorted(duties, key=lambda duty: (duty.service_date, duty.role.value))
 
 

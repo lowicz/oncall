@@ -7,7 +7,7 @@ inside the first fortnight and no Polish holiday interferes.
 
 from datetime import date, timedelta
 
-from oncall.models import AssignmentRole, LateShiftAnchor
+from oncall.models import AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.rules import (
     anchor_violations,
     day_off_block_violations,
@@ -206,3 +206,55 @@ def test_substitution_ignores_a_preexisting_violation() -> None:
         holidays=set(),
     )
     assert violations == []
+
+
+def test_weekly_rotation_states_no_rest_rule() -> None:
+    """A week-long run is what weekly rotation means, not a rule break.
+
+    The solver compiles none of the three rolling rest constraints in this
+    mode, so an evaluator that reports them contradicts the roster it was
+    handed: a clean weekly schedule showed the coordinator five hard-rule
+    warnings on every generation.
+    """
+    whole_week = days_from(DAY, 7)
+
+    assert oncall_rest_violations("Anna", whole_week, mode=RotationMode.weekly) == []
+    # Under any other mode the same week breaks two of the three: an unbroken
+    # run never reaches `rest_after_run`, which needs a single rest day in the
+    # middle of it.
+    assert {item.rule for item in oncall_rest_violations("Anna", whole_week)} == {
+        "max_consecutive",
+        "three_in_seven",
+    }
+
+
+def test_every_other_rotation_keeps_the_rest_rules() -> None:
+    """Only weekly is exempt, and a roster that never recorded its mode - an
+    import, or a schedule older than the column - is judged by the full set."""
+    whole_week = days_from(DAY, 7)
+
+    for mode in (RotationMode.daily, RotationMode.hybrid, None):
+        rules = {item.rule for item in oncall_rest_violations("Anna", whole_week, mode=mode)}
+        assert "max_consecutive" in rules, mode
+
+
+def test_a_swap_inside_a_weekly_roster_is_not_blocked_by_the_rest_rules() -> None:
+    """The same suspension reaches the swap path, or the mode would produce
+    rosters its own swap screen refuses to edit."""
+    slots = {
+        (DAY + timedelta(days=offset), role): "Anna"
+        for offset in range(7)
+        for role in (AssignmentRole.primary,)
+    }
+    slots[(DAY + timedelta(days=7), AssignmentRole.primary)] = "Bartek"
+    move = [(DAY + timedelta(days=7), AssignmentRole.primary)]
+
+    blocked = substitution_violations(
+        slots, move, "Bartek", "Anna", LateShiftAnchor.secondary, set()
+    )
+    allowed = substitution_violations(
+        slots, move, "Bartek", "Anna", LateShiftAnchor.secondary, set(), RotationMode.weekly
+    )
+
+    assert {item.rule for item in blocked} == {"max_consecutive", "three_in_seven"}
+    assert allowed == []

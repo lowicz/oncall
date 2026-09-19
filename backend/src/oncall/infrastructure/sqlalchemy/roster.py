@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oncall.domain.ports import FairnessHistory, PublishedRoster, RosterPolicy
 from oncall.domain.roster import Duty, ScheduleRef, Slot
 from oncall.domain.team import Member
-from oncall.domain.vocabulary import LateShiftAnchor
+from oncall.domain.vocabulary import LateShiftAnchor, RotationMode
 from oncall.effective import EffectiveAssignment, effective_assignments
 from oncall.fairness import FairnessDuty, FairnessMemberInput
 from oncall.fairness_data import latest_publish_end, load_inputs
@@ -136,6 +136,9 @@ class SqlAlchemyRosterPolicy(RosterPolicy):
 
     async def late_shift_anchor(self) -> LateShiftAnchor:
         return (await load_policy(self._session)).late_shift_anchor
+
+    async def rotation_mode(self) -> RotationMode:
+        return (await load_policy(self._session)).rotation_mode
 
 
 class SqlAlchemyFairnessHistory(FairnessHistory):

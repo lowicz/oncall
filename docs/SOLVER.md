@@ -191,6 +191,13 @@ lukę wartości celu względem najlepszej znanej granicy.
 - jakość obu rozwiązań jest kryterium; testy nie wymagają identycznych przydziałów
   dla identycznego wejścia.
 
+Zdanie „brak tych reguł w trybie tygodniowym” jest od fazy 6f wspólne dla solvera
+i dla ewaluatora reguł (`rules.rest_rules_apply`).
+Wcześniej mówił je tylko solver, więc czysty grafik tygodniowy pokazywał
+koordynatorowi ostrzeżenia o regułach, których w tym trybie nie ma.
+Grafik jest oceniany trybem, w którym powstał (`schedule.rotation_mode`), a obsada
+obowiązująca - bieżącą polityką.
+
 ## Stan funkcji względem planu docelowego
 
 - biblioteka `holidays` jest wspólnym źródłem polskich świąt dla solvera,

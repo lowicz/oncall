@@ -1113,6 +1113,7 @@ def _prior_history_warning(
     prior_oncall: dict[str, set[date]] | None,
     starts_on: date,
     holidays: set[date],
+    mode: RotationMode,
 ) -> str | None:
     """Whether the week before the horizon already breaks the rest rules.
 
@@ -1123,7 +1124,7 @@ def _prior_history_warning(
     prior_exempt = exempt_days(prior_days, holidays)
     held = prior_oncall or {}
     violated = any(
-        oncall_rest_violations(member.name, held.get(member.name, set()), prior_exempt)
+        oncall_rest_violations(member.name, held.get(member.name, set()), prior_exempt, mode=mode)
         for member in members
     )
     if not violated:
@@ -1521,7 +1522,7 @@ def generate_schedule(
         progress_callback(MODEL_BUILT)
 
     warnings: list[str] = []
-    prior_warning = _prior_history_warning(members, prior_oncall, starts_on, holidays)
+    prior_warning = _prior_history_warning(members, prior_oncall, starts_on, holidays, mode)
     if prior_warning is not None:
         warnings.append(prior_warning)
     acceptance_floor: int | None = None

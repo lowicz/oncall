@@ -5,6 +5,7 @@ their own balance. Viewers see nothing, because points are private to the team.
 """
 
 import uuid
+from collections.abc import Callable
 
 from oncall.domain.balance import errors
 from oncall.domain.balance.models import (
@@ -21,6 +22,8 @@ from oncall.domain.team import Actor
 from oncall.domain.vocabulary import LateShiftAnchor, UserRole
 from oncall.fairness import (
     ACCEPTANCE_POINTS,
+    CategoryBalance,
+    MemberBalance,
     compute_fairness,
     criterion_member_ids,
     duty_points,
@@ -41,6 +44,16 @@ async def _own_member_id(actor: Actor, ports: BalancePorts) -> uuid.UUID:
     if own is None:
         raise NotATeamMember()
     return own.id
+
+
+def _by_deviation(lens: str) -> Callable[[MemberBalance], float]:
+    """Order members by how far this lens leaves them from their fair share."""
+
+    def deviation(item: MemberBalance) -> float:
+        balance: CategoryBalance = getattr(item, lens)
+        return balance.deviation
+
+    return deviation
 
 
 async def balance_report(query: BalanceQuery, ports: BalancePorts) -> BalanceReport:
@@ -73,9 +86,7 @@ async def balance_report(query: BalanceQuery, ports: BalancePorts) -> BalanceRep
         in_criterion = [item for item in report.members if item.member_id in criterion_ids]
         outliers = []
         for lens in lenses:
-            ordered = sorted(
-                in_criterion, key=lambda item, lens=lens: getattr(item, lens).deviation
-            )
+            ordered = sorted(in_criterion, key=_by_deviation(lens))
             outliers.append(
                 LensOutliers(
                     lens=lens,

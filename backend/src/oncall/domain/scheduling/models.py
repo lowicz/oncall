@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from oncall.domain.roster import Slot
 from oncall.domain.team import Actor
@@ -454,7 +454,8 @@ class ChangeRecord:
     action: str
     entity_id: str | None
     summary: str
-    details: dict | None
+    #: The event's own JSON payload, shaped by whoever wrote the entry.
+    details: dict[str, Any] | None
 
 
 @dataclass(frozen=True)

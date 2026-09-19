@@ -151,7 +151,7 @@ async def queue_generation(
 async def runs_in_flight(
     actor_id: uuid.UUID, status: str | None, ports: SchedulingPorts, *, lanes: int
 ) -> list[RunView]:
-    wanted = [status] if status else list(ACTIVE_RUN_STATES)
+    wanted = [status] if status else [state.value for state in ACTIVE_RUN_STATES]
     runs = await ports.queue.runs_of(actor_id, wanted, 10)
     solve_seconds = (await ports.policy.current()).solve_seconds
     return [await view_run(run, solve_seconds, ports, lanes=lanes) for run in runs]
@@ -229,7 +229,9 @@ async def generate_draft(
     )
     if result.conflicts:
         raise errors.GenerationFailed(
-            _FAILURE_MESSAGES.get(result.failure_reason, "Nie można utworzyć kompletnego grafiku"),
+            _FAILURE_MESSAGES.get(
+                result.failure_reason or "", "Nie można utworzyć kompletnego grafiku"
+            ),
             result.failure_reason,
             result.conflicts,
         )

@@ -196,7 +196,8 @@ class AuditEntry:
     entity_type: str | None
     entity_id: str | None
     summary: str
-    details: dict | None
+    #: The event's own JSON payload, shaped by whoever wrote the entry.
+    details: dict[str, Any] | None
 
 
 @dataclass(frozen=True)

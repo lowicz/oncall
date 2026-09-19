@@ -1,6 +1,6 @@
 # Backend architecture review and action plan
 
-Status: all six phases complete; the mypy ratchet was never widened into `domain/` (16 errors, 11 files), recorded in the phase 6e note  
+Status: all six phases complete; both leftover items closed in phase 6f  
 Review date: 2026-09-15  
 Decisions approved: 2026-09-15  
 Scope: `backend/src/oncall`, runtime configuration, migrations as persistence context  
@@ -1934,6 +1934,90 @@ Rules for the target:
   elsewhere and is not part of it: the mypy ratchet has not been widened into
   `domain/` (16 errors across 11 files), and the weekly-rotation rule-evaluator
   divergence is still a product question for the owner.
+
+- **Phase 6f completed on 2026-09-19, extended on 2026-09-20, bug fix and
+  typing ratchet.** The two
+  items this plan had left over are closed.
+  **The mypy ratchet now covers the whole domain**, 90 source files instead of
+  20, and `files` names the directory rather than a list that has to be
+  remembered. `rules.py` was taken with it, for the reason recorded further
+  down, which makes 91. The 17 errors it was hiding were fixed rather than silenced:
+  `dict` without arguments where JSON crosses a boundary (annotated
+  `dict[str, Any]`, which is what those payloads are), three functions with
+  unannotated parameters, a lambda that carried its loop variable as a default
+  argument, a `2 ** n` that types as `Any` and is now a shift, and a status
+  list that was `list[RunState]` where the port asks for `list[str]`.
+  **One of the seventeen was a real branch that could not be narrowed**, and it
+  was in sign-in. `sign_in` drove itself with a `try_directory` flag, so
+  whether `account` was set depended on state no type checker - and no reader -
+  can follow. It is now two explicit exits: local credentials accepted returns
+  straight away, and everything else leaves through the directory. Before the
+  restructure, six mutations were run against the branches that matter
+  (inactive account, wrong local password falling through to the directory,
+  the decoy hash that must run exactly once, the deactivated directory
+  account); all six failed a test, so the shape could be changed against a real
+  net. **The restructure then made one guard redundant** - an inactive local
+  account was being refused twice - and the mutation testing is what showed it:
+  deleting the first guard stopped failing anything. It was removed rather than
+  left as a branch no test can distinguish, and the remaining one says what it
+  is for: an account that is not active is refused before the directory is
+  asked, so a disabled person cannot be told from an unknown one by timing.
+  **The weekly-rotation divergence is fixed, and it was reproduced first.** A
+  clean weekly roster - solver `OPTIMAL`, no solver warnings - showed the
+  coordinator **five hard-rule warnings**, every single generation. The solver
+  compiles none of the three rolling rest constraints under `weekly`
+  (`spacing = mode != RotationMode.weekly`, and `max_consecutive` is gated on
+  the same condition), because one person holding a whole week is what weekly
+  rotation *is*. The evaluator had no notion of rotation mode and reported the
+  design as a defect.
+  **Of the two options the phase 4 note left open, this takes the first**: the
+  evaluator learns the mode. The second - weekly rotation stating a rest rule
+  of its own - would have invented product behaviour nobody asked for.
+  `rules.rest_rules_apply(mode)` is the single place that decides, and
+  `oncall_rest_violations` returns nothing when it says no. The mode reaches it
+  from two different places on purpose: a *schedule* is judged by
+  `schedule.rotation_mode`, the mode it was generated under, so a roster is
+  measured against the rules it was built to satisfy even if the policy has
+  changed since; the *roster in force* is judged by the current policy, which
+  is what `RosterPolicy.rotation_mode()` was added for. A schedule with no
+  recorded mode - imported history - keeps the full set.
+  It reaches every gate, not only the one that was reported: the draft and
+  publication warnings, the swap request, the candidate list, the approval
+  re-check, the batch correction, and the carry check that decides whether a
+  protected change survives a republish. Leaving any of them behind would mean
+  weekly rotation producing rosters its own swap screen refuses to edit.
+  **The reconciliation lost its first waiver.** `test_generated_schedule_obeys_rules`
+  used to excuse weekly rotation from all three rest rules, because the two
+  statements of the rules disagreed by construction. They agree now, so the
+  waiver is gone and the cross-check holds weekly to the same standard as every
+  other mode - which is the real proof the divergence is closed.
+  Ten mutations, ten caught, one per place the mode now reaches plus four on
+  the decision itself. Three of them survived at first - the candidate list,
+  the batch check and the carry check were threaded but unpinned - and each got
+  a test rather than a note.
+  The blast radius is small and worth stating plainly: `scheduling_policies`
+  ships `rotation_mode` defaulting to `hybrid`, so the change reaches only the
+  installs that deliberately chose weekly. For those, swap requests that were
+  refused are now accepted and candidates that were greyed out are now offered,
+  which is the point of the fix rather than a side effect of it.
+  `docs/SOLVER.md` already said the rest rules do not exist in weekly mode; it
+  said it about the solver only, and now records that the evaluator says it too.
+  The ratchet took one module more than the domain. `rules.py` is root policy,
+  the domain is allowed to import it, and phase 6f put new logic in it, so
+  leaving it unchecked would have meant writing new code outside the gate the
+  same note was widening. Its two errors were real - a set of holder names that
+  could contain `None` was sorted and handed to `RuleViolation` - and were
+  fixed, not silenced. Three root-policy modules are still outside the ratchet,
+  and they are not equal: `workdays.py` and `coverage.py` already pass strict
+  mypy, so adding them costs nothing, while `fairness.py` has three real errors
+  and is the one that needs work.
+  Validation, re-run over the final tree after the ratchet was widened:
+  633 tests passed, 10 of them new, with 22 PostgreSQL-gated skips;
+  all 22 concurrency tests passed on the contract PostgreSQL database; Ruff,
+  the strict mypy ratchet - now the whole domain plus the rule evaluator, 91
+  files against the 20 this phase started from - and the unchanged OpenAPI
+  snapshot passed. The warnings a coordinator sees are behaviour, not
+  contract: the snapshot did not move.
 
 ### Phase 0 — Contract freeze and decisions (mandatory)
 

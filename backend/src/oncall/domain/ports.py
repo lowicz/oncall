@@ -14,7 +14,7 @@ from typing import Protocol
 
 from oncall.domain.roster import Duty, ScheduleRef, Slot
 from oncall.domain.team import Member
-from oncall.domain.vocabulary import LateShiftAnchor
+from oncall.domain.vocabulary import LateShiftAnchor, RotationMode
 from oncall.fairness import FairnessDuty, FairnessMemberInput
 
 
@@ -84,6 +84,11 @@ class PublishedRoster(Protocol):
 
 class RosterPolicy(Protocol):
     async def late_shift_anchor(self) -> LateShiftAnchor: ...
+
+    async def rotation_mode(self) -> RotationMode:
+        """The rotation the roster is being run under. Decides whether the
+        rolling rest rules apply at all - weekly rotation states none."""
+        ...
 
 
 class FairnessHistory(Protocol):

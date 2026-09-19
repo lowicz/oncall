@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 
 from oncall.domain.clock import business_today
@@ -63,7 +64,7 @@ def _couples_late_shift(
 
 
 async def _schedule_for(
-    roster: PublishedRoster, schedule_id, service_date: date
+    roster: PublishedRoster, schedule_id: uuid.UUID | None, service_date: date
 ) -> ScheduleRef | None:
     if schedule_id is not None:
         return await roster.schedule(schedule_id)

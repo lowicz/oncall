@@ -63,7 +63,14 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.14"
 strict = true
 files = [
-  "src/oncall/domain/clock.py",
+  # The whole domain: it is the layer with no framework in it, so there is
+  # nothing here that strict typing has to be argued with.
+  "src/oncall/domain",
+  # The rule evaluator, which the domain imports as root policy. Phase 6f
+  # taught it the rotation mode, so it is new code and belongs in the ratchet.
+  # `workdays` and `coverage` already pass and can join whenever; `fairness`
+  # has three real errors first.
+  "src/oncall/rules.py",
   "src/oncall/database.py",
   "src/oncall/metrics.py",
   "scripts/openapi_snapshot.py",

@@ -14,7 +14,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor
+from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.workdays import is_working_day
 
 #: Imported back by the solver, so the constant also lives in exactly one place.
@@ -107,11 +107,36 @@ def exempt_days(days: list[date], holidays: set[date]) -> set[date]:
     }
 
 
+def rest_rules_apply(mode: RotationMode | None) -> bool:
+    """Whether the rolling rest rules are rules at all under this mode.
+
+    Weekly rotation means one person carries a whole week, which is more than
+    three consecutive days by construction, so the solver compiles none of
+    these three constraints in that mode. An evaluator that reports them
+    anyway reports the design as a defect: a clean weekly roster showed the
+    coordinator five hard-rule warnings on every generation.
+
+    A roster with no recorded mode - imported history, or a schedule from
+    before the column existed - is judged by the full set.
+    """
+    return mode != RotationMode.weekly
+
+
 def oncall_rest_violations(
-    name: str, oncall_days: set[date], exempt_days: set[date] | None = None
+    name: str,
+    oncall_days: set[date],
+    exempt_days: set[date] | None = None,
+    *,
+    mode: RotationMode | None = None,
 ) -> list[RuleViolation]:
     """Rest rules around on-call duty: at most 3 consecutive days, at most 3
-    duties in any 7-day window, and 2 rest days after a run of 2+."""
+    duties in any 7-day window, and 2 rest days after a run of 2+.
+
+    All three are suspended under weekly rotation, which states no rest rule of
+    its own - see `rest_rules_apply`.
+    """
+    if not rest_rules_apply(mode):
+        return []
     exempt = exempt_days or set()
     served = sorted(oncall_days)
     violations: list[RuleViolation] = []
@@ -199,7 +224,7 @@ def day_off_block_violations(slots: Slots, holidays: set[date]) -> list[RuleViol
     violations: list[RuleViolation] = []
     for block in _day_off_blocks(days, holidays):
         for role in ONCALL_ROLES:
-            holders = {slots.get((day, role)) for day in block} - {None}
+            holders = {name for day in block if (name := slots.get((day, role))) is not None}
             if len(holders) < 2:
                 continue
             for holder in sorted(holders):
@@ -263,6 +288,7 @@ def _state_violations(
     names: set[str],
     anchor: LateShiftAnchor,
     holidays: set[date],
+    mode: RotationMode | None,
 ) -> list[RuleViolation]:
     """Every hard-rule violation involving any of `names` in one slot state."""
     days = sorted({day for day, _role in slots})
@@ -272,7 +298,7 @@ def _state_violations(
         oncall_days = {
             day for (day, role), holder in slots.items() if holder == name and role in ONCALL_ROLES
         }
-        violations += oncall_rest_violations(name, oncall_days, exempt)
+        violations += oncall_rest_violations(name, oncall_days, exempt, mode=mode)
         for day in days:
             if all(slots.get((day, role)) == name for role in ONCALL_ROLES):
                 violations.append(
@@ -309,6 +335,7 @@ def substitution_violations(
     to_name: str,
     anchor: LateShiftAnchor,
     holidays: set[date],
+    mode: RotationMode | None = None,
 ) -> list[RuleViolation]:
     """Hard-rule violations that moving these slots would create.
 
@@ -326,13 +353,13 @@ def substitution_violations(
     names = {from_name, to_name}
     before = Counter(
         (violation.rule, violation.member_name)
-        for violation in _state_violations(slots, names, anchor, holidays)
+        for violation in _state_violations(slots, names, anchor, holidays, mode)
     )
     projected = dict(slots)
     for day, role in moves:
         projected[(day, role)] = to_name
     created: list[RuleViolation] = []
-    for violation in _state_violations(projected, names, anchor, holidays):
+    for violation in _state_violations(projected, names, anchor, holidays, mode):
         key = (violation.rule, violation.member_name)
         if before[key] > 0:
             before[key] -= 1
@@ -346,6 +373,7 @@ def batch_substitution_violations(
     moves: list[tuple[date, AssignmentRole, str]],
     anchor: LateShiftAnchor,
     holidays: set[date],
+    mode: RotationMode | None = None,
 ) -> list[RuleViolation]:
     """Violations created by an atomic batch containing different recipients."""
     names = {
@@ -356,13 +384,13 @@ def batch_substitution_violations(
     }
     before = Counter(
         (violation.rule, violation.member_name)
-        for violation in _state_violations(slots, names, anchor, holidays)
+        for violation in _state_violations(slots, names, anchor, holidays, mode)
     )
     projected = dict(slots)
     for day, role, replacement in moves:
         projected[(day, role)] = replacement
     created: list[RuleViolation] = []
-    for violation in _state_violations(projected, names, anchor, holidays):
+    for violation in _state_violations(projected, names, anchor, holidays, mode):
         key = (violation.rule, violation.member_name)
         if before[key] > 0:
             before[key] -= 1

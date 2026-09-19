@@ -16,6 +16,7 @@ from oncall.domain.vocabulary import (
     AssignmentRole,
     AvailabilityKind,
     LateShiftAnchor,
+    RotationMode,
     ScheduleStatus,
     SwapStatus,
     UserRole,
@@ -163,11 +164,19 @@ class FakeRoster:
 
 
 class FakePolicy:
-    def __init__(self, anchor: LateShiftAnchor = LateShiftAnchor.secondary) -> None:
+    def __init__(
+        self,
+        anchor: LateShiftAnchor = LateShiftAnchor.secondary,
+        mode: RotationMode = RotationMode.hybrid,
+    ) -> None:
         self.anchor = anchor
+        self.mode = mode
 
     async def late_shift_anchor(self):
         return self.anchor
+
+    async def rotation_mode(self):
+        return self.mode
 
 
 class FakeFairness:

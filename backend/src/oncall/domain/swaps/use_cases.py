@@ -4,6 +4,7 @@ The order of the checks is part of the behaviour: when a request is wrong in
 two ways, the first failing rule is the one the person is told about.
 """
 
+import uuid
 from dataclasses import replace
 from datetime import date
 
@@ -83,7 +84,7 @@ async def _member_for(actor: Actor, team: TeamDirectory) -> Member:
 
 
 async def _takes_opposite_oncall(
-    roster: PublishedRoster, schedule_id, move: Slot, replacement: Member
+    roster: PublishedRoster, schedule_id: uuid.UUID, move: Slot, replacement: Member
 ) -> bool:
     """Whether the replacement already holds the opposite on-call role of this
     slot in the schedule the request belongs to."""
@@ -164,7 +165,13 @@ async def list_replacement_options(
             holidays=holidays,
         )
         violations = substitution_violations(
-            holders, moves, requester.display_name, member.display_name, anchor, holidays
+            holders,
+            moves,
+            requester.display_name,
+            member.display_name,
+            anchor,
+            holidays,
+            await ports.policy.rotation_mode(),
         )
         blocking, warnings = partition_violations(violations, anchor_exception=anchor_exception)
         # A coupled swap can hand the candidate a second on-call role the
@@ -380,6 +387,7 @@ async def request_swap(
         replacement.display_name,
         anchor,
         holidays,
+        await ports.policy.rotation_mode(),
     )
     blocking, warnings = partition_violations(violations, anchor_exception=anchor_exception)
     if blocking:

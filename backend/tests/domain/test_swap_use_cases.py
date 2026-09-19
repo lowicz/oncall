@@ -25,7 +25,13 @@ from oncall.domain.swaps.use_cases import (
     request_swap,
 )
 from oncall.domain.team import Actor
-from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, SwapStatus, UserRole
+from oncall.domain.vocabulary import (
+    AssignmentRole,
+    RotationMode,
+    ScheduleStatus,
+    SwapStatus,
+    UserRole,
+)
 from tests.domain.fakes import World, member, pending_swap
 
 #: A Wednesday with no Polish holiday near it; `TODAY` is a week earlier.
@@ -148,6 +154,27 @@ async def test_a_request_breaking_hard_rules_is_refused_with_the_violations(worl
     assert world.journal.events == []
 
 
+async def test_weekly_rotation_does_not_block_the_runs_it_is_built_from(world) -> None:
+    """The same request, under a rotation that has no rest rules.
+
+    Weekly rotation puts one person on for a whole week, so the solver compiles
+    none of the rolling rest constraints. A swap path that still enforced them
+    would refuse edits to rosters this very system generated - the mode would
+    produce schedules its own swap screen cannot touch.
+    """
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+    world.policy.mode = RotationMode.weekly
+
+    view = await ask(world, world.dawid)
+
+    assert view.request.status == SwapStatus.pending_replacement
+    # Not merely unblocked: nothing is reported as bent either, because under
+    # this rotation there is no rest rule to bend.
+    assert view.warnings == ()
+    assert world.journal.events
+
+
 async def test_the_anchor_role_carries_the_late_shift_with_it(world) -> None:
     view = await ask(world, world.dawid, role=AssignmentRole.secondary, requester=world.bartek)
     assert set(view.request.slots) == {
@@ -252,6 +279,27 @@ async def test_approval_of_a_slot_that_changed_owner_cancels_the_request(world) 
     assert world.journal.events == []
 
 
+async def test_approval_under_weekly_rotation_is_not_blocked_by_the_rest_rules(world) -> None:
+    """The second gate takes the mode too.
+
+    Approval re-checks the hard rules, because the roster can move between the
+    request and the decision. A request accepted under weekly rotation that was
+    then refused at approval would leave the coordinator with a swap nobody can
+    finish.
+    """
+    request = pending_swap(world, world.anna, world.dawid, DAY)
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+    world.policy.mode = RotationMode.weekly
+
+    view = await approve_swap(
+        SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY
+    )
+
+    assert view.request.status == SwapStatus.approved
+    assert world.roster.handed_over == [((DAY, AssignmentRole.primary), world.dawid.id)]
+
+
 async def test_approval_after_a_concurrent_roster_change_hands_nothing_over(world) -> None:
     request = pending_swap(world, world.anna, world.dawid, DAY)
     # Republished meanwhile: the schedule the request belongs to is retired.
@@ -286,6 +334,32 @@ async def test_approval_rechecks_that_the_replacement_is_not_on_call_meanwhile(w
     world.roster.assign(DAY, AssignmentRole.secondary, world.dawid)
     with pytest.raises(errors.ReplacementOnCallSinceRequest):
         await approve_swap(SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY)
+
+
+async def test_the_candidate_list_takes_the_rotation_into_account(world) -> None:
+    """The list says why a candidate cannot be picked, so it must ask the same
+    question the request will: under weekly rotation, a long run is no reason
+    to grey somebody out."""
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+
+    blocked = await list_replacement_options(
+        ReplacementOptionsQuery(account(world.anna), DAY, AssignmentRole.primary),
+        world.swaps,
+        today=TODAY,
+    )
+    world.policy.mode = RotationMode.weekly
+    offered = await list_replacement_options(
+        ReplacementOptionsQuery(account(world.anna), DAY, AssignmentRole.primary),
+        world.swaps,
+        today=TODAY,
+    )
+
+    assert {item.rule for item in blocked[0].blocking_violations} == {
+        "max_consecutive",
+        "three_in_seven",
+    }
+    assert offered[0].blocking_violations == ()
 
 
 async def test_options_leave_out_whoever_cannot_take_the_slot(world) -> None:

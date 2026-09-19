@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Protocol
+from typing import Any, Protocol
 
 from oncall.domain.calendar.models import CalendarEvent, CalendarMember, Contact, NewCalendarEvent
 from oncall.domain.ports import PublishedRoster
@@ -23,7 +23,7 @@ class CalendarEvents(Protocol):
 
     async def add(self, event: NewCalendarEvent) -> CalendarEvent: ...
 
-    async def change(self, event_id: uuid.UUID, changes: dict) -> CalendarEvent: ...
+    async def change(self, event_id: uuid.UUID, changes: dict[str, Any]) -> CalendarEvent: ...
 
     async def remove(self, event_id: uuid.UUID) -> None: ...
 
@@ -31,7 +31,7 @@ class CalendarEvents(Protocol):
 class CalendarJournal(Protocol):
     async def event_created(self, event: CalendarEvent) -> None: ...
 
-    async def event_updated(self, event: CalendarEvent, *, changes: dict) -> None: ...
+    async def event_updated(self, event: CalendarEvent, *, changes: dict[str, Any]) -> None: ...
 
     async def event_deleted(self, event: CalendarEvent) -> None: ...
 

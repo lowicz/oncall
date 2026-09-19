@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
+from typing import Any
 
 from oncall.domain.roster import Duty
 from oncall.domain.team import Actor, RolePeriod
@@ -66,7 +67,8 @@ class CalendarEventChange:
     actor: Actor
     event_id: uuid.UUID
     #: Only the fields sent with a value; an explicit null leaves a field as is.
-    changes: dict
+    #: JSON as the client sent it, which is why the values are `Any`.
+    changes: dict[str, Any]
 
 
 @dataclass(frozen=True)

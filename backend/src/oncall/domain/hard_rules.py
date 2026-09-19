@@ -39,6 +39,7 @@ async def substitution_check(
         to_name,
         anchor,
         polish_holidays(window_start, window_end),
+        await policy.rotation_mode(),
     )
 
 
@@ -53,5 +54,9 @@ async def batch_substitution_check(
     duties = await roster.duties_in_force(window_start, window_end)
     anchor = await policy.late_shift_anchor()
     return batch_substitution_violations(
-        holder_names(duties), moves, anchor, polish_holidays(window_start, window_end)
+        holder_names(duties),
+        moves,
+        anchor,
+        polish_holidays(window_start, window_end),
+        await policy.rotation_mode(),
     )

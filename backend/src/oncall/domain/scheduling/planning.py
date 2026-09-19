@@ -88,7 +88,13 @@ def member_rest_warnings(schedule: Schedule, member_id: uuid.UUID) -> list[str]:
         return []
     holidays = polish_holidays(schedule.starts_on, schedule.ends_on)
     days = sorted({item.service_date for item in schedule.assignments})
-    return summarise(oncall_rest_violations(name, oncall_days, exempt_days(days, holidays)))
+    # The mode the schedule was generated under, not today's policy: a roster
+    # is judged by the rules it was built to satisfy.
+    return summarise(
+        oncall_rest_violations(
+            name, oncall_days, exempt_days(days, holidays), mode=schedule.rotation_mode
+        )
+    )
 
 
 def rule_warnings(schedule: Schedule) -> list[str]:

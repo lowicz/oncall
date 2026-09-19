@@ -20,7 +20,7 @@ from oncall.domain.overrides.use_cases import (
     override_duty,
 )
 from oncall.domain.team import Actor
-from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, UserRole
+from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode, UserRole
 from tests.domain.fakes import World, member
 
 DAY = date(2030, 3, 13)
@@ -174,6 +174,19 @@ async def test_a_batch_rewrites_every_slot_as_one_version(world) -> None:
         OverrideMove(DAY, AssignmentRole.primary, "Anna"),
         OverrideMove(DAY, AssignmentRole.late_shift, "Bartek"),
     ]
+
+
+async def test_a_batch_under_weekly_rotation_reports_no_rest_violations(world) -> None:
+    """A batch correction is checked in one state, and that check takes the
+    rotation like every other: weekly rotation has no rest rules to break."""
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.ewa)
+    world.policy.mode = RotationMode.weekly
+
+    results = await batch(world, BatchOverrideLine(DAY, AssignmentRole.primary, world.ewa.id))
+
+    assert [item.assignee_name for item in results] == ["Ewa"]
+    assert world.journal.events[0][1]["violations"] == []
 
 
 async def test_a_batch_refuses_repeated_and_missing_slots(world) -> None:

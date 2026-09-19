@@ -629,3 +629,35 @@ async def test_a_pending_swap_outside_the_published_range_is_not_a_publication_n
     preview = await preview_publication(fortnight.id, world.ports, today=MONDAY)
 
     assert preview.pending_swaps == ()
+
+
+async def test_a_carry_is_not_refused_for_a_rule_the_rotation_does_not_have(world) -> None:
+    """The carry check asks the hard rules whether a protected change can be
+    kept. Under weekly rotation the rest rules are not among them, so a change
+    that would be lost in a hybrid roster is carried here instead."""
+    published = complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.published)
+    world.publish_roster_from(published)
+    for offset in (1, 2, 3):
+        day = MONDAY - timedelta(days=offset)
+        world.roster.schedule_ref.slots[(day, AssignmentRole.primary)] = Duty(
+            day,
+            AssignmentRole.primary,
+            world.dawid.id,
+            world.dawid.display_name,
+            False,
+            world.roster.schedule_ref.id,
+        )
+    _override_in_force(world, MONDAY, AssignmentRole.primary, world.dawid, "Anna")
+    proposal = world.schedules.put(
+        complete_schedule(
+            MONDAY, _rotation(world), status=ScheduleStatus.proposed, name="Szkic marzec"
+        )
+    )
+
+    hybrid = await preview_publication(proposal.id, world.ports, today=MONDAY)
+    world.policy.policy = replace(world.policy.policy, rotation_mode=RotationMode.weekly)
+    weekly = await preview_publication(proposal.id, world.ports, today=MONDAY)
+
+    assert [item.reason for item in hybrid.lost_changes] == ["Przeniesienie narusza reguły grafiku"]
+    assert weekly.lost_changes == ()
+    assert [item.previous_assignee_name for item in weekly.carried_changes] == ["Dawid"]

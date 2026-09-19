@@ -26,7 +26,9 @@ def retry_after_seconds(throttled_times: int) -> int:
     """Doubling with each repeated trigger within the window (capped at five
     minutes), so a caller that keeps hammering the door is told to wait
     longer each time instead of a flat 60 s."""
-    return min(300, 60 * 2 ** min(throttled_times - 1, 3))
+    # A shift rather than `60 * 2 ** n`: the same doubling, and it stays an
+    # `int` all the way out.
+    return min(300, 60 << min(throttled_times - 1, 3))
 
 
 @dataclass(frozen=True)

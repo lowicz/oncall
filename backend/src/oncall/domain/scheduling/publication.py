@@ -325,6 +325,7 @@ async def _carry_conflict_reason(
         old.assignee_name,
         policy.late_shift_anchor,
         polish_holidays(window_start, window_end),
+        policy.rotation_mode,
     )
     hard_violations = [
         violation

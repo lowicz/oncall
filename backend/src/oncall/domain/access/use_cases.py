@@ -42,49 +42,53 @@ async def sign_in(
     await _enforce_throttle(request, ports, now)
     login = request.login
     found = await ports.accounts.credentials_for_login(login)
-    account = found.account if found is not None else None
-    try_directory = True
     # Whether a real verification against this account's own hash already ran
     # - if so, the decoy verification below must be skipped, or an existing
     # account with a wrong password pays for two hashes while every other
     # outcome pays for one, and the difference in wall-clock time (measured:
     # 81.5 ms vs 44.5 ms) itself discloses that the account exists.
     local_password_checked = False
-    if account is not None and account.auth_source == AuthSource.local:
-        try_directory = False
-        if account.is_active and await ports.passwords.verify(
+    if found is not None and found.account.auth_source == AuthSource.local:
+        if found.account.is_active and await ports.passwords.verify(
             found.password_hash, request.password
         ):
             # Local credentials accepted; no directory round-trip needed.
-            pass
-        elif not account.is_active:
-            await _reject(request, ports, now)
-        else:
-            # A manually created local account is expected to link with AD on
-            # the person's first directory login, so a failed local password
-            # still tries the directory before giving up. The directory itself
-            # answers None immediately when it is not in use.
-            local_password_checked = True
-            try_directory = True
-    if try_directory:
-        if account is not None and not account.is_active:
-            await _reject(request, ports, now)
-        try:
-            identity = await ports.directory.authenticate(login, request.password)
-        except errors.DirectoryFailure as failure:
-            await ports.attempts.directory_unavailable(login, failure.reason)
-            raise errors.DirectoryLoginUnavailable(failure.reason) from failure
-        if identity is None:
-            if not local_password_checked:
-                await ports.passwords.verify_decoy(request.password)
-            await _reject(request, ports, now)
-        try:
-            account = await synchronize_directory_account(identity, ports)
-        except errors.DirectoryIdentityTaken as taken:
-            await ports.attempts.identity_conflict(login)
-            raise errors.DirectoryIdentityConflict() from taken
-        if not account.is_active:
-            await _reject(request, ports, now)
+            return await _sign_in_as(
+                found.account, ports, now=now, session_lifetime=session_lifetime
+            )
+        # A manually created local account is expected to link with AD on the
+        # person's first directory login, so a failed local password still
+        # tries the directory before giving up. The directory itself answers
+        # None immediately when it is not in use.
+        local_password_checked = True
+    # Whatever the account's source, a deactivated one never signs in - and it
+    # is refused before the directory is asked, so a disabled person cannot be
+    # told apart from an unknown one by how long the answer takes.
+    if found is not None and not found.account.is_active:
+        await _reject(request, ports, now)
+    try:
+        identity = await ports.directory.authenticate(login, request.password)
+    except errors.DirectoryFailure as failure:
+        await ports.attempts.directory_unavailable(login, failure.reason)
+        raise errors.DirectoryLoginUnavailable(failure.reason) from failure
+    if identity is None:
+        if not local_password_checked:
+            await ports.passwords.verify_decoy(request.password)
+        await _reject(request, ports, now)
+    try:
+        account = await synchronize_directory_account(identity, ports)
+    except errors.DirectoryIdentityTaken as taken:
+        await ports.attempts.identity_conflict(login)
+        raise errors.DirectoryIdentityConflict() from taken
+    if not account.is_active:
+        await _reject(request, ports, now)
+    return await _sign_in_as(account, ports, now=now, session_lifetime=session_lifetime)
+
+
+async def _sign_in_as(
+    account: Account, ports: AccessPorts, *, now: datetime, session_lifetime: timedelta
+) -> SignedIn:
+    """Open the session for an account that has already been authenticated."""
     session = await ports.sessions.open_for_account(account.id, now + session_lifetime)
     await ports.journal.signed_in(account)
     return SignedIn(

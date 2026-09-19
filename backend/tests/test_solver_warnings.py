@@ -132,3 +132,37 @@ async def test_rule_warnings_are_one_sentence_per_person_and_rule(client, db) ->
             "Więcej niż 3 kolejne dni dyżuru on-call.",
         )
     ), rules
+
+
+async def test_a_weekly_roster_is_not_warned_about_the_week_it_is_made_of(client, db) -> None:
+    """Rotacja tygodniowa nie ma reguł odpoczynku, więc nie ma czym ostrzegać.
+
+    Solver nie kompiluje w tym trybie żadnej z trzech reguł rolujących - jedna
+    osoba trzymająca cały tydzień jest tym, czym jest rotacja tygodniowa.
+    Ewaluator nie znał trybu i zgłaszał je mimo to, więc czysty tygodniowy
+    grafik pokazywał koordynatorowi ostrzeżenia twardych reguł przy każdym
+    generowaniu - i uczył go je ignorować.
+    """
+    schedule = await _schedule_with_suspended_spacing(db)
+    schedule.rotation_mode = RotationMode.weekly
+    schedule.solver_warnings = None
+    await db.commit()
+    await login(client, "koord.hgh")
+
+    response = await client.get(f"/api/v1/scheduling/{schedule.id}")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["warnings"] == []
+
+
+async def test_the_same_roster_under_hybrid_rotation_is_still_warned(client, db) -> None:
+    """Druga połowa tamtego zdania: zawieszenie dotyczy trybu, nie grafiku."""
+    schedule = await _schedule_with_suspended_spacing(db)
+    schedule.rotation_mode = RotationMode.hybrid
+    await db.commit()
+    await login(client, "koord.hgh")
+
+    response = await client.get(f"/api/v1/scheduling/{schedule.id}")
+
+    rules = [item["message"] for item in response.json()["warnings"] if item["source"] == "rules"]
+    assert len(rules) == 4, rules
