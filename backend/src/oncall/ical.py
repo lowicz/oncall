@@ -6,6 +6,8 @@ from datetime import UTC, date, datetime, timedelta
 
 from oncall.models import AssignmentRole
 
+#: Role names as the team reads them, mirroring `frontend/src/lib/labels.ts`.
+#: „late_shift" is an internal identifier and must never reach a reader.
 ROLE_LABELS: dict[AssignmentRole, str] = {
     AssignmentRole.primary: "PRIMARY",
     AssignmentRole.secondary: "SECONDARY",

@@ -1,11 +1,11 @@
 """Hard roster rules as pure functions.
 
 The solver states these rules as CP-SAT constraints, which makes them
-unusable outside the model; after publication there was no shared
-implementation at all, and one approved swap broke two rules at once with no
-warning (QA-REPORT-5, HGH5-03). This module is the single home the swap path
-(block, decision D3), the coordinator override (warning plus audit) and the
-draft warnings all read from, so they can never drift apart. Nothing here
+unusable anywhere but inside the model - and every path after publication
+needs to ask the same questions. This module is the one implementation the
+swap path (block, decision D3), the coordinator override (warning plus audit)
+and the draft warnings all read from, so the three can never disagree about
+what a rule says. Nothing here
 touches the database or raises HTTPException: functions return violations
 and the caller decides whether that means 409 or a warning.
 """
@@ -51,7 +51,7 @@ def describe(violation: RuleViolation) -> str:
     `RuleViolation.message` states the rule alone, which is enough for an
     audit entry keyed by `rule` and `member_name`, but a warning on screen has
     no such key: without the name and the days it tells the coordinator that
-    something is wrong somewhere (HGH5-06).
+    something is wrong somewhere.
     """
     return f"{violation.member_name}: {violation.message} Dni: {_day_list(list(violation.days))}."
 
@@ -234,9 +234,8 @@ def oncall_late_shift_overlap(slots: Slots, anchor: LateShiftAnchor) -> list[Rul
     Only for the *non*-anchor on-call role: when the policy anchors 11-19 to
     a role (decision D1), the same person holding that role and 11-19 is the
     intended, designed-for state, not a violation - `anchor_violations` is
-    what flags that pairing coming apart. Flagging it here too fired this
-    warning on every ordinary anchor-role correction or swap (QA7 par. 8, D3
-    review)."""
+    what flags that pairing coming apart. Flagging it here as well would
+    warn on every ordinary anchor-role correction and swap."""
     anchor_role = {
         LateShiftAnchor.primary: AssignmentRole.primary,
         LateShiftAnchor.secondary: AssignmentRole.secondary,

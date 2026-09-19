@@ -209,8 +209,8 @@ class PlanView:
 
     Hard-unavailability conflicts ride along with every view, so the draft
     matrix can show them before „Przekaż do akceptacji" is clicked instead of
-    the coordinator learning about them from a 409 (HGH5-02). Solver warnings
-    and rule warnings stay apart (HGH5-06).
+    the coordinator learning about them from a 409. Solver warnings and rule
+    warnings stay apart.
     """
 
     plan: Plan
@@ -259,7 +259,7 @@ class GenerationRun:
 
 @dataclass(frozen=True)
 class RunView:
-    """A generation with where it stands in the queue (MED6-05).
+    """A generation with where it stands in the queue.
 
     Position is never stored - storing it would mean every dequeue rewrites
     every other row. Both queue numbers are None once the run is no longer

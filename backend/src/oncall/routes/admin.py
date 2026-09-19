@@ -266,6 +266,6 @@ async def list_audit_events(
     # Keep the established JSON list contract, but make the exclusion explicit
     # to API clients. This matters especially for free-text/actor searches
     # which can otherwise return an unexplained empty list even though
-    # matching login events exist (MED-06).
+    # matching login events exist.
     response.headers["X-Oncall-Logins-Excluded"] = "true" if page.logins_excluded else "false"
     return [AuditEventResponse.model_validate(entry) for entry in page.entries]

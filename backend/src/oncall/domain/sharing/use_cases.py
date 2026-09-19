@@ -107,7 +107,7 @@ async def subscribe_own_calendar(request: OwnFeedRequest, ports: MemberFeedPorts
 
 async def list_own_calendars(actor: Actor, ports: MemberFeedPorts) -> list[CalendarFeed]:
     # An account with no rotation member has no personal feed to list, so it
-    # is turned away rather than shown an empty list (LOW6-01).
+    # is turned away rather than shown an empty list.
     if await ports.team.member_for_account(actor.user_id) is None:
         raise NotATeamMember()
     return await ports.feeds.feeds_created_by(actor.user_id, FeedTokenKind.member)

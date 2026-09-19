@@ -45,7 +45,7 @@ class _Lens:
     lower_bound: int
     upper_bound: int
     #: Whether the lens fights for the acceptance criterion with a range term.
-    #: The anchored 11-19 lens is not graded (BLK5-02, decision D1).
+    #: The anchored 11-19 lens is not graded (decision D1).
     graded: bool = True
 
 
@@ -133,9 +133,6 @@ SOLVE_DONE = "solve_done"
 #: Emitted as ``"solve_pass <seconds>"`` at the start of every solver pass.
 SOLVE_PASS = "solve_pass"
 
-#: Role names as the team reads them. Mirrors `frontend/src/lib/labels.ts`;
-#: „late_shift" is an internal identifier and must not reach a message (LOW5-07).
-
 
 def date_ranges(days: list[date]) -> str:
     """Consecutive days as ranges: 2026-09-01 - 2026-09-07, 2026-09-10."""
@@ -198,9 +195,9 @@ GENERATION_ORCHESTRATION_RESERVE = 3.0
 #: granularities: for a 28-day roster it produced coefficients of 246 (fairness)
 #: vs 26667 (preference) vs 6944 (continuity), so one prefer-flagged assignment
 #: outbid a whole point of fairness and the preferred member could hoard an
-#: entire lens regardless of the fairness weight (QA-REPORT-4, D12). A family
-#: maximum can be huge while every single decision is cheap; the slider weights
-#: one decision against another, not one worst case against another.
+#: entire lens regardless of the fairness weight. A family maximum can be huge
+#: while every single decision is cheap; the slider weights one decision against
+#: another, not one worst case against another.
 MARGINAL_BASE = 1000
 
 #: One fairness coefficient step: deviation units that a single duty point
@@ -220,8 +217,8 @@ FAIRNESS_STEP = SCALE // 2
 #: fairness price. The measured value is zero: any fraction that visibly
 #: steadied the 11-19 count pushed `secondary` past the 3-point acceptance
 #: criterion on the report metric, while buying that lens only about one point
-#: of spread (PLAN-NAPRAWCZY-5 par. 3, docs/qa-suite-5/tie-break.jsonl). Zero
-#: compiles the tie-breaker out entirely; raise it only after a re-measurement.
+#: of spread; the runs are in docs/qa-suite-5/tie-break.jsonl. Zero compiles
+#: the tie-breaker out entirely; raise it only after a re-measurement.
 TIE_BREAK_FRACTION = 0.0
 
 #: The roles that share one duty roster; the 11-19 shift is balanced on its own.
@@ -639,7 +636,7 @@ def _fairness_lens(
     def member_exposure(member: SolverMember, span_start: date, span_end: date) -> float:
         """The member's exposure to this lens over one window - the same
         per-`(day, role)`-slot formula the fairness report uses, dropping
-        hard-unavailable days (HGH6-06, decision D3 variant B)."""
+        hard-unavailable days (decision D3, variant B)."""
         return slot_exposure(
             roles=roles,
             window_start=span_start,
@@ -707,9 +704,9 @@ def _fairness_lens(
         return None
 
     # Exactly one person holds each `(day, role)` slot, so once `horizon_total`
-    # counts slots and not days - true for the single-role lenses and, since
-    # HGH6-06, for `weekends` and `holidays` too - the deviations sum to a
-    # constant and their mean is known before solving.
+    # counts slots and not days - true for the single-role lenses and for
+    # `weekends` and `holidays` too - the deviations sum to a constant and
+    # their mean is known before solving.
     mean = round((sum(baselines) + SCALE * horizon_total) / len(deviations))
     lower_bound = min(baselines)
     upper_bound = max(upper_bounds)
@@ -733,8 +730,8 @@ def _fairness_lens_definitions(context: _ModelBuildContext) -> tuple[_LensDefini
     historical_lenses = context.historical_lenses or {}
 
     definitions = [
-        # BLK5-02 (decision D1): when anchored, the 11-19 lens leaves the range
-        # family. The hard anchor ties the shift count to the anchor role's
+        # Decision D1: when anchored, the 11-19 lens leaves the range family.
+        # The hard anchor ties the shift count to the anchor role's
         # weekday duties, and that role is balanced in points - a weekend duty
         # is 2 points and zero shifts, a Wednesday duty 1 point and one shift -
         # so both targets cannot be levelled at once: CP-SAT proves the 3-point
@@ -956,7 +953,7 @@ def _build_model_from_context(
     models - rather than switching the rules on with CP-SAT assumptions - is
     what lets the fallback pass in :func:`generate_schedule` stay fully
     multi-threaded; assumptions force the whole search to a single thread and
-    gut presolve (QA-REPORT-4, BLK-01).
+    gut presolve.
 
     ``acceptance_cap``, when set, bounds every graded lens range to that many
     points as a hard constraint, turning the acceptance criterion into
@@ -1007,7 +1004,7 @@ def _build_model_from_context(
     # enough for max/min because the objective closes both bounds. A lens that
     # is not graded leaves the range family: no max/min variables at all, so
     # the model carries no dead variables, and its distribution terms are
-    # priced separately as a tie-breaker (BLK5-02, decision D1).
+    # priced separately as a tie-breaker (decision D1).
     tie_break_terms: list[_Term] = []
     for lens in lenses:
         if lens.graded:
@@ -1034,9 +1031,9 @@ def _build_model_from_context(
             distance = model.new_int_var(0, lens.span, f"distance_{lens.label}_{index}")
             model.add_abs_equality(distance, projected - lens.mean)
             # Squares normalized by their own span, so every fairness term stays
-            # order `span` instead of `span^2` (HGH-03). With the unscaled
-            # squares the family's true maximum grew quadratically with the
-            # horizon, the coefficients exploded into the millions, and the LP
+            # order `span` instead of `span^2`. With the unscaled squares the
+            # family's true maximum grew quadratically with the horizon, the
+            # coefficients exploded into the millions, and the LP
             # relaxation degraded (tens of thousands of failed pivots).
             spread = model.new_int_var(0, lens.span, f"spread_{lens.label}_{index}")
             for k in tangents:
@@ -1452,9 +1449,9 @@ def generate_schedule(
         return SolverResult((), tuple(conflicts), "INFEASIBLE", failure_reason="PRECHECK")
 
     # The whole run must fit one wall-clock ceiling, not `solve_seconds` per
-    # pass with no bound on the count (HGH6-02). Every `solve` call is handed
-    # the smaller of its own budget and the time still left before the
-    # deadline; the deadline itself keeps back a reserve for the orchestration
+    # pass with no bound on the count. Every `solve` call is handed the
+    # smaller of its own budget and the time still left before the deadline;
+    # the deadline itself keeps back a reserve for the orchestration
     # around the solver, and never drops below one full pass.
     deadline = time.monotonic() + max(
         solve_seconds,
@@ -1481,8 +1478,7 @@ def generate_schedule(
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = budget
         # ``num_search_workers`` is deprecated since OR-Tools 9.15; setting
-        # both it and ``num_workers`` makes the model invalid
-        # (QA-REPORT-4, BLK-01).
+        # both it and ``num_workers`` makes the model invalid.
         solver.parameters.num_workers = solver_workers or available_cpu_count()
         solver.parameters.linearization_level = 2
         solver.parameters.log_search_progress = log_search_progress

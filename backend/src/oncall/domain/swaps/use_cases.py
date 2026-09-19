@@ -141,7 +141,7 @@ async def list_replacement_options(
         and not member.is_unavailable(query.service_date)
     ]
     # Both facts a person compares candidates by come from this one resolved
-    # window; the balance is deliberately left to the impact preview (MED5-09).
+    # window; the balance is deliberately left to the impact preview.
     window_start, window_end = rule_window([query.service_date])
     duties = await ports.roster.duties_in_force(window_start, window_end)
     anchor = await ports.policy.late_shift_anchor()
@@ -169,7 +169,7 @@ async def list_replacement_options(
         blocking, warnings = partition_violations(violations, anchor_exception=anchor_exception)
         # A coupled swap can hand the candidate a second on-call role the
         # clicked-slot filter never saw; `request_swap` refuses that, so the
-        # option must say so rather than be offered and then refused (BLK6-01).
+        # option must say so rather than be offered and then refused.
         if takes_second_oncall(duties, moves, member):
             blocking.append(
                 RuleViolation(
@@ -236,8 +236,8 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         replacement.id,
     )
     # A request on the anchor role (or on 11-19 itself) moves both slots as one
-    # decision (decision D1); checking only the clicked slot made a tolerated
-    # anchor split look like a fresh rule break (QA7 par. 8, D2 review).
+    # decision (decision D1); checking only the clicked slot would make a
+    # tolerated anchor split look like a fresh rule break.
     context_start, context_end = rule_window([query.service_date])
     in_force = await ports.roster.duties_in_force(context_start, context_end)
     anchor = await ports.policy.late_shift_anchor()

@@ -1,6 +1,6 @@
 # Backend architecture review and action plan
 
-Status: phases 4 and 5 complete; phase 6 items 4-5 done, items 1-3 remain  
+Status: phases 4 and 5 complete; phase 6 items 1, 4 and 5 done; items 2-3 remain  
 Review date: 2026-09-15  
 Decisions approved: 2026-09-15  
 Scope: `backend/src/oncall`, runtime configuration, migrations as persistence context  
@@ -1773,6 +1773,56 @@ Rules for the target:
   as before the deletions because nothing here adds behaviour; all 22
   concurrency tests passed on the contract PostgreSQL database; Ruff, the
   strict mypy ratchet over 20 files and the unchanged OpenAPI snapshot passed.
+
+- **Phase 6b completed on 2026-09-19.** Phase 6 item 1, finding A14. Sixty-one
+  references to QA rounds, defect IDs and repair documents are gone from the
+  production code, and the comments that narrated those incidents now state the
+  invariant instead. 32 files, 129 lines added and 134 removed, not one of them
+  outside a comment or a docstring - checked mechanically rather than by eye,
+  by walking `git diff -U0` and refusing any changed line that is neither a
+  comment nor inside a docstring range.
+  **Three rules, fixed before the first edit rather than after the last.**
+  One: a bare tracking ID next to a sentence that already states the invariant
+  is residue, and goes. Two: an in-repo *data* file behind a measured constant
+  is a citation, and stays - `docs/qa-suite-5/tie-break.jsonl` can be reopened
+  and re-measured, where „PLAN-NAPRAWCZY-5 par. 3" only names a report; the
+  data paths were kept and the narrative-document references dropped. Three: a
+  comment that tells the story of a past bug is rewritten into the invariant
+  plus the reason it exists - the reason is the part worth keeping, and it is
+  usually the part that would have been deleted along with the story. Markers
+  of the form „decision D1" stay: they say an owner chose this, which is not
+  the same claim as a defect number.
+  **Two things the pass found that were not comments.**
+  `scheduler.py` carried a `#:` block describing `ROLE_LABELS` - a dict that
+  lives in `ical.py` and `notifications/templates.py` and has not been in
+  `scheduler.py` for some time. It documented nothing. The invariant it stated
+  („late_shift" is an internal identifier and must never reach a reader) is
+  real, so it now sits on both dictionaries that hold those labels, and the
+  orphan is gone. Separately, `models.py` claims „a test holds the two
+  together" about the solver budget; `tests/test_policy_solve_budget.py:17`
+  does, so the sentence stayed.
+  **Four of the sixty-one could not be removed, and that is a finding, not an
+  omission.** FastAPI publishes route and Pydantic model docstrings as the
+  OpenAPI `description`, so three of them are *contract text*: `HGH6-02` in
+  `time_budget_seconds`, `MED5-09` in `SwapOptionResponse`, and
+  `MED5-11, LOW5-09` in `GET /api/v1/scheduling/runs`. Removing them broke the
+  approved snapshot, which is how they were found. They were put back, and the
+  snapshot matches again. The extent is exactly four IDs in three
+  descriptions - measured by grepping `contracts/openapi.json`, not estimated.
+  **Proposed:** treat this as an approved defect fix of its own - internal
+  defect numbers are visible to every API client and to anything that renders
+  the schema - and clean the three descriptions with a snapshot update in a
+  slice that does nothing else. It needs the owner's word because it changes
+  published text.
+  Phase 6 items 2 (vocabulary) and 3 (long validation procedures) are
+  untouched. Both change identifiers or control flow, and the value of a
+  comments-only diff is that it can be read; mixing them in would have cost
+  exactly that.
+  Validation: 622 tests passed with 22 PostgreSQL-gated skips and all 22
+  concurrency tests on the contract PostgreSQL database - the same counts as
+  before, since no behaviour was touched; Ruff, the strict mypy ratchet over
+  20 files and the OpenAPI snapshot, which after the revert matches the
+  approved contract exactly.
 
 ### Phase 0 — Contract freeze and decisions (mandatory)
 

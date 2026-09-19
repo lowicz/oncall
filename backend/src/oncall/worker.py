@@ -14,7 +14,7 @@ independent loops in one event loop:
   cost and why it ended.
 
 The loops are independent so a generation that takes a minute no longer holds
-back a swap notification behind it (HGH6-05, MED6-05). The solve itself runs in
+back a swap notification behind it. The solve itself runs in
 a worker thread, so the notification loop keeps its rhythm while a lane is
 busy. Reminders are deduplicated per date and schedule, so the scan can repeat
 safely within the day.
@@ -107,7 +107,7 @@ async def notification_cycle() -> dict[str, int]:
 
     Runs on a fixed rhythm in the worker, independent of any generation in
     flight, so a notification enqueued mid-generation is delivered within two
-    of these cycles rather than waiting out the solve (HGH6-05).
+    of these cycles rather than waiting out the solve.
     """
     settings = get_settings()
     async with SessionFactory() as db:
@@ -175,9 +175,9 @@ async def worker_cycle() -> dict[str, int]:
 #: something has in fact happened.
 CLAIMED_PROGRESS = 10
 
-#: The solve occupies this span of the progress bar. The bar used to jump to
-#: 30 when the model was built and sit there for the whole search, which on a
-#: 90 second budget was most of the run (MED5-11).
+#: The solve occupies this span of the progress bar. The search is most of
+#: what a generation costs - on a 90 second budget, nearly all of it - so the
+#: bar has to move during it rather than stand at the model-built mark.
 MODEL_BUILT_PROGRESS = 30
 SOLVE_DONE_PROGRESS = 90
 
@@ -272,11 +272,11 @@ async def _report_progress(
     """Keep the run's row current until the solve finishes.
 
     Deliberately takes `run_id` and not the session the generation is using.
-    An `AsyncSession` must not be used by two concurrent tasks, and writing
-    through the generation's session from here used to smuggle an autoflushed
-    UPDATE into whatever transaction it had open - which once took a lock on
-    this very row from inside a transaction this loop does not control the
-    lifetime of, and left it open for ever (QA7 par. 8, G4).
+    An `AsyncSession` must not be used by two concurrent tasks. Writing
+    through the generation's session from here smuggles an autoflushed UPDATE
+    into whatever transaction it has open, which takes a lock on this very row
+    inside a transaction whose lifetime this loop does not control - and holds
+    it until that transaction ends, however long the solve runs.
 
     Every pass writes, not only the passes where the bar moves: the touch is
     also this run's heartbeat, and `recover_abandoned_runs` reads `updated_at`
@@ -354,7 +354,7 @@ async def process_schedule_run(db: AsyncSession) -> int:
     else:
         try:
             # Real milestones from the solver turn the progress bar from a
-            # spinner into an actual signal (QA-REPORT-2, etap M3).
+            # spinner into an actual signal.
             milestones: list[str] = []
             solving = asyncio.create_task(
                 generate_draft(

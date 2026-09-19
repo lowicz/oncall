@@ -23,7 +23,7 @@ class RecordedRefusal(DomainError):
 
 #: One message for one cause: the account passes the role gate but is not
 #: linked to a rotation member, so member-scoped operations have nothing to act
-#: on (LOW6-02).
+#: on.
 NOT_A_TEAM_MEMBER = "Konto nie jest powiązane z członkiem zespołu"
 
 

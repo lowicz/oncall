@@ -110,7 +110,7 @@ class MemberBalance:
     display_name: str
     #: When the member joined the rotation. Lets the screen explain a low
     #: absolute total that is nonetheless in line with the fair share, because
-    #: the person was only eligible for part of the window (MED6-02).
+    #: the person was only eligible for part of the window.
     active_from: date
     eligible_days: dict[str, int]
     primary: CategoryBalance
@@ -158,7 +158,7 @@ def slot_exposure(
     slots they could have held.
 
     The single expected-share formula for both the fairness report and
-    ``scheduler.balance`` (HGH6-06 przyczyna 2). It counts one slot per role the
+    ``scheduler.balance``. It counts one slot per role the
     member is eligible for that day - two for the ``weekends``/``holidays``
     lenses, which span both on-call roles - and drops hard-unavailable days
     (decision D3, variant B).
@@ -430,7 +430,7 @@ def generator_history_window(starts_on: date, ends_on: date) -> tuple[date, date
     horizon start instead fed the solver the oldest `len(horizon)` days of
     history that age out before anybody reads the report - the same assignments
     then scored a `secondary` spread of 4.18 in the solver's window and 9.0 in
-    the report's (QA-REPORT-5, BLK5-01).
+    the report's.
     """
     return ends_on - timedelta(days=WINDOW_DAYS), starts_on - timedelta(days=1)
 
@@ -442,8 +442,8 @@ def project_duties(historical: list[FairnessDuty], draft: list[FairnessDuty]) ->
     committed. Publication resolves per `(service_date, role)` - regenerating an
     already-published fortnight replaces those slots - so a draft that overlaps
     published days must displace them. Adding the draft rows to the resolved
-    history counted every shared day twice (BLK6-02): the primary point sum in
-    the forecast rose by exactly the draft's own points.
+    history would count every shared day twice: the primary point sum in the
+    forecast would rise by exactly the draft's own points.
     """
     overridden = {(duty.service_date, duty.role) for duty in draft}
     kept = [duty for duty in historical if (duty.service_date, duty.role) not in overridden]

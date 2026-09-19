@@ -50,7 +50,7 @@ def _credentials(row: User) -> StoredCredentials:
 class SqlAlchemyLoginAttempts(LoginAttempts):
     """Attempts are audit rows: one per failed attempt per label, and one
     rolling row per series of failures or of throttling, so a flood does not
-    write a row per request (QA7 par. 8, E1 review)."""
+    write a row per request."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session

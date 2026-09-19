@@ -49,9 +49,9 @@ async def latest_publish_end(db: AsyncSession) -> date | None:
     """The last day covered by the most recent published schedule.
 
     `/api/v1/schedules/published` cannot answer this: it caps its window at
-    today + 90 days by design (LOW6-08), so a publication reaching further
-    than that reports a truncated `ends_on`. The fairness screen needs the
-    real date to default "Stan na dzień" to (QA7 par. 8, C2 review).
+    today + 90 days by design, so a publication reaching further than that
+    reports a truncated `ends_on`. The fairness screen needs the real date to
+    default "Stan na dzień" to.
     """
     return await db.scalar(
         select(Schedule.ends_on)

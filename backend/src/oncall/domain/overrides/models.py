@@ -51,7 +51,7 @@ class BatchOverrideInput:
 @dataclass(frozen=True)
 class OverrideMove:
     """One slot a correction moved, and who held it before - what a later
-    republish needs to tell a safe carry from a conflict (QA7 par. 8, B3)."""
+    republish needs to tell a safe carry from a conflict."""
 
     service_date: date
     role: AssignmentRole

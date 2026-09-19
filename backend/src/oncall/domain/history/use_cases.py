@@ -58,9 +58,9 @@ async def check_history(
             and (item.ends_on is None or row.service_date <= item.ends_on)
             for item in member.eligibility
         ):
-            # The membership period was validated and eligibility was not, so a
-            # `primary` row for somebody who has never held the role imported
-            # cleanly - and then counted against their fair share (LOW5-13).
+            # Eligibility is checked as well as the membership period: a
+            # `primary` row for somebody who never held the role would import
+            # cleanly and then count against their fair share.
             problems.append(
                 HistoryImportError(
                     row.row_number,
@@ -131,8 +131,8 @@ async def import_history(upload: HistoryUpload, ports: HistoryPorts) -> uuid.UUI
                 service_date=row.service_date,
                 role=row.role,
                 # Validation already matched the person case-insensitively, so
-                # always store the roster name, never the raw CSV string
-                # (HGH-06): a differently-cased input used to land with a null
+                # always store the roster name, never the raw CSV string: a
+                # differently-cased input would otherwise land with a null
                 # member id and a name no report could match.
                 assignee_name=member.display_name if member is not None else row.assignee_name,
                 member_id=member.id if member is not None else None,
@@ -144,7 +144,7 @@ async def import_history(upload: HistoryUpload, ports: HistoryPorts) -> uuid.UUI
         ends_on=ends_on,
         # Not "now": duty resolution orders imports before every real
         # publication anyway, but a wall-clock timestamp would make a
-        # historical file look like the newest schedule in the system (HGH-05).
+        # historical file look like the newest schedule in the system.
         # Placing the import at the start of its own range keeps ordering
         # deterministic.
         published_at=datetime.combine(starts_on, time.min, tzinfo=UTC),

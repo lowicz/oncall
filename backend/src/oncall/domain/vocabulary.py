@@ -1,10 +1,9 @@
 """The on-call rotation's own words, free of any framework.
 
-These enums used to be declared in `oncall.models`, next to the SQLAlchemy
-tables, so every pure module that needed a role name (`rules`, `fairness`)
-dragged the ORM in with it. They are declared here and re-exported by
-`oncall.models`, so the tables and the domain speak the same vocabulary
-without the domain depending on the database.
+Declared here and re-exported by `oncall.models`, so the tables and the
+domain speak the same vocabulary without the domain depending on the database.
+Declaring them beside the SQLAlchemy tables instead would drag the ORM into
+every pure module that needs a role name, `rules` and `fairness` included.
 """
 
 from enum import StrEnum

@@ -1,8 +1,9 @@
 """When an on-call duty actually runs.
 
 docs/PLAN.md §3: coverage is 19:00-09:00 on Polish working days and round the
-clock on Saturdays, Sundays and statutory holidays. The dashboard needs this to
-answer "until when", which it previously could not say at all.
+clock on Saturdays, Sundays and statutory holidays. A duty is a span of hours,
+not a date, and this module is where that span is defined for everyone who has
+to answer "until when".
 """
 
 from datetime import date

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import CurrentUser
 
-#: One message for one cause (LOW6-02), defined with the domain error it names;
+#: One message for one cause, defined with the domain error it names;
 #: member-scoped endpoints outside the domain answer 403 with the same text.
 from oncall.domain.errors import NOT_A_TEAM_MEMBER as NOT_A_TEAM_MEMBER
 from oncall.models import TeamMember, User, UserRole

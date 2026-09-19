@@ -18,7 +18,7 @@ class FairnessMemberResponse(BaseModel):
     member_id: uuid.UUID
     display_name: str
     #: Rotation join date; the screen uses it to explain a low absolute total
-    #: that still matches the fair share (MED6-02).
+    #: that still matches the fair share.
     active_from: date
     eligible_days: dict[str, int]
     primary: FairnessCategoryResponse
@@ -78,7 +78,7 @@ class FairnessReportResponse(BaseModel):
     spreads: list[FairnessLensSpreadResponse]
     outliers: list[FairnessLensOutliersResponse] = Field(default_factory=list)
     #: Real end of the latest published schedule, unbounded by the 90-day
-    #: window `/schedules/published` caps itself to (QA7 par. 8, C2 review).
+    #: window `/schedules/published` caps itself to.
     latest_publish_end: date | None = None
 
 

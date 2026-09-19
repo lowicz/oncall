@@ -8,8 +8,8 @@ from oncall.domain.accounts import Account, SignedInSession
 from oncall.domain.vocabulary import AccountTokenKind
 
 #: A single shared office IP must not lock out everyone behind it because one
-#: person mistyped their own password a handful of times (QA7 par. 8, E1
-#: review); the per-account limit stays tight, the per-IP limit is a much
+#: person mistyped their own password a handful of times; the per-account
+#: limit stays tight, the per-IP limit is a much
 #: coarser backstop against volume - credential stuffing with a different
 #: login on every request, so the per-account counter never trips - that
 #: only a real flood reaches.

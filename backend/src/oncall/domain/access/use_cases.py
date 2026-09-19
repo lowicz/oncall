@@ -48,8 +48,7 @@ async def sign_in(
     # - if so, the decoy verification below must be skipped, or an existing
     # account with a wrong password pays for two hashes while every other
     # outcome pays for one, and the difference in wall-clock time (measured:
-    # 81.5 ms vs 44.5 ms) itself discloses that the account exists (QA7 par. 8,
-    # E1 review).
+    # 81.5 ms vs 44.5 ms) itself discloses that the account exists.
     local_password_checked = False
     if account is not None and account.auth_source == AuthSource.local:
         try_directory = False

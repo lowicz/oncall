@@ -67,9 +67,8 @@ def suggested_range(today: date, spans: list[CoveredSpan]) -> SuggestedRange:
     # block starts at its first day, a partly covered one starts after the block.
     start = suggested_start(today, spans)
     # Four full Monday-Sunday weeks from the starting week: 28 days when the
-    # start is a Monday, up to 33 otherwise. The former `min(..., +34 days)`
-    # cap never bound (`range_end` maxes out at start+33) and only muddied the
-    # intent (LOW6-09).
+    # start is a Monday, up to 33 otherwise. No upper cap is needed:
+    # `range_end` maxes out at start+33 on its own.
     return SuggestedRange(first_uncovered=start, starts_on=start, ends_on=range_end(start))
 
 

@@ -101,11 +101,10 @@ async def stale_changes_count(plan: Plan, changes: ChangeLog) -> int:
     """How many audit events since generation could have changed this draft's
     inputs.
 
-    A plain count of matching *actions* fired anywhere used to raise this
-    number for changes with no bearing on the draft at all - an availability
-    entry a year outside the window counted exactly like one the solver
-    actually read (QA7 par. 8, B2 review). Each action group is now checked
-    against what it actually touched: the relevant window is the rolling
+    A plain count of matching *actions* fired anywhere would raise this number
+    for changes with no bearing on the draft at all - an availability entry a
+    year outside the window counting exactly like one the solver read. Each
+    action group is checked against what it actually touched: the relevant window is the rolling
     history the generator scored against, plus the horizon itself
     (`generator_history_window` already draws the history side of that line);
     membership and eligibility changes are checked against dates too, since
@@ -228,15 +227,14 @@ async def override_original_assignees(
     changes: ChangeLog, schedule_ids: set[uuid.UUID]
 ) -> dict[tuple[uuid.UUID, date, AssignmentRole], str]:
     """Who each overridden slot's assignee replaced, so a republish can tell a
-    safe carry from a genuine conflict (QA7 par. 8, B3 review).
+    safe carry from a genuine conflict.
 
-    Reads the structured `details["moves"]` every override/correction action
-    now writes - previously only `schedule.override` was read at all, and
-    only by parsing its `summary` text, so a batch correction (D4
-    offboarding), a draft correction, or the 11-19 partner an anchor-role
-    override carries along were never recoverable and always fell back to
-    "cannot tell" on republish. Events written before this field existed
-    fall back to the old single-slot parse.
+    Reads the structured `details["moves"]` every override and correction
+    writes. Parsing the `summary` text of a `schedule.override` instead, as
+    this once did, recovers only single-slot moves: a batch correction, a
+    draft correction and the 11-19 partner an anchor-role override carries
+    along all fall back to "cannot tell" on republish. Events written before
+    the field existed still take that path.
     """
     if not schedule_ids:
         return {}
@@ -497,11 +495,10 @@ async def change_resolution_conflicts(
 
     An automatic carry already runs the carry check before it is ever
     offered; a coordinator choosing "change" for a slot that failed that
-    check used to write the previous assignee straight back with no check at
-    all, and could double-book them onto both on-call roles the same day
-    (QA7 par. 8, B3 review: a republish resolved this way put Julia Nowak on
-    primary and secondary at once on 2026-11-03). Rest violations keep their
-    own acknowledge gate; these three are not negotiable.
+    check would otherwise write the previous assignee straight back with no
+    check at all, and could double-book them onto both on-call roles on the
+    same day. Rest violations keep their own acknowledge gate; these three are
+    not negotiable.
     """
     # The state every selected carry writes, so two "change" resolutions for
     # the same day's opposite roles are checked against each other too, not
@@ -600,10 +597,11 @@ async def publish(
         ],
     )
     # Only a schedule this publication fully covers is retired. Superseding
-    # every overlap used to blank out the days outside the new range: publishing
-    # a fortnight inside a published month retired the whole month, and the days
-    # it did not replace were left with no published schedule at all.
-    # Partial overlaps stay published and lose slot by slot in the roster.
+    # every overlap instead would blank out the days outside the new range: a
+    # fortnight published inside a published month would retire the whole
+    # month, leaving the days it does not replace with no published schedule
+    # at all. Partial overlaps stay published and lose slot by slot in the
+    # roster.
     await ports.plans.retire_covered_by(plan)
     name = (
         f"Grafik {plan.name.removeprefix('Szkic ')}"

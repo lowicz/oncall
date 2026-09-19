@@ -154,5 +154,5 @@ class Dashboard:
     @property
     def is_published(self) -> bool:
         """True when a visible day comes from a real publication, not only
-        from imported history (MED5-01)."""
+        from imported history."""
         return any(duty.schedule_status == ScheduleStatus.published for duty in self.duties)

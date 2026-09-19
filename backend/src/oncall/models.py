@@ -189,8 +189,7 @@ class Schedule(Base):
     continuity_gap: Mapped[float | None] = mapped_column(Float, nullable=True)
     #: What the solver had to give up to produce this schedule, in its own
     #: words. Kept with the schedule, not only in the run record and the audit
-    #: log, so the generator screen can show it every time the draft is opened
-    #: (HGH5-06).
+    #: log, so the generator screen can show it every time the draft is opened.
     solver_warnings: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     assignments: Mapped[list[Assignment]] = relationship(
@@ -221,7 +220,7 @@ class ScheduleRun(Base):
     # A partial unique index on (starts_on, ends_on) WHERE status IN
     # ('queued', 'running') lives in migration 0028. It is Postgres-only (the
     # predicate is raw SQL), so it is not declared here and the route's
-    # check-then-insert guard is what SQLite test databases rely on (MED6-05).
+    # check-then-insert guard is what SQLite test databases rely on.
 
 
 class Assignment(Base):
@@ -286,12 +285,13 @@ class Eligibility(Base):
     member: Mapped[TeamMember] = relationship(back_populates="eligibility")
 
 
-#: Default solver budget, in seconds. Measured, not guessed: after the window
-#: fix (Z1) and the 11-19 tie-break (Z2) the graded lens spread is 3.0 at every
-#: budget from 5 s to 90 s, and 15 s is the smallest budget at which the hard
-#: branch - the one that has to prove the criterion unattainable and find the
-#: floor - reaches OPTIMAL instead of stopping at FEASIBLE. See
-#: docs/PLAN-NAPRAWCZY-5.md par. 3 and docs/qa-suite-5/budget-z14*.jsonl.
+#: Default solver budget, in seconds. Measured, not guessed: with the fairness
+#: window and the 11-19 tie-break as they now stand, the graded lens spread is
+#: 3.0 at every budget from 5 s to 90 s, and 15 s is the smallest budget at which
+#: the hard branch - the one that has to prove the criterion unattainable and
+#: find the floor - reaches OPTIMAL instead of stopping at FEASIBLE. The runs
+#: behind those numbers are docs/qa-suite-5/budget-z14*.jsonl; re-measure there
+#: before changing this.
 DEFAULT_SOLVE_SECONDS = 15.0
 
 
@@ -310,7 +310,7 @@ class SchedulingPolicy(Base):
     )
     #: Solver time budget per generation, in seconds. Kept with the policy
     #: rather than in the environment because the UNKNOWN message already
-    #: tells the coordinator to raise it „w ustawieniach generowania" (MED5-02).
+    #: tells the coordinator to raise it „w ustawieniach generowania".
     #: Must equal `scheduler.SOLVE_SECONDS`; a test holds the two together.
     solve_seconds: Mapped[float] = mapped_column(Float, default=DEFAULT_SOLVE_SECONDS)
     updated_at: Mapped[datetime] = mapped_column(

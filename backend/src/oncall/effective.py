@@ -121,7 +121,7 @@ async def _load_effective_assignments(
     # ``published_at`` alone is not enough: a CSV is stamped at import time and
     # would look newer than an earlier real publication. Sorting any import
     # before all real schedules means a publication always overwrites it per
-    # slot, regardless of timestamps (HGH-05).
+    # slot, regardless of timestamps.
     rows.sort(
         key=lambda row: (
             not row[1].name.startswith("Import historii:"),

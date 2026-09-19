@@ -87,7 +87,7 @@ async def check_override(check: OverrideCheck, ports: OverridePorts) -> list[Rul
     anchor = await ports.policy.late_shift_anchor()
     roles_to_move = [check.role]
     # Mirrors `override_duty`'s own coupling, so the confirmation checks the
-    # same move the write will make (QA7 par. 8, D3 review).
+    # same move the write will make.
     if schedule is not None and _couples_late_shift(
         check.role, check.service_date, replacement, anchor, holidays
     ):

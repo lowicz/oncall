@@ -102,8 +102,8 @@ ProgressCallback = Callable[[str], None]
 #: many per-pass budgets is the hard wall-clock ceiling for the whole run -
 #: ``generate_schedule`` tracks a deadline and hands every pass only the time
 #: left, so the number the screen shows is the number the coordinator waits
-#: (HGH6-02). Four covers the worst sequential path; the floor bisection lives
-#: on whatever is left and is skipped when nothing is (its result is advisory).
+#: for. Four covers the worst sequential path; the floor bisection lives on
+#: whatever is left and is skipped when nothing is (its result is advisory).
 GENERATION_BUDGET_PASSES = 4
 
 

@@ -13,7 +13,7 @@ order that loses nothing - send first, record after - and therefore accepts
 that a message can go out twice.
 
 What it does not accept is sending a *batch* twice, which is what a single
-transaction wrapped around a whole drain used to cost. A drain is now three
+transaction wrapped around a whole drain costs. A drain is now three
 separated steps: one short transaction claims a batch under a lease, each
 message is sent with no transaction open and no lock held, and each outcome is
 recorded on its own. A crash can therefore duplicate one message, never more,

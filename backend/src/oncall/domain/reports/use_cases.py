@@ -1,7 +1,7 @@
 """The monthly report: per-person duty counters and fully staffed days.
 
 The CSV export and the JSON preview both read this one result, so the two can
-never show different numbers (QA-REPORT-2, NEW-05).
+never show different numbers.
 """
 
 from datetime import date, timedelta

@@ -96,8 +96,8 @@ class Settings(BaseSettings):
     generation_poll_seconds: float = 1.0
     #: Generation lanes running in parallel in the worker. Default 1 is
     #: deliberate: with two CPUs allocated, two solvers running side by side are
-    #: slower than the same two run back to back (HGH6-05, MED6-05). Raise it
-    #: only when the worker has cores to spare.
+    #: slower than the same two run back to back. Raise it only when the
+    #: worker has cores to spare.
     generation_concurrency: int = Field(default=1, ge=1, le=4)
     #: How long a run may sit in `running` without its progress loop touching
     #: the row before another worker declares it abandoned. The loop touches
@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     stale_run_seconds: float = Field(default=120.0, ge=10, le=3600)
     solver_workers: int = Field(default=available_cpu_count(), ge=1, le=8)
     #: Seeds the policy row's budget on first use; afterwards the policy field
-    #: owns it and this variable is no longer read (MED5-02).
+    #: owns it and this variable is no longer read.
     solver_seconds: float = Field(default=15.0, gt=0, le=300)
     solver_log: bool = False
     notification_max_attempts: int = 5

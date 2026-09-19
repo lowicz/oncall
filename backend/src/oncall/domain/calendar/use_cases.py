@@ -179,7 +179,7 @@ async def dashboard(
 ) -> Dashboard:
     """The published schedule ahead, and who is on duty today.
 
-    The range can only narrow the default window (LOW6-08): `starts_on` moves
+    The range can only narrow the default window: `starts_on` moves
     the start forward from today, `ends_on` pulls the end in from the 90-day
     horizon. Everything anchored to today is resolved from today regardless of
     the window, so a windowed call never blanks out who is on call.
@@ -211,8 +211,8 @@ async def _current_duties(
     audience: Audience, visible: list[Duty], today: date, ports: CalendarPorts
 ) -> list[CurrentDuty]:
     """Today's duties: who, until when, who is next and how to reach them."""
-    # QA7-L05: a link scoped to a future or past window must not leak who is on
-    # call today when today falls outside it.
+    # A link scoped to a future or past window must not leak who is on call
+    # today when today falls outside it.
     if audience.share_range is not None and not (
         audience.share_range[0] <= today <= audience.share_range[1]
     ):
