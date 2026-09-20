@@ -81,15 +81,22 @@ services:
         condition: service_started
 
   web:
-    build: ./frontend
+    # The repository root is the build context because the image also carries
+    # the documentation: docs/*.md is rendered to static HTML during the
+    # frontend build (frontend/scripts/build-docs.mjs) and served from the same
+    # nginx under /docs/.
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
     environment:
       ONCALL_TLS_ENABLED: ${ONCALL_TLS_ENABLED:-false}
     ports:
       - "${ONCALL_WEB_HTTP_PORT:-8080}:80"
       - "${ONCALL_WEB_HTTPS_PORT:-8443}:443"
-    volumes:
-      # Certificate, key and optional CA; see docs/TLS.md.
-      - ${ONCALL_TLS_DIR:-./tls}:/etc/nginx/tls:ro
+    # No TLS mounts here on purpose: this file must come up on a machine with
+    # no certificate at all. HTTPS adds docker-compose.tls.yml, which mounts
+    # the certificate, the key and the CA bundle as three separate files.
+    # See docs/wdrozenie/tls.md.
     depends_on:
       - api
 

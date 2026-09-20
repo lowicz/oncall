@@ -71,7 +71,7 @@ class FairnessReportResponse(BaseModel):
     #: hidden in the UI, and the per-member numbers stay filled but
     #: informational (decision D1).
     late_shift_balanced: bool
-    #: Acceptance criterion from docs/PLAN.md par. 3 with the per-lens spreads
+    #: Acceptance criterion from archive/docs/PLAN.md par. 3 with the per-lens spreads
     #: it judges, computed here so the threshold lives in one place.
     criterion_points: int
     criterion_met: bool

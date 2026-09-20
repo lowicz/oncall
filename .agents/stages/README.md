@@ -16,7 +16,7 @@ Kolejny model przed podjęciem pracy czyta najpierw ten plik, potem plik danego 
 
 ## Jak wznawiać
 
-1. Skopiuj etap do własnej sesji: przeczytaj `docs/QA-REPORT-4.md` (rozdział 11
+1. Skopiuj etap do własnej sesji: przeczytaj `archive/docs/QA-REPORT-4.md` (rozdział 11
    zawiera plan naprawczy w punktach) oraz plik etapu.
 2. Wykonaj pozostałe punkty, aktualizując na bieżąco plik etapu.
 3. Komendy weryfikacji: `cd backend && uv run --extra dev python -m pytest tests/test_scheduler.py -q`

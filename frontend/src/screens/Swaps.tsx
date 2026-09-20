@@ -338,7 +338,7 @@ export function SwapPanel({
         <Paper
           component="form"
           variant="outlined"
-          className="swap-form"
+          className="form-row swap-form"
           onSubmit={(event) => {
             event.preventDefault()
             if (schedule?.id && serviceDate && assignmentRole && replacementId) {

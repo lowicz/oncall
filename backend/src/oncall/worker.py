@@ -162,7 +162,7 @@ async def worker_cycle() -> dict[str, int]:
 
     The live worker runs notifications and generation as separate loops
     (:func:`worker_main`); this wrapper keeps a single deterministic seam for
-    tests and for ``docs/qa-suite-6/load_worker.py``, whose acceptance is
+    tests and for ``archive/docs/qa-suite-6/load_worker.py``, whose acceptance is
     phrased in whole worker cycles.
     """
     stats = await notification_cycle()

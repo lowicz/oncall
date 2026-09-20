@@ -49,13 +49,13 @@ export function CalendarEventsPanel() {
           Wydarzenia są tylko oznaczeniem wizualnym - nie zmieniają grafiku, stawek ani raportów.
         </Typography>
       </Box>
-      <Paper variant="outlined" className="calendar-controls">
+      <Paper variant="outlined" className="form-row calendar-controls">
         <DateField id="events-from" label="Pokaż od" value={range.starts_on}
           onChange={(starts_on) => setRange({ ...range, starts_on })} />
         <DateField id="events-to" label="Pokaż do" value={range.ends_on}
           onChange={(ends_on) => setRange({ ...range, ends_on })} />
       </Paper>
-      <Paper variant="outlined" className="calendar-event-admin-form">
+      <Paper variant="outlined" className="form-row calendar-event-admin-form">
         <Typography variant="h2">{editingId ? 'Edytuj wydarzenie' : 'Nowe wydarzenie'}</Typography>
         <TextField label="Nazwa" value={form.title}
           onChange={(event) => setForm({ ...form, title: event.target.value })} />

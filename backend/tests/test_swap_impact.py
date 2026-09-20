@@ -1,4 +1,4 @@
-"""Swap impact preview: docs/PLAN.md §4 requires showing the effect on points
+"""Swap impact preview: archive/docs/PLAN.md §4 requires showing the effect on points
 before the request is sent."""
 
 from datetime import date, timedelta

@@ -68,7 +68,7 @@ export function MonthlyReportsPanel() {
           Święto przypadające w sobotę lub niedzielę jest liczone jako weekend.
         </Typography>
       </Box>
-      <Paper variant="outlined" className="calendar-controls">
+      <Paper variant="outlined" className="form-row calendar-controls">
         <MonthField
           id="report-month"
           label="Miesiąc rozliczenia"

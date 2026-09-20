@@ -1,0 +1,28 @@
+# The web image builds from the repository root (docs/ is outside frontend/),
+# so this file, not frontend/.dockerignore, decides what reaches that build.
+.git
+.github
+.agents
+.claude
+.codex
+.lavish
+archive
+backend
+examples
+**/node_modules
+**/dist
+# Rendered documentation: the build regenerates it from docs/ inside the image.
+frontend/public/docs
+**/.vite
+**/__pycache__
+**/.venv
+**/*.tsbuildinfo
+npm-debug.log*
+.env
+.env.*
+!.env.example
+tls
+*.pem
+*.key
+*.crt
+*.p12

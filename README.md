@@ -1,6 +1,12 @@
 # Erste On-call
 
-Internal on-call scheduling application. The agreed product plan lives in [docs/PLAN.md](docs/PLAN.md).
+Internal on-call scheduling application.
+
+Product and user documentation lives in [`docs/`](docs/index.md) and is rendered
+into static HTML served by the application itself at `/docs/`, reachable from
+the "Dokumentacja" link in the top bar. The earlier contents of `docs/` - plans,
+QA reports, screenshots and test scripts - are preserved unchanged in
+[`archive/docs/`](archive/docs/README.md).
 
 ## Development
 
@@ -21,7 +27,15 @@ strict cross-worker read-after-write visibility. Authenticated sessions are not
 cached: every request revalidates the session, so signing out, resetting a
 password or deactivating an account takes effect at once.
 
-For HTTPS with a certificate mounted into the web container (and an optional internal CA), see [docs/TLS.md](docs/TLS.md).
+For HTTPS, the web container mounts three separate files - the server
+certificate without its chain, the private key, and the complete system trust CA
+bundle - through an overlay compose file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+```
+
+See [docs/wdrozenie/tls.md](docs/wdrozenie/tls.md).
 
 ## Local backend
 
@@ -116,8 +130,10 @@ version. Publication is serialized in PostgreSQL, validates complete coverage an
 supersedes only published schedules fully covered by the new range; partial overlaps
 are resolved per slot and retain coverage outside the new range.
 
-The exact CP-SAT model, guarantees, tests and current limitations are documented in
-[`docs/SOLVER.md`](docs/SOLVER.md).
+The rules, weights, acceptance criterion and time budget are documented in
+[docs/produkt/generator.md](docs/produkt/generator.md); the CP-SAT model as it
+stood when the generator was built is in
+[`archive/docs/SOLVER.md`](archive/docs/SOLVER.md).
 
 Solver derives its default worker count from the container's CPU quota (or process
 affinity when no quota exists), capped at eight. Override it explicitly with
@@ -241,4 +257,10 @@ next generation run.
 cd frontend
 npm install
 npm run dev
+npm run build:docs   # renders docs/*.md to public/docs, served at /docs/
 ```
+
+`npm run build` renders the documentation first (`prebuild`), so a production
+build can never ship stale pages. The renderer also fails the build on a page
+missing from `docs/toc.json`, a link leaving the documentation tree, or an
+anchor matching no heading.

@@ -1,0 +1,24 @@
+# HTTPS for the web container. Use it as an overlay on the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#   podman compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#
+# Three files are mounted, each on its own path and each pointed at by its own
+# variable, so a certificate, a key and a trust bundle can come from three
+# different places and be rotated one at a time. Every one of them must exist
+# on the host before the container starts: a bind source that does not exist is
+# created as an empty directory, which is never a working deployment. The
+# entrypoint checks each file and says which one is wrong.
+#
+# Full guide, including how to obtain the three files: docs/wdrozenie/tls.md.
+services:
+  web:
+    environment:
+      ONCALL_TLS_ENABLED: "true"
+    volumes:
+      # The server certificate alone, without intermediates.
+      - ${ONCALL_TLS_CERT_FILE:-./tls/cert.pem}:/etc/nginx/tls/cert.pem:ro
+      # Its private key, unencrypted.
+      - ${ONCALL_TLS_KEY_FILE:-./tls/privkey.pem}:/etc/nginx/tls/privkey.pem:ro
+      # The complete CA trust bundle this deployment must trust.
+      - ${ONCALL_TLS_CA_FILE:-./tls/ca.pem}:/etc/nginx/tls/ca.pem:ro

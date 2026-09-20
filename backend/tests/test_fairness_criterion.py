@@ -1,6 +1,6 @@
 """D2/Z6: both fairness surfaces carry the acceptance criterion with the
 per-lens spreads it judges, computed backend-side so the threshold lives in
-one place with docs/PLAN.md par. 3."""
+one place with archive/docs/PLAN.md par. 3."""
 
 from datetime import date, timedelta
 

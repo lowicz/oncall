@@ -1,7 +1,7 @@
 import { AssignmentRole, AvailabilityKind, CalendarData } from '../api'
 
 /** Roles that must be staffed every single day. The 11-19 shift is working-days
- *  only (docs/PLAN.md §3), so a missing one is not a coverage gap. */
+ *  only (archive/docs/PLAN.md §3), so a missing one is not a coverage gap. */
 export const REQUIRED_ROLES: AssignmentRole[] = ['primary', 'secondary']
 
 export interface CoverageGap {

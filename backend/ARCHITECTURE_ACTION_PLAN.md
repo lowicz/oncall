@@ -762,7 +762,7 @@ Rules for the target:
   revocation clause of decision D-02. Two pieces of evidence decided this
   rather than a keep-and-invalidate patch. First, D-02 states that the bounded
   stale-authorization window is not part of the desired contract. Second,
-  `docs/PLAN-WYKONAWCZY-7.md` records that on 2026-09-13 a one-second session
+  `archive/docs/PLAN-WYKONAWCZY-7.md` records that on 2026-09-13 a one-second session
   cache was prototyped, measured and withdrawn because it did not lower p95
   while it did change how long revocation took to propagate; a five-second one
   nevertheless shipped enabled by default. Caching only immutable validation
@@ -842,7 +842,7 @@ Rules for the target:
   `routes/access.py:34` and `bootstrap/providers.py:62`, which defeats
   FastAPI's per-request dependency caching. With `database_pool_size` 3 and
   `database_max_overflow` 2 per process, that halves the effective
-  concurrency of each worker, and `docs/PLAN-WYKONAWCZY-7.md` records the
+  concurrency of each worker, and `archive/docs/PLAN-WYKONAWCZY-7.md` records the
   220 rps / 400 ms criterion as still unmet after pool and worker tuning were
   tried.
   It was deliberately not changed here, for three reasons. The choice is
@@ -865,7 +865,7 @@ Rules for the target:
   corrected phase 5c.
   **Correction first.** Phase 5c called the double session a candidate
   contributor to the unmet 220 rps / 400 ms criterion. The measurement in
-  `docs/PLAN-WYKONAWCZY-7.md` from 2026-09-13 says otherwise: raising the pool
+  `archive/docs/PLAN-WYKONAWCZY-7.md` from 2026-09-13 says otherwise: raising the pool
   from 3+2 to 10+0 did not help (149.6 rps and 944 ms against 150.7 rps and
   887 ms), and in the same profile the API burned 368% CPU while PostgreSQL
   used 24%. If connection starvation were the limiter, a pool of ten would
@@ -1480,7 +1480,7 @@ Rules for the target:
   idle lane still makes one connection checkout per poll rather than two. That
   leaves one indexed zero-row statement a second per lane, which is deliberate:
   it costs less than the state a throttle would have to keep, and
-  `docs/qa-suite-6/load_worker.py`, whose acceptance is phrased in worker
+  `archive/docs/qa-suite-6/load_worker.py`, whose acceptance is phrased in worker
   cycles, measures wall-clock completion and outbox counts rather than
   statements, so its numbers are unaffected.
   Validation: 587 tests passed, 8 of them new, with 19 PostgreSQL-gated skips;
@@ -1784,7 +1784,7 @@ Rules for the target:
   **Three rules, fixed before the first edit rather than after the last.**
   One: a bare tracking ID next to a sentence that already states the invariant
   is residue, and goes. Two: an in-repo *data* file behind a measured constant
-  is a citation, and stays - `docs/qa-suite-5/tie-break.jsonl` can be reopened
+  is a citation, and stays - `archive/docs/qa-suite-5/tie-break.jsonl` can be reopened
   and re-measured, where „PLAN-NAPRAWCZY-5 par. 3" only names a report; the
   data paths were kept and the narrative-document references dropped. Three: a
   comment that tells the story of a past bug is rewritten into the invariant
@@ -1908,7 +1908,7 @@ Rules for the target:
   `scheduling_schedules.py`. 486 identifiers in 15 files.
   **Renamed by tokenizing, not by substituting text.** Only `NAME` tokens were
   rewritten, so no string, no comment and no docstring could be caught in the
-  sweep - which matters because `docs/PLAN.md` is cited in eleven comments and
+  sweep - which matters because `archive/docs/PLAN.md` is cited in eleven comments and
   is the product specification, not this vocabulary. The prose was then read
   and changed by hand where it named the object (twelve docstrings in `src`,
   three in the fakes), and left alone where it named the document.
@@ -2000,7 +2000,7 @@ Rules for the target:
   installs that deliberately chose weekly. For those, swap requests that were
   refused are now accepted and candidates that were greyed out are now offered,
   which is the point of the fix rather than a side effect of it.
-  `docs/SOLVER.md` already said the rest rules do not exist in weekly mode; it
+  `archive/docs/SOLVER.md` already said the rest rules do not exist in weekly mode; it
   said it about the solver only, and now records that the evaluator says it too.
   The ratchet took one module more than the domain. `rules.py` is root policy,
   the domain is allowed to import it, and phase 6f put new logic in it, so

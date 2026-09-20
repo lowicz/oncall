@@ -1,6 +1,6 @@
 """When an on-call duty actually runs.
 
-docs/PLAN.md §3: coverage is 19:00-09:00 on Polish working days and round the
+archive/docs/PLAN.md §3: coverage is 19:00-09:00 on Polish working days and round the
 clock on Saturdays, Sundays and statutory holidays. A duty is a span of hours,
 not a date, and this module is where that span is defined for everyone who has
 to answer "until when".
@@ -29,7 +29,7 @@ def coverage_window(
 ) -> tuple[str, str]:
     """The (start, end) clock times of the duty served on `day` in `role`."""
     if role == AssignmentRole.late_shift:
-        # Only ever scheduled on working days (docs/PLAN.md §3).
+        # Only ever scheduled on working days (archive/docs/PLAN.md §3).
         return LATE_SHIFT_START, LATE_SHIFT_END
     if is_day_off(day, holidays):
         return DAY_OFF_START, DAY_OFF_END

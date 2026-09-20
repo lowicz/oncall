@@ -111,6 +111,28 @@ describe('GeneratorPanel draft persistence', () => {
     expect(api.suggestedScheduleRange).not.toHaveBeenCalled()
   })
 
+  it('generates for the day picked in the calendar, not only for a typed one', async () => {
+    stub([])
+    const generate = vi
+      .spyOn(api, 'generateSchedule')
+      .mockResolvedValue(draft({ id: 'd1', starts_on: '2026-09-22', ends_on: '2026-10-18' }))
+    renderScreen(<GeneratorPanel />)
+
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('21-09-2026'))
+    // The calendar button of the "Od" field, then the 22nd in the month grid.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Wybierz datę' })[0])
+    fireEvent.click(await screen.findByRole('gridcell', { name: '22' }))
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('22-09-2026'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    await waitFor(() =>
+      expect(generate).toHaveBeenCalledWith(
+        { starts_on: '2026-09-22', ends_on: '2026-10-18' },
+        expect.anything(),
+      ),
+    )
+  })
+
   it('lists drafts that already exist instead of opening on an empty form', async () => {
     stub([summary({ id: 'd1' }), summary({ id: 'd2', status: 'proposed' })])
     renderScreen(<GeneratorPanel />)

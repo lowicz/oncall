@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:docs": "node scripts/build-docs.mjs",
+    "prebuild": "npm run build:docs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run"
@@ -36,6 +38,7 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
     "jsdom": "^30.0.1",
+    "marked": "^18.0.13",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
     "vite": "^7.1.0",

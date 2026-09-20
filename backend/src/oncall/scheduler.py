@@ -217,7 +217,7 @@ FAIRNESS_STEP = SCALE // 2
 #: fairness price. The measured value is zero: any fraction that visibly
 #: steadied the 11-19 count pushed `secondary` past the 3-point acceptance
 #: criterion on the report metric, while buying that lens only about one point
-#: of spread; the runs are in docs/qa-suite-5/tie-break.jsonl. Zero compiles
+#: of spread; the runs are in archive/docs/qa-suite-5/tie-break.jsonl. Zero compiles
 #: the tie-breaker out entirely; raise it only after a re-measurement.
 TIE_BREAK_FRACTION = 0.0
 
