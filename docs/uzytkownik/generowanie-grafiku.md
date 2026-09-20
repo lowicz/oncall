@@ -15,7 +15,10 @@ Sprawdź trzy rzeczy - po wygenerowaniu poprawianie ich kosztuje więcej:
 
 ## Nowy szkic
 
-Formularz „Nowy szkic” ma pola **Od** i **Do** oraz przycisk „Utwórz szkic”.
+Strona startowa generatora ma formularz **Nowy szkic** z polami **Od** i
+**Do** oraz przyciskiem **Utwórz szkic**, a pod nim listę **Szkice**.
+Przycisk **Ustawienia generatora** w nagłówku otwiera panel boczny z
+ustawieniami (opisany niżej).
 
 - Bez jawnego zakresu pola są wypełnione sugestią: pierwszy dzień nieobjęty
   opublikowanym grafikiem oraz niedziela zamykająca cztery pełne tygodnie.
@@ -26,14 +29,22 @@ Formularz „Nowy szkic” ma pola **Od** i **Do** oraz przycisk „Utwórz szki
   nie ma czego bilansować.
 
 Pod polami widać zapisane ustawienia (tryb rotacji i powiązanie `11–19`)
-oraz informację, jeśli masz niezapisane zmiany w ustawieniach poniżej.
+oraz informację, jeśli masz niezapisane zmiany w panelu ustawień.
+
+Lista **Szkice** wypisuje istniejące szkice ze stanem (`SZKIC`, `DO
+AKCEPTACJI`), wersją, liczbą przydziałów i datą utworzenia. **Otwórz**
+przechodzi do propozycji, ikona kosza usuwa szkic. Jeżeli masz szkice w
+trybie dziennym i tygodniowym, rozwijana sekcja **Porównaj wariant dzienny i
+tygodniowy** zestawia ich metryki, zanim wybierzesz ten do publikacji.
 
 ## W trakcie liczenia
 
 Solver pracuje **poza procesem API**, więc podczas liczenia możesz korzystać z
-pozostałych ekranów. Widać:
+pozostałych ekranów. Tytuł ekranu zmienia się na „Generuję *zakres*”, a panel
+postępu pokazuje:
 
-- pasek postępu i status (`W kolejce…` albo `Generuję…`),
+- etapy **dane**, **solver**, **sprawiedliwość**, **propozycja** oraz status
+  (`W kolejce…` albo `Generuję…`),
 - licznik sekund oraz budżet **na jeden przebieg solvera** i łączny limit
   generowania - trudny grafik wymaga kilku przebiegów, więc licznik
   przekraczający budżet pojedynczego przebiegu nie jest usterką,
@@ -42,27 +53,47 @@ pozostałych ekranów. Widać:
 Po odświeżeniu strony podgląd trwającego generowania wznawia się sam - **nie
 uruchamiaj go drugi raz**.
 
-## Wynik
+## Propozycja
 
-Sekcja „Szkice” wypisuje istniejące szkice; kliknięcie otwiera wynik. Wynik ma
-trzy części:
+Otwarty szkic to osobna strona. Tytuł mówi, na jakim etapie jest wynik:
+„Szkic *zakres*”, „Propozycja *zakres*” po przekazaniu do akceptacji, „Grafik
+*zakres*” po publikacji. Pod tytułem są: znacznik stanu, wersja, liczba
+przydziałów i dni, tryb rotacji oraz status solvera (`CP-SAT: OPTIMAL` i
+podobne; status inny niż pełne rozwiązanie jest objaśniony słowami -
+najczęściej znaczy, że budżet czasu był za krótki albo że reguły twarde są
+sprzeczne z obsadą). Niżej rząd etapów cyklu (Szkic, Do akceptacji,
+Opublikowany) i **Stan szkicu** w czterech znacznikach: obsada, reguły twarde,
+ostrzeżenia miękkie i rozrzut punktów po publikacji.
 
-- **Macierz szkicu** - osoby × dni, w tej samej konwencji co opublikowany
-  grafik: nagłówki zachowują dzień tygodnia, święto i 2X.
+Akcje w nagłówku: **Ustawienia generatora**, **Generuj ponownie**, a dalej
+**Przekaż do akceptacji** dla szkicu albo **Wróć do szkicu** i **Publikuj…**
+dla propozycji.
+
+Strona ma dwie kolumny. Po lewej:
+
+- **Proponowana obsada** - macierz osoby × dni, w tej samej konwencji co
+  opublikowany grafik: nagłówki zachowują dzień tygodnia, święto i 2X; link
+  **Legenda** objaśnia oznaczenia.
 - **Problemy** - tabela wszystkiego, co wymaga uwagi przed publikacją: dyżury
   w dniu „nie mogę”, złamane reguły twarde, ostrzeżenia solvera, luki przed
-  szkicem i informacja, że szkic jest nieaktualny. Przełącznik **wg osoby** /
-  **wg reguły** grupuje wiersze, a przycisk **Popraw** przy wierszu otwiera
-  właściwą komórkę macierzy. Pusta tabela znaczy, że szkic nie ma otwartych
-  problemów.
-- **Wpływ szkicu na sprawiedliwość** - dla każdej osoby bilans przed zakresem,
-  bilans po uwzględnieniu szkicu i zmiana. Przelicza się po każdej Twojej
-  korekcie, więc wpływ decyzji widzisz przed przekazaniem grafiku dalej.
+  szkicem i informacja, że szkic jest nieaktualny. Przełącznik **Wg osoby** /
+  **Wg reguły** grupuje wiersze, **Tylko twarde** ukrywa ostrzeżenia miękkie,
+  a przycisk **Popraw** przy wierszu otwiera właściwą komórkę macierzy. Stopka
+  tabeli wylicza reguły twarde i prowadzi do ich pełnego opisu.
 
-Nagłówek wyniku podaje status solvera (`CP-SAT: OPTIMAL` i podobne) i etapy
-cyklu szkicu. Status inny niż pełne rozwiązanie jest objaśniony słowami -
-najczęściej znaczy, że budżet czasu był za krótki albo że reguły twarde są
-sprzeczne z obsadą.
+Po prawej:
+
+- **Sprawiedliwość po publikacji** - rozrzut punktów jako jedna liczba z
+  wartością sprzed szkicu i znacznikiem **lepiej** / **gorzej**, kryterium
+  odbioru na każdej soczewce, tabela osób z odchyleniem po publikacji i
+  werdykt. Przelicza się po każdej Twojej korekcie, więc wpływ decyzji widzisz
+  przed przekazaniem grafiku dalej.
+- **Ustawienia tej propozycji** - zakres, wersja, tryb rotacji, powiązanie
+  `11–19`, wagi i budżet solvera; **Zmień i generuj ponownie** otwiera panel
+  ustawień.
+
+Lista **Szkice** jest także pod propozycją, więc przełączasz się między
+szkicami bez wracania na stronę startową.
 
 ### Ręczna korekta komórki
 
@@ -73,15 +104,13 @@ Kliknij komórkę, w panelu dnia wybierz rolę i osobę, zapisz. Korekta:
 - korzysta z wersjonowania,
 - jest oznaczona jako ręczna.
 
-### Porównanie szkiców
+## Ustawienia generatora
 
-Jeśli masz więcej niż jeden szkic, sekcja rozwijana pod listą szkiców zestawia
-je i porównuje metryki, zanim wybierzesz ten do publikacji.
-
-## Ustawienia generowania
-
-Sekcja rozwijana „Ustawienia generowania” zapisuje ustawienia **globalnie dla
-całego zespołu**; obowiązują od następnego generowania.
+Przycisk **Ustawienia generatora** otwiera panel boczny z zakresem **Od** /
+**Do** i ustawieniami solvera. **Zapisz ustawienia generowania** zapisuje je
+**globalnie dla całego zespołu**; obowiązują od następnego generowania.
+**Generuj** uruchamia generowanie od razu z zakresem z panelu, a **Przywróć
+zapisane** cofa niezapisane zmiany.
 
 | Ustawienie | Zakres | Uwagi |
 | --- | --- | --- |
@@ -105,17 +134,24 @@ Tryb tygodniowy pokazuje osobne ostrzeżenie z mierzonymi skutkami (serie
 Szkic ──► Do akceptacji ──► Opublikowany
 ```
 
-1. **Przekaż do akceptacji** - treść szkicu zostaje zamrożona.
-2. **Opublikuj grafik…** - otwiera okno z podsumowaniem tego, co się zmieni,
-   i wymaga jawnego potwierdzenia. Publikacja sprawdza pełne pokrycie zakresu;
-   brak obsady któregokolwiek dnia zatrzymuje operację.
+1. **Przekaż do akceptacji** - treść szkicu zostaje zamrożona, a tytuł
+   zmienia się na „Propozycja”.
+2. **Publikuj…** - otwiera arkusz „Publikuję propozycję v*N* · *zakres*” z
+   listą skutków: ile przydziałów stanie się grafikiem, co z wcześniejszymi
+   grafikami, ile ostrzeżeń miękkich trafi do audytu jako zaakceptowane i ile
+   oczekujących zamian zostanie anulowanych. Jeżeli zakres już się zaczął,
+   trzeba dodatkowo zaznaczyć, że zespół zobaczy zmianę od razu. Publikuje
+   przycisk **Publikuj v*N***; **Wróć do propozycji** zamyka arkusz bez zmian.
+   Publikacja sprawdza pełne pokrycie zakresu; brak obsady któregokolwiek
+   dnia zatrzymuje operację.
 3. Grafik staje się widoczny dla wszystkich, rozchodzą się powiadomienia, a
    kanały ICS dostają aktualizacje.
 
-Jeśli w międzyczasie ktoś zmienił grafik, okno publikacji wypisze każdą taką
-zmianę z polem **Decyzja**, w którym wybierasz, która wersja ma obowiązywać -
-dopiero wtedy publikuje. Szkic można też cofnąć przyciskiem **Wróć do szkicu**
-albo usunąć z listy szkiców.
+Jeśli w międzyczasie ktoś zmienił grafik albo zatwierdzona zamiana koliduje
+ze szkicem, arkusz publikacji wypisze każdy taki przypadek z polem
+**Decyzja**, w którym wybierasz, która wersja ma obowiązywać - dopiero wtedy
+publikuje. Propozycję można też cofnąć przyciskiem **Wróć do szkicu** albo
+usunąć z listy szkiców.
 
 Publikacja zastępuje wyłącznie te opublikowane grafiki, które w całości mieszczą
 się w nowym zakresie; częściowe nakładanie rozstrzyga się per slot, a pokrycie

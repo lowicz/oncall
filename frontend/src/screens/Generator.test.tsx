@@ -160,7 +160,7 @@ describe('GeneratorPanel draft persistence', () => {
     expect(screen.getByText('koordynator akceptuje')).toBeInTheDocument()
     expect(screen.getByText('widoczny dla zespołu')).toBeInTheDocument()
     // A proposal offers publication, not another hand-off.
-    expect(await screen.findByRole('button', { name: /Opublikuj grafik/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^Publikuj…/ })).toBeInTheDocument()
   })
 
   it('explains a solver status that is not a full solution', async () => {
@@ -171,10 +171,10 @@ describe('GeneratorPanel draft persistence', () => {
     expect(await screen.findByText(/Solver nie znalazł pełnego rozwiązania/)).toBeInTheDocument()
   })
 
-  it('keeps the advanced settings collapsed and out of the way', async () => {
+  it('keeps the settings in a drawer, out of the way', async () => {
     stub([])
     renderScreen(<GeneratorPanel />)
-    expect(await screen.findByText('Ustawienia generowania')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Ustawienia generatora/ })).toBeInTheDocument()
     // Collapsed, so the weight inputs are not in the accessibility tree.
     expect(screen.queryByRole('spinbutton', { name: /Równy udział/ })).not.toBeInTheDocument()
   })
@@ -214,7 +214,7 @@ describe('GeneratorPanel transitions', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Przekaż do akceptacji' }))
 
     // The stepper must follow the server, not the pre-transition cache entry.
-    expect(await screen.findByRole('button', { name: /Opublikuj grafik/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^Publikuj…/ })).toBeInTheDocument()
     await waitFor(() => expect(fetchOne).toHaveBeenCalledTimes(2))
   })
 
@@ -254,7 +254,7 @@ describe('GeneratorPanel transitions', () => {
     )
 
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
-    fireEvent.click(await screen.findByRole('button', { name: /Opublikuj grafik/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByText('Rozstrzygnij konflikty ze zmianami')).toBeInTheDocument()
     expect(within(dialog).getByText(/zmiana Anna Kowalska, szkic Marek Nowak/)).toBeInTheDocument()
@@ -265,7 +265,7 @@ describe('GeneratorPanel transitions', () => {
     expect(within(dialog).getByText('Publikacja naruszy reguły odpoczynku')).toBeInTheDocument()
 
     fireEvent.change(within(dialog).getByLabelText('Decyzja'), { target: { value: 'draft' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Tak, opublikuj' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publikuj v2' }))
     await waitFor(() => expect(publish.mock.calls[0][0]).toEqual({
       id: 'd1',
       expectedVersion: 2,
@@ -463,7 +463,7 @@ describe('GeneratorPanel solver time budget', () => {
       .mockResolvedValue({ ...policy, solve_seconds: 45 })
     renderScreen(<GeneratorPanel />)
 
-    fireEvent.click(await screen.findByText(/Ustawienia generowania/))
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
     const field = await screen.findByRole('spinbutton', { name: /Budżet czasu na przebieg/ })
     expect(field).toHaveValue(15)
 
@@ -476,7 +476,7 @@ describe('GeneratorPanel solver time budget', () => {
   it('keeps the save button off while the budget matches what is stored', async () => {
     stub([])
     renderScreen(<GeneratorPanel />)
-    fireEvent.click(await screen.findByText(/Ustawienia generowania/))
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
     await screen.findByRole('spinbutton', { name: /Budżet czasu na przebieg/ })
     expect(
       screen.getByRole('button', { name: 'Zapisz ustawienia generowania' }),
@@ -486,7 +486,7 @@ describe('GeneratorPanel solver time budget', () => {
   it('names the whole-run ceiling next to the per-pass budget', async () => {
     stub([])
     renderScreen(<GeneratorPanel />)
-    fireEvent.click(await screen.findByText(/Ustawienia generowania/))
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
     const field = await screen.findByRole('spinbutton', { name: /Budżet czasu na przebieg/ })
 
     expect(screen.getByText(/górny limit całego generowania to około 60 s/)).toBeInTheDocument()

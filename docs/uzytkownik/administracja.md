@@ -8,33 +8,57 @@ Ekrany używane od czasu do czasu są w listwie nawigacji w sekcjach
 
 ## Osoby (`/osoby`, administrator)
 
-Tabela kont z rolą, statusem, adresem e-mail i uprawnieniami; pasek nad nią
-filtruje po tekście, roli i statusie, a przycisk **Nowe konto lokalne** otwiera
-formularz zakładania konta. Kliknięcie wiersza otwiera panel szczegółów z
-trzema zakładkami:
+Pod tytułem jest bilans kont: ile ich jest, ile osób w rotacji, kto wchodzi
+do niej i kiedy, ile kont wyłączono. Tabela **Konta** ma kolumny, które
+administrator naprawdę czyta: osoba z e-mailem, login z numerem pracownika,
+rola konta, rotacja (`W ROTACJI` z datą wejścia i kwalifikacjami, `OD 12 PAŹ`
+dla osoby, która dopiero wchodzi, `zakończona`, „poza rotacją”), telefon
+(brak u osoby w rotacji jest czerwony, bo pasek „Dyżur teraz” go potrzebuje)
+i sposób logowania (lokalne albo LDAP / AD). W nagłówku sekcji jest pole
+wyszukiwania (osoba, login, numer, telefon) i filtry **Wszystkie**, **W
+rotacji**, **Poza rotacją**, **Wyłączone**. **Eksport CSV** zapisuje widoczne
+wiersze, **Nowe konto** otwiera panel zakładania konta lokalnego.
 
-- **Konto** - nazwa wyświetlana, login, e-mail (opcjonalny, widoczny dla
-  zalogowanych osób na karcie dyżurnego), numer kadrowy, rola i to, czy konto
-  jest aktywne,
-- **Rotacja** - „Wejście od” i opcjonalnie „Wyjście do”,
-- **Eligibility** - okresy uprawnień: rola dyżurowa oraz „Od” i opcjonalne
-  „Do”. Okresów może być wiele; każdy dotyczy jednej roli.
+Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
 
-Stąd też generuje się **jednorazowy link** do aktywacji konta lub resetu hasła.
-Link przekaż osobie bezpiecznym kanałem.
+- **Konto** - imię, nazwisko, login (bez zmian), numer pracownika, e-mail i
+  telefon; telefon jest wymagany dla osób w rotacji, bo pokazuje go pasek
+  „Dyżur teraz” i karta dyżurnego,
+- **Rotacja** - stan rotacji, **kwalifikacje dyżurowe** jako chipy (zdjęcie
+  chipa kończy okres roli z dniem wczorajszym, więc opublikowany grafik
+  zostaje, a generator pomija rolę od następnego uruchomienia; dodanie chipa
+  otwiera okres od dziś), „Wejście od” i „Wyjście do” oraz lista **okresów
+  kwalifikacji** z możliwością edycji dat i dodania okresu,
+- **Dostęp** - rola konta, przełącznik „Konto aktywne” i, dla konta
+  lokalnego, **jednorazowy link** resetu hasła.
 
-Numer kadrowy ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
+Konto bez rotacji ma na zakładce Rotacja przycisk **Dodaj do rotacji** z datą
+wejścia. Link aktywacyjny nowego konta pokazuje się raz, po utworzeniu; link
+przekaż osobie bezpiecznym kanałem.
+
+Numer pracownika ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
 `employeeNumber`, żeby konto lokalne powiązało się automatycznie przy pierwszym
 logowaniu z katalogu.
 
-Panel pilnuje niezapisanych zmian: przy próbie zamknięcia wypisze, co zostanie
-utracone.
+Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę, a
+próba zamknięcia wypisze, co zostanie utracone. Zmiana roli i wyłączenie konta
+wymagają dodatkowego potwierdzenia.
 
 ### Wyjście z rotacji
 
 Ustawienie „Wyjście do” kończy rotację. Historia dyżurów **zostaje** i nadal
 liczy się w raportach; kończy się tylko przydzielanie nowych dyżurów po tej
-dacie.
+dacie. Dyżury już opublikowane po tej dacie trzeba przepisać - panel pokazuje
+wtedy ostrzeżenie „Skutek dla grafiku” z przyciskiem **Przepisz przyszłe
+dyżury i zakończ rotację…**, który dla każdego takiego dyżuru wybiera zastępcę.
+
+### Usunięcie konta i danych osobowych
+
+Przycisk **Usuń konto…** w stopce panelu otwiera czerwony arkusz z listą
+skutków: konto zostaje wyłączone natychmiast, dane osobowe usunięte, historia
+dyżurów i punkty zostają dla sprawiedliwości, a opublikowane dyżury tej osoby
+po dziś pozostaną bez obsady. Operację potwierdza się, **wpisując login**
+osoby; do tego czasu przycisk jest nieaktywny. Nie da się jej cofnąć.
 
 ## Wydarzenia kalendarza (`/wydarzenia`, administrator)
 
