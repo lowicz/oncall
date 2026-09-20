@@ -13,8 +13,13 @@ from oncall.domain.vocabulary import FeedTokenKind
 #: How far back and ahead a member's own calendar subscription reaches.
 FEED_PAST_DAYS = 14
 FEED_FUTURE_DAYS = 90
-#: What every subscribed calendar is called, before whose calendar it is.
-CALENDAR_NAME_PREFIX = "Erste On-call · "
+#: Joins the product name and whose calendar it is: "On-call · Anna".
+CALENDAR_NAME_SEPARATOR = " · "
+
+
+def calendar_name(app_name: str, owner: str) -> str:
+    """What a subscribed calendar is called: the product name, then the owner."""
+    return f"{app_name}{CALENDAR_NAME_SEPARATOR}{owner}"
 
 
 def link_is_active(revoked_at: datetime | None, expires_at: datetime, now: datetime) -> bool:

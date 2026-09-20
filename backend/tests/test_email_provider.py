@@ -22,7 +22,7 @@ def settings_with(**overrides) -> Settings:
         "smtp_local_hostname": "oncall.internal.example.com",
         "smtp_use_tls": False,
         "smtp_starttls": True,
-        "email_from": "Erste On-call <oncall@example.com>",
+        "email_from": "On-call <oncall@example.com>",
     }
     values.update(overrides)
     return Settings(**values)
@@ -56,7 +56,7 @@ async def test_send_passes_full_smtp_configuration(monkeypatch) -> None:
     assert captured["use_tls"] is False
     assert captured["start_tls"] is True
     email = captured["message"]
-    assert email["From"] == "Erste On-call <oncall@example.com>"
+    assert email["From"] == "On-call <oncall@example.com>"
     assert email["To"] == "anna@example.com"
     assert email["Subject"] == "Prośba o zamianę"
     assert "Treść wiadomości" in email.get_content()

@@ -13,4 +13,9 @@ async def health() -> HealthResponse:
 
 @router.get("/api/v1/config", response_model=PublicConfigResponse)
 async def public_config() -> PublicConfigResponse:
-    return PublicConfigResponse(ldap_enabled=get_settings().ldap_enabled)
+    settings = get_settings()
+    return PublicConfigResponse(
+        ldap_enabled=settings.ldap_enabled,
+        app_name=settings.app_name,
+        app_subtitle=settings.app_subtitle,
+    )

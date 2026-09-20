@@ -7,7 +7,7 @@ powstaje w arkuszu: układanie zajmuje godziny, nikt nie potrafi wykazać, że
 podział jest równy, a zamiana jednego dnia wymaga rozmowy i ręcznej poprawki w
 kilku miejscach naraz.
 
-Erste On-call ma trzy cele:
+On-call ma trzy cele:
 
 1. **Skrócić przygotowanie grafiku** - koordynator podaje zakres dat, a solver
    układa obsadę zgodną z regułami twardymi.

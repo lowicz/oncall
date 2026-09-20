@@ -100,11 +100,11 @@ jobs:
           - name: api
             context: backend
             dockerfile: backend/Dockerfile
-            description: Erste On-call API and worker (FastAPI, CP-SAT scheduler)
+            description: On-call API and worker (FastAPI, CP-SAT scheduler)
           - name: web
             context: .
             dockerfile: frontend/Dockerfile
-            description: Erste On-call web (nginx, SPA and documentation)
+            description: On-call web (nginx, SPA and documentation)
     env:
       IMAGE: ghcr.io/${{ needs.validate.outputs.owner }}/oncall-${{ matrix.name }}
     steps:

@@ -276,7 +276,7 @@ async def test_calendar_feeds(client, db, frozen_clock) -> None:
     )
     shared = await client.get(f"/calendar/feed/{link_raw}.ics")
     assert shared.status_code == 200
-    assert "X-WR-CALNAME:Erste On-call · Piotr" in shared.text
+    assert "X-WR-CALNAME:On-call · Piotr" in shared.text
     await db.execute(update(ShareLink).values(revoked_at=frozen_clock.instant))
     await db.commit()
     assert_error(

@@ -96,7 +96,11 @@ async def create_share_link_feed(
 async def calendar_feed(token: str, ports: CalendarSubscriptionProvider) -> Response:
     with sharing_errors():
         calendar = await use_cases.read_subscribed_calendar(
-            token, ports, today=business_today(), now=utc_now()
+            token,
+            ports,
+            today=business_today(),
+            now=utc_now(),
+            app_name=get_settings().app_name,
         )
     events = [
         IcsEvent(

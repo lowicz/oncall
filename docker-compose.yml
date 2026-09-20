@@ -35,6 +35,8 @@ services:
     image: *api-image
     restart: unless-stopped
     environment:
+      ONCALL_APP_NAME: ${ONCALL_APP_NAME:-On-call}
+      ONCALL_APP_SUBTITLE: ${ONCALL_APP_SUBTITLE:-}
       ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
       ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS: ${ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS:-1}
       ONCALL_SESSION_COOKIE_SECURE: ${ONCALL_SESSION_COOKIE_SECURE:-false}
@@ -59,7 +61,7 @@ services:
       ONCALL_SMTP_LOCAL_HOSTNAME: ${ONCALL_SMTP_LOCAL_HOSTNAME:-}
       ONCALL_SMTP_USE_TLS: ${ONCALL_SMTP_USE_TLS:-false}
       ONCALL_SMTP_STARTTLS: ${ONCALL_SMTP_STARTTLS:-true}
-      ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-Erste On-call <oncall@example.com>}
+      ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-On-call <oncall@example.com>}
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
       ONCALL_SOLVER_SECONDS: ${ONCALL_SOLVER_SECONDS:-15}
@@ -84,6 +86,8 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "oncall.worker"]
     environment:
+      ONCALL_APP_NAME: ${ONCALL_APP_NAME:-On-call}
+      ONCALL_APP_SUBTITLE: ${ONCALL_APP_SUBTITLE:-}
       ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
       ONCALL_SMTP_HOST: ${ONCALL_SMTP_HOST:-}
       ONCALL_SMTP_PORT: ${ONCALL_SMTP_PORT:-587}
@@ -92,7 +96,7 @@ services:
       ONCALL_SMTP_LOCAL_HOSTNAME: ${ONCALL_SMTP_LOCAL_HOSTNAME:-}
       ONCALL_SMTP_USE_TLS: ${ONCALL_SMTP_USE_TLS:-false}
       ONCALL_SMTP_STARTTLS: ${ONCALL_SMTP_STARTTLS:-true}
-      ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-Erste On-call <oncall@example.com>}
+      ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-On-call <oncall@example.com>}
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
       ONCALL_SOLVER_SECONDS: ${ONCALL_SOLVER_SECONDS:-15}
