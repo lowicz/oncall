@@ -159,9 +159,10 @@ def _imports_central_models(path: Path, tree: ast.Module, package_root: Path) ->
         if isinstance(node, ast.Import):
             if any(alias.name == "oncall.models" for alias in node.names):
                 lines.append(node.lineno)
-        elif isinstance(node, ast.ImportFrom):
-            if _imports_central_registry(path, node, package_root):
-                lines.append(node.lineno)
+        elif isinstance(node, ast.ImportFrom) and _imports_central_registry(
+            path, node, package_root
+        ):
+            lines.append(node.lineno)
     return lines
 
 
