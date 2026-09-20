@@ -101,6 +101,7 @@ button:disabled { cursor: default; }
 .sech-link { color: var(--fg); text-decoration: none; padding-bottom: 2px; border-bottom: 1.5px solid transparent; background: none; border-top: 0; border-left: 0; border-right: 0; padding-top: 0; padding-left: 0; padding-right: 0; font: inherit; }
 .sech-link:hover { border-bottom-color: var(--line2); }
 .sech-link.on, .sech-link[aria-pressed='true'], .sech-link[data-popup-open] { border-bottom-color: var(--sig); }
+.sech-link .tab-count { margin-left: 6px; }
 .sech-ctl .seg, .sech-ctl .btn, .sech-ctl .ib { align-self: center; }
 
 /* ---------- 3 primitives ---------- */
@@ -248,7 +249,7 @@ table.lg tr.on td, table.lg tr.on th { background: var(--sig-soft); }
 table.lg tbody tr:hover td, table.lg tbody tr:hover th { background: var(--s2); }
 table.lg tr.on:hover td, table.lg tr.on:hover th { background: var(--sig-soft); }
 table.lg td > b { white-space: nowrap; }
-table.lg td small { display: block; color: var(--muted); font: 10.5px var(--mono); margin-top: 3px; }
+table.lg td small, table.lg tbody th small { display: block; color: var(--muted); font: 10.5px var(--mono); margin-top: 3px; font-weight: 400; }
 table.lg td.mono { white-space: nowrap; }
 table.lg tr.total td { font-weight: 650; border-top: 1px solid var(--line2); }
 table.lg th button { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; letter-spacing: inherit; text-transform: inherit; }
@@ -310,6 +311,10 @@ table.lg th button[aria-sort] { color: var(--fg); }
 .panel-body { padding: 12px 16px; overflow: auto; display: grid; gap: 12px; align-content: start; }
 .panel-foot { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--line); padding: 10px 16px; }
 .panel-foot .sp { flex: 1; }
+/* A step bar inside a panel has a third of the page width: tighter links, smaller type. */
+.panel-body .steps { gap: 6px; font-size: 10px; }
+.panel-body .step { gap: 6px; }
+.panel-body .step + .step::before { width: 12px; }
 .pop-positioner { z-index: 50; }
 .pop { background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-md); padding: 10px 12px; display: grid; gap: 6px; font-size: 11.5px; box-shadow: var(--shadow-sm); width: max-content; max-width: min(320px, calc(100vw - 24px)); outline: none; }
 .pop-title { font: 650 12px/1.2 var(--font); }
