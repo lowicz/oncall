@@ -28,8 +28,7 @@ def upgrade() -> None:
         raise RuntimeError(f"Case-insensitive user identity conflicts: {details}")
     op.execute("CREATE UNIQUE INDEX uq_users_username_lower ON users (lower(username))")
     op.execute(
-        "CREATE UNIQUE INDEX uq_users_email_lower ON users (lower(email)) "
-        "WHERE email IS NOT NULL"
+        "CREATE UNIQUE INDEX uq_users_email_lower ON users (lower(email)) WHERE email IS NOT NULL"
     )
 
 

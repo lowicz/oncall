@@ -13,6 +13,7 @@ examples
 **/dist
 # Rendered documentation: the build regenerates it from docs/ inside the image.
 frontend/public/docs
+site
 **/.vite
 **/__pycache__
 **/.venv

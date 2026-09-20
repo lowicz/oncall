@@ -12,6 +12,9 @@ COPY docs/ /docs/
 RUN npm run build
 
 FROM nginx:1.27-alpine
+# Set by the release workflow to the version tag; `dev` for local builds.
+ARG ONCALL_VERSION=dev
+ENV ONCALL_VERSION=${ONCALL_VERSION}
 COPY frontend/nginx.http.conf /etc/nginx/presets/http.conf
 COPY frontend/nginx.https.conf /etc/nginx/presets/https.conf
 COPY frontend/docker-entrypoint.d/40-tls.sh /docker-entrypoint.d/40-tls.sh

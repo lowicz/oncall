@@ -25,8 +25,7 @@ depends_on = None
 def upgrade() -> None:
     op.execute("UPDATE users SET username = lower(username) WHERE username <> lower(username)")
     op.execute(
-        "UPDATE users SET email = lower(email) "
-        "WHERE email IS NOT NULL AND email <> lower(email)"
+        "UPDATE users SET email = lower(email) WHERE email IS NOT NULL AND email <> lower(email)"
     )
 
 

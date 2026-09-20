@@ -36,9 +36,5 @@ def downgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("year", "version", name="uq_holiday_year_version"),
     )
-    op.create_index(
-        "ix_holiday_calendar_versions_year", "holiday_calendar_versions", ["year"]
-    )
-    op.create_index(
-        "ix_holiday_calendar_versions_status", "holiday_calendar_versions", ["status"]
-    )
+    op.create_index("ix_holiday_calendar_versions_year", "holiday_calendar_versions", ["year"])
+    op.create_index("ix_holiday_calendar_versions_status", "holiday_calendar_versions", ["status"])

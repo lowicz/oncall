@@ -58,9 +58,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("schedule_id", "service_date", "role", name="uq_assignment_slot"),
     )
-    op.create_index(
-        "ix_assignment_published_lookup", "assignments", ["service_date", "role"]
-    )
+    op.create_index("ix_assignment_published_lookup", "assignments", ["service_date", "role"])
 
 
 def downgrade() -> None:

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build:docs": "node scripts/build-docs.mjs",
+    "build:docs:site": "node scripts/build-docs.mjs --site --out ../site",
     "prebuild": "npm run build:docs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

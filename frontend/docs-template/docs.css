@@ -351,6 +351,16 @@ hr {
   color: var(--accent-label);
 }
 
+/* Standalone site only (scripts/build-docs.mjs --site): which release the
+   pages describe. The copy inside the image needs no such line; it always
+   matches the application it ships with. */
+.site-footer {
+  margin: 0;
+  font: 650 0.72rem/1.4 var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+
 /* --- Narrow screens -------------------------------------------------------- */
 
 @media (max-width: 900px) {

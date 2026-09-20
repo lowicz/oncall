@@ -24,12 +24,8 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["schedule_id"], ["schedules.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["requester_member_id"], ["team_members.id"], ondelete="CASCADE"
-        ),
-        sa.ForeignKeyConstraint(
-            ["replacement_member_id"], ["team_members.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["requester_member_id"], ["team_members.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["replacement_member_id"], ["team_members.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_swap_requests_status", "swap_requests", ["status"])
