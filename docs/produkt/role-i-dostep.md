@@ -15,7 +15,8 @@ Role są kumulatywne: administrator widzi wszystko, co koordynator.
 
 | Ekran (ścieżka) | viewer | member | coordinator | admin |
 | --- | :---: | :---: | :---: | :---: |
-| Dyżury (`/`) | tak | tak | tak | tak |
+| Teraz (`/`) | tak | tak | tak | tak |
+| Grafik (`/grafik`) | tak | tak | tak | tak |
 | Moje (`/moje`) | nie | tak | tak | tak |
 | Zamiany (`/zamiany`) | nie | tak | tak | tak |
 | Generator (`/generator`) | nie | nie | tak | tak |
@@ -28,7 +29,7 @@ Role są kumulatywne: administrator widzi wszystko, co koordynator.
 | Audyt (`/audyt`) | nie | nie | nie | tak |
 
 Pozycje nawigacji niedostępne dla roli po prostu się nie pokazują. Wejście
-adresem na ekran spoza uprawnień przenosi na pulpit; niezależnie od tego
+adresem na ekran spoza uprawnień przenosi na ekran „Teraz”; niezależnie od tego
 każde żądanie do API jest sprawdzane po stronie serwera. **Interfejs nie jest
 granicą bezpieczeństwa.**
 

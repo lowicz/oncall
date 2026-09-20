@@ -1,6 +1,10 @@
-# Erste On-call
+# On-call
 
-Internal on-call scheduling application.
+On-call scheduling application for infrastructure teams: who is `PRIMARY`,
+`SECONDARY` and on the `11-19` shift, a fair generator, swaps, availability,
+reports and calendar feeds. The name shown in the interface, e-mails and
+calendar feeds is a deployment setting (`ONCALL_APP_NAME`, with an optional
+`ONCALL_APP_SUBTITLE`), so the repository itself carries no organisation brand.
 
 [![ci](https://github.com/lowicz/oncall/actions/workflows/ci.yml/badge.svg)](https://github.com/lowicz/oncall/actions/workflows/ci.yml)
 [![release](https://github.com/lowicz/oncall/actions/workflows/release.yml/badge.svg)](https://github.com/lowicz/oncall/actions/workflows/release.yml)

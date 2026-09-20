@@ -1,57 +1,59 @@
 /* Stylesheet of the rendered documentation.
  *
- * The documentation is plain static HTML - no React, no MUI runtime - but it
- * is the same product, so it uses the application's own design tokens rather
- * than a second visual language: the palettes declared in src/theme.ts, the
- * custom properties of src/styles.css, the Inter / IBM Plex Mono pairing, and
- * the same `data-mui-color-scheme` attribute and `mui-mode` storage key, so a
- * reader who chose a theme in the application keeps it here. */
+ * The documentation is plain static HTML - no React runtime - but it is the
+ * same product, so it uses the application's own design tokens rather than a
+ * second visual language: the palettes of src/tokens.css, the Inter Tight /
+ * JetBrains Mono pairing, and the same `data-theme` attribute and
+ * `oncall-theme` storage key, so a reader who chose a theme in the
+ * application keeps it here. */
 
 :root {
-  --sans: "Inter Variable", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --sans: "Inter Tight Variable", "Inter Tight", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
   --radius: 8px;
   --sidebar-width: 268px;
   --measure: 74ch;
 }
 
-/* Light is the fallback scheme, as in the application; dark is the default the
-   pre-paint script stamps on <html>. */
+/* Dark is the default the pre-paint script stamps on <html>; light is the
+   explicit choice, as in the application. */
 :root,
-[data-mui-color-scheme='light'] {
-  --bg: #f4f7fa;
-  --paper: #ffffff;
-  --fg: #122232;
-  --fg-muted: #526779;
-  --accent: #005ea8;
-  --accent-label: #0a5c9e;
-  --accent-contrast: #ffffff;
-  --topbar-bg: rgba(255, 255, 255, 0.92);
-  --topbar-fg: #122232;
-  --topbar-border: rgba(18, 34, 50, 0.14);
-  --nav-active-bg: rgba(0, 94, 168, 0.12);
-  --line: rgba(18, 34, 50, 0.16);
-  --line-soft: rgba(18, 34, 50, 0.08);
-  --code-bg: #f2f7fb;
-  --table-header-bg: #f2f7fb;
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b0e13;
+  --paper: #10141b;
+  --fg: #e6ebf2;
+  --fg-muted: #8b97a8;
+  --accent: #6ea8ff;
+  --accent-label: #6ea8ff;
+  --accent-contrast: #06172e;
+  --topbar-bg: rgba(16, 20, 27, 0.92);
+  --topbar-fg: #e6ebf2;
+  --topbar-border: rgba(148, 163, 184, 0.14);
+  --nav-active-bg: rgba(110, 168, 255, 0.14);
+  --line: rgba(148, 163, 184, 0.14);
+  --line-soft: rgba(148, 163, 184, 0.1);
+  --code-bg: #161b24;
+  --table-header-bg: #161b24;
 }
 
-[data-mui-color-scheme='dark'] {
-  --bg: #08131f;
-  --paper: #0e1c2b;
-  --fg: #edf5fc;
-  --fg-muted: #94a9bc;
-  --accent: #3a8dde;
-  --accent-label: #79bfff;
-  --accent-contrast: #08131f;
-  --topbar-bg: rgba(8, 19, 31, 0.88);
-  --topbar-fg: #edf5fc;
-  --topbar-border: rgba(143, 200, 255, 0.14);
-  --nav-active-bg: rgba(143, 200, 255, 0.16);
-  --line: rgba(143, 200, 255, 0.16);
-  --line-soft: rgba(143, 200, 255, 0.1);
-  --code-bg: rgba(143, 200, 255, 0.08);
-  --table-header-bg: rgba(143, 200, 255, 0.07);
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #eef1f5;
+  --paper: #ffffff;
+  --fg: #111827;
+  --fg-muted: #5b6676;
+  --accent: #1d4ed8;
+  --accent-label: #1d4ed8;
+  --accent-contrast: #ffffff;
+  --topbar-bg: rgba(255, 255, 255, 0.92);
+  --topbar-fg: #111827;
+  --topbar-border: rgba(17, 24, 39, 0.12);
+  --nav-active-bg: rgba(29, 78, 216, 0.1);
+  --line: rgba(17, 24, 39, 0.12);
+  --line-soft: rgba(17, 24, 39, 0.08);
+  --code-bg: #f3f5f8;
+  --table-header-bg: #f3f5f8;
 }
 
 * { box-sizing: border-box; }
@@ -68,7 +70,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--sans);
-  font-size: 16px;
+  font-size: 15.5px;
   line-height: 1.65;
 }
 
@@ -87,36 +89,40 @@ summary:focus-visible {
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 64px;
-  padding: 0 24px;
+  height: 52px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   background: var(--topbar-bg);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--topbar-border);
   color: var(--topbar-fg);
 }
 
+/* The application's own mark and product name. The name is filled in from
+   the public configuration when the pages are served next to the API. */
 .wordmark {
-  font: 700 0.75rem/1.2 var(--mono);
-  letter-spacing: 0.12em;
-  color: #edf5fc;
-  background: #005ea8;
-  padding: 7px 9px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--topbar-fg);
+  font: 650 0.85rem/1.2 var(--sans);
   white-space: nowrap;
   text-decoration: none;
 }
 
-.wordmark span { color: #d7ebff; }
+.wordmark svg { width: 26px; height: 26px; border-radius: 6px; flex: 0 0 auto; }
 
 .topbar-title {
   font-family: var(--mono);
-  font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  color: var(--accent-label);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
 }
 
 .topbar-actions {
@@ -128,18 +134,18 @@ summary:focus-visible {
 
 .topbar-link,
 .theme-toggle {
-  font: 650 0.875rem/1 var(--sans);
+  font: 600 0.8rem/1 var(--sans);
   color: var(--topbar-fg);
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 9px 12px;
+  padding: 8px 11px;
   cursor: pointer;
   text-decoration: none;
 }
 
 .topbar-link:hover,
-.theme-toggle:hover { background: var(--nav-active-bg); }
+.theme-toggle:hover { background: var(--nav-active-bg); border-color: var(--accent); }
 
 /* --- Shell ----------------------------------------------------------------- */
 
@@ -167,8 +173,8 @@ summary:focus-visible {
 
 .sidebar {
   position: sticky;
-  top: 96px;
-  max-height: calc(100vh - 128px);
+  top: 84px;
+  max-height: calc(100vh - 116px);
   overflow-y: auto;
   padding: 16px;
   background: var(--paper);
@@ -180,9 +186,9 @@ summary:focus-visible {
 
 .sidebar h2 {
   margin: 20px 0 6px;
-  font: 650 0.75rem/1.4 var(--mono);
-  letter-spacing: 0.04em;
-  color: var(--accent-label);
+  font: 600 0.66rem/1.4 var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--fg-muted);
   text-transform: uppercase;
 }
 
@@ -228,18 +234,20 @@ summary:focus-visible {
 
 .content h1 {
   margin: 0 0 20px;
-  font-size: 1.75rem;
+  font-size: 1.7rem;
   font-weight: 650;
   letter-spacing: -0.025em;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
+/* Ruled section headings, as in the application. */
 .content h2 {
   margin: 40px 0 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line-soft);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
   font-size: 1.1rem;
   font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .content h3 {
@@ -346,9 +354,10 @@ hr {
 
 .pager span {
   display: block;
-  font: 650 0.7rem/1.4 var(--mono);
-  letter-spacing: 0.04em;
-  color: var(--accent-label);
+  font: 600 0.66rem/1.4 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
 }
 
 /* Standalone site only (scripts/build-docs.mjs --site): which release the
@@ -356,8 +365,8 @@ hr {
    matches the application it ships with. */
 .site-footer {
   margin: 0;
-  font: 650 0.72rem/1.4 var(--mono);
-  letter-spacing: 0.04em;
+  font: 600 0.7rem/1.4 var(--mono);
+  letter-spacing: 0.06em;
   color: var(--fg-muted);
 }
 

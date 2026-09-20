@@ -84,10 +84,9 @@ describe('FairnessPanel criterion summary', () => {
   it('shows the spread row with per-lens state next to the totals row', async () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(report(false))
     renderScreen(<FairnessPanel />)
-    expect(await screen.findByText('Rozpiętość')).toBeInTheDocument()
-    expect(screen.getByText(/kryterium 3 pkt/)).toBeInTheDocument()
-    // Two lenses shown with their textual state, not colour alone.
-    expect(screen.getAllByText('spełnia').length).toBeGreaterThanOrEqual(4)
+    expect(await screen.findByText(/kryterium 3 pkt/)).toBeInTheDocument()
+    // Every lens shown with its textual state, not colour alone.
+    expect(screen.getAllByText(/rozpiętość 1.5 · spełnia$/).length).toBeGreaterThanOrEqual(4)
   })
 
   it('marks an unmet lens in words', async () => {
@@ -103,9 +102,9 @@ describe('FairnessPanel criterion summary', () => {
     }]
     vi.spyOn(api, 'fairness').mockResolvedValue(failing)
     renderScreen(<FairnessPanel />)
-    expect(await screen.findByText('Rozpiętość')).toBeInTheDocument()
-    expect(screen.getAllByText('nie spełnia')).toHaveLength(1)
-    expect(screen.getByText(/najwyżej: Anna Kowalska \(\+2.5\).*najniżej: Marek Nowak \(-2\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/kryterium 3 pkt/)).toBeInTheDocument()
+    expect(screen.getAllByText(/· nie spełnia$/)).toHaveLength(1)
+    expect(screen.getByTitle(/najwyżej: Anna Kowalska \(\+2.5\).*najniżej: Marek Nowak \(-2\)/)).toBeInTheDocument()
   })
 
   it('puts departed people in a separate section', async () => {
@@ -123,15 +122,14 @@ describe('FairnessPanel criterion summary', () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(solo)
     renderScreen(<FairnessPanel />)
     expect(await screen.findByText('Anna Kowalska')).toBeInTheDocument()
-    expect(screen.queryByText('Rozpiętość')).not.toBeInTheDocument()
+    expect(screen.queryByText(/kryterium 3 pkt/)).not.toBeInTheDocument()
   })
 })
 
 describe('FairnessPanel Razem reconciliation (D4/MED6-01)', () => {
-  // The per-person „Razem" cell renders the actual with the fair share in a
-  // child span; the summary cell is a bare number. Read the leading text node.
-  const actualOf = (cell: Element) =>
-    Number(cell.querySelector('.fairness-actual')?.childNodes[0]?.textContent?.trim())
+  // Both the per-person „Razem" cell and the summary cell mark the actual
+  // with the same class, next to the fair share.
+  const actualOf = (cell: Element) => Number(cell.querySelector('.f-actual')?.textContent?.trim())
   const razemColumn = (container: HTMLElement) => {
     const table = container.querySelector('table.fairness-table') as HTMLTableElement
     const perPerson = Array.from(table.tBodies[0].rows).map((row) =>
@@ -199,7 +197,7 @@ describe('FairnessPanel Razem context (MED6-02)', () => {
       container.querySelectorAll<HTMLTableRowElement>('table.fairness-table tbody tr'),
     ).find((tr) => tr.textContent?.includes('Jakub Polak'))!
     const totalCell = row.cells[row.cells.length - 1]
-    expect(totalCell.querySelector('.fairness-actual')?.textContent).toContain('/ 4')
+    expect(totalCell.textContent).toContain('/ 4')
     expect(totalCell.textContent).toContain('2 poniżej udziału')
   })
 

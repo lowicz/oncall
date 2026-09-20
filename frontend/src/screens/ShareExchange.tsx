@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Alert, Box, Button, CircularProgress, Container } from '@mui/material'
 import { api } from '../api'
+import { Box, Button, LoadingBlock } from '../ui'
+import { AuthFrame } from '../components/AuthFrame'
 
 export function ShareExchange() {
   const { token } = useParams()
@@ -26,18 +27,17 @@ export function ShareExchange() {
 
   if (exchange.error) {
     return (
-      <Container maxWidth="xs" className="login-shell">
-        <Box className="wordmark" aria-label="Erste On-call">E<span>/</span> ON-CALL</Box>
-        <Alert severity="error">{exchange.error.message}</Alert>
-        <Button variant="contained" onClick={() => navigate('/', { replace: true })}>
-          Przejdź do logowania
-        </Button>
-      </Container>
+      <AuthFrame title="Ten link nie działa" screen="Link podglądowy">
+        <div className="login-card">
+          <Box tone="bad" role="alert" title={exchange.error.message}>
+            Link mógł wygasnąć albo zostać odwołany. Poproś o nowy osobę, która go wysłała.
+          </Box>
+          <Button variant="primary" block onClick={() => navigate('/', { replace: true })}>
+            Przejdź do logowania
+          </Button>
+        </div>
+      </AuthFrame>
     )
   }
-  return (
-    <Box className="center">
-      <CircularProgress aria-label="Wymiana linku na sesję" />
-    </Box>
-  )
+  return <div className="center"><LoadingBlock label="Wymiana linku na sesję" rows={2} /></div>
 }

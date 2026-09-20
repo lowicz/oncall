@@ -49,7 +49,8 @@ describe('SwapPanel inbox', () => {
     stub([swap({ id: '1', replacement_name: 'Ola Wiśniewska' })])
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
     expect(await screen.findByText('Nic nie czeka na Twoją decyzję')).toBeInTheDocument()
-    expect(screen.getByText('W toku (1)')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'W toku' })).toBeInTheDocument()
+    expect(screen.getByText('Ola Wiśniewska', { exact: false })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Akceptuję' })).not.toBeInTheDocument()
   })
 
@@ -62,7 +63,11 @@ describe('SwapPanel inbox', () => {
   it('files settled requests under "zakończone" with no actions', async () => {
     stub([swap({ id: '1', status: 'approved' }), swap({ id: '2', status: 'rejected' })])
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="admin" hasTeamMember />)
-    expect(await screen.findByText('Zakończone (2)')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Zakończone' })).toBeInTheDocument()
+    // Folded away by default; opening it still offers no actions.
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż' }))
+    expect(await screen.findByText('Zatwierdzona')).toBeInTheDocument()
+    expect(screen.getByText('Odrzucona')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Akceptuję' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Zatwierdź' })).not.toBeInTheDocument()
   })
@@ -176,23 +181,19 @@ describe('SwapPanel impact preview', () => {
     // Nothing is requested until a replacement is actually picked.
     expect(impactCall).not.toHaveBeenCalled()
 
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Mój dyżur' }))
-    fireEvent.click(await screen.findByRole('option', { name: /PRIMARY/ }))
-    // The replacement select stays disabled until the eligible options load.
-    await waitFor(() => expect(
-      screen.getByRole('combobox', { name: 'Zastępca' }),
-    ).not.toHaveAttribute('aria-disabled', 'true'))
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zastępca' }))
-    // The option now carries the balance and the reported preference, so its
-    // accessible name is more than the bare display name (MED5-09).
-    const option = await screen.findByRole('option', { name: /Piotr Zieliński/ })
+    const slot = await screen.findByLabelText(/Mój dyżur/)
+    await screen.findByRole('option', { name: /PRIMARY/ })
+    fireEvent.change(slot, { target: { value: '2099-09-14|primary' } })
+    // Candidates are ranked, and each carries the balance and the reported
+    // preference, so comparing two of them no longer means selecting each one
+    // and reading the impact preview twice (MED5-09).
+    const option = await screen.findByRole('radio', { name: /Piotr Zieliński/ })
     expect(option).toHaveTextContent('1 pkt poniżej udziału')
     expect(option).toHaveTextContent('Chętnie wezmę')
     fireEvent.click(option)
 
-    await waitFor(() => expect(impactCall).toHaveBeenCalled())
-    expect(impactCall.mock.calls[0].slice(0, 3)).toEqual(['2099-09-14', 'primary', 'p1'])
-    expect(await screen.findByText(/WPŁYW NA BILANS/)).toBeInTheDocument()
+    await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1'))
+    expect(await screen.findByText('Wpływ na bilans')).toBeInTheDocument()
     expect(await screen.findByText('punkty 5 → 4 (-1)')).toBeInTheDocument()
     expect(await screen.findByText('punkty 2 → 3 (+1)')).toBeInTheDocument()
     // A swap is handed over willingly - „oddaje", not the override's „traci".
@@ -244,15 +245,12 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     ])
 
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Mój dyżur' }))
-    fireEvent.click(await screen.findByRole('option', { name: /PRIMARY/ }))
-    await waitFor(() => expect(
-      screen.getByRole('combobox', { name: 'Zastępca' }),
-    ).not.toHaveAttribute('aria-disabled', 'true'))
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zastępca' }))
+    const slot = await screen.findByLabelText(/Mój dyżur/)
+    await screen.findByRole('option', { name: /PRIMARY/ })
+    fireEvent.change(slot, { target: { value: '2099-09-14|primary' } })
 
-    const option = await screen.findByRole('option', { name: /Piotr Zieliński/ })
-    expect(option).toHaveAttribute('aria-disabled', 'true')
+    const option = await screen.findByRole('radio', { name: /Piotr Zieliński/ })
+    expect(option).toBeDisabled()
     expect(option).toHaveTextContent(/nie można/)
   })
 
@@ -275,13 +273,10 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     ])
 
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Mój dyżur' }))
-    fireEvent.click(await screen.findByRole('option', { name: /PRIMARY/ }))
-    await waitFor(() => expect(
-      screen.getByRole('combobox', { name: 'Zastępca' }),
-    ).not.toHaveAttribute('aria-disabled', 'true'))
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Zastępca' }))
-    fireEvent.click(await screen.findByRole('option', { name: /Piotr Zieliński/ }))
+    const slot = await screen.findByLabelText(/Mój dyżur/)
+    await screen.findByRole('option', { name: /PRIMARY/ })
+    fireEvent.change(slot, { target: { value: '2099-09-14|primary' } })
+    fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
 
     expect(await screen.findByText(/Prośba obejmie oba sloty tego dnia/)).toBeInTheDocument()
   })

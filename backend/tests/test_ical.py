@@ -22,17 +22,17 @@ def lines(ics: str) -> list[str]:
 
 
 def test_build_ics_structure_and_all_day_event() -> None:
-    ics = build_ics([event()], calendar_name="Erste On-call · Anna")
+    ics = build_ics([event()], calendar_name="On-call · Anna")
     content = lines(ics)
     assert content[0] == "BEGIN:VCALENDAR"
     assert "VERSION:2.0" in content
-    assert "X-WR-CALNAME:Erste On-call · Anna" in content
+    assert "X-WR-CALNAME:On-call · Anna" in content
     assert content[-2] == "END:VCALENDAR"
     assert "DTSTART;VALUE=DATE:20260914" in content
     assert "DTEND;VALUE=DATE:20260915" in content
     assert "SUMMARY:PRIMARY · Anna Kowalska" in content
     assert "SEQUENCE:3" in content
-    uid = "UID:11111111-2222-3333-4444-555555555555-20260914-primary@erste-oncall"
+    uid = "UID:11111111-2222-3333-4444-555555555555-20260914-primary@oncall"
     assert uid in content
     assert "STATUS:CONFIRMED" in content
 

@@ -15,7 +15,7 @@ ROLE_LABELS: dict[AssignmentRole, str] = {
     AssignmentRole.late_shift: "11–19",
 }
 
-PRODID = "-//Erste On-call//PL"
+PRODID = "-//On-call//PL"
 FOLD_LIMIT = 75  # octets per RFC 5545 section 3.1
 
 
@@ -70,10 +70,10 @@ def build_ics(events: list[IcsEvent], *, calendar_name: str) -> str:
         start = event.service_date.strftime("%Y%m%d")
         end = (event.service_date + timedelta(days=1)).strftime("%Y%m%d")
         summary = f"{ROLE_LABELS[event.role]} · {event.assignee_name}"
-        description = f"Erste On-call · wersja grafiku {event.sequence}"
+        description = f"On-call · wersja grafiku {event.sequence}"
         if event.is_override:
             description += " · override"
-        uid = f"{event.schedule_id}-{start}-{event.role.value}@erste-oncall"
+        uid = f"{event.schedule_id}-{start}-{event.role.value}@oncall"
         lines.extend(
             [
                 "BEGIN:VEVENT",

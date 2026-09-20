@@ -1,31 +1,45 @@
-# Dyżury
+# Teraz i Grafik
 
-Ekran **Dyżury** (`/`) jest pulpitem aplikacji i ma dwie części: „Kto jest
-teraz?” oraz macierz osób × dni.
+Codzienna praca z grafikiem dzieje się na dwóch ekranach: **Teraz** (`/`)
+odpowiada na pytanie „kto ma dyżur?”, a **Grafik** (`/grafik`) pokazuje
+macierz osób × dni na wybrany zakres.
 
-## Kto jest teraz?
+## Teraz
 
-Nagłówek pokazuje status i datę grafiku, na przykład `[OPUBLIKOWANY] · 2026-09-20`.
+Nagłówek „Kto ma dyżur” podaje, czy dziś jest dzień wolny lub święto (wtedy
+obowiązuje stawka 2X, a `PRIMARY` i `SECONDARY` trwają całą dobę), oraz status
+i wersję opublikowanego grafiku.
 
 Pod nim są trzy karty - `PRIMARY`, `SECONDARY` i `11–19` - a każda podaje:
 
 - nazwę osoby pełniącej dyżur,
-- okno pokrycia („całą dobę” albo godziny) i dzień tygodnia z datą,
-- dane kontaktowe, jeśli są uzupełnione,
+- okno pokrycia („całodobowo” albo godziny) i dzień tygodnia z datą,
+- telefon i e-mail, jeśli są uzupełnione - jako przyciski, które od razu
+  dzwonią albo otwierają wiadomość,
 - kto obejmuje dyżur jako następny.
 
 Karta `11–19` w sobotę, niedzielę lub święto pokazuje, że ta zmiana **nie
-występuje** - to nie jest luka w obsadzie.
+występuje** - to nie jest luka w obsadzie. Jeśli dzień nie ma obsady, karta
+oznacza to jako brak, a nie pustkę.
 
-Jeśli dzień nie ma obsady, karta oznacza to jako brak, a nie pustkę.
+Niżej jest macierz **najbliższych 14 dni** w tej samej konwencji co na ekranie
+Grafik. Skład dzisiejszej obsady widać też stale w pasku „Dyżur teraz” nad
+każdym ekranem.
 
-## Macierz osób × dni
+## Grafik: macierz osób × dni
 
-Domyślnie widać 30 dni. Osoby są na osi pionowej, kolejne dni na poziomej.
-Pierwsza kolumna i nagłówki dat zostają widoczne podczas przewijania.
+Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli
+opublikowany grafik kończy się wcześniej). Osoby są na osi pionowej, kolejne
+dni na poziomej. Kolumna z osobami i nagłówki dat zostają widoczne podczas
+przewijania.
 
-Nagłówek każdej kolumny podaje datę, skrót dnia tygodnia, oznaczenie weekendu
-albo polskiego święta oraz stawkę **2X**.
+Nagłówek każdej kolumny podaje dzień miesiąca, skrót dnia tygodnia oraz
+oznaczenie weekendu, polskiego święta i stawki **2X**. Wydarzenia kalendarza są
+zaznaczone paskiem w kolorze wydarzenia.
+
+Przy nazwie osoby jest pasek obciążenia w zakresie oraz oznaczenie **Ty** przy
+Twoim wierszu albo **poza rotacją**, gdy osoba nie ma w tym zakresie uprawnień
+do żadnej roli.
 
 Komórka łączy dwie informacje:
 
@@ -36,20 +50,34 @@ Komórka łączy dwie informacje:
 | korekta lub zamiana | osobny status, nie tylko inny kolor |
 
 Kolor nigdy nie jest jedynym nośnikiem informacji - każdy stan ma też etykietę
-tekstową, czytaną również przez czytnik ekranu.
+tekstową, czytaną również przez czytnik ekranu. Przycisk **Legenda oznaczeń**
+obok nagłówka rozwija spis symboli.
+
+### Ryzyka w zakresie
+
+Nad macierzą jest rząd znaczników: dni opublikowanego grafiku bez pełnej
+obsady (kliknięcie przeskakuje do pierwszego takiego dnia), dni poza
+opublikowanym zakresem, dyżury kolidujące ze zgłoszonym „nie mogę” albo
+**Pełna obsada**, gdy wszystko gra. Zawężenie widoku nie może ukryć aktywnego
+konfliktu bez tego komunikatu.
 
 ### Szczegóły dnia
 
-Kliknięcie komórki (albo `Enter` na zaznaczonej komórce) otwiera panel
-szczegółów dnia. Po siatce poruszasz się strzałkami, a `PageUp` i `PageDown`
-przeskakują o tydzień.
+Kliknięcie komórki (albo `Enter` na zaznaczonej komórce) otwiera panel dnia:
+obsada każdej roli, wydarzenia kalendarza i zgłoszona dostępność. Po siatce
+poruszasz się strzałkami, `Home` i `End` skaczą na początek i koniec wiersza,
+a `PageUp` i `PageDown` przeskakują o tydzień.
 
 Z tego panelu:
 
 - **członek zespołu** może rozpocząć prośbę o zamianę własnego slotu,
 - **koordynator i administrator** mogą zmienić dowolny przydział bezpośrednio,
   bez zgody zastępcy i bez kroku akceptacji. Zmiana nadal respektuje reguły
-  twarde, zapisuje korektę i dotyczy wyłącznie wybranego dnia i roli.
+  twarde, pokazuje wpływ na bilans punktów obu osób, zapisuje korektę i
+  dotyczy wyłącznie wybranego dnia i roli. Korekta dnia, który już minął,
+  wymaga podania powodu,
+- **koordynator i administrator** mogą z tego samego panelu dodać wydarzenie
+  kalendarza na ten dzień.
 
 Powody niedostępności pozostają prywatne: koordynator widzi je w szczegółach,
 członek zespołu tylko przy własnych wpisach, a konto podglądowe nie dostaje
@@ -61,25 +89,26 @@ Pasek nad macierzą zawiera:
 
 | Kontrolka | Co robi |
 | --- | --- |
-| **Tydzień** (w lewo / w prawo) | przesuwa cały zakres o siedem dni |
+| **Cofnij o tydzień** / **Do przodu o tydzień** | przesuwa cały zakres o siedem dni |
+| **Dziś** | wraca do zakresu zaczynającego się dziś |
+| **2 tyg.** / **4 tyg.** / **8 tyg.** | ustawia długość zakresu; dłuższy zakres ma mniejsze komórki |
 | **Od** i **Do** | ustawiają zakres wprost |
-| **Najbliższe 30 dni** | wraca do zakresu domyślnego |
-| **Macierz** / **Lista dni** | przełącza układ |
 | **Tylko osoby z dyżurem** | ukrywa osoby bez przydziału w zakresie |
+| **Macierz** / **Lista dni** | przełącza układ |
 
-Zawężenie widoku nie może ukryć aktywnego konfliktu bez czytelnego komunikatu:
-jeśli w wybranym zakresie któryś dzień opublikowanego grafiku nie ma pełnej
-obsady, nad macierzą pojawia się ostrzeżenie z przyciskiem „Pokaż pierwszy”.
+Zakres jest częścią adresu strony, więc link do konkretnego widoku można
+przekazać dalej. Paleta poleceń otwiera grafik z podświetloną osobą albo z
+panelem wskazanego dnia; podświetlenie osoby wyłącza znacznik nad macierzą.
 
 ## Małe ekrany
 
-Przełącznik **Lista dni** (a poniżej progu szerokości także układ domyślny)
-zamienia macierz w listę: jedna karta na dzień, z obsadą wszystkich ról. To ten
-sam komplet informacji, ułożony pionowo; dotknięcie roli otwiera szczegóły.
+Widok **Lista dni** zamienia macierz w listę: jeden wiersz na dzień, z obsadą
+wszystkich ról. To ten sam komplet informacji, ułożony pionowo; dotknięcie roli
+otwiera szczegóły. Na telefonie panel dnia otwiera się jako nakładka nad
+listą.
 
 ## Widok tylko do odczytu
 
-Konto podglądowe i sesja z linku podglądowego widzą uproszczoną wersję tego
-ekranu: sekcję „Teraz”, macierz w trybie tylko do odczytu i etykietę mówiącą o
-ograniczeniu. Sesja z linku dodatkowo pokazuje pasek z nazwą linku, jego
-zakresem dat i datą ważności.
+Konto podglądowe i sesja z linku podglądowego widzą macierz w trybie tylko do
+odczytu, bez danych o dostępności i bez akcji. Sesja z linku dodatkowo
+pokazuje pasek z nazwą linku, jego zakresem dat i datą ważności.

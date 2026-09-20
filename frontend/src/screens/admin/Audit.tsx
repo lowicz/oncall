@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Alert, Box, Button, Chip, CircularProgress, FormControlLabel, MenuItem, Paper, Switch, TextField, Typography } from '@mui/material'
 import { api } from '../../api'
 import { auditActionLabels, humanizeAuditSummary } from '../../lib/labels'
 import { formatAuditTime } from '../../lib/dates'
-import { EmptyState } from '../../components/EmptyState'
 import { DateField } from '../../components/DateField'
+import { Button, Checkbox, EmptyState, Field, InlineError, Input, List, ListRow, LoadingBlock, PageHeader, Select, Tag } from '../../ui'
 
 // The map in labels.ts is the single source of truth for known action codes
 // (QA7-L16); the filter offers exactly what it can also render as a label.
 const AUDIT_ACTIONS = Object.keys(auditActionLabels)
-
 const AUDIT_PAGE_SIZE = 50
 
 export function AuditPanel() {
@@ -25,9 +23,16 @@ export function AuditPanel() {
   const [hasMore, setHasMore] = useState(false)
   const load = useMutation({
     mutationFn: ({ nextOffset }: { nextOffset: number }) =>
-      api.auditEvents({ action: action || undefined, actor: actor || undefined, q: queryText || undefined,
-        starts_on: startsOn || undefined, ends_on: endsOn || undefined, include_logins: includeLogins,
-        limit: AUDIT_PAGE_SIZE, offset: nextOffset }),
+      api.auditEvents({
+        action: action || undefined,
+        actor: actor || undefined,
+        q: queryText || undefined,
+        starts_on: startsOn || undefined,
+        ends_on: endsOn || undefined,
+        include_logins: includeLogins,
+        limit: AUDIT_PAGE_SIZE,
+        offset: nextOffset,
+      }),
     onSuccess: (data, { nextOffset }) => {
       setEvents((current) => (nextOffset === 0 ? data : [...current, ...data]))
       setHasMore(data.length === AUDIT_PAGE_SIZE)
@@ -46,91 +51,88 @@ export function AuditPanel() {
       event.occurred_at, event.action, event.actor_label, event.summary,
       event.details ? JSON.stringify(event.details) : '',
     ])]
-    const blob = new Blob(['\ufeff', rows.map((row) => row.map(escape).join(',')).join('\n')], { type: 'text/csv' })
+    const blob = new Blob(['﻿', rows.map((row) => row.map(escape).join(',')).join('\n')], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a'); link.href = url; link.download = 'audyt.csv'; link.click()
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'audyt.csv'
+    link.click()
     URL.revokeObjectURL(url)
   }
 
   return (
-    <Box className="share-section" id="audyt">
-      <Box>
-        <Typography className="eyebrow">[ŚLAD AUDYTOWY]</Typography>
-        <Typography variant="h1">Audyt</Typography>
-        <Typography color="text.secondary">
-          Istotne operacje zapisane w systemie, najnowsze na górze. Czasy podane w strefie
-          Europe/Warsaw.
-        </Typography>
-      </Box>
-      <Paper variant="outlined" className="form-row calendar-controls">
-        <TextField
-          select
-          id="audit-action"
-          name="action"
-          label="Akcja"
-          value={action}
-          onChange={(event) => {
-            const next = event.target.value
-            setAction(next)
-            if (next === 'auth.login') setIncludeLogins(true)
-          }}
-          className="audit-filter"
-        >
-          <MenuItem value="">Wszystkie</MenuItem>
-          {AUDIT_ACTIONS.map((item) => (
-            <MenuItem key={item} value={item}>{auditActionLabels[item] ?? item}</MenuItem>
-          ))}
-        </TextField>
-        <TextField label="Osoba" value={actor} onChange={(event) => setActor(event.target.value)} />
-        <TextField label="Szukaj" value={queryText} onChange={(event) => setQueryText(event.target.value)} />
+    <div className="page">
+      <PageHeader
+        title="Audyt"
+        sub="Istotne operacje zapisane w systemie, najnowsze na górze. Czasy w strefie Europe/Warsaw."
+        actions={<Button icon="download" onClick={exportCsv} disabled={events.length === 0}>Eksportuj CSV</Button>}
+      />
+      <form className="toolbar panel" onSubmit={(event) => event.preventDefault()} aria-label="Filtry audytu">
+        <Field label="Akcja" id="audit-action">
+          {({ id }) => (
+            <Select
+              id={id}
+              name="action"
+              value={action}
+              onChange={(event) => {
+                const next = event.target.value
+                setAction(next)
+                if (next === 'auth.login') setIncludeLogins(true)
+              }}
+            >
+              <option value="">Wszystkie</option>
+              {AUDIT_ACTIONS.map((item) => <option key={item} value={item}>{auditActionLabels[item] ?? item}</option>)}
+            </Select>
+          )}
+        </Field>
+        <Field label="Osoba" id="audit-actor">
+          {({ id }) => <Input id={id} value={actor} onChange={(event) => setActor(event.target.value)} />}
+        </Field>
+        <Field label="Szukaj" id="audit-q">
+          {({ id }) => <Input id={id} type="search" value={queryText} onChange={(event) => setQueryText(event.target.value)} />}
+        </Field>
         <DateField id="audit-from" label="Od" value={startsOn} onChange={setStartsOn} />
         <DateField id="audit-to" label="Do" value={endsOn} onChange={setEndsOn} />
-        <FormControlLabel control={<Switch checked={includeLogins} onChange={(event) => setIncludeLogins(event.target.checked)} />} label="Pokaż zwykłe logowania" />
-        <Button onClick={exportCsv} disabled={events.length === 0}>Eksportuj CSV</Button>
-      </Paper>
+        <Checkbox label="Pokaż zwykłe logowania" checked={includeLogins} onChange={(event) => setIncludeLogins(event.target.checked)} />
+      </form>
       {(actor || queryText) && !includeLogins && (
-        <Typography variant="body2" color="text.secondary">
-          Rutynowe logowania są w tym widoku ukryte. Włącz „Pokaż zwykłe logowania”, żeby je uwzględnić w wynikach.
-        </Typography>
+        <p className="muted small">Rutynowe logowania są w tym widoku ukryte. Włącz „Pokaż zwykłe logowania”, żeby je uwzględnić w wynikach.</p>
       )}
-      {load.error && <Alert severity="error">{load.error.message}</Alert>}
-      <Paper variant="outlined" className="share-list">
-        {events.length === 0 && !load.isPending && (
-          <EmptyState
-            title="Brak zdarzeń dla wybranego filtra"
-            description={
-              action === 'auth.login'
-                ? `W wybranym zakresie nie ma zdarzeń „${auditActionLabels['auth.login']}”. `
-                  + 'Zmień zakres dat albo pozostałe filtry.'
-                : 'Zmień albo wyczyść filtry, żeby zobaczyć więcej zdarzeń.'
-            }
-          />
-        )}
-        {events.map((event) => (
-          <Box className="share-row" key={event.id}>
-            <Typography className="date-code audit-time">{formatAuditTime(event.occurred_at)}</Typography>
-            <Chip
-              label={auditActionLabels[event.action] ?? event.action}
-              size="small"
-              variant="outlined"
-              className="audit-action"
-            />
-            <Box className="grow">
-              <Typography>{humanizeAuditSummary(event.summary)}</Typography>
-              <Typography color="text.secondary">{event.actor_label}</Typography>
+      {load.error && <InlineError error={load.error} />}
+      {events.length === 0 && !load.isPending && (
+        <EmptyState
+          icon="audit"
+          title="Brak zdarzeń dla wybranego filtra"
+          description={action === 'auth.login'
+            ? `W wybranym zakresie nie ma zdarzeń „${auditActionLabels['auth.login']}”. Zmień zakres dat albo pozostałe filtry.`
+            : 'Zmień albo wyczyść filtry, żeby zobaczyć więcej zdarzeń.'}
+        />
+      )}
+      {events.length > 0 && (
+        <List className="panel">
+          {events.map((event) => (
+            <ListRow key={event.id} aside={<Tag>{auditActionLabels[event.action] ?? event.action}</Tag>}>
+              <div className="row">
+                <span className="mono muted small">{formatAuditTime(event.occurred_at)}</span>
+                <b>{humanizeAuditSummary(event.summary)}</b>
+              </div>
+              <small>{event.actor_label}</small>
               {event.details && (
-                <details><summary>Szczegóły</summary><pre>{JSON.stringify(event.details, null, 2)}</pre></details>
+                <details className="audit-details">
+                  <summary>Szczegóły</summary>
+                  <pre className="mono">{JSON.stringify(event.details, null, 2)}</pre>
+                </details>
               )}
-            </Box>
-          </Box>
-        ))}
-        {load.isPending && <CircularProgress size={24} />}
-        {hasMore && !load.isPending && (
-          <Button onClick={() => load.mutate({ nextOffset: offset })}>
-            Załaduj więcej
-          </Button>
-        )}
-      </Paper>
-    </Box>
+            </ListRow>
+          ))}
+        </List>
+      )}
+      {load.isPending && <LoadingBlock label="Wczytywanie zdarzeń" rows={3} />}
+      {hasMore && !load.isPending && (
+        <div className="row" style={{ justifyContent: 'center' }}>
+          <Button onClick={() => load.mutate({ nextOffset: offset })}>Załaduj więcej</Button>
+        </div>
+      )}
+    </div>
   )
 }

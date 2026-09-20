@@ -47,7 +47,12 @@ def available_cpu_count(cgroup_root: Path = CGROUP_ROOT) -> int:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="ONCALL_", extra="ignore")
 
-    app_name: str = "Erste On-call"
+    #: Product name shown in the interface, e-mails and calendar names. The
+    #: subtitle is the optional second line under the name in the rail and on
+    #: the login screen; empty hides it. Both are deployment settings so the
+    #: public repository carries no organisation name.
+    app_name: str = "On-call"
+    app_subtitle: str = ""
     environment: str = "development"
     database_url: str = "postgresql+asyncpg://oncall:oncall@localhost:5432/oncall"
     database_pool_size: int = Field(default=3, ge=1, le=20)
@@ -83,7 +88,7 @@ class Settings(BaseSettings):
     smtp_local_hostname: str | None = None
     smtp_use_tls: bool = False
     smtp_starttls: bool = True
-    email_from: str = "Erste On-call <oncall@example.com>"
+    email_from: str = "On-call <oncall@example.com>"
 
     public_base_url: str = "http://localhost:8080"
     share_link_max_days: int = 30

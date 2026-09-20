@@ -23,38 +23,58 @@ zostało wyłączone - w takim wypadku skontaktuj się z administratorem.
 
 ## Co widzisz po zalogowaniu
 
-Górny pasek zawiera, od lewej:
+Na szerokim ekranie po lewej jest **listwa nawigacji**, od góry:
 
-- znak firmowy `E/ ON-CALL`,
-- nawigację główną: **Dyżury**, **Moje**, **Zamiany**, **Generator**,
-  **Sprawiedliwość** oraz menu **Administracja** - widoczne są tylko te pozycje,
-  do których masz uprawnienia,
-- link **Dokumentacja**, który otwiera tę dokumentację,
-- przełącznik motywu, etykietę roli, Twoją nazwę i przycisk **Wyloguj**.
+- znak `E/` z nazwą aplikacji ustawioną przez administratora (pod nią
+  podtytuł, jeśli jest ustawiony),
+- ekrany codzienne: **Teraz**, **Grafik**, **Moje**, **Zamiany**,
+- sekcja **Koordynacja**: **Generator**, **Sprawiedliwość**, **Raport
+  miesięczny**, **Import historii**,
+- sekcja **Administracja**: **Osoby**, **Wydarzenia**, **Udostępnienia**,
+  **Audyt**,
+- na dole link **Dokumentacja** i przycisk **Paleta** (`Ctrl K`).
 
-Na wąskim ekranie nawigacja chowa się pod przyciskiem z trzema kreskami po
-lewej stronie. W wysuwanym panelu są te same pozycje, link **Dokumentacja**,
-przełącznik motywu, wylogowanie oraz Twoja nazwa i rola.
+Widoczne są tylko te pozycje, do których masz uprawnienia. Liczba zamian
+czekających na Twoją decyzję pojawia się jako znacznik przy pozycji „Zamiany”.
 
-## Motyw
+Nad treścią każdego ekranu biegnie pasek **Dyżur teraz**: kto ma dziś
+`PRIMARY`, `SECONDARY` i `11–19`, z telefonem i czasem do końca dyżuru, pole
+**Szukaj…** otwierające paletę poleceń oraz Twój awatar. Kliknięcie awatara
+otwiera menu konta: nazwa i rola, motyw, gęstość macierzy, link do
+dokumentacji, paleta poleceń i **Wyloguj**.
 
-Ikona słońca / księżyca w prawym górnym rogu przełącza motyw ciemny i jasny.
-Wybór zostaje zapamiętany w przeglądarce. Domyślny jest motyw ciemny.
+Na telefonie listwa znika, a u dołu ekranu są zakładki **Teraz**, **Grafik**,
+**Moje**, **Zamiany** i **Więcej**. Pod „Więcej” są pozostałe ekrany Twojej
+roli, motyw, gęstość, dokumentacja i wylogowanie.
+
+## Paleta poleceń
+
+`Ctrl K` (na Macu `⌘ K`), pole **Szukaj…** albo przycisk **Paleta** otwiera
+paletę. Wpisz:
+
+- nazwisko - otworzy grafik z podświetlonym wierszem tej osoby,
+- dzień (`24 wrz`, `24.09`, `24-09-2026` albo `2026-09-24`) - otworzy grafik
+  z panelem tego dnia,
+- nazwę ekranu albo akcję: motyw, dokumentacja, wylogowanie.
+
+Strzałki wybierają pozycję, `Enter` ją uruchamia, `Esc` zamyka paletę.
+
+## Motyw i gęstość
+
+W menu konta (na telefonie na ekranie „Więcej”) wybierasz motyw: **Ciemny**
+(domyślny), **Jasny** albo **Systemowy**, który podąża za ustawieniem systemu
+operacyjnego. **Gęstość macierzy** zmniejsza komórki grafiku, żeby dłuższy
+zakres mieścił się bez przewijania. Oba wybory zostają zapamiętane w
+przeglądarce i obowiązują także w tej dokumentacji.
 
 ## Format dat
 
-Wszystkie pola dat czytają i przyjmują **`DD-MM-RRRR`**, niezależnie od ustawień
-językowych komputera. Datę możesz:
-
-- **wpisać** - wystarczy osiem cyfr, na przykład `31082026`; podpowiedź pod
-  polem przypomina format, a niemożliwa data (jak `31-09`) zapala komunikat
-  „Nieprawidłowa data” i nie zmienia wartości formularza,
-- **wybrać z kalendarza** - kliknij ikonę kalendarza w polu, a potem dzień.
-  Kalendarz otwiera się na miesiącu bieżącej wartości pola (dla pustego pola na
-  bieżącym), zamyka się po wyborze i wpisuje datę w tym samym formacie.
-
-Miesiąc w raporcie rozliczeniowym wybiera się analogicznie, w formacie
-`MM-RRRR`.
+Daty w aplikacji są wyświetlane jako **`DD-MM-RRRR`**, niezależnie od ustawień
+językowych komputera. Pola dat w formularzach są polami dat przeglądarki:
+datę wpisujesz w układzie, który pole podpowiada, albo wybierasz dzień z
+kalendarza przeglądarki. Pole nie przyjmie daty, która nie istnieje, a tam,
+gdzie formularz ma zakres, pole **Do** nie pozwala wybrać dnia przed **Od**.
+Miesiąc w raporcie rozliczeniowym wybiera się w taki sam sposób.
 
 ## Dostępność
 

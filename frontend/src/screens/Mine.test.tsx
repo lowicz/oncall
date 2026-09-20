@@ -6,6 +6,10 @@ import { api } from '../api'
 
 afterEach(() => vi.restoreAllMocks())
 
+const EMPTY_CALENDAR = {
+  starts_on: '2026-09-01', ends_on: '2026-09-30', days: [], members: [], assignments: [], availability: [],
+}
+
 const TEAM = [
   {
     id: 'm-adam',
@@ -30,7 +34,7 @@ const TEAM = [
 describe('MineScreen', () => {
   it('shows upcoming duties with points, collision and a swap link', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue({
-      starts_on: '2026-09-13', ends_on: '2026-11-11',
+      starts_on: '2026-09-10', ends_on: '2026-11-08',
       days: [{ service_date: '2026-09-19', weekday: 'sob', is_day_off: true, holiday_name: null, published: true, events: [] }],
       members: [{ id: 'm1', display_name: 'Julia Nowak' }],
       assignments: [{ schedule_id: 's1', schedule_version: 1, service_date: '2026-09-19', role: 'primary', assignee_name: 'Julia Nowak', member_id: 'm1', is_override: false, change_kind: null }],
@@ -39,18 +43,18 @@ describe('MineScreen', () => {
     vi.spyOn(api, 'availability').mockResolvedValue([])
     vi.spyOn(api, 'feeds').mockResolvedValue([])
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    expect(await screen.findByText(/19-09-2026 · PRIMARY/)).toBeInTheDocument()
+    expect(await screen.findByText('sob 19-09-2026')).toBeInTheDocument()
     // Saturday: round-the-clock cover (coverage.py), not the old hardcoded 08:00-08:00.
-    expect(screen.getByText(/całodobowo · 2X/)).toBeInTheDocument()
+    expect(screen.getByText(/PRIMARY · całodobowo · 2X/)).toBeInTheDocument()
     expect(screen.getByText(/koliduje z Twoją niedostępnością/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Poproś o zamianę' })).toHaveAttribute(
-      'href', '/zamiany?date=2026-09-19&role=primary',
+      'href', '/zamiany?data=2026-09-19&rola=primary',
     )
   })
 
   it('shows the real duty hours and role label on a working day', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue({
-      starts_on: '2026-09-13', ends_on: '2026-11-11',
+      starts_on: '2026-09-10', ends_on: '2026-11-08',
       days: [{ service_date: '2026-09-21', weekday: 'pon', is_day_off: false, holiday_name: null, published: true, events: [] }],
       members: [{ id: 'm1', display_name: 'Julia Nowak' }],
       assignments: [
@@ -62,13 +66,13 @@ describe('MineScreen', () => {
     vi.spyOn(api, 'availability').mockResolvedValue([])
     vi.spyOn(api, 'feeds').mockResolvedValue([])
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    expect(await screen.findByText(/21-09-2026 · SECONDARY/)).toBeInTheDocument()
-    expect(screen.getByText(/19:00-09:00 · 1X/)).toBeInTheDocument()
-    expect(await screen.findByText(/21-09-2026 · 11–19/)).toBeInTheDocument()
-    expect(screen.getByText(/11:00-19:00 · 1X/)).toBeInTheDocument()
+    expect(await screen.findAllByText('pon 21-09-2026')).toHaveLength(2)
+    expect(screen.getByText(/SECONDARY · 19:00–09:00 · 1X/)).toBeInTheDocument()
+    expect(screen.getByText(/11–19 · 11:00–19:00 · 1X/)).toBeInTheDocument()
     expect(screen.queryByText(/LATE_SHIFT/)).not.toBeInTheDocument()
   })
   it('renders both the availability and the ICS panel', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(EMPTY_CALENDAR)
     vi.spyOn(api, 'availability').mockResolvedValue([])
     vi.spyOn(api, 'feeds').mockResolvedValue([])
     renderScreen(<MineScreen />)
@@ -79,6 +83,7 @@ describe('MineScreen', () => {
   })
 
   it('shows empty states rather than a bare list', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(EMPTY_CALENDAR)
     vi.spyOn(api, 'availability').mockResolvedValue([])
     vi.spyOn(api, 'feeds').mockResolvedValue([])
     renderScreen(<MineScreen />)
@@ -89,6 +94,7 @@ describe('MineScreen', () => {
   })
 
   it('lists an existing availability entry with a delete control', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(EMPTY_CALENDAR)
     vi.spyOn(api, 'availability').mockResolvedValue([
       {
         id: 'a1',
@@ -102,11 +108,12 @@ describe('MineScreen', () => {
     vi.spyOn(api, 'feeds').mockResolvedValue([])
     renderScreen(<MineScreen />)
     expect(await screen.findByText('Wyjazd')).toBeInTheDocument()
-    expect(await screen.findByText('20-09-2026 → 21-09-2026')).toBeInTheDocument()
+    expect(await screen.findByText('20-09-2026 – 21-09-2026')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Usuń wpis od 20-09-2026' })).toBeInTheDocument()
   })
 
   it('warns when a saved hard unavailability overlaps an existing duty', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(EMPTY_CALENDAR)
     vi.spyOn(api, 'availability').mockResolvedValue([])
     vi.spyOn(api, 'feeds').mockResolvedValue([])
     vi.spyOn(api, 'createAvailability').mockResolvedValue({
@@ -120,12 +127,13 @@ describe('MineScreen', () => {
     })
     renderScreen(<MineScreen />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Dodaj' }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Zapisz/ }))
 
     expect(await screen.findByText(/Masz w tym czasie dyżur/)).toBeInTheDocument()
   })
 
   it('lets a coordinator file availability on behalf of another member', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(EMPTY_CALENDAR)
     vi.spyOn(api, 'team').mockResolvedValue(TEAM)
     vi.spyOn(api, 'availability').mockResolvedValue([])
     vi.spyOn(api, 'feeds').mockResolvedValue([])
@@ -143,12 +151,13 @@ describe('MineScreen', () => {
       <MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />,
     )
 
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Osoba' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'Beata Lis' }))
+    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+    await screen.findByRole('option', { name: 'Beata Lis' })
+    fireEvent.change(picker, { target: { value: 'm-beata' } })
 
     expect(await screen.findByText(/Wpisujesz w imieniu:/)).toHaveTextContent('Beata Lis')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dodaj' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Zapisz/ }))
     await vi.waitFor(() =>
       expect(create).toHaveBeenCalledWith(
         'm-beata',
@@ -159,6 +168,7 @@ describe('MineScreen', () => {
   })
 
   it('opens in on-behalf mode for an admin who is not in the rotation', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(EMPTY_CALENDAR)
     vi.spyOn(api, 'team').mockResolvedValue(TEAM)
     vi.spyOn(api, 'feeds').mockResolvedValue([])
     const self = vi.spyOn(api, 'availability').mockResolvedValue([])

@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Button } from '@mui/material'
+import { Button, ButtonProps } from '../ui'
 
-export function CopyButton({ value, label = 'Kopiuj' }: { value: string; label?: string }) {
+export function CopyButton({ value, label = 'Kopiuj', ...rest }: { value: string; label?: string } & Omit<ButtonProps, 'onClick' | 'children'>) {
   const [copied, setCopied] = useState(false)
   return (
     <Button
-      size="small"
+      size="sm"
+      icon={copied ? 'check' : 'copy'}
+      {...rest}
       onClick={async () => {
         await navigator.clipboard.writeText(value)
         setCopied(true)

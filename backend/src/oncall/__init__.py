@@ -1,1 +1,1 @@
-"""Erste On-call backend."""
+"""On-call backend."""

@@ -1,94 +1,76 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Alert,
-  Badge,
-  Box,
-  Button,
-  Chip,
-  Container,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Stack,
-  Tooltip,
-  Typography,
-} from '@mui/material'
-import { useColorScheme } from '@mui/material/styles'
-import MenuIcon from '@mui/icons-material/Menu'
-import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
-import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
-import ExpandMore from '@mui/icons-material/ExpandMore'
 import { ShareSession, api } from '../api'
-import { Access, adminNav, docsHref, primaryNav, roleLabels, visibleFor } from '../lib/nav'
+import { Access, adminNav, coordinationNav, docsHref, navFor, primaryNav, roleLabels, visibleFor } from '../lib/nav'
 import { groupSwaps } from '../lib/swaps'
 import { formatDate } from '../lib/dates'
+import { useBranding, useDocumentTitle } from '../hooks/useBranding'
+import { useNarrow } from '../hooks/useMediaQuery'
+import { Density, ThemeMode, themeModeLabels, useDensity, useThemeMode } from '../theme'
+import { Avatar, Icon, Mark, Menu, MenuLabel, MenuLink, MenuItem, MenuSeparator, Segmented, cx } from '../ui'
+import { NowStrip } from './NowStrip'
+import { CommandPalette } from './CommandPalette'
 
-function ThemeToggle() {
-  const { mode, setMode } = useColorScheme()
-  // Rendered before the scheme is known on the server-less first pass.
-  if (!mode) return null
-  const next = mode === 'dark' ? 'light' : 'dark'
+export function ThemeSegmented({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+  const [mode, setMode] = useThemeMode()
   return (
-    <Tooltip title={next === 'dark' ? 'Motyw ciemny' : 'Motyw jasny'}>
-      <IconButton
-        onClick={() => setMode(next)}
-        aria-label={next === 'dark' ? 'Włącz motyw ciemny' : 'Włącz motyw jasny'}
-        size="small"
-      >
-        {mode === 'dark' ? <LightModeOutlined fontSize="small" /> : <DarkModeOutlined fontSize="small" />}
-      </IconButton>
-    </Tooltip>
+    <Segmented<ThemeMode>
+      size={size}
+      label="Motyw"
+      value={mode}
+      onChange={setMode}
+      options={[
+        { value: 'dark', label: themeModeLabels.dark },
+        { value: 'light', label: themeModeLabels.light },
+        { value: 'system', label: themeModeLabels.system },
+      ]}
+    />
   )
 }
 
-function AdminMenu({ items }: { items: typeof adminNav }) {
-  const [anchor, setAnchor] = useState<null | HTMLElement>(null)
-  const location = useLocation()
-  const active = items.some((item) => item.path === location.pathname)
-  if (items.length === 0) return null
+export function DensitySegmented() {
+  const [density, setDensity] = useDensity()
   return (
-    <>
-      <Button
-        color="inherit"
-        onClick={(event) => setAnchor(event.currentTarget)}
-        endIcon={<ExpandMore />}
-        className={active ? 'topnav-active' : undefined}
-        aria-haspopup="menu"
-        aria-expanded={Boolean(anchor)}
-      >
-        Administracja
-      </Button>
-      <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
-        {items.map((item) => (
-          <MenuItem
-            key={item.path}
-            component={NavLink}
-            to={item.path}
-            onClick={() => setAnchor(null)}
-            selected={item.path === location.pathname}
-          >
-            {item.label}
-          </MenuItem>
-        ))}
-      </Menu>
-    </>
+    <Segmented<Density>
+      size="sm"
+      label="Gęstość"
+      value={density}
+      onChange={setDensity}
+      options={[
+        { value: 'default', label: 'Zwykła' },
+        { value: 'compact', label: 'Zwarta' },
+      ]}
+    />
   )
 }
 
+function RailLink({ path, label, icon, badge }: { path: string; label: string; icon: Parameters<typeof Icon>[0]['name']; badge?: number }) {
+  return (
+    <NavLink to={path} end={path === '/'} className={({ isActive }) => cx('nav-link', isActive && 'active')}>
+      <Icon name={icon} />
+      <span>{label}</span>
+      {badge ? <span className="nav-cnt" aria-label={`${badge} do decyzji`}>{badge}</span> : null}
+    </NavLink>
+  )
+}
+
+/**
+ * The shell: a rail of screens on the left, the "Teraz" strip on top of
+ * every screen, the account menu with theme and density, the command
+ * palette on Ctrl K, and bottom tabs on a phone. A share-link session gets
+ * no rail (it can only look at the published schedule) but a banner naming
+ * the link and its range.
+ */
 export function AppShell({ displayName, access, share }: {
   displayName: string
   access: Access
   share: ShareSession | null
 }) {
   const queryClient = useQueryClient()
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const location = useLocation()
+  const branding = useBranding()
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: () => {
@@ -97,134 +79,127 @@ export function AppShell({ displayName, access, share }: {
     },
   })
   const primary = visibleFor(primaryNav, access)
+  const coordination = visibleFor(coordinationNav, access)
   const admin = visibleFor(adminNav, access)
-  // Surfaced in the nav so a coordinator sees waiting requests without opening
+  const canSwap = access.hasTeamMember || access.role === 'coordinator' || access.role === 'admin'
+  // Surfaced in the rail so a coordinator sees waiting requests without opening
   // the screen. Only fetched for accounts that can act on a swap.
-  const swaps = useQuery({
-    queryKey: ['swaps'],
-    queryFn: () => api.swaps(),
-    enabled: access.hasTeamMember || access.role === 'coordinator' || access.role === 'admin',
-  })
-  const actionable = groupSwaps(swaps.data ?? [], {
-    displayName,
-    role: access.role,
-  }).actionable.length
-  const navBadge = (path: string) => (path === '/zamiany' ? actionable : 0)
+  const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps(), enabled: canSwap })
+  const actionable = groupSwaps(swaps.data ?? [], { displayName, role: access.role }).actionable.length
+  const badge = (path: string) => (path === '/zamiany' ? actionable : 0)
+  const current = navFor(location.pathname)
+  useDocumentTitle(current?.label ?? (location.pathname === '/wiecej' ? 'Więcej' : null), branding.name)
+
+  const doLogout = useCallback(() => logout.mutate(), [logout])
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const narrow = useNarrow()
+  // A share-link session can only look at the published schedule: no rail,
+  // no tabs, a banner naming the link instead.
+  const showRail = !share && !narrow
+  const showTabs = !share && narrow
+  const tabItems = primary.slice(0, 4)
+  // QA7-L16: a display name that already reads as the role is not repeated.
+  const roleLine = roleLabels[access.role] !== displayName ? roleLabels[access.role] : null
 
   return (
-    <Box className="app-shell">
-      <header className="topbar">
-        <Stack direction="row" alignItems="center" gap={1}>
-          <IconButton
-            className="nav-toggle"
-            aria-label="Otwórz nawigację"
-            onClick={() => setDrawerOpen(true)}
-            size="small"
+    <div className={cx('app', !showRail && 'app-norail')}>
+      <a className="sr-only" href="#tresc">Przejdź do treści</a>
+      {showRail && (
+        <aside className="rail">
+          <NavLink to="/" className="brand" aria-label={branding.name}>
+            <Mark />
+            <span className="brand-text">
+              <b className="brand-name">{branding.name}</b>
+              {branding.subtitle && <small className="brand-sub">{branding.subtitle}</small>}
+            </span>
+          </NavLink>
+          <nav className="nav" aria-label="Główna nawigacja">
+            {primary.map((item) => <RailLink key={item.path} path={item.path} label={item.label} icon={item.icon} badge={badge(item.path)} />)}
+            {coordination.length > 0 && <div className="nav-sec">Koordynacja</div>}
+            {coordination.map((item) => <RailLink key={item.path} path={item.path} label={item.label} icon={item.icon} />)}
+            {admin.length > 0 && <div className="nav-sec">Administracja</div>}
+            {admin.map((item) => <RailLink key={item.path} path={item.path} label={item.label} icon={item.icon} />)}
+          </nav>
+          <div className="rail-foot">
+            <a href={docsHref} className="nav-link" style={{ padding: 0 }}><Icon name="doc" /><span>Dokumentacja</span></a>
+            <button type="button" onClick={() => setPaletteOpen(true)}>Paleta <span className="kbd">Ctrl</span> <span className="kbd">K</span></button>
+          </div>
+        </aside>
+      )}
+      <div className="main">
+        {share && (
+          <div className="banner" role="status">
+            <b>Podgląd</b>
+            <span>
+              Link „{share.label}” · zakres {formatDate(share.starts_on)} – {formatDate(share.ends_on)} · ważny do {formatDate(share.expires_at)} · tylko opublikowany grafik.
+            </span>
+          </div>
+        )}
+        <NowStrip>
+          {!share && (
+            <button type="button" className="now-search" onClick={() => setPaletteOpen(true)} aria-label="Szukaj osoby, dnia, ekranu lub akcji" aria-keyshortcuts="Control+K">
+              <Icon name="search" />
+              <span>Szukaj…</span>
+              <span className="kbd">Ctrl K</span>
+            </button>
+          )}
+          <Menu
+            align="end"
+            trigger={(
+              <button type="button" className="ib" aria-label={`Konto: ${displayName}`} title={displayName} style={{ border: 0 }}>
+                <Avatar name={displayName} />
+              </button>
+            )}
           >
-            <MenuIcon />
-          </IconButton>
-          <Box className="wordmark small">E<span>/</span> ON-CALL</Box>
-        </Stack>
-        <nav className="topnav" aria-label="Główna nawigacja">
-          {primary.map((item) => (
-            <Button
-              key={item.path}
-              component={NavLink}
-              to={item.path}
-              end={item.path === '/'}
-              color="inherit"
-            >
-              {navBadge(item.path) > 0 ? (
-                <Badge badgeContent={navBadge(item.path)} color="warning" className="nav-badge">
-                  {item.label}
-                </Badge>
-              ) : item.label}
-            </Button>
-          ))}
-          <AdminMenu items={admin} />
-        </nav>
-        <Stack direction="row" spacing={1} alignItems="center" className="topbar-actions">
-          <Button color="inherit" component="a" href={docsHref}>
-            Dokumentacja
-          </Button>
-          <ThemeToggle />
-          {/* QA7-L16: an account whose display name already reads as the role
-              ("Administrator") must not repeat it as "Administrator Administrator". */}
-          {displayName !== roleLabels[access.role] && (
-            <Chip label={roleLabels[access.role]} size="small" variant="outlined" />
-          )}
-          <Typography color="text.secondary" className="topbar-user">{displayName}</Typography>
-          <Button color="inherit" onClick={() => logout.mutate()} disabled={logout.isPending}>
-            Wyloguj
-          </Button>
-        </Stack>
-      </header>
-
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box className="nav-drawer" role="presentation" onClick={() => setDrawerOpen(false)}>
-          <Box className="wordmark small">E<span>/</span> ON-CALL</Box>
-          {/* `.topbar-user` is hidden below the breakpoint, so on a phone the
-              only place that can say who is logged in is this drawer (LOW5-10). */}
-          <Box className="nav-drawer-identity">
-            <Typography>{displayName}</Typography>
-            {displayName !== roleLabels[access.role] && (
-              <Chip label={roleLabels[access.role]} size="small" variant="outlined" />
-            )}
-          </Box>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" className="nav-drawer-actions">
-            <ThemeToggle />
-            <Button color="inherit" onClick={() => logout.mutate()} disabled={logout.isPending}>
-              Wyloguj
-            </Button>
-          </Stack>
-          <Divider />
-          <List>
-            {primary.map((item) => (
-              <ListItemButton key={item.path} component={NavLink} to={item.path} end={item.path === '/'}>
-                <ListItemText primary={item.label} />
-                {navBadge(item.path) > 0 && (
-                  <Badge badgeContent={navBadge(item.path)} color="warning" />
-                )}
-              </ListItemButton>
+            <div className="menu-block">
+              <b>{displayName}</b>
+              {roleLine && <span className="muted small">{roleLine}</span>}
+            </div>
+            <MenuSeparator />
+            <MenuLabel>Motyw</MenuLabel>
+            <div className="menu-block"><ThemeSegmented /></div>
+            <MenuLabel>Gęstość macierzy</MenuLabel>
+            <div className="menu-block"><DensitySegmented /></div>
+            <MenuSeparator />
+            <MenuLink to={docsHref} external><Icon name="doc" /> Dokumentacja</MenuLink>
+            {!share && <MenuItem onClick={() => setPaletteOpen(true)}><Icon name="search" /> Paleta poleceń <span className="kbd" style={{ marginLeft: 'auto' }}>Ctrl K</span></MenuItem>}
+            <MenuSeparator />
+            <MenuItem onClick={doLogout} disabled={logout.isPending}><Icon name="logout" /> Wyloguj</MenuItem>
+          </Menu>
+        </NowStrip>
+        <main id="tresc" className="page-host">
+          <Outlet />
+        </main>
+        {showTabs && (
+          <nav className="tabs-bottom" aria-label="Nawigacja dolna">
+            {tabItems.map((item) => (
+              <NavLink key={item.path} to={item.path} end={item.path === '/'} className={({ isActive }) => cx('tab-link', isActive && 'active')}>
+                <Icon name={item.icon} size={18} />
+                {item.label}
+                {badge(item.path) ? <span className="nav-cnt">{badge(item.path)}</span> : null}
+              </NavLink>
             ))}
-          </List>
-          {admin.length > 0 && (
-            <>
-              <Divider />
-              <Typography className="eyebrow nav-drawer-heading">[ADMINISTRACJA]</Typography>
-              <List>
-                {admin.map((item) => (
-                  <ListItemButton key={item.path} component={NavLink} to={item.path}>
-                    <ListItemText primary={item.label} />
-                  </ListItemButton>
-                ))}
-              </List>
-            </>
-          )}
-          {/* `.topbar-actions` is hidden below the breakpoint, so on a phone
-              the drawer is the only way to reach the documentation. */}
-          <Divider />
-          <List>
-            <ListItemButton component="a" href={docsHref}>
-              <ListItemText primary="Dokumentacja" />
-            </ListItemButton>
-          </List>
-        </Box>
-      </Drawer>
-
-      <main>
-        <Container maxWidth="xl">
-          <Stack spacing={3}>
-            {share && (
-              <Alert severity="info">
-                Link „{share.label}” - tylko do odczytu. Zakres od {formatDate(share.starts_on)} do {formatDate(share.ends_on)},
-                ważny do {formatDate(share.expires_at)}.
-              </Alert>
-            )}
-            <Outlet />
-          </Stack>
-        </Container>
-      </main>
-    </Box>
+            <NavLink to="/wiecej" className={({ isActive }) => cx('tab-link', isActive && 'active')}>
+              <Icon name="more" size={18} />
+              Więcej
+            </NavLink>
+          </nav>
+        )}
+      </div>
+      {!share && (
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} access={access} onLogout={doLogout} />
+      )}
+      {logout.isPending && <span className="sr-only" role="status">Wylogowuję</span>}
+    </div>
   )
 }

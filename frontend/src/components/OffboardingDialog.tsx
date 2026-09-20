@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  MenuItem, Stack, TextField, Typography,
-} from '@mui/material'
 import { AssignmentRole, TeamMember, api } from '../api'
 import { formatDate } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
+import { Box, Button, Dialog, Field, LoadingBlock, RoleMark, Select } from '../ui'
 
+/**
+ * Ending somebody's rotation: every duty after the exit date gets a
+ * replacement picked here, then the eligibility periods are closed and the
+ * member's active_until is set, in that order.
+ */
 export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }: {
   open: boolean
   member: TeamMember
@@ -39,26 +41,19 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     },
     enabled: open && Boolean(activeUntil),
   })
-  const duties = (calendar.data?.assignments ?? []).filter(
-    (item) => item.member_id === member.id && item.service_date > activeUntil,
-  )
+  const duties = (calendar.data?.assignments ?? []).filter((item) => item.member_id === member.id && item.service_date > activeUntil)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [confirming, setConfirming] = useState(false)
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
   const candidates = (day: string, role: AssignmentRole) => {
     const roleLoad = new Map<string, number>()
     for (const duty of calendar.data?.assignments ?? []) {
-      if (duty.role === role && duty.member_id) {
-        roleLoad.set(duty.member_id, (roleLoad.get(duty.member_id) ?? 0) + 1)
-      }
+      if (duty.role === role && duty.member_id) roleLoad.set(duty.member_id, (roleLoad.get(duty.member_id) ?? 0) + 1)
     }
-    return (calendar.data?.members ?? []).filter((candidate) => candidate.id !== member.id &&
-      candidate.eligibility?.some((period) => period.role === role
-        && period.starts_on <= day && (!period.ends_on || period.ends_on >= day)) &&
-      !(calendar.data?.availability ?? []).some((entry) => entry.member_id === candidate.id
-        && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
-      .sort((left, right) => (roleLoad.get(left.id) ?? 0) - (roleLoad.get(right.id) ?? 0)
-        || left.display_name.localeCompare(right.display_name, 'pl'))
+    return (calendar.data?.members ?? []).filter((candidate) => candidate.id !== member.id
+      && candidate.eligibility?.some((period) => period.role === role && period.starts_on <= day && (!period.ends_on || period.ends_on >= day))
+      && !(calendar.data?.availability ?? []).some((entry) => entry.member_id === candidate.id && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
+      .sort((left, right) => (roleLoad.get(left.id) ?? 0) - (roleLoad.get(right.id) ?? 0) || left.display_name.localeCompare(right.display_name, 'pl'))
   }
   const submit = useMutation({
     mutationFn: async () => {
@@ -89,37 +84,54 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     onSuccess: onDone,
   })
   const complete = duties.every((item) => replacements[key(item.service_date, item.role)])
-  return <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-    <DialogTitle>Zakończenie rotacji: {member.display_name}</DialogTitle>
-    <DialogContent>
-      <Typography sx={{ mb: 2 }}>Dyżury po {formatDate(activeUntil)}: {duties.length}</Typography>
-      {calendar.error && <Alert severity="error">{calendar.error.message}</Alert>}
-      {submit.error && <Alert severity="error">{submit.error.message}</Alert>}
-      {confirming && <Alert severity="warning">
-        Potwierdź przepisanie {duties.length} dyżurów i zakończenie wszystkich uprawnień
-        tej osoby z dniem {formatDate(activeUntil)}.
-      </Alert>}
-      <Stack gap={1}>
-        {duties.map((item) => <TextField
-          select
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => { if (!next) onClose() }}
+      dismissible={!submit.isPending}
+      size="lg"
+      title={`Zakończenie rotacji: ${member.display_name}`}
+      description={`Dyżury po ${formatDate(activeUntil)}: ${duties.length}. Każdy dostaje zastępcę, potem uprawnienia tej osoby kończą się z dniem wyjścia.`}
+      actions={(
+        <>
+          <Button onClick={onClose} disabled={submit.isPending}>Anuluj</Button>
+          <Button
+            variant={confirming ? 'danger' : 'primary'}
+            disabled={calendar.isLoading || !complete || submit.isPending}
+            loading={submit.isPending}
+            onClick={() => (confirming ? submit.mutate() : setConfirming(true))}
+          >
+            {confirming ? 'Potwierdź zakończenie rotacji' : 'Przepisz dyżury i zakończ rotację'}
+          </Button>
+        </>
+      )}
+    >
+      {calendar.isLoading && <LoadingBlock label="Szukam przyszłych dyżurów" rows={2} />}
+      {calendar.error && <Box tone="bad" role="alert" title={calendar.error.message} />}
+      {submit.error && <Box tone="bad" role="alert" title={submit.error.message} />}
+      {confirming && (
+        <Box tone="warn" title={`Potwierdź przepisanie ${duties.length} dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem ${formatDate(activeUntil)}.`} />
+      )}
+      {calendar.data && duties.length === 0 && <p className="muted">Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.</p>}
+      {duties.map((item) => (
+        <Field
           key={key(item.service_date, item.role)}
-          label={`${formatDate(item.service_date)} · ${roleLabels[item.role]}`}
-          value={replacements[key(item.service_date, item.role)] ?? ''}
-          onChange={(event) => setReplacements((current) => ({
-            ...current, [key(item.service_date, item.role)]: event.target.value,
-          }))}
+          id={`offboarding-${item.service_date}-${item.role}`}
+          label={<span className="row"><RoleMark role={item.role} size="sm" /> {formatDate(item.service_date)} · {roleLabels[item.role]}</span>}
         >
-          {candidates(item.service_date, item.role).map((candidate) =>
-            <MenuItem key={candidate.id} value={candidate.id}>{candidate.display_name}</MenuItem>)}
-        </TextField>)}
-      </Stack>
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={onClose}>Anuluj</Button>
-      <Button variant="contained" disabled={calendar.isLoading || !complete || submit.isPending}
-        onClick={() => confirming ? submit.mutate() : setConfirming(true)}>
-        {confirming ? 'Potwierdź zakończenie rotacji' : 'Przepisz dyżury i zakończ rotację'}
-      </Button>
-    </DialogActions>
-  </Dialog>
+          {({ id }) => (
+            <Select
+              id={id}
+              value={replacements[key(item.service_date, item.role)] ?? ''}
+              onChange={(event) => setReplacements((current) => ({ ...current, [key(item.service_date, item.role)]: event.target.value }))}
+            >
+              <option value="">Wybierz zastępcę</option>
+              {candidates(item.service_date, item.role).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.display_name}</option>)}
+            </Select>
+          )}
+        </Field>
+      ))}
+    </Dialog>
+  )
 }

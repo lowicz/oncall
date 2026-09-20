@@ -156,7 +156,7 @@ async def test_a_member_calendar_shows_their_own_duties_around_today(world) -> N
         issued.token, world.ports, today=TODAY, now=NOW
     )
 
-    assert calendar.name == "Erste On-call · Anna"
+    assert calendar.name == "On-call · Anna"
     assert [duty.slot for duty in calendar.duties] == [
         (TODAY, AssignmentRole.primary),
         (TODAY + timedelta(days=1), AssignmentRole.secondary),
@@ -176,7 +176,7 @@ async def test_a_link_calendar_follows_the_link_range_and_life(world) -> None:
         issued.token, world.ports, today=TODAY, now=NOW
     )
     assert issued.feed.label == "ICS: Piotr"
-    assert (calendar.name, len(calendar.duties)) == ("Erste On-call · Piotr", 1)
+    assert (calendar.name, len(calendar.duties)) == ("On-call · Piotr", 1)
 
     world.links.by_id[link.id] = replace(link, revoked_at=NOW)
     with pytest.raises(errors.FeedLinkInactive):

@@ -2,20 +2,22 @@ import { ReactNode, Suspense, lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
-import { Box, CircularProgress } from '@mui/material'
 import { Access } from './lib/nav'
 import { AppShell } from './components/AppShell'
 import { Login } from './screens/Login'
 import { ShareExchange } from './screens/ShareExchange'
 import { DutyScreen } from './screens/Duty'
+import { ScheduleScreen } from './screens/Schedule'
 import { MineScreen } from './screens/Mine'
 import { SwapPanel } from './screens/Swaps'
 import { FairnessPanel } from './screens/Fairness'
 import { SetPassword } from './screens/SetPassword'
+import { MoreScreen } from './screens/More'
+import { LoadingBlock } from './ui'
 
 // The admin screens and the generator are reached by one role each and not on
 // the landing path, so their code does not need to sit in the main bundle
-// every viewer and member downloads (QA7-L17).
+// every viewer and member downloads.
 const GeneratorPanel = lazy(() =>
   import('./screens/Generator').then((m) => ({ default: m.GeneratorPanel })),
 )
@@ -39,7 +41,7 @@ const CalendarEventsPanel = lazy(() =>
 )
 
 function RouteFallback() {
-  return <Box className="center"><CircularProgress aria-label="Wczytywanie ekranu" /></Box>
+  return <div className="page"><LoadingBlock label="Wczytywanie ekranu" /></div>
 }
 
 /** Routes the account may not reach fall back to the dashboard rather than
@@ -63,18 +65,15 @@ function Dashboard({ displayName, role, hasTeamMember, share }: {
   return (
     <Routes>
       <Route element={<AppShell displayName={displayName} access={access} share={share} />}>
-        <Route
-          index
-          element={
-            <DutyScreen role={role} displayName={displayName} hasTeamMember={hasTeamMember} />
-          }
-        />
-        {/* The matrix lives on the dashboard itself; the old path stays linkable. */}
-        <Route path="kalendarz" element={<Navigate to="/" replace />} />
+        <Route index element={<DutyScreen role={role} displayName={displayName} hasTeamMember={hasTeamMember} />} />
+        <Route path="grafik" element={<ScheduleScreen role={role} displayName={displayName} />} />
+        {/* The old path stays linkable. */}
+        <Route path="kalendarz" element={<Navigate to="/grafik" replace />} />
+        <Route path="wiecej" element={<MoreScreen displayName={displayName} access={access} />} />
         <Route
           path="moje"
           element={(
-            <Guarded allowed={hasTeamMember || isCoordinator}>
+            <Guarded allowed={inRotation}>
               <MineScreen role={role} hasTeamMember={hasTeamMember} displayName={displayName} />
             </Guarded>
           )}
@@ -83,11 +82,7 @@ function Dashboard({ displayName, role, hasTeamMember, share }: {
           path="zamiany"
           element={(
             <Guarded allowed={inRotation}>
-              <SwapPanel
-                displayName={displayName}
-                role={role}
-                hasTeamMember={hasTeamMember}
-              />
+              <SwapPanel displayName={displayName} role={role} hasTeamMember={hasTeamMember} />
             </Guarded>
           )}
         />
@@ -99,10 +94,7 @@ function Dashboard({ displayName, role, hasTeamMember, share }: {
             </Guarded>
           )}
         />
-        <Route
-          path="sprawiedliwosc"
-          element={<Guarded allowed={inRotation}><FairnessPanel /></Guarded>}
-        />
+        <Route path="sprawiedliwosc" element={<Guarded allowed={inRotation}><FairnessPanel /></Guarded>} />
         <Route
           path="import"
           element={(
@@ -160,7 +152,7 @@ function Dashboard({ displayName, role, hasTeamMember, share }: {
 function Home() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
   if (me.isLoading) {
-    return <Box className="center"><CircularProgress aria-label="Sprawdzanie sesji" /></Box>
+    return <div className="center"><LoadingBlock label="Sprawdzanie sesji" rows={2} /></div>
   }
   if (me.error || !me.data) return <Login />
   return (

@@ -12,7 +12,6 @@ from oncall.domain.clock import as_utc
 from oncall.domain.errors import NotATeamMember
 from oncall.domain.sharing import errors
 from oncall.domain.sharing.models import (
-    CALENDAR_NAME_PREFIX,
     CalendarFeed,
     FeedIssued,
     FeedRevocation,
@@ -26,6 +25,7 @@ from oncall.domain.sharing.models import (
     ShareLinkRequest,
     ShareLinkRevocation,
     SubscribedCalendar,
+    calendar_name,
     feed_window,
 )
 from oncall.domain.sharing.ports import (
@@ -143,7 +143,12 @@ async def subscribe_share_link(request: LinkFeedRequest, ports: LinkFeedPorts) -
 
 
 async def read_subscribed_calendar(
-    token: str, ports: CalendarSubscriptionPorts, *, today: date, now: datetime
+    token: str,
+    ports: CalendarSubscriptionPorts,
+    *,
+    today: date,
+    now: datetime,
+    app_name: str = "On-call",
 ) -> SubscribedCalendar:
     """The duties a calendar application shows for one subscription: a
     member's own duties around today, or the published schedule within a
@@ -160,13 +165,13 @@ async def read_subscribed_calendar(
         duties = [
             duty for duty in in_force.values() if duty.held_by(member.id, member.display_name)
         ]
-        name = f"{CALENDAR_NAME_PREFIX}{member.display_name}"
+        name = calendar_name(app_name, member.display_name)
     else:
         link = await ports.links.link(feed.share_link_id) if feed.share_link_id else None
         if link is None or not link.active(now):
             raise errors.FeedLinkInactive()
         duties = list((await ports.roster.duties_in_force(link.starts_on, link.ends_on)).values())
-        name = f"{CALENDAR_NAME_PREFIX}{link.label}"
+        name = calendar_name(app_name, link.label)
     await ports.feeds.mark_read(feed.id, now)
     return SubscribedCalendar(
         name=name, duties=sorted(duties, key=lambda duty: (duty.service_date, duty.role.value))

@@ -1,14 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react'
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  TextField,
-} from '@mui/material'
+import { Box, Button, Dialog, Field, Textarea } from '../ui'
 
 /**
  * Confirmation for actions that are hard to undo.
@@ -49,43 +40,50 @@ export function ConfirmDialog({
     if (open) setReason('')
   }, [open])
   const needsReason = Boolean(reasonLabel)
+  const tooShort = reason.trim().length > 0 && reason.trim().length < reasonMinLength
   const blocked = pending || (needsReason && reason.trim().length < reasonMinLength)
 
   return (
-    <Dialog open={open} onClose={() => !pending && onCancel()} fullWidth maxWidth="xs">
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent className="confirm-content">
-        {description && <DialogContentText component="div">{description}</DialogContentText>}
-        {error && <Alert severity="error">{error}</Alert>}
-        {reasonLabel && (
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={2}
-            id="confirm-reason"
-            name="reason"
-            label={reasonLabel}
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            required
-            helperText={reason.trim().length > 0 && reason.trim().length < reasonMinLength
-              ? `Wpisz co najmniej ${reasonMinLength} znaków`
-              : undefined}
-          />
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onCancel} disabled={pending}>Anuluj</Button>
-        <Button
-          variant="contained"
-          color={confirmColor}
-          disabled={blocked}
-          onClick={() => onConfirm(reason.trim())}
-        >
-          {pending ? 'Zapisuję…' : confirmLabel}
-        </Button>
-      </DialogActions>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => { if (!next) onCancel() }}
+      title={title}
+      size="sm"
+      tone={confirmColor === 'error' ? 'danger' : 'default'}
+      dismissible={!pending}
+      actions={(
+        <>
+          <Button onClick={onCancel} disabled={pending}>Anuluj</Button>
+          <Button
+            variant={confirmColor === 'error' ? 'danger' : 'primary'}
+            disabled={blocked}
+            loading={pending}
+            onClick={() => onConfirm(reason.trim())}
+          >
+            {pending ? 'Zapisuję…' : confirmLabel}
+          </Button>
+        </>
+      )}
+    >
+      {description && <div className="stack-sm">{description}</div>}
+      {error && <Box tone="bad" role="alert" title={error} />}
+      {reasonLabel && (
+        <Field label={reasonLabel} required error={tooShort ? `Wpisz co najmniej ${reasonMinLength} znaków` : undefined}>
+          {({ id, describedBy, invalid }) => (
+            <Textarea
+              id={id}
+              name="reason"
+              autoFocus
+              rows={3}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              required
+              invalid={invalid}
+              aria-describedby={describedBy}
+            />
+          )}
+        </Field>
+      )}
     </Dialog>
   )
 }

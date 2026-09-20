@@ -44,7 +44,7 @@ async def test_member_feed_contains_only_own_duties(client, db) -> None:
     ics = ics_response.text
     assert "BEGIN:VCALENDAR" in ics
     assert "SUMMARY:PRIMARY · Anna Kowalska" in ics
-    assert "X-WR-CALNAME:Erste On-call · Anna Kowalska" in ics
+    assert "X-WR-CALNAME:On-call · Anna Kowalska" in ics
     assert "Marek Nowak" not in ics
 
 
@@ -110,7 +110,7 @@ async def test_share_link_feed_is_scoped_to_link_range(client, db) -> None:
 
     ics = (await client.get(f"/calendar/feed/{_feed_token(url)}.ics")).text
     assert "SUMMARY:PRIMARY · Anna Kowalska" in ics or "SUMMARY:PRIMARY · Marek Nowak" in ics
-    assert "X-WR-CALNAME:Erste On-call · Zewnętrzny" in ics
+    assert "X-WR-CALNAME:On-call · Zewnętrzny" in ics
     day_after_range = (today + timedelta(days=3)).strftime("%Y%m%d")
     assert f"DTSTART;VALUE=DATE:{day_after_range}" not in ics
     assert f"DTSTART;VALUE=DATE:{today.strftime('%Y%m%d')}" in ics

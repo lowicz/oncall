@@ -219,60 +219,6 @@ wheels = [
 ]
 
 [[package]]
-name = "erste-oncall"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "aiosmtplib" },
-    { name = "alembic" },
-    { name = "argon2-cffi" },
-    { name = "asyncpg" },
-    { name = "email-validator" },
-    { name = "fastapi" },
-    { name = "holidays" },
-    { name = "ldap3" },
-    { name = "ortools" },
-    { name = "pydantic-settings" },
-    { name = "python-multipart" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "aiosqlite" },
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiosmtplib", specifier = ">=3.0,<4" },
-    { name = "aiosqlite", marker = "extra == 'dev'", specifier = ">=0.20,<1" },
-    { name = "alembic", specifier = ">=1.14,<2" },
-    { name = "argon2-cffi", specifier = ">=23.1,<26" },
-    { name = "asyncpg", specifier = ">=0.30,<1" },
-    { name = "email-validator", specifier = ">=2.0,<3" },
-    { name = "fastapi", specifier = ">=0.116,<1" },
-    { name = "holidays", specifier = ">=0.80,<1" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1" },
-    { name = "ldap3", specifier = ">=2.9.1,<3" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.15,<2" },
-    { name = "ortools", specifier = ">=9.14,<10" },
-    { name = "pydantic-settings", specifier = ">=2.7,<3" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25,<1" },
-    { name = "python-multipart", specifier = ">=0.0.20,<1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9,<1" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "fastapi"
 version = "0.141.1"
 source = { registry = "https://pypi.org/simple" }
@@ -563,6 +509,60 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/47/95/02501e8454796bb58dadf7a99d3181e0b464bf264e1003039572f9779fac/numpy-2.5.2-cp315-cp315t-musllinux_1_2_aarch64.whl", hash = "sha256:0a4035ae1129ff8777f08bfbd44f1e5d8e9c049ce0c2dd78fc0d92c13e7251c0", size = 17038686, upload-time = "2026-08-09T13:48:09.627Z" },
     { url = "https://files.pythonhosted.org/packages/0e/b5/53a681d91b5c82687067d8ea5035e02d917b5509d6f334cb06484a954714/numpy-2.5.2-cp315-cp315t-musllinux_1_2_x86_64.whl", hash = "sha256:77843ca236b777e67f8d6b3660ea116e499612703a0ecd7093f316201eb9d8e2", size = 18507727, upload-time = "2026-08-09T13:48:13.744Z" },
 ]
+
+[[package]]
+name = "oncall"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "aiosmtplib" },
+    { name = "alembic" },
+    { name = "argon2-cffi" },
+    { name = "asyncpg" },
+    { name = "email-validator" },
+    { name = "fastapi" },
+    { name = "holidays" },
+    { name = "ldap3" },
+    { name = "ortools" },
+    { name = "pydantic-settings" },
+    { name = "python-multipart" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "aiosqlite" },
+    { name = "httpx" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiosmtplib", specifier = ">=3.0,<4" },
+    { name = "aiosqlite", marker = "extra == 'dev'", specifier = ">=0.20,<1" },
+    { name = "alembic", specifier = ">=1.14,<2" },
+    { name = "argon2-cffi", specifier = ">=23.1,<26" },
+    { name = "asyncpg", specifier = ">=0.30,<1" },
+    { name = "email-validator", specifier = ">=2.0,<3" },
+    { name = "fastapi", specifier = ">=0.116,<1" },
+    { name = "holidays", specifier = ">=0.80,<1" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1" },
+    { name = "ldap3", specifier = ">=2.9.1,<3" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.15,<2" },
+    { name = "ortools", specifier = ">=9.14,<10" },
+    { name = "pydantic-settings", specifier = ">=2.7,<3" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.25,<1" },
+    { name = "python-multipart", specifier = ">=0.0.20,<1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9,<1" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.34,<1" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "ortools"

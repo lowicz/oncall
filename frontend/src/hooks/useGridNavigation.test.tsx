@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useGridNavigation } from './useGridNavigation'
 
 function Grid({ rows, cols }: { rows: number; cols: number }) {
@@ -33,7 +33,7 @@ describe('useGridNavigation', () => {
 
   it('moves with the arrow keys', () => {
     render(<Grid rows={4} cols={10} />)
-    cell(0, 0).focus()
+    act(() => cell(0, 0).focus())
     fireEvent.keyDown(cell(0, 0), { key: 'ArrowRight' })
     expect(document.activeElement).toBe(cell(0, 1))
     fireEvent.keyDown(cell(0, 1), { key: 'ArrowDown' })
@@ -42,7 +42,7 @@ describe('useGridNavigation', () => {
 
   it('jumps a whole week with PageUp and PageDown', () => {
     render(<Grid rows={4} cols={30} />)
-    cell(0, 0).focus()
+    act(() => cell(0, 0).focus())
     fireEvent.keyDown(cell(0, 0), { key: 'PageDown' })
     expect(document.activeElement).toBe(cell(0, 7))
     fireEvent.keyDown(cell(0, 7), { key: 'PageUp' })
@@ -51,7 +51,7 @@ describe('useGridNavigation', () => {
 
   it('clamps at the edges instead of wrapping', () => {
     render(<Grid rows={3} cols={5} />)
-    cell(0, 0).focus()
+    act(() => cell(0, 0).focus())
     fireEvent.keyDown(cell(0, 0), { key: 'ArrowLeft' })
     expect(document.activeElement).toBe(cell(0, 0))
     fireEvent.keyDown(cell(0, 0), { key: 'ArrowUp' })
@@ -60,7 +60,7 @@ describe('useGridNavigation', () => {
 
   it('sends Home and End to the ends of the row', () => {
     render(<Grid rows={3} cols={12} />)
-    cell(1, 4).focus()
+    act(() => cell(1, 4).focus())
     fireEvent.keyDown(cell(1, 4), { key: 'End' })
     expect(document.activeElement).toBe(cell(1, 11))
     fireEvent.keyDown(cell(1, 11), { key: 'Home' })
@@ -118,7 +118,7 @@ describe('useGridNavigation when the grid shrinks', () => {
   it('keeps a reachable cell when the range narrows under the active column', () => {
     // Reproduces: press End on a 30-day range, then shorten the range to a week.
     const view = render(<Resizable cols={30} />)
-    cell(0, 0).focus()
+    act(() => cell(0, 0).focus())
     fireEvent.keyDown(cell(0, 0), { key: 'End' })
     expect(document.activeElement).toBe(cell(0, 29))
 
@@ -130,7 +130,7 @@ describe('useGridNavigation when the grid shrinks', () => {
 
   it('survives the grid emptying entirely', () => {
     const view = render(<Resizable cols={5} />)
-    cell(0, 0).focus()
+    act(() => cell(0, 0).focus())
     fireEvent.keyDown(cell(0, 0), { key: 'End' })
     expect(() => view.rerender(<Resizable cols={0} />)).not.toThrow()
   })

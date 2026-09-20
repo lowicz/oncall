@@ -21,17 +21,15 @@ w audycie). Odczekaj i spróbuj ponownie.
 
 ## Pola dat
 
-**„Nieprawidłowa data”**
-Wpisana data nie istnieje, na przykład `31-09`. Wartość formularza nie została
-zmieniona - popraw wpis albo wybierz dzień z kalendarza.
-
-**Kalendarz otworzył się na złym miesiącu**
-Otwiera się na miesiącu bieżącej wartości pola, a dla pustego pola na miesiącu
-bieżącym. Strzałkami w nagłówku kalendarza przejdziesz dalej.
+**Pole nie przyjmuje wpisanej daty**
+Pola dat są polami przeglądarki: przyjmują tylko istniejące daty, w układzie,
+który pole podpowiada. Nieistniejąca data (na przykład `31-09`) nie zostaje
+wpisana - popraw wpis albo wybierz dzień z kalendarza przeglądarki.
 
 **Zakres „od-do” został odrzucony**
-Data końca nie może być wcześniejsza niż data początku. Pola nie pilnują tego
-za Ciebie - sprawdza to serwer i odrzuca zapis.
+Data końca nie może być wcześniejsza niż data początku. Tam, gdzie formularz
+ma zakres, pole „Do” nie pozwala wybrać wcześniejszego dnia; ostatecznie
+sprawdza to serwer i odrzuca zapis.
 
 ## Generator
 
@@ -125,4 +123,4 @@ natychmiast. Administrator wystawia nowy.
 
 **Link pokazuje mniej dni, niż powinien**
 Sesja z linku widzi grafik przycięty do zakresu dat linku. Zakres widać na
-pasku u góry ekranu.
+pasku nad grafikiem.

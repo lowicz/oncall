@@ -1,6 +1,6 @@
-# Dokumentacja Erste On-call
+# Dokumentacja On-call
 
-Erste On-call układa i publikuje grafik dyżurów zespołu: kto jest `PRIMARY`,
+On-call układa i publikuje grafik dyżurów zespołu: kto jest `PRIMARY`,
 kto `SECONDARY` i kto obsługuje zmianę `11–19` każdego dnia. Dokumentacja jest
 po polsku, tak samo jak interfejs aplikacji, żeby nazwy ekranów, przycisków i
 statusów w tekście były dokładnie tymi, które widać na ekranie.
@@ -28,7 +28,7 @@ Instrukcja ekran po ekranie, zadanie po zadaniu.
 
 - [Pierwsze kroki](uzytkownik/pierwsze-kroki.md) - logowanie, hasło, motyw,
   nawigacja.
-- [Dyżury](uzytkownik/dyzury.md) - kto dyżuruje teraz i macierz osób × dni.
+- [Teraz i Grafik](uzytkownik/dyzury.md) - kto dyżuruje teraz i macierz osób × dni.
 - [Moja dostępność](uzytkownik/dostepnosc.md) - zgłaszanie „nie mogę”,
   „wolę nie” i „chętnie wezmę”.
 - [Zamiany](uzytkownik/zamiany.md) - prośba, akceptacja, zatwierdzenie.

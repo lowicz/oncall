@@ -1,21 +1,31 @@
 # Moja dostępność
 
-Ekran **Moje** (`/moje`) służy do dwóch rzeczy: zgłaszania dostępności oraz
-tworzenia własnej subskrypcji kalendarza.
+Ekran **Moje** (`/moje`) zbiera to, co dotyczy jednej osoby: najbliższe
+dyżury, zgłaszanie dostępności oraz własną subskrypcję kalendarza.
+
+## Moje dyżury
+
+Sekcja „Moje dyżury” wypisuje Twoje dyżury z najbliższych 60 dni: dzień, rola,
+okno pokrycia i stawka (`1X` albo `2X`). Przy każdym dyżurze jest przycisk
+**Poproś o zamianę**, który otwiera ekran Zamiany z tym dyżurem już wybranym.
 
 ## Zgłoszenie terminu
 
-Formularz ma cztery pola i przycisk:
+Sekcja „Moja dostępność” ma kalendarz miesiąca i formularz pod nim. W
+kalendarzu widać Twoje dyżury i już zgłoszone terminy, więc kolizję widzisz
+przed zapisem. Kliknięcie dnia zaczyna zakres, drugie kliknięcie go kończy;
+te same daty można też ustawić w polach **Od** i **Do**.
 
 | Pole | Co wpisać |
 | --- | --- |
-| **Typ** | „Nie mogę”, „Wolę nie” albo „Chętnie wezmę” |
-| **Od** | pierwszy dzień zakresu (`DD-MM-RRRR`) |
+| **Rodzaj** | „Nie mogę”, „Wolę nie” albo „Chętnie wezmę” |
+| **Od** | pierwszy dzień zakresu |
 | **Do** | ostatni dzień zakresu; dla jednego dnia ta sama data co „Od” |
-| **Powód (widzą koordynatorzy)** | opcjonalny |
+| **Powód** | opcjonalny; widzą go koordynatorzy i administratorzy |
 
-„Dodaj” zapisuje wpis; pojawia się on na liście poniżej i można go stamtąd
-usunąć.
+Przycisk **Zapisz** (z datami zakresu w etykiecie) dodaje wpis; pojawia się on
+na liście „Zgłoszone terminy” poniżej i można go stamtąd usunąć. Minione
+wpisy są schowane za przełącznikiem **Pokaż minione**.
 
 ### Co znaczy który typ
 
@@ -37,16 +47,17 @@ widzą dostępności w ogóle.
 
 ## Zgłoszenie w imieniu innej osoby
 
-Koordynator i administrator mają nad formularzem pole **Osoba**. Po wybraniu
-kogoś formularz zgłasza dostępność w jego imieniu:
+Koordynator i administrator mają nad kalendarzem pole **Osoba**. Po wybraniu
+kogoś kalendarz i formularz pokazują dostępność tej osoby i zgłaszają wpisy w
+jej imieniu:
 
 - osoba dostaje o tym powiadomienie,
 - może wpis usunąć,
 - operacja trafia do audytu jako „Zgłoszono dostępność (w imieniu)”.
 
 Jeżeli Twoje konto samo nie jest w rotacji, wybór osoby jest obowiązkowy -
-dopóki go nie zrobisz, ekran pokazuje prośbę o wskazanie osoby zamiast
-formularza.
+dopóki go nie zrobisz, sekcja pokazuje prośbę „Wybierz osobę” zamiast
+kalendarza i formularza.
 
 ## Kiedy zgłaszać
 
@@ -59,13 +70,13 @@ samo z siebie - trzeba wtedy skorzystać z [zamiany](zamiany.md).
 Sekcja „Subskrypcja kalendarza (ICS)” na dole ekranu tworzy adres, który
 pokazuje **wyłącznie Twoje dyżury**.
 
-1. Wpisz nazwę subskrypcji (na przykład „Mój kalendarz”) i kliknij
+1. Wpisz **Nazwę subskrypcji** (na przykład „telefon”) i kliknij
    „Utwórz adres ICS”.
-2. Skopiuj adres przyciskiem kopiowania.
+2. Skopiuj adres przyciskiem kopiowania - adres jest pokazywany tylko raz.
 3. Dodaj go w aplikacji kalendarza jako subskrypcję adresu internetowego.
 
 Dyżury pojawią się jako wydarzenia całodniowe. Korekty i zatwierdzone zamiany
 przychodzą jako **aktualizacje istniejących wpisów**, nie jako nowe.
 
 Adres można odwołać w dowolnym momencie - przestaje działać natychmiast.
-Przełącznik nad listą pokazuje także adresy już odwołane.
+Przełącznik **Pokaż odwołane** nad listą pokazuje także adresy już odwołane.
