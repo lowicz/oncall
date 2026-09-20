@@ -75,6 +75,7 @@ files = [
   "src/oncall/metrics.py",
   "scripts/openapi_snapshot.py",
   "tests/architecture/test_dependencies.py",
+  "tests/architecture/test_completion_dod.py",
   # Every presentation module except calendar.py, whose typing waits on the
   # `Duty.schedule_version` question recorded in the phase 4a note.
   "src/oncall/presentation/access.py",
