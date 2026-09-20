@@ -62,7 +62,7 @@ export function AuditPanel() {
           Europe/Warsaw.
         </Typography>
       </Box>
-      <Paper variant="outlined" className="calendar-controls">
+      <Paper variant="outlined" className="form-row calendar-controls">
         <TextField
           select
           id="audit-action"

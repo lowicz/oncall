@@ -327,7 +327,7 @@ export function CalendarMatrix({ role, displayName }: { role: UserRole; displayN
             : 'Dzień po dniu, z obsadą każdej roli. Dotknij roli, aby zobaczyć szczegóły.'}
         </Typography>
       </Box>
-      <Paper component="form" variant="outlined" className="calendar-controls">
+      <Paper component="form" variant="outlined" className="form-row calendar-controls">
         <Button
           onClick={() => shiftRange(-7)}
           startIcon={<ChevronLeft />}

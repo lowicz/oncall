@@ -57,7 +57,7 @@ export function ShareLinksPanel() {
       <Paper
         component="form"
         variant="outlined"
-        className="share-form"
+        className="form-row share-form"
         onSubmit={(event) => {
           event.preventDefault()
           create.mutate(form)

@@ -21,7 +21,7 @@ from oncall.domain.vocabulary import AssignmentRole
 
 ONCALL_ROLES = (AssignmentRole.primary, AssignmentRole.secondary)
 
-#: Acceptance criterion from docs/PLAN.md par. 3, in points: the spread of
+#: Acceptance criterion from archive/docs/PLAN.md par. 3, in points: the spread of
 #: every graded lens must fit in this many points. It lives here, next to the
 #: report that defines the product metric, and the solver imports it so the
 #: threshold exists in exactly one place.

@@ -41,7 +41,7 @@ describe('AppShell navigation', () => {
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     renderShell({ role: 'viewer', hasTeamMember: false })
     expect(await screen.findByRole('link', { name: /Dyżury/ })).toBeInTheDocument()
-    // docs/PLAN.md §6: a viewer must not see navigation to unavailable features.
+    // archive/docs/PLAN.md §6: a viewer must not see navigation to unavailable features.
     expect(screen.queryByRole('link', { name: /Zamiany/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Generator/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Administracja/ })).not.toBeInTheDocument()
@@ -53,7 +53,7 @@ describe('AppShell navigation', () => {
     expect(await screen.findByRole('link', { name: /Generator/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Administracja/ })).toBeInTheDocument()
     // "Moje" is also where a coordinator files availability on behalf of a
-    // member who cannot reach the system (docs/PLAN-WYKONAWCZY-6.md tor D).
+    // member who cannot reach the system (archive/docs/PLAN-WYKONAWCZY-6.md tor D).
     expect(screen.getByRole('link', { name: /^Moje/ })).toBeInTheDocument()
   })
 
@@ -94,6 +94,34 @@ describe('AppShell navigation', () => {
     const link = await screen.findByRole('link', { name: /Zamiany/ })
     await waitFor(() => expect(api.swaps).toHaveBeenCalled())
     expect(link.querySelector('.MuiBadge-root')).not.toBeInTheDocument()
+  })
+})
+
+describe('AppShell documentation entrypoint', () => {
+  it('links to the rendered documentation from the top bar', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false })
+    const link = await screen.findByRole('link', { name: 'Dokumentacja' })
+    // A real anchor, not a router NavLink: /docs/ is static HTML served by the
+    // same nginx, and the router would bounce an unknown path to the dashboard.
+    expect(link).toHaveAttribute('href', '/docs/')
+  })
+
+  it('offers it to every role, including one with no administration menu', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true })
+    expect(await screen.findByRole('link', { name: 'Dokumentacja' })).toBeInTheDocument()
+  })
+
+  it('repeats it in the drawer, the only navigation a phone has', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false })
+    fireEvent.click(await screen.findByRole('button', { name: 'Otwórz nawigację' }))
+    const drawer = await screen.findByRole('dialog')
+    expect(within(drawer).getByRole('link', { name: 'Dokumentacja' })).toHaveAttribute(
+      'href',
+      '/docs/',
+    )
   })
 })
 

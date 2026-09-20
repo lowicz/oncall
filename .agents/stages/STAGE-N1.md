@@ -21,9 +21,9 @@ Został przejęty przez `STAGE-BLOCKING.md`. Tu NIE jest poruszany.
 3. **HGH-01** Domyślny budżet `ONCALL_SOLVER_SECONDS` podniesiony z 30 do 90 s:
    - `config.py` (`Field(default=90.0, ...)`),
    - `docker-compose.yml` (api i worker),
-   - `.env.example`, `README.md`, `docs/SOLVER.md`,
+   - `.env.example`, `README.md`, `archive/docs/SOLVER.md`,
    - `SOLVE_SECONDS = 90.0` w `scheduler.py`.
-4. `docs/SOLVER.md`: opis twardych reguł rozrzedzania przepisany z „warunkowane
+4. `archive/docs/SOLVER.md`: opis twardych reguł rozrzedzania przepisany z „warunkowane
    założeniem CP-SAT" na „kompilowane do twardych ograniczeń + drugi przebieg".
 
 ## Testy (dodane/utrzymane w `tests/test_scheduler.py`)

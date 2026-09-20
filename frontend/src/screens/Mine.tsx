@@ -182,7 +182,7 @@ function AvailabilityPanel({
           <Paper
             component="form"
             variant="outlined"
-            className="availability-form"
+            className="form-row availability-form"
             onSubmit={(event) => {
               event.preventDefault()
               create.mutate(form)
@@ -305,7 +305,7 @@ function CalendarFeedsPanel() {
       <Paper
         component="form"
         variant="outlined"
-        className="share-form"
+        className="form-row share-form"
         onSubmit={(event) => {
           event.preventDefault()
           create.mutate(label.trim() || 'Mój kalendarz')

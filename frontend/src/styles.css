@@ -1,6 +1,9 @@
 :root {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  /* Height of one outlined MUI control at the default `medium` size. Form rows
+   * align everything else - buttons, switches, action blocks - on this band. */
+  --control-height: 56px;
 }
 
 body {
@@ -1360,4 +1363,67 @@ main {
   color: var(--cal-header-subtle);
   background: var(--cal-header-bg);
   border-bottom: 1px solid var(--cal-grid-line);
+}
+
+/* --- Form rows -------------------------------------------------------------
+ *
+ * `.form-row` marks a container whose children are one row of form controls.
+ *
+ * The invariant it guarantees: every control in the row shares one top edge,
+ * and every hint below them shares one baseline - whether a given field has a
+ * hint or not, and whatever that hint's length.
+ *
+ * These rows used to centre their items. A field carrying a hint is taller
+ * than one without, so centring pushed every hinted field about 11 px above
+ * its hintless neighbours: in one row the label, the input box and the hint
+ * each sat at a different height, and the hints ended up level with the middle
+ * of the boxes beside them. Aligning on the start edge pins the control band
+ * instead, and since the controls themselves are all one height, the hints
+ * line up underneath it on their own.
+ *
+ * What is not a control - a button, a switch, an action block - is then
+ * centred on that control band rather than on the row, because the row now
+ * also spans the hint line below it.
+ */
+.form-row { align-items: start; }
+
+.form-row > .MuiButton-root {
+  align-self: start;
+  /* Matching the control height is what centres the label on the band; a
+   * shorter button aligned to the same top edge would float above it. */
+  height: var(--control-height);
+}
+
+.form-row > .MuiFormControlLabel-root {
+  align-self: start;
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+}
+
+/* Already a column of its own (the optional "on behalf of" line above the
+   button), so it keeps its layout and is only centred on the band. */
+.form-row > .availability-submit {
+  align-self: start;
+  min-height: var(--control-height);
+  justify-content: center;
+}
+
+/* Items that take the whole row sit below the controls, not beside them, so
+ * the control band does not apply to them. */
+.form-row > .weights-explainer,
+.form-row > .swap-impact-slot,
+.weights-form > .MuiButton-root {
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+}
+
+/* Placeholder while the month grid's chunk is fetched; sized like the grid so
+   the popover does not jump once it arrives. */
+.date-calendar-loading {
+  display: grid;
+  place-items: center;
+  min-width: 320px;
+  min-height: 300px;
 }

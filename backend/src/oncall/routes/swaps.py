@@ -127,6 +127,10 @@ async def swap_impact(
     role: Annotated[AssignmentRole, Query()],
     replacement_member_id: Annotated[uuid.UUID, Query()],
 ) -> SwapImpactResponse:
+    # The document this docstring cites now lives in archive/docs/PLAN.md. The
+    # path is left as written because FastAPI publishes this docstring as the
+    # endpoint's OpenAPI description, which contracts/openapi.json pins:
+    # correcting it here would change the published contract over a comment.
     """What this swap would do to both people's balance.
 
     docs/PLAN.md §4 puts a points preview between choosing a replacement and

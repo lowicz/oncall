@@ -288,7 +288,7 @@ class Eligibility(Base):
 #: 3.0 at every budget from 5 s to 90 s, and 15 s is the smallest budget at which
 #: the hard branch - the one that has to prove the criterion unattainable and
 #: find the floor - reaches OPTIMAL instead of stopping at FEASIBLE. The runs
-#: behind those numbers are docs/qa-suite-5/budget-z14*.jsonl; re-measure there
+#: behind those numbers are archive/docs/qa-suite-5/budget-z14*.jsonl; re-measure there
 #: before changing this.
 DEFAULT_SOLVE_SECONDS = 15.0
 

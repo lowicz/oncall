@@ -340,7 +340,7 @@ export function PeoplePanel() {
         </Button>
       </Box>
       {error && <Alert severity="error">{error.message}</Alert>}
-      <Paper variant="outlined" className="calendar-controls">
+      <Paper variant="outlined" className="form-row calendar-controls">
         <TextField
           label="Szukaj osoby, loginu lub numeru"
           value={search}
@@ -542,7 +542,7 @@ export function PeoplePanel() {
                     onDelete={(id) => deleteEligibility.mutate(id)}
                   />
                 ))}
-                <Box className="people-period-form">
+                <Box className="form-row people-period-form">
                   <TextField select label="Rola dyżurowa" value={eligibilityRole} onChange={(e) => setEligibilityRole(e.target.value as AssignmentRole)}>
                     {dutyRoles.map((role) => <MenuItem key={role} value={role}>{dutyRoleLabels[role]}</MenuItem>)}
                   </TextField>

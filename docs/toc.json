@@ -1,0 +1,36 @@
+{
+  "title": "Dokumentacja Erste On-call",
+  "home": "index.md",
+  "sections": [
+    {
+      "title": "Produkt",
+      "pages": [
+        "produkt/przeglad.md",
+        "produkt/role-i-dostep.md",
+        "produkt/model-grafiku.md",
+        "produkt/generator.md",
+        "produkt/sprawiedliwosc.md",
+        "produkt/integracje.md"
+      ]
+    },
+    {
+      "title": "Użytkownik",
+      "pages": [
+        "uzytkownik/pierwsze-kroki.md",
+        "uzytkownik/dyzury.md",
+        "uzytkownik/dostepnosc.md",
+        "uzytkownik/zamiany.md",
+        "uzytkownik/generowanie-grafiku.md",
+        "uzytkownik/administracja.md",
+        "uzytkownik/rozwiazywanie-problemow.md"
+      ]
+    },
+    {
+      "title": "Wdrożenie",
+      "pages": [
+        "wdrozenie/uruchomienie.md",
+        "wdrozenie/tls.md"
+      ]
+    }
+  ]
+}

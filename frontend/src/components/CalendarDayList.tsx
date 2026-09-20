@@ -9,7 +9,7 @@ const ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 /**
  * Day-by-day alternative to the people-by-days matrix.
  *
- * docs/PLAN.md §6 asks for a responsive small-screen mode. A 30-column grid can
+ * archive/docs/PLAN.md §6 asks for a responsive small-screen mode. A 30-column grid can
  * only be scrolled sideways on a phone; reading one day at a time is how the
  * schedule is actually consulted there.
  */

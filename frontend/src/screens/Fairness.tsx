@@ -31,7 +31,7 @@ function deviationWords(value: number) {
  * Deviation as a bar growing from a centre line, so a column can be scanned
  * for who is out of balance without reading every number. The number and the
  * accessible description carry the same information, since colour alone must
- * never be the sole carrier (docs/PLAN.md §6).
+ * never be the sole carrier (archive/docs/PLAN.md §6).
  */
 function DeviationBar({ value }: { value: number }) {
   const neutral = Math.abs(value) < 0.01
@@ -279,7 +279,7 @@ export function FairnessPanel() {
         a wynik poniżej udziału lekko zwiększa szansę kolejnego przydziału - zawsze po
         spełnieniu twardych reguł i z uwzględnieniem ciągłości oraz preferencji.
       </Alert>
-      <Paper variant="outlined" className="calendar-controls">
+      <Paper variant="outlined" className="form-row calendar-controls">
         <DateField
           id="fairness-as-of"
           label="Stan na dzień"

@@ -75,7 +75,7 @@ Pełna paczka po ograniczeniu zakresu: **30 passed, 1 failed** w 239.09 s;
 powtarzalna rozpiętość `secondary=3` (2..5) w 28-dniowym scenariuszu z blokami
 2X, świętem, preferencją i kotwiczeniem. Zgodnie z punktem 8 raportu świadomie
 zmieniono kryterium odbioru na 3 punkty, pozostawiając 2 jako cel optymalizacji.
-Zmianę zapisano w `docs/PLAN.md`, `docs/SOLVER.md` i teście regresyjnym.
+Zmianę zapisano w `archive/docs/PLAN.md`, `archive/docs/SOLVER.md` i teście regresyjnym.
 
 ## Weryfikacja po decyzji
 

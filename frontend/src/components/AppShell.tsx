@@ -26,7 +26,7 @@ import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined'
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import { ShareSession, api } from '../api'
-import { Access, adminNav, primaryNav, roleLabels, visibleFor } from '../lib/nav'
+import { Access, adminNav, docsHref, primaryNav, roleLabels, visibleFor } from '../lib/nav'
 import { groupSwaps } from '../lib/swaps'
 import { formatDate } from '../lib/dates'
 
@@ -144,6 +144,9 @@ export function AppShell({ displayName, access, share }: {
           <AdminMenu items={admin} />
         </nav>
         <Stack direction="row" spacing={1} alignItems="center" className="topbar-actions">
+          <Button color="inherit" component="a" href={docsHref}>
+            Dokumentacja
+          </Button>
           <ThemeToggle />
           {/* QA7-L16: an account whose display name already reads as the role
               ("Administrator") must not repeat it as "Administrator Administrator". */}
@@ -198,6 +201,14 @@ export function AppShell({ displayName, access, share }: {
               </List>
             </>
           )}
+          {/* `.topbar-actions` is hidden below the breakpoint, so on a phone
+              the drawer is the only way to reach the documentation. */}
+          <Divider />
+          <List>
+            <ListItemButton component="a" href={docsHref}>
+              <ListItemText primary="Dokumentacja" />
+            </ListItemButton>
+          </List>
         </Box>
       </Drawer>
 

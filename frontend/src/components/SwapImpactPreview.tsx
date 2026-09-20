@@ -53,7 +53,7 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
 }
 
 /**
- * Points preview before the change is committed, as docs/PLAN.md §4 requires.
+ * Points preview before the change is committed, as archive/docs/PLAN.md §4 requires.
  * The projection is read-only; nothing is written until the swap is created or
  * the coordinator confirms the override.
  *

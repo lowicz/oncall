@@ -54,7 +54,7 @@ describe('coverageGaps', () => {
   })
 
   it('does not treat a missing 11-19 shift as a coverage gap', () => {
-    // The late shift only exists on working days (docs/PLAN.md §3).
+    // The late shift only exists on working days (archive/docs/PLAN.md §3).
     const gaps = coverageGaps(data({
       assignments: [
         assignment('2026-09-01', 'primary', 'Anna'),

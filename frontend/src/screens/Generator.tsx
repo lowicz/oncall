@@ -286,7 +286,7 @@ export function GeneratorPanel() {
       <Paper
         component="form"
         variant="outlined"
-        className="generator-form"
+        className="form-row generator-form"
         onSubmit={(event) => { event.preventDefault(); generate.mutate(range) }}
       >
         <DateField
@@ -375,7 +375,7 @@ export function GeneratorPanel() {
       <Paper
         component="form"
         variant="outlined"
-        className="generator-form weights-form"
+        className="form-row generator-form weights-form"
         onSubmit={(event) => {
           event.preventDefault()
           savePolicy.mutate(settings)

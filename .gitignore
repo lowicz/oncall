@@ -4,7 +4,7 @@
 .env.*.local
 !.env.example
 
-# Certyfikaty generowane lokalnie (docs/TLS.md opisuje jak je odtworzyc)
+# Certyfikaty generowane lokalnie (docs/wdrozenie/tls.md opisuje jak je odtworzyc)
 tls/
 *.pem
 *.key
@@ -29,6 +29,8 @@ htmlcov/
 # --- Node / frontend ---
 node_modules/
 dist/
+# Dokumentacja renderowana z docs/*.md przez frontend/scripts/build-docs.mjs.
+frontend/public/docs/
 .vite/
 *.tsbuildinfo
 npm-debug.log*
