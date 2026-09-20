@@ -63,12 +63,6 @@ describe('build-docs.mjs', () => {
     expect(home).not.toContain('site-footer')
   })
 
-  it('lets the robots policy be chosen per output', () => {
-    const out = join(scratch, 'indexable')
-    render('--site', '--out', out, '--robots', 'index,follow')
-    expect(page(out, 'index.html')).toContain('<meta name="robots" content="index,follow" />')
-  })
-
   it('refuses to empty a directory that holds the sources', () => {
     for (const out of ['.', '..', '../docs', 'docs-template']) {
       expect(() => render('--site', '--out', out)).toThrow(/contains the sources/)

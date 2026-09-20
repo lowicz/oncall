@@ -28,7 +28,6 @@
  *   --site                standalone site mode (see above)
  *   --out <dir>           output directory, relative to frontend/ (default
  *                         public/docs); never the app, docs or repo root
- *   --robots <content>    robots meta (default noindex,nofollow in both modes)
  *   --repo-url <url>      site mode: repository link in the top bar
  *   --version <text>      site mode: shown in the footer (default: none)
  *
@@ -57,11 +56,10 @@ function parseOptions(argv) {
   const options = {
     site: false,
     out: 'public/docs',
-    robots: 'noindex,nofollow',
     repoUrl: '',
     version: '',
   }
-  const withValue = { '--out': 'out', '--robots': 'robots', '--repo-url': 'repoUrl', '--version': 'version' }
+  const withValue = { '--out': 'out', '--repo-url': 'repoUrl', '--version': 'version' }
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     if (arg === '--site') {
@@ -264,7 +262,7 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#08131f" />
-    <meta name="robots" content="${escapeHtml(options.robots)}" />
+    <meta name="robots" content="noindex,nofollow" />
     <title>${escapeHtml(title === siteTitle ? title : `${title} · ${siteTitle}`)}</title>
     <script>
       // Identical to index.html: apply the colour scheme before first paint and
