@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 
 from oncall.ical import IcsEvent, build_ics
 from oncall.models import AssignmentRole
@@ -84,3 +84,11 @@ def test_events_are_sorted_by_date_then_role() -> None:
         ics.index("DTSTART;VALUE=DATE:20260915"),
     ]
     assert positions[0] < positions[1]
+
+
+def test_dtstamp_is_the_clock_instant_in_utc(frozen_clock) -> None:
+    """The stamp is an instant: UTC wall time and a Z, even in the half hour
+    when Warsaw is already on the next day."""
+    frozen_clock.instant = datetime(2026, 9, 15, 23, 30, tzinfo=UTC)
+    ics = build_ics([event()], calendar_name="x")
+    assert "DTSTAMP:20260915T233000Z" in lines(ics)

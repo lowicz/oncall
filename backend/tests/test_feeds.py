@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
+from oncall.domain.clock import business_today
 from oncall.models import UserRole
 from tests.conftest import (
     create_member,
@@ -10,7 +11,7 @@ from tests.conftest import (
 
 
 async def _seed(db):
-    today = date.today()
+    today = business_today()
     anna = await create_user(db, "anna", email="a@x.com", display_name="Anna Kowalska")
     marek = await create_user(db, "marek", email="m@x.com", display_name="Marek Nowak")
     await create_member(db, anna, display_name="Anna Kowalska")

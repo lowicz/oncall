@@ -3,11 +3,13 @@
 returns, and what the audit trail says afterwards."""
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select
 
+from oncall.domain.admin.models import RESET_LINK_LIFETIME
+from oncall.domain.clock import as_utc, business_today
 from oncall.models import (
     AccountToken,
     Assignment,
@@ -21,7 +23,7 @@ from oncall.models import (
 )
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
-TODAY = date.today()
+TODAY = business_today()
 
 
 def assert_error(response, status_code: int, detail) -> None:
@@ -169,7 +171,7 @@ async def test_updating_an_account(client, db, admin) -> None:
     assert (await patch(second_admin, role="member")).status_code == 200
 
 
-async def test_password_reset_links(client, db, admin) -> None:
+async def test_password_reset_links(client, db, frozen_clock, admin) -> None:
     local = await create_user(db, "lokalny")
     ldap = await create_user(db, "katalog")
     ldap.auth_source = AuthSource.ldap
@@ -186,13 +188,16 @@ async def test_password_reset_links(client, db, admin) -> None:
         "Hasło konta LDAP jest zarządzane przez AD",
     )
     first = await client.post(f"/api/v1/admin/users/{local.id}/reset")
+    frozen_clock.advance(timedelta(minutes=1))
     second = await client.post(f"/api/v1/admin/users/{local.id}/reset")
     assert first.status_code == second.status_code == 200
     assert "/reset?token=" in second.json()["url"]
     expires_at = datetime.fromisoformat(second.json()["expires_at"])
-    assert timedelta(minutes=59) < expires_at - datetime.now(UTC) <= timedelta(hours=1)
+    assert as_utc(expires_at) == frozen_clock.instant + RESET_LINK_LIFETIME
     tokens = (await db.scalars(select(AccountToken).order_by(AccountToken.created_at))).all()
     assert [token.used_at is None for token in tokens] == [False, True]
+    # Issuing the second link retired the first at that very moment.
+    assert as_utc(tokens[0].used_at) == frozen_clock.instant
     event = await _audit(db, "admin.password_reset_issued")
     assert (event.entity_id, event.summary) == (
         str(local.id),

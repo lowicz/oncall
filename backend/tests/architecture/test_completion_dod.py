@@ -317,11 +317,6 @@ def test_dod_3_guard_rejects_a_commit_outside_the_exact_allowlist(tmp_path: Path
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="DOD-4: runtime wall-clock access still bypasses Clock",
-)
 def test_dod_4_runtime_wall_clock_access_goes_through_clock() -> None:
     _assert_no_violations(_wall_clock_violations(PROJECT_ROOT), "Direct wall-clock access")
 

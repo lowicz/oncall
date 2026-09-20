@@ -1,7 +1,7 @@
 """Accounts, credentials, sign-in attempts and account links for signing in."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from oncall.domain.access.models import (
 )
 from oncall.domain.access.ports import AccessAccounts, AccessJournal, AccountLinks, LoginAttempts
 from oncall.domain.accounts import Account
+from oncall.domain.clock import utc_now
 from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
 from oncall.models import AccountToken, AuditEvent, TeamMember, User
 
@@ -91,7 +92,7 @@ class SqlAlchemyLoginAttempts(LoginAttempts):
             )
             return 1
         count = int((series.details or {}).get("count", 1)) + 1
-        series.occurred_at = datetime.now(UTC)
+        series.occurred_at = utc_now()
         series.details = {"count": count}
         return count
 
@@ -115,7 +116,7 @@ class SqlAlchemyLoginAttempts(LoginAttempts):
                 details={"count": 1, "last_ip": request.client_ip},
             )
         else:
-            series.occurred_at = datetime.now(UTC)
+            series.occurred_at = utc_now()
             series.details = {
                 "count": int((series.details or {}).get("count", 1)) + 1,
                 "last_ip": request.client_ip,

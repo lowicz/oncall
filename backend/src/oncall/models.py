@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from enum import StrEnum
 
 from sqlalchemy import (
@@ -20,6 +20,8 @@ from sqlalchemy import (
     or_,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+
+from oncall.domain.clock import utc_now
 
 # The rotation vocabulary is declared framework-free in the domain and
 # re-exported here, so `from oncall.models import AssignmentRole` keeps working.
@@ -64,10 +66,6 @@ class NotificationStatus(StrEnum):
     skipped = "skipped"
     """The channel is switched off. Kept eligible on a daily rhythm so the
     message goes out once the channel is configured, with no manual repair."""
-
-
-def utc_now() -> datetime:
-    return datetime.now(UTC)
 
 
 class User(Base):

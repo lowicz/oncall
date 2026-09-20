@@ -27,13 +27,13 @@ SMTP provider spends it as a fixed `Message-ID`.
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
-from oncall.domain.clock import as_utc
+from oncall.domain.clock import as_utc, utc_now
 from oncall.models import NotificationOutbox, NotificationStatus
 from oncall.notifications.base import (
     NotificationDisabled,
@@ -271,7 +271,7 @@ async def drain_outbox(
     lease: timedelta = DEFAULT_LEASE,
 ) -> dict[str, int]:
     """Deliver a batch of eligible notifications; commits as it goes."""
-    now = now or datetime.now(UTC)
+    now = now or utc_now()
     rows = await _claim_batch(db, now=now, batch_size=batch_size, lease=lease)
     stats = {"sent": 0, "retried": 0, "failed": 0, "skipped": 0}
     for row in rows:
