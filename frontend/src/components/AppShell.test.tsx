@@ -268,4 +268,28 @@ describe('AppShell error boundary', () => {
     expect(screen.getByRole('navigation', { name: 'Główna nawigacja' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Odśwież stronę' })).toBeInTheDocument()
   })
+
+  it('renders the next screen after navigating away from one that threw', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue({
+      generated_at: '2026-09-01T10:00:00Z', is_published: false, id: null, version: null, starts_on: null, ends_on: null,
+      assignments: [], current: [], today_is_day_off: false, today_holiday_name: null,
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderScreen(
+      <Routes>
+        <Route element={<AppShell displayName="Ola" access={{ role: 'member', hasTeamMember: true }} share={null} />}>
+          <Route path="/zepsute" element={<Broken />} />
+          <Route path="*" element={<div>ekran działa</div>} />
+        </Route>
+      </Routes>,
+      { route: '/zepsute' },
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ten ekran przestał działać')
+    // The rail stays usable; following it must reset the boundary, not keep the
+    // fallback for the boundary's whole lifetime.
+    fireEvent.click(screen.getByRole('link', { name: /Teraz/ }))
+    expect(await screen.findByText('ekran działa')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })

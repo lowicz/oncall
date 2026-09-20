@@ -207,7 +207,7 @@ export function AppShell({ displayName, access, share }: {
           </NowStrip>
         )}
         <main id="tresc" className="page-host">
-          <ErrorBoundary>
+          <ErrorBoundary key={location.pathname}>
             <Outlet />
           </ErrorBoundary>
         </main>

@@ -210,7 +210,7 @@ export function FairnessPanel() {
     link.click()
     URL.revokeObjectURL(url)
   }
-  const columnCount = 3 + lenses.length + 1
+  const columnCount = lenses.length + 3
 
   const memberRow = (member: FairnessMember) => {
     const open = openId === member.member_id
