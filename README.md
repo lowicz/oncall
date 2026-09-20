@@ -2,20 +2,47 @@
 
 Internal on-call scheduling application.
 
+[![ci](https://github.com/lowicz/oncall/actions/workflows/ci.yml/badge.svg)](https://github.com/lowicz/oncall/actions/workflows/ci.yml)
+[![release](https://github.com/lowicz/oncall/actions/workflows/release.yml/badge.svg)](https://github.com/lowicz/oncall/actions/workflows/release.yml)
+
 Product and user documentation lives in [`docs/`](docs/index.md) and is rendered
 into static HTML served by the application itself at `/docs/`, reachable from
-the "Dokumentacja" link in the top bar. The earlier contents of `docs/` - plans,
-QA reports, screenshots and test scripts - are preserved unchanged in
-[`archive/docs/`](archive/README.md).
+the "Dokumentacja" link in the top bar. The same pages are published at
+<https://lowicz.github.io/oncall/> from the same source. The earlier contents
+of `docs/` - plans, QA reports, screenshots and test scripts - are preserved
+unchanged in [`archive/docs/`](archive/README.md).
 
-## Development
+## Running
+
+Every release publishes two images, `ghcr.io/lowicz/oncall-api` (services
+`api` and `worker`) and `ghcr.io/lowicz/oncall-web`, tagged with the release
+version. `docker-compose.yml` runs them; `ONCALL_VERSION` in `.env` says which
+version, and Compose refuses to start without it.
 
 ```bash
-cp .env.example .env
-docker compose up --build
+cp .env.example .env      # set ONCALL_VERSION, ONCALL_ADMIN_USERNAME, ONCALL_ADMIN_PASSWORD
+docker compose pull
+docker compose up -d
 ```
 
 The frontend is served at `http://localhost:8080`, while the API is available through the same origin under `/api`.
+Versions, upgrades, rollback and image verification: [docs/wdrozenie/wydania.md](docs/wdrozenie/wydania.md).
+
+## Development
+
+Building from the checkout is an overlay on the same file (`ONCALL_VERSION`
+can be anything, e.g. `dev`; the overlay names the local images
+`oncall-api:dev` and `oncall-web:dev`):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Put `COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml` in `.env` to make
+plain `docker compose up --build` do the same. CI (`.github/workflows/ci.yml`)
+runs the backend and frontend gates, the PostgreSQL concurrency suite, both
+image builds and every Compose combination on each pull request; a tag
+`vX.Y.Z` publishes the images (`.github/workflows/release.yml`).
 
 The API container derives its Uvicorn worker count from the cgroup CPU quota or
 process affinity, with a minimum of two processes. Set `ONCALL_API_WORKERS` to a
@@ -32,7 +59,7 @@ certificate without its chain, the private key, and the complete system trust CA
 bundle - through an overlay compose file:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
 ```
 
 See [docs/wdrozenie/tls.md](docs/wdrozenie/tls.md).
@@ -42,13 +69,17 @@ See [docs/wdrozenie/tls.md](docs/wdrozenie/tls.md).
 ```bash
 docker compose up -d db
 cd backend
-python -m venv .venv
-. .venv/bin/activate
-pip install -e '.[dev]'
-alembic upgrade head
-ONCALL_ADMIN_USERNAME=admin ONCALL_ADMIN_PASSWORD='change-me-now' python -m oncall.seed_admin
-uvicorn oncall.main:app --reload
+uv sync --extra dev
+uv run alembic upgrade head
+ONCALL_ADMIN_USERNAME=admin ONCALL_ADMIN_PASSWORD='change-me-now' uv run python -m oncall.seed_admin
+uv run uvicorn oncall.main:app --reload
 ```
+
+The gates CI runs, in the same order: `uv run ruff check .`, `uv run ruff format --check .`,
+`uv run mypy`, `uv run pytest`, `uv run python scripts/openapi_snapshot.py`. The
+PostgreSQL concurrency suite needs a disposable database:
+`docker compose -f docker-compose.contract.yml up -d` and
+`ONCALL_TEST_POSTGRES_URL=postgresql+asyncpg://oncall_contract:oncall_contract@127.0.0.1:55432/oncall_contract uv run pytest tests/test_concurrency_postgres.py`.
 
 For Docker Compose, put the credentials in `.env`. On every API start the bootstrap
 creates the account or synchronizes its password, display name, admin role and active
@@ -59,7 +90,7 @@ skipped.
 To populate a local environment with a two-week schedule and three example accounts:
 
 ```bash
-ONCALL_DEMO_PASSWORD='local-demo-password' python -m oncall.seed_demo
+ONCALL_DEMO_PASSWORD='local-demo-password' uv run python -m oncall.seed_demo
 ```
 
 The logins are `admin`, `anna`, `marek`, `ola`, `piotr`, and `viewer`; the password
@@ -257,10 +288,13 @@ next generation run.
 cd frontend
 npm install
 npm run dev
-npm run build:docs   # renders docs/*.md to public/docs, served at /docs/
+npm run build:docs        # renders docs/*.md to public/docs, served at /docs/
+npm run build:docs:site   # the same pages as a standalone site (site/), as on GitHub Pages
 ```
 
 `npm run build` renders the documentation first (`prebuild`), so a production
 build can never ship stale pages. The renderer also fails the build on a page
 missing from `docs/toc.json`, a link leaving the documentation tree, or an
-anchor matching no heading.
+anchor matching no heading. `.github/workflows/pages.yml` publishes the `--site`
+output to GitHub Pages on every change to `docs/` on `main`; nothing is
+authored twice.

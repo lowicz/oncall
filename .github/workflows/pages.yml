@@ -1,0 +1,75 @@
+# Documentation on GitHub Pages, from the same docs/ the application ships.
+#
+# frontend/scripts/build-docs.mjs renders docs/*.md for the web image
+# (`npm run build`) and, with `--site`, for this workflow: same Markdown, same
+# table of contents, same stylesheet, same link and anchor checks. Nothing is
+# authored twice. The site lives at https://<owner>.github.io/<repo>/ and
+# every link the pages emit is relative, so the base path needs no rewriting.
+#
+# Deploys only from main. Pull requests never reach here (a fork could not
+# deploy anyway); the renderer runs for every pull request in ci.yml, in both
+# modes, so a change that would break the site fails there first.
+#
+# One-time setting: repository Settings -> Pages -> Source: GitHub Actions.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - frontend/scripts/build-docs.mjs
+      - frontend/docs-template/**
+      - frontend/package.json
+      - frontend/package-lock.json
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions: {}
+
+# Deployments never interleave and never cancel each other.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: render docs/
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install from the lock
+        run: npm ci
+      - name: Render the standalone site
+        run: node scripts/build-docs.mjs --site --out "$RUNNER_TEMP/site" --version "main@${GITHUB_SHA::7}" --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
