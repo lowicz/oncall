@@ -1,6 +1,6 @@
 # Plan wykonawczy domknięcia Architecture Definition of Done
 
-Status: proposed; no implementation started  
+Status: in progress; Agent 0 executable DoD gates landed (four strict `xfail`s), Agents 1-5 not started  
 Prepared: 2026-09-20  
 Source: independent audit of `ARCHITECTURE_ACTION_PLAN.md` and the current tree  
 Scope: `backend/src/oncall`, backend tests, architecture documentation and contract gates  
