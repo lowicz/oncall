@@ -95,8 +95,8 @@ describe('GeneratorPanel draft persistence', () => {
     renderScreen(<GeneratorPanel />)
 
     await waitFor(() => {
-      expect(document.querySelector('#generator-from')).toHaveValue('21-09-2026')
-      expect(document.querySelector('#generator-to')).toHaveValue('18-10-2026')
+      expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21')
+      expect(document.querySelector('#generator-to')).toHaveValue('2026-10-18')
     })
   })
 
@@ -105,24 +105,22 @@ describe('GeneratorPanel draft persistence', () => {
     renderScreen(<GeneratorPanel />, { route: '/generator?od=2026-09-08&do=2026-10-11' })
 
     await waitFor(() => {
-      expect(document.querySelector('#generator-from')).toHaveValue('08-09-2026')
-      expect(document.querySelector('#generator-to')).toHaveValue('11-10-2026')
+      expect(document.querySelector('#generator-from')).toHaveValue('2026-09-08')
+      expect(document.querySelector('#generator-to')).toHaveValue('2026-10-11')
     })
     expect(api.suggestedScheduleRange).not.toHaveBeenCalled()
   })
 
-  it('generates for the day picked in the calendar, not only for a typed one', async () => {
+  it('generates for the range the coordinator edits, not the suggested one', async () => {
     stub([])
     const generate = vi
       .spyOn(api, 'generateSchedule')
       .mockResolvedValue(draft({ id: 'd1', starts_on: '2026-09-22', ends_on: '2026-10-18' }))
     renderScreen(<GeneratorPanel />)
 
-    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('21-09-2026'))
-    // The calendar button of the "Od" field, then the 22nd in the month grid.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Wybierz datę' })[0])
-    fireEvent.click(await screen.findByRole('gridcell', { name: '22' }))
-    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('22-09-2026'))
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+    fireEvent.change(screen.getByLabelText(/^Od/), { target: { value: '2026-09-22' } })
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-22'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
     await waitFor(() =>
@@ -162,7 +160,7 @@ describe('GeneratorPanel draft persistence', () => {
     expect(screen.getByText('koordynator akceptuje')).toBeInTheDocument()
     expect(screen.getByText('widoczny dla zespołu')).toBeInTheDocument()
     // A proposal offers publication, not another hand-off.
-    expect(await screen.findByRole('button', { name: 'Opublikuj grafik' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Opublikuj grafik/ })).toBeInTheDocument()
   })
 
   it('explains a solver status that is not a full solution', async () => {
@@ -216,7 +214,7 @@ describe('GeneratorPanel transitions', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Przekaż do akceptacji' }))
 
     // The stepper must follow the server, not the pre-transition cache entry.
-    expect(await screen.findByRole('button', { name: 'Opublikuj grafik' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Opublikuj grafik/ })).toBeInTheDocument()
     await waitFor(() => expect(fetchOne).toHaveBeenCalledTimes(2))
   })
 
@@ -256,7 +254,7 @@ describe('GeneratorPanel transitions', () => {
     )
 
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
-    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj grafik' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Opublikuj grafik/ }))
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByText('Rozstrzygnij konflikty ze zmianami')).toBeInTheDocument()
     expect(within(dialog).getByText(/zmiana Anna Kowalska, szkic Marek Nowak/)).toBeInTheDocument()
@@ -266,8 +264,7 @@ describe('GeneratorPanel transitions', () => {
       .toBeInTheDocument()
     expect(within(dialog).getByText('Publikacja naruszy reguły odpoczynku')).toBeInTheDocument()
 
-    fireEvent.mouseDown(within(dialog).getByLabelText('Decyzja'))
-    fireEvent.click(await screen.findByRole('option', { name: 'Zachowaj przydział ze szkicu' }))
+    fireEvent.change(within(dialog).getByLabelText('Decyzja'), { target: { value: 'draft' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Tak, opublikuj' }))
     await waitFor(() => expect(publish.mock.calls[0][0]).toEqual({
       id: 'd1',
@@ -340,6 +337,9 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
       await screen.findByText(/1 osoba ma dyżur w dniu zgłoszonej niedostępności/),
     ).toBeInTheDocument()
     expect(screen.queryByText(/Grafik spełnia wszystkie reguły twarde/)).not.toBeInTheDocument()
+    // The problems table lists both conflicts by person, with a way to the cell.
+    expect(screen.getAllByText('Dyżur w dniu „nie mogę”')).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Popraw' })).toHaveLength(2)
   })
 
   it('blocks the hand-off with a stated reason instead of letting the API answer 409', async () => {

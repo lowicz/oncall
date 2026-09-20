@@ -23,7 +23,7 @@ const member = (over: Partial<TeamMember> & { id: string }): TeamMember => ({
 function mockData(users: AdminUser[] = [user({ id: 'u1' })], members: TeamMember[] = []) {
   vi.spyOn(api, 'adminUsers').mockResolvedValue(users)
   vi.spyOn(api, 'team').mockResolvedValue(members)
-  vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false })
+  vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false, app_name: 'On-call', app_subtitle: '' })
 }
 
 afterEach(() => vi.restoreAllMocks())
@@ -45,7 +45,7 @@ describe('PeoplePanel', () => {
     expect(within(anna).getByText(/PRIMARY od 02-09-2025/)).toBeInTheDocument()
     expect(within(anna).getByText(/11–19 od 02-09-2025/)).toBeInTheDocument()
     const viewer = screen.getByText('widz').closest('tr')!
-    expect(within(viewer).getByText('Poza rotacją')).toBeInTheDocument()
+    expect(within(viewer).getByText('poza rotacją')).toBeInTheDocument()
     expect(within(viewer).getByText('LDAP / AD')).toBeInTheDocument()
     expect(within(viewer).getByText('pierwszy login 02-09-2025')).toBeInTheDocument()
     expect(within(anna).getByText('004512')).toBeInTheDocument()
@@ -54,7 +54,8 @@ describe('PeoplePanel', () => {
   it('translates the account role instead of showing the raw enum', async () => {
     mockData([user({ id: 'u1', role: 'coordinator' })])
     renderScreen(<PeoplePanel />)
-    expect(await screen.findByText('Koordynator')).toBeInTheDocument()
+    const row = (await screen.findByText('anna')).closest('tr')!
+    expect(within(row).getByText('Koordynator')).toBeInTheDocument()
     expect(screen.queryByText('coordinator')).not.toBeInTheDocument()
   })
 
@@ -81,8 +82,7 @@ describe('PeoplePanel', () => {
     renderScreen(<PeoplePanel />)
     fireEvent.click(within((await screen.findByText('anna')).closest('tr')!).getByText('Szczegóły'))
     const details = await screen.findByRole('dialog', { name: 'Anna Kowalska' })
-    fireEvent.mouseDown(within(details).getByLabelText('Rola konta'))
-    fireEvent.click(await screen.findByRole('option', { name: 'Administrator' }))
+    fireEvent.change(within(details).getByLabelText('Rola konta'), { target: { value: 'admin' } })
     fireEvent.click(within(details).getByRole('button', { name: /Zapisz zmiany/ }))
     const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
     expect(save).not.toHaveBeenCalled()
@@ -101,8 +101,7 @@ describe('PeoplePanel', () => {
     expect(within(dialog).getByText(/pochodzą z AD/)).toBeInTheDocument()
     expect(within(dialog).getByLabelText(/^Imię/)).toBeDisabled()
     expect(within(dialog).queryByRole('button', { name: /reset hasła/i })).not.toBeInTheDocument()
-    fireEvent.mouseDown(within(dialog).getByLabelText('Rola konta'))
-    fireEvent.click(await screen.findByRole('option', { name: 'Podgląd' }))
+    fireEvent.change(within(dialog).getByLabelText('Rola konta'), { target: { value: 'viewer' } })
     fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz zmiany/ }))
     const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
@@ -120,10 +119,11 @@ describe('PeoplePanel', () => {
     renderScreen(<PeoplePanel />)
     fireEvent.click(within((await screen.findByText('anna')).closest('tr')!).getByText('Szczegóły'))
     const dialog = await screen.findByRole('dialog', { name: 'Anna Kowalska' })
-    const startsOn = within(dialog).getAllByLabelText('Od')[0]
+    fireEvent.click(within(dialog).getByRole('tab', { name: /Eligibility/ }))
+    const startsOn = (await within(dialog).findAllByLabelText('Od'))[0]
     const endsOn = within(dialog).getAllByLabelText('Do (opcjonalnie)')[0]
-    fireEvent.change(startsOn, { target: { value: '01-10-2025' } })
-    fireEvent.change(endsOn, { target: { value: '31-12-2025' } })
+    fireEvent.change(startsOn, { target: { value: '2025-10-01' } })
+    fireEvent.change(endsOn, { target: { value: '2025-12-31' } })
     fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz zmiany/ }))
     await waitFor(() => expect(save).toHaveBeenCalledWith({
       id: 'e1', input: { starts_on: '2025-10-01', ends_on: '2025-12-31' },

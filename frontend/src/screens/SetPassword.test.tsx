@@ -41,6 +41,7 @@ describe('SetPassword', () => {
       target: { value: 'different-password' },
     })
     expect(screen.getByRole('button', { name: 'Ustaw nowe hasło' })).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Hasła nie są identyczne')
     expect(reset).not.toHaveBeenCalled()
   })
 })

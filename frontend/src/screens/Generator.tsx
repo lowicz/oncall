@@ -1,66 +1,46 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert,
-  AlertTitle,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  LinearProgress,
-  Step,
-  StepLabel,
-  Stepper,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Paper,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material'
-import ExpandMore from '@mui/icons-material/ExpandMore'
-import {
-  DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, ScheduleWarning, api,
-} from '../api'
+import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, api } from '../api'
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { addDays, formatDate, warsawDate } from '../lib/dates'
-import { DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
+import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
 import { DraftFairnessPanel } from '../components/DraftFairnessPanel'
 import { DraftList } from '../components/DraftList'
+import { DraftProblems, draftProblems } from '../components/DraftProblems'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { DateField } from '../components/DateField'
 import { ScheduleComparison } from '../components/ScheduleComparison'
+import {
+  Box,
+  Button,
+  Dialog,
+  Disclosure,
+  ErrorState,
+  Field,
+  Input,
+  PageHeader,
+  SectionHeading,
+  Select,
+  StatusBadge,
+  StatusTone,
+  Steps,
+  Tag,
+  Tooltip,
+} from '../ui'
 
 /** CP-SAT statuses that mean the model was actually solved. */
 const SOLVER_OK = ['OPTIMAL', 'FEASIBLE']
 
-/** Two sources of warnings, kept apart: the solver gave something up, or the
- *  schedule as it stands breaks a hard rule. Both used to arrive as bare
- *  strings opening with „Korekta", even where nobody had corrected anything. */
-const WARNING_TITLES: Record<ScheduleWarning['source'], string> = {
-  solver: 'Ostrzeżenie solvera',
-  rules: 'Złamana reguła twarda',
-}
-
 /** Why „Przekaż do akceptacji" is off: the API would answer 409 anyway. */
 const PROPOSE_BLOCKED = 'Najpierw usuń dyżury w dniach zgłoszonej niedostępności'
 
-/** Mirrors `scheduler.GENERATION_BUDGET_PASSES`: one generation runs this many
- *  solver passes at most, so the whole-run ceiling is the per-pass budget times
- *  this. The backend sends `time_budget_seconds`; this is only for the live
- *  preview while the coordinator is still typing an unsaved budget. */
+/** Mirrors `scheduler.GENERATION_BUDGET_PASSES`; only for the live preview
+ *  while the coordinator is still typing an unsaved budget. */
 const GENERATION_BUDGET_PASSES = 4
 
 /** Polish count of generations ahead in the queue. */
-function jobsAhead(count: number): string {
+export function jobsAhead(count: number): string {
   if (count === 1) return '1 zadanie przed Tobą'
   const rest = count % 10
   const tens = count % 100
@@ -77,13 +57,13 @@ function queueSentence(run: ScheduleRun): string {
 }
 
 const STAGES: Array<DraftSchedule['status']> = ['draft', 'proposed', 'published']
-
 const STAGE_ACTORS: Record<DraftSchedule['status'], string> = {
   draft: 'koordynator poprawia',
   proposed: 'koordynator akceptuje',
   published: 'widoczny dla zespołu',
   superseded: 'zastąpiony',
 }
+const statusTone: Record<DraftSchedule['status'], StatusTone> = { draft: 'draft', proposed: 'prop', published: 'pub', superseded: 'muted' }
 
 export function GeneratorPanel() {
   const queryClient = useQueryClient()
@@ -105,12 +85,10 @@ export function GeneratorPanel() {
   })
   const [result, setResult] = useState<DraftSchedule | null>(null)
   const [runProgress, setRunProgress] = useState<ScheduleRun | null>(null)
+  const [focus, setFocus] = useState<DraftFocus | null>(null)
   useEffect(() => {
     if (suggestedRange.data && !hasLinkedRange) {
-      setRange({
-        starts_on: suggestedRange.data.starts_on,
-        ends_on: suggestedRange.data.ends_on,
-      })
+      setRange({ starts_on: suggestedRange.data.starts_on, ends_on: suggestedRange.data.ends_on })
     }
   }, [hasLinkedRange, suggestedRange.data])
   const openId = searchParams.get('szkic')
@@ -122,11 +100,7 @@ export function GeneratorPanel() {
       return next
     })
   }
-  const opened = useQuery({
-    queryKey: ['schedule', openId],
-    queryFn: () => api.schedule(openId!),
-    enabled: Boolean(openId),
-  })
+  const opened = useQuery({ queryKey: ['schedule', openId], queryFn: () => api.schedule(openId!), enabled: Boolean(openId) })
   useEffect(() => {
     if (opened.data) setResult(opened.data)
   }, [opened.data])
@@ -134,10 +108,9 @@ export function GeneratorPanel() {
   // The backend rejects propose and publish over it, so the screen must neither
   // claim the draft satisfies every hard rule nor offer the button (HGH5-02).
   const conflictCount = result?.unavailability_conflicts?.length ?? 0
+  const conflictPeople = new Set((result?.unavailability_conflicts ?? []).map((item) => item.assignee_name)).size
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false)
-  const [changeResolutions, setChangeResolutions] = useState<
-    Record<string, 'draft' | 'change'>
-  >({})
+  const [changeResolutions, setChangeResolutions] = useState<Record<string, 'draft' | 'change'>>({})
   const publishPreview = useQuery({
     queryKey: ['publish-preview', result?.id, result?.version],
     queryFn: () => api.publishPreview(result!.id),
@@ -145,11 +118,17 @@ export function GeneratorPanel() {
   })
   useEffect(() => setChangeResolutions({}), [result?.id, result?.version])
   const [toDelete, setToDelete] = useState<ScheduleSummary | null>(null)
+  const invalidateDrafts = () => {
+    queryClient.invalidateQueries({ queryKey: ['active-runs'] })
+    queryClient.invalidateQueries({ queryKey: ['draft-schedules'] })
+    // Without this the ['schedule', id] entry keeps the pre-transition payload
+    // for the global 30s staleTime and the effect above would rewind `result`.
+    queryClient.invalidateQueries({ queryKey: ['schedule'] })
+  }
   const remove = useMutation({
     mutationFn: api.deleteSchedule,
     onSuccess: (_data, id) => {
       setToDelete(null)
-      // Close the view if the deleted draft was the one open.
       if (openId === id) {
         setOpenId(null)
         setResult(null)
@@ -157,10 +136,8 @@ export function GeneratorPanel() {
       invalidateDrafts()
     },
   })
-  // Rotation mode and the 11-19 anchor are stored policy, not request parameters:
-  // api.generateSchedule sends only the date range and the solver reads them from
-  // the saved policy. They therefore live here as a draft of the settings and are
-  // written only on an explicit save, never on change.
+  // Rotation mode and the 11–19 anchor are stored policy, not request
+  // parameters; they are written only on an explicit save, never on change.
   const [settings, setSettings] = useState({
     rotation_mode: 'hybrid' as RotationMode,
     late_shift_anchor: 'secondary' as LateShiftAnchor,
@@ -185,22 +162,14 @@ export function GeneratorPanel() {
     mutationFn: api.updateSchedulingPolicy,
     onSuccess: (value) => queryClient.setQueryData(['scheduling-policy'], value),
   })
-  const settingsDirty = Boolean(
-    policy.data
-    && (settings.rotation_mode !== policy.data.rotation_mode
-      || settings.late_shift_anchor !== policy.data.late_shift_anchor
-      || settings.fairness_weight !== policy.data.fairness_weight
-      || settings.continuity_weight !== policy.data.continuity_weight
-      || settings.preference_weight !== policy.data.preference_weight
-      || settings.solve_seconds !== policy.data.solve_seconds),
-  )
-  const invalidateDrafts = () => {
-    queryClient.invalidateQueries({ queryKey: ['active-runs'] })
-    queryClient.invalidateQueries({ queryKey: ['draft-schedules'] })
-    // Without this the ['schedule', id] entry keeps the pre-transition payload
-    // for the global 30s staleTime and the effect below would rewind `result`.
-    queryClient.invalidateQueries({ queryKey: ['schedule'] })
-  }
+  const settingsDirty = Boolean(policy.data && (
+    settings.rotation_mode !== policy.data.rotation_mode
+    || settings.late_shift_anchor !== policy.data.late_shift_anchor
+    || settings.fairness_weight !== policy.data.fairness_weight
+    || settings.continuity_weight !== policy.data.continuity_weight
+    || settings.preference_weight !== policy.data.preference_weight
+    || settings.solve_seconds !== policy.data.solve_seconds
+  ))
   const onGenerated = (value: DraftSchedule) => {
     setRunProgress(null)
     setResult(value)
@@ -240,283 +209,158 @@ export function GeneratorPanel() {
     const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
   }, [generating, runProgress?.created_at])
-  const propose = useMutation({
-    mutationFn: api.proposeSchedule,
-    onSuccess: (value) => {
-      setResult(value)
-      invalidateDrafts()
-    },
-  })
-  const withdraw = useMutation({
-    mutationFn: api.withdrawSchedule,
-    onSuccess: (value) => {
-      setResult(value)
-      invalidateDrafts()
-    },
-  })
+  const settle = (value: DraftSchedule) => {
+    setResult(value)
+    invalidateDrafts()
+  }
+  const propose = useMutation({ mutationFn: api.proposeSchedule, onSuccess: settle })
+  const withdraw = useMutation({ mutationFn: api.withdrawSchedule, onSuccess: settle })
   const publish = useMutation({
     mutationFn: api.publishSchedule,
     onSuccess: (value) => {
-      setResult(value)
+      settle(value)
       setPublishConfirmOpen(false)
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
-      invalidateDrafts()
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
     },
   })
+  const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error ?? publish.error ?? remove.error
+  const problemCount = result ? draftProblems(result).length : 0
+  const numberField = (key: 'fairness_weight' | 'preference_weight' | 'continuity_weight' | 'solve_seconds', label: string, hint: string, min: number, max: number, step: number) => (
+    <Field label={label} id={`policy-${key}`} hint={hint}>
+      {({ id, describedBy }) => (
+        <Input
+          id={id}
+          name={key}
+          type="number"
+          mono
+          min={min}
+          max={max}
+          step={step}
+          value={settings[key]}
+          aria-describedby={describedBy}
+          onChange={(event) => setSettings({ ...settings, [key]: Number(event.target.value) })}
+        />
+      )}
+    </Field>
+  )
 
   return (
-    <Box className="generator-section" id="generator">
-      <Box>
-        <Typography className="eyebrow">[GENERATOR SZKICU]</Typography>
-        <Typography variant="h1">Generator grafiku</Typography>
-        <Typography color="text.secondary">
-          Wynik jest szkicem. Nie zastępuje opublikowanego grafiku.
-        </Typography>
-      </Box>
-      <DraftList
-        activeId={result?.id}
-        onOpen={setOpenId}
-        onDelete={setToDelete}
-        deleting={remove.isPending}
+    <div className="page">
+      <PageHeader
+        title="Generator"
+        sub="Wynik jest szkicem. Nie zastępuje opublikowanego grafiku, dopóki go nie opublikujesz."
       />
-      <ScheduleComparison drafts={drafts.data ?? []} />
-      {opened.isLoading && <CircularProgress size={24} aria-label="Otwieranie szkicu" />}
-      {opened.error && <Alert severity="error">{opened.error.message}</Alert>}
-      <Typography variant="h2">Nowy szkic</Typography>
-      <Paper
-        component="form"
-        variant="outlined"
-        className="form-row generator-form"
-        onSubmit={(event) => { event.preventDefault(); generate.mutate(range) }}
-      >
-        <DateField
-          id="generator-from"
-          label="Od"
-          value={range.starts_on}
-          onChange={(value) => setRange({ ...range, starts_on: value })}
-          required
-        />
-        <DateField
-          id="generator-to"
-          label="Do"
-          value={range.ends_on}
-          onChange={(value) => setRange({ ...range, ends_on: value })}
-          required
-        />
-        <Button type="submit" variant="contained" disabled={generating}>
-          {generating
-            ? runProgress?.status === 'queued' ? 'W kolejce…' : 'Generuję…'
-            : 'Utwórz szkic'}
-        </Button>
-        <Typography color="text.secondary" className="generator-active-policy">
-          Zapisane ustawienia: {rotationLabels[policy.data?.rotation_mode ?? 'hybrid']}
-          {' · 11–19: '}
-          {lateShiftAnchorLabels[policy.data?.late_shift_anchor ?? 'secondary']}
-          {settingsDirty && ' · masz niezapisane zmiany poniżej'}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Jedno generowanie może obejmować maksymalnie 35 dni. Dłuższy okres podziel
-          na kolejne, zachodzące po sobie szkice.
-        </Typography>
-        {/* A one-day range is accepted by the API, but there is nothing to
-            balance across one day, so the result is a coverage fill rather than
-            a schedule (LOW5-15). */}
-        {range.starts_on === range.ends_on && range.starts_on !== '' && (
-          <Alert severity="warning">
-            Zakres obejmuje jeden dzień. Bilansowanie na jednym dniu nie ma sensu:
-            solver tylko obsadzi ten dzień, nie wyrówna niczyjego udziału.
-          </Alert>
-        )}
-      </Paper>
-      {generating && (
-        <Box aria-live="polite">
-          {Boolean(runProgress?.uncovered_before?.length) && (
-            <Alert severity="warning" sx={{ mb: 1 }}>
-              Przed początkiem szkicu pozostaje {runProgress!.uncovered_before!.length} {' '}
-              nieobsadzonych dni: {runProgress!.uncovered_before!.map(formatDate).join(', ')}.
-            </Alert>
-          )}
-          <LinearProgress variant="determinate" value={runProgress?.progress ?? 0} />
-          <Typography color="text.secondary">
-            {runProgress?.status === 'queued'
-              ? queueSentence(runProgress)
-              : 'Solver pracuje poza procesem API. Możesz korzystać z pozostałych ekranów.'}
-          </Typography>
-          {/* The budget is per solver pass, and a model that has to prove the
-              acceptance criterion unattainable is solved several times over -
-              measured at roughly 25 s against a 15 s budget. Saying „budżet do
-              15 s" next to a counter reading 30 would look like a defect, so
-              the per-pass meaning is spelled out. Outside the live region: the
-              counter changes every second and would be re-announced that
-              often, drowning out the status sentence next to it. */}
-          {runProgress?.solve_seconds !== undefined && (
-            <Typography color="text.secondary" aria-live="off">
-              {elapsed} s · budżet {Math.round(runProgress.solve_seconds)} s na jeden
-              przebieg solvera, trudny grafik wymaga kilku
-              {policy.data?.time_budget_seconds !== undefined
-                && `, łącznie do ${Math.round(policy.data.time_budget_seconds)} s`}
-              .
-            </Typography>
-          )}
-          {resume.isPending && (
-            <Typography color="text.secondary">
-              Wznowiono podgląd generowania rozpoczętego wcześniej - nie uruchamiaj go drugi raz.
-            </Typography>
+      {error && (
+        <Box tone="bad" role="alert" title={error.message}>
+          {(generate.error || resume.error) && runProgress?.conflicts && runProgress.conflicts.length > 0 && (
+            <ul className="box-list">{runProgress.conflicts.map((conflict) => <li key={conflict}>{conflict}</li>)}</ul>
           )}
         </Box>
       )}
-      <Accordion variant="outlined" disableGutters className="generator-settings">
-        <AccordionSummary expandIcon={<ExpandMore />}>
-          <Typography variant="h2">
-            Ustawienia generowania{settingsDirty ? ' · niezapisane zmiany' : ''}
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-      <Paper
-        component="form"
-        variant="outlined"
-        className="form-row generator-form weights-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          savePolicy.mutate(settings)
-        }}
-      >
-        <Alert severity="info" className="weights-explainer">
-          Te ustawienia są zapisywane globalnie dla całego zespołu i obowiązują od
-          następnego generowania. Wagi zmieniają względny priorytet reguł miękkich. Nie
-          mogą wyłączyć eligibility, niedostępności ani wymaganego pokrycia. Znaczenie ma
-          wyłącznie relacja między wagami, nie ich wartości bezwzględne: 6 / 4 / 2 działa
-          tak samo jak 3 / 2 / 1. Wartość 0 wyłącza wskazany człon celu w całości - także
-          „Równy udział”, który preferencją nie jest.
-        </Alert>
-        <TextField
-          select
-          id="policy-rotation-mode"
-          name="rotation_mode"
-          label="Tryb rotacji"
-          value={settings.rotation_mode}
-          disabled={policy.isLoading}
-          onChange={(event) =>
-            setSettings({ ...settings, rotation_mode: event.target.value as RotationMode })
-          }
-          helperText="Bazowy blok rotacji. Każda doba i tak pozostaje osobnym przydziałem."
-        >
-          {Object.entries(rotationLabels).map(([value, label]) => (
-            <MenuItem key={value} value={value}>{label}</MenuItem>
-          ))}
-        </TextField>
-        {settings.rotation_mode === 'weekly' && (
-          <Alert severity="warning" className="weights-explainer">
-            Tryb tygodniowy wyłącza limit 3 dyżurów w 7 dniach i dwudniowy odpoczynek
-            po serii - inaczej tydzień u jednej osoby byłby nie do obsadzenia. Zmierzone
-            skutki: serie 12-dniowe i 31 okien z ponad 3 dyżurami.
-          </Alert>
-        )}
-        <TextField
-          select
-          id="policy-late-shift-anchor"
-          name="late_shift_anchor"
-          label="Powiązanie 11–19"
-          value={settings.late_shift_anchor}
-          disabled={policy.isLoading}
-          onChange={(event) => setSettings({
-            ...settings,
-            late_shift_anchor: event.target.value as LateShiftAnchor,
-          })}
-          helperText="Reguła twarda dla osób eligible do obu ról; pozostałe wyjątki są raportowane."
-        >
-          {Object.entries(lateShiftAnchorLabels).map(([value, label]) => (
-            <MenuItem key={value} value={value}>{label}</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          type="number"
-          id="policy-fairness-weight"
-          name="fairness_weight"
-          label="Równy udział"
-          value={settings.fairness_weight}
-          onChange={(event) =>
-            setSettings({ ...settings, fairness_weight: Number(event.target.value) })
-          }
-          slotProps={{ htmlInput: { min: 0, max: 100, step: 0.5 } }}
-          helperText={'Najwyższy domyślny priorytet: wyrównuje cały rozkład i mocniej karze '
-            + 'wartości odstające. Podniesienie jej odbierze dyżur osobie, która ma ich '
-            + 'najwięcej, nawet jeśli akurat wolałaby go wziąć.'}
-        />
-        <TextField
-          type="number"
-          id="policy-preference-weight"
-          name="preference_weight"
-          label="Preferencje zespołu"
-          value={settings.preference_weight}
-          onChange={(event) =>
-            setSettings({ ...settings, preference_weight: Number(event.target.value) })
-          }
-          slotProps={{ htmlInput: { min: 0, max: 100, step: 0.5 } }}
-          helperText={'Środkowy domyślny priorytet: respektuje „wolę nie” i „chętnie wezmę”. '
-            + 'Podniesienie jej częściej obsadzi weekend osobą, która się o niego zgłosiła, '
-            + 'kosztem równego udziału.'}
-        />
-        <TextField
-          type="number"
-          id="policy-continuity-weight"
-          name="continuity_weight"
-          label="Ciągłość rotacji"
-          value={settings.continuity_weight}
-          onChange={(event) =>
-            setSettings({ ...settings, continuity_weight: Number(event.target.value) })
-          }
-          slotProps={{ htmlInput: { min: 0, max: 100, step: 0.5 } }}
-          helperText={'Najniższy domyślny priorytet: ogranicza przekazania w obrębie tygodnia. '
-            + 'Podniesienie jej wydłuży serie u jednej osoby zamiast rozdzielać tydzień '
-            + 'między kilka osób.'}
-        />
-        <TextField
-          type="number"
-          id="policy-solve-seconds"
-          name="solve_seconds"
-          label="Budżet czasu na przebieg solvera (s)"
-          value={settings.solve_seconds}
-          onChange={(event) =>
-            setSettings({ ...settings, solve_seconds: Number(event.target.value) })
-          }
-          slotProps={{ htmlInput: { min: 5, max: 300, step: 5 } }}
-          helperText={'Ile sekund solver ma na jeden przebieg (5-300). Jedno generowanie '
-            + 'wykonuje ich kilka, więc górny limit całego generowania to około '
-            + `${Math.round((settings.solve_seconds || 0) * GENERATION_BUDGET_PASSES)} s. `
-            + 'Komunikat „solver nie zdążył” odsyła właśnie tutaj. Dłuższy budżet nie '
-            + 'poprawia już rozpiętości powyżej wartości domyślnej - podnoś go dla '
-            + 'dłuższych zakresów.'}
-        />
-        <Alert severity="info" className="weights-explainer">
-          Weekendy i bloki świąteczne są regułą twardą: solver zawsze przydziela
-          cały blok jednej osobie w danej roli. Podział bloku jest możliwy tylko
-          ręcznie, przez korektę koordynatora albo zamianę po publikacji.
-        </Alert>
-        <Button
-          type="submit"
-          variant={settingsDirty ? 'contained' : 'text'}
-          disabled={savePolicy.isPending || policy.isLoading || !settingsDirty}
-        >
-          {savePolicy.isPending ? 'Zapisuję…' : 'Zapisz ustawienia generowania'}
-        </Button>
-      </Paper>
-        </AccordionDetails>
-      </Accordion>
-      {(policy.error || savePolicy.error || generate.error || resume.error || propose.error
-        || publish.error || remove.error) && (
-        <Alert severity="error">
-          {policy.error?.message ?? savePolicy.error?.message
-            ?? generate.error?.message ?? resume.error?.message ?? propose.error?.message
-            ?? publish.error?.message ?? remove.error?.message}
-          {(generate.error || resume.error)
-            && runProgress?.conflicts && runProgress.conflicts.length > 0 && (
-            <Box component="ul" sx={{ mb: 0, mt: 1, pl: 3 }}>
-              {runProgress.conflicts.map((conflict) => <li key={conflict}>{conflict}</li>)}
+      <section className="stack-sm">
+        <SectionHeading title="Nowy szkic" meta="maks. 35 dni na jedno generowanie" />
+        <form className="panel panel-padded stack-sm" onSubmit={(event) => { event.preventDefault(); generate.mutate(range) }} aria-label="Nowy szkic">
+          <div className="frow">
+            <DateField id="generator-from" label="Od" value={range.starts_on} onChange={(value) => setRange({ ...range, starts_on: value })} required />
+            <DateField id="generator-to" label="Do" value={range.ends_on} onChange={(value) => setRange({ ...range, ends_on: value })} required />
+            <div style={{ alignSelf: 'end' }}>
+              <Button type="submit" variant="primary" icon="wand" disabled={generating} loading={generating}>
+                {generating ? (runProgress?.status === 'queued' ? 'W kolejce…' : 'Generuję…') : 'Utwórz szkic'}
+              </Button>
+            </div>
+          </div>
+          <div className="small muted">
+            Zapisane ustawienia: {rotationLabels[policy.data?.rotation_mode ?? 'hybrid']} · 11–19: {lateShiftAnchorLabels[policy.data?.late_shift_anchor ?? 'secondary']}
+            {settingsDirty && <b> · masz niezapisane zmiany w ustawieniach</b>}
+            . Dłuższy okres podziel na kolejne, zachodzące po sobie szkice.
+          </div>
+          {range.starts_on === range.ends_on && range.starts_on !== '' && (
+            <Box tone="warn" title="Zakres obejmuje jeden dzień.">
+              Bilansowanie na jednym dniu nie ma sensu: solver tylko obsadzi ten dzień, nie wyrówna niczyjego udziału.
             </Box>
           )}
-        </Alert>
-      )}
+          {generating && (
+            <div className="stack-sm" aria-live="polite">
+              {Boolean(runProgress?.uncovered_before?.length) && (
+                <Box tone="warn">
+                  Przed początkiem szkicu pozostaje {runProgress!.uncovered_before!.length} nieobsadzonych dni: {runProgress!.uncovered_before!.map(formatDate).join(', ')}.
+                </Box>
+              )}
+              <div className="progress" role="progressbar" aria-valuenow={runProgress?.progress ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label="Postęp generowania">
+                <i style={{ width: `${runProgress?.progress ?? 0}%` }} />
+              </div>
+              <div className="small muted">
+                {runProgress?.status === 'queued' ? queueSentence(runProgress) : 'Solver pracuje poza procesem API. Możesz korzystać z pozostałych ekranów.'}
+              </div>
+              {/* The budget is per solver pass, and a hard model is solved several
+                  times over, so the counter can pass the budget without a defect.
+                  Outside the live region: it changes every second. */}
+              {runProgress?.solve_seconds !== undefined && (
+                <div className="small muted mono" aria-live="off">
+                  {elapsed} s · budżet {Math.round(runProgress.solve_seconds)} s na jeden przebieg solvera, trudny grafik wymaga kilku
+                  {policy.data?.time_budget_seconds !== undefined && `, łącznie do ${Math.round(policy.data.time_budget_seconds)} s`}.
+                </div>
+              )}
+              {resume.isPending && <div className="small muted">Wznowiono podgląd generowania rozpoczętego wcześniej - nie uruchamiaj go drugi raz.</div>}
+            </div>
+          )}
+        </form>
+        <Disclosure title="Ustawienia generowania" meta={settingsDirty ? 'niezapisane zmiany' : undefined}>
+          <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); savePolicy.mutate(settings) }} aria-label="Ustawienia generowania">
+            <Box tone="muted">
+              Ustawienia są zapisywane globalnie dla całego zespołu i obowiązują od następnego generowania. Wagi zmieniają względny priorytet reguł miękkich; nie mogą wyłączyć eligibility, niedostępności ani wymaganego pokrycia. Znaczenie ma wyłącznie relacja między wagami: 6 / 4 / 2 działa tak samo jak 3 / 2 / 1. Wartość 0 wyłącza wskazany człon celu w całości.
+            </Box>
+            <div className="frow">
+              <Field label="Tryb rotacji" id="policy-rotation-mode" hint="Bazowy blok rotacji. Każda doba i tak pozostaje osobnym przydziałem.">
+                {({ id, describedBy }) => (
+                  <Select id={id} name="rotation_mode" value={settings.rotation_mode} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, rotation_mode: event.target.value as RotationMode })}>
+                    {Object.entries(rotationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </Select>
+                )}
+              </Field>
+              <Field label="Powiązanie 11–19" id="policy-late-shift-anchor" hint="Reguła twarda dla osób eligible do obu ról; pozostałe wyjątki są raportowane.">
+                {({ id, describedBy }) => (
+                  <Select id={id} name="late_shift_anchor" value={settings.late_shift_anchor} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, late_shift_anchor: event.target.value as LateShiftAnchor })}>
+                    {Object.entries(lateShiftAnchorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </Select>
+                )}
+              </Field>
+            </div>
+            {settings.rotation_mode === 'weekly' && (
+              <Box tone="warn" title="Tryb tygodniowy wyłącza limit 3 dyżurów w 7 dniach i dwudniowy odpoczynek po serii.">
+                Inaczej tydzień u jednej osoby byłby nie do obsadzenia. Zmierzone skutki: serie 12-dniowe i 31 okien z ponad 3 dyżurami.
+              </Box>
+            )}
+            <div className="frow">
+              {numberField('fairness_weight', 'Równy udział', 'Najwyższy domyślny priorytet: wyrównuje cały rozkład i mocniej karze wartości odstające. Podniesienie odbierze dyżur osobie, która ma ich najwięcej, nawet jeśli wolałaby go wziąć.', 0, 100, 0.5)}
+              {numberField('preference_weight', 'Preferencje zespołu', 'Środkowy priorytet: respektuje „wolę nie” i „chętnie wezmę”. Podniesienie częściej obsadzi weekend osobą, która się o niego zgłosiła, kosztem równego udziału.', 0, 100, 0.5)}
+              {numberField('continuity_weight', 'Ciągłość rotacji', 'Najniższy priorytet: ogranicza przekazania w obrębie tygodnia. Podniesienie wydłuży serie u jednej osoby zamiast rozdzielać tydzień.', 0, 100, 0.5)}
+              {numberField('solve_seconds', 'Budżet czasu na przebieg solvera (s)', `Jedno generowanie wykonuje kilka przebiegów, więc górny limit całego generowania to około ${Math.round((settings.solve_seconds || 0) * GENERATION_BUDGET_PASSES)} s. Dłuższy budżet nie poprawia rozpiętości powyżej wartości domyślnej - podnoś go dla dłuższych zakresów.`, 5, 300, 5)}
+            </div>
+            <Box tone="muted">
+              Weekendy i bloki świąteczne są regułą twardą: solver zawsze przydziela cały blok jednej osobie w danej roli. Podział bloku jest możliwy tylko ręcznie, przez korektę koordynatora albo zamianę po publikacji.
+            </Box>
+            <div className="row">
+              <Button type="submit" variant={settingsDirty ? 'primary' : 'default'} disabled={savePolicy.isPending || policy.isLoading || !settingsDirty} loading={savePolicy.isPending}>
+                {savePolicy.isPending ? 'Zapisuję…' : 'Zapisz ustawienia generowania'}
+              </Button>
+              {savePolicy.isSuccess && !settingsDirty && <span className="small muted">Zapisano.</span>}
+            </div>
+          </form>
+        </Disclosure>
+      </section>
+      <section className="stack-sm">
+        <SectionHeading title="Szkice" meta={drafts.data ? `${drafts.data.length}` : undefined} />
+        <DraftList activeId={result?.id} onOpen={setOpenId} onDelete={setToDelete} deleting={remove.isPending} />
+        {(drafts.data?.some((item) => item.rotation_mode === 'daily') && drafts.data.some((item) => item.rotation_mode === 'weekly')) && (
+          <Disclosure title="Porównaj wariant dzienny i tygodniowy">
+            <ScheduleComparison drafts={drafts.data ?? []} />
+          </Disclosure>
+        )}
+      </section>
+      {opened.isLoading && <p className="muted">Otwieranie szkicu…</p>}
+      {opened.error && <ErrorState error={opened.error} onRetry={() => opened.refetch()} />}
       <ConfirmDialog
         open={Boolean(toDelete)}
         pending={remove.isPending}
@@ -525,249 +369,173 @@ export function GeneratorPanel() {
         title="Usunąć szkic?"
         confirmLabel="Usuń"
         confirmColor="error"
-        description={toDelete && (
-          <>
-            {toDelete.name} ({formatDate(toDelete.starts_on)} - {formatDate(toDelete.ends_on)}).
-            {' '}Tej operacji nie da się cofnąć.
-          </>
-        )}
+        description={toDelete && <>{toDelete.name} ({formatDate(toDelete.starts_on)} - {formatDate(toDelete.ends_on)}). Tej operacji nie da się cofnąć.</>}
       />
       {result && (
-        <Paper variant="outlined" className="draft-result">
-          {(result.warnings ?? []).map((warning) => (
-            <Alert severity="warning" key={`${warning.source}:${warning.message}`}>
-              <AlertTitle>{WARNING_TITLES[warning.source]}</AlertTitle>
-              {warning.message}
-            </Alert>
-          ))}
-          {Boolean(result.uncovered_before?.length) && (
-            <Alert severity="warning">
-              Przed początkiem szkicu pozostaje {result.uncovered_before!.length} nieobsadzonych
-              {result.uncovered_before!.length === 1 ? ' dzień' : ' dni'}: {' '}
-              {result.uncovered_before!.map(formatDate).join(', ')}.
-            </Alert>
-          )}
-          {Boolean(result.stale_changes_count) && (
-            <Alert severity="warning">
-              Szkic nieaktualny: od wygenerowania zmieniło się {result.stale_changes_count} wpisów.
-            </Alert>
-          )}
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={2}>
-            <Box>
-              <Typography className="role-label">
-                [{scheduleStatusLabels[result.status].toUpperCase()}] · {rotationLabels[result.rotation_mode]}
-              </Typography>
-              <Typography variant="h2">{result.name}</Typography>
-              <Typography color="text.secondary">Wersja {result.version}</Typography>
-            </Box>
-            <Stack direction="row" gap={1} alignItems="flex-start">
-              <Chip
-                label={`CP-SAT: ${result.solver_status}`}
-                color={
-                  result.solver_status === 'OPTIMAL' ? 'success'
-                    : result.solver_status === 'FEASIBLE' ? 'info'
-                      : 'warning'
-                }
-              />
-              <Chip label={`${result.assignments.length} przydziałów`} />
-            </Stack>
-          </Stack>
+        <section className="stack" aria-label={result.name}>
+          <SectionHeading
+            title={result.name}
+            meta={`${formatDate(result.starts_on)} – ${formatDate(result.ends_on)} · v${result.version}`}
+            controls={(
+              <>
+                <StatusBadge tone={statusTone[result.status]}>{scheduleStatusLabels[result.status]}</StatusBadge>
+                <Tag>{rotationLabels[result.rotation_mode]}</Tag>
+                <Tag tone={result.solver_status === 'OPTIMAL' ? 'sig' : SOLVER_OK.includes(result.solver_status) ? undefined : 'bad'}>CP-SAT: {result.solver_status}</Tag>
+                <Tag>{result.assignments.length} przydziałów</Tag>
+              </>
+            )}
+          />
+          <Steps
+            label="Etap szkicu"
+            steps={STAGES.map((stage) => ({
+              label: <><b>{scheduleStatusLabels[stage]}</b> <small>{STAGE_ACTORS[stage]}</small></>,
+              state: STAGES.indexOf(stage) < STAGES.indexOf(result.status) ? 'done' : stage === result.status ? 'on' : 'todo',
+            }))}
+          />
           {result.solver_status === 'FEASIBLE' && conflictCount === 0 && (
-            <Alert severity="info">
-              Sprawiedliwość: {result.fairness_proven
-                ? 'optymalna (udowodniona)'
-                : 'najlepsza znaleziona'}. Jakość całego rozwiązania: {result.continuity_gap == null
+            <Box tone="muted">
+              Sprawiedliwość: {result.fairness_proven ? 'optymalna (udowodniona)' : 'najlepsza znaleziona'}. Jakość całego rozwiązania: {result.continuity_gap == null
                 ? 'bez oszacowania luki'
-                : `luka ${new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 }).format(result.continuity_gap * 100)}%`}.
-              {' '}Stan kryterium pokazuje panel poniżej.
-            </Alert>
+                : `luka ${new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 }).format(result.continuity_gap * 100)}%`}. Stan kryterium pokazuje panel poniżej.
+            </Box>
+          )}
+          {conflictCount > 0 && (
+            <Box tone="bad" role="alert" title={`${conflictPeople === 1 ? '1 osoba ma dyżur' : `${conflictPeople} osób ma dyżur`} w dniu zgłoszonej niedostępności.`}>
+              {result.status === 'draft'
+                ? 'Popraw te komórki w macierzy poniżej albo wygeneruj szkic ponownie; tabela problemów prowadzi do każdej z nich.'
+                : 'Szkic nie jest już edytowalny; wygeneruj go ponownie.'}
+            </Box>
           )}
           {!SOLVER_OK.includes(result.solver_status) && (
-            <Alert severity="warning">
-              Solver nie znalazł pełnego rozwiązania (status {result.solver_status}).
-              Najczęstsze przyczyny to zbyt mało osób z eligibility na daną rolę,
-              nakładające się niedostępności albo zbyt krótki zakres. Sprawdź luki
-              w macierzy poniżej i popraw je ręcznie albo zawęź zakres.
-            </Alert>
+            <Box tone="warn" title={`Solver nie znalazł pełnego rozwiązania (status ${result.solver_status}).`}>
+              Najczęstsze przyczyny to zbyt mało osób z eligibility na daną rolę, nakładające się niedostępności albo zbyt krótki zakres. Sprawdź luki w macierzy i popraw je ręcznie albo zawęź zakres.
+            </Box>
           )}
-          {/* Who acts at which stage: two unlabelled buttons did not say. */}
-          <Stepper activeStep={STAGES.indexOf(result.status)} className="draft-stepper">
-            {STAGES.map((stage) => (
-              <Step key={stage}>
-                <StepLabel optional={<Typography variant="caption">{STAGE_ACTORS[stage]}</Typography>}>
-                  {scheduleStatusLabels[stage]}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-          <DraftScheduleMatrix result={result} onChange={setResult} />
+          <SectionHeading as="h3" title="Macierz szkicu" meta="kliknij komórkę, aby skorygować przydział" />
+          <DraftScheduleMatrix result={result} onChange={setResult} focus={focus} />
+          <SectionHeading as="h3" title="Problemy" meta={problemCount > 0 ? `${problemCount}` : 'brak'} />
+          <DraftProblems result={result} onFocus={setFocus} editable={result.status === 'draft'} />
+          <SectionHeading as="h3" title="Wpływ szkicu na sprawiedliwość" meta="saldo przed zakresem → po tej wersji" />
           <DraftFairnessPanel result={result} />
-          <Stack direction="row" gap={1} justifyContent="flex-end">
+          <div className="actionbar panel">
+            {result.status === 'draft' && conflictCount > 0 && <span className="small" style={{ color: 'var(--bad)' }}>{PROPOSE_BLOCKED}</span>}
+            {result.status === 'published' && <StatusBadge tone="pub">grafik opublikowany</StatusBadge>}
+            <span className="sp" />
             {result.status === 'draft' && (
-              <Tooltip title={conflictCount > 0 ? PROPOSE_BLOCKED : ''}>
-                <span>
-                  <Button
-                    variant="outlined"
-                    disabled={propose.isPending || conflictCount > 0}
-                    onClick={() => propose.mutate({
-                      id: result.id,
-                      expectedVersion: result.version,
-                    })}
-                  >Przekaż do akceptacji</Button>
-                </span>
+              <Tooltip text={conflictCount > 0 ? PROPOSE_BLOCKED : 'Szkic trafi do akceptacji; nadal można go cofnąć'}>
+                <Button
+                  variant="primary"
+                  disabled={propose.isPending || conflictCount > 0}
+                  loading={propose.isPending}
+                  onClick={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
+                >
+                  Przekaż do akceptacji
+                </Button>
               </Tooltip>
             )}
             {result.status === 'proposed' && (
               <>
-                <Button
-                  variant="outlined"
-                  disabled={withdraw.isPending}
-                  onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}
-                >Wróć do szkicu</Button>
-                <Button
-                  variant="contained"
-                  disabled={publish.isPending}
-                  onClick={() => setPublishConfirmOpen(true)}
-                >Opublikuj grafik</Button>
+                <Button disabled={withdraw.isPending} loading={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>Wróć do szkicu</Button>
+                <Button variant="primary" icon="send" disabled={publish.isPending} onClick={() => setPublishConfirmOpen(true)}>Opublikuj grafik…</Button>
               </>
             )}
-            {result.status === 'published' && <Alert severity="success">Grafik opublikowany.</Alert>}
-          </Stack>
-          {result.status === 'draft' && conflictCount > 0 && (
-            <Typography color="error" textAlign="right">{PROPOSE_BLOCKED}</Typography>
-          )}
+          </div>
           <Dialog
             open={publishConfirmOpen}
-            onClose={() => !publish.isPending && setPublishConfirmOpen(false)}
-            aria-labelledby="publish-dialog-title"
+            onOpenChange={setPublishConfirmOpen}
+            dismissible={!publish.isPending}
+            size="lg"
+            title="Opublikować grafik?"
+            description={`Dni ${formatDate(result.starts_on)} - ${formatDate(result.ends_on)} będą rozstrzygane z tego grafiku (${new Set(result.assignments.map((item) => item.service_date)).size} dni). Wcześniejszy grafik zachowuje ważność poza tym zakresem; grafiki w całości pokryte nowym zakresem zostaną wycofane.`}
+            actions={(
+              <>
+                <Button onClick={() => setPublishConfirmOpen(false)} disabled={publish.isPending}>Anuluj</Button>
+                <Button
+                  variant="primary"
+                  loading={publish.isPending}
+                  disabled={publish.isPending || publishPreview.isLoading || publishPreview.isError
+                    || Boolean(publishPreview.data?.lost_changes.some((item) => !changeResolutions[`${item.service_date}:${item.role}`]))}
+                  onClick={() => publish.mutate({
+                    id: result.id,
+                    expectedVersion: result.version,
+                    acknowledgeLostChanges: Boolean(publishPreview.data?.lost_changes.length),
+                    acknowledgeGap: Boolean(publishPreview.data?.uncovered_before.length),
+                    acknowledgeRestViolations: Boolean(publishPreview.data?.rest_violations.length),
+                    changeResolutions,
+                  })}
+                >
+                  {publish.isPending ? 'Publikuję…' : 'Tak, opublikuj'}
+                </Button>
+              </>
+            )}
           >
-            <DialogTitle id="publish-dialog-title">Opublikować grafik?</DialogTitle>
-            <DialogContent>
-              {result.starts_on <= today && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  Ten zakres obejmuje dzisiejszy albo wcześniejszy dzień. Publikacja może
-                  natychmiast zmienić dyżur, który już trwa.
-                </Alert>
-              )}
-              <Typography>
-                Dni {formatDate(result.starts_on)} - {formatDate(result.ends_on)} będą
-                rozstrzygane z tego grafiku ({new Set(result.assignments.map(
-                  (item) => item.service_date,
-                )).size} dni). Wcześniejszy grafik zachowuje ważność poza tym zakresem.
-                Grafiki w całości pokryte nowym zakresem zostaną wycofane.
-              </Typography>
-              {publishPreview.isLoading && (
-                <Stack direction="row" gap={1} alignItems="center" sx={{ mt: 2 }}>
-                  <CircularProgress size={18} />
-                  <Typography>Sprawdzam zmiany i oczekujące zamiany…</Typography>
-                </Stack>
-              )}
-              {publishPreview.error && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  Nie udało się sprawdzić skutków publikacji. Zamknij okno i spróbuj ponownie.
-                </Alert>
-              )}
-              {publishPreview.data?.lost_changes.length ? (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  <AlertTitle>Rozstrzygnij konflikty ze zmianami</AlertTitle>
+            {result.starts_on <= today && (
+              <Box tone="warn" title="Ten zakres obejmuje dzisiejszy albo wcześniejszy dzień.">Publikacja może natychmiast zmienić dyżur, który już trwa.</Box>
+            )}
+            {publishPreview.isLoading && <p className="muted">Sprawdzam zmiany i oczekujące zamiany…</p>}
+            {publishPreview.error && <Box tone="bad" role="alert" title="Nie udało się sprawdzić skutków publikacji. Zamknij okno i spróbuj ponownie." />}
+            {publishPreview.data?.lost_changes.length ? (
+              <Box tone="warn" title="Rozstrzygnij konflikty ze zmianami">
+                <div className="stack-sm" style={{ marginTop: 6 }}>
                   {publishPreview.data.lost_changes.map((change) => (
-                    <Box key={`${change.service_date}-${change.role}`} sx={{ mt: 1 }}>
-                      <Typography>
-                        {formatDate(change.service_date)} · {roleLabels[change.role]}: zmiana {' '}
-                        {change.previous_assignee_name}, szkic {change.new_assignee_name}.
-                        {' '}{change.reason}
-                      </Typography>
-                      <TextField
-                        select
-                        size="small"
-                        label="Decyzja"
-                        value={changeResolutions[`${change.service_date}:${change.role}`] ?? ''}
-                        onChange={(event) => setChangeResolutions((current) => ({
-                          ...current,
-                          [`${change.service_date}:${change.role}`]: event.target.value as 'draft' | 'change',
-                        }))}
-                        sx={{ mt: 1, minWidth: 240 }}
-                      >
-                        <MenuItem value="draft">Zachowaj przydział ze szkicu</MenuItem>
-                        <MenuItem value="change">Zachowaj wcześniejszą zmianę</MenuItem>
-                      </TextField>
-                    </Box>
+                    <div key={`${change.service_date}-${change.role}`} className="stack-sm">
+                      <div>
+                        <span className="mono">{formatDate(change.service_date)}</span> · {roleLabels[change.role]}: zmiana {change.previous_assignee_name}, szkic {change.new_assignee_name}. {change.reason}
+                      </div>
+                      <Field label="Decyzja" id={`resolution-${change.service_date}-${change.role}`}>
+                        {({ id }) => (
+                          <Select
+                            id={id}
+                            value={changeResolutions[`${change.service_date}:${change.role}`] ?? ''}
+                            onChange={(event) => setChangeResolutions((current) => ({ ...current, [`${change.service_date}:${change.role}`]: event.target.value as 'draft' | 'change' }))}
+                          >
+                            <option value="">Wybierz</option>
+                            <option value="draft">Zachowaj przydział ze szkicu</option>
+                            <option value="change">Zachowaj wcześniejszą zmianę</option>
+                          </Select>
+                        )}
+                      </Field>
+                    </div>
                   ))}
-                </Alert>
-              ) : null}
-              {publishPreview.data?.carried_changes.length ? (
-                <Alert severity="success" sx={{ mt: 2 }}>
-                  <AlertTitle>Zmiany zostaną przeniesione</AlertTitle>
+                </div>
+              </Box>
+            ) : null}
+            {publishPreview.data?.carried_changes.length ? (
+              <Box tone="ok" title="Zmiany zostaną przeniesione">
+                <ul className="box-list">
                   {publishPreview.data.carried_changes.map((change) => (
-                    <Typography key={`${change.service_date}-${change.role}`} component="div">
-                      {formatDate(change.service_date)} · {roleLabels[change.role]}: {' '}
-                      {change.previous_assignee_name}
-                    </Typography>
+                    <li key={`${change.service_date}-${change.role}`}>{formatDate(change.service_date)} · {roleLabels[change.role]}: {change.previous_assignee_name}</li>
                   ))}
-                </Alert>
-              ) : null}
-              {publishPreview.data?.pending_swaps.length ? (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  <AlertTitle>Te oczekujące zamiany zostaną anulowane</AlertTitle>
+                </ul>
+              </Box>
+            ) : null}
+            {publishPreview.data?.pending_swaps.length ? (
+              <Box tone="sig" title="Te oczekujące zamiany zostaną anulowane">
+                <ul className="box-list">
                   {publishPreview.data.pending_swaps.map((swap) => (
-                    <Typography key={swap.id} component="div">
-                      {formatDate(swap.service_date)} · {roleLabels[swap.role]}: {' '}
-                      {swap.requester_name} → {swap.replacement_name}
-                    </Typography>
+                    <li key={swap.id}>{formatDate(swap.service_date)} · {roleLabels[swap.role]}: {swap.requester_name} → {swap.replacement_name}</li>
                   ))}
-                </Alert>
-              ) : null}
-              {publishPreview.data?.uncovered_before.length ? (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  <AlertTitle>Przed grafikiem pozostanie luka</AlertTitle>
-                  Nieobsadzone dni: {publishPreview.data.uncovered_before.map(formatDate).join(', ')}.
-                </Alert>
-              ) : null}
-              {publishPreview.data?.stale_changes_count ? (
-                <Alert severity="warning" sx={{ mt: 2 }}>
-                  Szkic nieaktualny: od wygenerowania zmieniło się {' '}
-                  {publishPreview.data.stale_changes_count} wpisów.
-                </Alert>
-              ) : null}
-              {publishPreview.data?.rest_violations.length ? (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  <AlertTitle>Publikacja naruszy reguły odpoczynku</AlertTitle>
+                </ul>
+              </Box>
+            ) : null}
+            {publishPreview.data?.uncovered_before.length ? (
+              <Box tone="warn" title="Przed grafikiem pozostanie luka">Nieobsadzone dni: {publishPreview.data.uncovered_before.map(formatDate).join(', ')}.</Box>
+            ) : null}
+            {publishPreview.data?.stale_changes_count ? (
+              <Box tone="warn" title={`Szkic nieaktualny: od wygenerowania zmieniło się ${publishPreview.data.stale_changes_count} wpisów.`} />
+            ) : null}
+            {publishPreview.data?.rest_violations.length ? (
+              <Box tone="bad" title="Publikacja naruszy reguły odpoczynku">
+                <ul className="box-list">
                   {publishPreview.data.rest_violations.map((violation) => (
-                    <Typography key={`${violation.member_name}-${violation.rule}`} component="div">
-                      {violation.member_name}: {violation.message} {' '}
-                      {violation.days.map(formatDate).join(', ')}
-                    </Typography>
+                    <li key={`${violation.member_name}-${violation.rule}`}>{violation.member_name}: {violation.message} {violation.days.map(formatDate).join(', ')}</li>
                   ))}
-                </Alert>
-              ) : null}
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setPublishConfirmOpen(false)} disabled={publish.isPending}>
-                Anuluj
-              </Button>
-              <Button
-                variant="contained"
-                disabled={
-                  publish.isPending
-                  || publishPreview.isLoading
-                  || publishPreview.isError
-                  || Boolean(publishPreview.data?.lost_changes.some(
-                    (item) => !changeResolutions[`${item.service_date}:${item.role}`],
-                  ))
-                }
-                onClick={() => publish.mutate({
-                  id: result.id,
-                  expectedVersion: result.version,
-                  acknowledgeLostChanges: Boolean(publishPreview.data?.lost_changes.length),
-                  acknowledgeGap: Boolean(publishPreview.data?.uncovered_before.length),
-                  acknowledgeRestViolations: Boolean(publishPreview.data?.rest_violations.length),
-                  changeResolutions,
-                })}
-              >{publish.isPending ? 'Publikuję…' : 'Tak, opublikuj'}</Button>
-            </DialogActions>
+                </ul>
+              </Box>
+            ) : null}
           </Dialog>
-        </Paper>
+        </section>
       )}
-    </Box>
+    </div>
   )
 }

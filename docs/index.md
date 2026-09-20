@@ -28,7 +28,7 @@ Instrukcja ekran po ekranie, zadanie po zadaniu.
 
 - [Pierwsze kroki](uzytkownik/pierwsze-kroki.md) - logowanie, hasło, motyw,
   nawigacja.
-- [Dyżury](uzytkownik/dyzury.md) - kto dyżuruje teraz i macierz osób × dni.
+- [Teraz i Grafik](uzytkownik/dyzury.md) - kto dyżuruje teraz i macierz osób × dni.
 - [Moja dostępność](uzytkownik/dostepnosc.md) - zgłaszanie „nie mogę”,
   „wolę nie” i „chętnie wezmę”.
 - [Zamiany](uzytkownik/zamiany.md) - prośba, akceptacja, zatwierdzenie.

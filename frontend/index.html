@@ -2,24 +2,38 @@
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#08131f" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0e13" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>Erste On-call</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>On-call</title>
     <script>
-      // Apply the MUI color scheme before first paint (dark is the default).
+      // Apply the colour scheme before first paint so the page never flashes
+      // the other theme. Dark is the default; "system" follows the OS. Kept in
+      // step with src/theme.ts, which owns the same keys after load.
       (function () {
         var scheme = 'dark'
         try {
-          var mode = localStorage.getItem('mui-mode') || 'dark'
+          var mode = localStorage.getItem('oncall-theme') || 'dark'
           scheme =
             mode === 'system'
-              ? window.matchMedia('(prefers-color-scheme: dark)').matches
-                ? 'dark'
-                : 'light'
-              : mode
+              ? window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+              : mode === 'light'
+                ? 'light'
+                : 'dark'
+          if (localStorage.getItem('oncall-density') === 'compact') {
+            document.documentElement.setAttribute('data-density', 'compact')
+          }
         } catch (error) {}
-        document.documentElement.setAttribute('data-mui-color-scheme', scheme)
+        document.documentElement.setAttribute('data-theme', scheme)
+        if (scheme === 'light') {
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', '#eef1f5')
+        }
       })()
     </script>
   </head>
@@ -28,4 +42,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { CalendarMatrix } from './CalendarMatrix'
+import { ScheduleScreen } from '../screens/Schedule'
 import { api } from '../api'
 import type { CalendarData, SwapImpact } from '../api'
 
@@ -93,7 +94,12 @@ const impactFor = (from: string, to: string): SwapImpact => ({
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('CalendarMatrix default range', () => {
+const WEEK = { starts_on: day(0), ends_on: day(6) }
+const matrix = (role: 'coordinator' | 'member' = 'coordinator', displayName = 'Koordynator') => (
+  <CalendarMatrix role={role} displayName={displayName} range={WEEK} zoom="2" />
+)
+
+describe('ScheduleScreen default range', () => {
   const publication = (ends_on: string | null) => ({
     generated_at: '2026-09-06T10:00:00Z',
     is_published: ends_on !== null,
@@ -107,10 +113,10 @@ describe('CalendarMatrix default range', () => {
     today_holiday_name: null,
   })
 
-  it('asks for the covered range, not a rigid 30 days', async () => {
+  it('asks for the covered range, not a rigid four weeks', async () => {
     const calendarCall = vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication(day(2)))
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(<ScheduleScreen role="coordinator" displayName="Koordynator" />)
 
     await waitFor(() => expect(calendarCall).toHaveBeenCalledWith(day(0), day(2)))
     // Exactly once: the query waits for the publication rather than fetching
@@ -118,13 +124,26 @@ describe('CalendarMatrix default range', () => {
     expect(calendarCall).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to the next 30 days on an empty installation (QA7-L01)', async () => {
+  it('falls back to the next four weeks on an empty installation (QA7-L01)', async () => {
     const calendarCall = vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication(null))
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(<ScheduleScreen role="coordinator" displayName="Koordynator" />)
 
-    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith(day(0), day(29)))
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith(day(0), day(27)))
     expect(calendarCall).toHaveBeenCalledTimes(1)
+  })
+
+  it('takes the range from the URL and opens the day the palette named', async () => {
+    const calendarCall = vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication(day(2)))
+    renderScreen(
+      <ScheduleScreen role="coordinator" displayName="Koordynator" />,
+      { route: `/grafik?od=${day(0)}&do=${day(6)}&dzien=${day(1)}` },
+    )
+
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith(day(0), day(6)))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveAccessibleName(expect.stringMatching(/pon/))
   })
 })
 
@@ -134,8 +153,9 @@ const startStaffChange = async (cellName: RegExp, replacement: string) => {
   const cells = await screen.findAllByRole('button', { name: cellName })
   fireEvent.click(cells[0])
   fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
-  fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Osoba' }))
-  fireEvent.click(await screen.findByRole('option', { name: replacement }))
+  const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+  const option = await screen.findByRole('option', { name: replacement })
+  fireEvent.change(picker, { target: { value: option.getAttribute('value') } })
 }
 
 describe('CalendarMatrix override confirmation', () => {
@@ -149,7 +169,7 @@ describe('CalendarMatrix override confirmation', () => {
         days: [day(1), day(2), day(3), day(4)],
       },
     ])
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
     fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
@@ -167,7 +187,7 @@ describe('CalendarMatrix override confirmation', () => {
   it('shows no warning when the override is clean', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
     fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
@@ -180,7 +200,7 @@ describe('CalendarMatrix override confirmation', () => {
 describe('CalendarMatrix staffing change (MED6-03)', () => {
   it('titles the drawer by the day and keeps the clicked person as context', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
@@ -196,17 +216,16 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     const override = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     // Click Anna's own primary cell - the very move the old UI trapped.
     const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
     fireEvent.click(annaCells[0])
     fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Osoba' }))
+    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
     // Anna is the current holder, so she is offered but disabled with a reason.
-    expect(screen.getByRole('option', { name: /Anna Kowalska — już pełni tę rolę/ }))
-      .toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(screen.getByRole('option', { name: 'Marek Nowak' }))
+    expect(screen.getByRole('option', { name: /Anna Kowalska - już pełni tę rolę/ })).toBeDisabled()
+    fireEvent.change(picker, { target: { value: 'm2' } })
     fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…/ }))
     fireEvent.click(await screen.findByRole('button', { name: /^Zmień obsadę$/ }))
 
@@ -218,7 +237,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
 
   it('spells out why the confirm step is disabled until a person is picked', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
@@ -245,14 +264,15 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
       }],
     }
     vi.spyOn(api, 'calendar').mockResolvedValue(dayOff)
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     // Anna's 11-19 cell on the day off - selectedRole becomes 'late_shift'.
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska.*11–19/ })
     fireEvent.click(cells[0])
     fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
     // The role select clamps to PRIMARY rather than a value it cannot render.
-    expect(await screen.findByRole('combobox', { name: 'Rola' })).toHaveTextContent('PRIMARY')
+    expect(await screen.findByRole('combobox', { name: 'Rola' })).toHaveValue('primary')
+    expect(screen.queryByRole('option', { name: '11–19' })).not.toBeInTheDocument()
   })
 
   it('adds a calendar event from the day drawer', async () => {
@@ -261,28 +281,26 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
       id: 'e1', title: 'Release', color: 'blue',
       starts_on: day(0), ends_on: day(0), created_at: '2026-09-06T00:00:00Z',
     })
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
-    fireEvent.change(await screen.findByRole('textbox', { name: 'Nazwa wydarzenia' }), {
+    fireEvent.click(await screen.findByRole('button', { name: 'Wydarzenie' }))
+    fireEvent.change(await screen.findByRole('textbox', { name: /^Nazwa/ }), {
       target: { value: 'Release' },
     })
+    fireEvent.click(screen.getByRole('radio', { name: 'Zielony' }))
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj wydarzenie' }))
     await waitFor(() => expect(create).toHaveBeenCalled())
     expect(create.mock.calls[0][0]).toMatchObject({
-      starts_on: day(0), ends_on: day(0), title: 'Release',
+      starts_on: day(0), ends_on: day(0), title: 'Release', color: 'green',
     })
   })
 })
 
 describe('CalendarMatrix override balance preview (MED6-04)', () => {
   const reachConfirm = async (replacement: string) => {
-    const cells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
-    fireEvent.click(cells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Osoba' }))
-    fireEvent.click(await screen.findByRole('option', { name: replacement }))
+    await startStaffChange(/Anna Kowalska.*PRIMARY/, replacement)
     fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
   }
 
@@ -291,11 +309,11 @@ describe('CalendarMatrix override balance preview (MED6-04)', () => {
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
     const impact = vi.spyOn(api, 'swapImpact')
       .mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     await reachConfirm('Marek Nowak')
 
-    expect(await screen.findByText(/WPŁYW NA BILANS/)).toBeInTheDocument()
+    expect(await screen.findByText('Wpływ na bilans')).toBeInTheDocument()
     // Coordinator override, not a swap: the losing side „traci", does not „oddaje".
     expect(screen.getByText(/traci dyżur/)).toBeInTheDocument()
     expect(screen.getByText(/przejmuje dyżur/)).toBeInTheDocument()
@@ -309,13 +327,9 @@ describe('CalendarMatrix override balance preview (MED6-04)', () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
     const impact = vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('x', 'y'))
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
-    const cells = await screen.findAllByRole('button', { name: /Marek Nowak/ })
-    fireEvent.click(cells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Osoba' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'Anna Kowalska' }))
+    await startStaffChange(/Marek Nowak/, 'Anna Kowalska')
     fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
 
     expect(await screen.findByText(/Slot był pusty/)).toBeInTheDocument()
@@ -340,16 +354,15 @@ describe('CalendarMatrix hard unavailability', () => {
   it('offers an unavailable person only as a disabled option that says why', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(withUnavailability())
     const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
     // The day drawer names the unavailability as day context.
     expect(await screen.findByText(/Marek Nowak: Nie mogę - Urlop/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zmień obsadę…' }))
-    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Osoba' }))
-    expect(screen.getByRole('option', { name: /Marek Nowak — niedostępna tego dnia/ }))
-      .toHaveAttribute('aria-disabled', 'true')
+    await screen.findByRole('combobox', { name: 'Osoba' })
+    expect(screen.getByRole('option', { name: /Marek Nowak - niedostępna tego dnia/ })).toBeDisabled()
     expect(check).not.toHaveBeenCalled()
   })
 
@@ -358,7 +371,7 @@ describe('CalendarMatrix hard unavailability', () => {
     data.availability[0].kind = 'prefer_not'
     vi.spyOn(api, 'calendar').mockResolvedValue(data)
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" />)
+    renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
     expect(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ })).toBeEnabled()

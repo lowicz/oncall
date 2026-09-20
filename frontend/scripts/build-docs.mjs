@@ -239,6 +239,29 @@ function topbarLinks({ site, toRoot, repoUrl }) {
   }
 }
 
+/** The product mark (the same E/ as src/ui/Icon.tsx and public/favicon.svg). */
+const MARK =
+  '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/>' +
+  '<path fill="#fff" d="M12 16h20v6H19v7h11v6H19v7h13v6H12z"/><path fill="#fff" d="M44 16h7L42 48h-7z"/></svg>'
+
+/**
+ * Inside the image the pages sit next to the API, so the product name the
+ * operator configured (ONCALL_APP_NAME) is one request away; the standalone
+ * site has no API and keeps the default.
+ */
+function brandScript(site, toRoot) {
+  if (site) return ''
+  return `
+      fetch('${toRoot}../api/v1/config', { credentials: 'same-origin' })
+        .then(function (response) { return response.ok ? response.json() : null })
+        .then(function (config) {
+          if (config && config.app_name) {
+            document.getElementById('brand-name').textContent = config.app_name
+          }
+        })
+        .catch(function () {})`
+}
+
 function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }) {
   const pager = [
     prev
@@ -261,7 +284,8 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#08131f" />
+    <meta name="theme-color" content="#0b0e13" />
+    <link rel="icon" href="${toRoot}assets/favicon.svg" type="image/svg+xml" />
     <meta name="robots" content="noindex,nofollow" />
     <title>${escapeHtml(title === siteTitle ? title : `${title} · ${siteTitle}`)}</title>
     <script>
@@ -271,15 +295,17 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }
       (function () {
         var scheme = 'dark'
         try {
-          var mode = localStorage.getItem('mui-mode') || 'dark'
+          var mode = localStorage.getItem('oncall-theme') || 'dark'
           scheme =
             mode === 'system'
-              ? window.matchMedia('(prefers-color-scheme: dark)').matches
-                ? 'dark'
-                : 'light'
-              : mode
+              ? window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+              : mode === 'light'
+                ? 'light'
+                : 'dark'
         } catch (error) {}
-        document.documentElement.setAttribute('data-mui-color-scheme', scheme)
+        document.documentElement.setAttribute('data-theme', scheme)
       })()
     </script>
     <link rel="stylesheet" href="${toRoot}assets/fonts.css" />
@@ -287,8 +313,8 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }
   </head>
   <body>
     <header class="topbar">
-      <a class="wordmark" href="${links.wordmark}">E<span>/</span> ON-CALL</a>
-      <span class="topbar-title">[DOKUMENTACJA]</span>
+      <a class="wordmark" href="${links.wordmark}">${MARK}<span id="brand-name">On-call</span></a>
+      <span class="topbar-title">Dokumentacja</span>
       <div class="topbar-actions">
         <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Przełącz motyw">
           Motyw
@@ -334,12 +360,12 @@ ${bodyHtml}
     <script>
       document.getElementById('theme-toggle').addEventListener('click', function () {
         var root = document.documentElement
-        var next = root.getAttribute('data-mui-color-scheme') === 'dark' ? 'light' : 'dark'
-        root.setAttribute('data-mui-color-scheme', next)
+        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+        root.setAttribute('data-theme', next)
         try {
-          localStorage.setItem('mui-mode', next)
+          localStorage.setItem('oncall-theme', next)
         } catch (error) {}
-      })
+      })${brandScript(options.site, toRoot)}
     </script>
   </body>
 </html>
@@ -376,9 +402,8 @@ const SUBSETS = /-(latin|latin-ext)-/
 
 async function buildFonts(outRoot) {
   const sources = [
-    { css: 'node_modules/@fontsource-variable/inter/index.css', dir: 'node_modules/@fontsource-variable/inter/files' },
-    { css: 'node_modules/@fontsource/ibm-plex-mono/400.css', dir: 'node_modules/@fontsource/ibm-plex-mono/files' },
-    { css: 'node_modules/@fontsource/ibm-plex-mono/600.css', dir: 'node_modules/@fontsource/ibm-plex-mono/files' },
+    { css: 'node_modules/@fontsource-variable/inter-tight/index.css', dir: 'node_modules/@fontsource-variable/inter-tight/files' },
+    { css: 'node_modules/@fontsource-variable/jetbrains-mono/index.css', dir: 'node_modules/@fontsource-variable/jetbrains-mono/files' },
   ]
   const faces = []
   const files = new Set()
@@ -465,6 +490,7 @@ async function main() {
 
   await mkdir(join(outRoot, 'assets'), { recursive: true })
   await copyFile(join(templateRoot, 'docs.css'), join(outRoot, 'assets/docs.css'))
+  await copyFile(join(appRoot, 'public/favicon.svg'), join(outRoot, 'assets/favicon.svg'))
   const fontCount = await buildFonts(outRoot)
   // GitHub Pages runs Jekyll over the artifact unless told not to, and Jekyll
   // would drop nothing here but does not need to run at all.

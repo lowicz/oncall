@@ -1,36 +1,30 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
-import { availabilityLabels, cellLabel, roleLabels, shortRoleLabels } from '../lib/labels'
-import { availabilityCodes, monthGroups, startsWeek } from '../lib/calendar'
-import { formatDate } from '../lib/dates'
+import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
+import { monthGroups, startsWeek } from '../lib/calendar'
+import { formatDate, warsawDate } from '../lib/dates'
+import { AvailabilityMark, Box, Button, ErrorState, Field, LoadingBlock, Panel, RoleMark, Select, Tag, cx } from '../ui'
 
-/** Kept in sync with .calendar-matrix in styles.css. */
-const MEMBER_COL = 150
-const DAY_COL = 44
+type Member = CalendarData['members'][number]
+type Day = CalendarData['days'][number]
+const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 
-export function DraftScheduleMatrix({ result, onChange }: {
+/** A cell the problems table asked the matrix to open. */
+export interface DraftFocus { service_date: string; assignee_name: string; role: AssignmentRole }
+
+/**
+ * The draft as a matrix. A coordinator corrects one assignment at a time
+ * from the inspector; the rest of the draft is not re-solved. Availability
+ * marks show who can be moved in before the API refuses the move.
+ */
+export function DraftScheduleMatrix({ result, onChange, focus }: {
   result: DraftSchedule
   onChange: (value: DraftSchedule) => void
+  focus?: DraftFocus | null
 }) {
-  const [selected, setSelected] = useState<{
-    member: CalendarData['members'][number]
-    day: CalendarData['days'][number]
-  } | null>(null)
+  const today = warsawDate()
+  const [selected, setSelected] = useState<{ member: Member; day: Day } | null>(null)
   const [selectedRole, setSelectedRole] = useState<AssignmentRole>('primary')
   const metadata = useQuery({
     queryKey: ['draft-matrix-metadata', result.starts_on, result.ends_on],
@@ -47,150 +41,85 @@ export function DraftScheduleMatrix({ result, onChange }: {
       setSelected(null)
     },
   })
-  const selectedAssignment = selected
-    ? result.assignments.find(
-      (item) => item.service_date === selected.day.service_date && item.role === selectedRole,
-    )
-    : undefined
-  // Coordinator corrections need the same preference markers the team calendar
-  // shows: assigning somebody who cannot or prefers not to is the main manual
-  // fix, and it has to be visible before the API rejects it.
+  const editable = result.status === 'draft'
+  const days = useMemo(() => metadata.data?.days ?? [], [metadata.data])
+  const members = metadata.data?.members ?? []
+  const months = useMemo(() => monthGroups(days), [days])
   const availabilityOf = (memberId: string, serviceDate: string) =>
-    metadata.data?.availability.find(
-      (item) => item.member_id === memberId
-        && item.starts_on <= serviceDate
-        && item.ends_on >= serviceDate,
-    )
-  const selectedAvailability = selected
-    ? availabilityOf(selected.member.id, selected.day.service_date)
+    metadata.data?.availability.find((item) => item.member_id === memberId && item.starts_on <= serviceDate && item.ends_on >= serviceDate)
+  const conflictKeys = useMemo(
+    () => new Set((result.unavailability_conflicts ?? []).map((item) => `${item.service_date}:${item.assignee_name}`)),
+    [result.unavailability_conflicts],
+  )
+  // The problems table hands over a cell to open; each focus is consumed once.
+  const consumed = useRef<DraftFocus | null>(null)
+  useEffect(() => {
+    if (!focus || !metadata.data || consumed.current === focus) return
+    const member = metadata.data.members.find((item) => item.display_name === focus.assignee_name)
+    const day = metadata.data.days.find((item) => item.service_date === focus.service_date)
+    if (!member || !day) return
+    consumed.current = focus
+    setSelected({ member, day })
+    setSelectedRole(focus.role)
+  }, [focus, metadata.data])
+
+  const selectedAssignment = selected
+    ? result.assignments.find((item) => item.service_date === selected.day.service_date && item.role === selectedRole)
     : undefined
-  const selectedBalance = selected
-    ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id)
-    : undefined
+  const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
+  const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
   const selectedCategory = selectedBalance?.[selectedRole]
   const correctionPoints = selectedRole === 'late_shift' ? 1 : selected?.day.is_day_off ? 2 : 1
-  const editable = result.status === 'draft'
-  // The draft may predate the availability entry, so the solver never saw it.
-  // The backend counts the same list for the 409 on „Przekaż do akceptacji";
-  // showing it here is what turns that rejection into something actionable.
-  const conflicts = result.unavailability_conflicts ?? []
-  const conflictPeople = new Set(conflicts.map((item) => item.assignee_name)).size
+  const cannotAssign = !selectedAssignment
+    || selectedAssignment.assignee_name === selected?.member.display_name
+    || selectedAvailability?.kind === 'unavailable'
 
   return (
-    <Box className="draft-matrix">
-      <Typography color="text.secondary">
-        Kliknij komórkę osoby i dnia, aby skorygować pojedynczy przydział w szkicu.
-        Pozostałe dni nie zostaną przeliczone. Oznaczenia N, W i C pokazują zgłoszoną
-        dostępność i preferencje, więc widać, kogo można obsadzić przy poprawce.
-      </Typography>
-      {metadata.isLoading && <CircularProgress size={24} aria-label="Ładowanie macierzy szkicu" />}
-      {(metadata.error || override.error) && (
-        <Alert severity="error">{metadata.error?.message ?? override.error?.message}</Alert>
-      )}
-      {conflicts.length > 0 && (
-        <Alert severity="error">
-          {conflictPeople === 1
-            ? '1 osoba ma dyżur w dniu zgłoszonej niedostępności'
-            : `${conflictPeople} osób ma dyżur w dniu zgłoszonej niedostępności`}
-          {': '}
-          {conflicts.slice(0, 5).map((item) => (
-            `${item.assignee_name} - ${formatDate(item.service_date)} (${roleLabels[item.role]})`
-          )).join(' · ')}
-          {conflicts.length > 5 ? ` i ${conflicts.length - 5} więcej` : ''}.
-          {editable
-            ? ' Popraw te komórki korektą w macierzy poniżej albo wygeneruj szkic ponownie.'
-            : ' Szkic nie jest już edytowalny; wygeneruj go ponownie.'}
-        </Alert>
-      )}
+    <div className="stack-sm">
+      {metadata.isLoading && <LoadingBlock label="Wczytywanie macierzy szkicu" rows={4} />}
+      {metadata.error && <ErrorState error={metadata.error} onRetry={() => metadata.refetch()} />}
       {metadata.data && (
-        <Box className="calendar-legend" aria-label="Legenda oznaczeń">
-          <span><b className="calendar-duty duty-primary">P</b> primary</span>
-          <span><b className="calendar-duty duty-secondary">S</b> secondary</span>
-          <span><b className="calendar-duty duty-late_shift">11–19</b> zmiana 11–19</span>
-          <span><b className="calendar-state state-unavailable">N</b> nie mogę</span>
-          <span><b className="calendar-state">W</b> wolę nie</span>
-          <span><b className="calendar-state state-prefer">C</b> chętnie wezmę</span>
-          <span><b className="calendar-event-key" /> wydarzenie</span>
-        </Box>
-      )}
-      {metadata.data && (
-        <Paper variant="outlined" className="calendar-scroll">
-          <table
-            className="calendar-matrix matrix-grid"
-            style={{ width: MEMBER_COL + DAY_COL * metadata.data.days.length }}
-          >
-            <colgroup>
-              <col style={{ width: MEMBER_COL }} />
-              {metadata.data.days.map((day) => (
-                <col key={day.service_date} style={{ width: DAY_COL }} />
-              ))}
-            </colgroup>
-            <caption className="visually-hidden">
-              Szkic grafiku. Osoby w wierszach, dni w kolumnach.
-            </caption>
+        <div className="mx panel" role="region" aria-label="Macierz szkicu">
+          <table className="m" data-zoom={days.length > 28 ? '8' : days.length > 14 ? '4' : '2'}>
+            <caption className="sr-only">Szkic grafiku. Osoby w wierszach, dni w kolumnach. Kliknij komórkę, aby skorygować przydział.</caption>
             <thead>
-              <tr className="month-row">
-                <th scope="col" className="member-column" />
-                {monthGroups(metadata.data.days).map((month) => (
-                  <th key={month.key} scope="col" colSpan={month.span} className="month-cell">
-                    <span className="month-label">
-                      {/* A span this narrow has no room for "sie 2026" without
-                          spilling into the next column (QA7-L08) - the bare
-                          abbreviation still says which month this is. */}
-                      {month.span >= 5
-                        ? month.label
-                        : month.span < 3
-                          ? month.shortLabel.split(' ')[0]
-                          : month.shortLabel}
-                    </span>
+              <tr className="mrow">
+                <th scope="col" className="who" />
+                {months.map((month) => (
+                  <th key={month.key} scope="col" colSpan={month.span} className="mo">
+                    {month.span >= 4 ? month.label : month.span < 3 ? month.shortLabel.split(' ')[0] : month.shortLabel}
                   </th>
                 ))}
               </tr>
-              <tr className="day-row">
-                <th scope="col" className="member-column">Osoba</th>
-                {metadata.data.days.map((day) => (
+              <tr className="drow">
+                <th scope="col" className="who">Osoba</th>
+                {days.map((day) => (
                   <th
                     key={day.service_date}
                     scope="col"
-                    className={[
-                      day.is_day_off ? 'day-off' : '',
-                      startsWeek(day) ? 'week-start' : '',
-                      day.events.length ? 'has-event' : '',
-                      day.events[0] ? `event-${day.events[0].color}` : '',
-                    ].filter(Boolean).join(' ')}
-                    title={[day.holiday_name, ...day.events.map((event) => event.title)]
-                      .filter(Boolean).join(' · ') || undefined}
+                    className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', day.service_date === today && 'td')}
+                    title={[day.holiday_name, ...day.events.map((event) => event.title)].filter(Boolean).join(' · ') || undefined}
                   >
                     <span>{day.weekday}</span>
-                    <strong>{day.service_date.slice(8)}</strong>
-                    {day.is_day_off && <small>{day.holiday_name ? 'św.' : '2X'}</small>}
+                    <b>{day.service_date.slice(8)}</b>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {metadata.data.members.map((member) => (
+              {members.map((member) => (
                 <tr key={member.id}>
-                  <th scope="row" className="member-column">{member.display_name}</th>
-                  {metadata.data.days.map((day) => {
-                    const assignments = result.assignments.filter(
-                      (item) => item.service_date === day.service_date
-                        && item.assignee_name === member.display_name,
-                    )
+                  <th scope="row" className="who"><span className="who-name" title={member.display_name}>{member.display_name}</span></th>
+                  {days.map((day) => {
+                    const assignments = result.assignments.filter((item) => item.service_date === day.service_date && item.assignee_name === member.display_name)
                     const availability = availabilityOf(member.id, day.service_date)
+                    const conflict = conflictKeys.has(`${day.service_date}:${member.display_name}`)
+                    const isSelected = selected?.day.service_date === day.service_date && selected.member.id === member.id
                     return (
-                      <td
-                        key={day.service_date}
-                        className={[
-                          day.is_day_off ? 'day-off' : '',
-                          startsWeek(day) ? 'week-start' : '',
-                          day.events.length ? 'has-event' : '',
-                          day.events[0] ? `event-${day.events[0].color}` : '',
-                        ].filter(Boolean).join(' ')}
-                      >
+                      <td key={day.service_date} className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', day.service_date === today && 'td', conflict && 'gap')}>
                         <button
                           type="button"
-                          className="calendar-cell"
+                          className={cx('cell', isSelected && 'cell-sel')}
                           disabled={!editable}
                           onClick={() => {
                             setSelected({ member, day })
@@ -199,24 +128,14 @@ export function DraftScheduleMatrix({ result, onChange }: {
                           aria-label={cellLabel(
                             member.display_name,
                             day,
-                            assignments.map((assignment) => [
-                              roleLabels[assignment.role],
-                              assignment.is_override ? 'korekta' : '',
-                            ].filter(Boolean).join(' ')),
+                            assignments.map((assignment) => [roleLabels[assignment.role], assignment.is_override ? 'korekta' : '', conflict ? 'kolizja z niedostępnością' : ''].filter(Boolean).join(' ')),
                             availability?.kind,
                           )}
                         >
                           {assignments.map((assignment) => (
-                            <span className={`calendar-duty duty-${assignment.role}`} key={assignment.role}>
-                              {shortRoleLabels[assignment.role]}
-                              {assignment.is_override && <sup>K</sup>}
-                            </span>
+                            <RoleMark key={assignment.role} role={assignment.role} change={assignment.is_override ? 'manual_override' : null} size={days.length > 28 ? 'sm' : undefined} />
                           ))}
-                          {availability && (
-                            <span className={`calendar-state state-${availability.kind}`}>
-                              {availabilityCodes[availability.kind]}
-                            </span>
-                          )}
+                          {availability && <AvailabilityMark kind={availability.kind} />}
                         </button>
                       </td>
                     )
@@ -225,55 +144,21 @@ export function DraftScheduleMatrix({ result, onChange }: {
               ))}
             </tbody>
           </table>
-        </Paper>
+        </div>
       )}
-      <Dialog open={Boolean(selected)} onClose={() => setSelected(null)} fullWidth maxWidth="xs">
-        <DialogTitle>{selected?.member.display_name} · {selected ? formatDate(selected.day.service_date) : ''}</DialogTitle>
-        <DialogContent className="calendar-dialog-content">
-          {selected?.day.is_day_off && (
-            <Alert severity="info">Dzień wolny / 2X - zmiana 11–19 nie występuje.</Alert>
-          )}
-          {selectedAvailability && (
-            <Alert severity={selectedAvailability.kind === 'unavailable' ? 'warning' : 'info'}>
-              {selected?.member.display_name}: {availabilityLabels[selectedAvailability.kind]}
-              {selectedAvailability.kind === 'unavailable' && ' - przydział zostanie odrzucony'}
-              {selectedAvailability.note ? ` (${selectedAvailability.note})` : ''}
-            </Alert>
-          )}
-          <TextField
-            select
-            fullWidth
-            label="Rola do zmiany"
-            value={selectedRole}
-            onChange={(event) => setSelectedRole(event.target.value as AssignmentRole)}
-          >
-            {(Object.keys(roleLabels) as AssignmentRole[])
-              .filter((item) => item !== 'late_shift' || !selected?.day.is_day_off)
-              .map((item) => <MenuItem key={item} value={item}>{roleLabels[item]}</MenuItem>)}
-          </TextField>
-          <Typography color="text.secondary">
-            Obecnie: {selectedAssignment?.assignee_name ?? 'brak przydziału'}
-          </Typography>
-          {selectedBalance && selectedCategory && selectedAssignment
-            && selectedAssignment.assignee_name !== selected?.member.display_name && (
-            <Alert severity="info">
-              Bilans {roleLabels[selectedRole]} osoby {selectedBalance.display_name}:{' '}
-              {selectedCategory.deviation} →{' '}
-              {Math.round((selectedCategory.deviation + correctionPoints) * 100) / 100}
-              {' '}({correctionPoints > 1 ? '+2 punkty za dzień 2X' : '+1 punkt'}).
-            </Alert>
-          )}
-          {override.error && <Alert severity="error">{override.error.message}</Alert>}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSelected(null)}>Anuluj</Button>
-          {selected && (
+      <Panel
+        open={Boolean(selected)}
+        onOpenChange={(open) => { if (!open) setSelected(null) }}
+        title={selected ? `${selected.member.display_name} · ${formatDate(selected.day.service_date)}` : ''}
+        meta={selected?.day.is_day_off && <Tag tone="late">2X · {selected.day.holiday_name ?? 'dzień wolny'}</Tag>}
+        footer={selected && (
+          <>
+            <Button onClick={() => setSelected(null)}>Anuluj</Button>
+            <span className="sp" />
             <Button
-              variant="contained"
-              disabled={!selectedAssignment
-                || selectedAssignment.assignee_name === selected.member.display_name
-                || selectedAvailability?.kind === 'unavailable'
-                || override.isPending}
+              variant="primary"
+              disabled={cannotAssign || override.isPending}
+              loading={override.isPending}
               onClick={() => override.mutate({
                 id: result.id,
                 expected_version: result.version,
@@ -281,10 +166,45 @@ export function DraftScheduleMatrix({ result, onChange }: {
                 role: selectedRole,
                 replacement_member_id: selected.member.id,
               })}
-            >{override.isPending ? 'Zapisuję…' : 'Przypisz w szkicu'}</Button>
-          )}
-        </DialogActions>
-      </Dialog>
-    </Box>
+            >
+              {override.isPending ? 'Zapisuję…' : 'Przypisz w szkicu'}
+            </Button>
+          </>
+        )}
+      >
+        {selected && (
+          <>
+            {selected.day.is_day_off && <Box tone="muted">Dzień wolny / 2X - zmiana 11–19 nie występuje.</Box>}
+            {selectedAvailability && (
+              <Box tone={selectedAvailability.kind === 'unavailable' ? 'bad' : 'muted'} title={`${selected.member.display_name}: ${availabilityLabels[selectedAvailability.kind]}`}>
+                {selectedAvailability.kind === 'unavailable' && 'Przydział zostanie odrzucony. '}
+                {selectedAvailability.note ? `„${selectedAvailability.note}”` : ''}
+              </Box>
+            )}
+            <Field label="Rola do zmiany" id="draft-override-role">
+              {({ id }) => (
+                <Select id={id} value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as AssignmentRole)}>
+                  {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
+                    <option key={item} value={item}>{roleLabels[item]}</option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <div className="kv">
+              <div className="kv-row"><dt>Obecnie</dt><dd>{selectedAssignment?.assignee_name ?? 'brak przydziału'}</dd></div>
+              <div className="kv-row"><dt>Po korekcie</dt><dd>{selectedAssignment ? selected.member.display_name : '-'}</dd></div>
+            </div>
+            {!selectedAssignment && <p className="muted small">W tej roli nikt nie ma przydziału tego dnia; korekta zmienia istniejący przydział.</p>}
+            {selectedBalance && selectedCategory && selectedAssignment && selectedAssignment.assignee_name !== selected.member.display_name && (
+              <Box tone="sig" title={`Bilans ${roleLabels[selectedRole]}: ${selectedBalance.display_name}`}>
+                {selectedCategory.deviation} → {Math.round((selectedCategory.deviation + correctionPoints) * 100) / 100}
+                {' '}({correctionPoints > 1 ? '+2 punkty za dzień 2X' : '+1 punkt'})
+              </Box>
+            )}
+            {override.error && <Box tone="bad" role="alert" title={override.error.message} />}
+          </>
+        )}
+      </Panel>
+    </div>
   )
 }

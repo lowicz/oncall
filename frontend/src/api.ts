@@ -4,6 +4,15 @@ export type AssignmentRole = 'primary' | 'secondary' | 'late_shift'
 export type RotationMode = 'hybrid' | 'daily' | 'weekly'
 export type LateShiftAnchor = 'secondary' | 'primary' | 'independent'
 
+/** Instance settings the interface reads before anyone is logged in. */
+export interface PublicConfig {
+  ldap_enabled: boolean
+  /** Product name shown in the rail, on the login screen and in the tab title. */
+  app_name: string
+  /** Optional second line under the name; empty hides it. */
+  app_subtitle: string
+}
+
 export interface ShareSession {
   label: string
   starts_on: string
@@ -634,7 +643,7 @@ async function followRun(
 
 export const api = {
   me: () => request<CurrentUser>('/api/v1/auth/me'),
-  publicConfig: () => request<{ ldap_enabled: boolean }>('/api/v1/config'),
+  publicConfig: () => request<PublicConfig>('/api/v1/config'),
   login: (username: string, password: string) =>
     request<CurrentUser>('/api/v1/auth/login', {
       method: 'POST',

@@ -1,0 +1,136 @@
+/*
+ * Design tokens for the "Control Room" interface.
+ *
+ * Every colour, font and spacing value the components use is a custom
+ * property defined here, once per colour scheme. Dark is the default; the
+ * light scheme is selected by `data-theme="light"` on <html>, which the
+ * theme module sets from the stored preference or from the system setting
+ * (see src/theme.ts and the pre-paint script in index.html).
+ *
+ * Naming: --sig* is the one signal colour (actions, today, focus, selection,
+ * load); role colours (--p, --sec, --late) never collide with it; --na/--wn/
+ * --ch are the three availability kinds; --ok/--warn/--bad are statuses.
+ */
+:root {
+  color-scheme: dark;
+
+  --font: 'Inter Tight Variable', 'Inter Tight', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --bg: #0b0e13;
+  --s1: #10141b;
+  --s2: #161b24;
+  --s3: #1d2430;
+  --line: rgba(148, 163, 184, 0.14);
+  --line2: rgba(148, 163, 184, 0.3);
+  --fg: #e6ebf2;
+  --muted: #8b97a8;
+  --dim: #5f6b7a;
+
+  --sig: #6ea8ff;
+  --sig-ink: #06172e;
+  --sig-soft: rgba(110, 168, 255, 0.14);
+  --sig-line: rgba(110, 168, 255, 0.55);
+
+  --p: #5eead4;
+  --p-bg: rgba(45, 212, 191, 0.18);
+  --sec: #c4b5fd;
+  --sec-bg: rgba(139, 92, 246, 0.2);
+  --late: #fbbf24;
+  --late-bg: rgba(245, 158, 11, 0.18);
+
+  --ok: #4ade80;
+  --ok-bg: rgba(34, 197, 94, 0.14);
+  --warn: #fbbf24;
+  --warn-bg: rgba(245, 158, 11, 0.14);
+  --bad: #f87171;
+  --bad-bg: rgba(239, 68, 68, 0.16);
+
+  --na: #f87171;
+  --na-bg: rgba(239, 68, 68, 0.22);
+  --wn: #e2c9a8;
+  --wn-bg: rgba(216, 163, 64, 0.16);
+  --ch: #4ade80;
+  --ch-bg: rgba(34, 197, 94, 0.16);
+
+  --today: rgba(110, 168, 255, 0.1);
+  --wknd: rgba(148, 163, 184, 0.06);
+  --focus: #6ea8ff;
+
+  --ev-blue: #6ea8ff;
+  --ev-green: #4ade80;
+  --ev-amber: #fbbf24;
+  --ev-red: #f87171;
+  --ev-violet: #c4b5fd;
+  --ev-teal: #5eead4;
+
+  --shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
+
+  --r-sm: 4px;
+  --r: 7px;
+  --r-md: 10px;
+  --r-lg: 12px;
+
+  --cell: 34px;
+  --rail-w: 208px;
+  --panel-w: 360px;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #eef1f5;
+  --s1: #ffffff;
+  --s2: #f6f8fa;
+  --s3: #e9edf2;
+  --line: rgba(15, 23, 42, 0.1);
+  --line2: rgba(15, 23, 42, 0.24);
+  --fg: #0f172a;
+  --muted: #55637a;
+  --dim: #8593a6;
+
+  --sig: #1d4ed8;
+  --sig-ink: #ffffff;
+  --sig-soft: rgba(29, 78, 216, 0.1);
+  --sig-line: rgba(29, 78, 216, 0.55);
+
+  --p: #0f766e;
+  --p-bg: #ccf1ea;
+  --sec: #6d28d9;
+  --sec-bg: #ede9fe;
+  --late: #b45309;
+  --late-bg: #fef3c7;
+
+  --ok: #15803d;
+  --ok-bg: #dcfce7;
+  --warn: #b45309;
+  --warn-bg: #fef3c7;
+  --bad: #b91c1c;
+  --bad-bg: #fee2e2;
+
+  --na: #b91c1c;
+  --na-bg: #fee2e2;
+  --wn: #6b5230;
+  --wn-bg: #f3e7d8;
+  --ch: #15803d;
+  --ch-bg: #dcfce7;
+
+  --today: rgba(29, 78, 216, 0.08);
+  --wknd: rgba(15, 23, 42, 0.035);
+  --focus: #1d4ed8;
+
+  --ev-blue: #1d4ed8;
+  --ev-green: #15803d;
+  --ev-amber: #b45309;
+  --ev-red: #b91c1c;
+  --ev-violet: #6d28d9;
+  --ev-teal: #0f766e;
+
+  --shadow: 0 30px 60px -30px rgba(15, 23, 42, 0.35);
+  --shadow-sm: 0 10px 30px -12px rgba(15, 23, 42, 0.25);
+}
+
+:root[data-density='compact'] {
+  --cell: 28px;
+}

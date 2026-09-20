@@ -1,21 +1,24 @@
 # Administracja
 
-Menu **Administracja** w górnym pasku zbiera ekrany używane od czasu do czasu.
-Widoczność pozycji zależy od roli - patrz [Role i dostęp](../produkt/role-i-dostep.md).
+Ekrany używane od czasu do czasu są w listwie nawigacji w sekcjach
+**Koordynacja** (import historii, raport miesięczny) i **Administracja**
+(osoby, wydarzenia, udostępnienia, audyt); na telefonie pod zakładką
+**Więcej**. Widoczność pozycji zależy od roli - patrz
+[Role i dostęp](../produkt/role-i-dostep.md).
 
 ## Osoby (`/osoby`, administrator)
 
-Tabela kont z rolą, statusem, adresem e-mail i uprawnieniami. Kliknięcie
-wiersza otwiera panel szczegółów.
+Tabela kont z rolą, statusem, adresem e-mail i uprawnieniami; pasek nad nią
+filtruje po tekście, roli i statusie, a przycisk **Nowe konto lokalne** otwiera
+formularz zakładania konta. Kliknięcie wiersza otwiera panel szczegółów z
+trzema zakładkami:
 
-W panelu ustawia się:
-
-- **dane konta** - nazwa wyświetlana, login, e-mail (opcjonalny, widoczny dla
-  zalogowanych osób na karcie dyżurnego), numer kadrowy,
-- **rolę** i to, czy konto jest aktywne,
-- **rotację** - „Wejście od” i opcjonalnie „Wyjście do”,
-- **okresy eligibility** - rola dyżurowa oraz „Od” i opcjonalne „Do”. Okresów
-  może być wiele; każdy dotyczy jednej roli.
+- **Konto** - nazwa wyświetlana, login, e-mail (opcjonalny, widoczny dla
+  zalogowanych osób na karcie dyżurnego), numer kadrowy, rola i to, czy konto
+  jest aktywne,
+- **Rotacja** - „Wejście od” i opcjonalnie „Wyjście do”,
+- **Eligibility** - okresy uprawnień: rola dyżurowa oraz „Od” i opcjonalne
+  „Do”. Okresów może być wiele; każdy dotyczy jednej roli.
 
 Stąd też generuje się **jednorazowy link** do aktywacji konta lub resetu hasła.
 Link przekaż osobie bezpiecznym kanałem.
@@ -75,9 +78,9 @@ Każdy slot liczy się z efektywnej wersji grafiku, po korektach i zamianach.
 Linki podglądowe dla osób bez konta.
 
 1. Podaj **Odbiorcę** (etykietę, po której poznasz, komu link służy).
-2. Ustaw zakres dat **Od** - **Do**.
-3. Wybierz **Ważność**: 1, 3, 7, 14 albo 30 dni.
-4. „Utwórz” i skopiuj adres.
+2. Ustaw zakres **Grafik od** - **Grafik do**.
+3. Wybierz **Ważność linku**: 1, 3, 7, 14 albo 30 dni.
+4. „Utwórz link” i skopiuj adres - jest pokazywany tylko raz.
 
 Otwarcie linku wymienia jednorazowy token na ograniczoną sesję podglądową, a
 token znika z paska adresu. Sesja widzi wyłącznie opublikowany grafik przycięty

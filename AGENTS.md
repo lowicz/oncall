@@ -61,13 +61,22 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## Frontend conventions
 
-- Form rows that mix fields with and without hints carry the `form-row` class;
-  the invariant it guarantees is documented at the bottom of
-  `frontend/src/styles.css` and covered by `src/components/FormRow.test.tsx`.
-- `@mui/x-date-pickers` must stay out of the eagerly loaded bundle
-  (`vite.config.ts` gives it its own chunk). `DateField` keeps it behind a
-  dynamic import (`DateCalendarPanel`), and `MonthField` is only reached from a
-  lazy route.
+- No component library: `frontend/src/ui/` holds the primitives (buttons,
+  fields, dialog, side panel, popover, menu, tabs, toast, badges, empty
+  states) on top of headless `@base-ui/react`; screens compose them and use
+  the class names from `src/styles.css`. Colours, fonts and sizes are the
+  custom properties in `src/tokens.css` (dark default, `data-theme="light"`,
+  `data-density="compact"`); never hard-code a colour in a component.
+- Dates and months are native inputs (`DateField`, `MonthField`, ISO values
+  in and out); selects are native `<select>`. Tests drive them with
+  `fireEvent.change`, not with option clicks.
+- The product name and subtitle come from `/api/v1/config`
+  (`ONCALL_APP_NAME`, `ONCALL_APP_SUBTITLE`) through `useBranding()`; the
+  source tree carries no organisation name.
+- The theme preference lives in `localStorage` under `oncall-theme`
+  (`dark` | `light` | `system`); `index.html` and the docs template
+  (`scripts/build-docs.mjs`) apply it before first paint with the same key,
+  and `src/theme.ts` owns it afterwards.
 - `src/test/setup.ts` pins the clock to a fixed instant. Screens hide actions
   for dates already past, so fixtures written as concrete dates need it.
 

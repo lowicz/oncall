@@ -1,19 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Box, Button, Chip, MenuItem, Paper, TextField, Typography } from '@mui/material'
-import { CalendarEvent, CalendarEventColor, CalendarEventInput, api } from '../../api'
+import { CalendarEvent, CalendarEventInput, api } from '../../api'
 import { DateField } from '../../components/DateField'
+import { EVENT_COLORS } from '../../components/CalendarMatrix'
 import { addDays, formatDate, warsawDate } from '../../lib/dates'
+import { Box, Button, EmptyState, ErrorState, Field, Input, List, ListRow, LoadingBlock, PageHeader, SectionHeading, cx } from '../../ui'
 
-const COLORS: Array<{ value: CalendarEventColor; label: string }> = [
-  { value: 'blue', label: 'Niebieski' }, { value: 'green', label: 'Zielony' },
-  { value: 'amber', label: 'Bursztynowy' }, { value: 'red', label: 'Czerwony' },
-  { value: 'violet', label: 'Fioletowy' }, { value: 'teal', label: 'Turkusowy' },
-]
-
-const emptyInput = (): CalendarEventInput => ({
-  starts_on: warsawDate(), ends_on: warsawDate(), title: '', color: 'blue',
-})
+const emptyInput = (): CalendarEventInput => ({ starts_on: warsawDate(), ends_on: warsawDate(), title: '', color: 'blue' })
 
 export function CalendarEventsPanel() {
   const today = warsawDate()
@@ -29,9 +22,7 @@ export function CalendarEventsPanel() {
   }
   const reset = () => { setEditingId(null); setForm(emptyInput()) }
   const save = useMutation({
-    mutationFn: () => editingId
-      ? api.updateCalendarEvent({ id: editingId, ...form })
-      : api.createCalendarEvent(form),
+    mutationFn: () => (editingId ? api.updateCalendarEvent({ id: editingId, ...form }) : api.createCalendarEvent(form)),
     onSuccess: () => { reset(); refresh() },
   })
   const remove = useMutation({ mutationFn: api.deleteCalendarEvent, onSuccess: refresh })
@@ -39,58 +30,83 @@ export function CalendarEventsPanel() {
     setEditingId(event.id)
     setForm({ starts_on: event.starts_on, ends_on: event.ends_on, title: event.title, color: event.color })
   }
+  const error = events.error ?? save.error ?? remove.error
 
   return (
-    <Box className="reports-section" id="wydarzenia">
-      <Box>
-        <Typography className="eyebrow">[WARSTWA INFORMACYJNA]</Typography>
-        <Typography variant="h1">Wydarzenia kalendarza</Typography>
-        <Typography color="text.secondary">
-          Wydarzenia są tylko oznaczeniem wizualnym - nie zmieniają grafiku, stawek ani raportów.
-        </Typography>
-      </Box>
-      <Paper variant="outlined" className="form-row calendar-controls">
-        <DateField id="events-from" label="Pokaż od" value={range.starts_on}
-          onChange={(starts_on) => setRange({ ...range, starts_on })} />
-        <DateField id="events-to" label="Pokaż do" value={range.ends_on}
-          onChange={(ends_on) => setRange({ ...range, ends_on })} />
-      </Paper>
-      <Paper variant="outlined" className="form-row calendar-event-admin-form">
-        <Typography variant="h2">{editingId ? 'Edytuj wydarzenie' : 'Nowe wydarzenie'}</Typography>
-        <TextField label="Nazwa" value={form.title}
-          onChange={(event) => setForm({ ...form, title: event.target.value })} />
-        <DateField id="event-start" label="Od" value={form.starts_on}
-          onChange={(starts_on) => setForm({ ...form, starts_on })} />
-        <DateField id="event-end" label="Do" value={form.ends_on}
-          onChange={(ends_on) => setForm({ ...form, ends_on })} />
-        {/* "Kolor" and the submit action share this grid cell so the button
-            lands in the same row as the fields, not on a row of its own
-            underneath them (QA7-L16). */}
-        <Box className="inline-actions" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'flex-end' }}>
-          <TextField select label="Kolor" value={form.color} sx={{ flexGrow: 1, minWidth: 140 }}
-            onChange={(event) => setForm({ ...form, color: event.target.value as CalendarEventColor })}>
-            {COLORS.map((color) => <MenuItem key={color.value} value={color.value}>{color.label}</MenuItem>)}
-          </TextField>
-          <Button variant="contained" disabled={!form.title.trim() || save.isPending}
-            onClick={() => save.mutate()}>{editingId ? 'Zapisz' : 'Dodaj'}</Button>
-          {editingId && <Button onClick={reset}>Anuluj</Button>}
-        </Box>
-      </Paper>
-      {(events.error || save.error || remove.error) && (
-        <Alert severity="error">{events.error?.message ?? save.error?.message ?? remove.error?.message}</Alert>
-      )}
-      {events.data?.map((event) => (
-        <Paper key={event.id} variant="outlined" className="calendar-event-admin-row">
-          <Chip label={event.title} className={`calendar-event-chip event-${event.color}`} />
-          <Typography>{formatDate(event.starts_on)}{event.ends_on !== event.starts_on && ` – ${formatDate(event.ends_on)}`}</Typography>
-          <Box className="inline-actions">
-            <Button size="small" onClick={() => edit(event)}>Edytuj</Button>
-            <Button size="small" color="error" disabled={remove.isPending}
-              onClick={() => remove.mutate(event.id)}>Usuń</Button>
-          </Box>
-        </Paper>
-      ))}
-      {events.data?.length === 0 && <Alert severity="info">Brak wydarzeń w wybranym zakresie.</Alert>}
-    </Box>
+    <div className="page">
+      <PageHeader
+        title="Wydarzenia"
+        sub="Wydarzenia są tylko oznaczeniem wizualnym w grafiku - nie zmieniają obsady, stawek ani raportów."
+      />
+      <div className="split">
+        <div className="stack-sm">
+          <SectionHeading title="Lista" meta={`${formatDate(range.starts_on)} – ${formatDate(range.ends_on)}`} />
+          <form className="toolbar panel" onSubmit={(event) => event.preventDefault()} aria-label="Zakres listy">
+            <DateField id="events-from" label="Pokaż od" value={range.starts_on} onChange={(starts_on) => starts_on && setRange({ ...range, starts_on })} />
+            <DateField id="events-to" label="Pokaż do" value={range.ends_on} onChange={(ends_on) => ends_on && setRange({ ...range, ends_on })} />
+          </form>
+          {events.isLoading && <LoadingBlock label="Wczytywanie wydarzeń" rows={3} />}
+          {events.error && <ErrorState error={events.error} onRetry={() => events.refetch()} />}
+          {events.data?.length === 0 && <EmptyState compact icon="event" title="Brak wydarzeń w wybranym zakresie" />}
+          {events.data && events.data.length > 0 && (
+            <List className="panel">
+              {events.data.map((event) => (
+                <ListRow
+                  key={event.id}
+                  highlight={editingId === event.id}
+                  aside={(
+                    <>
+                      <Button size="sm" onClick={() => edit(event)}>Edytuj</Button>
+                      <Button size="sm" variant="ghost" icon="trash" disabled={remove.isPending} onClick={() => remove.mutate(event.id)}>Usuń</Button>
+                    </>
+                  )}
+                >
+                  <b><i className="event-swatch" style={{ background: `var(--ev-${event.color})` }} />{event.title}</b>
+                  <small>{formatDate(event.starts_on)}{event.ends_on !== event.starts_on && ` – ${formatDate(event.ends_on)}`}</small>
+                </ListRow>
+              ))}
+            </List>
+          )}
+        </div>
+        <form
+          className="panel panel-padded stack-sm"
+          aria-label={editingId ? 'Edycja wydarzenia' : 'Nowe wydarzenie'}
+          onSubmit={(event) => { event.preventDefault(); if (form.title.trim()) save.mutate() }}
+        >
+          <SectionHeading as="h3" title={editingId ? 'Edytuj wydarzenie' : 'Nowe wydarzenie'} />
+          <Field label="Nazwa" id="event-title" required>
+            {({ id }) => <Input id={id} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />}
+          </Field>
+          <div className="frow">
+            <DateField id="event-start" label="Od" value={form.starts_on} onChange={(starts_on) => setForm({ ...form, starts_on, ends_on: starts_on > form.ends_on ? starts_on : form.ends_on })} required />
+            <DateField id="event-end" label="Do" value={form.ends_on} onChange={(ends_on) => setForm({ ...form, ends_on })} required minDate={form.starts_on} />
+          </div>
+          <Field label="Kolor" id="event-color">
+            {({ id }) => (
+              <div className="color-pick" role="radiogroup" aria-label="Kolor" id={id}>
+                {EVENT_COLORS.map((color) => (
+                  <button
+                    type="button"
+                    key={color.value}
+                    role="radio"
+                    aria-checked={form.color === color.value}
+                    aria-label={color.label}
+                    title={color.label}
+                    className={cx(form.color === color.value && 'on')}
+                    style={{ background: `var(--ev-${color.value})` }}
+                    onClick={() => setForm({ ...form, color: color.value })}
+                  />
+                ))}
+              </div>
+            )}
+          </Field>
+          {error && <Box tone="bad" role="alert" title={error.message} />}
+          <div className="row">
+            <Button type="submit" variant="primary" disabled={!form.title.trim() || save.isPending} loading={save.isPending}>{editingId ? 'Zapisz' : 'Dodaj'}</Button>
+            {editingId && <Button variant="ghost" onClick={reset}>Anuluj</Button>}
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }

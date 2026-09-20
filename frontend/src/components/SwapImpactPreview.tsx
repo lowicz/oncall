@@ -1,7 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { Alert, Box, CircularProgress, Paper, Typography } from '@mui/material'
 import { AssignmentRole, FairnessMember, SwapImpactMember, api } from '../api'
 import { formatDay } from '../lib/dates'
+import { Box, InlineError, LoadingBlock, cx } from '../ui'
+
+type Lens = keyof Pick<FairnessMember, 'primary' | 'secondary' | 'late_shift' | 'weekends' | 'holidays'>
+
+const LENSES: Array<[string, Lens]> = [
+  ['PRIMARY', 'primary'],
+  ['SECONDARY', 'secondary'],
+  ['11–19', 'late_shift'],
+  ['Weekendy', 'weekends'],
+  ['Święta', 'holidays'],
+]
 
 function delta(before: number, after: number) {
   const change = Math.round((after - before) * 100) / 100
@@ -9,46 +19,35 @@ function delta(before: number, after: number) {
   return change > 0 ? `+${change}` : String(change)
 }
 
+const dev = (value: number) => `${value > 0 ? '+' : ''}${value.toLocaleString('pl-PL', { maximumFractionDigits: 2 })}`
+
 function Side({ side, direction }: { side: SwapImpactMember; direction: string }) {
-  const categories: Array<[string, keyof Pick<FairnessMember,
-    'primary' | 'secondary' | 'late_shift' | 'weekends' | 'holidays'>]> = [
-    ['PRIMARY', 'primary'],
-    ['SECONDARY', 'secondary'],
-    ['11–19', 'late_shift'],
-    ['Weekendy', 'weekends'],
-    ['Święta', 'holidays'],
-  ]
+  const rows = LENSES.map(([label, key]) => {
+    const before = side.before[key]
+    const after = side.after[key]
+    const moved = delta(before.actual, after.actual)
+    if (!moved) return null
+    const closer = Math.abs(after.deviation) < Math.abs(before.deviation)
+    const further = Math.abs(after.deviation) > Math.abs(before.deviation)
+    return (
+      <div className="impact-row" key={key}>
+        <span>
+          <b>{label}</b>
+          <span className="muted small"> punkty {before.actual} → {after.actual} ({moved})</span>
+        </span>
+        <span className={cx('impact-d', closer ? 'impact-d-ok' : further ? 'impact-d-warn' : '')}>
+          {dev(before.deviation)} → {dev(after.deviation)}
+          <br />
+          <small>{closer ? 'bliżej równowagi' : further ? 'dalej od równowagi' : 'bez zmiany'}</small>
+        </span>
+      </div>
+    )
+  }).filter(Boolean)
   return (
-    <Box className="impact-side">
-      <Typography variant="h2">{side.display_name}</Typography>
-      <Typography color="text.secondary" className="impact-direction">{direction} dyżur</Typography>
-      <Box className="impact-rows">
-        {categories.map(([label, key]) => {
-          const before = side.before[key]
-          const after = side.after[key]
-          const moved = delta(before.actual, after.actual)
-          const closer = Math.abs(after.deviation) < Math.abs(before.deviation)
-          const further = Math.abs(after.deviation) > Math.abs(before.deviation)
-          if (!moved) return null
-          return (
-            <Box className="impact-row" key={key}>
-              <Typography className="role-label">{label}</Typography>
-              <Box className="impact-row-detail">
-                <Typography className="date-code">odchylenie {before.deviation} → {after.deviation}</Typography>
-                <Typography variant="caption" color="text.secondary">punkty {before.actual} → {after.actual} ({moved})</Typography>
-                <Typography color={closer ? 'success.main' : further ? 'warning.main' : 'text.secondary'}>
-                  {closer
-                    ? 'bliżej równowagi'
-                    : further
-                      ? 'dalej od równowagi'
-                      : 'saldo bez zmiany'}
-                </Typography>
-              </Box>
-            </Box>
-          )
-        })}
-      </Box>
-    </Box>
+    <div className="stack-sm">
+      <div className="impact-h">{side.display_name} · {direction}</div>
+      {rows.length > 0 ? rows : <span className="muted small">Saldo tej osoby się nie zmienia.</span>}
+    </div>
   )
 }
 
@@ -72,35 +71,30 @@ export function SwapImpactPreview({ serviceDate, role, replacementId, mode = 'sw
     queryFn: () => api.swapImpact(serviceDate, role, replacementId),
     enabled: Boolean(serviceDate && role && replacementId),
   })
-  const fromDirection = mode === 'override' ? 'traci' : 'oddaje'
+  const fromDirection = mode === 'override' ? 'traci dyżur' : 'oddaje dyżur'
 
-  if (impact.isLoading) {
-    return <CircularProgress size={22} aria-label="Przeliczanie wpływu zamiany" />
-  }
-  if (impact.error) return <Alert severity="error">{impact.error.message}</Alert>
+  if (impact.isLoading) return <LoadingBlock label="Przeliczanie wpływu zamiany" rows={2} />
+  if (impact.error) return <InlineError error={impact.error} />
   if (!impact.data) return null
 
   return (
-    <Paper variant="outlined" className="impact-preview">
-      <Typography className="eyebrow">[WPŁYW NA BILANS]</Typography>
-      <Typography color="text.secondary">
+    <div className="impact" aria-label="Wpływ na bilans">
+      <div className="impact-h">Wpływ na bilans</div>
+      <div className="small muted">
         {formatDay(impact.data.service_date)} to {impact.data.points === 2 ? '2 punkty (2X)' : '1 punkt'}.
-        Okno {impact.data.window_start} - {impact.data.window_end}.
-      </Typography>
-      <Box className="impact-sides">
-        <Side side={impact.data.requester} direction={fromDirection} />
-        <Side side={impact.data.replacement} direction="przejmuje" />
-      </Box>
+        {' '}Okno {impact.data.window_start} - {impact.data.window_end}.
+      </div>
+      <Side side={impact.data.requester} direction={fromDirection} />
+      <Side side={impact.data.replacement} direction="przejmuje dyżur" />
       {(impact.data.warnings?.length ?? 0) > 0 && (
-        <Alert severity="warning">
-          <Typography variant="subtitle2">Ostrzeżenia przed decyzją</Typography>
-          <ul>
+        <Box tone="warn" title="Ostrzeżenia przed decyzją">
+          <ul className="plain-list">
             {impact.data.warnings?.map((warning, index) => (
               <li key={`${warning.rule}-${index}`}>{warning.message} ({warning.member_name})</li>
             ))}
           </ul>
-        </Alert>
+        </Box>
       )}
-    </Paper>
+    </div>
   )
 }

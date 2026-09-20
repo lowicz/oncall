@@ -34,7 +34,7 @@ describe('DraftFairnessPanel criterion summary', () => {
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact())
     renderScreen(<DraftFairnessPanel result={result} />)
     expect(
-      await screen.findByText('Kryterium odbioru: rozpiętość ≤ 3 pkt na soczewce'),
+      await screen.findByText('rozpiętość ≤ 3 pkt na soczewce'),
     ).toBeInTheDocument()
     expect(screen.getByText(/SECONDARY: 10 → 3 · spełnia/)).toBeInTheDocument()
     expect(screen.getByText(/PRIMARY: 6 → 2 · spełnia/)).toBeInTheDocument()

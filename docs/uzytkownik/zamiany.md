@@ -10,27 +10,34 @@ decyzję z zamkniętymi miesiąc temu:
 
 | Grupa | Co zawiera |
 | --- | --- |
-| **Wymaga Twojej akcji** | wnioski czekające dokładnie na Ciebie |
+| **Wymaga Twojej decyzji** | wnioski czekające dokładnie na Ciebie |
 | **W toku** | otwarte wnioski czekające na kogoś innego |
-| **Zakończone** | zatwierdzone, odrzucone i wycofane |
+| **Zakończone** | zatwierdzone, odrzucone i wycofane; lista jest zwinięta, rozwija ją **Pokaż** |
 
 Liczba oczekujących spraw pojawia się także jako znacznik przy pozycji
-„Zamiany” w nawigacji.
+„Zamiany” w nawigacji. Przycisk **Szczegóły** przy wniosku otwiera panel z
+etapami sprawy, obiema osobami, notatką, wpływem na bilans i ostrzeżeniami.
 
 ## Zgłoszenie prośby
+
+Formularz „Nowa prośba” jest zawsze na górze ekranu; przycisk **Poproś o
+zamianę** na ekranie Moje otwiera go z wybranym dyżurem.
 
 1. W polu **Mój dyżur** wybierz swój nadchodzący dyżur. Lista podaje datę,
    rolę i jak daleko jest ten dzień. Dyżur kolidujący z Twoim wpisem
    „nie mogę” jest oznaczony.
-2. W polu **Zastępca** wybierz osobę. Lista zawiera wyłącznie osoby eligible i
-   dostępne, które nie mają tego dnia przeciwnej roli. Przy każdej widać jej
-   dostępność, bieżący bilans i to, czy ma już tego dnia dyżur - dzięki temu
-   dwóch kandydatów porównasz bez otwierania każdego z osobna.
+2. Pod polem pojawia się lista **Zastępca**: osoby eligible i dostępne, które
+   nie mają tego dnia przeciwnej roli, uszeregowane od najlepszego kandydata.
+   Przy każdej widać jej dostępność, odchylenie od należnego udziału i to, czy
+   ma już tego dnia dyżur - dzięki temu dwóch kandydatów porównasz bez
+   otwierania każdego z osobna. Kliknięcie wybiera osobę.
    - osoba oznaczona **„nie można: …”** jest zablokowana regułą twardą i nie da
      się jej wybrać,
-   - oznaczenie **„poprawia bilans”** mówi, że zamiana zmniejszy nierówność.
-3. Opcjonalnie dopisz **Notatkę**.
-4. Pod formularzem zobaczysz **podgląd wpływu**: ile punktów przechodzi między
+   - oznaczenie **„poprawia bilans”** mówi, że zamiana zmniejszy nierówność,
+   - oznaczenie **„dzieli blok dni wolnych”** zapowiada ostrzeżenie dla
+     koordynatora.
+3. Opcjonalnie dopisz **Notatkę dla zastępcy**.
+4. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
    Wami.
 5. „Wyślij prośbę”.
 

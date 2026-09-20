@@ -38,3 +38,23 @@ if (!window.matchMedia) {
     dispatchEvent: () => false,
   })
 }
+
+// The jsdom build vitest 3 loads here exposes no `localStorage` on the test
+// window; the theme and density preferences are stored there, so give tests an
+// in-memory store with the same surface and clear it between tests.
+if (!window.localStorage) {
+  const store = new Map<string, string>()
+  const memoryStorage: Storage = {
+    get length() { return store.size },
+    clear: () => store.clear(),
+    getItem: (key) => store.get(key) ?? null,
+    key: (index) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key) => { store.delete(key) },
+    setItem: (key, value) => { store.set(key, String(value)) },
+  }
+  Object.defineProperty(window, 'localStorage', { value: memoryStorage, configurable: true })
+}
+
+afterEach(() => {
+  window.localStorage.clear()
+})

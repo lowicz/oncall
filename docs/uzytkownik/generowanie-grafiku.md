@@ -25,7 +25,7 @@ Formularz „Nowy szkic” ma pola **Od** i **Do** oraz przycisk „Utwórz szki
 - Zakres jednodniowy jest przyjmowany, ale ekran ostrzeże, że na jednym dniu
   nie ma czego bilansować.
 
-Nad formularzem widać zapisane ustawienia (tryb rotacji i powiązanie `11–19`)
+Pod polami widać zapisane ustawienia (tryb rotacji i powiązanie `11–19`)
 oraz informację, jeśli masz niezapisane zmiany w ustawieniach poniżej.
 
 ## W trakcie liczenia
@@ -44,20 +44,29 @@ uruchamiaj go drugi raz**.
 
 ## Wynik
 
-Szkic pokazuje się jako macierz osób × dni, w tej samej konwencji co
-opublikowany grafik: nagłówki zachowują dzień tygodnia, święto i 2X.
+Sekcja „Szkice” wypisuje istniejące szkice; kliknięcie otwiera wynik. Wynik ma
+trzy części:
 
-Obok macierzy jest **prognoza sprawiedliwości**: dla każdej osoby bilans przed
-zakresem, bilans po uwzględnieniu szkicu i zmiana. Przelicza się po każdej
-Twojej korekcie, więc wpływ decyzji widzisz przed przekazaniem grafiku dalej.
+- **Macierz szkicu** - osoby × dni, w tej samej konwencji co opublikowany
+  grafik: nagłówki zachowują dzień tygodnia, święto i 2X.
+- **Problemy** - tabela wszystkiego, co wymaga uwagi przed publikacją: dyżury
+  w dniu „nie mogę”, złamane reguły twarde, ostrzeżenia solvera, luki przed
+  szkicem i informacja, że szkic jest nieaktualny. Przełącznik **wg osoby** /
+  **wg reguły** grupuje wiersze, a przycisk **Popraw** przy wierszu otwiera
+  właściwą komórkę macierzy. Pusta tabela znaczy, że szkic nie ma otwartych
+  problemów.
+- **Wpływ szkicu na sprawiedliwość** - dla każdej osoby bilans przed zakresem,
+  bilans po uwzględnieniu szkicu i zmiana. Przelicza się po każdej Twojej
+  korekcie, więc wpływ decyzji widzisz przed przekazaniem grafiku dalej.
 
-Nagłówek podaje status solvera (`CP-SAT: OPTIMAL` i podobne). Status inny niż
-pełne rozwiązanie jest objaśniony słowami - najczęściej znaczy, że budżet czasu
-był za krótki albo że reguły twarde są sprzeczne z obsadą.
+Nagłówek wyniku podaje status solvera (`CP-SAT: OPTIMAL` i podobne) i etapy
+cyklu szkicu. Status inny niż pełne rozwiązanie jest objaśniony słowami -
+najczęściej znaczy, że budżet czasu był za krótki albo że reguły twarde są
+sprzeczne z obsadą.
 
 ### Ręczna korekta komórki
 
-Kliknij komórkę, wybierz rolę i osobę, zapisz. Korekta:
+Kliknij komórkę, w panelu dnia wybierz rolę i osobę, zapisz. Korekta:
 
 - nie regeneruje pozostałych dni,
 - podlega regułom twardym,
@@ -66,8 +75,8 @@ Kliknij komórkę, wybierz rolę i osobę, zapisz. Korekta:
 
 ### Porównanie szkiców
 
-Jeśli masz więcej niż jeden szkic, możesz je zestawić i porównać metryki, zanim
-wybierzesz ten do publikacji.
+Jeśli masz więcej niż jeden szkic, sekcja rozwijana pod listą szkiców zestawia
+je i porównuje metryki, zanim wybierzesz ten do publikacji.
 
 ## Ustawienia generowania
 
@@ -97,14 +106,16 @@ Szkic ──► Do akceptacji ──► Opublikowany
 ```
 
 1. **Przekaż do akceptacji** - treść szkicu zostaje zamrożona.
-2. **Opublikuj** - wymaga jawnego potwierdzenia. Publikacja sprawdza pełne
-   pokrycie zakresu; brak obsady któregokolwiek dnia zatrzymuje operację.
+2. **Opublikuj grafik…** - otwiera okno z podsumowaniem tego, co się zmieni,
+   i wymaga jawnego potwierdzenia. Publikacja sprawdza pełne pokrycie zakresu;
+   brak obsady któregokolwiek dnia zatrzymuje operację.
 3. Grafik staje się widoczny dla wszystkich, rozchodzą się powiadomienia, a
    kanały ICS dostają aktualizacje.
 
-Jeśli w międzyczasie ktoś zmienił grafik, ekran pokaże, co się zmieniło, i
-poprosi o potwierdzenie - dopiero wtedy publikuje. Szkic można też cofnąć z
-„Do akceptacji” z powrotem do „Szkic” albo usunąć.
+Jeśli w międzyczasie ktoś zmienił grafik, okno publikacji wypisze każdą taką
+zmianę z polem **Decyzja**, w którym wybierasz, która wersja ma obowiązywać -
+dopiero wtedy publikuje. Szkic można też cofnąć przyciskiem **Wróć do szkicu**
+albo usunąć z listy szkiców.
 
 Publikacja zastępuje wyłącznie te opublikowane grafiki, które w całości mieszczą
 się w nowym zakresie; częściowe nakładanie rozstrzyga się per slot, a pokrycie
