@@ -1,8 +1,9 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from sqlalchemy import func, select
 
 from oncall.audit import record_audit
+from oncall.domain.clock import as_utc, business_today
 from oncall.models import AuditEvent, UserRole
 from tests.conftest import (
     create_member,
@@ -43,12 +44,14 @@ async def test_record_audit_system_actor(db) -> None:
     assert event.actor_user_id is None
 
 
-async def test_login_success_and_failure_are_audited(client, db) -> None:
+async def test_login_success_and_failure_are_audited(client, db, frozen_clock) -> None:
     await create_user(db, "anna")
     failed = await client.post(
         "/api/v1/auth/login", json={"username": "anna", "password": "wrong-password"}
     )
     assert failed.status_code == 401
+    failed_at = frozen_clock.instant
+    frozen_clock.advance(timedelta(minutes=1))
     await login(client, "anna")
     events = await _events(db)
     actions = [event.action for event in events]
@@ -56,10 +59,14 @@ async def test_login_success_and_failure_are_audited(client, db) -> None:
     assert "auth.login" in actions
     failure = next(event for event in events if event.action == "auth.login_failed")
     assert failure.actor_label == "anna"
+    success = next(event for event in events if event.action == "auth.login")
+    # Each row is stamped with the clock's instant at the moment it was written.
+    assert as_utc(failure.occurred_at) == failed_at
+    assert as_utc(success.occurred_at) == frozen_clock.instant
 
 
 async def test_override_and_share_link_flow_are_audited(client, db) -> None:
-    today = date.today()
+    today = business_today()
     anna = await create_user(db, "anna", email="a@x.com", display_name="Anna Kowalska")
     marek = await create_user(db, "marek", email="m@x.com", display_name="Marek Nowak")
     ola = await create_user(db, "ola", email="o@x.com", display_name="Ola Wiśniewska")
@@ -156,7 +163,7 @@ async def test_audit_search_signals_that_matching_logins_are_hidden(client, db) 
 
 
 async def test_availability_and_policy_changes_are_audited(client, db) -> None:
-    today = date.today()
+    today = business_today()
     anna = await create_user(db, "anna", display_name="Anna Kowalska")
     await create_member(db, anna, display_name="Anna Kowalska")
     await login(client, "anna")

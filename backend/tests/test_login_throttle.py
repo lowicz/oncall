@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import func, select
@@ -5,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall import auth
 from oncall.domain.access.models import LOGIN_ATTEMPTS_PER_IP
+from oncall.domain.clock import as_utc
 from oncall.models import AuditEvent
 from tests.conftest import TEST_PASSWORD, create_user
 
@@ -188,7 +191,7 @@ async def test_an_existing_account_with_the_wrong_password_hashes_only_once(
 
 @pytest.mark.anyio
 async def test_throttled_requests_write_one_aggregated_audit_row(
-    client: AsyncClient, db: AsyncSession
+    client: AsyncClient, db: AsyncSession, frozen_clock
 ) -> None:
     """QA7 par. 8, E1 review: one flood against a single login wrote 13 422
     `auth.throttled` rows in 30 s; each rejected request must instead update
@@ -196,11 +199,14 @@ async def test_throttled_requests_write_one_aggregated_audit_row(
     await create_user(db, "flooded.user")
 
     for _ in range(5):
+        frozen_clock.advance(timedelta(seconds=1))
         await client.post(
             "/api/v1/auth/login",
             json={"username": "flooded.user", "password": "wrong-password"},
         )
+    last_failure_at = frozen_clock.instant
     for _ in range(4):
+        frozen_clock.advance(timedelta(seconds=1))
         response = await client.post(
             "/api/v1/auth/login",
             json={"username": "flooded.user", "password": "wrong-password"},
@@ -217,6 +223,18 @@ async def test_throttled_requests_write_one_aggregated_audit_row(
     ).all()
     assert len(rows) == 1
     assert rows[0].details["count"] == 4
+    # The rolling rows move to the clock's instant of their latest request.
+    assert as_utc(rows[0].occurred_at) == frozen_clock.instant
+    failures = (
+        await db.scalars(
+            select(AuditEvent).where(
+                AuditEvent.action == "auth.login_failed",
+                AuditEvent.actor_label == "flooded.user",
+            )
+        )
+    ).all()
+    assert len(failures) == 1
+    assert as_utc(failures[0].occurred_at) == last_failure_at
 
     total = await db.scalar(
         select(func.count()).select_from(AuditEvent).where(AuditEvent.action == "auth.throttled")

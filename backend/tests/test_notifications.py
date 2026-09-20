@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
+from oncall.domain.clock import as_utc
 from oncall.models import NotificationOutbox, NotificationStatus
 from oncall.notifications.base import (
     NotificationDisabled,
@@ -41,7 +42,7 @@ async def test_retry_delay_grows_exponentially_and_caps() -> None:
     assert retry_delay(10) == timedelta(hours=1)
 
 
-async def test_enqueue_and_drain_sends_message(db) -> None:
+async def test_enqueue_and_drain_sends_message(db, frozen_clock) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider()
@@ -50,20 +51,19 @@ async def test_enqueue_and_drain_sends_message(db) -> None:
     assert provider.sent[0].recipient == "anna@example.com"
     row = await db.scalar(select(NotificationOutbox))
     assert row.status == NotificationStatus.sent
-    assert row.sent_at is not None
+    assert as_utc(row.sent_at) == frozen_clock.instant
 
 
-async def test_temporary_error_retries_with_backoff(db) -> None:
+async def test_temporary_error_retries_with_backoff(db, frozen_clock) -> None:
     await enqueue_notification(db, message())
     await db.commit()
-    now = datetime.now(UTC)
     provider = FakeProvider(error=TemporaryNotificationError("połączenie odrzucone"))
-    stats = await drain_outbox(db, {"email": provider}, now=now)
+    stats = await drain_outbox(db, {"email": provider})
     assert stats["retried"] == 1
     row = await db.scalar(select(NotificationOutbox))
     assert row.status == NotificationStatus.pending
     assert row.attempts == 1
-    assert row.next_attempt_at == now + retry_delay(1)
+    assert as_utc(row.next_attempt_at) == frozen_clock.instant + retry_delay(1)
     assert "odrzucone" in row.last_error
 
 
@@ -118,14 +118,17 @@ async def test_dedup_key_prevents_duplicates(db) -> None:
     assert count == 1
 
 
-async def test_drain_respects_next_attempt_time(db) -> None:
+async def test_drain_respects_next_attempt_time(db, frozen_clock) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider(error=TemporaryNotificationError("down"))
-    now = datetime.now(UTC)
-    await drain_outbox(db, {"email": provider}, now=now)
-    stats = await drain_outbox(db, {"email": FakeProvider()}, now=now + timedelta(seconds=30))
-    assert stats["sent"] == 0
+    await drain_outbox(db, {"email": provider})
+
+    frozen_clock.advance(timedelta(seconds=30))
+    assert (await drain_outbox(db, {"email": FakeProvider()}))["sent"] == 0
+
+    frozen_clock.advance(retry_delay(1))
+    assert (await drain_outbox(db, {"email": FakeProvider()}))["sent"] == 1
 
 
 async def test_unexpected_provider_error_is_retried(db) -> None:

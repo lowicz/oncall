@@ -3,12 +3,14 @@ moved into the domain: statuses, messages, headers, and what stays stored
 after a refusal."""
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select, update
 
 from oncall.auth import hash_password, token_hash
+from oncall.config import get_settings
+from oncall.domain.clock import as_utc
 from oncall.ldap_auth import (
     DirectoryIdentityError,
     DirectoryUnavailableError,
@@ -35,8 +37,6 @@ from tests.conftest import (
 )
 from tests.test_ldap_auth import FakeDirectory, directory_identity
 
-TODAY = date.today()
-
 
 def assert_error(response, status_code: int, detail) -> None:
     assert (response.status_code, response.json()["detail"]) == (status_code, detail)
@@ -55,7 +55,8 @@ def no_directory():
     yield
 
 
-async def test_share_link_lifecycle(client, db) -> None:
+async def test_share_link_lifecycle(client, db, frozen_clock) -> None:
+    today = frozen_clock.business_today()
     admin = await create_user(db, "admin", role=UserRole.admin, display_name="Ada Admin")
     await login(client, "admin")
 
@@ -63,8 +64,8 @@ async def test_share_link_lifecycle(client, db) -> None:
         "/api/v1/admin/share-links",
         json={
             "label": "Piotr",
-            "starts_on": TODAY.isoformat(),
-            "ends_on": (TODAY + timedelta(days=3)).isoformat(),
+            "starts_on": today.isoformat(),
+            "ends_on": (today + timedelta(days=3)).isoformat(),
             "expires_days": 2,
         },
     )
@@ -72,11 +73,8 @@ async def test_share_link_lifecycle(client, db) -> None:
     body = created.json()
     assert set(body) == {"id", "url", "expires_at"}
     raw = body["url"].rsplit("/share/", 1)[1]
-    expires_at = datetime.fromisoformat(body["expires_at"])
-    assert (
-        timedelta(days=1, hours=23)
-        < expires_at.replace(tzinfo=UTC) - datetime.now(UTC)
-        <= timedelta(days=2)
+    assert as_utc(datetime.fromisoformat(body["expires_at"])) == frozen_clock.instant + timedelta(
+        days=2
     )
     link = await db.scalar(select(ShareLink))
     assert (link.id, link.created_by_id, link.token_hash) == (
@@ -88,7 +86,7 @@ async def test_share_link_lifecycle(client, db) -> None:
     # Pre-existing: the audit entry is written before the link has an id.
     assert (event.entity_id, event.summary) == (
         None,
-        f"Utworzono link viewer dla „Piotr” ({TODAY} – {TODAY + timedelta(days=3)}, ważny 2 dni)",
+        f"Utworzono link viewer dla „Piotr” ({today} – {today + timedelta(days=3)}, ważny 2 dni)",
     )
 
     listed = (await client.get("/api/v1/admin/share-links")).json()
@@ -116,11 +114,13 @@ async def test_share_link_lifecycle(client, db) -> None:
         assert exchanged.json() == {
             "display_name": "Piotr",
             "role": "viewer",
-            "starts_on": TODAY.isoformat(),
-            "ends_on": (TODAY + timedelta(days=3)).isoformat(),
+            "starts_on": today.isoformat(),
+            "ends_on": (today + timedelta(days=3)).isoformat(),
             "expires_at": exchanged.json()["expires_at"],
         }
         assert "oncall_session" in exchanged.headers["set-cookie"]
+        session_seconds = get_settings().session_ttl_hours * 3600
+        assert f"Max-Age={session_seconds}" in exchanged.headers["set-cookie"]
         assert_error(
             await viewer.post("/api/v1/share/exchange", json={"token": raw}),
             410,
@@ -158,18 +158,20 @@ async def test_share_link_lifecycle(client, db) -> None:
     ]
 
 
-async def test_an_expired_or_revoked_link_is_gone(client, db) -> None:
+async def test_an_expired_or_revoked_link_is_gone(client, db, frozen_clock) -> None:
+    today = frozen_clock.business_today()
     admin = await create_user(db, "admin", role=UserRole.admin)
+    now = frozen_clock.instant
     for label, expires_at, revoked_at in (
-        ("stary", datetime.now(UTC) - timedelta(minutes=1), None),
-        ("odwolany", datetime.now(UTC) + timedelta(days=1), datetime.now(UTC)),
+        ("stary", now - timedelta(minutes=1), None),
+        ("odwolany", now + timedelta(days=1), now),
     ):
         db.add(
             ShareLink(
                 token_hash=token_hash(label * 5),
                 label=label,
-                starts_on=TODAY,
-                ends_on=TODAY,
+                starts_on=today,
+                ends_on=today,
                 expires_at=expires_at,
                 revoked_at=revoked_at,
                 created_by_id=admin.id,
@@ -184,13 +186,14 @@ async def test_an_expired_or_revoked_link_is_gone(client, db) -> None:
         )
 
 
-async def test_calendar_feeds(client, db) -> None:
+async def test_calendar_feeds(client, db, frozen_clock) -> None:
+    today = frozen_clock.business_today()
     admin = await create_user(db, "admin", role=UserRole.admin)
     anna = await create_user(db, "anna", display_name="Anna Kowalska")
     await create_member(db, anna, display_name="Anna Kowalska")
     await create_user(db, "gosc", display_name="Gość")
     await create_published_schedule(
-        db, starts_on=TODAY - timedelta(days=1), days=5, primary=["Anna Kowalska"]
+        db, starts_on=today - timedelta(days=1), days=5, primary=["Anna Kowalska"]
     )
 
     await login(client, "gosc")
@@ -253,9 +256,9 @@ async def test_calendar_feeds(client, db) -> None:
     link = ShareLink(
         token_hash="l" * 64,
         label="Piotr",
-        starts_on=TODAY,
-        ends_on=TODAY + timedelta(days=1),
-        expires_at=datetime.now(UTC) + timedelta(days=1),
+        starts_on=today,
+        ends_on=today + timedelta(days=1),
+        expires_at=frozen_clock.instant + timedelta(days=1),
         created_by_id=admin.id,
     )
     db.add(link)
@@ -274,20 +277,20 @@ async def test_calendar_feeds(client, db) -> None:
     shared = await client.get(f"/calendar/feed/{link_raw}.ics")
     assert shared.status_code == 200
     assert "X-WR-CALNAME:Erste On-call · Piotr" in shared.text
-    await db.execute(update(ShareLink).values(revoked_at=datetime.now(UTC)))
+    await db.execute(update(ShareLink).values(revoked_at=frozen_clock.instant))
     await db.commit()
     assert_error(
         await client.get(f"/calendar/feed/{link_raw}.ics"), 404, "Link wygasł lub został odwołany"
     )
 
 
-async def test_account_links(client, db) -> None:
+async def test_account_links(client, db, frozen_clock) -> None:
     fresh = await create_user(db, "nowa", display_name="Nowa Osoba")
     fresh.password_hash = None
     ldap = await create_user(db, "katalog")
     ldap.auth_source = AuthSource.ldap
     await db.commit()
-    now = datetime.now(UTC)
+    now = frozen_clock.instant
 
     def issue(user, kind, raw, **values):
         db.add(
@@ -447,7 +450,7 @@ async def test_login_refusals_keep_their_records(client, db) -> None:
     )
 
 
-async def test_successful_logins_and_own_account(client, db) -> None:
+async def test_successful_logins_and_own_account(client, db, frozen_clock) -> None:
     user = await create_user(db, "ola", display_name="Ola Nowak", email="ola@example.com")
     await create_member(db, user, display_name="Ola Nowak")
     response = await client.post(
@@ -484,7 +487,7 @@ async def test_successful_logins_and_own_account(client, db) -> None:
             user_id=reset_user.id,
             kind=AccountTokenKind.password_reset,
             token_hash=token_hash("r" * 30),
-            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            expires_at=frozen_clock.instant + timedelta(hours=1),
         )
     )
     await db.commit()

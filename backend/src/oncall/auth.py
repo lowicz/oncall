@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 import anyio
@@ -15,6 +15,7 @@ from sqlalchemy.orm import joinedload
 from oncall.config import get_settings
 from oncall.database import get_db
 from oncall.domain.clock import as_utc as as_utc
+from oncall.domain.clock import utc_now
 from oncall.domain.sharing.models import link_is_active
 from oncall.models import Session, ShareLink, User, UserRole
 
@@ -50,12 +51,12 @@ def token_hash(token: str) -> str:
 
 
 def share_link_active(link: ShareLink, now: datetime | None = None) -> bool:
-    return link_is_active(link.revoked_at, link.expires_at, now or datetime.now(UTC))
+    return link_is_active(link.revoked_at, link.expires_at, now or utc_now())
 
 
 def set_session_cookie(response: Response, raw_token: str, expires_at: datetime) -> None:
     settings = get_settings()
-    max_age = max(0, int((expires_at - datetime.now(UTC)).total_seconds()))
+    max_age = max(0, int((expires_at - utc_now()).total_seconds()))
     response.set_cookie(
         settings.session_cookie_name,
         raw_token,
@@ -79,7 +80,7 @@ async def get_current_session(
         .options(joinedload(Session.user), joinedload(Session.share_link))
         .where(
             Session.token_hash == hashed_token,
-            Session.expires_at > datetime.now(UTC),
+            Session.expires_at > utc_now(),
         )
     )
     session = await db.scalar(query)

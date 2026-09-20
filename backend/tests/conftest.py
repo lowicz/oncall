@@ -10,6 +10,8 @@ from sqlalchemy.pool import StaticPool
 
 from oncall.auth import hash_password
 from oncall.database import SqlAlchemyUnitOfWork, get_db
+from oncall.domain import clock
+from oncall.domain.clock import business_today, utc_now
 from oncall.main import app
 from oncall.models import (
     Assignment,
@@ -22,8 +24,13 @@ from oncall.models import (
     User,
     UserRole,
 )
+from tests.frozen_clock import FrozenClock
 
 TEST_PASSWORD = "test-password-123"
+
+#: Where a frozen test starts unless it moves itself: an ordinary working
+#: morning, the same day in Warsaw and in UTC.
+FROZEN_AT = datetime(2026, 9, 15, 10, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -68,6 +75,15 @@ async def client(db_factory: async_sessionmaker[AsyncSession]) -> AsyncIterator[
     app.dependency_overrides.clear()
 
 
+@pytest.fixture
+def frozen_clock(monkeypatch: pytest.MonkeyPatch) -> FrozenClock:
+    """Every `utc_now()` and `business_today()` in the application answers
+    from this clock for the duration of the test."""
+    frozen = FrozenClock(FROZEN_AT)
+    monkeypatch.setattr(clock, "system_clock", frozen)
+    return frozen
+
+
 async def create_user(
     db: AsyncSession,
     username: str,
@@ -101,7 +117,7 @@ async def create_member(
     member = TeamMember(
         user_id=user.id,
         display_name=display_name,
-        active_from=active_from or (date.today() - timedelta(days=365)),
+        active_from=active_from or (business_today() - timedelta(days=365)),
     )
     member.eligibility = [
         Eligibility(role=role, starts_on=member.active_from) for role in AssignmentRole
@@ -129,7 +145,7 @@ async def create_published_schedule(
         starts_on=starts_on,
         ends_on=starts_on + timedelta(days=days - 1),
         status=ScheduleStatus.published,
-        published_at=datetime.now(UTC),
+        published_at=utc_now(),
     )
     for offset in range(days):
         service_date = starts_on + timedelta(days=offset)
@@ -201,7 +217,7 @@ async def staged_draft(
     """What `generate_draft` leaves in the session: a draft row the finished
     run points at. Tests that fake the generator still need a real one, or the
     run's foreign key has nothing to name."""
-    first = starts_on or date.today() + timedelta(days=1)
+    first = starts_on or business_today() + timedelta(days=1)
     schedule = Schedule(
         name="Szkic",
         starts_on=first,

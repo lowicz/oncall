@@ -1,11 +1,12 @@
 import asyncio
 import os
-from datetime import UTC, date, datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy import select
 
 from oncall.auth import hash_password
 from oncall.database import SessionFactory
+from oncall.domain.clock import business_today, utc_now
 from oncall.models import (
     Assignment,
     AssignmentRole,
@@ -74,7 +75,7 @@ async def seed_demo() -> None:
             member = TeamMember(
                 user_id=member_users[index].id,
                 display_name=name,
-                active_from=date.today() - timedelta(days=365),
+                active_from=business_today() - timedelta(days=365),
             )
             member.eligibility = [
                 Eligibility(role=AssignmentRole.primary, starts_on=member.active_from),
@@ -84,13 +85,13 @@ async def seed_demo() -> None:
             members.append(member)
             db.add(member)
 
-        starts_on = date.today()
+        starts_on = business_today()
         schedule = Schedule(
             name="Demo schedule",
             starts_on=starts_on,
             ends_on=starts_on + timedelta(days=13),
             status=ScheduleStatus.published,
-            published_at=datetime.now(UTC),
+            published_at=utc_now(),
         )
         for offset in range(14):
             service_date = starts_on + timedelta(days=offset)

@@ -2,8 +2,9 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
+from oncall.domain.clock import utc_now
 from oncall.models import AssignmentRole
 
 #: Role names as the team reads them, mirroring `frontend/src/lib/labels.ts`.
@@ -55,7 +56,7 @@ def _fold(line: str) -> list[str]:
 
 def build_ics(events: list[IcsEvent], *, calendar_name: str) -> str:
     """Render a VCALENDAR with one all-day VEVENT per assignment."""
-    now = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    now = utc_now().strftime("%Y%m%dT%H%M%SZ")
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",

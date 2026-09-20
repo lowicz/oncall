@@ -1,10 +1,11 @@
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import token_hash
+from oncall.domain.clock import utc_now
 from oncall.models import AccountToken, AccountTokenKind, User
 
 
@@ -16,7 +17,7 @@ async def issue_account_token(
     lifetime: timedelta,
 ) -> tuple[str, datetime]:
     """Issue one raw token and invalidate older unused tokens of the same kind."""
-    now = datetime.now(UTC)
+    now = utc_now()
     await db.execute(
         update(AccountToken)
         .where(
