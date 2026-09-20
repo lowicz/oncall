@@ -24,6 +24,15 @@ describe('parseDayQuery', () => {
     expect(parseDayQuery('24 xyz', today)).toBeNull()
     expect(parseDayQuery('', today)).toBeNull()
   })
+
+  it('rejects impossible calendar dates for every input shape', () => {
+    expect(parseDayQuery('13.13', today)).toBeNull()
+    expect(parseDayQuery('31.02', today)).toBeNull()
+    expect(parseDayQuery('2026-13-13', today)).toBeNull()
+    expect(parseDayQuery('29.02.2026', today)).toBeNull()
+    expect(parseDayQuery('30 lut', today)).toBeNull()
+    expect(parseDayQuery('29.02.2028', today)).toBe('2028-02-29')
+  })
 })
 
 function Location() {

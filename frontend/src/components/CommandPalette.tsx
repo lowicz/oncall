@@ -18,22 +18,29 @@ interface Item {
 
 const MONTHS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
 
+function isoDay(year: number, month: number, day: number): string | null {
+  if (month < 1 || month > 12 || day < 1) return null
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  if (day > daysInMonth) return null
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 /** "2026-09-24", "24-09-2026", "24 wrz" or "24.09" as an ISO date, or null. */
 export function parseDayQuery(query: string, today = new Date()): string | null {
   const text = query.trim().toLowerCase()
   let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
-  if (match) return text
+  if (match) return isoDay(Number(match[1]), Number(match[2]), Number(match[3]))
   match = /^(\d{1,2})[-.](\d{1,2})(?:[-.](\d{4}))?$/.exec(text)
   if (match) {
     const year = match[3] ? Number(match[3]) : today.getFullYear()
-    return `${year}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
+    return isoDay(year, Number(match[2]), Number(match[1]))
   }
   match = /^(\d{1,2})\s+([a-ząćęłńóśźż]{3})[a-ząćęłńóśźż]*(?:\s+(\d{4}))?$/.exec(text)
   if (match) {
     const month = MONTHS.indexOf(match[2])
     if (month < 0) return null
     const year = match[3] ? Number(match[3]) : today.getFullYear()
-    return `${year}-${String(month + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`
+    return isoDay(year, month + 1, Number(match[1]))
   }
   return null
 }
