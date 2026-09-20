@@ -7,11 +7,12 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.coverage import coverage_window, is_day_off
+from oncall.domain.clock import business_today
 from oncall.models import AssignmentRole, ScheduleStatus, UserRole
 from oncall.workdays import polish_holidays
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
-TODAY = date.today()
+TODAY = business_today()
 
 
 async def _team(db: AsyncSession) -> None:

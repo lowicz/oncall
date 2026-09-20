@@ -1,10 +1,11 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from oncall.domain.clock import business_today
 from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
 from oncall.models import (
     Assignment,
@@ -31,7 +32,7 @@ from tests.conftest import create_member, create_published_schedule
 async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
     db: AsyncSession,
 ) -> None:
-    start = date.today() + timedelta(days=(7 - date.today().weekday()) % 7 or 7)
+    start = business_today() + timedelta(days=(7 - business_today().weekday()) % 7 or 7)
     members = {}
     for username, name in (
         ("anna", "Anna Kowalska"),

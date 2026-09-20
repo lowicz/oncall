@@ -1,7 +1,8 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from sqlalchemy import select
 
+from oncall.domain.clock import business_today
 from oncall.models import NotificationOutbox, UserRole
 from oncall.notifications.triggers import notify_schedule_published
 from tests.conftest import (
@@ -13,7 +14,7 @@ from tests.conftest import (
 
 
 async def _seed_team(db):
-    today = date.today()
+    today = business_today()
     anna = await create_user(db, "anna", email="anna@example.com", display_name="Anna Kowalska")
     marek = await create_user(db, "marek", email="marek@example.com", display_name="Marek Nowak")
     ola = await create_user(db, "ola", email="ola@example.com", display_name="Ola Wiśniewska")
