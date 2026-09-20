@@ -29,6 +29,7 @@
       "title": "Wdrożenie",
       "pages": [
         "wdrozenie/uruchomienie.md",
+        "wdrozenie/wydania.md",
         "wdrozenie/tls.md"
       ]
     }

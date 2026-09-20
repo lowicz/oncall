@@ -1,0 +1,33 @@
+# Development overlay: build the images from this checkout instead of pulling
+# a release. Everything else - environment, healthchecks, volumes, ports,
+# limits, dependencies - stays exactly the production file's; CI fails if this
+# file ever changes anything but where the images come from
+# (.github/scripts/compose-parity.sh).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# or, once, in .env:  COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
+# and then plain `docker compose up --build`. HTTPS on top of it:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+#                  -f docker-compose.tls.yml up --build
+#
+# The base file still insists on ONCALL_VERSION; any value does here (`dev`),
+# because the image names below replace the published ones. A local build
+# can therefore never shadow a pulled ghcr.io/lowicz/oncall-*:X.Y.Z image.
+services:
+  api:
+    image: oncall-api:dev
+    build: ./backend
+
+  worker:
+    image: oncall-api:dev
+    build: ./backend
+
+  web:
+    image: oncall-web:dev
+    # The repository root is the build context because the image also carries
+    # docs/, which lives outside frontend/.
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
