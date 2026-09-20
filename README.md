@@ -6,7 +6,7 @@ Product and user documentation lives in [`docs/`](docs/index.md) and is rendered
 into static HTML served by the application itself at `/docs/`, reachable from
 the "Dokumentacja" link in the top bar. The earlier contents of `docs/` - plans,
 QA reports, screenshots and test scripts - are preserved unchanged in
-[`archive/docs/`](archive/docs/README.md).
+[`archive/docs/`](archive/README.md).
 
 ## Development
 

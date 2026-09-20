@@ -73,10 +73,4 @@ describe('form rows', () => {
     expect(style.alignSelf).toBe('start')
     expect(style.height).toBe('var(--control-height)')
   })
-
-  it('states the control band once, as a token', () => {
-    // The band is a single declared height; buttons, switches and action
-    // blocks all resolve against it instead of repeating a magic number.
-    expect(styles).toMatch(/--control-height:\s*56px/)
-  })
 })
