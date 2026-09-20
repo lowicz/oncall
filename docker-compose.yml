@@ -1,6 +1,24 @@
+# Production: every service runs from a published image.
+#
+#   cp .env.example .env      # set ONCALL_VERSION and the admin credentials
+#   docker compose pull
+#   docker compose up -d
+#
+# ONCALL_VERSION names the release to run (docs/wdrozenie/wydania.md). Without
+# it Compose refuses to start instead of guessing: a host always states what
+# it runs, and a rollback is that one line changed back.
+#
+# Building from this checkout is an overlay, not a switch in this file:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# HTTPS is another overlay (docker-compose.tls.yml, docs/wdrozenie/tls.md).
+# Both files work unchanged under Docker Compose and Podman Compose.
+x-api-image: &api-image ghcr.io/lowicz/oncall-api:${ONCALL_VERSION:?set ONCALL_VERSION in .env - a release version for production, dev with docker-compose.dev.yml - see docs/wdrozenie/wydania.md}
+x-web-image: &web-image ghcr.io/lowicz/oncall-web:${ONCALL_VERSION:?set ONCALL_VERSION in .env - a release version for production, dev with docker-compose.dev.yml - see docs/wdrozenie/wydania.md}
+
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oncall}
       POSTGRES_USER: ${POSTGRES_USER:-oncall}
@@ -14,7 +32,8 @@ services:
       retries: 10
 
   api:
-    build: ./backend
+    image: *api-image
+    restart: unless-stopped
     environment:
       ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
       ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS: ${ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS:-1}
@@ -46,12 +65,23 @@ services:
       ONCALL_SOLVER_SECONDS: ${ONCALL_SOLVER_SECONDS:-15}
       ONCALL_SOLVER_LOG: ${ONCALL_SOLVER_LOG:-false}
       ONCALL_API_WORKERS: ${ONCALL_API_WORKERS:-}
+    # The image has no curl; its own interpreter asks the health endpoint.
+    # start_period covers `alembic upgrade head` and the admin bootstrap that
+    # run before uvicorn listens.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3).status == 200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
     depends_on:
       db:
         condition: service_healthy
 
   worker:
-    build: ./backend
+    # The same image as the API, running the outbox and generation worker.
+    image: *api-image
+    restart: unless-stopped
     command: ["python", "-m", "oncall.worker"]
     environment:
       ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
@@ -81,24 +111,33 @@ services:
         condition: service_started
 
   web:
-    # The repository root is the build context because the image also carries
-    # the documentation: docs/*.md is rendered to static HTML during the
-    # frontend build (frontend/scripts/build-docs.mjs) and served from the same
-    # nginx under /docs/.
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
+    # The image carries the application and the documentation: docs/*.md is
+    # rendered to static HTML when the image is built
+    # (frontend/scripts/build-docs.mjs) and served from the same nginx under
+    # /docs/.
+    image: *web-image
+    restart: unless-stopped
     environment:
       ONCALL_TLS_ENABLED: ${ONCALL_TLS_ENABLED:-false}
     ports:
       - "${ONCALL_WEB_HTTP_PORT:-8080}:80"
       - "${ONCALL_WEB_HTTPS_PORT:-8443}:443"
+    # Plain HTTP first; with the TLS overlay port 80 only redirects, so the
+    # second request asks HTTPS directly (the certificate is the deployment's
+    # own, not one this check can judge).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/docs/index.html || wget -q -O /dev/null --no-check-certificate https://127.0.0.1/docs/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     # No TLS mounts here on purpose: this file must come up on a machine with
     # no certificate at all. HTTPS adds docker-compose.tls.yml, which mounts
     # the certificate, the key and the CA bundle as three separate files.
     # See docs/wdrozenie/tls.md.
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   oncall-db:

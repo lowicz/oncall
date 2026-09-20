@@ -29,8 +29,10 @@ htmlcov/
 # --- Node / frontend ---
 node_modules/
 dist/
-# Dokumentacja renderowana z docs/*.md przez frontend/scripts/build-docs.mjs.
+# Dokumentacja renderowana z docs/*.md przez frontend/scripts/build-docs.mjs:
+# kopia w obrazie (public/docs) i samodzielna strona (site/, GitHub Pages).
 frontend/public/docs/
+site/
 .vite/
 *.tsbuildinfo
 npm-debug.log*

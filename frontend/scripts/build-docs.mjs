@@ -1,11 +1,22 @@
 #!/usr/bin/env node
 /**
- * Renders docs/*.md into static HTML pages served next to the application.
+ * Renders docs/*.md into static HTML pages.
  *
- * Output goes to frontend/public/docs/, which Vite copies verbatim into
- * dist/, so the documentation ships inside the same nginx image as the SPA and
- * is reachable at /docs/ in production and in `npm run dev` alike. The script
- * is wired to `prebuild`, so `npm run build` can never ship stale pages.
+ * Two outputs, one renderer, one source:
+ *
+ *   - default: frontend/public/docs/, which Vite copies verbatim into dist/,
+ *     so the documentation ships inside the same nginx image as the SPA and
+ *     is reachable at /docs/ in production and in `npm run dev` alike. The
+ *     script is wired to `prebuild`, so `npm run build` can never ship stale
+ *     pages.
+ *   - `--site --out <dir>`: the same pages as a standalone site for GitHub
+ *     Pages. Nothing is authored twice: the Markdown, toc.json, stylesheet,
+ *     fonts and every check below are shared. Only the top bar differs: a
+ *     site has no application to go back to, so the wordmark leads to the
+ *     documentation home and the action link points at the repository.
+ *
+ * Every link the pages emit is relative to the page (`toRoot`), so the site
+ * works under any base path (`/docs/` in the image, `/oncall/` on Pages).
  *
  * It is also the documentation's own check, and fails the build on:
  *   - a .md file missing from docs/toc.json, or listed there but absent,
@@ -13,19 +24,25 @@
  *   - a link that leaves the documentation tree (it would 404 once served),
  *   - a `#anchor` that matches no heading on the target page.
  *
+ * Options:
+ *   --site                standalone site mode (see above)
+ *   --out <dir>           output directory, relative to frontend/ (default
+ *                         public/docs); never the app, docs or repo root
+ *   --repo-url <url>      site mode: repository link in the top bar
+ *   --version <text>      site mode: shown in the footer (default: none)
+ *
  * The pages use the application's design tokens (docs-template/docs.css) and
  * its self-hosted fonts, which are extracted from the same @fontsource
  * packages src/main.tsx imports.
  */
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
-import { dirname, join, posix, relative, resolve } from 'node:path'
+import { dirname, join, parse, posix, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Marked, Renderer } from 'marked'
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const docsRoot = resolve(appRoot, '../docs')
 const templateRoot = join(appRoot, 'docs-template')
-const outRoot = join(appRoot, 'public/docs')
 
 const fail = (message) => {
   console.error(`build-docs: ${message}`)
@@ -33,7 +50,47 @@ const fail = (message) => {
   throw new Error(message)
 }
 
-/* ---------------------------------------------------------------- sources -- */
+/* --------------------------------------------------------------- options -- */
+
+function parseOptions(argv) {
+  const options = {
+    site: false,
+    out: 'public/docs',
+    repoUrl: '',
+    version: '',
+  }
+  const withValue = { '--out': 'out', '--repo-url': 'repoUrl', '--version': 'version' }
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+    if (arg === '--site') {
+      options.site = true
+    } else if (arg in withValue) {
+      const value = argv[index + 1]
+      if (value === undefined || value.startsWith('--')) fail(`${arg} needs a value`)
+      options[withValue[arg]] = value
+      index += 1
+    } else {
+      fail(`unknown option ${arg}`)
+    }
+  }
+  return options
+}
+
+/**
+ * The output directory is emptied before rendering, so it must never be a
+ * directory the sources live in or a parent of one.
+ */
+function outputRoot(out) {
+  const outRoot = resolve(appRoot, out)
+  const protectedRoots = [appRoot, docsRoot, templateRoot, resolve(appRoot, '..')]
+  const covers = (root) => root === outRoot || root.startsWith(outRoot + sep)
+  if (outRoot === parse(outRoot).root || protectedRoots.some(covers)) {
+    fail(`refusing to render into ${outRoot}: it contains the sources`)
+  }
+  return outRoot
+}
+
+/* --------------------------------------------------------------- sources -- */
 
 async function markdownFiles(dir, prefix = '') {
   const found = []
@@ -161,7 +218,28 @@ const titleOf = (markdown, mdPath) => {
 
 /* -------------------------------------------------------------- template -- */
 
-function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next }) {
+/**
+ * Where the top bar leads. In the image the pages sit under /docs/, so the
+ * application root is one level above the documentation root, and it is
+ * written relative to the page so the same markup works under the Vite dev
+ * server. A standalone site has no application: the wordmark goes home and
+ * the action link, if any, goes to the repository.
+ */
+function topbarLinks({ site, toRoot, repoUrl }) {
+  if (!site) {
+    const appRootHref = `${toRoot}../`
+    return {
+      wordmark: appRootHref,
+      action: `<a class="topbar-link" href="${appRootHref}">Wróć do aplikacji</a>`,
+    }
+  }
+  return {
+    wordmark: `${toRoot}index.html`,
+    action: repoUrl ? `<a class="topbar-link" href="${escapeHtml(repoUrl)}">Repozytorium</a>` : '',
+  }
+}
+
+function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }) {
   const pager = [
     prev
       ? `<a class="pager-prev" href="${toRoot}${htmlPath(prev.path)}">` +
@@ -172,6 +250,11 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next }) {
         `<span>Następna</span>${escapeHtml(next.title)}</a>`
       : '',
   ].join('\n      ')
+  const links = topbarLinks({ site: options.site, toRoot, repoUrl: options.repoUrl })
+  const footer =
+    options.site && options.version
+      ? `\n        <p class="site-footer">${escapeHtml(siteTitle)} · wersja ${escapeHtml(options.version)}</p>`
+      : ''
 
   return `<!doctype html>
 <html lang="pl">
@@ -204,13 +287,13 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next }) {
   </head>
   <body>
     <header class="topbar">
-      <a class="wordmark" href="/">E<span>/</span> ON-CALL</a>
+      <a class="wordmark" href="${links.wordmark}">E<span>/</span> ON-CALL</a>
       <span class="topbar-title">[DOKUMENTACJA]</span>
       <div class="topbar-actions">
         <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Przełącz motyw">
           Motyw
         </button>
-        <a class="topbar-link" href="/">Wróć do aplikacji</a>
+        ${links.action}
       </div>
     </header>
 
@@ -244,7 +327,7 @@ ${bodyHtml}
 
         <nav class="pager" aria-label="Sąsiednie strony">
           ${pager}
-        </nav>
+        </nav>${footer}
       </div>
     </div>
 
@@ -291,7 +374,7 @@ function navigation({ toc, pageTitles, currentPath, toRoot }) {
  */
 const SUBSETS = /-(latin|latin-ext)-/
 
-async function buildFonts() {
+async function buildFonts(outRoot) {
   const sources = [
     { css: 'node_modules/@fontsource-variable/inter/index.css', dir: 'node_modules/@fontsource-variable/inter/files' },
     { css: 'node_modules/@fontsource/ibm-plex-mono/400.css', dir: 'node_modules/@fontsource/ibm-plex-mono/files' },
@@ -328,6 +411,9 @@ async function buildFonts() {
 /* ------------------------------------------------------------------ main -- */
 
 async function main() {
+  const options = parseOptions(process.argv.slice(2))
+  const outRoot = outputRoot(options.out)
+
   const toc = JSON.parse(await readFile(join(docsRoot, 'toc.json'), 'utf8'))
   const listed = [toc.home, ...toc.sections.flatMap((section) => section.pages)]
   const onDisk = await markdownFiles(docsRoot)
@@ -370,6 +456,7 @@ async function main() {
       toRoot,
       prev: order[index - 1],
       next: order[index + 1],
+      options,
     })
     const outPath = join(outRoot, htmlPath(path))
     await mkdir(dirname(outPath), { recursive: true })
@@ -378,11 +465,14 @@ async function main() {
 
   await mkdir(join(outRoot, 'assets'), { recursive: true })
   await copyFile(join(templateRoot, 'docs.css'), join(outRoot, 'assets/docs.css'))
-  const fontCount = await buildFonts()
+  const fontCount = await buildFonts(outRoot)
+  // GitHub Pages runs Jekyll over the artifact unless told not to, and Jekyll
+  // would drop nothing here but does not need to run at all.
+  if (options.site) await writeFile(join(outRoot, '.nojekyll'), '')
 
   console.log(
     `build-docs: ${listed.length} pages + ${fontCount} font files -> ` +
-      `${relative(appRoot, outRoot)}`,
+      `${relative(appRoot, outRoot)}${options.site ? ' (site)' : ''}`,
   )
 }
 

@@ -42,8 +42,12 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.Enum(
-                "pending", "sent", "failed", "skipped",
-                name="notificationstatus", native_enum=False,
+                "pending",
+                "sent",
+                "failed",
+                "skipped",
+                name="notificationstatus",
+                native_enum=False,
             ),
             nullable=False,
         ),
@@ -115,9 +119,7 @@ def downgrade() -> None:
     op.alter_column("sessions", "user_id", nullable=False)
     op.drop_index("ix_calendar_feed_tokens_token_hash", table_name="calendar_feed_tokens")
     op.drop_table("calendar_feed_tokens")
-    op.drop_constraint(
-        "uq_notification_outbox_dedup_key", "notification_outbox", type_="unique"
-    )
+    op.drop_constraint("uq_notification_outbox_dedup_key", "notification_outbox", type_="unique")
     op.drop_index("ix_notification_outbox_pending", table_name="notification_outbox")
     op.drop_table("notification_outbox")
     op.drop_index("ix_share_links_token_hash", table_name="share_links")

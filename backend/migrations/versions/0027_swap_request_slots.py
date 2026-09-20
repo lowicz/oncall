@@ -25,13 +25,9 @@ def upgrade() -> None:
         sa.Column("swap_request_id", sa.Uuid(), nullable=False),
         sa.Column("service_date", sa.Date(), nullable=False),
         sa.Column("role", sa.String(length=20), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["swap_request_id"], ["swap_requests.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["swap_request_id"], ["swap_requests.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "swap_request_id", "service_date", "role", name="uq_swap_request_slot"
-        ),
+        sa.UniqueConstraint("swap_request_id", "service_date", "role", name="uq_swap_request_slot"),
     )
     op.create_index(
         "ix_swap_request_slots_swap_request_id",

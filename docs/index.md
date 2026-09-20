@@ -40,7 +40,10 @@ Instrukcja ekran po ekranie, zadanie po zadaniu.
 
 ## Wdrożenie
 
-- [Uruchomienie](wdrozenie/uruchomienie.md) - Docker Compose i Podman Compose.
+- [Uruchomienie](wdrozenie/uruchomienie.md) - Docker Compose i Podman Compose,
+  obrazy z rejestru albo budowanie z repozytorium.
+- [Wydania i wersje](wdrozenie/wydania.md) - numer wersji, aktualizacja,
+  cofnięcie, weryfikacja pochodzenia obrazów, co sprawdza CI.
 - [TLS](wdrozenie/tls.md) - certyfikat, klucz i CA jako trzy osobne pliki.
 
 ## Dokumenty historyczne

@@ -18,16 +18,46 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## Build and run
 
-- The `web` image builds from the **repository root** (`docker-compose.yml`
-  sets `context: .`, `dockerfile: frontend/Dockerfile`), because the image
-  carries `docs/` as well as `frontend/`. The root `.dockerignore` governs that
-  build.
+- `docker-compose.yml` is the production file: it runs the published images
+  `ghcr.io/lowicz/oncall-api` (services `api` and `worker`) and
+  `ghcr.io/lowicz/oncall-web`, pinned by `ONCALL_VERSION` from `.env`, and
+  refuses to start without it. Building from the checkout is the overlay
+  `docker-compose.dev.yml` (`-f docker-compose.yml -f docker-compose.dev.yml`),
+  which may change nothing but `image`/`build`; `.github/scripts/compose-parity.sh`
+  enforces that in CI.
+- The `web` image builds from the **repository root** (`context: .`,
+  `dockerfile: frontend/Dockerfile`), because the image carries `docs/` as well
+  as `frontend/`. The root `.dockerignore` governs that build. `backend/Dockerfile`
+  installs from `uv.lock` (`uv sync --frozen`); `pyproject.toml` alone is not
+  the source of truth for what ships.
 - HTTPS is an overlay, never a flag on the base file:
   `docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d`. The
   base file mounts nothing from the host so it comes up on a machine with no
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
 - `podman compose` here delegates to the Docker Compose plugin and needs
   `systemctl --user start podman.socket` first.
+
+## CI and releases
+
+- `.github/workflows/ci.yml` is the gate list (backend: ruff check + format,
+  mypy, pytest on SQLite, OpenAPI snapshot; backend-postgres: the concurrency
+  suite against postgres:17; frontend: eslint, tsc, vitest, `npm run build`,
+  site render; compose-config; image-build without push). `ci-ok` is the one
+  required status. Run the same commands locally before pushing.
+- A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: validates the tag,
+  calls `ci.yml`, publishes both images with SBOM, provenance, attestation and
+  cosign signature, creates the GitHub Release. Published versions are
+  immutable; the workflow refuses a version already in GHCR. No repository
+  secrets exist or are needed. User-facing description: `docs/wdrozenie/wydania.md`.
+- Actions are pinned to full commit SHAs with a version comment; Renovate
+  (`renovate.json5`, the Mend GitHub App - no Dependabot) moves them, together
+  with both lockfiles, the base images and the tool versions repeated in the
+  workflow `env` blocks (custom regex managers). Keep new tool versions in
+  those `env` blocks so Renovate can see them.
+- Documentation on GitHub Pages (`.github/workflows/pages.yml`) is the same
+  renderer in `--site` mode (`frontend/scripts/build-docs.mjs`); never add a
+  second generator or a second copy of `docs/`. The regression test for the
+  renderer's link shapes is `frontend/scripts/build-docs.test.mjs`.
 
 ## Frontend conventions
 

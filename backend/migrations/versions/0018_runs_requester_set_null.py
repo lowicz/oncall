@@ -14,9 +14,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.drop_constraint(
-        "schedule_runs_requested_by_id_fkey", "schedule_runs", type_="foreignkey"
-    )
+    op.drop_constraint("schedule_runs_requested_by_id_fkey", "schedule_runs", type_="foreignkey")
     op.alter_column("schedule_runs", "requested_by_id", existing_type=sa.Uuid(), nullable=True)
     op.create_foreign_key(
         "schedule_runs_requested_by_id_fkey",
@@ -29,13 +27,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "schedule_runs_requested_by_id_fkey", "schedule_runs", type_="foreignkey"
-    )
+    op.drop_constraint("schedule_runs_requested_by_id_fkey", "schedule_runs", type_="foreignkey")
     op.execute("DELETE FROM schedule_runs WHERE requested_by_id IS NULL")
-    op.alter_column(
-        "schedule_runs", "requested_by_id", existing_type=sa.Uuid(), nullable=False
-    )
+    op.alter_column("schedule_runs", "requested_by_id", existing_type=sa.Uuid(), nullable=False)
     op.create_foreign_key(
         "schedule_runs_requested_by_id_fkey",
         "schedule_runs",

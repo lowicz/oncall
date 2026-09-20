@@ -4,6 +4,10 @@ Wdrożenie to cztery kontenery: baza `db`, API `api`, proces roboczy `worker` i
 serwer `web` (nginx), który podaje aplikację, tę dokumentację pod `/docs/` oraz
 przekazuje `/api/` i `/calendar/` do API.
 
+`api` i `worker` działają z jednego obrazu `ghcr.io/lowicz/oncall-api`, `web` z
+obrazu `ghcr.io/lowicz/oncall-web`. Obrazy są publikowane dla każdego wydania
+i oznaczone jego numerem - patrz [Wydania i wersje](wydania.md).
+
 Plik `docker-compose.yml` działa **bez zmian** zarówno pod Docker Compose, jak i
 pod Podman Compose. Nie używa żadnej składni ani zachowania, którego Podman
 Compose nie zapewnia.
@@ -12,18 +16,24 @@ Compose nie zapewnia.
 
 ```bash
 cp .env.example .env
-# ustaw co najmniej ONCALL_ADMIN_USERNAME i ONCALL_ADMIN_PASSWORD (min. 12 znaków)
-docker compose up -d --build
+# ustaw ONCALL_VERSION (numer wydania, np. 1.2.3)
+# oraz ONCALL_ADMIN_USERNAME i ONCALL_ADMIN_PASSWORD (min. 12 znaków)
+docker compose pull
+docker compose up -d
 ```
 
 Pod Podmanem to samo polecenie z innym przedrostkiem:
 
 ```bash
-podman compose up -d --build
+podman compose pull
+podman compose up -d
 ```
 
 Aplikacja odpowiada na `http://localhost:8080`, API pod tym samym adresem na
 `/api`, a dokumentacja na `http://localhost:8080/docs/`.
+
+Bez `ONCALL_VERSION` w `.env` Compose odmawia startu i wypisuje, czego brakuje.
+Każdy host ma w ten sposób zapisane, którą wersję uruchamia.
 
 ## Konto administratora
 
@@ -31,6 +41,10 @@ Przy każdym starcie API konto administratora jest zakładane albo
 synchronizowane: hasło, nazwa wyświetlana, rola i status. Rotacja hasła wchodzi
 w życie po restarcie usługi `api`. Z obiema zmiennymi pustymi krok jest
 pomijany.
+
+Migracje bazy wykonują się przy tym samym starcie, przed uruchomieniem API.
+Usługa `web` czeka, aż `api` odpowie na `/api/v1/health`, więc po
+`docker compose up -d` aplikacja jest dostępna dopiero po zakończeniu migracji.
 
 ## Dane demonstracyjne
 
@@ -53,6 +67,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 
 | Zmienna | Domyślnie | Znaczenie |
 | --- | --- | --- |
+| `ONCALL_VERSION` | brak - wymagana | wersja obrazów do uruchomienia, patrz [Wydania](wydania.md) |
 | `ONCALL_WEB_HTTP_PORT` | `8080` | port HTTP wystawiony na hosta |
 | `ONCALL_WEB_HTTPS_PORT` | `8443` | port HTTPS wystawiony na hosta |
 | `ONCALL_PUBLIC_BASE_URL` | `http://localhost:8080` | adres w e-mailach, kanałach ICS i linkach |
@@ -70,6 +85,41 @@ Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej
 Proces roboczy ma w Compose przydział 2 CPU i z niego wynika domyślna liczba
 wątków solvera. Zmiana przydziału zmienia tę liczbę automatycznie.
 
+## Aktualizacja
+
+```bash
+# w .env: ONCALL_VERSION=<nowy numer>
+docker compose pull
+docker compose up -d
+```
+
+Migracje bazy wykonują się przy starcie `api`. Cofnięcie do poprzedniej wersji
+to ta sama sekwencja z poprzednim numerem - szczegóły w
+[Wydania i wersje](wydania.md#aktualizacja-i-cofnięcie).
+
+## Budowanie z repozytorium (praca deweloperska)
+
+Budowanie obrazów z bieżącego checkoutu to **nakładka** na plik bazowy, tak
+samo jak TLS. Plik `docker-compose.dev.yml` podmienia tylko źródło obrazów;
+zmienne, healthchecki, wolumeny i porty zostają produkcyjne (CI pilnuje, żeby
+nakładka nie zmieniała niczego więcej).
+
+```bash
+cp .env.example .env
+# ONCALL_VERSION=dev  (plik bazowy wymaga wartości; nakładka i tak buduje lokalnie)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Żeby nie powtarzać `-f`, wpisz raz do `.env`:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml
+```
+
+i od tej pory `docker compose up --build` buduje z repozytorium. Lokalne obrazy
+nazywają się `oncall-api:dev` i `oncall-web:dev`, więc nigdy nie przykryją
+pobranego obrazu z rejestru.
+
 ## Dokumentacja w obrazie
 
 Obraz `web` zawiera tę dokumentację jako statyczne HTML. Powstaje ona podczas
@@ -84,12 +134,16 @@ Skrypt jest podpięty pod `prebuild` w `frontend/package.json`, więc
 budowania obrazu `web` jest **katalog główny repozytorium**, a nie `frontend/`:
 `docs/` leży poza katalogiem aplikacji.
 
+Ten sam skrypt w trybie `--site` renderuje samodzielną stronę publikowaną na
+GitHub Pages - patrz [Wydania i wersje](wydania.md#dokumentacja-na-github-pages).
+
 Poza obrazem:
 
 ```bash
 cd frontend
 npm install
-npm run build:docs    # wynik w frontend/public/docs/
+npm run build:docs        # wynik w frontend/public/docs/
+npm run build:docs:site   # samodzielna strona w site/ (jak na GitHub Pages)
 ```
 
 Skrypt jest równocześnie testem dokumentacji: przerywa budowanie, gdy plik
@@ -104,13 +158,14 @@ Backend:
 ```bash
 docker compose up -d db
 cd backend
-python -m venv .venv
-. .venv/bin/activate
-pip install -e '.[dev]'
+uv sync --extra dev
 alembic upgrade head
-ONCALL_ADMIN_USERNAME=admin ONCALL_ADMIN_PASSWORD='change-me-now' python -m oncall.seed_admin
-uvicorn oncall.main:app --reload
+ONCALL_ADMIN_USERNAME=admin ONCALL_ADMIN_PASSWORD='change-me-now' uv run python -m oncall.seed_admin
+uv run uvicorn oncall.main:app --reload
 ```
+
+(`docker compose up -d db` wymaga `ONCALL_VERSION` w `.env`, choć baza go nie
+używa - dowolna wartość wystarczy.)
 
 Frontend:
 
@@ -137,19 +192,10 @@ same pliki bez zmian. Trzy rzeczy warto wiedzieć:
   montowania TLS są w osobnej nakładce, która sprawdza każdy plik przy
   starcie - patrz [TLS](tls.md).
 
-Sprawdzenie samego pliku, bez uruchamiania:
+Sprawdzenie samych plików, bez uruchamiania:
 
 ```bash
 docker compose config --quiet
+docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
 podman compose config --quiet
 ```
-
-## Aktualizacja
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-Migracje bazy wykonują się przy starcie `api`. Obraz `web` przebudowuje się
-razem z dokumentacją.

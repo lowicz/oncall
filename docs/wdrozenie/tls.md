@@ -68,8 +68,8 @@ TLS jest nakładką na plik bazowy, żeby wdrożenie bez certyfikatu nie musiał
 mieć żadnych plików na hoście:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
-podman compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+podman compose -f docker-compose.yml -f docker-compose.tls.yml up -d
 ```
 
 Nakładka ustawia `ONCALL_TLS_ENABLED=true` i montuje trzy pliki. Domyślne

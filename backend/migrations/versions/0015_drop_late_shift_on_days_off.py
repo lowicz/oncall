@@ -34,9 +34,7 @@ def upgrade() -> None:
         )
     )
     stale = [
-        row.id
-        for row in rows
-        if row.service_date.weekday() >= 5 or row.service_date in polish_days
+        row.id for row in rows if row.service_date.weekday() >= 5 or row.service_date in polish_days
     ]
     if not stale:
         return
