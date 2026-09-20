@@ -66,7 +66,7 @@ function Dashboard({ displayName, role, hasTeamMember, share }: {
     <Routes>
       <Route element={<AppShell displayName={displayName} access={access} share={share} />}>
         <Route index element={<DutyScreen role={role} displayName={displayName} hasTeamMember={hasTeamMember} />} />
-        <Route path="grafik" element={<ScheduleScreen role={role} displayName={displayName} />} />
+        <Route path="grafik" element={<ScheduleScreen role={role} displayName={displayName} hasTeamMember={hasTeamMember} />} />
         {/* The old path stays linkable. */}
         <Route path="kalendarz" element={<Navigate to="/grafik" replace />} />
         <Route path="wiecej" element={<MoreScreen displayName={displayName} access={access} />} />

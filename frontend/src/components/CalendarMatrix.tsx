@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, CalendarEventColor, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
@@ -39,6 +39,7 @@ import {
 
 export type MatrixZoom = '2' | '4' | '8'
 export interface CalendarRange { starts_on: string; ends_on: string }
+export interface MatrixSummary { people: number; onDuty: number }
 type Day = CalendarData['days'][number]
 type Member = CalendarData['members'][number]
 
@@ -91,6 +92,9 @@ export function CalendarMatrix({
   focusDay,
   focusPerson,
   enabled = true,
+  heading,
+  showRisks = true,
+  extraChips,
 }: {
   role: UserRole
   displayName: string
@@ -102,6 +106,14 @@ export function CalendarMatrix({
   focusPerson?: string | null
   /** False while the screen is still working out the default range. */
   enabled?: boolean
+  /** The ruled section heading drawn between the risk chips and the grid; a
+   *  function receives how many people the range holds and how many of them
+   *  have a duty in it. */
+  heading?: ReactNode | ((summary: MatrixSummary) => ReactNode)
+  /** The "Teraz" screen carries the risk chips; the full schedule does not. */
+  showRisks?: boolean
+  /** Chips the screen adds to the risk row: swaps waiting, the fairness verdict. */
+  extraChips?: ReactNode
 }) {
   const queryClient = useQueryClient()
   const today = warsawDate()
@@ -200,6 +212,10 @@ export function CalendarMatrix({
     const ordered = orderMembers(data.members, data.assignments, displayName)
     return hideIdle ? ordered.filter((member) => hasDutyInRange(member, data.assignments)) : ordered
   }, [data, displayName, hideIdle])
+  const summary = useMemo<MatrixSummary>(() => ({
+    people: data?.members.length ?? 0,
+    onDuty: data ? data.members.filter((member) => hasDutyInRange(member, data.assignments)).length : 0,
+  }), [data])
   // Duties per person in the range, drawn as a load bar under the name so the
   // eye can compare rows without counting marks.
   const load = useMemo(() => {
@@ -302,17 +318,14 @@ export function CalendarMatrix({
     (item) => item.service_date === selected?.day.service_date,
   ))
 
+  const riskChips = data && showRisks && (gaps.length > 0 || (canCoordinate && dutyConflicts.length > 0) || publishedGaps.length === 0)
+
   return (
     <>
-      {calendar.error && <ErrorState error={calendar.error} onRetry={() => calendar.refetch()} />}
-      {(calendar.isLoading || !enabled) && (
-        <div className="panel sk-block" aria-busy="true" aria-label="Wczytywanie grafiku">
-          <Skeleton height={22} width="min(340px, 100%)" />
-          <Skeleton height={34 * 5} />
-        </div>
-      )}
-      {data && (gaps.length > 0 || (canCoordinate && dutyConflicts.length > 0) || publishedGaps.length === 0) && (
+      {(riskChips || extraChips) && (
         <ChipRow label="Ryzyka w zakresie">
+          {riskChips && (
+            <>
           {publishedGaps.length > 0 && (
             <Chip tone="bad" onClick={jumpToFirstGap} title="Pokaż pierwszy dzień bez pełnej obsady">
               {publishedGaps.length === 1 ? '1 dzień bez pełnej obsady' : `${publishedGaps.length} dni bez pełnej obsady`}
@@ -334,7 +347,18 @@ export function CalendarMatrix({
           {gaps.length === 0 && (!canCoordinate || dutyConflicts.length === 0) && (
             <Chip tone="ok">Pełna obsada w całym zakresie</Chip>
           )}
+            </>
+          )}
+          {extraChips}
         </ChipRow>
+      )}
+      {typeof heading === 'function' ? heading(summary) : heading}
+      {calendar.error && <ErrorState error={calendar.error} onRetry={() => calendar.refetch()} />}
+      {(calendar.isLoading || !enabled) && (
+        <div className="panel sk-block" aria-busy="true" aria-label="Wczytywanie grafiku">
+          <Skeleton height={22} width="min(340px, 100%)" />
+          <Skeleton height={34 * 5} />
+        </div>
       )}
       {data && hideIdle && members.length === 0 && (
         <EmptyState compact icon="calendar" title="Nikt nie ma dyżuru w tym zakresie" />
