@@ -127,6 +127,32 @@ def _wall_clock_violations(project_root: Path) -> list[str]:
     return violations
 
 
+def _module_package(path: Path, package_root: Path) -> str:
+    return ".".join(["oncall", *path.relative_to(package_root).parts[:-1]])
+
+
+def _resolve_relative_base(package: str, level: int) -> str | None:
+    bits = package.rsplit(".", level - 1)
+    if len(bits) < level:
+        return None
+    return bits[0]
+
+
+def _imports_central_registry(path: Path, node: ast.ImportFrom, package_root: Path) -> bool:
+    if node.level == 0:
+        return node.module == "oncall.models" or (
+            node.module == "oncall" and any(alias.name == "models" for alias in node.names)
+        )
+    if not path.is_relative_to(package_root):
+        return False
+    base = _resolve_relative_base(_module_package(path, package_root), node.level)
+    if base is None:
+        return False
+    if node.module:
+        return f"{base}.{node.module}" == "oncall.models"
+    return base == "oncall" and any(alias.name == "models" for alias in node.names)
+
+
 def _imports_central_models(path: Path, tree: ast.Module, package_root: Path) -> list[int]:
     lines: list[int] = []
     for node in ast.walk(tree):
@@ -134,22 +160,7 @@ def _imports_central_models(path: Path, tree: ast.Module, package_root: Path) ->
             if any(alias.name == "oncall.models" for alias in node.names):
                 lines.append(node.lineno)
         elif isinstance(node, ast.ImportFrom):
-            imports_registry = (
-                node.module == "oncall.models"
-                or (node.module == "oncall" and any(alias.name == "models" for alias in node.names))
-                or (
-                    path.is_relative_to(package_root)
-                    and node.level > 0
-                    and (
-                        node.module == "models"
-                        or (
-                            node.module is None
-                            and any(alias.name == "models" for alias in node.names)
-                        )
-                    )
-                )
-            )
-            if imports_registry:
+            if _imports_central_registry(path, node, package_root):
                 lines.append(node.lineno)
     return lines
 
@@ -356,12 +367,18 @@ def test_dod_6_has_no_central_models_module_or_imports() -> None:
     )
 
 
-def test_dod_6_guard_rejects_the_registry_and_absolute_or_relative_imports(
+def test_dod_6_guard_rejects_central_imports_but_allows_consumer_local_models(
     tmp_path: Path,
 ) -> None:
     _write(tmp_path, "src/oncall/models.py", "class User:\n    pass\n")
     _write(tmp_path, "src/oncall/worker.py", "from oncall.models import User\n")
     _write(tmp_path, "src/oncall/routes/admin.py", "from .. import models\n")
+    _write(
+        tmp_path,
+        "src/oncall/domain/orders/service.py",
+        "from .models import Order\nfrom . import models as local_models\n"
+        "from ..access.models import Grant\n",
+    )
 
     violations = _central_models_violations(tmp_path)
 
@@ -371,6 +388,7 @@ def test_dod_6_guard_rejects_the_registry_and_absolute_or_relative_imports(
     )
     assert any("worker.py:1 imports" in violation for violation in violations)
     assert any("admin.py:1 imports" in violation for violation in violations)
+    assert all("service.py" not in violation for violation in violations)
 
 
 @pytest.mark.xfail(
