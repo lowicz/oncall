@@ -5,13 +5,12 @@ from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.domain.scheduling.ports import DutyHistory
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.fairness import FairnessDuty
 from oncall.fairness_data import prior_oncall_days, resolved_duties, solver_history
 
 
-class SqlAlchemyDutyHistory(DutyHistory):
+class SqlAlchemyDutyHistory:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

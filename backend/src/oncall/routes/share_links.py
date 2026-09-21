@@ -84,9 +84,9 @@ async def create_share_link(
 
 
 @router.get("/api/v1/admin/share-links", response_model=list[ShareLinkResponse])
-async def list_share_links(_: Admin, ports: ShareLinkQueryProvider) -> list[ShareLinkResponse]:
-    links = await use_cases.list_share_links(ports)
-    return [ShareLinkResponse.model_validate(link) for link in links]
+async def list_share_links(_: Admin, links: ShareLinkQueryProvider) -> list[ShareLinkResponse]:
+    stored = await use_cases.list_share_links(links)
+    return [ShareLinkResponse.model_validate(link) for link in stored]
 
 
 @router.delete("/api/v1/admin/share-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)

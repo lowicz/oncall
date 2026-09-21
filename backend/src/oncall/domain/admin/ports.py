@@ -1,3 +1,9 @@
+"""What administration needs from the world around it, one bundle per consumer:
+account administration, membership administration and eligibility
+administration. The audit query and the rotation listing each take their one
+protocol directly.
+"""
+
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -26,18 +32,6 @@ class AccountBook(Protocol):
     async def account(self, account_id: uuid.UUID) -> Account | None:
         """The account as it is stored now."""
         ...
-
-    async def username_taken(self, username: str) -> bool:
-        """Case-insensitive."""
-        ...
-
-    async def email_taken(self, email: str, *, other_than: uuid.UUID | None = None) -> bool:
-        """Case-insensitive."""
-        ...
-
-    async def personnel_number_taken(
-        self, personnel_number: str, *, other_than: uuid.UUID | None = None
-    ) -> bool: ...
 
     async def active_admin_count(self) -> int:
         """How many administrators can still sign in.
@@ -71,19 +65,87 @@ class AccountBook(Protocol):
         ...
 
 
+class ClaimedIdentifiers(Protocol):
+    """Logins, e-mail addresses and personnel numbers already in use."""
+
+    async def username_taken(self, username: str) -> bool:
+        """Case-insensitive."""
+        ...
+
+    async def email_taken(self, email: str, *, other_than: uuid.UUID | None = None) -> bool:
+        """Case-insensitive."""
+        ...
+
+    async def personnel_number_taken(
+        self, personnel_number: str, *, other_than: uuid.UUID | None = None
+    ) -> bool: ...
+
+
+class MemberNames(Protocol):
+    async def rename_member(self, member_id: uuid.UUID, display_name: str) -> None:
+        """Carry an account's new name to its member and the duty labels."""
+        ...
+
+
+class AccountJournal(Protocol):
+    """The audit trail of account administration, written in the
+    administrator's name."""
+
+    async def account_created(self, account: Account) -> None: ...
+
+    async def account_updated(
+        self, account: Account, *, fields: list[str], before: dict[str, str | None]
+    ) -> None: ...
+
+    async def reset_link_issued(self, account: Account) -> None: ...
+
+    async def account_deleted(self, account: Account) -> None: ...
+
+
+@dataclass(frozen=True)
+class AccountAdministrationPorts:
+    accounts: AccountBook
+    identifiers: ClaimedIdentifiers
+    members: MemberNames
+    journal: AccountJournal
+
+
 class RotationDirectory(Protocol):
     async def members(self) -> list[RotationMember]:
         """Everyone in the rotation, by name."""
         ...
 
 
-class RotationBook(RotationDirectory, Protocol):
-    async def member(self, member_id: uuid.UUID) -> RotationMember | None: ...
+class HeldMembers(Protocol):
+    """What both membership and eligibility rules check a member against."""
 
     async def member_for_change(self, member_id: uuid.UUID) -> RotationMember | None:
         """The member, held until the unit of work ends, so concurrent changes
         to one person's membership or eligibility are checked one at a time."""
         ...
+
+    async def published_duties(
+        self,
+        member_id: uuid.UUID,
+        *,
+        role: AssignmentRole | None = None,
+        before: date | None = None,
+        after: date | None = None,
+        limit: int | None = None,
+    ) -> list[Slot]:
+        """The member's published slots dated before ``before`` or after
+        ``after``, by date."""
+        ...
+
+
+class AccountLookup(Protocol):
+    async def account(self, account_id: uuid.UUID) -> Account | None:
+        """The account as it is stored now."""
+        ...
+
+
+class MembershipBook(HeldMembers, Protocol):
+    async def member(self, member_id: uuid.UUID) -> RotationMember | None: ...
 
     async def account_is_enrolled(self, account_id: uuid.UUID) -> bool: ...
 
@@ -96,10 +158,24 @@ class RotationBook(RotationDirectory, Protocol):
         self, member_id: uuid.UUID, changes: Mapping[str, Any]
     ) -> RotationMember: ...
 
-    async def rename_member(self, member_id: uuid.UUID, display_name: str) -> None:
-        """Carry an account's new name to its member and the duty labels."""
-        ...
 
+class MembershipJournal(Protocol):
+    """The audit trail of rotation membership, written in the administrator's
+    name."""
+
+    async def member_enrolled(self, member: RotationMember) -> None: ...
+
+    async def membership_changed(self, member: RotationMember, *, fields: list[str]) -> None: ...
+
+
+@dataclass(frozen=True)
+class MembershipAdministrationPorts:
+    accounts: AccountLookup
+    rotation: MembershipBook
+    journal: MembershipJournal
+
+
+class EligibilityBook(HeldMembers, Protocol):
     async def period(self, eligibility_id: uuid.UUID) -> EligibilityPeriod | None:
         """The period as it is stored now."""
         ...
@@ -126,42 +202,10 @@ class RotationBook(RotationDirectory, Protocol):
 
     async def revoke(self, eligibility_id: uuid.UUID) -> None: ...
 
-    async def published_duties(
-        self,
-        member_id: uuid.UUID,
-        *,
-        role: AssignmentRole | None = None,
-        before: date | None = None,
-        after: date | None = None,
-        limit: int | None = None,
-    ) -> list[Slot]:
-        """The member's published slots dated before ``before`` or after
-        ``after``, by date."""
-        ...
 
-
-class AuditTrail(Protocol):
-    async def entries(self, query: AuditFilter) -> list[AuditEntry]:
-        """Newest first."""
-        ...
-
-
-class AdminJournal(Protocol):
-    """The audit trail of administration, written in the administrator's name."""
-
-    async def account_created(self, account: Account) -> None: ...
-
-    async def account_updated(
-        self, account: Account, *, fields: list[str], before: dict[str, str | None]
-    ) -> None: ...
-
-    async def reset_link_issued(self, account: Account) -> None: ...
-
-    async def account_deleted(self, account: Account) -> None: ...
-
-    async def member_enrolled(self, member: RotationMember) -> None: ...
-
-    async def membership_changed(self, member: RotationMember, *, fields: list[str]) -> None: ...
+class EligibilityJournal(Protocol):
+    """The audit trail of eligibility periods, written in the administrator's
+    name."""
 
     async def eligibility_granted(
         self, member: RotationMember, period: EligibilityPeriod
@@ -177,7 +221,12 @@ class AdminJournal(Protocol):
 
 
 @dataclass(frozen=True)
-class AdminPorts:
-    accounts: AccountBook
-    rotation: RotationBook
-    journal: AdminJournal
+class EligibilityAdministrationPorts:
+    rotation: EligibilityBook
+    journal: EligibilityJournal
+
+
+class AuditTrail(Protocol):
+    async def entries(self, query: AuditFilter) -> list[AuditEntry]:
+        """Newest first."""
+        ...

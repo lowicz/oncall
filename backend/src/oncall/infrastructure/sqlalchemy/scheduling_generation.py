@@ -17,7 +17,6 @@ from oncall.domain.scheduling.models import (
     RunState,
     SchedulingPolicy,
 )
-from oncall.domain.scheduling.ports import GenerationQueue, PolicyStore
 from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.infrastructure.sqlalchemy.scheduling_models import SchedulingPolicy as PolicyRow
 from oncall.policy import load_policy
@@ -48,7 +47,7 @@ def _to_run(row: ScheduleRun) -> GenerationRun:
     )
 
 
-class SqlAlchemyGenerationQueue(GenerationQueue):
+class SqlAlchemyGenerationQueue:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -181,7 +180,7 @@ def _to_policy(row: PolicyRow) -> SchedulingPolicy:
     )
 
 
-class SqlAlchemyPolicyStore(PolicyStore):
+class SqlAlchemyPolicyStore:
     """The single policy row, including its established first-read creation."""
 
     def __init__(self, session: AsyncSession) -> None:

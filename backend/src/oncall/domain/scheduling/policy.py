@@ -2,14 +2,14 @@
 
 from oncall.domain.scheduling import errors
 from oncall.domain.scheduling.models import PolicyChange, SchedulingPolicy
-from oncall.domain.scheduling.ports import SchedulingPorts
+from oncall.domain.scheduling.ports import CurrentPolicy, PolicyPorts
 
 
-async def current_policy(ports: SchedulingPorts) -> SchedulingPolicy:
-    return await ports.policy.current()
+async def current_policy(policy: CurrentPolicy) -> SchedulingPolicy:
+    return await policy.current()
 
 
-async def change_policy(change: PolicyChange, ports: SchedulingPorts) -> SchedulingPolicy:
+async def change_policy(change: PolicyChange, ports: PolicyPorts) -> SchedulingPolicy:
     current = await ports.policy.current()
     weights = (
         current.fairness_weight if change.fairness_weight is None else change.fairness_weight,

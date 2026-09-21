@@ -23,6 +23,7 @@ DOMAIN_MODULES = (
     "oncall.domain.scheduling.generation",
     "oncall.domain.scheduling.policy",
     "oncall.domain.scheduling.publication",
+    "oncall.domain.scheduling.queries",
     "oncall.domain.handover",
     "oncall.domain.hard_rules",
 )
@@ -62,9 +63,12 @@ def test_domain_imports_no_framework_and_no_adapter() -> None:
 
 
 def test_domain_is_imported_by_the_adapters_not_the_other_way_round() -> None:
+    """The adapter maps rows into the domain's values. It satisfies the
+    domain's ports structurally, so the values, not the ports, are what it
+    has to import."""
     probe = (
         "import json, sys, oncall.infrastructure.sqlalchemy.swaps; "
-        "print(json.dumps('oncall.domain.swaps.ports' in sys.modules))"
+        "print(json.dumps('oncall.domain.swaps.models' in sys.modules))"
     )
     result = subprocess.run(
         [sys.executable, "-c", probe], capture_output=True, text=True, check=True

@@ -13,10 +13,15 @@ from oncall.domain.scheduling.models import (
     PendingSwap,
     Schedule,
     ScheduledDuty,
-    ScheduleSummary,
     SchedulingPolicy,
 )
-from oncall.domain.scheduling.ports import SchedulingPorts
+from oncall.domain.scheduling.ports import (
+    DraftPorts,
+    GenerationPorts,
+    GenerationRequestPorts,
+    PolicyPorts,
+    PublicationPorts,
+)
 from oncall.domain.scheduling.solver import SolverResult
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import (
@@ -104,29 +109,6 @@ class FakeSchedules:
     async def hold_publication(self):
         self.held_publication = True
 
-    async def open_drafts(self, limit):
-        return [
-            ScheduleSummary(
-                item.id,
-                item.name,
-                item.starts_on,
-                item.ends_on,
-                item.status,
-                item.version,
-                item.rotation_mode,
-                item.solver_status,
-                len(item.assignments),
-                item.created_at,
-            )
-            for item in self.by_id.values()
-            if item.status in (ScheduleStatus.draft, ScheduleStatus.proposed)
-        ][:limit]
-
-    async def covering_spans(self, ending_on_or_after):
-        return [
-            item for item in self.published_spans.values() if item.ends_on >= ending_on_or_after
-        ]
-
     async def published_overlapping(self, schedule):
         return {
             key: span
@@ -196,16 +178,6 @@ class FakeQueue:
         run = self.put(queued_run(starts_on, ends_on, requested_by_id=requested_by_id))
         self.enqueued.append(run)
         return run
-
-    async def run(self, run_id):
-        return self.runs.get(run_id)
-
-    async def runs_of(self, requested_by_id, statuses, limit):
-        return [
-            item
-            for item in sorted(self.runs.values(), key=lambda run: run.created_at, reverse=True)
-            if item.requested_by_id == requested_by_id and item.status in statuses
-        ][:limit]
 
     async def active_runs_before(self, created_at):
         return sum(
@@ -285,8 +257,6 @@ class FakePolicyStore:
 class FakeChangeLog:
     records: list[tuple[datetime, ChangeRecord]] = field(default_factory=list)
     availability: dict = field(default_factory=dict)
-    eligibility: dict = field(default_factory=dict)
-    swap_days: dict = field(default_factory=dict)
 
     def add(self, action, *, entity_id=None, summary="", details=None, at=None) -> None:
         moment = at or datetime(2030, 6, 1, tzinfo=UTC)
@@ -307,12 +277,6 @@ class FakeChangeLog:
 
     async def availability_spans(self, entry_ids):
         return {item: self.availability[item] for item in entry_ids if item in self.availability}
-
-    async def eligibility_spans(self, period_ids):
-        return {item: self.eligibility[item] for item in period_ids if item in self.eligibility}
-
-    async def swap_slot_days(self, swap_ids):
-        return {item: self.swap_days[item] for item in swap_ids if item in self.swap_days}
 
 
 class FakePublicationSwaps:
@@ -340,9 +304,6 @@ class FakeSchedulingTeam:
     async def everyone(self):
         return list(self.team.by_id.values())
 
-    async def active_between(self, starts_on, ends_on):
-        return []
-
     async def ids_by_name(self, names):
         return {
             item.display_name: item.id
@@ -357,9 +318,6 @@ class FakeHistory:
 
     async def prior_oncall_days(self, starts_on, names_by_id):
         return {}
-
-    async def duties_in_force(self, window_start, window_end):
-        return []
 
 
 class FakeSolver:
@@ -387,19 +345,39 @@ class SchedulingWorld:
     solver: FakeSolver = field(default_factory=FakeSolver)
 
     @property
-    def ports(self) -> SchedulingPorts:
-        return SchedulingPorts(
+    def policy_ports(self) -> PolicyPorts:
+        return PolicyPorts(policy=self.policy, journal=self.journal)
+
+    @property
+    def generation_requests(self) -> GenerationRequestPorts:
+        return GenerationRequestPorts(policy=self.policy, roster=self.roster, queue=self.queue)
+
+    @property
+    def generation(self) -> GenerationPorts:
+        return GenerationPorts(
+            policy=self.policy,
+            members=FakeSchedulingTeam(self.team),
+            history=self.history,
+            solver=self.solver,
+            drafts=self.schedules,
+            journal=self.journal,
+        )
+
+    @property
+    def drafts(self) -> DraftPorts:
+        return DraftPorts(schedules=self.schedules, team=self.team, journal=self.journal)
+
+    @property
+    def publication(self) -> PublicationPorts:
+        return PublicationPorts(
             schedules=self.schedules,
             roster=self.roster,
             team=self.team,
             policy=self.policy,
             changes=self.changes,
-            journal=self.journal,
             swaps=self.swaps,
-            queue=self.queue,
             members=FakeSchedulingTeam(self.team),
-            history=self.history,
-            solver=self.solver,
+            journal=self.journal,
         )
 
     def publish_roster_from(self, schedule: Schedule) -> None:

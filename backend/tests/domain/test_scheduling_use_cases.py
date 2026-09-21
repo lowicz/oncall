@@ -9,7 +9,6 @@ import pytest
 from oncall.domain.roster import Duty
 from oncall.domain.scheduling import errors
 from oncall.domain.scheduling.drafts import (
-    compare_variants,
     correct_draft,
     delete_schedule,
     propose,
@@ -31,6 +30,7 @@ from oncall.domain.scheduling.publication import (
     publish,
     stale_changes_count,
 )
+from oncall.domain.scheduling.queries import compare_variants
 from oncall.domain.scheduling.solver import GeneratedAssignment, SolverResult
 from oncall.domain.team import Actor, AvailabilityPeriod
 from oncall.domain.vocabulary import (
@@ -76,7 +76,7 @@ async def test_a_correction_hands_the_slot_over_and_reports_the_rules_it_breaks(
     schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
 
     warnings = await correct_draft(
-        _correction(schedule, MONDAY, AssignmentRole.primary, world.dawid.id), world.ports
+        _correction(schedule, MONDAY, AssignmentRole.primary, world.dawid.id), world.drafts
     )
 
     corrected = world.schedules.by_id[schedule.id]
@@ -111,7 +111,7 @@ async def test_only_the_current_version_of_a_draft_can_be_corrected(world, chang
                 world.dawid.id,
                 version=change.get("version"),
             ),
-            world.ports,
+            world.drafts,
         )
     assert world.journal.events == []
 
@@ -136,7 +136,7 @@ async def test_a_correction_is_refused_for_what_the_slot_cannot_take(world) -> N
     ]
     for day, role, who, error in cases:
         with pytest.raises(error):
-            await correct_draft(_correction(schedule, day, role, who), world.ports)
+            await correct_draft(_correction(schedule, day, role, who), world.drafts)
     assert world.schedules.by_id[schedule.id] == schedule
 
 
@@ -149,7 +149,7 @@ async def test_a_slot_the_draft_does_not_have_cannot_be_corrected(world) -> None
 
     with pytest.raises(errors.DraftSlotNotFound):
         await correct_draft(
-            _correction(schedule, MONDAY, AssignmentRole.late_shift, world.dawid.id), world.ports
+            _correction(schedule, MONDAY, AssignmentRole.late_shift, world.dawid.id), world.drafts
         )
 
 
@@ -161,7 +161,7 @@ async def test_a_draft_with_hard_unavailability_cannot_be_proposed(world) -> Non
     schedule = world.schedules.put(complete_schedule(MONDAY, [blocked, world.anna, world.bartek]))
 
     with pytest.raises(errors.ProposalHasUnavailablePeople) as refused:
-        await propose(Transition(COORDINATOR, schedule.id, schedule.version), world.ports)
+        await propose(Transition(COORDINATOR, schedule.id, schedule.version), world.drafts)
 
     assert [item.message for item in refused.value.conflicts] == [
         "2030-03-04 · primary: Ela ma twardą niedostępność"
@@ -173,11 +173,11 @@ async def test_propose_and_withdraw_move_the_version_or_refuse_a_stale_one(world
     schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
 
     with pytest.raises(errors.DraftStateChanged):
-        await propose(Transition(COORDINATOR, schedule.id, schedule.version + 1), world.ports)
-    await propose(Transition(COORDINATOR, schedule.id, schedule.version), world.ports)
+        await propose(Transition(COORDINATOR, schedule.id, schedule.version + 1), world.drafts)
+    await propose(Transition(COORDINATOR, schedule.id, schedule.version), world.drafts)
     with pytest.raises(errors.ProposalStateChanged):
-        await withdraw(Transition(COORDINATOR, schedule.id, schedule.version), world.ports)
-    await withdraw(Transition(COORDINATOR, schedule.id, schedule.version + 1), world.ports)
+        await withdraw(Transition(COORDINATOR, schedule.id, schedule.version), world.drafts)
+    await withdraw(Transition(COORDINATOR, schedule.id, schedule.version + 1), world.drafts)
 
     assert world.schedules.by_id[schedule.id].version == schedule.version + 2
     assert world.journal.names == ["schedule_proposed", "proposal_withdrawn"]
@@ -197,8 +197,8 @@ async def test_published_schedules_stay_but_imported_history_can_be_deleted(worl
     )
 
     with pytest.raises(errors.ScheduleNotDeletable):
-        await delete_schedule(published.id, world.ports)
-    await delete_schedule(imported.id, world.ports)
+        await delete_schedule(published.id, world.drafts)
+    await delete_schedule(imported.id, world.drafts)
 
     assert world.schedules.deleted == [imported.id]
     assert world.journal.events == [
@@ -215,13 +215,13 @@ async def test_a_policy_needs_one_weight_above_zero(world) -> None:
             PolicyChange(
                 RotationMode.daily, fairness_weight=0, preference_weight=0, continuity_weight=0
             ),
-            world.ports,
+            world.policy_ports,
         )
     assert world.journal.events == []
 
     # Weights left out keep their value, so zeroing two of three is fine.
     policy = await change_policy(
-        PolicyChange(RotationMode.daily, fairness_weight=0, preference_weight=0), world.ports
+        PolicyChange(RotationMode.daily, fairness_weight=0, preference_weight=0), world.policy_ports
     )
     assert (policy.rotation_mode, policy.continuity_weight) == (RotationMode.daily, 1.0)
     assert world.journal.names == ["policy_updated"]
@@ -231,8 +231,8 @@ async def test_a_range_already_in_flight_is_handed_back_instead_of_queued_twice(
     ends_on = MONDAY + timedelta(days=13)
     request = GenerationRequest(COORDINATOR, MONDAY, ends_on)
 
-    first = await queue_generation(request, world.ports, lanes=1, today=MONDAY)
-    second = await queue_generation(request, world.ports, lanes=1, today=MONDAY)
+    first = await queue_generation(request, world.generation_requests, lanes=1, today=MONDAY)
+    second = await queue_generation(request, world.generation_requests, lanes=1, today=MONDAY)
 
     assert second.view.run == first.view.run
     assert len(world.queue.enqueued) == 1
@@ -251,7 +251,7 @@ async def test_the_start_estimate_counts_whole_lanes_of_runs_ahead(world) -> Non
 
     queued = await queue_generation(
         GenerationRequest(COORDINATOR, MONDAY + timedelta(days=20), MONDAY + timedelta(days=30)),
-        world.ports,
+        world.generation_requests,
         lanes=2,
         today=MONDAY,
     )
@@ -265,7 +265,7 @@ async def test_without_finished_runs_the_estimate_falls_back_to_the_budget_ceili
 
     queued = await queue_generation(
         GenerationRequest(COORDINATOR, MONDAY + timedelta(days=20), MONDAY + timedelta(days=30)),
-        world.ports,
+        world.generation_requests,
         lanes=1,
         today=MONDAY,
     )
@@ -285,7 +285,7 @@ async def test_a_failed_solve_stores_nothing_and_says_why(world) -> None:
     )
 
     with pytest.raises(errors.GenerationFailed) as failed:
-        await generate_draft(GenerationRequest(COORDINATOR, MONDAY, MONDAY), world.ports)
+        await generate_draft(GenerationRequest(COORDINATOR, MONDAY, MONDAY), world.generation)
 
     assert (failed.value.message, failed.value.reason, failed.value.conflicts) == (
         "Reguły twarde nie pozwalają utworzyć kompletnego grafiku",
@@ -306,7 +306,7 @@ async def test_a_solved_draft_is_named_after_its_mode_and_linked_to_its_people(w
     )
 
     stored = await generate_draft(
-        GenerationRequest(COORDINATOR, MONDAY, MONDAY + timedelta(days=6)), world.ports
+        GenerationRequest(COORDINATOR, MONDAY, MONDAY + timedelta(days=6)), world.generation
     )
 
     ((kept, draft),) = world.schedules.stored
@@ -336,12 +336,12 @@ async def test_only_a_daily_and_a_weekly_variant_of_one_range_compare(world) -> 
     )
 
     with pytest.raises(errors.VariantNotFound):
-        await compare_variants(daily.id, uuid.uuid4(), world.ports)
+        await compare_variants(daily.id, uuid.uuid4(), world.schedules)
     with pytest.raises(errors.VariantRangesDiffer):
-        await compare_variants(daily.id, later.id, world.ports)
+        await compare_variants(daily.id, later.id, world.schedules)
     with pytest.raises(errors.VariantModesMismatch):
-        await compare_variants(daily.id, daily.id, world.ports)
-    comparison = await compare_variants(daily.id, weekly.id, world.ports)
+        await compare_variants(daily.id, daily.id, world.schedules)
+    comparison = await compare_variants(daily.id, weekly.id, world.schedules)
     # A holder change every day on both on-call roles (13 + 13) and between
     # consecutive working days on 11-19 (4 + 4).
     assert [item.handovers for item in comparison.variants] == [34, 34]
@@ -440,11 +440,14 @@ async def test_publication_carries_a_safe_change_and_replaces_the_rest(world) ->
     world.swaps.pending.append(pending)
 
     with pytest.raises(errors.RestViolationsNotAcknowledged):
-        await publish(_request(proposal), world.ports, today=MONDAY, now=NOW)
+        await publish(_request(proposal), world.publication, today=MONDAY, now=NOW)
     assert world.schedules.carried == []
 
     await publish(
-        _request(proposal, acknowledge_rest_violations=True), world.ports, today=MONDAY, now=NOW
+        _request(proposal, acknowledge_rest_violations=True),
+        world.publication,
+        today=MONDAY,
+        now=NOW,
     )
 
     (carried,) = world.schedules.carried
@@ -485,7 +488,7 @@ async def test_publication_asks_for_every_decision_in_turn(world) -> None:
     today = MONDAY - timedelta(days=3)
 
     async def attempt(**flags):
-        await publish(_request(proposal, **flags), world.ports, today=today, now=NOW)
+        await publish(_request(proposal, **flags), world.publication, today=today, now=NOW)
 
     with pytest.raises(errors.LostChangesNotAcknowledged) as lost:
         await attempt()
@@ -524,14 +527,17 @@ async def test_only_a_complete_current_proposal_is_published(world) -> None:
     )
     with pytest.raises(errors.PublicationStateChanged):
         await publish(
-            replace(_request(proposal), expected_version=9), world.ports, today=MONDAY, now=NOW
+            replace(_request(proposal), expected_version=9),
+            world.publication,
+            today=MONDAY,
+            now=NOW,
         )
 
     gap = world.schedules.put(
         replace(proposal, id=uuid.uuid4(), assignments=proposal.assignments[1:])
     )
     with pytest.raises(errors.IncompleteSchedule):
-        await publish(_request(gap), world.ports, today=MONDAY, now=NOW)
+        await publish(_request(gap), world.publication, today=MONDAY, now=NOW)
 
     blocked = world.team.add(member("Ela", unavailable=[MONDAY]))
     unavailable = world.schedules.put(
@@ -540,7 +546,7 @@ async def test_only_a_complete_current_proposal_is_published(world) -> None:
         )
     )
     with pytest.raises(errors.PublicationHasUnavailablePeople):
-        await publish(_request(unavailable), world.ports, today=MONDAY, now=NOW)
+        await publish(_request(unavailable), world.publication, today=MONDAY, now=NOW)
     assert world.schedules.published == [] and world.journal.events == []
 
 
@@ -558,7 +564,10 @@ async def test_soft_preferences_never_block_a_publication(world) -> None:
     )
 
     await publish(
-        _request(proposal, acknowledge_rest_violations=True), world.ports, today=MONDAY, now=NOW
+        _request(proposal, acknowledge_rest_violations=True),
+        world.publication,
+        today=MONDAY,
+        now=NOW,
     )
     assert len(world.schedules.published) == 1
 
@@ -585,7 +594,7 @@ async def test_a_kept_change_checks_eligibility_periods_not_membership_dates(wor
             acknowledge_rest_violations=True,
             change_resolutions={f"{MONDAY}:primary": "change"},
         ),
-        world.ports,
+        world.publication,
         today=MONDAY,
         now=NOW,
     )
@@ -626,7 +635,7 @@ async def test_a_pending_swap_outside_the_published_range_is_not_a_publication_n
         )
     )
 
-    preview = await preview_publication(fortnight.id, world.ports, today=MONDAY)
+    preview = await preview_publication(fortnight.id, world.publication, today=MONDAY)
 
     assert preview.pending_swaps == ()
 
@@ -654,9 +663,9 @@ async def test_a_carry_is_not_refused_for_a_rule_the_rotation_does_not_have(worl
         )
     )
 
-    hybrid = await preview_publication(proposal.id, world.ports, today=MONDAY)
+    hybrid = await preview_publication(proposal.id, world.publication, today=MONDAY)
     world.policy.policy = replace(world.policy.policy, rotation_mode=RotationMode.weekly)
-    weekly = await preview_publication(proposal.id, world.ports, today=MONDAY)
+    weekly = await preview_publication(proposal.id, world.publication, today=MONDAY)
 
     assert [item.reason for item in hybrid.lost_changes] == ["Przeniesienie narusza reguły grafiku"]
     assert weekly.lost_changes == ()

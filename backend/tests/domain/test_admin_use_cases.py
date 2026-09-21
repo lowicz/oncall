@@ -56,7 +56,7 @@ def change(world, target, **changes) -> AccountChange:
 
 
 async def test_a_new_account_is_trimmed_audited_and_gets_an_activation_link(world) -> None:
-    created = await use_cases.create_account(new_account(world), world.ports)
+    created = await use_cases.create_account(new_account(world), world.account_administration)
 
     assert (created.account.first_name, created.account.last_name) == ("Nowa", "Osoba")
     assert created.activation.kind == AccountTokenKind.activation
@@ -76,25 +76,27 @@ async def test_a_new_account_is_trimmed_audited_and_gets_an_activation_link(worl
 async def test_a_new_account_must_not_clash(world, changes, error) -> None:
     world.accounts.put(account("zajety", email="ada@example.com", personnel_number="42"))
     with pytest.raises(error):
-        await use_cases.create_account(new_account(world, **changes), world.ports)
+        await use_cases.create_account(new_account(world, **changes), world.account_administration)
     assert world.journal.events == [] and world.accounts.tokens == []
 
 
 async def test_the_first_rule_broken_is_the_one_reported(world) -> None:
     with pytest.raises(errors.UsernameTaken):
         await use_cases.create_account(
-            new_account(world, username="ada.admin", email=None), world.ports
+            new_account(world, username="ada.admin", email=None), world.account_administration
         )
 
 
 async def test_a_directory_account_keeps_its_identity_but_not_its_role(world) -> None:
     ldap = world.accounts.put(account("lu dap", auth_source=AuthSource.ldap))
     with pytest.raises(errors.DirectoryIdentityReadOnly) as refused:
-        await use_cases.update_account(change(world, ldap, email="x@example.com"), world.ports)
+        await use_cases.update_account(
+            change(world, ldap, email="x@example.com"), world.account_administration
+        )
     assert refused.value.fields == {"email"}
 
     updated = await use_cases.update_account(
-        change(world, ldap, role=UserRole.coordinator), world.ports
+        change(world, ldap, role=UserRole.coordinator), world.account_administration
     )
     assert updated.role == UserRole.coordinator
 
@@ -102,9 +104,12 @@ async def test_a_directory_account_keeps_its_identity_but_not_its_role(world) ->
 async def test_an_admin_changes_neither_their_own_role_nor_status(world) -> None:
     for changes in ({"role": UserRole.member}, {"is_active": False}):
         with pytest.raises(errors.OwnRoleOrStatusChange):
-            await use_cases.update_account(change(world, world.admin, **changes), world.ports)
+            await use_cases.update_account(
+                change(world, world.admin, **changes), world.account_administration
+            )
     unchanged = await use_cases.update_account(
-        change(world, world.admin, role=UserRole.admin, is_active=True), world.ports
+        change(world, world.admin, role=UserRole.admin, is_active=True),
+        world.account_administration,
     )
     assert unchanged.is_active_admin
 
@@ -116,15 +121,23 @@ async def test_the_last_active_admin_is_neither_demoted_nor_deleted(world) -> No
     world.accounts.put(replace(world.admin, is_active=False))
 
     with pytest.raises(errors.LastActiveAdminDemotion):
-        await use_cases.update_account(change(world, other, role=UserRole.member), world.ports)
+        await use_cases.update_account(
+            change(world, other, role=UserRole.member), world.account_administration
+        )
     with pytest.raises(errors.LastActiveAdminDeletion):
-        await use_cases.delete_account(AccountAction(as_actor(world.admin), other.id), world.ports)
+        await use_cases.delete_account(
+            AccountAction(as_actor(world.admin), other.id), world.account_administration
+        )
 
 
 async def test_the_admin_count_is_consulted_only_when_an_active_admin_would_go(world) -> None:
     person = world.accounts.put(account("ola nowak"))
-    await use_cases.update_account(change(world, person, role=UserRole.coordinator), world.ports)
-    await use_cases.update_account(change(world, person, is_active=False), world.ports)
+    await use_cases.update_account(
+        change(world, person, role=UserRole.coordinator), world.account_administration
+    )
+    await use_cases.update_account(
+        change(world, person, is_active=False), world.account_administration
+    )
     assert world.accounts.admin_counts == 0
 
 
@@ -140,7 +153,9 @@ async def test_updating_checks_names_and_unique_identity(world) -> None:
         ({"email": "INNY@example.com"}, errors.EmailTaken),
     ):
         with pytest.raises(error):
-            await use_cases.update_account(change(world, person, **changes), world.ports)
+            await use_cases.update_account(
+                change(world, person, **changes), world.account_administration
+            )
     assert world.journal.events == []
 
 
@@ -150,7 +165,8 @@ async def test_renaming_a_rotation_member_carries_the_name_and_audits_before(wor
     person = world.accounts.put(replace(person, member_id=member.id))
 
     updated = await use_cases.update_account(
-        change(world, person, first_name=" Aleksandra ", phone="+48 600 000 000"), world.ports
+        change(world, person, first_name=" Aleksandra ", phone="+48 600 000 000"),
+        world.account_administration,
     )
 
     assert updated.display_name == "Aleksandra Nowak"
@@ -166,7 +182,9 @@ async def test_renaming_a_rotation_member_carries_the_name_and_audits_before(wor
 async def test_a_phone_change_renames_nobody(world) -> None:
     person = world.accounts.put(account("ola nowak"))
     world.rotation.enrolled(person, START)
-    await use_cases.update_account(change(world, person, phone="+48 600"), world.ports)
+    await use_cases.update_account(
+        change(world, person, phone="+48 600"), world.account_administration
+    )
     assert world.rotation.renamed == []
 
 
@@ -174,15 +192,15 @@ async def test_password_resets_are_for_local_accounts(world) -> None:
     ldap = world.accounts.put(account("lu dap", auth_source=AuthSource.ldap))
     with pytest.raises(errors.DirectoryPasswordReadOnly):
         await use_cases.issue_password_reset(
-            AccountAction(as_actor(world.admin), ldap.id), world.ports
+            AccountAction(as_actor(world.admin), ldap.id), world.account_administration
         )
     with pytest.raises(errors.AccountNotFound):
         await use_cases.issue_password_reset(
-            AccountAction(as_actor(world.admin), uuid.uuid4()), world.ports
+            AccountAction(as_actor(world.admin), uuid.uuid4()), world.account_administration
         )
 
     token = await use_cases.issue_password_reset(
-        AccountAction(as_actor(world.admin), world.admin.id), world.ports
+        AccountAction(as_actor(world.admin), world.admin.id), world.account_administration
     )
     assert token.kind == AccountTokenKind.password_reset
     assert token.expires_at - datetime.now(UTC) <= timedelta(hours=1)
@@ -195,11 +213,15 @@ async def test_deleting_an_account(world) -> None:
 
     with pytest.raises(errors.OwnAccountDeletion):
         await use_cases.delete_account(
-            AccountAction(as_actor(world.admin), world.admin.id), world.ports
+            AccountAction(as_actor(world.admin), world.admin.id), world.account_administration
         )
     with pytest.raises(errors.AccountStillReferenced):
-        await use_cases.delete_account(AccountAction(as_actor(world.admin), linked.id), world.ports)
-    await use_cases.delete_account(AccountAction(as_actor(world.admin), person.id), world.ports)
+        await use_cases.delete_account(
+            AccountAction(as_actor(world.admin), linked.id), world.account_administration
+        )
+    await use_cases.delete_account(
+        AccountAction(as_actor(world.admin), person.id), world.account_administration
+    )
 
     assert person.id not in world.accounts.by_id
     # The audit entry is written first, so it is part of the same failed or
@@ -211,17 +233,17 @@ async def test_enrolling_an_account_once(world) -> None:
     person = world.accounts.put(account("ola nowak"))
     enrolment = Enrolment(as_actor(world.admin), person.id, START)
 
-    member = await use_cases.enrol_in_rotation(enrolment, world.ports)
+    member = await use_cases.enrol_in_rotation(enrolment, world.membership_administration)
     assert (member.user_id, member.display_name, member.active_from) == (
         person.id,
         "Ola Nowak",
         START,
     )
     with pytest.raises(errors.AccountAlreadyInRotation):
-        await use_cases.enrol_in_rotation(enrolment, world.ports)
+        await use_cases.enrol_in_rotation(enrolment, world.membership_administration)
     with pytest.raises(errors.AccountNotFound):
         await use_cases.enrol_in_rotation(
-            Enrolment(as_actor(world.admin), uuid.uuid4(), START), world.ports
+            Enrolment(as_actor(world.admin), uuid.uuid4(), START), world.membership_administration
         )
 
 
@@ -238,21 +260,25 @@ async def test_membership_dates_must_hold_the_periods_and_the_duties(world) -> N
 
     with pytest.raises(errors.MembershipEndsBeforeStart):
         await use_cases.change_membership(
-            membership(world, member, active_until=START - timedelta(days=1)), world.ports
+            membership(world, member, active_until=START - timedelta(days=1)),
+            world.membership_administration,
         )
     with pytest.raises(errors.EligibilityOutlivesMembership):
         await use_cases.change_membership(
-            membership(world, member, active_from=START + timedelta(days=6)), world.ports
+            membership(world, member, active_from=START + timedelta(days=6)),
+            world.membership_administration,
         )
     with pytest.raises(errors.EligibilityOutlivesMembership):
         await use_cases.change_membership(
-            membership(world, member, active_until=START + timedelta(days=90)), world.ports
+            membership(world, member, active_until=START + timedelta(days=90)),
+            world.membership_administration,
         )
 
     world.rotation.periods_by_id.clear()
     with pytest.raises(errors.DutiesAfterExit) as refused:
         await use_cases.change_membership(
-            membership(world, member, active_until=START + timedelta(days=29)), world.ports
+            membership(world, member, active_until=START + timedelta(days=29)),
+            world.membership_administration,
         )
     assert len(refused.value.slots) == 20
     assert str(refused.value).startswith(
@@ -262,7 +288,7 @@ async def test_membership_dates_must_hold_the_periods_and_the_duties(world) -> N
 
     updated = await use_cases.change_membership(
         membership(world, member, active_until=None, active_from=START + timedelta(days=1)),
-        world.ports,
+        world.membership_administration,
     )
     assert updated.active_from == START + timedelta(days=1)
     assert world.rotation.held == [member.id] * 5
@@ -287,17 +313,24 @@ async def test_granting_eligibility(world) -> None:
             EligibilityGrant(
                 as_actor(world.admin), uuid.uuid4(), AssignmentRole.primary, START, None
             ),
-            world.ports,
+            world.eligibility_administration,
         )
     for starts, ends in ((-1, 10), (0, None), (0, 61)):
         with pytest.raises(errors.EligibilityOutsideMembership):
-            await use_cases.grant_eligibility(grant(world, member, starts, ends), world.ports)
+            await use_cases.grant_eligibility(
+                grant(world, member, starts, ends), world.eligibility_administration
+            )
 
-    period = await use_cases.grant_eligibility(grant(world, member, 0, 20), world.ports)
+    period = await use_cases.grant_eligibility(
+        grant(world, member, 0, 20), world.eligibility_administration
+    )
     with pytest.raises(errors.EligibilityOverlaps):
-        await use_cases.grant_eligibility(grant(world, member, 20, 30), world.ports)
+        await use_cases.grant_eligibility(
+            grant(world, member, 20, 30), world.eligibility_administration
+        )
     await use_cases.grant_eligibility(
-        grant(world, member, 20, 30, role=AssignmentRole.secondary), world.ports
+        grant(world, member, 20, 30, role=AssignmentRole.secondary),
+        world.eligibility_administration,
     )
     assert world.journal.events[0] == ("eligibility_granted", {"args": (member, period)})
 
@@ -318,7 +351,8 @@ async def test_changing_and_revoking_eligibility_keeps_published_duties_covered(
 
     def edit(**changes):
         return use_cases.change_eligibility(
-            EligibilityChange(as_actor(world.admin), first.id, changes), world.ports
+            EligibilityChange(as_actor(world.admin), first.id, changes),
+            world.eligibility_administration,
         )
 
     with pytest.raises(errors.EligibilityEndsBeforeStart):
@@ -334,18 +368,19 @@ async def test_changing_and_revoking_eligibility_keeps_published_duties_covered(
     assert refused.value.slots == [slot(START + timedelta(days=10))]
     with pytest.raises(errors.DutiesLoseEligibility):
         await use_cases.revoke_eligibility(
-            EligibilityRevocation(as_actor(world.admin), first.id), world.ports
+            EligibilityRevocation(as_actor(world.admin), first.id), world.eligibility_administration
         )
     with pytest.raises(errors.EligibilityNotFound):
         await use_cases.revoke_eligibility(
-            EligibilityRevocation(as_actor(world.admin), uuid.uuid4()), world.ports
+            EligibilityRevocation(as_actor(world.admin), uuid.uuid4()),
+            world.eligibility_administration,
         )
 
     moved = await edit(starts_on=START + timedelta(days=1))
     assert moved.starts_on == START + timedelta(days=1)
     world.rotation.duties.clear()
     await use_cases.revoke_eligibility(
-        EligibilityRevocation(as_actor(world.admin), first.id), world.ports
+        EligibilityRevocation(as_actor(world.admin), first.id), world.eligibility_administration
     )
     assert first.id not in world.rotation.periods_by_id
     assert world.journal.names == ["eligibility_changed", "eligibility_revoked"]

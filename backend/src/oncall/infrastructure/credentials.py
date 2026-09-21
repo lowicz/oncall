@@ -3,10 +3,9 @@
 from oncall import auth, ldap_auth
 from oncall.domain.access.errors import DirectoryFailure
 from oncall.domain.access.models import DirectoryIdentity
-from oncall.domain.access.ports import Directory, PasswordHasher
 
 
-class Argon2Passwords(PasswordHasher):
+class Argon2Passwords:
     """Argon2 off the event loop. Looked up on the `auth` module at call time,
     so a test can count verifications."""
 
@@ -20,7 +19,7 @@ class Argon2Passwords(PasswordHasher):
         return await auth.hash_password_async(password)
 
 
-class DirectoryAuthentication(Directory):
+class DirectoryAuthentication:
     """Any LDAP authenticator, its failures translated for the domain."""
 
     def __init__(self, authenticator: ldap_auth.LdapAuthenticator) -> None:

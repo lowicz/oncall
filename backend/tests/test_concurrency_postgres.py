@@ -46,7 +46,7 @@ from oncall.infrastructure.sqlalchemy.notification_models import (
     NotificationOutbox,
     NotificationStatus,
 )
-from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule, ScheduleRun
 from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
@@ -843,7 +843,7 @@ async def test_a_dead_worker_stops_blocking_the_range_it_was_solving(pg, pg_fact
         async with pg_factory() as db:
             assert (
                 await recover_abandoned_runs(
-                    scheduling_ports(db).queue, stale_after=120.0, now=datetime.now(UTC)
+                    SqlAlchemyGenerationQueue(db), stale_after=120.0, now=datetime.now(UTC)
                 )
                 == 1
             )
@@ -881,7 +881,7 @@ async def test_two_workers_reclaiming_at_once_reclaim_it_once(pg, pg_factory) ->
     async def lane() -> int:
         async with pg_factory() as db:
             reclaimed = await recover_abandoned_runs(
-                scheduling_ports(db).queue, stale_after=120.0, now=datetime.now(UTC)
+                SqlAlchemyGenerationQueue(db), stale_after=120.0, now=datetime.now(UTC)
             )
             await db.commit()
             return reclaimed
@@ -1029,7 +1029,7 @@ async def test_the_operational_readings_measure_the_same_thing_on_postgres(pg) -
         )
     await pg.commit()
 
-    queue = await queue_health(scheduling_ports(pg).queue, now=now)
+    queue = await queue_health(SqlAlchemyGenerationQueue(pg), now=now)
     outbox = await outbox_health(pg, now=now)
 
     assert (queue.queued, queue.running) == (2, 1)

@@ -35,10 +35,14 @@ from oncall.domain.admin.models import (
     RotationMember,
 )
 from oncall.domain.admin.ports import (
+    AccountAdministrationPorts,
     AccountBook,
-    AdminPorts,
+    AccountLookup,
     AuditTrail,
-    RotationBook,
+    EligibilityAdministrationPorts,
+    EligibilityBook,
+    HeldMembers,
+    MembershipAdministrationPorts,
     RotationDirectory,
 )
 from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, AuthSource, UserRole
@@ -53,15 +57,17 @@ async def list_rotation(rotation: RotationDirectory) -> list[RotationMember]:
     return await rotation.members()
 
 
-async def create_account(new: NewAccount, ports: AdminPorts) -> AccountCreated:
+async def create_account(new: NewAccount, ports: AccountAdministrationPorts) -> AccountCreated:
     first_name = new.first_name.strip()
     if not first_name:
         raise errors.FirstNameRequired()
-    if await ports.accounts.username_taken(new.username):
+    if await ports.identifiers.username_taken(new.username):
         raise errors.UsernameTaken(new.username)
-    if new.email and await ports.accounts.email_taken(new.email):
+    if new.email and await ports.identifiers.email_taken(new.email):
         raise errors.EmailTaken(new.email)
-    if new.personnel_number and await ports.accounts.personnel_number_taken(new.personnel_number):
+    if new.personnel_number and await ports.identifiers.personnel_number_taken(
+        new.personnel_number
+    ):
         raise errors.PersonnelNumberTaken(new.personnel_number)
     account = await ports.accounts.open_account(
         AccountRecord(
@@ -81,7 +87,7 @@ async def create_account(new: NewAccount, ports: AdminPorts) -> AccountCreated:
     return AccountCreated(account=account, activation=activation)
 
 
-async def update_account(change: AccountChange, ports: AdminPorts) -> Account:
+async def update_account(change: AccountChange, ports: AccountAdministrationPorts) -> Account:
     account = await _account(ports.accounts, change.account_id)
     changes = dict(change.changes)
     touched_identity = IDENTITY_FIELDS & changes.keys()
@@ -103,12 +109,12 @@ async def update_account(change: AccountChange, ports: AdminPorts) -> Account:
     if "last_name" in changes and changes["last_name"] is None:
         raise errors.LastNameCleared()
     number = changes.get("personnel_number")
-    if number is not None and await ports.accounts.personnel_number_taken(
+    if number is not None and await ports.identifiers.personnel_number_taken(
         number, other_than=account.id
     ):
         raise errors.PersonnelNumberTaken(number)
     email = changes.get("email")
-    if email is not None and await ports.accounts.email_taken(email, other_than=account.id):
+    if email is not None and await ports.identifiers.email_taken(email, other_than=account.id):
         raise errors.EmailTaken(email)
 
     before = {key: getattr(account, key) for key in changes}
@@ -120,7 +126,7 @@ async def update_account(change: AccountChange, ports: AdminPorts) -> Account:
     if account.member_id is not None and touched_identity:
         # Identity and every rule use the member id; the name is carried over
         # only so labels and exports stay readable.
-        await ports.rotation.rename_member(account.member_id, updated.display_name)
+        await ports.members.rename_member(account.member_id, updated.display_name)
     await ports.journal.account_updated(
         updated,
         fields=sorted(changes),
@@ -129,7 +135,9 @@ async def update_account(change: AccountChange, ports: AdminPorts) -> Account:
     return updated
 
 
-async def issue_password_reset(action: AccountAction, ports: AdminPorts) -> IssuedToken:
+async def issue_password_reset(
+    action: AccountAction, ports: AccountAdministrationPorts
+) -> IssuedToken:
     account = await _account(ports.accounts, action.account_id)
     if account.auth_source != AuthSource.local:
         raise errors.DirectoryPasswordReadOnly(account.id)
@@ -140,7 +148,7 @@ async def issue_password_reset(action: AccountAction, ports: AdminPorts) -> Issu
     return token
 
 
-async def delete_account(action: AccountAction, ports: AdminPorts) -> None:
+async def delete_account(action: AccountAction, ports: AccountAdministrationPorts) -> None:
     account = await _account(ports.accounts, action.account_id)
     if account.id == action.actor.user_id:
         raise errors.OwnAccountDeletion()
@@ -150,7 +158,9 @@ async def delete_account(action: AccountAction, ports: AdminPorts) -> None:
     await ports.accounts.close_account(account.id)
 
 
-async def enrol_in_rotation(enrolment: Enrolment, ports: AdminPorts) -> RotationMember:
+async def enrol_in_rotation(
+    enrolment: Enrolment, ports: MembershipAdministrationPorts
+) -> RotationMember:
     account = await _account(ports.accounts, enrolment.account_id)
     if await ports.rotation.account_is_enrolled(account.id):
         raise errors.AccountAlreadyInRotation(account.id)
@@ -159,7 +169,9 @@ async def enrol_in_rotation(enrolment: Enrolment, ports: AdminPorts) -> Rotation
     return member
 
 
-async def change_membership(change: MembershipChange, ports: AdminPorts) -> RotationMember:
+async def change_membership(
+    change: MembershipChange, ports: MembershipAdministrationPorts
+) -> RotationMember:
     member = await _member_for_change(ports.rotation, change.member_id)
     changes = dict(change.changes)
     active_from = changes.get("active_from", member.active_from)
@@ -183,7 +195,9 @@ async def change_membership(change: MembershipChange, ports: AdminPorts) -> Rota
     return updated
 
 
-async def grant_eligibility(grant: EligibilityGrant, ports: AdminPorts) -> EligibilityPeriod:
+async def grant_eligibility(
+    grant: EligibilityGrant, ports: EligibilityAdministrationPorts
+) -> EligibilityPeriod:
     member = await _member_for_change(ports.rotation, grant.member_id)
     if not member.contains(grant.starts_on, grant.ends_on):
         raise errors.EligibilityOutsideMembership()
@@ -198,7 +212,9 @@ async def grant_eligibility(grant: EligibilityGrant, ports: AdminPorts) -> Eligi
     return period
 
 
-async def change_eligibility(change: EligibilityChange, ports: AdminPorts) -> EligibilityPeriod:
+async def change_eligibility(
+    change: EligibilityChange, ports: EligibilityAdministrationPorts
+) -> EligibilityPeriod:
     member, period = await _period_for_change(ports.rotation, change.eligibility_id)
     changes = dict(change.changes)
     starts_on = changes.get("starts_on", period.starts_on)
@@ -219,7 +235,9 @@ async def change_eligibility(change: EligibilityChange, ports: AdminPorts) -> El
     return updated
 
 
-async def revoke_eligibility(revocation: EligibilityRevocation, ports: AdminPorts) -> None:
+async def revoke_eligibility(
+    revocation: EligibilityRevocation, ports: EligibilityAdministrationPorts
+) -> None:
     member, period = await _period_for_change(ports.rotation, revocation.eligibility_id)
     # No span is left, so every published duty in the role must be covered by
     # another period.
@@ -248,14 +266,14 @@ async def browse_audit(query: AuditQuery, trail: AuditTrail) -> AuditPage:
     return AuditPage(entries=entries, logins_excluded=logins_excluded)
 
 
-async def _account(accounts: AccountBook, account_id: uuid.UUID) -> Account:
+async def _account(accounts: AccountLookup, account_id: uuid.UUID) -> Account:
     account = await accounts.account(account_id)
     if account is None:
         raise errors.AccountNotFound(account_id)
     return account
 
 
-async def _member_for_change(rotation: RotationBook, member_id: uuid.UUID) -> RotationMember:
+async def _member_for_change(rotation: HeldMembers, member_id: uuid.UUID) -> RotationMember:
     member = await rotation.member_for_change(member_id)
     if member is None:
         raise errors.RotationMemberNotFound(member_id)
@@ -263,7 +281,7 @@ async def _member_for_change(rotation: RotationBook, member_id: uuid.UUID) -> Ro
 
 
 async def _period_for_change(
-    rotation: RotationBook, eligibility_id: uuid.UUID
+    rotation: EligibilityBook, eligibility_id: uuid.UUID
 ) -> tuple[RotationMember, EligibilityPeriod]:
     """The period and its member, the member held first and the period read
     again under it, so a concurrent change to the same person is seen."""
@@ -278,7 +296,7 @@ async def _period_for_change(
 
 
 async def _ensure_duties_stay_eligible(
-    rotation: RotationBook,
+    rotation: EligibilityBook,
     member_id: uuid.UUID,
     role: AssignmentRole,
     starts_on: date | None,

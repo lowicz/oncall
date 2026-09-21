@@ -22,7 +22,7 @@ def request(username: str = "ola", password: str = "secret", ip: str = "10.0.0.1
 
 async def sign_in(world: AccessWorld, **kwargs):
     return await use_cases.sign_in(
-        request(**kwargs), world.ports, now=NOW, session_lifetime=LIFETIME
+        request(**kwargs), world.sign_in, now=NOW, session_lifetime=LIFETIME
     )
 
 
@@ -223,7 +223,7 @@ async def test_activating_an_account_once(world) -> None:
     fresh = world.accounts.put(account("nowa"), None)
     world.links.put("t" * 30, AccountTokenKind.activation, fresh)
 
-    activated = await use_cases.choose_password(choice("t" * 30), world.ports, now=NOW)
+    activated = await use_cases.choose_password(choice("t" * 30), world.password_choice, now=NOW)
 
     assert activated == fresh
     assert world.accounts.hashes[fresh.id] == "hash:Nowe-Haslo-123"
@@ -233,7 +233,7 @@ async def test_activating_an_account_once(world) -> None:
         ("password_set", {"args": (fresh, AccountTokenKind.activation)})
     ]
     with pytest.raises(errors.AccountLinkInvalid):
-        await use_cases.choose_password(choice("t" * 30), world.ports, now=NOW)
+        await use_cases.choose_password(choice("t" * 30), world.password_choice, now=NOW)
 
 
 async def test_a_password_reset_signs_the_account_out_everywhere(world) -> None:
@@ -241,7 +241,7 @@ async def test_a_password_reset_signs_the_account_out_everywhere(world) -> None:
     world.links.put("r" * 30, AccountTokenKind.password_reset, ola)
 
     await use_cases.choose_password(
-        choice("r" * 30, AccountTokenKind.password_reset), world.ports, now=NOW
+        choice("r" * 30, AccountTokenKind.password_reset), world.password_choice, now=NOW
     )
 
     assert world.sessions.ended == [ola.id]
@@ -270,10 +270,10 @@ async def test_a_link_of_another_kind_expired_or_used_is_invalid(world, arrange,
     fresh = world.accounts.put(account("nowa"), None)
     arrange(world, fresh)
     with pytest.raises(error):
-        await use_cases.choose_password(choice("x" * 30), world.ports, now=NOW)
+        await use_cases.choose_password(choice("x" * 30), world.password_choice, now=NOW)
     with pytest.raises(error):
         await use_cases.describe_account_link(
-            "x" * 30, AccountTokenKind.activation, world.ports, now=NOW
+            "x" * 30, AccountTokenKind.activation, world.links, now=NOW
         )
 
 
@@ -287,13 +287,13 @@ async def test_password_rules_of_account_links(world) -> None:
 
     with pytest.raises(DirectoryPasswordReadOnly):
         await use_cases.choose_password(
-            choice("d" * 30, AccountTokenKind.password_reset), world.ports, now=NOW
+            choice("d" * 30, AccountTokenKind.password_reset), world.password_choice, now=NOW
         )
     with pytest.raises(errors.AccountAlreadyActivated):
-        await use_cases.choose_password(choice("a" * 30), world.ports, now=NOW)
+        await use_cases.choose_password(choice("a" * 30), world.password_choice, now=NOW)
     with pytest.raises(errors.PasswordSameAsLogin):
         await use_cases.choose_password(
-            choice("f" * 30, password="HASLO-LOGIN-1"), world.ports, now=NOW
+            choice("f" * 30, password="HASLO-LOGIN-1"), world.password_choice, now=NOW
         )
     assert world.journal.events == []
 
@@ -301,8 +301,8 @@ async def test_password_rules_of_account_links(world) -> None:
 async def test_only_an_account_edits_its_own_phone(world) -> None:
     ola = world.accounts.put(account("ola"))
     with pytest.raises(errors.ShareSessionHasNoAccount):
-        await use_cases.change_own_phone(None, "+48 600", world.ports)
-    overview = await use_cases.change_own_phone(ola.id, "+48 600", world.ports)
+        await use_cases.change_own_phone(None, "+48 600", world.accounts)
+    overview = await use_cases.change_own_phone(ola.id, "+48 600", world.accounts)
     assert (overview.account.phone, overview.has_team_member) == ("+48 600", False)
 
 
@@ -310,4 +310,4 @@ async def test_a_deleted_account_refuses_the_phone_edit(world) -> None:
     """An administrator can delete an account while its owner still holds a
     session, so the id in that session can name a row that is gone."""
     with pytest.raises(errors.AccountGone):
-        await use_cases.change_own_phone(uuid.uuid4(), "+48 600", world.ports)
+        await use_cases.change_own_phone(uuid.uuid4(), "+48 600", world.accounts)

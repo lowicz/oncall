@@ -11,13 +11,7 @@ from datetime import date, datetime, timedelta
 from oncall.domain.ports import PublishedRoster, TeamDirectory
 from oncall.domain.roster import Duty, Slot
 from oncall.domain.scheduling import drafts, errors
-from oncall.domain.scheduling.generation import generate_draft as generate_draft
-from oncall.domain.scheduling.generation import generation_status as generation_status
-from oncall.domain.scheduling.generation import queue_generation as queue_generation
-from oncall.domain.scheduling.generation import runs_in_flight as runs_in_flight
-from oncall.domain.scheduling.generation import suggest_range as suggest_range
-from oncall.domain.scheduling.generation import uncovered_dates as uncovered_dates
-from oncall.domain.scheduling.generation import view_run as view_run
+from oncall.domain.scheduling.generation import uncovered_dates
 from oncall.domain.scheduling.models import (
     CarriedChange,
     ChangeRecord,
@@ -28,18 +22,9 @@ from oncall.domain.scheduling.models import (
     ReplacedDuty,
     Schedule,
     ScheduledDuty,
-    ScheduleView,
 )
-from oncall.domain.scheduling.planning import (
-    rule_warnings,
-    validate_complete,
-)
-from oncall.domain.scheduling.policy import change_policy as change_policy
-from oncall.domain.scheduling.policy import current_policy as current_policy
-from oncall.domain.scheduling.ports import (
-    ChangeLog,
-    SchedulingPorts,
-)
+from oncall.domain.scheduling.planning import validate_complete
+from oncall.domain.scheduling.ports import ChangeLog, PublicationPorts
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import (
     AssignmentRole,
@@ -184,36 +169,6 @@ async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
     return count
 
 
-async def view_schedule(
-    schedule: Schedule,
-    ports: SchedulingPorts,
-    *,
-    today: date,
-    warnings: list[str] | None = None,
-) -> ScheduleView:
-    """The schedule with everything the generator screen shows next to it.
-
-    `warnings` replaces the rule warnings computed from the schedule, for a
-    correction that reports the rules its replacement breaks.
-    """
-    return ScheduleView(
-        schedule=schedule,
-        rule_warnings=tuple(rule_warnings(schedule) if warnings is None else warnings),
-        unavailability_conflicts=await drafts.unavailability_conflicts(schedule, ports.team),
-        uncovered_before=tuple(await uncovered_dates(schedule.starts_on, ports.roster, today)),
-        stale_changes_count=await stale_changes_count(schedule, ports.changes),
-    )
-
-
-async def show_schedule(
-    schedule_id: uuid.UUID, ports: SchedulingPorts, *, today: date
-) -> ScheduleView:
-    schedule = await ports.schedules.schedule(schedule_id)
-    if schedule is None:
-        raise errors.ScheduleNotFound(schedule_id)
-    return await view_schedule(schedule, ports, today=today)
-
-
 # --- publication ------------------------------------------------------------
 
 #: Actions that can tell a republish who a slot's assignee was replacing.
@@ -292,7 +247,7 @@ async def _carry_conflict_reason(
     old: Duty,
     original_name: str | None,
     moves: list[Slot],
-    ports: SchedulingPorts,
+    ports: PublicationPorts,
 ) -> str | None:
     if original_name is None:
         return "Nie można ustalić pierwotnego wykonawcy zmiany"
@@ -378,7 +333,7 @@ async def _rest_violations(
     )
 
 
-async def _preview(schedule: Schedule, ports: SchedulingPorts, today: date) -> PublicationPreview:
+async def _preview(schedule: Schedule, ports: PublicationPorts, today: date) -> PublicationPreview:
     """What publishing this proposal would do to the roster in force.
 
     Three questions, asked in the order the screen puts them: which slots this
@@ -427,7 +382,7 @@ async def _protected_changes(
     schedule: Schedule,
     current: dict[Slot, Duty],
     changed: list[tuple[Duty, ScheduledDuty]],
-    ports: SchedulingPorts,
+    ports: PublicationPorts,
 ) -> list[ProtectedChange]:
     """The replaced slots somebody put there on purpose, and their fate.
 
@@ -477,7 +432,7 @@ async def _protected_changes(
 
 
 async def _pending_swap_notices(
-    schedule: Schedule, ports: SchedulingPorts
+    schedule: Schedule, ports: PublicationPorts
 ) -> list[PendingSwapNotice]:
     """Swaps still awaiting a decision that this publication would cancel.
 
@@ -522,7 +477,7 @@ async def _pending_swap_notices(
 
 
 async def preview_publication(
-    schedule_id: uuid.UUID, ports: SchedulingPorts, *, today: date
+    schedule_id: uuid.UUID, ports: PublicationPorts, *, today: date
 ) -> PublicationPreview:
     schedule = await ports.schedules.schedule(schedule_id)
     if schedule is None:
@@ -576,7 +531,7 @@ async def change_resolution_conflicts(
 
 
 async def publish(
-    request: PublicationRequest, ports: SchedulingPorts, *, today: date, now: datetime
+    request: PublicationRequest, ports: PublicationPorts, *, today: date, now: datetime
 ) -> None:
     await ports.schedules.hold_publication()
     schedule = await ports.schedules.schedule_to_publish(request.schedule_id)

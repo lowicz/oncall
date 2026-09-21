@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
 from oncall.domain.overrides.models import OverrideMove
-from oncall.domain.overrides.ports import OverrideJournal
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -35,7 +34,7 @@ def _violations_detail(violations: list[RuleViolation]) -> list[dict]:
     ]
 
 
-class SqlAlchemyOverrideJournal(OverrideJournal):
+class SqlAlchemyOverrideJournal:
     def __init__(self, session: AsyncSession, actor: User) -> None:
         self._session = session
         self._actor = actor

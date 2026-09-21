@@ -17,7 +17,7 @@ from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
-from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling import publication_ports, schedule_query_ports
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
 from oncall.presentation.scheduling import ScheduleTransitionRequest
@@ -184,7 +184,7 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
     )
     await db.commit()
 
-    preview = await publication_preview(proposed_schedule.id, coordinator, scheduling_ports(db))
+    preview = await publication_preview(proposed_schedule.id, coordinator, publication_ports(db))
     assert [item.model_dump(mode="json") for item in preview.lost_changes] == [
         {
             "service_date": start.isoformat(),
@@ -213,7 +213,8 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
             proposed_schedule.id,
             ScheduleTransitionRequest(expected_version=proposed["version"]),
             coordinator,
-            scheduling_ports(db, coordinator),
+            publication_ports(db, coordinator),
+            schedule_query_ports(db),
             None,
         )
     assert blocked.value.status_code == 409
@@ -228,7 +229,8 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
                 change_resolutions={f"{start.isoformat()}:primary": "draft"},
             ),
             coordinator,
-            scheduling_ports(db, coordinator),
+            publication_ports(db, coordinator),
+            schedule_query_ports(db),
             None,
         )
     assert gap_blocked.value.detail["reason"] == "UNCOVERED_BEFORE"
@@ -243,7 +245,8 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
                 change_resolutions={f"{start.isoformat()}:primary": "draft"},
             ),
             coordinator,
-            scheduling_ports(db, coordinator),
+            publication_ports(db, coordinator),
+            schedule_query_ports(db),
             None,
         )
     assert rest_blocked.value.detail["reason"] == "REST_VIOLATIONS"
@@ -258,7 +261,8 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
             change_resolutions={f"{start.isoformat()}:primary": "draft"},
         ),
         coordinator,
-        scheduling_ports(db, coordinator),
+        publication_ports(db, coordinator),
+        schedule_query_ports(db),
         None,
     )
     assert published.status == ScheduleStatus.published.value

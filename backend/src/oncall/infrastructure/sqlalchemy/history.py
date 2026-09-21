@@ -9,7 +9,6 @@ from sqlalchemy.orm import selectinload
 
 from oncall.audit import record_audit
 from oncall.domain.history.models import IMPORT_NAME_PREFIX, HistoryImport, NewHistoryImport
-from oncall.domain.history.ports import HistoryArchive, HistoryJournal
 from oncall.domain.roster import Slot
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import ScheduleStatus
@@ -19,7 +18,7 @@ from oncall.infrastructure.sqlalchemy.team import to_member
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
-class SqlAlchemyHistory(HistoryArchive, HistoryJournal):
+class SqlAlchemyHistory:
     """Imported history and its audit entry over one session.
 
     One object implements both ports because the audit entry names the

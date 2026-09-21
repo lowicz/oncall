@@ -14,7 +14,6 @@ from oncall.domain.calendar.models import (
     Contact,
     NewCalendarEvent,
 )
-from oncall.domain.calendar.ports import CalendarEvents, CalendarJournal, CalendarRoster
 from oncall.domain.team import RolePeriod
 from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, SwapStatus
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -35,7 +34,7 @@ def _to_event(row: CalendarEventRow) -> CalendarEvent:
     )
 
 
-class SqlAlchemyCalendarEvents(CalendarEvents, CalendarJournal):
+class SqlAlchemyCalendarEvents:
     def __init__(self, session: AsyncSession, actor: User | None = None) -> None:
         self._session = session
         self._actor = actor
@@ -112,7 +111,7 @@ class SqlAlchemyCalendarEvents(CalendarEvents, CalendarJournal):
         )
 
 
-class SqlAlchemyCalendarRoster(CalendarRoster):
+class SqlAlchemyCalendarRoster:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

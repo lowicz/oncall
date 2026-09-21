@@ -7,10 +7,16 @@ from datetime import UTC, datetime, timedelta
 from oncall.domain.access import errors
 from oncall.domain.access.errors import DirectoryFailure
 from oncall.domain.access.models import AccountLink, StoredCredentials
-from oncall.domain.access.ports import AccessPorts
+from oncall.domain.access.ports import PasswordPorts, SignInPorts
 from oncall.domain.accounts import Account, SignedInSession
 from oncall.domain.sharing.models import CalendarFeed, FeedIssued, ShareLink
-from oncall.domain.sharing.ports import SharingPorts
+from oncall.domain.sharing.ports import (
+    CalendarSubscriptionPorts,
+    LinkFeedPorts,
+    MemberFeedPorts,
+    ShareExchangePorts,
+    ShareLinkCommandPorts,
+)
 from oncall.domain.vocabulary import AuthSource, UserRole
 from tests.domain.fakes import FakeJournal, FakeRoster, FakeTeam
 
@@ -62,15 +68,11 @@ class FakeAccessAccounts:
         self.by_id: dict[uuid.UUID, Account] = {}
         self.hashes: dict[uuid.UUID, str | None] = {}
         self.members: set[uuid.UUID] = set()
-        self.renamed: list[tuple[uuid.UUID, str]] = []
 
     def put(self, item: Account, password_hash: str | None = "hash:secret") -> Account:
         self.by_id[item.id] = item
         self.hashes[item.id] = password_hash
         return item
-
-    async def account(self, account_id):
-        return self.by_id.get(account_id)
 
     async def credentials_for_login(self, login):
         found = next((item for item in self.by_id.values() if item.username == login), None)
@@ -222,14 +224,23 @@ class AccessWorld:
         self.links = FakeAccountLinks(self.accounts)
 
     @property
-    def ports(self) -> AccessPorts:
-        return AccessPorts(
+    def sign_in(self) -> SignInPorts:
+        return SignInPorts(
             attempts=self.attempts,
             accounts=self.accounts,
             passwords=self.passwords,
             directory=self.directory,
             sessions=self.sessions,
+            journal=self.journal,
+        )
+
+    @property
+    def password_choice(self) -> PasswordPorts:
+        return PasswordPorts(
             links=self.links,
+            accounts=self.accounts,
+            passwords=self.passwords,
+            sessions=self.sessions,
             journal=self.journal,
         )
 
@@ -246,9 +257,6 @@ class FakeShareLinks:
         if token:
             self.tokens[token] = link.id
         return link
-
-    async def links(self):
-        return sorted(self.by_id.values(), key=lambda item: item.created_at, reverse=True)
 
     async def link(self, link_id):
         return self.by_id.get(link_id)
@@ -338,13 +346,25 @@ class SharingWorld:
     roster: FakeRoster = field(default_factory=FakeRoster)
 
     @property
-    def ports(self) -> SharingPorts:
-        return SharingPorts(
-            links=self.links,
-            sessions=self.sessions,
-            link_journal=self.journal,
-            feeds=self.feeds,
-            feed_journal=self.journal,
-            team=self.team,
-            roster=self.roster,
+    def link_commands(self) -> ShareLinkCommandPorts:
+        return ShareLinkCommandPorts(links=self.links, link_journal=self.journal)
+
+    @property
+    def exchange(self) -> ShareExchangePorts:
+        return ShareExchangePorts(
+            links=self.links, sessions=self.sessions, link_journal=self.journal
+        )
+
+    @property
+    def member_feeds(self) -> MemberFeedPorts:
+        return MemberFeedPorts(feeds=self.feeds, feed_journal=self.journal, team=self.team)
+
+    @property
+    def link_feeds(self) -> LinkFeedPorts:
+        return LinkFeedPorts(links=self.links, feeds=self.feeds, feed_journal=self.journal)
+
+    @property
+    def subscription(self) -> CalendarSubscriptionPorts:
+        return CalendarSubscriptionPorts(
+            links=self.links, feeds=self.feeds, team=self.team, roster=self.roster
         )

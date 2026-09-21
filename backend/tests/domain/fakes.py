@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
 from oncall.domain.availability.models import AvailabilityEntry, NewAvailabilityEntry
-from oncall.domain.availability.ports import AvailabilityPorts
+from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.overrides.ports import OverridePorts
 from oncall.domain.roster import Duty, ScheduleRef, Slot
 from oncall.domain.swaps.models import NewSwapRequest, SwapRequest
@@ -355,8 +355,12 @@ class World:
         )
 
     @property
-    def availability(self) -> AvailabilityPorts:
-        return AvailabilityPorts(
+    def availability_reads(self) -> AvailabilityReadPorts:
+        return AvailabilityReadPorts(team=self.team, ledger=self.ledger)
+
+    @property
+    def availability_writes(self) -> AvailabilityWritePorts:
+        return AvailabilityWritePorts(
             team=self.team, roster=self.roster, ledger=self.ledger, journal=self.journal
         )
 

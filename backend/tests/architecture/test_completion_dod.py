@@ -384,11 +384,6 @@ def test_dod_6_guard_rejects_central_imports_but_allows_consumer_local_models(
     assert all("service.py" not in violation for violation in violations)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="DOD-9: broad legacy ports and bundles remain",
-)
 def test_dod_9_ports_are_consumer_owned_and_small() -> None:
     _assert_no_violations(
         _port_structure_violations(PROJECT_ROOT), "Consumer-owned port violations"

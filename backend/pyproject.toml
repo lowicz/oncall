@@ -79,6 +79,11 @@ files = [
   "src/oncall/rules.py",
   "src/oncall/database.py",
   "src/oncall/metrics.py",
+  # The composition roots. Adapters satisfy the consumer-owned ports
+  # structurally, without naming them, so this is where a missing or
+  # mistyped method is caught; mypy follows the imports into every adapter.
+  "src/oncall/bootstrap/providers.py",
+  "src/oncall/infrastructure/sqlalchemy/handover.py",
   "scripts/openapi_snapshot.py",
   "tests/architecture/test_dependencies.py",
   "tests/architecture/test_completion_dod.py",
