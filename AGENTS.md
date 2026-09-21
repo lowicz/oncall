@@ -63,12 +63,14 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## CI and releases
 
-- `.github/workflows/ci.yml` is the gate list (backend: ruff check + format,
-  mypy, pytest on SQLite, OpenAPI snapshot; backend-postgres: migrations from
-  empty plus `alembic check`, then the concurrency suite against postgres:17;
-  frontend: eslint, tsc, vitest, `npm run build`, site render; compose-config;
-  image-build without push). `ci-ok` is the one required status. Run the same
-  commands locally before pushing.
+- `.github/workflows/ci.yml` is the gate list (backend: `uv lock --check`
+  before the install, ruff check + format, mypy, pytest on SQLite, OpenAPI
+  snapshot; backend-postgres: migrations from empty plus `alembic check`, then
+  the concurrency suite against postgres:17; frontend: eslint, tsc, vitest,
+  `npm run build`, site render; compose-config; image-build without push).
+  `ci-ok` is the one required status (ruleset `main-protected`); pull requests
+  report it as `ci-ok`, never `ci / ci-ok`, which is its name only under
+  release.yml. Run the same commands locally before pushing.
 - A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: validates the tag,
   calls `ci.yml`, publishes both images with SBOM, provenance, attestation and
   cosign signature, creates the GitHub Release. Published versions are
@@ -76,9 +78,13 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   secrets exist or are needed. User-facing description: `docs/wdrozenie/wydania.md`.
 - Actions are pinned to full commit SHAs with a version comment; Renovate
   (`renovate.json5`, the Mend GitHub App - no Dependabot) moves them, together
-  with both lockfiles, the base images and the tool versions repeated in the
-  workflow `env` blocks (custom regex managers). Keep new tool versions in
-  those `env` blocks so Renovate can see them.
+  with both lockfiles, the base images (by tag, no digest pins) and the tool
+  versions repeated in the workflow `env` blocks. A version named in several
+  files (uv, Node, Python) is one custom regex manager on one datasource, and
+  the built-in manager that would also read one of those lines is disabled
+  there: a group moves only the members whose release date passed the
+  three-day rule, so a second datasource lets one file stay behind. A new
+  reference joins that manager. Keep new tool versions in the `env` blocks.
 - Documentation on GitHub Pages (`.github/workflows/pages.yml`) is the same
   renderer in `--site` mode (`frontend/scripts/build-docs.mjs`); never add a
   second generator or a second copy of `docs/`. The regression test for the

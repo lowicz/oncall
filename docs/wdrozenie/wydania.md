@@ -107,13 +107,15 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 
 | Zadanie | Co sprawdza |
 | --- | --- |
-| `backend` | `ruff check`, `ruff format`, `mypy`, `pytest` na SQLite, zgodność OpenAPI ze snapshotem |
+| `backend` | zgodność `uv.lock` z `pyproject.toml` (przed instalacją), `ruff check`, `ruff format`, `mypy`, `pytest` na SQLite, zgodność OpenAPI ze snapshotem |
 | `backend-postgres` | zestaw współbieżności na prawdziwym PostgreSQL 17 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
 | `compose-config` | poprawność `docker-compose.yml` z każdą nakładką i to, że nakładka deweloperska zmienia tylko źródło obrazów |
 | `image-build` | oba Dockerfile budują się (bez publikacji) |
 
-Jeden zbiorczy status `ci-ok` jest wymagany do scalenia zmian.
+Jeden zbiorczy status `ci-ok` jest wymagany do scalenia zmian w `main`. Wymaga
+go reguła `main-protected` w ustawieniach repozytorium, opisana w
+[Ustawieniach repozytorium](#ustawienia-repozytorium).
 
 ## Aktualizacje zależności
 
@@ -121,8 +123,8 @@ Zależnościami opiekuje się Renovate (aplikacja GitHub od Mend, konfiguracja w
 `renovate.json5` w katalogu głównym; repozytorium nie przechowuje przez to
 żadnych sekretów). Obejmuje akcje GitHub (przypięte do pełnego SHA z komentarzem
 wersji), pakiety npm i Pythona (przez pliki lock), obrazy bazowe kontenerów
-oraz wersje narzędzi powtórzone w plikach workflow (uv, Node, Python,
-PostgreSQL).
+(wskazywane tagiem, bez przypiętego digestu) oraz wersje narzędzi powtórzone w
+plikach workflow (uv, Node, Python, PostgreSQL).
 
 Zasady:
 
@@ -146,17 +148,69 @@ gałęzi - pominęłoby to grupowanie plików, które zmieniają się razem, i
 odświeżenie plików lock. Zmiany w kodzie, których aktualizacja wymaga,
 dopisuje się jako commity do PR-a otwartego przez Renovate. Renovate przestaje
 wtedy aktualizować tę gałąź, a wymuszony rebase (pole w Dependency Dashboard
-albo w opisie PR-a) odtworzyłby ją od nowa, bez tych commitów. Przed
-scaleniem aktualizacji środowiska uruchomieniowego trzeba sprawdzić, że
-zmieniła każdy plik, w którym występowała dotychczasowa wersja.
+albo w opisie PR-a) odtworzyłby ją od nowa, bez tych commitów.
+
+Wersję, która występuje w kilku plikach, Renovate czyta we wszystkich z
+jednego źródła wydań, więc każdy z tych plików dostaje tę samą wersję w tym
+samym PR-ze:
+
+| Grupa | Pliki | Źródło wersji |
+| --- | --- | --- |
+| Node.js | `NODE_VERSION` w `ci.yml`, `node-version` w `pages.yml`, `frontend/Dockerfile` | wydania Node.js |
+| Python | `requires-python` w `backend/pyproject.toml`, `PYTHON_VERSION` w `ci.yml`, `backend/Dockerfile` | wydania python.org |
+| PostgreSQL | `docker-compose.yml`, `docker-compose.contract.yml`, usługa bazy w `ci.yml` | Docker Hub, wszędzie ten sam tag |
+| uv | `required-version` w `backend/pyproject.toml`, `UV_VERSION` w `ci.yml`, `backend/Dockerfile` | wydania uv na GitHubie |
+
+Gdyby obraz Node albo Pythona był osobną zależnością z Docker Hub, miałby inną
+datę wydania: Docker Hub datuje tag taki jak `22-alpine` ostatnim
+opublikowaniem obrazu, a zatwierdzona aktualizacja obejmuje tylko te pliki,
+których wersja ma już trzy dni. Obraz mógłby wtedy zostać na starej wersji,
+gdy CI testowałoby już nową. Obrazy nie są też przypięte do digestu: listy
+wydań Node.js i Pythona digestów nie znają, więc Renovate nie przesunąłby go
+razem z tagiem, a Docker użyłby digestu starego obrazu mimo nowego tagu. Bez
+digestu `docker compose pull` pobiera też dla bazy najnowsze wydanie
+poprawkowe jej tagu. Dokładne digesty obrazów bazowych każdego wydania
+zapisuje jego provenance.
+
+Przed scaleniem aktualizacji środowiska uruchomieniowego przeszukaj gałąź
+PR-a starą wersją (np. `git grep -n '17-alpine\|PostgreSQL 17'`). Zostać może
+tylko opis w dokumentacji lub w `AGENTS.md` - popraw go w tym samym PR-ze -
+albo nowe miejsce z wersją, które trzeba dopisać do reguły tej grupy w
+`renovate.json5`.
 
 Backend deklaruje tylko tę wersję Pythona, którą testuje CI i zawiera obraz
 (`requires-python` w `backend/pyproject.toml`); granicę przesuwa zatwierdzona
-aktualizacja grupy „Python”. Wersja uv jest jedna: `required-version` w
-`backend/pyproject.toml`, `UV_VERSION` w `.github/workflows/ci.yml` i obraz uv
-w `backend/Dockerfile`. uv w innej wersji odmawia pracy z projektem, więc
-`backend/uv.lock` powstaje zawsze tą samą wersją, a Renovate przesuwa te trzy
-miejsca jednym PR-em (grupa „uv”).
+aktualizacja grupy „Python”. Narzędzia ruff i mypy nie mają własnego wpisu z
+wersją: ruff bierze ją z `requires-python`, mypy z interpretera, który go
+uruchamia.
+Wersja uv jest jedna: uv w innej wersji niż `required-version` odmawia pracy z
+projektem, więc `backend/uv.lock` powstaje zawsze tą samą wersją.
+
+## Ustawienia repozytorium
+
+Część zasad z tej strony to ustawienia GitHuba, a nie pliki repozytorium.
+Ustawia je raz osoba utrzymująca repozytorium:
+
+| Ustawienie | Wartość |
+| --- | --- |
+| Settings → Rules → Rulesets → `main-protected` | gałąź domyślna; zakaz usuwania i wymuszonego pusha; „Require status checks to pass” z jednym statusem: `ci-ok`, źródło GitHub Actions |
+| Settings → Pages → Source | GitHub Actions |
+| Settings → Advanced Security → Dependabot alerts | włączone: Renovate czyta z nich alerty bezpieczeństwa GitHuba |
+| Settings → Advanced Security → Dependabot security updates | wyłączone: poprawki bezpieczeństwa otwiera Renovate |
+
+Wymagany status nazywa się dokładnie `ci-ok`, bo pod tą nazwą zgłasza go
+każdy pull request. Pod nazwą `ci / ci-ok` ten sam status pojawia się tylko w
+przebiegu `release.yml`, który wywołuje `ci.yml` jako zadanie `ci`. Pull
+request nigdy jej nie zgłasza, więc reguła, która jej wymaga, blokuje każde
+scalenie. Ustawienie: w regule `main-protected` zaznacz „Require status checks
+to pass”, przez „Add checks” dodaj `ci-ok` ze źródłem GitHub Actions (jeśli
+jest tam `ci / ci-ok`, usuń go) i zapisz zmiany. Sprawdzenie:
+
+```bash
+gh api repos/lowicz/oncall/rules/branches/main \
+  --jq '.[].parameters.required_status_checks // empty'
+# [{"context":"ci-ok","integration_id":15368}]
+```
 
 ## Dokumentacja na GitHub Pages
 
