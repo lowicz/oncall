@@ -1,3 +1,5 @@
+import { pluralPl } from './plural'
+
 export function warsawDate() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Warsaw',
@@ -61,4 +63,61 @@ export function relativeDay(value: string, from = warsawDate()) {
   if (days === -1) return 'wczoraj'
   if (days > 1) return `za ${days} dni`
   return `${Math.abs(days)} dni temu`
+}
+
+const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
+const MONTHS_GENITIVE = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca', 'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia']
+const WEEKDAYS_SHORT = ['nd', 'pn', 'wt', 'śr', 'czw', 'pt', 'so']
+const WEEKDAYS_LONG = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']
+
+/** "3 paź" - a date in running text, the way the screens name days. */
+export function formatShortDate(value: string) {
+  const date = parse(value)
+  return `${date.getUTCDate()} ${MONTHS_SHORT[date.getUTCMonth()]}`
+}
+
+/** "czw 24 wrz" - a day in running text: weekday, day, month. */
+export function formatDayShort(value: string) {
+  const date = parse(value)
+  return `${WEEKDAYS_SHORT[date.getUTCDay()]} ${formatShortDate(value)}`
+}
+
+/** "Niedziela, 20 września" - the title of the dashboard. */
+export function formatDateLong(value: string) {
+  const date = parse(value)
+  return `${WEEKDAYS_LONG[date.getUTCDay()]}, ${date.getUTCDate()} ${MONTHS_GENITIVE[date.getUTCMonth()]}`
+}
+
+/**
+ * "20 wrz – 17 paź", "4 – 31 paź" inside one month, and the year only when
+ * the range crosses one ("20 gru 2026 – 3 sty 2027").
+ */
+export function formatRange(startsOn: string, endsOn: string) {
+  const start = parse(startsOn)
+  const end = parse(endsOn)
+  if (start.getUTCFullYear() !== end.getUTCFullYear()) {
+    return `${formatShortDate(startsOn)} ${start.getUTCFullYear()} – ${formatShortDate(endsOn)} ${end.getUTCFullYear()}`
+  }
+  if (start.getUTCMonth() === end.getUTCMonth()) {
+    return `${start.getUTCDate()} – ${end.getUTCDate()} ${MONTHS_SHORT[end.getUTCMonth()]}`
+  }
+  return `${formatShortDate(startsOn)} – ${formatShortDate(endsOn)}`
+}
+
+/** Whole weeks between two inclusive dates, for "4 tygodnie" in a heading. */
+export function weeksBetween(startsOn: string, endsOn: string) {
+  const days = Math.round((parse(endsOn).getTime() - parse(startsOn).getTime()) / 86_400_000) + 1
+  return Math.max(1, Math.round(days / 7))
+}
+
+/** "4 tygodnie", "8 tygodni", "1 tydzień". */
+export const weeksWord = (count: number) => pluralPl(count, ['tydzień', 'tygodnie', 'tygodni'])
+
+/** ISO-8601 week number of a calendar date (weeks start on Monday). */
+export function isoWeek(value: string) {
+  const date = parse(value)
+  const day = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - day)
+  const yearStart = Date.UTC(date.getUTCFullYear(), 0, 1)
+  return Math.ceil(((date.getTime() - yearStart) / 86_400_000 + 1) / 7)
 }

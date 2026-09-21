@@ -5,8 +5,9 @@ publikacji, a odpowiedź wypełniała je również z zaimportowanej historii, kt
 leży w bazie jako grafik `superseded`.
 """
 
-from datetime import date, timedelta
+from datetime import timedelta
 
+from oncall.domain.clock import business_today
 from oncall.models import (
     Assignment,
     AssignmentRole,
@@ -16,7 +17,7 @@ from oncall.models import (
 )
 from tests.conftest import create_member, create_user, login
 
-TODAY = date.today()
+TODAY = business_today()
 
 
 async def _member(db, username: str, name: str):

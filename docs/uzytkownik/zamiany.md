@@ -3,30 +3,52 @@
 Ekran **Zamiany** (`/zamiany`) obsługuje zastępstwa na konkretny dzień i rolę,
 także wtedy, gdy bazowa rotacja jest tygodniowa.
 
-## Trzy skrzynki
+## Skrzynka
 
-Wnioski są podzielone na trzy grupy, żeby nie mieszać spraw czekających na
-decyzję z zamkniętymi miesiąc temu:
+Wszystkie wnioski są w jednej tabeli; filtry w nagłówku sekcji **Skrzynka**
+mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jest:
 
-| Grupa | Co zawiera |
+| Filtr | Co zawiera |
 | --- | --- |
-| **Wymaga Twojej decyzji** | wnioski czekające dokładnie na Ciebie |
-| **W toku** | otwarte wnioski czekające na kogoś innego |
-| **Zakończone** | zatwierdzone, odrzucone i wycofane; lista jest zwinięta, rozwija ją **Pokaż** |
+| **Do mnie** | wnioski, w których to Ty masz przyjąć albo odrzucić zastępstwo |
+| **Moje** | Twoje własne, jeszcze otwarte prośby |
+| **Do zatwierdzenia** (u członka zespołu: **W toku**) | wnioski przyjęte przez zastępcę, czekające na koordynatora; u członka zespołu także inne otwarte sprawy |
+| **Zamknięte** | zatwierdzone, odrzucone i wycofane |
 
-Liczba oczekujących spraw pojawia się także jako znacznik przy pozycji
-„Zamiany” w nawigacji. Przycisk **Szczegóły** przy wniosku otwiera panel z
-etapami sprawy, obiema osobami, notatką, wpływem na bilans i ostrzeżeniami.
+Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres
+`/zamiany?skrzynka=moje` otwiera wskazaną. Suma spraw wymagających Twojej
+akcji pojawia się także jako znacznik przy pozycji „Zamiany” w nawigacji.
+
+Wiersz tabeli podaje dzień i rolę, kto oddaje, kto przejmuje, **skutek** (osoba,
+która zyska punkty, i ile) oraz **etap** - kto jest następny. Przycisk
+**Zdecyduj** (gdy decyzja należy do Ciebie) albo **Podgląd** otwiera arkusz
+sprawy.
+
+## Arkusz decyzji
+
+Arkusz pokazuje obie osoby, dyżur, powód wnioskodawcy, pasek etapów
+(złożona → zastępca → koordynator → w grafiku), **Wpływ na bilans** obu osób i
+ostrzeżenia. Decyzję podejmujesz w tym samym miejscu:
+
+- **Zastępca** klika „Akceptuję” albo „Odrzuć”.
+- **Koordynator lub administrator** klika „Zatwierdź i wpisz do grafiku” albo
+  „Odrzuć”.
+- **Autor** może „Wycofać” własną prośbę, dopóki nie zapadła decyzja.
+
+Odrzucenie i wycofanie wymagają **podania powodu** w polu widocznym od razu w
+arkuszu; powód widzą obie strony, zostaje przy wniosku i w audycie. Przycisk
+„Odrzuć” jest nieaktywny, dopóki powód jest pusty.
 
 ## Zgłoszenie prośby
 
-Formularz „Nowa prośba” jest zawsze na górze ekranu; przycisk **Poproś o
-zamianę** na ekranie Moje otwiera go z wybranym dyżurem.
+Przycisk **Nowa zamiana** w nagłówku ekranu otwiera formularz w panelu; przycisk
+**Poproś o zamianę** na ekranie Moje otwiera go z wybranym dyżurem. Formularz
+prowadzi przez trzy kroki: dyżur, kandydat, powód i wysłanie.
 
 1. W polu **Mój dyżur** wybierz swój nadchodzący dyżur. Lista podaje datę,
    rolę i jak daleko jest ten dzień. Dyżur kolidujący z Twoim wpisem
    „nie mogę” jest oznaczony.
-2. Pod polem pojawia się lista **Zastępca**: osoby eligible i dostępne, które
+2. Pod polem pojawia się lista **Kandydaci**: osoby eligible i dostępne, które
    nie mają tego dnia przeciwnej roli, uszeregowane od najlepszego kandydata.
    Przy każdej widać jej dostępność, odchylenie od należnego udziału i to, czy
    ma już tego dnia dyżur - dzięki temu dwóch kandydatów porównasz bez
@@ -36,10 +58,11 @@ zamianę** na ekranie Moje otwiera go z wybranym dyżurem.
    - oznaczenie **„poprawia bilans”** mówi, że zamiana zmniejszy nierówność,
    - oznaczenie **„dzieli blok dni wolnych”** zapowiada ostrzeżenie dla
      koordynatora.
-3. Opcjonalnie dopisz **Notatkę dla zastępcy**.
-4. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
+3. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
    Wami.
-5. „Wyślij prośbę”.
+4. Opcjonalnie dopisz **Powód**; zobaczą go zastępca i koordynator.
+5. „Wyślij prośbę”. Ekran potwierdza wysłanie komunikatem „Wysłano do: …” i
+   przechodzi do skrzynki **Moje**.
 
 Jeśli ustawienie „Powiązanie 11–19” sprawia, że tego dnia obie role należą do
 jednej osoby, prośba obejmie **oba sloty naraz** - ekran to zapowiada. Jedna
@@ -58,15 +81,6 @@ zgłoszenie ──► Oczekuje na zastępcę ──► Oczekuje na koordynatora 
  autor w każdej chwili: Wycofana
 ```
 
-- **Zastępca** klika „Akceptuję” albo „Odrzuć”.
-- **Koordynator lub administrator** klika „Zatwierdź” albo „Odrzuć”.
-- **Autor** może „Wycofać” własną prośbę, dopóki nie zapadła decyzja.
-
-Każda decyzja przechodzi przez okienko potwierdzenia, które jeszcze raz pokazuje
-dzień, rolę, obie osoby, podgląd wpływu na punkty i ewentualne ostrzeżenia.
-Odrzucenie i wycofanie dodatkowo wymagają **podania powodu**; powód zostaje przy
-wniosku i w audycie.
-
 ## Co robi zatwierdzenie
 
 - tworzy korektę (override) wyłącznie na wybranym dniu i wybranej roli,
@@ -78,6 +92,6 @@ wniosku i w audycie.
 
 ## Termin minął
 
-Wniosek dotyczący dnia, który już był, dostaje etykietę **„Termin minął”** i
-traci przyciski decyzji. Nie da się zaakceptować zastępstwa wstecz - taki dzień
-poprawia koordynator korektą na macierzy.
+Wniosek dotyczący dnia, który już był, dostaje w tabeli dopisek **„termin
+minął”** i traci przyciski decyzji. Nie da się zaakceptować zastępstwa wstecz -
+taki dzień poprawia koordynator korektą na macierzy.

@@ -35,7 +35,7 @@ sprawdza to serwer i odrzuca zapis.
 
 **„Solver nie zdążył”**
 Budżet czasu był za krótki. Zwiększ „Budżet czasu na przebieg solvera” w
-„Ustawienia generowania” (5-300 s) albo zmniejsz zakres szkicu. Pamiętaj, że
+panelu „Ustawienia generatora” (5-300 s) albo zmniejsz zakres szkicu. Pamiętaj, że
 jedno generowanie wykonuje kilka przebiegów, więc łączny czas jest wielokrotnością
 budżetu.
 

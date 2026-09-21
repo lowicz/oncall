@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom'
 import '@fontsource-variable/inter-tight'
 import '@fontsource-variable/jetbrains-mono'
 import { App } from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { applyPreferences } from './theme'
 import { ToastProvider, TooltipProvider } from './ui'
 import './tokens.css'
@@ -23,7 +24,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <TooltipProvider>
         <ToastProvider>
           <BrowserRouter>
-            <App />
+            <ErrorBoundary label="Aplikacja przestała działać">
+              <App />
+            </ErrorBoundary>
           </BrowserRouter>
         </ToastProvider>
       </TooltipProvider>

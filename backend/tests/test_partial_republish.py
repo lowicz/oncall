@@ -4,13 +4,14 @@ Reported scenario: a month is published, then the second fortnight is
 regenerated and published; the first fortnight disappears from the app.
 """
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from oncall.domain.clock import business_today
 from oncall.models import Schedule, ScheduleStatus, UserRole
 from tests.conftest import (
     create_member,
@@ -20,7 +21,7 @@ from tests.conftest import (
     login,
 )
 
-MONTH_START = date.today()
+MONTH_START = business_today()
 MONTH_END = MONTH_START + timedelta(days=29)
 SECOND_HALF_START = MONTH_START + timedelta(days=15)
 

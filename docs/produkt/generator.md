@@ -82,7 +82,7 @@ jednego rozwiązania slotów.
 ## Budżet czasu
 
 Budżet jest polem polityki grafikowania (5-300 sekund, domyślnie 15), edytowalnym
-w aplikacji w „Ustawienia generowania”. Zmienna środowiskowa
+w aplikacji w panelu „Ustawienia generatora”. Zmienna środowiskowa
 `ONCALL_SOLVER_SECONDS` jedynie zasila to pole przy pierwszym utworzeniu wiersza
 polityki.
 

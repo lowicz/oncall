@@ -54,17 +54,32 @@ dostaje udział proporcjonalny do bieżącej dostępnej puli.
 
 ## Jak to czytać
 
-Dla każdej kategorii ekran pokazuje trzy rzeczy:
+Ekran **Sprawiedliwość** (`/sprawiedliwosc`) podaje kryterium i jego wynik
+już w podtytule: „12 miesięcy do 30 wrz · 5 osób · kryterium: nikt poza
+±2,0 pkt od udziału” ze znacznikiem **SPEŁNIONE** albo **NIESPEŁNIONE**.
+Pod nim rząd znaczników z liczbami, które koordynator i tak liczy w głowie:
+rozpiętość każdej soczewki z werdyktem, średnia punktów na osobę i średnia
+dni weekendowych. Znacznik soczewki, która nie spełnia kryterium, po najechaniu
+nazywa osobę najwyżej i najniżej.
 
-1. **wykonane** - ile punktów osoba faktycznie odbyła,
-2. **uczciwy udział do dziś** - ile powinna była odbyć,
-3. **różnicę opisaną słowami**, nie samą liczbą.
+Sekcja **Zespół** to jedna tabela: dla każdej osoby odchylenie od udziału
+jako pasek dwukierunkowy (ponad udział w prawo, poniżej w lewo), potem
+**Razem** i każda soczewka jako `wykonane / udział` w kolumnach liczbowych.
+Linki w nagłówku sekcji (**Razem**, `PRIMARY`, `SECONDARY`, `11–19`,
+**Weekendy**, **Święta**) zmieniają tylko sortowanie i to, którą soczewkę
+pokazuje pasek. Rola, której osoba nie pełni, ma zamiast liczb „nie pełni tej
+roli”; niski wynik osoby, która weszła do rotacji w trakcie okna, ma dopisek
+„w rotacji od”.
 
-Kliknięcie osoby prowadzi do listy jej konkretnych dyżurów, więc każdą liczbę
-da się rozłożyć na dni.
+Strzałka na końcu wiersza rozwija osobę: punkty miesiąc po miesiącu jako
+słupki na tle jej średniej miesięcznej, liczby w słowach, odchylenie na każdej
+soczewce, lista dyżurów składających się na wynik i to, co zrobi z tym
+generator. **Eksport CSV** zapisuje tabelę; **Stan na dzień** przesuwa koniec
+okna - domyślnie na koniec ostatniej publikacji, więc liczą się też dyżury
+już zaplanowane.
 
 Koordynator i administrator widzą cały zespół; członek zespołu widzi tylko
-siebie.
+siebie (skrót swojego wyniku ma też na ekranie Moje).
 
 ## Wpływ na kolejne generowanie
 

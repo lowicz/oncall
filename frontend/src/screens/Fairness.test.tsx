@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { FairnessPanel } from './Fairness'
 import { api } from '../api'
@@ -41,11 +41,15 @@ const report = (lateShiftBalanced: boolean): FairnessReport => ({
 
 afterEach(() => vi.restoreAllMocks())
 
+/** The row of one person in the team table. */
+const rowOf = (name: string) => screen.getByText(name, { selector: 'th' }).closest('tr') as HTMLTableRowElement
+
 describe('FairnessPanel 11-19 column', () => {
   it('shows the 11-19 column when the shift is balanced on its own', async () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(report(true))
     renderScreen(<FairnessPanel />)
     expect(await screen.findByRole('columnheader', { name: /11–19/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '11–19' })).toBeInTheDocument()
   })
 
   it('hides the 11-19 column when the shift follows the anchor role', async () => {
@@ -53,7 +57,7 @@ describe('FairnessPanel 11-19 column', () => {
     renderScreen(<FairnessPanel />)
     expect(await screen.findByText('Anna Kowalska')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: /11–19/ })).not.toBeInTheDocument()
-    expect(screen.queryByText(/informacyjnie przy kotwiczeniu/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '11–19' })).not.toBeInTheDocument()
     // The other lenses stay put.
     expect(screen.getByRole('columnheader', { name: /PRIMARY/ })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Weekendy/ })).toBeInTheDocument()
@@ -81,15 +85,18 @@ describe('FairnessPanel default "Stan na dzień" (QA7 par. 8, C2 review)', () =>
 })
 
 describe('FairnessPanel criterion summary', () => {
-  it('shows the spread row with per-lens state next to the totals row', async () => {
+  it('states the criterion and its verdict in the subtitle and the spread per lens in chips', async () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(report(false))
     renderScreen(<FairnessPanel />)
-    expect(await screen.findByText(/kryterium 3 pkt/)).toBeInTheDocument()
+    expect(await screen.findByText(/kryterium: nikt poza ±3,0 pkt od udziału/)).toBeInTheDocument()
+    expect(screen.getByText('spełnione')).toBeInTheDocument()
     // Every lens shown with its textual state, not colour alone.
-    expect(screen.getAllByText(/rozpiętość 1.5 · spełnia$/).length).toBeGreaterThanOrEqual(4)
+    expect(screen.getAllByText(/rozpiętość 1,5 · spełnia$/).length).toBeGreaterThanOrEqual(4)
+    expect(screen.getByText(/Średnia 5,0 pkt \/ os\./)).toBeInTheDocument()
+    expect(screen.getByText(/Weekendy: 2 \/ 2 os\. = 1,0/)).toBeInTheDocument()
   })
 
-  it('marks an unmet lens in words', async () => {
+  it('marks an unmet lens in words and names the outliers', async () => {
     const failing = report(false)
     failing.criterion_met = false
     failing.spreads = failing.spreads.map((item) =>
@@ -102,9 +109,9 @@ describe('FairnessPanel criterion summary', () => {
     }]
     vi.spyOn(api, 'fairness').mockResolvedValue(failing)
     renderScreen(<FairnessPanel />)
-    expect(await screen.findByText(/kryterium 3 pkt/)).toBeInTheDocument()
+    expect(await screen.findByText('niespełnione')).toBeInTheDocument()
     expect(screen.getAllByText(/· nie spełnia$/)).toHaveLength(1)
-    expect(screen.getByTitle(/najwyżej: Anna Kowalska \(\+2.5\).*najniżej: Marek Nowak \(-2\)/)).toBeInTheDocument()
+    expect(screen.getByTitle(/najwyżej: Anna Kowalska \(\+2,5\).*najniżej: Marek Nowak \(-2\)/)).toBeInTheDocument()
   })
 
   it('puts departed people in a separate section', async () => {
@@ -123,6 +130,47 @@ describe('FairnessPanel criterion summary', () => {
     renderScreen(<FairnessPanel />)
     expect(await screen.findByText('Anna Kowalska')).toBeInTheDocument()
     expect(screen.queryByText(/kryterium 3 pkt/)).not.toBeInTheDocument()
+    expect(screen.queryByText('spełnione')).not.toBeInTheDocument()
+  })
+})
+
+describe('FairnessPanel lens links', () => {
+  it('sorts by the chosen lens and moves the bar to it', async () => {
+    const low = {
+      ...member('Jakub Polak'),
+      primary: { actual: 1, expected: 2, deviation: -1 },
+      secondary: { actual: 3, expected: 1, deviation: 2 },
+    }
+    vi.spyOn(api, 'fairness').mockResolvedValue({ ...report(false), members: [member('Anna Kowalska'), low] })
+    renderScreen(<FairnessPanel />)
+    await screen.findByText('Jakub Polak')
+    // Razem: Jakub is +1 (−1 + 2), Anna 0 (+0.5 − 0.5): Jakub first.
+    const names = () => screen.getAllByRole('rowheader').map((cell) => cell.textContent)
+    expect(names()[0]).toContain('Jakub Polak')
+    expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 ponad udział' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'PRIMARY' }))
+    expect(screen.getByRole('columnheader', { name: /Odchylenie · PRIMARY/ })).toBeInTheDocument()
+    expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 poniżej udziału' })).toBeInTheDocument()
+    expect(within(rowOf('Anna Kowalska')).getByRole('img', { name: '0,5 ponad udział' })).toBeInTheDocument()
+  })
+
+  it('unfolds a row into the months and the reasons', async () => {
+    vi.spyOn(api, 'fairness').mockResolvedValue(report(false))
+    const duties = vi.spyOn(api, 'fairnessDuties').mockResolvedValue([
+      { service_date: '2026-08-15', role: 'primary', points: 2, is_day_off: true },
+      { service_date: '2026-07-02', role: 'secondary', points: 1, is_day_off: false },
+    ])
+    renderScreen(<FairnessPanel />)
+    await screen.findByText('Anna Kowalska')
+    fireEvent.click(screen.getByRole('button', { name: 'Rozwiń: Anna Kowalska' }))
+    expect(await screen.findByRole('img', { name: /Punkty miesiąc po miesiącu: .*sie 2, wrz 0/ })).toBeInTheDocument()
+    expect(duties).toHaveBeenCalledWith('Anna Kowalska', undefined)
+    expect(screen.getByText('Co zrobi generator')).toBeInTheDocument()
+    expect(screen.getByText(/Anna jest zgodnie z udziałem/)).toBeInTheDocument()
+    expect(screen.getByText('so 15 sie')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Zwiń: Anna Kowalska' }))
+    expect(screen.queryByText('Co zrobi generator')).not.toBeInTheDocument()
   })
 })
 
@@ -132,13 +180,12 @@ describe('FairnessPanel Razem reconciliation (D4/MED6-01)', () => {
   const actualOf = (cell: Element) => Number(cell.querySelector('.f-actual')?.textContent?.trim())
   const razemColumn = (container: HTMLElement) => {
     const table = container.querySelector('table.fairness-table') as HTMLTableElement
-    const perPerson = Array.from(table.tBodies[0].rows).map((row) =>
-      actualOf(row.cells[row.cells.length - 1]),
-    )
+    const index = Array.from(table.tHead!.rows[0].cells).findIndex((cell) => cell.textContent?.startsWith('Razem'))
+    const perPerson = Array.from(table.tBodies[0].rows).map((row) => actualOf(row.cells[index]))
     const totalsRow = Array.from(table.tFoot!.rows).find(
       (row) => row.cells[0].textContent?.trim() === 'Razem',
     )!
-    const summary = actualOf(totalsRow.cells[totalsRow.cells.length - 1])
+    const summary = actualOf(totalsRow.cells[index])
     return { perPerson, summary }
   }
 
@@ -166,7 +213,7 @@ describe('FairnessPanel Razem reconciliation (D4/MED6-01)', () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(report(false))
     renderScreen(<FairnessPanel />)
     expect(
-      await screen.findByText(/Łączna liczba zmian 11–19 w oknie: 2/),
+      await screen.findByText(/łączna liczba zmian 11–19 w oknie: 2/),
     ).toBeInTheDocument()
   })
 
@@ -174,7 +221,7 @@ describe('FairnessPanel Razem reconciliation (D4/MED6-01)', () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(report(true))
     renderScreen(<FairnessPanel />)
     await screen.findByText('Anna Kowalska')
-    expect(screen.queryByText(/Łączna liczba zmian 11–19/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/łączna liczba zmian 11–19/)).not.toBeInTheDocument()
   })
 })
 
@@ -190,15 +237,12 @@ describe('FairnessPanel Razem context (MED6-02)', () => {
       ...report(false),
       members: [member('Anna Kowalska'), low],
     })
-    const { container } = renderScreen(<FairnessPanel />)
+    renderScreen(<FairnessPanel />)
     await screen.findByText('Jakub Polak')
 
-    const row = Array.from(
-      container.querySelectorAll<HTMLTableRowElement>('table.fairness-table tbody tr'),
-    ).find((tr) => tr.textContent?.includes('Jakub Polak'))!
-    const totalCell = row.cells[row.cells.length - 1]
-    expect(totalCell.textContent).toContain('/ 4')
-    expect(totalCell.textContent).toContain('2 poniżej udziału')
+    const row = rowOf('Jakub Polak')
+    expect(row.textContent).toContain('/ 4')
+    expect(within(row).getByRole('img', { name: '2 poniżej udziału' })).toBeInTheDocument()
   })
 
   it('explains a low total for someone who joined mid-window', async () => {
@@ -254,7 +298,10 @@ describe('FairnessPanel roles a person does not hold', () => {
     expect(await screen.findByText('Rafał Kamiński')).toBeInTheDocument()
     // Exactly the wording DraftFairnessPanel has always used (MED5-05).
     expect(screen.getByText('nie pełni tej roli')).toBeInTheDocument()
-    // The roles they do hold still get a verdict.
-    expect(screen.getAllByText('zgodnie z udziałem').length).toBeGreaterThan(0)
+    // The roles they do hold still get a verdict when the bar follows them.
+    fireEvent.click(screen.getByRole('button', { name: 'SECONDARY' }))
+    expect(screen.getByRole('img', { name: '0,5 poniżej udziału' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'PRIMARY' }))
+    expect(screen.getAllByText('nie pełni tej roli')).toHaveLength(2)
   })
 })

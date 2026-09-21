@@ -8,41 +8,29 @@ import { formatDate } from '../lib/dates'
 import { useBranding, useDocumentTitle } from '../hooks/useBranding'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { Density, ThemeMode, themeModeLabels, useDensity, useThemeMode } from '../theme'
-import { Avatar, Icon, Mark, Menu, MenuLabel, MenuLink, MenuItem, MenuSeparator, Segmented, cx } from '../ui'
+import { Avatar, Icon, IconButton, Mark, Menu, MenuLink, MenuItem, MenuRadioGroup, MenuSeparator, Segmented, cx } from '../ui'
 import { NowStrip } from './NowStrip'
 import { CommandPalette } from './CommandPalette'
+import { ErrorBoundary } from './ErrorBoundary'
+
+const themeOptions: Array<{ value: ThemeMode; label: string }> = [
+  { value: 'dark', label: themeModeLabels.dark },
+  { value: 'light', label: themeModeLabels.light },
+  { value: 'system', label: themeModeLabels.system },
+]
+const densityOptions: Array<{ value: Density; label: string }> = [
+  { value: 'default', label: 'Zwykła' },
+  { value: 'compact', label: 'Zwarta' },
+]
 
 export function ThemeSegmented({ size = 'sm' }: { size?: 'sm' | 'md' }) {
   const [mode, setMode] = useThemeMode()
-  return (
-    <Segmented<ThemeMode>
-      size={size}
-      label="Motyw"
-      value={mode}
-      onChange={setMode}
-      options={[
-        { value: 'dark', label: themeModeLabels.dark },
-        { value: 'light', label: themeModeLabels.light },
-        { value: 'system', label: themeModeLabels.system },
-      ]}
-    />
-  )
+  return <Segmented<ThemeMode> size={size} label="Motyw" value={mode} onChange={setMode} options={themeOptions} />
 }
 
 export function DensitySegmented() {
   const [density, setDensity] = useDensity()
-  return (
-    <Segmented<Density>
-      size="sm"
-      label="Gęstość"
-      value={density}
-      onChange={setDensity}
-      options={[
-        { value: 'default', label: 'Zwykła' },
-        { value: 'compact', label: 'Zwarta' },
-      ]}
-    />
-  )
+  return <Segmented<Density> size="sm" label="Gęstość" value={density} onChange={setDensity} options={densityOptions} />
 }
 
 function RailLink({ path, label, icon, badge }: { path: string; label: string; icon: Parameters<typeof Icon>[0]['name']; badge?: number }) {
@@ -52,6 +40,46 @@ function RailLink({ path, label, icon, badge }: { path: string; label: string; i
       <span>{label}</span>
       {badge ? <span className="nav-cnt" aria-label={`${badge} do decyzji`}>{badge}</span> : null}
     </NavLink>
+  )
+}
+
+/**
+ * The account menu behind the avatar: who is logged in, the theme and the
+ * matrix density as radio groups (Base UI keeps the menu open while they
+ * change), the documentation, the palette and the way out.
+ */
+function AccountMenu({ displayName, roleLine, share, onPalette, onLogout, logoutPending }: {
+  displayName: string
+  roleLine: string | null
+  share: boolean
+  onPalette: () => void
+  onLogout: () => void
+  logoutPending: boolean
+}) {
+  const [mode, setMode] = useThemeMode()
+  const [density, setDensity] = useDensity()
+  return (
+    <Menu
+      align="end"
+      trigger={(
+        <button type="button" className="ib" aria-label={`Konto: ${displayName}`} title={displayName} style={{ border: 0 }}>
+          <Avatar name={displayName} />
+        </button>
+      )}
+    >
+      <div className="menu-block">
+        <b>{displayName}</b>
+        {roleLine && <span className="muted small">{roleLine}</span>}
+      </div>
+      <MenuSeparator />
+      <MenuRadioGroup<ThemeMode> label="Motyw" value={mode} onChange={setMode} options={themeOptions} />
+      <MenuRadioGroup<Density> label="Gęstość macierzy" value={density} onChange={setDensity} options={densityOptions} />
+      <MenuSeparator />
+      <MenuLink to={docsHref} external><Icon name="doc" /> Dokumentacja</MenuLink>
+      {!share && <MenuItem onClick={onPalette}><Icon name="search" /> Paleta poleceń <span className="kbd" style={{ marginLeft: 'auto' }}>Ctrl K</span></MenuItem>}
+      <MenuSeparator />
+      <MenuItem onClick={onLogout} disabled={logoutPending}><Icon name="logout" /> Wyloguj</MenuItem>
+    </Menu>
   )
 }
 
@@ -88,7 +116,8 @@ export function AppShell({ displayName, access, share }: {
   const actionable = groupSwaps(swaps.data ?? [], { displayName, role: access.role }).actionable.length
   const badge = (path: string) => (path === '/zamiany' ? actionable : 0)
   const current = navFor(location.pathname)
-  useDocumentTitle(current?.label ?? (location.pathname === '/wiecej' ? 'Więcej' : null), branding.name)
+  const screenLabel = current?.label ?? (location.pathname === '/wiecej' ? 'Więcej' : null)
+  useDocumentTitle(screenLabel, branding.name)
 
   const doLogout = useCallback(() => logout.mutate(), [logout])
   useEffect(() => {
@@ -110,6 +139,16 @@ export function AppShell({ displayName, access, share }: {
   const tabItems = primary.slice(0, 4)
   // QA7-L16: a display name that already reads as the role is not repeated.
   const roleLine = roleLabels[access.role] !== displayName ? roleLabels[access.role] : null
+  const accountMenu = (
+    <AccountMenu
+      displayName={displayName}
+      roleLine={roleLine}
+      share={Boolean(share)}
+      onPalette={() => setPaletteOpen(true)}
+      onLogout={doLogout}
+      logoutPending={logout.isPending}
+    />
+  )
 
   return (
     <div className={cx('app', !showRail && 'app-norail')}>
@@ -145,40 +184,32 @@ export function AppShell({ displayName, access, share }: {
             </span>
           </div>
         )}
-        <NowStrip>
-          {!share && (
-            <button type="button" className="now-search" onClick={() => setPaletteOpen(true)} aria-label="Szukaj osoby, dnia, ekranu lub akcji" aria-keyshortcuts="Control+K">
-              <Icon name="search" />
-              <span>Szukaj…</span>
-              <span className="kbd">Ctrl K</span>
-            </button>
-          )}
-          <Menu
-            align="end"
-            trigger={(
-              <button type="button" className="ib" aria-label={`Konto: ${displayName}`} title={displayName} style={{ border: 0 }}>
-                <Avatar name={displayName} />
+        {narrow ? (
+          // A phone is a different hierarchy, not a squeezed desktop: the
+          // "Teraz" strip gives way to a top bar and the dashboard carries the
+          // current duties as cards.
+          <header className="mob-top">
+            <Mark size={22} />
+            <span className="mob-top-title">{screenLabel ?? branding.name}</span>
+            {!share && <IconButton label="Szukaj osoby, dnia, ekranu lub akcji" icon="search" onClick={() => setPaletteOpen(true)} />}
+            {accountMenu}
+          </header>
+        ) : (
+          <NowStrip>
+            {!share && (
+              <button type="button" className="now-search" onClick={() => setPaletteOpen(true)} aria-label="Szukaj osoby, dnia, ekranu lub akcji" aria-keyshortcuts="Control+K">
+                <Icon name="search" />
+                <span>Szukaj…</span>
+                <span className="kbd">Ctrl K</span>
               </button>
             )}
-          >
-            <div className="menu-block">
-              <b>{displayName}</b>
-              {roleLine && <span className="muted small">{roleLine}</span>}
-            </div>
-            <MenuSeparator />
-            <MenuLabel>Motyw</MenuLabel>
-            <div className="menu-block"><ThemeSegmented /></div>
-            <MenuLabel>Gęstość macierzy</MenuLabel>
-            <div className="menu-block"><DensitySegmented /></div>
-            <MenuSeparator />
-            <MenuLink to={docsHref} external><Icon name="doc" /> Dokumentacja</MenuLink>
-            {!share && <MenuItem onClick={() => setPaletteOpen(true)}><Icon name="search" /> Paleta poleceń <span className="kbd" style={{ marginLeft: 'auto' }}>Ctrl K</span></MenuItem>}
-            <MenuSeparator />
-            <MenuItem onClick={doLogout} disabled={logout.isPending}><Icon name="logout" /> Wyloguj</MenuItem>
-          </Menu>
-        </NowStrip>
+            {accountMenu}
+          </NowStrip>
+        )}
         <main id="tresc" className="page-host">
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
         {showTabs && (
           <nav className="tabs-bottom" aria-label="Nawigacja dolna">

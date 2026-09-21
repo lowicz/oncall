@@ -36,6 +36,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
 - `podman compose` here delegates to the Docker Compose plugin and needs
   `systemctl --user start podman.socket` first.
+- Browser QA of the frontend against the published images: start the
+  compose stack (API on 8080) and run the Vite dev server with its `/api`
+  proxy pointed at `http://localhost:8080`; the checked-in
+  `frontend/vite.config.ts` proxies to the backend dev server on 8000. The
+  calendar API answers one request of at most 90 days.
 
 ## CI and releases
 
