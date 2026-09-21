@@ -1,0 +1,21 @@
+# The directory's CA for the API. Use it as an overlay on the base file when
+# the LDAP / Active Directory certificate comes from an internal CA (Active
+# Directory Certificate Services) that the image does not trust:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.ldap-ca.yml up -d
+#   podman compose -f docker-compose.yml -f docker-compose.ldap-ca.yml up -d
+#
+# It combines with the TLS overlay. ONCALL_LDAP_CA_FILE names the PEM bundle on
+# the host; the default is the organisation bundle the TLS overlay mounts for
+# nginx. The file must exist, readable by the image's user, before the
+# container starts: a bind source that does not exist is created as an empty
+# directory, which the API reports on the first directory sign-in as
+# `phase=config reason=ca_file_unreadable`.
+#
+# Full guide: docs/wdrozenie/ldap.md.
+services:
+  api:
+    environment:
+      ONCALL_LDAP_CA_FILE: /etc/oncall/ldap-ca.pem
+    volumes:
+      - ${ONCALL_LDAP_CA_FILE:-./tls/ca.pem}:/etc/oncall/ldap-ca.pem:ro

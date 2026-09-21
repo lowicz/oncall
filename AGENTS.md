@@ -60,6 +60,13 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d`. The
   base file mounts nothing from the host so it comes up on a machine with no
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
+  The directory's CA for LDAP is the same kind of overlay
+  (`docker-compose.ldap-ca.yml`, `docs/wdrozenie/ldap.md`).
+- The API process logs `oncall.*` at INFO to stderr (`configure_logging` in
+  `backend/src/oncall/bootstrap/http.py`, run from the lifespan) and leaves
+  libraries at WARNING, so SQLAlchemy never logs statements with their
+  parameters. Sign-in outcomes are logfmt `event=login` / `event=ldap_auth`
+  lines from `backend/src/oncall/login_log.py`; never log a secret there.
 - The disposable contract PostgreSQL (`docker-compose.contract.yml`, port
   55432) takes its Compose project name from the checkout directory, `oncall`,
   like the main stack: pass `-p <other-name>` to its `up` and `down`.

@@ -65,7 +65,7 @@ async def sign_in(
     # is refused before the directory is asked, so a disabled person cannot be
     # told apart from an unknown one by how long the answer takes.
     if found is not None and not found.account.is_active:
-        await _reject(request, ports, now)
+        await _reject(request, ports, now, "account_inactive")
     try:
         identity = await ports.directory.authenticate(login, request.password)
     except errors.DirectoryFailure as failure:
@@ -74,14 +74,14 @@ async def sign_in(
     if identity is None:
         if not local_password_checked:
             await ports.passwords.verify_decoy(request.password)
-        await _reject(request, ports, now)
+        await _reject(request, ports, now, "credentials_rejected")
     try:
         account = await synchronize_directory_account(identity, ports)
     except errors.DirectoryIdentityTaken as taken:
         await ports.attempts.identity_conflict(login)
-        raise errors.DirectoryIdentityConflict() from taken
+        raise errors.DirectoryIdentityConflict(taken.cause) from taken
     if not account.is_active:
-        await _reject(request, ports, now)
+        await _reject(request, ports, now, "account_inactive")
     return await _sign_in_as(account, ports, now=now, session_lifetime=session_lifetime)
 
 
@@ -111,9 +111,11 @@ async def _enforce_throttle(request: SignInRequest, ports: SignInPorts, now: dat
     raise errors.LoginThrottled(label, retry_after_seconds(times))
 
 
-async def _reject(request: SignInRequest, ports: SignInPorts, now: datetime) -> NoReturn:
+async def _reject(
+    request: SignInRequest, ports: SignInPorts, now: datetime, cause: errors.RejectionCause
+) -> NoReturn:
     await ports.attempts.failed(request, now - FAILED_LOGIN_SERIES_WINDOW)
-    raise errors.LoginRejected()
+    raise errors.LoginRejected(cause)
 
 
 async def synchronize_directory_account(identity: DirectoryIdentity, ports: SignInPorts) -> Account:
@@ -125,12 +127,12 @@ async def synchronize_directory_account(identity: DirectoryIdentity, ports: Sign
     login_owner = await ports.accounts.account_named(login)
     if account is None:
         if login_owner is not None:
-            raise errors.DirectoryIdentityTaken()
+            raise errors.DirectoryIdentityTaken("personnel_number_mismatch")
         provisioned = await ports.accounts.provision_from_directory(login, identity)
         await ports.journal.provisioned(provisioned)
         return provisioned
     if login_owner is not None and login_owner.id != account.id:
-        raise errors.DirectoryIdentityTaken()
+        raise errors.DirectoryIdentityTaken("login_taken")
     if account.auth_source == AuthSource.local:
         # The directory verified the person's credentials and vouches for the
         # personnel number, so the account converts: from now on the directory
@@ -139,7 +141,7 @@ async def synchronize_directory_account(identity: DirectoryIdentity, ports: Sign
         await ports.journal.linked(linked, login=login)
         return linked
     if account.auth_source != AuthSource.ldap:
-        raise errors.DirectoryIdentityTaken()
+        raise errors.DirectoryIdentityTaken("auth_source_mismatch")
     changes = {
         field: value
         for field, value in (

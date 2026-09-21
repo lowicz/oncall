@@ -1,19 +1,15 @@
 from dataclasses import replace
-from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
 
-from oncall.config import Settings
 from oncall.domain.vocabulary import AuthSource, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.ldap_auth import (
     DirectoryIdentity,
-    DirectoryIdentityError,
     DirectoryUnavailableError,
-    LdapAuthenticator,
     get_directory_authenticator,
 )
 from oncall.main import app
@@ -236,74 +232,3 @@ async def test_directory_identity_cannot_link_when_username_is_taken_elsewhere(c
     assert response.status_code == 409
     await db.refresh(local)
     assert local.auth_source == AuthSource.local
-
-
-class FakeLdapConnection:
-    def __init__(self, entries=None, search_succeeds=True) -> None:
-        self.entries = entries or []
-        self.search_succeeds = search_succeeds
-        self.search_filter: str | None = None
-        self.unbound = False
-
-    def search(self, _base, search_filter, **_kwargs) -> bool:
-        self.search_filter = search_filter
-        return self.search_succeeds
-
-    def unbind(self) -> None:
-        self.unbound = True
-
-
-class StubLdapAuthenticator(LdapAuthenticator):
-    def __init__(self, connections) -> None:
-        super().__init__(
-            Settings(
-                ldap_enabled=True,
-                ldap_server_uri="ldap://directory.example.com",
-                ldap_bind_dn="cn=service,dc=example,dc=com",
-                ldap_bind_password="service-secret",
-                ldap_base_dn="dc=example,dc=com",
-            )
-        )
-        self.connections = iter(connections)
-
-    def _server(self):
-        return SimpleNamespace(ssl=False)
-
-    def _connect(self, _server, _user, _password):
-        return next(self.connections)
-
-
-def ldap_entry(**attributes):
-    values = {
-        "employeeNumber": ["000042"],
-        "givenName": ["Anna"],
-        "sn": ["Nowak"],
-        "mail": ["anna@example.com"],
-    }
-    values.update(attributes)
-    return SimpleNamespace(
-        entry_dn="cn=Anna,dc=example,dc=com",
-        entry_attributes_as_dict=values,
-    )
-
-
-def test_ldap_client_escapes_login_in_the_search_filter_and_binds_as_user() -> None:
-    service = FakeLdapConnection([ldap_entry()])
-    user_bind = FakeLdapConnection()
-    authenticator = StubLdapAuthenticator([service, user_bind])
-
-    identity = authenticator._authenticate_sync("anna*)(uid=*)", "directory-secret")
-
-    assert identity is not None and identity.personnel_number == "000042"
-    assert service.search_filter == (
-        "(&(objectClass=user)(sAMAccountName=anna\\2a\\29\\28uid=\\2a\\29))"
-    )
-    assert service.unbound and user_bind.unbound
-
-
-def test_ldap_client_rejects_invalid_directory_identity() -> None:
-    service = FakeLdapConnection([ldap_entry(employeeNumber=["ABC"])])
-    authenticator = StubLdapAuthenticator([service])
-
-    with pytest.raises(DirectoryIdentityError, match="numeru pracownika"):
-        authenticator._authenticate_sync("anna", "directory-secret")

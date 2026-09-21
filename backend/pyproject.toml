@@ -93,6 +93,7 @@ files = [
   "src/oncall/rules.py",
   "src/oncall/database.py",
   "src/oncall/metrics.py",
+  "src/oncall/login_log.py",
   # The composition roots. Adapters satisfy the consumer-owned ports
   # structurally, without naming them, so this is where a missing or
   # mistyped method is caught; mypy follows the imports into every adapter.

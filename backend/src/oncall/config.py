@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     ldap_base_dn: str | None = None
     ldap_user_filter: str | None = None
     ldap_start_tls: bool = True
+    #: PEM bundle of the CAs that sign the directory's certificate, for an
+    #: enterprise CA the image does not trust. Unset, the image's public roots
+    #: decide.
+    ldap_ca_file: str | None = None
     ldap_connect_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
     ldap_attribute_personnel_number: str = "employeeNumber"
     ldap_attribute_first_name: str = "givenName"

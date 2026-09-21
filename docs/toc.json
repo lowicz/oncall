@@ -30,7 +30,8 @@
       "pages": [
         "wdrozenie/uruchomienie.md",
         "wdrozenie/wydania.md",
-        "wdrozenie/tls.md"
+        "wdrozenie/tls.md",
+        "wdrozenie/ldap.md"
       ]
     }
   ]

@@ -6,6 +6,11 @@
 Sprawdź login. Ten sam komunikat pojawia się przy koncie wyłączonym - jeśli
 dane są na pewno poprawne, skontaktuj się z administratorem.
 
+**„Logowanie katalogowe jest chwilowo niedostępne”**
+Aplikacja nie mogła dokończyć logowania w katalogu (AD). Konta lokalne działają
+dalej. Administrator znajdzie przyczynę w logu API - patrz
+[Logowanie z katalogu](../wdrozenie/ldap.md#diagnostyka).
+
 **Konto z katalogu przestało wpuszczać po powiązaniu**
 Po powiązaniu konta lokalnego z katalogiem hasło lokalne przestaje działać.
 Użyj danych domenowych.

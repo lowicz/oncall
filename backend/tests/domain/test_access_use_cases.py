@@ -79,6 +79,10 @@ async def test_every_refusal_is_one_public_answer_at_the_cost_of_one_hash(world,
         await sign_in(world, password="wrong")
 
     assert isinstance(refused.value, RecordedRefusal)
+    assert str(refused.value) == "Nieprawidłowy login lub hasło"
+    assert refused.value.cause == (
+        "account_inactive" if setup.startswith("inactive") else "credentials_rejected"
+    )
     assert world.attempts.events == [("failed", "ola")]
     expected_cost = 0 if setup.startswith("inactive") else 1
     assert world.passwords.cost == expected_cost
@@ -135,8 +139,13 @@ async def test_nothing_to_sync_writes_nothing(world) -> None:
     assert world.journal.names == ["signed_in"]
 
 
-@pytest.mark.parametrize("taken_by", ["login", "login_of_other_account"])
-async def test_a_directory_identity_never_takes_over_another_account(world, taken_by) -> None:
+@pytest.mark.parametrize(
+    ("taken_by", "cause"),
+    [("login", "personnel_number_mismatch"), ("login_of_other_account", "login_taken")],
+)
+async def test_a_directory_identity_never_takes_over_another_account(
+    world, taken_by, cause
+) -> None:
     world.accounts.put(account("ola", personnel_number="7"))
     if taken_by == "login_of_other_account":
         world.accounts.put(account("ktos", personnel_number="42"))
@@ -146,6 +155,7 @@ async def test_a_directory_identity_never_takes_over_another_account(world, take
         await sign_in(world, password="not-local")
 
     assert isinstance(refused.value, RecordedRefusal)
+    assert refused.value.cause == cause
     assert world.attempts.events == [("identity_conflict", "ola")]
     assert world.sessions.opened == []
 

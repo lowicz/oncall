@@ -78,7 +78,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_SOLVER_WORKERS` | `8` | wątki CP-SAT |
 | `ONCALL_GENERATION_CONCURRENCY` | `1` | równoległe generowania w procesie roboczym |
 | `ONCALL_SMTP_HOST` | puste | puste wyłącza wysyłkę e-maili |
-| `ONCALL_LDAP_ENABLED` | `false` | logowanie z katalogu |
+| `ONCALL_LDAP_ENABLED` | `false` | logowanie z katalogu - patrz [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS na nginx - patrz [TLS](tls.md) |
 
 Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej

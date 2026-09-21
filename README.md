@@ -114,10 +114,17 @@ uses `employeeNumber`, `givenName`, `sn` and `mail`; each name can be overridden
 `ONCALL_LDAP_USER_FILTER` must contain the literal `{username}` placeholder.
 
 Authentication uses a service bind to find exactly one directory entry and then binds
-as that entry to verify the submitted password. `ldap://` uses StartTLS by default;
-`ldaps://` uses TLS directly, and certificates are validated against the container's
-trusted CA store. Install the organization's CA in the image when it is not publicly
-trusted.
+as that entry to verify the submitted password; the entry's attributes are read only
+after the password is proven. `ldap://` uses StartTLS by default; `ldaps://` uses TLS
+directly, and the directory's certificate is always validated. When it comes from an
+internal CA (AD CS), point `ONCALL_LDAP_CA_FILE` at that CA's PEM bundle, mounted with
+the `docker-compose.ldap-ca.yml` overlay; no image rebuild is needed.
+
+Every sign-in writes one `event=login` line to the API log, and a directory attempt that
+does not end with an identity adds an `event=ldap_auth` line with the same `attempt=` id,
+naming the phase that stopped it and a reason code. Passwords, session tokens, the service
+account's credentials, DNs, attribute values and the directory's own error text are never
+logged. The phases, reasons and what to change for each are in `docs/wdrozenie/ldap.md`.
 
 The first successful directory login creates an active `viewer` account keyed by the
 numeric personnel number. Later logins synchronize the login, first name, last name and
