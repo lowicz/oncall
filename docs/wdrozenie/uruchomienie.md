@@ -161,13 +161,15 @@ Backend:
 docker compose up -d db
 cd backend
 uv sync --extra dev
-alembic upgrade head
+uv run alembic upgrade head
 ONCALL_ADMIN_USERNAME=admin ONCALL_ADMIN_PASSWORD='change-me-now' uv run python -m oncall.seed_admin
 uv run uvicorn oncall.main:app --reload
 ```
 
 (`docker compose up -d db` wymaga `ONCALL_VERSION` w `.env`, choć baza go nie
-używa - dowolna wartość wystarczy.)
+używa - dowolna wartość wystarczy. uv musi być w wersji z `required-version`
+w `backend/pyproject.toml`; w innej odmawia pracy i podaje polecenie, które ją
+instaluje.)
 
 Frontend:
 

@@ -79,6 +79,9 @@ ONCALL_ADMIN_USERNAME=admin ONCALL_ADMIN_PASSWORD='change-me-now' uv run python 
 uv run uvicorn oncall.main:app --reload
 ```
 
+uv must be the release pinned by `required-version` in `backend/pyproject.toml`;
+any other refuses to run and prints the command that installs the right one.
+
 The gates CI runs, in the same order: `uv run ruff check .`, `uv run ruff format --check .`,
 `uv run mypy`, `uv run pytest`, `uv run python scripts/openapi_snapshot.py`. The
 PostgreSQL concurrency suite needs a disposable database:

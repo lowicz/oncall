@@ -7,14 +7,24 @@
 // Shape:
 //   - one pull request a week per ecosystem for minor and patch updates,
 //     opened before working hours on Monday, Warsaw time;
-//   - major updates of the runtimes (Python, Node, PostgreSQL) only after a
-//     maintainer ticks them on the dashboard - they are decisions, not chores;
+//   - major updates, and every update of a runtime (Python, Node,
+//     PostgreSQL), only after a maintainer approves them - they are decisions,
+//     not chores;
 //   - security updates at any time, on their own, labelled;
 //   - no automerge: the repository is public and one person maintains it, so
 //     every change lands through a reviewed pull request that passed `ci-ok`;
 //   - a release must be at least three days old before it is proposed, so a
 //     freshly published (and possibly hijacked) package cannot reach a pull
 //     request the same hour it appears.
+//
+// Approving a major or runtime update: open the Dependency Dashboard issue and
+// tick the update's checkbox under "Pending Approval". Renovate opens the pull
+// request on its next run, schedule or not, with the lockfiles regenerated.
+// Never start one by editing a version on a branch by hand - that skips the
+// grouping and the lockfile update. Code changes the update needs are pushed
+// to the pull request Renovate opened; Renovate then stops rebasing it, and
+// ticking its rebase box would drop them. Before merging a runtime update,
+// check it changed every file that names the old version.
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
@@ -57,11 +67,22 @@
   enabledManagers: ['github-actions', 'npm', 'pep621', 'dockerfile', 'docker-compose', 'custom.regex'],
   customManagers: [
     {
-      // The uv version CI installs (astral-sh/setup-uv `version`) and the uv
-      // binary the backend image copies in must stay the same release.
+      // One uv release writes and reads backend/uv.lock: the one CI installs
+      // (`UV_VERSION`), the binary the backend image copies in, and
+      // `required-version` in pyproject.toml, which uv enforces and Renovate
+      // installs for its own lockfile updates. One dependency from one
+      // datasource, so all three get the same version on the same day.
       customType: 'regex',
-      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/'],
-      matchStrings: ['UV_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"'],
+      managerFilePatterns: [
+        '/^\\.github/workflows/.+\\.ya?ml$/',
+        '/^backend/Dockerfile$/',
+        '/^backend/pyproject\\.toml$/',
+      ],
+      matchStrings: [
+        'UV_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"',
+        'ghcr\\.io/astral-sh/uv:(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)',
+        'required-version = "==(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"',
+      ],
       depNameTemplate: 'astral-sh/uv',
       datasourceTemplate: 'github-releases',
       extractVersionTemplate: '^v?(?<version>.+)$',
@@ -119,8 +140,16 @@
     },
     // ---- tool versions that appear in more than one file move together ------
     {
-      matchDepNames: ['astral-sh/uv', 'ghcr.io/astral-sh/uv'],
+      matchDepNames: ['astral-sh/uv'],
       groupName: 'uv',
+    },
+    {
+      // The uv image line in backend/Dockerfile belongs to the uv manager
+      // above. As an image it would move on its own: GHCR publishes no release
+      // dates, so the three-day rule would hold it back while CI moved on.
+      matchManagers: ['dockerfile'],
+      matchDepNames: ['ghcr.io/astral-sh/uv'],
+      enabled: false,
     },
     {
       matchDepNames: ['node'],
