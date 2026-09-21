@@ -27,6 +27,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   request through `get_db`; the worker gets its session factory in
   `worker_main` and opens one per named step. Adapters and use cases only
   flush. The DOD-3 guard in the same test module enforces it.
+- Runtime comments and docstrings describe current intent. The DOD-8 guard
+  in `tests/architecture/test_completion_dod.py` rejects QA-round, defect and
+  plan-phase identifiers (`QA-REPORT`, `QA7`, `round 4`, `phase 5`) under
+  `src/oncall`, `scripts/` and `migrations/env.py`; historical migrations and
+  tests are outside its scope.
 - `frontend/scripts/build-docs.mjs` renders `docs/` into
   `frontend/public/docs/` (gitignored). It runs as `prebuild`, so `npm run
   build` always refreshes it, and it fails the build on an unlisted page, a
