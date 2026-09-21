@@ -134,9 +134,29 @@ Zasady:
 - poprawki bezpieczeństwa (alerty GitHub i baza OSV) powstają natychmiast,
   osobno i z etykietą `security`,
 - zmiany wersji głównych oraz każda zmiana środowiska uruchomieniowego
-  (Python, Node, PostgreSQL) czekają na zaznaczenie w Dependency Dashboard -
+  (Python, Node, PostgreSQL) czekają na zatwierdzenie w Dependency Dashboard -
   to decyzje, nie rutyna,
 - nic nie jest scalane automatycznie; każdy PR przechodzi `ci-ok` i przegląd.
+
+Taką aktualizację zatwierdza się w issue **Dependency Dashboard**: w sekcji
+„Pending Approval” zaznacza się pole przy tej aktualizacji. Renovate przy
+najbliższym przebiegu, bez względu na harmonogram, sam otwiera pull request
+z odświeżonymi plikami lock. Nie zaczyna się jej od ręcznej zmiany wersji na
+gałęzi - pominęłoby to grupowanie plików, które zmieniają się razem, i
+odświeżenie plików lock. Zmiany w kodzie, których aktualizacja wymaga,
+dopisuje się jako commity do PR-a otwartego przez Renovate. Renovate przestaje
+wtedy aktualizować tę gałąź, a wymuszony rebase (pole w Dependency Dashboard
+albo w opisie PR-a) odtworzyłby ją od nowa, bez tych commitów. Przed
+scaleniem aktualizacji środowiska uruchomieniowego trzeba sprawdzić, że
+zmieniła każdy plik, w którym występowała dotychczasowa wersja.
+
+Backend deklaruje tylko tę wersję Pythona, którą testuje CI i zawiera obraz
+(`requires-python` w `backend/pyproject.toml`); granicę przesuwa zatwierdzona
+aktualizacja grupy „Python”. Wersja uv jest jedna: `required-version` w
+`backend/pyproject.toml`, `UV_VERSION` w `.github/workflows/ci.yml` i obraz uv
+w `backend/Dockerfile`. uv w innej wersji odmawia pracy z projektem, więc
+`backend/uv.lock` powstaje zawsze tą samą wersją, a Renovate przesuwa te trzy
+miejsca jednym PR-em (grupa „uv”).
 
 ## Dokumentacja na GitHub Pages
 

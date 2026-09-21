@@ -5,7 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "oncall"
 version = "0.1.0"
-requires-python = ">=3.14"
+# The one interpreter CI tests and the image ships (PYTHON_VERSION in
+# .github/workflows/ci.yml, backend/Dockerfile). An open upper bound would
+# promise every future Python untested, and uv resolves the lock for each
+# version promised: it fails the moment one dependency has no wheel for a
+# version nobody runs (ortools had none for 3.15). Renovate's dashboard-gated
+# "Python" group moves this bound with the runtime.
+requires-python = ">=3.14,<3.15"
 dependencies = [
   "aiosmtplib>=3.0,<4",
   "alembic>=1.14,<2",
@@ -57,6 +63,12 @@ filterwarnings = [
 # for every platform uv can imagine made Dependabot's uv updater fail on a
 # `python >= 3.15 and sys_platform == 'win32'` split nobody deploys to.
 environments = ["sys_platform == 'linux'"]
+# The one uv release that reads and writes uv.lock: CI installs it
+# (UV_VERSION in .github/workflows/ci.yml), the backend image copies it in
+# (backend/Dockerfile) and Renovate installs it for its lockfile updates. uv
+# refuses to run under any other release, so a drift fails loudly instead of
+# resolving the lock differently. Renovate's "uv" group moves all three.
+required-version = "==0.12.16"
 
 [tool.ruff]
 line-length = 100

@@ -35,6 +35,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   as `frontend/`. The root `.dockerignore` governs that build. `backend/Dockerfile`
   installs from `uv.lock` (`uv sync --frozen`); `pyproject.toml` alone is not
   the source of truth for what ships.
+- The backend pins one uv release (`required-version` in
+  `backend/pyproject.toml`, repeated as `UV_VERSION` in `ci.yml` and in
+  `backend/Dockerfile`; Renovate's `uv` group moves all three). Any other uv
+  refuses to run in `backend/` and prints the `uv self update` that fixes it;
+  write `uv.lock` only with the pinned release.
 - HTTPS is an overlay, never a flag on the base file:
   `docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d`. The
   base file mounts nothing from the host so it comes up on a machine with no
