@@ -10,6 +10,8 @@
 //   - major updates, and every update of a runtime (Python, Node,
 //     PostgreSQL), only after a maintainer approves them - they are decisions,
 //     not chores;
+//   - a version that appears in several files is read from one datasource
+//     in all of them, so every file gets the same version on the same day;
 //   - security updates at any time, on their own, labelled;
 //   - no automerge: the repository is public and one person maintains it, so
 //     every change lands through a reviewed pull request that passed `ci-ok`;
@@ -24,7 +26,9 @@
 // grouping and the lockfile update. Code changes the update needs are pushed
 // to the pull request Renovate opened; Renovate then stops rebasing it, and
 // ticking its rebase box would drop them. Before merging a runtime update,
-// check it changed every file that names the old version.
+// `git grep` the old version on its branch: what is left is prose (docs/,
+// AGENTS.md) to update in the same pull request, or a new reference that
+// belongs in the group's custom manager below.
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
@@ -34,8 +38,14 @@
     // Actions stay pinned to a full commit SHA with the version as a comment,
     // exactly the form the workflows use; Renovate moves both together.
     'helpers:pinGitHubActionDigests',
-    // Base images pinned to their digest as well; the tag stays readable.
-    'docker:pinDigests',
+    // No docker:pinDigests: images are referenced by tag. The node and
+    // python tags follow the runtimes' own release lists (custom managers
+    // below), which have no digests, so Renovate could not move a digest
+    // with the tag - and Docker runs the digest when both are written.
+    // Pinning only the remaining images (nginx, postgres) would also stop
+    // `docker compose pull` from bringing postgres patch releases to an
+    // installation. release.yml records each base image digest in the
+    // published image's provenance.
   ],
   timezone: 'Europe/Warsaw',
   schedule: ['before 6am on monday'],
@@ -88,32 +98,40 @@
       extractVersionTemplate: '^v?(?<version>.+)$',
     },
     {
-      // The Node major CI tests with (`NODE_VERSION`, `node-version`) is the
-      // one the web image is built with (frontend/Dockerfile).
+      // One Node major: CI (`NODE_VERSION`, `node-version` in pages.yml) and
+      // the web image (frontend/Dockerfile), all from Node's own release
+      // list. Read from Docker Hub instead, the image line would have its own
+      // release date - Docker Hub dates a floating tag such as `22-alpine` by
+      // its last push - and an approved runtime update moves only the
+      // members past the three-day rule, so the image could stay on the old
+      // major while CI moved on. Docker Hub publishes `<major>-alpine` for
+      // every Node major; the image-build job fails a pull request if not.
       customType: 'regex',
-      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/'],
-      matchStrings: ['NODE_VERSION: "(?<currentValue>[0-9]+)"', 'node-version: "(?<currentValue>[0-9]+)"'],
+      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/', '/^frontend/Dockerfile$/'],
+      matchStrings: [
+        'NODE_VERSION: "(?<currentValue>[0-9]+)"',
+        'node-version: "(?<currentValue>[0-9]+)"',
+        'FROM node:(?<currentValue>[0-9]+)-alpine',
+      ],
       depNameTemplate: 'node',
       datasourceTemplate: 'node-version',
       versioningTemplate: 'node',
     },
     {
-      // Same for Python and the backend image.
+      // One Python minor, for the same reason: CI (`PYTHON_VERSION`) and the
+      // backend image (backend/Dockerfile), from the python-version
+      // datasource the pep621 manager reads `requires-python` from. Its
+      // default versioning keeps the `3.14` form and moves only to a new
+      // minor. ruff and mypy take the version from requires-python and the
+      // interpreter (backend/pyproject.toml), so they need no entry here.
       customType: 'regex',
-      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/'],
-      matchStrings: ['PYTHON_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+)"'],
+      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/', '/^backend/Dockerfile$/'],
+      matchStrings: [
+        'PYTHON_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+)"',
+        'python:(?<currentValue>[0-9]+\\.[0-9]+)-slim',
+      ],
       depNameTemplate: 'python',
-      datasourceTemplate: 'docker',
-      versioningTemplate: 'docker',
-    },
-    {
-      // The PostgreSQL service container of the CI job (docker-compose.yml is
-      // read by the docker-compose manager).
-      customType: 'regex',
-      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/'],
-      matchStrings: ['image: (?<depName>postgres):(?<currentValue>[0-9]+-alpine)'],
-      datasourceTemplate: 'docker',
-      versioningTemplate: 'docker',
+      datasourceTemplate: 'python-version',
     },
   ],
   packageRules: [
@@ -136,7 +154,7 @@
     {
       matchManagers: ['dockerfile', 'docker-compose'],
       groupName: 'container base images',
-      matchUpdateTypes: ['minor', 'patch', 'digest', 'pin', 'pinDigest'],
+      matchUpdateTypes: ['minor', 'patch'],
     },
     // ---- tool versions that appear in more than one file move together ------
     {
@@ -144,11 +162,22 @@
       groupName: 'uv',
     },
     {
-      // The uv image line in backend/Dockerfile belongs to the uv manager
-      // above. As an image it would move on its own: GHCR publishes no release
-      // dates, so the three-day rule would hold it back while CI moved on.
+      // Image lines that belong to the custom managers above. Read by the
+      // dockerfile manager they would be separate dependencies with their own
+      // release dates (GHCR publishes none, Docker Hub dates a tag by its last
+      // push), and a group moves only the members that pass the three-day
+      // rule.
       matchManagers: ['dockerfile'],
-      matchDepNames: ['ghcr.io/astral-sh/uv'],
+      matchDepNames: ['ghcr.io/astral-sh/uv', 'node', 'python'],
+      enabled: false,
+    },
+    {
+      // Same for the `node-version` input of actions/setup-node in pages.yml,
+      // which the github-actions manager would look up in the
+      // actions/node-versions releases instead. (It also reads the postgres
+      // service image of ci.yml; that one stays, in the PostgreSQL group.)
+      matchManagers: ['github-actions'],
+      matchDepNames: ['node'],
       enabled: false,
     },
     {

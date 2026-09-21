@@ -71,14 +71,16 @@ environments = ["sys_platform == 'linux'"]
 required-version = "==0.12.16"
 
 [tool.ruff]
+# No target-version: ruff takes it from the lower bound of requires-python,
+# so the one Python version is written down once and moves with it.
 line-length = 100
-target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.mypy]
-python_version = "3.14"
+# No python_version: mypy checks against the interpreter that runs it, the
+# one requires-python allows.
 strict = true
 files = [
   # The whole domain: it is the layer with no framework in it, so there is

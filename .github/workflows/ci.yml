@@ -52,10 +52,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
-      - name: Install from the lock
-        run: uv sync --extra dev --frozen
+      # Before the install: `--frozen` takes uv.lock as it is, so a lock that
+      # no longer matches pyproject.toml has to fail here, not after an
+      # install from it.
       - name: Lock matches pyproject.toml
         run: uv lock --check
+      - name: Install from the lock
+        run: uv sync --extra dev --frozen
       - name: Lint
         run: uv run --frozen ruff check .
       - name: Format
@@ -237,8 +240,13 @@ jobs:
           cache-to: ${{ github.event.pull_request.head.repo.fork != true && format('type=gha,mode=max,scope={0}', matrix.name) || '' }}
 
   ci-ok:
-    # The one status branch protection requires. `if: always()` so a failed
-    # or cancelled job still produces a (red) status instead of a missing one.
+    # The one status branch protection requires. The `main-protected` ruleset
+    # must list it as `ci-ok` from GitHub Actions, the name every pull request
+    # reports; `ci / ci-ok` is this job only when release.yml calls the
+    # workflow as job `ci`, so requiring that name blocks every pull request
+    # (docs/wdrozenie/wydania.md, "Ustawienia repozytorium"). `if: always()`
+    # so a failed or cancelled job still produces a (red) status instead of
+    # a missing one.
     name: ci-ok
     if: always()
     needs: [backend, backend-postgres, frontend, compose-config, image-build]

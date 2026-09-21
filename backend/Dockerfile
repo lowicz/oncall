@@ -6,6 +6,10 @@
 # build. The second stage copies the finished virtual environment onto a plain
 # Python image and runs as an unprivileged user. No BuildKit-only syntax, so
 # `podman compose` builds it too.
+
+# The Python minor CI tests (PYTHON_VERSION in .github/workflows/ci.yml) and
+# requires-python allows. Renovate's "Python" group moves the three together
+# and reads this line only in the `python:<major>.<minor>-slim` form.
 ARG PYTHON_IMAGE=python:3.14-slim
 
 FROM ${PYTHON_IMAGE} AS build
