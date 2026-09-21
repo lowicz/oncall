@@ -1,6 +1,6 @@
 # Plan wykonawczy domknięcia Architecture Definition of Done
 
-Status: complete; Agent 5 potwierdził wszystkie dziewięć DoD na `04c1724` (2026-09-21), dowody w sekcji 15  
+Status: complete; Agent 5 potwierdził wszystkie dziewięć DoD na finalnym SHA `2b6fcf6` (2026-09-21), dowody w sekcji 15  
 Prepared: 2026-09-20  
 Source: independent audit of `ARCHITECTURE_ACTION_PLAN.md` and the current tree  
 Scope: `backend/src/oncall`, backend tests, architecture documentation and contract gates  
@@ -485,11 +485,20 @@ ukończenia.
 
 ## 15. Końcowe dowody zamknięcia (Agent 5)
 
-Audyt wykonany 2026-09-21 na `04c172481e0d0dba58602552b9a96edc7858a4c1`
-(`main` po merge'u PR #19). Agent 5 nie był autorem żadnego z PR-ów serii.
-Zamykający PR zmienia wyłącznie `tests/architecture/test_completion_dod.py`
-(guard DOD-8, patrz niżej), ten dokument, `ARCHITECTURE_ACTION_PLAN.md`
-i `AGENTS.md`; nie dotyka `src/`, migracji ani snapshotu.
+Audyt serii, oba trace'y i przegląd strukturalny wykonano 2026-09-21 na
+`04c172481e0d0dba58602552b9a96edc7858a4c1` (`main` po merge'u PR #19).
+Agent 5 nie był autorem żadnego z PR-ów serii. Zamykający commit
+`2b6fcf64ca3fd2979a063c15dcf0d3e1ad15f7a3` dodaje guard DOD-8 w
+`tests/architecture/test_completion_dod.py` (patrz niżej) i zmienia poza tym
+wyłącznie ten dokument, `ARCHITECTURE_ACTION_PLAN.md` i `AGENTS.md`; nie
+dotyka `src/`, migracji ani snapshotu. Dlatego `src/`, `migrations/` i
+`contracts/openapi.json` są bajtowo identyczne między `04c1724` a `2b6fcf6`.
+Komendy z sekcji 12 dla SQLite (pytest, ruff check, ruff format --check, mypy,
+snapshot OpenAPI) oraz guard DOD-8 zmierzono ponownie na finalnym SHA
+`2b6fcf6`; przepływ PostgreSQL (migracje od zera, `alembic check`,
+`test_concurrency_postgres.py`) i cztery kontrole źródłowe zmierzono na
+`04c1724` i - wobec bajtowej identyczności `src/`, `migrations/` i snapshotu -
+przenoszą się na `2b6fcf6` bez zmian.
 
 Seria PR-ów: Agent 0 - #5, Agent 1 - #6, Agent 2 - #15, Agent 3 - #17,
 Agent 4 - #19. Pomiędzy nimi weszły PR-y spoza planu (#7-#10, #16, #18).
@@ -498,7 +507,7 @@ Agent 4 - #19. Pomiędzy nimi weszły PR-y spoza planu (#7-#10, #16, #18).
 
 | Komenda | Wynik |
 |---|---|
-| `pytest -q` (SQLite) | 662 passed, 26 skipped; wszystkie 26 to `ONCALL_TEST_POSTGRES_URL is not set`; 0 xfail, 0 xpass |
+| `pytest -q` (SQLite, `2b6fcf6`) | 664 passed, 26 skipped; wszystkie 26 to `ONCALL_TEST_POSTGRES_URL is not set`; 0 xfail, 0 xpass; dwa testy więcej niż 662 na `04c1724` to dwa nowe testy guardu DOD-8 |
 | `ruff check src tests scripts` | All checks passed |
 | `ruff format --check src tests scripts` | 291 files already formatted |
 | `mypy` | Success: no issues found in 111 source files |
@@ -513,7 +522,7 @@ Agent 4 - #19. Pomiędzy nimi weszły PR-y spoza planu (#7-#10, #16, #18).
 
 ### Dziewięć wierszy DoD
 
-| ID | Status | Dowód na `04c1724` |
+| ID | Status | Dowód na finalnym SHA `2b6fcf6` (dowody strukturalne i PostgreSQL zmierzone na bajtowo identycznym `04c1724`) |
 |---|---|---|
 | DOD-1 | PASS | snapshot OpenAPI strukturalnie równy `app.openapi()` (63 ścieżki, 77 operacji, 95 schematów); PR-y planu nie dotknęły `contracts/openapi.json`; jedyna zmiana w oknie serii to #9 (pola `app_name`/`app_subtitle` w `/api/v1/config`, osobno zatwierdzona zmiana produktowa spoza planu); `tests/contract/test_http_contract.py`, `test_access_contract.py`, `test_admin_contract.py`, `test_ical.py`, `test_notifications.py`, `test_scheduler.py` zielone |
 | DOD-2 | PASS | `tests/architecture/test_dependencies.py` (allowlist importów domeny) i `tests/test_domain_boundaries.py` (świeży interpreter, brak FastAPI/SQLAlchemy/adapterów) zielone |
@@ -522,7 +531,7 @@ Agent 4 - #19. Pomiędzy nimi weszły PR-y spoza planu (#7-#10, #16, #18).
 | DOD-5 | PASS | `test_generated_schedule_obeys_rules.py` (8) i `test_scheduler.py` (29, fixed-seed) zielone |
 | DOD-6 | PASS | guard DOD-6 zielony; `model_registry.py` zawiera wyłącznie 9 importów modułów modeli, nie nazywa żadnej klasy; `test_model_registry.py` (8) pina: rejestr mapuje dokładnie to, co pakiet definiuje, import nie konfiguruje mapperów, importują go tylko `bootstrap/http.py`, `worker.py`, oba seedy, `migrations/env.py` i `tests/conftest.py`; `alembic check` bez operacji |
 | DOD-7 | PASS | pełny `test_concurrency_postgres.py` 26/26 na PostgreSQL 17; `test_abandoned_generation_runs.py`, crash points zielone; claim `FOR UPDATE SKIP LOCKED` i compare-and-set na `running` żyją w `SqlAlchemyRunClaims`, nie w `worker.py` |
-| DOD-8 | PASS | nowy guard DOD-8 (poniżej) zielony na `src/oncall`, `scripts/` i `migrations/env.py`; przegląd człowieka: brak identyfikatorów rund QA i defektów w komentarzach runtime; pozostałości opisane w „Ryzyka resztkowe" |
+| DOD-8 | PASS | guard DOD-8 (poniżej) dodany w commicie `2b6fcf6` i tam uruchomiony zielony na `src/oncall`, `scripts/` i `migrations/env.py`; przegląd człowieka: brak identyfikatorów rund QA i defektów w komentarzach runtime; pozostałości opisane w „Ryzyka resztkowe" |
 | DOD-9 | PASS | guard DOD-9 zielony; inwentarz: 70 protokołów, największy 7 metod (`SignInAccounts`, `AccountBook`, `TeamDirectory`, `PublishedRoster`, `SchedulePublication`, `ShareLinks`); 26 bundles, największy 8 pól (`PublicationPorts`, dokładnie na limicie); nazwy legacy występują tylko jako literały guardu; dwa trace'y poniżej |
 
 ### Dwa ręczne trace'y

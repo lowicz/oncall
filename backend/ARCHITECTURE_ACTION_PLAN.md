@@ -1,6 +1,6 @@
 # Backend architecture review and action plan
 
-Status: complete; all six phases done, and the definition of done below was independently audited and closed on 2026-09-21 at `04c1724` (evidence: `ARCHITECTURE_DOD_COMPLETION_PLAN.md`, section 15)  
+Status: complete; all six phases done, and the definition of done below was independently audited and closed on 2026-09-21 at the final SHA `2b6fcf6` (evidence: `ARCHITECTURE_DOD_COMPLETION_PLAN.md`, section 15)  
 Review date: 2026-09-15  
 Decisions approved: 2026-09-15  
 Scope: `backend/src/oncall`, runtime configuration, migrations as persistence context  
@@ -2027,16 +2027,20 @@ Rules for the target:
   first (#5, four strict `xfail`s), then closed them one layer per PR: the
   clock seam (#6), feature-owned model modules with an import-only mapper
   registry (#15), consumer-owned ports (#17) and one unit of work per worker
-  step (#19). A separate closure auditor re-ran every gate on `04c1724`:
-  662 tests passed with 26 PostgreSQL-gated skips, all 26 passed on
-  PostgreSQL 17 after migrations from empty and a clean `alembic check`,
-  Ruff, mypy over 111 files and the unchanged OpenAPI snapshot passed, and
-  two manual traces (`POST /api/v1/swaps`, `GET /api/v1/schedules/published`)
-  followed one request from route to table and back through one unit of
-  work. The one promised gate that did not exist, a source guard for
-  historical QA references (finding A14), was added in the closure PR.
-  Per-condition evidence and the residual, non-blocking findings are in
-  that document's section 15.
+  step (#19). The one promised gate that did not exist, a source guard for
+  historical QA references (finding A14), was added in the closure commit
+  `2b6fcf6`, which changes only that test and the plan documents, leaving
+  `src/`, `migrations/` and the OpenAPI snapshot byte-identical to `04c1724`.
+  A separate closure auditor ran the SQLite gates and the new DOD-8 guard on
+  that final SHA: 664 tests passed with 26 PostgreSQL-gated skips, and Ruff,
+  mypy over 111 files and the unchanged OpenAPI snapshot passed; the two extra
+  tests over the 662 on `04c1724` are the two DOD-8 tests. The PostgreSQL flow
+  ran on `04c1724` and carries over unchanged: all 26 gated tests passed on
+  PostgreSQL 17 after migrations from empty and a clean `alembic check`. Two
+  manual traces (`POST /api/v1/swaps`, `GET /api/v1/schedules/published`)
+  followed one request from route to table and back through one unit of work.
+  Per-condition evidence and the residual, non-blocking findings are in that
+  document's section 15.
 
 ### Phase 0 — Contract freeze and decisions (mandatory)
 
@@ -2172,6 +2176,8 @@ The plan is complete when:
 - comments explain current intent, not the history of previous QA rounds;
 - the code is simpler to navigate, with fewer broad interfaces and no new ceremony-only abstractions.
 
-Every condition was confirmed on `04c1724` by the independent closure audit
-recorded in `ARCHITECTURE_DOD_COMPLETION_PLAN.md`, section 15, which maps
-each one to its executable gate and the command output that proves it.
+Every condition was confirmed on the final SHA `2b6fcf6` by the independent
+closure audit recorded in `ARCHITECTURE_DOD_COMPLETION_PLAN.md`, section 15,
+which maps each one to its executable gate and the command output that proves
+it; the structural and PostgreSQL evidence was measured on the byte-identical
+`04c1724`.
