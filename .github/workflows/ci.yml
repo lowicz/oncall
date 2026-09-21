@@ -182,7 +182,7 @@ jobs:
           if-no-files-found: ignore
 
   compose-config:
-    name: compose files (production, dev overlay, TLS overlay)
+    name: compose files (production, dev overlay, TLS and LDAP CA overlays)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -201,6 +201,10 @@ jobs:
           fi
       - name: Production file with the TLS overlay
         run: docker compose -f docker-compose.yml -f docker-compose.tls.yml config --quiet
+      - name: Production file with the LDAP CA overlay, with and without TLS
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ldap-ca.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml config --quiet
       - name: Development overlay, with and without TLS
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet

@@ -45,6 +45,8 @@ Instrukcja ekran po ekranie, zadanie po zadaniu.
 - [Wydania i wersje](wdrozenie/wydania.md) - numer wersji, aktualizacja,
   cofnięcie, weryfikacja pochodzenia obrazów, co sprawdza CI.
 - [TLS](wdrozenie/tls.md) - certyfikat, klucz i CA jako trzy osobne pliki.
+- [Logowanie z katalogu](wdrozenie/ldap.md) - LDAP / Active Directory,
+  certyfikat katalogu i diagnostyka logowania z logu API.
 
 ## Dokumenty historyczne
 

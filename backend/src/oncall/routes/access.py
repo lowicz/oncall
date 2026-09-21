@@ -1,9 +1,11 @@
+import logging
 from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from oncall import login_log
 from oncall.auth import (
     CsrfGuard,
     CurrentPrincipal,
@@ -24,6 +26,7 @@ from oncall.domain.access import errors, use_cases
 from oncall.domain.access.models import AccountOverview, PasswordChoice, SignInRequest
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import utc_now
+from oncall.domain.errors import DomainError
 from oncall.domain.vocabulary import AccountTokenKind, UserRole
 from oncall.infrastructure.sqlalchemy.access import account_from_row
 from oncall.infrastructure.sqlalchemy.access_models import Session
@@ -96,6 +99,31 @@ def _client_ip(request: Request) -> str:
     return real_ip or (request.client.host if request.client else "unknown")
 
 
+def _log_refusal(login: str, refusal: DomainError) -> None:
+    """How a refused sign-in ended, with the reason the answer leaves out.
+
+    A directory outage says only that here: the `event=ldap_auth` record with
+    the same attempt id says where the directory conversation stopped.
+    """
+    match refusal:
+        case errors.LoginRejected(cause=cause):
+            login_log.emit("login", login=login, outcome="rejected", cause=cause)
+        case errors.LoginThrottled():
+            login_log.emit("login", login=login, outcome="throttled")
+        case errors.DirectoryLoginUnavailable():
+            login_log.emit("login", login=login, outcome="directory_unavailable")
+        case errors.DirectoryIdentityConflict(cause=cause):
+            login_log.emit(
+                "login",
+                level=logging.WARNING,
+                login=login,
+                outcome="identity_conflict",
+                cause=cause,
+            )
+        case _:
+            login_log.emit("login", login=login, outcome=type(refusal).__name__)
+
+
 @router.post("/api/v1/auth/login", response_model=UserResponse)
 async def login(
     payload: LoginRequest,
@@ -104,13 +132,24 @@ async def login(
     db: DbSession,
     ports: SignInProvider,
 ) -> UserResponse:
+    login_log.begin_attempt()
     async with refusals_as_http(db, ACCESS_ERROR_STATUSES, headers=ACCESS_ERROR_HEADERS):
-        signed_in = await use_cases.sign_in(
-            SignInRequest(payload.username, payload.password, _client_ip(request)),
-            ports,
-            now=utc_now(),
-            session_lifetime=timedelta(hours=get_settings().session_ttl_hours),
-        )
+        try:
+            signed_in = await use_cases.sign_in(
+                SignInRequest(payload.username, payload.password, _client_ip(request)),
+                ports,
+                now=utc_now(),
+                session_lifetime=timedelta(hours=get_settings().session_ttl_hours),
+            )
+        except DomainError as refusal:
+            _log_refusal(payload.username, refusal)
+            raise
+    login_log.emit(
+        "login",
+        login=payload.username,
+        outcome="signed_in",
+        source=signed_in.account.auth_source,
+    )
     set_session_cookie(response, signed_in.session.token, signed_in.session.expires_at)
     response.headers["X-CSRF-Token"] = signed_in.session.csrf_token
     return user_response(AccountOverview(signed_in.account, signed_in.has_team_member))

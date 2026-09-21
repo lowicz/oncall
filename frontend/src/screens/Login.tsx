@@ -1,9 +1,20 @@
 import { FormEvent, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../api'
+import { api, ApiError } from '../api'
 import { useBranding } from '../hooks/useBranding'
 import { Box, Button, Field, IconButton, Input } from '../ui'
 import { AuthFrame } from '../components/AuthFrame'
+
+/** What the person can do about a refused sign-in. Only a rejected login or
+ *  password can mean a disabled account; a directory outage or a conflict
+ *  has its own remedy, and suggesting a disabled account there misleads. */
+function loginHint(error: Error): string {
+  const status = error instanceof ApiError ? error.status : 0
+  if (status === 401) return 'Jeśli konto zostało wyłączone, skontaktuj się z administratorem.'
+  if (status === 409) return 'Konto wymaga poprawki po stronie administratora - skontaktuj się z nim.'
+  if (status === 429) return 'Odczekaj chwilę i spróbuj ponownie.'
+  return 'Spróbuj ponownie za chwilę. Jeśli problem się powtarza, powiadom administratora.'
+}
 
 export function Login() {
   const queryClient = useQueryClient()
@@ -27,7 +38,7 @@ export function Login() {
       <form onSubmit={submit} className="login-card" aria-label="Logowanie">
         {login.error && (
           <Box tone="bad" role="alert" title={login.error.message}>
-            Jeśli konto zostało wyłączone, skontaktuj się z administratorem.
+            {loginHint(login.error)}
           </Box>
         )}
         <Field label="Login">

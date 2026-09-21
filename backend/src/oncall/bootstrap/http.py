@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
@@ -55,8 +56,22 @@ async def translated_validation_error(_: Request, exc: RequestValidationError) -
     )
 
 
+def configure_logging() -> None:
+    """Give the application's own records somewhere to go in the API process.
+
+    Uvicorn configures its own loggers and leaves the root one bare, so an
+    `oncall.*` record at INFO - a refused sign-in and why - was dropped, and a
+    warning came out with neither a time nor a level. The format is the
+    worker's. Libraries stay at WARNING: SQLAlchemy below that would log every
+    statement with its parameters, password hashes among them.
+    """
+    logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(levelname)s %(message)s")
+    logging.getLogger("oncall").setLevel(logging.INFO)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    configure_logging()
     yield
 
 
