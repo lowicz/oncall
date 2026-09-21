@@ -1,9 +1,10 @@
-"""Persistence for generation runs and their scheduling policy."""
+"""Persistence for generation runs, the lanes that hold them, and their scheduling policy."""
 
 import uuid
 from datetime import date, datetime
+from typing import Any, cast
 
-from sqlalchemy import case, func, select, update
+from sqlalchemy import CursorResult, Update, case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -29,6 +30,15 @@ def _count(condition: ColumnElement[bool]) -> ColumnElement[int]:
     SQLite databases the fast tests run on.
     """
     return func.coalesce(func.sum(case((condition, 1), else_=0)), 0)
+
+
+async def _changed(session: AsyncSession, statement: Update) -> int:
+    """How many rows an UPDATE matched.
+
+    The statement answers with a cursor result; the session's signature only
+    promises a generic one, which has no `rowcount`.
+    """
+    return cast(CursorResult[Any], await session.execute(statement)).rowcount
 
 
 def _to_run(row: ScheduleRun) -> GenerationRun:
@@ -74,12 +84,14 @@ class SqlAlchemyGenerationQueue:
             status=RunState.queued,
             progress=0,
         )
-        self._session.add(row)
         try:
-            await self._session.flush()
-        except IntegrityError:
             # A partial unique index allows only one active run per date range.
-            await self._session.rollback()
+            # The insert is tried under a savepoint so that losing that race
+            # undoes the insert alone, not the rest of the caller's unit of work.
+            async with self._session.begin_nested():
+                self._session.add(row)
+                await self._session.flush()
+        except IntegrityError:
             existing = await self.active_run_for(starts_on, ends_on)
             if existing is None:
                 raise
@@ -150,7 +162,8 @@ class SqlAlchemyGenerationQueue:
         )
 
     async def abandon_stale_runs(self, untouched_since: datetime, error: str) -> int:
-        result = await self._session.execute(
+        return await _changed(
+            self._session,
             update(ScheduleRun)
             .where(
                 ScheduleRun.status == RunState.running,
@@ -162,9 +175,85 @@ class SqlAlchemyGenerationQueue:
             # `updated_at < untouched_since` in Python against every run the
             # session happens to hold. SQLite hands back naive datetimes while
             # the cutoff is UTC-aware, and that comparison raises.
-            .execution_options(synchronize_session=False)
+            .execution_options(synchronize_session=False),
         )
-        return result.rowcount
+
+
+class SqlAlchemyRunClaims:
+    """A generation lane's hold on one run, as the state transitions it makes.
+
+    `claim_oldest` takes a run from `queued` to `running`; `heartbeat` keeps a
+    held run fresh; `complete`, `fail` and `fail_unstarted` end it. Every write
+    after the claim is compare-and-set on `running`: a lane that stalls past
+    `stale_run_seconds` has its run failed by `abandon_stale_runs`, and when it
+    wakes up its writes must lose rather than resurrect that run. Nothing here
+    commits - each call is one step of the worker, inside the unit of work the
+    step opens.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def claim_oldest(self, *, progress: int) -> GenerationRun | None:
+        """Take the oldest queued run for this lane alone, or answer None.
+
+        `SKIP LOCKED` is what lets lanes run side by side: a lane never queues
+        behind another lane's row, it moves on to the next one. Oldest first
+        because `queue_position` counts the runs queued before yours.
+        """
+        row = await self._session.scalar(
+            select(ScheduleRun)
+            .where(ScheduleRun.status == RunState.queued)
+            .order_by(ScheduleRun.created_at)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        if row is None:
+            return None
+        row.status = RunState.running
+        row.progress = progress
+        await self._session.flush()
+        return _to_run(row)
+
+    async def heartbeat(self, run_id: uuid.UUID, progress: int) -> None:
+        """Touch a held run with where its bar stands.
+
+        The touch is the run's sign of life: `abandon_stale_runs` reads
+        `updated_at`, which every write here moves. Guarded so the bar of a run
+        that is already over cannot walk back down from 100.
+        """
+        await self._session.execute(
+            update(ScheduleRun)
+            .where(ScheduleRun.id == run_id, ScheduleRun.status == RunState.running)
+            .values(progress=progress)
+        )
+
+    async def complete(self, run_id: uuid.UUID, schedule_id: uuid.UUID | None) -> bool:
+        """The draft is stored; answers False if the run was no longer held."""
+        return await self._finish(
+            run_id, status=RunState.completed, progress=100, schedule_id=schedule_id
+        )
+
+    async def fail(self, run_id: uuid.UUID, error: str, conflicts: list[str] | None) -> bool:
+        """The generator ran and produced no draft. Its conflict list is
+        recorded as reported, an absent one included."""
+        return await self._finish(
+            run_id, status=RunState.failed, progress=100, error=error, conflicts=conflicts
+        )
+
+    async def fail_unstarted(self, run_id: uuid.UUID, error: str) -> bool:
+        """The run could not reach the generator, so there is no diagnosis to
+        record - only the reason."""
+        return await self._finish(run_id, status=RunState.failed, progress=100, error=error)
+
+    async def _finish(self, run_id: uuid.UUID, **values: object) -> bool:
+        changed = await _changed(
+            self._session,
+            update(ScheduleRun)
+            .where(ScheduleRun.id == run_id, ScheduleRun.status == RunState.running)
+            .values(**values),
+        )
+        return changed == 1
 
 
 def _to_policy(row: PolicyRow) -> SchedulingPolicy:
@@ -211,4 +300,4 @@ class SqlAlchemyPolicyStore:
         return _to_policy(row)
 
 
-__all__ = ["SqlAlchemyGenerationQueue", "SqlAlchemyPolicyStore"]
+__all__ = ["SqlAlchemyGenerationQueue", "SqlAlchemyPolicyStore", "SqlAlchemyRunClaims"]

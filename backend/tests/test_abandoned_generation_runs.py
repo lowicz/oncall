@@ -142,7 +142,7 @@ async def test_recovery_survives_a_session_that_has_already_read_the_run(db) -> 
     assert await _recover(db) == 1
 
 
-async def test_a_generation_lane_reclaims_before_it_claims(db, db_factory, monkeypatch) -> None:
+async def test_a_generation_lane_reclaims_before_it_claims(db, db_factory) -> None:
     """Pins the call site, not only the statement.
 
     Every other test here drives `recover_abandoned_runs` by hand, so all of
@@ -150,9 +150,8 @@ async def test_a_generation_lane_reclaims_before_it_claims(db, db_factory, monke
     the lane's own cycle.
     """
     run = await _run(db, status="running", age_seconds=3 * 60 * 60)
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
 
-    assert await generation_cycle() == 0, "the queue was meant to be empty"
+    assert await generation_cycle(db_factory) == 0, "the queue was meant to be empty"
 
     assert (await _as_stored(db_factory, run.id)).status == "failed"
 
@@ -183,13 +182,12 @@ async def test_the_row_stays_fresh_while_the_bar_stands_still(db, db_factory, mo
         return await staged_draft(session)
 
     monkeypatch.setattr("oncall.worker.generate_draft", fake_generate)
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     monkeypatch.setattr("oncall.worker.time", _Clock())
 
     claimed = await db.scalar(select(ScheduleRun))
     run_id_holder.append(claimed.id)
 
-    assert await process_schedule_run(db) == 1
+    assert await process_schedule_run(db_factory) == 1
 
     stamps = [stamp for stamp, _progress in samples]
     bar = {value for _stamp, value in samples}
@@ -234,10 +232,9 @@ async def test_a_reclaimed_run_is_not_resurrected_by_the_worker_that_lost_it(
         return await staged_draft(session)
 
     monkeypatch.setattr("oncall.worker.generate_draft", fake_generate)
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     monkeypatch.setattr("oncall.worker.time", _Clock())
 
-    assert await process_schedule_run(db) == 1
+    assert await process_schedule_run(db_factory) == 1
 
     final = await _as_stored(db_factory, run_id)
     assert final.status == "failed"

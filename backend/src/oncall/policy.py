@@ -15,7 +15,11 @@ from oncall.infrastructure.sqlalchemy.scheduling_models import SchedulingPolicy
 
 
 async def load_policy(db: AsyncSession) -> SchedulingPolicy:
-    """The one policy row, created with defaults on first use."""
+    """The one policy row, created with defaults on first use.
+
+    A created row is flushed, not committed: it is written by whichever unit
+    of work the caller is in, together with everything else that unit does.
+    """
     policy = await db.scalar(select(SchedulingPolicy).limit(1))
     if policy is None:
         policy = SchedulingPolicy(
@@ -23,6 +27,6 @@ async def load_policy(db: AsyncSession) -> SchedulingPolicy:
             solve_seconds=get_settings().solver_seconds,
         )
         db.add(policy)
-        await db.commit()
+        await db.flush()
         await db.refresh(policy)
     return policy

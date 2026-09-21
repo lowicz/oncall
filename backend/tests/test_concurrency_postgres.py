@@ -18,7 +18,8 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from oncall import effective
@@ -46,7 +47,10 @@ from oncall.infrastructure.sqlalchemy.notification_models import (
     NotificationOutbox,
     NotificationStatus,
 )
-from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
+from oncall.infrastructure.sqlalchemy.scheduling_generation import (
+    SqlAlchemyGenerationQueue,
+    SqlAlchemyRunClaims,
+)
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule, ScheduleRun
 from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
@@ -55,9 +59,16 @@ from oncall.main import app
 from oncall.notifications import triggers
 from oncall.notifications.base import NotificationMessage
 from oncall.notifications.service import drain_outbox, enqueue_notification, outbox_health
+from oncall.policy import load_policy
 from oncall.workdays import is_working_day, polish_holidays
-from oncall.worker import _claim_run
-from tests.conftest import create_member, create_published_schedule, create_user, login
+from oncall.worker import CLAIMED_PROGRESS, _claim_run, process_schedule_run
+from tests.conftest import (
+    create_member,
+    create_published_schedule,
+    create_user,
+    login,
+    staged_draft,
+)
 
 POSTGRES_URL = os.environ.get("ONCALL_TEST_POSTGRES_URL")
 pytestmark = pytest.mark.skipif(not POSTGRES_URL, reason="ONCALL_TEST_POSTGRES_URL is not set")
@@ -918,24 +929,15 @@ async def test_a_lane_does_not_queue_behind_another_lane_s_row(pg, pg_factory) -
     await pg.commit()
 
     async with pg_factory() as holding:
-        # The first lane's claim, held open at exactly the point `_claim_run`
-        # reaches before it commits. Spelled out rather than calling
-        # `_claim_run` here because that commits, which would release the very
-        # lock this test needs held - so keep the two in step by hand.
-        held = await holding.scalar(
-            select(ScheduleRun)
-            .where(ScheduleRun.status == RunState.queued)
-            .order_by(ScheduleRun.created_at)
-            .limit(1)
-            .with_for_update(skip_locked=True)
-        )
+        # The first lane's claim, held open at the point its unit of work has
+        # not yet committed: the claim itself only flushes, so the lock stays.
+        held = await SqlAlchemyRunClaims(holding).claim_oldest(progress=CLAIMED_PROGRESS)
         assert held is not None
 
-        async with pg_factory() as second_lane:
-            # Generous: the claim is a single indexed statement. The point is
-            # that it returns at all rather than blocking until the rollback
-            # below, not how fast it is.
-            claimed = await asyncio.wait_for(_claim_run(second_lane), timeout=5)
+        # Generous: the claim is a single indexed statement. The point is that
+        # it returns at all rather than blocking until the rollback below, not
+        # how fast it is.
+        claimed = await asyncio.wait_for(_claim_run(pg_factory), timeout=5)
 
         assert claimed is not None
         assert claimed.id != held.id
@@ -967,8 +969,7 @@ async def test_two_workers_draining_at_once_each_take_different_messages(
 
     async def lane() -> list[str]:
         provider = _RecordingProvider()
-        async with pg_factory() as db:
-            await drain_outbox(db, {"email": provider}, batch_size=2)
+        await drain_outbox(pg_factory, {"email": provider}, batch_size=2)
         return [item.recipient for item in provider.sent]
 
     first, second = await asyncio.gather(lane(), lane())
@@ -1038,3 +1039,143 @@ async def test_the_operational_readings_measure_the_same_thing_on_postgres(pg) -
     assert (outbox.eligible, outbox.waiting, outbox.dead) == (2, 1, 1)
     assert outbox.oldest_eligible_seconds == 120.0
     assert (outbox.retrying, outbox.attempts_max) == (1, 3)
+
+
+async def _lock_is_free(pg_factory, table: str, row_id: uuid.UUID) -> bool:
+    """Whether another connection could lock this row right now, without
+    waiting: `NOWAIT` answers at once instead of queueing behind a holder."""
+    async with pg_factory() as probe:
+        try:
+            await probe.execute(
+                text(f"SELECT id FROM {table} WHERE id = :id FOR UPDATE NOWAIT"), {"id": row_id}
+            )
+        except DBAPIError:
+            return False
+        finally:
+            await probe.rollback()
+    return True
+
+
+async def test_a_lane_holds_no_lock_on_its_run_while_it_solves(pg, pg_factory, monkeypatch) -> None:
+    """The claim commits before the solve starts, so the row lock `SKIP LOCKED`
+    took is gone by the time the solver runs - however long it runs, recovery,
+    the heartbeat and a coordinator's request can all reach that row."""
+    user = await create_user(pg, "koord.lock", role=UserRole.coordinator)
+    starts = _first_weekday(90)
+    run = ScheduleRun(
+        starts_on=starts,
+        ends_on=starts + timedelta(days=6),
+        requested_by_id=user.id,
+        status=RunState.queued,
+        progress=0,
+    )
+    pg.add(run)
+    await pg.commit()
+    probed: list[bool] = []
+
+    async def fake_generate(_request, _user, session, progress=None):
+        # Before the progress loop's first beat, whose own short unit of work
+        # would take the lock for a moment.
+        probed.append(await _lock_is_free(pg_factory, "schedule_runs", run.id))
+        return await staged_draft(session, starts_on=starts)
+
+    monkeypatch.setattr("oncall.worker.generate_draft", fake_generate)
+
+    assert await process_schedule_run(pg_factory) == 1
+
+    assert probed == [True], "the run's row was still locked while the solver ran"
+    async with pg_factory() as reader:
+        assert (await reader.get(ScheduleRun, run.id)).status == RunState.completed
+
+
+async def test_a_provider_call_holds_no_lock_on_its_message(pg, pg_factory) -> None:
+    """The claim's unit of work is over before the provider is called, so a
+    slow mail server cannot hold the row it is being handed."""
+    await enqueue_notification(
+        pg,
+        NotificationMessage(
+            channel="email", recipient="anna@example.com", subject="Temat", body="Treść"
+        ),
+    )
+    await pg.commit()
+    probed: list[bool] = []
+
+    class _Probing(_RecordingProvider):
+        async def send(self, message: NotificationMessage) -> None:
+            key = uuid.UUID(message.idempotency_key)
+            probed.append(await _lock_is_free(pg_factory, "notification_outbox", key))
+            await super().send(message)
+
+    stats = await drain_outbox(pg_factory, {"email": _Probing()})
+
+    assert stats["sent"] == 1
+    assert probed == [True], "the message's row was still locked during the provider call"
+
+
+async def test_two_coordinators_queueing_one_range_at_once_share_one_run(
+    pg, pg_factory, monkeypatch
+) -> None:
+    """The partial unique index is the backstop behind the check-then-insert.
+
+    Both requests find no active run and both insert; the second insert waits
+    on the index for the first transaction and then conflicts. Only PostgreSQL
+    has the index, so only here does that branch run at all.
+    """
+    for username in ("koord1", "koord2"):
+        await create_user(pg, username, role=UserRole.coordinator)
+    # The policy exists already, as it does after the first request ever made:
+    # the test is about the run, not about two requests creating the policy.
+    await load_policy(pg)
+    await pg.commit()
+    first, second = await _client("koord1"), await _client("koord2")
+    starts = _first_weekday(120)
+    body = {"starts_on": starts.isoformat(), "ends_on": (starts + timedelta(days=6)).isoformat()}
+    _hold_commits(monkeypatch)
+    try:
+        answers = await asyncio.gather(
+            first.post("/api/v1/scheduling/runs", json=body),
+            second.post("/api/v1/scheduling/runs", json=body),
+        )
+    finally:
+        await first.aclose()
+        await second.aclose()
+
+    assert [answer.status_code for answer in answers] == [202, 202], [a.text for a in answers]
+    assert answers[0].json()["id"] == answers[1].json()["id"]
+    async with pg_factory() as reader:
+        runs = await reader.scalar(
+            select(func.count()).select_from(ScheduleRun).where(ScheduleRun.starts_on == starts)
+        )
+    assert runs == 1
+
+
+async def test_a_lost_enqueue_race_keeps_the_rest_of_the_request(pg, pg_factory) -> None:
+    """Losing the race for a range undoes the losing insert, not the request.
+
+    The insert runs under a savepoint. It used to be followed by a rollback of
+    the whole session, which threw away everything the request had staged
+    before it - on the very first request that is the policy row, created on
+    first read and written by the request's own unit of work.
+    """
+    user = await create_user(pg, "koord.race", role=UserRole.coordinator)
+    starts = _first_weekday(150)
+    ends = starts + timedelta(days=6)
+    pg.add(
+        ScheduleRun(
+            starts_on=starts,
+            ends_on=ends,
+            requested_by_id=user.id,
+            status=RunState.queued,
+            progress=0,
+        )
+    )
+    await pg.commit()
+
+    async with SqlAlchemyUnitOfWork(pg_factory) as request:
+        policy = await load_policy(request)
+        run = await SqlAlchemyGenerationQueue(request).enqueue(starts, ends, user.id)
+
+    assert run.status == RunState.queued
+    async with pg_factory() as reader:
+        assert await reader.get(type(policy), policy.id) is not None, "the request was rolled back"
+        assert await reader.scalar(select(func.count()).select_from(ScheduleRun)) == 1

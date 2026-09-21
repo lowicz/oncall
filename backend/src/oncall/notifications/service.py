@@ -13,11 +13,12 @@ order that loses nothing - send first, record after - and therefore accepts
 that a message can go out twice.
 
 What it does not accept is sending a *batch* twice, which is what a single
-transaction wrapped around a whole drain costs. A drain is now three
-separated steps: one short transaction claims a batch under a lease, each
-message is sent with no transaction open and no lock held, and each outcome is
-recorded on its own. A crash can therefore duplicate one message, never more,
-and never one that was already recorded.
+transaction wrapped around a whole drain costs. A drain is three separated
+steps, each with one owner: the claim is one short unit of work that takes a
+batch under a lease, each message is then sent with no transaction open and no
+lock held, and each outcome is recorded in a unit of work of its own. A crash
+can therefore duplicate one message, never more, and never one that was
+already recorded. Nothing in this module commits; the units of work do.
 
 Every message carries `idempotency_key`, the outbox row's own id, stable across
 every retry of that row. It is what lets a provider recognise a repeat - the
@@ -30,9 +31,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, case, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
+from oncall.database import SqlAlchemyUnitOfWork
 from oncall.domain.clock import as_utc, utc_now
 from oncall.infrastructure.sqlalchemy.notification_models import (
     NotificationOutbox,
@@ -162,17 +164,30 @@ async def outbox_health(db: AsyncSession, *, now: datetime) -> OutboxHealth:
     )
 
 
+@dataclass(frozen=True)
+class _Claimed:
+    """One claimed message, copied out of the claim's unit of work.
+
+    A value rather than the row, so that nothing of the claim's session - and
+    none of its transaction - survives into the provider call.
+    """
+
+    id: uuid.UUID
+    attempts: int
+    message: NotificationMessage
+
+
 async def _claim_batch(
     db: AsyncSession, *, now: datetime, batch_size: int, lease: timedelta
-) -> list[NotificationOutbox]:
-    """Take a batch off the eligible list in one short transaction.
+) -> list[_Claimed]:
+    """Take a batch off the eligible list; the caller's unit of work writes it.
 
     A lease, not a hand-off: the claim moves `next_attempt_at` forward rather
     than taking the row out of circulation, so a worker that dies holding a
     message leaves something that goes out when the lease expires instead of
     something nobody will look at again. `SKIP LOCKED` keeps two workers off
-    each other's rows, and the transaction closes before anything is awaited,
-    so no lock is held across a provider call.
+    each other's rows, and the claim's unit of work closes before anything is
+    sent, so no lock is held across a provider call.
     """
     rows = (
         await db.scalars(
@@ -189,29 +204,33 @@ async def _claim_batch(
     for row in rows:
         row.status = NotificationStatus.claimed
         row.next_attempt_at = now + lease
-    await db.commit()
-    return list(rows)
+    await db.flush()
+    return [
+        _Claimed(
+            id=row.id,
+            attempts=row.attempts,
+            message=NotificationMessage(
+                channel=row.channel.value,
+                recipient=row.recipient,
+                subject=row.subject,
+                body=row.body,
+                context=row.context or {},
+                idempotency_key=str(row.id),
+            ),
+        )
+        for row in rows
+    ]
 
 
 async def _record(db: AsyncSession, row_id: uuid.UUID, **values: object) -> None:
-    """Write one row's outcome, alone, and commit.
-
-    A statement rather than an attribute write: the claimed batch is all in
-    this session's identity map, and mutating rows as the loop walks them would
-    let one commit flush outcomes for messages that have not been sent yet.
-
-    The statement still synchronises back into those loaded rows, which is
-    wanted here rather than merely tolerated: it is what keeps `row.attempts`
-    telling the truth if the same row is drained again on the same session.
-    """
+    """Stage one row's outcome; the caller's unit of work writes it alone."""
     await db.execute(
         update(NotificationOutbox).where(NotificationOutbox.id == row_id).values(**values)
     )
-    await db.commit()
 
 
 def _outcome(
-    row: NotificationOutbox, exc: Exception | None, *, now: datetime, max_attempts: int
+    claimed: _Claimed, exc: Exception | None, *, now: datetime, max_attempts: int
 ) -> tuple[str, dict[str, object]]:
     """What one delivery attempt did, as a stat name and a row update."""
     if exc is None:
@@ -232,7 +251,7 @@ def _outcome(
         }
     if isinstance(exc, NotificationError) and not isinstance(exc, TemporaryNotificationError):
         return "failed", {"status": NotificationStatus.failed, "last_error": error}
-    attempts = row.attempts + 1
+    attempts = claimed.attempts + 1
     if attempts >= max_attempts:
         return "failed", {
             "status": NotificationStatus.failed,
@@ -247,25 +266,18 @@ def _outcome(
     }
 
 
-async def _deliver(row: NotificationOutbox, providers: dict[str, NotificationProvider]) -> None:
-    """Hand one row to its provider, or raise the reason it could not go."""
-    provider = providers.get(row.channel.value)
+async def _deliver(
+    message: NotificationMessage, providers: dict[str, NotificationProvider]
+) -> None:
+    """Hand one message to its provider, or raise the reason it could not go."""
+    provider = providers.get(message.channel)
     if provider is None:
-        raise NotificationError(f"Brak providera dla kanału {row.channel.value}")
-    await provider.send(
-        NotificationMessage(
-            channel=row.channel.value,
-            recipient=row.recipient,
-            subject=row.subject,
-            body=row.body,
-            context=row.context or {},
-            idempotency_key=str(row.id),
-        )
-    )
+        raise NotificationError(f"Brak providera dla kanału {message.channel}")
+    await provider.send(message)
 
 
 async def drain_outbox(
-    db: AsyncSession,
+    factory: async_sessionmaker[AsyncSession],
     providers: dict[str, NotificationProvider],
     *,
     now: datetime | None = None,
@@ -273,19 +285,25 @@ async def drain_outbox(
     max_attempts: int = 5,
     lease: timedelta = DEFAULT_LEASE,
 ) -> dict[str, int]:
-    """Deliver a batch of eligible notifications; commits as it goes."""
+    """Deliver a batch of eligible notifications.
+
+    One unit of work claims the batch, every provider call runs outside any
+    transaction, and every outcome is recorded in a unit of work of its own.
+    """
     now = now or utc_now()
-    rows = await _claim_batch(db, now=now, batch_size=batch_size, lease=lease)
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        batch = await _claim_batch(db, now=now, batch_size=batch_size, lease=lease)
     stats = {"sent": 0, "retried": 0, "failed": 0, "skipped": 0}
-    for row in rows:
+    for claimed in batch:
         try:
-            await _deliver(row, providers)
+            await _deliver(claimed.message, providers)
         except Exception as exc:  # noqa: BLE001 - every outcome is a row state
             if not isinstance(exc, NotificationError):
-                logger.exception("Unexpected provider error for outbox row %s", row.id)
-            name, values = _outcome(row, exc, now=now, max_attempts=max_attempts)
+                logger.exception("Unexpected provider error for outbox row %s", claimed.id)
+            name, values = _outcome(claimed, exc, now=now, max_attempts=max_attempts)
         else:
-            name, values = _outcome(row, None, now=now, max_attempts=max_attempts)
-        await _record(db, row.id, **values)
+            name, values = _outcome(claimed, None, now=now, max_attempts=max_attempts)
+        async with SqlAlchemyUnitOfWork(factory) as db:
+            await _record(db, claimed.id, **values)
         stats[name] += 1
     return stats

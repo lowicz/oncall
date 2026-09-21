@@ -272,11 +272,10 @@ async def test_the_sample_speaks_before_its_first_sleep(db_factory, monkeypatch,
     """A heartbeat is only a liveness signal if it starts immediately: a worker
     that reported nothing for the first interval would be indistinguishable
     from one that never came up."""
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     monkeypatch.setattr(get_settings(), "metrics_interval_seconds", 3600.0)
     from oncall.worker import _metrics_loop
 
-    loop = asyncio.create_task(_metrics_loop())
+    loop = asyncio.create_task(_metrics_loop(db_factory))
     for _ in range(100):
         await asyncio.sleep(0.01)
         if _records(caplog, "queue"):
@@ -323,12 +322,11 @@ async def test_a_finished_run_reports_the_wait_and_the_work_apart(
     """Two different complaints - „it sat in the queue" and „it took for ever"
     - need two different numbers, and a metric that added them together would
     answer neither."""
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     _generates(monkeypatch, None)
     user = await create_user(db, "koord.m", role=UserRole.coordinator)
     await _queue_a_run(db, user.id, waited=timedelta(minutes=5))
 
-    assert await generation_cycle() == 1
+    assert await generation_cycle(db_factory) == 1
 
     fields = _only(caplog, "generation")
     assert fields["outcome"] == RunOutcome.completed
@@ -349,12 +347,11 @@ async def test_a_failure_is_reported_as_the_kind_of_failure_it_is(
     """The two are told apart because the answers differ: an infeasible run
     means the roster and the hard rules disagree and somebody must change the
     inputs, while anything else is a defect in this code."""
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     _generates(monkeypatch, failure)
     user = await create_user(db, "koord.m", role=UserRole.coordinator)
     run = await _queue_a_run(db, user.id)
 
-    assert await generation_cycle() == 1
+    assert await generation_cycle(db_factory) == 1
 
     assert _only(caplog, "generation")["outcome"] == outcome
     async with db_factory() as reader:
@@ -362,10 +359,9 @@ async def test_a_failure_is_reported_as_the_kind_of_failure_it_is(
 
 
 async def test_a_run_whose_requester_is_gone_says_so(db, db_factory, monkeypatch, caplog) -> None:
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     await _queue_a_run(db, None)
 
-    assert await generation_cycle() == 1
+    assert await generation_cycle(db_factory) == 1
 
     assert _only(caplog, "generation")["outcome"] == RunOutcome.requester_missing
 
@@ -377,7 +373,6 @@ async def test_a_lane_that_lost_its_run_reports_the_solve_it_threw_away(
     refused, because somebody else had already declared the run abandoned. It
     cannot be seen in the row - that says `failed`, like any other failure - so
     it can only be seen here."""
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     user = await create_user(db, "koord.m", role=UserRole.coordinator)
     run = await _queue_a_run(db, user.id)
 
@@ -394,13 +389,13 @@ async def test_a_lane_that_lost_its_run_reports_the_solve_it_threw_away(
 
     monkeypatch.setattr("oncall.worker.generate_draft", steal_then_generate)
 
-    assert await generation_cycle() == 1
+    assert await generation_cycle(db_factory) == 1
 
     assert _only(caplog, "generation")["outcome"] == RunOutcome.reclaimed
 
 
 async def test_reclaiming_a_dead_worker_s_run_is_reported_as_a_warning(
-    db, monkeypatch, caplog
+    db, db_factory, monkeypatch, caplog
 ) -> None:
     caplog.set_level(logging.WARNING, logger="oncall.metrics")
     monkeypatch.setattr(get_settings(), "stale_run_seconds", 120.0)
@@ -412,7 +407,7 @@ async def test_reclaiming_a_dead_worker_s_run_is_reported_as_a_warning(
         day=7,
     )
 
-    assert await recover_abandoned(db) == 1
+    assert await recover_abandoned(db_factory) == 1
 
     assert _only(caplog, "generation_abandoned")["runs"] == "1"
     assert caplog.records[-1].levelno == logging.WARNING
@@ -427,22 +422,26 @@ async def test_the_worker_actually_starts_the_loop_that_reports(monkeypatch) -> 
     being quiet.
     """
     started: list[str] = []
+    factories: set[object] = set()
 
     def records(name: str):
-        async def loop() -> None:
+        async def loop(factory) -> None:
             started.append(name)
+            factories.add(factory)
 
         return loop
 
     for name in ("_notification_loop", "_metrics_loop", "_generation_loop"):
         monkeypatch.setattr(f"oncall.worker.{name}", records(name))
     monkeypatch.setattr(get_settings(), "generation_concurrency", 2)
+    factory = object()
 
-    await worker_main()
+    await worker_main(factory)
 
     assert started.count("_metrics_loop") == 1
     assert started.count("_notification_loop") == 1
     assert started.count("_generation_loop") == 2, "one lane per configured lane"
+    assert factories == {factory}, "every loop works on the factory the process started with"
 
 
 async def test_a_quiet_queue_still_reports_a_run_that_did_nothing_wrong(
@@ -451,9 +450,8 @@ async def test_a_quiet_queue_still_reports_a_run_that_did_nothing_wrong(
     """An empty queue produces no `generation` record at all - there is nothing
     to measure - but the sampled records keep coming, which is what separates
     „nothing to do" from „nobody is doing it"."""
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
 
-    assert await generation_cycle() == 0
+    assert await generation_cycle(db_factory) == 0
     await sample_metrics(db, now=NOW)
 
     assert _records(caplog, "generation") == []

@@ -22,6 +22,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `bootstrap/providers.py` is what checks the fit. The DOD-9 guard in
   `tests/architecture/test_completion_dod.py` caps protocols and bundles at 8
   members and forbids the old broad bundle names.
+- Only `SqlAlchemyUnitOfWork` (`backend/src/oncall/database.py`) commits or
+  rolls back; the seed entry points are the one exception. HTTP gets one per
+  request through `get_db`; the worker gets its session factory in
+  `worker_main` and opens one per named step. Adapters and use cases only
+  flush. The DOD-3 guard in the same test module enforces it.
 - `frontend/scripts/build-docs.mjs` renders `docs/` into
   `frontend/public/docs/` (gitignored). It runs as `prebuild`, so `npm run
   build` always refreshes it, and it fails the build on an unlisted page, a
