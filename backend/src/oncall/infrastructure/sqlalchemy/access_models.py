@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     column,
+    func,
     or_,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
@@ -38,6 +39,18 @@ class User(Base):
             ),
             name="ck_user_personnel_number_digits",
         ),
+        # Case-insensitive identity, from migration 0029. Emitted on
+        # PostgreSQL only, the database the migrations build, so SQLite test
+        # databases keep the schema they have always had.
+        Index("uq_users_username_lower", func.lower(column("username")), unique=True).ddl_if(
+            dialect="postgresql"
+        ),
+        Index(
+            "uq_users_email_lower",
+            func.lower(column("email")),
+            unique=True,
+            postgresql_where=column("email").is_not(None),
+        ).ddl_if(dialect="postgresql"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)

@@ -15,6 +15,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -59,6 +60,19 @@ class Schedule(Base):
 
 class ScheduleRun(Base):
     __tablename__ = "schedule_runs"
+    __table_args__ = (
+        # At most one queued or running run per range, from migration 0028.
+        # The predicate is PostgreSQL SQL, so the index exists on PostgreSQL
+        # only; SQLite test databases rely on the route's check-then-insert
+        # guard.
+        Index(
+            "uq_schedule_run_active_range",
+            "starts_on",
+            "ends_on",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ).ddl_if(dialect="postgresql"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     starts_on: Mapped[date] = mapped_column(Date)
@@ -77,10 +91,6 @@ class ScheduleRun(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
-    # A partial unique index on (starts_on, ends_on) WHERE status IN
-    # ('queued', 'running') lives in migration 0028. It is Postgres-only (the
-    # predicate is raw SQL), so it is not declared here and the route's
-    # check-then-insert guard is what SQLite test databases rely on.
 
 
 class Assignment(Base):

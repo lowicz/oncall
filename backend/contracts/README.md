@@ -33,6 +33,10 @@ The compatibility gate is intentionally split by observable boundary:
   database. It must run with `ONCALL_TEST_POSTGRES_URL` in CI and before changes
   to transactions, queues, publication, swaps, or availability.
 
+- `alembic upgrade head` followed by `alembic check` on an empty PostgreSQL
+  database pins that the ORM metadata describes exactly the migrated schema.
+  CI runs both before the concurrency suite.
+
 SQLite is a fast feedback database, not the persistence contract. A skipped
 PostgreSQL suite is acceptable locally but not in the compatibility CI job.
 
