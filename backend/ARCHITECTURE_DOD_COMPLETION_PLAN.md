@@ -1,6 +1,6 @@
 # Plan wykonawczy domknięcia Architecture Definition of Done
 
-Status: in progress; Agent 0 executable DoD gates landed (four strict `xfail`s), Agents 1-5 not started  
+Status: complete; Agent 5 potwierdził wszystkie dziewięć DoD na `04c1724` (2026-09-21), dowody w sekcji 15  
 Prepared: 2026-09-20  
 Source: independent audit of `ARCHITECTURE_ACTION_PLAN.md` and the current tree  
 Scope: `backend/src/oncall`, backend tests, architecture documentation and contract gates  
@@ -482,3 +482,106 @@ wszystkie dziewięć DOD, PostgreSQL suite nie jest pominięty, OpenAPI i schema
 są niezmienione, a cztery guardy dodane przez Agenta 0 przechodzą bez `xfail` i
 bez wyjątków tymczasowych. Sam merge wszystkich PR-ów nie jest dowodem
 ukończenia.
+
+## 15. Końcowe dowody zamknięcia (Agent 5)
+
+Audyt wykonany 2026-09-21 na `04c172481e0d0dba58602552b9a96edc7858a4c1`
+(`main` po merge'u PR #19). Agent 5 nie był autorem żadnego z PR-ów serii.
+Zamykający PR zmienia wyłącznie `tests/architecture/test_completion_dod.py`
+(guard DOD-8, patrz niżej), ten dokument, `ARCHITECTURE_ACTION_PLAN.md`
+i `AGENTS.md`; nie dotyka `src/`, migracji ani snapshotu.
+
+Seria PR-ów: Agent 0 - #5, Agent 1 - #6, Agent 2 - #15, Agent 3 - #17,
+Agent 4 - #19. Pomiędzy nimi weszły PR-y spoza planu (#7-#10, #16, #18).
+
+### Komendy z sekcji 12
+
+| Komenda | Wynik |
+|---|---|
+| `pytest -q` (SQLite) | 662 passed, 26 skipped; wszystkie 26 to `ONCALL_TEST_POSTGRES_URL is not set`; 0 xfail, 0 xpass |
+| `ruff check src tests scripts` | All checks passed |
+| `ruff format --check src tests scripts` | 291 files already formatted |
+| `mypy` | Success: no issues found in 111 source files |
+| `python scripts/openapi_snapshot.py` | OpenAPI contract matches the snapshot |
+| `alembic upgrade head` (pusty PostgreSQL 17, `tmpfs`) | 32 migracje, head `0032_normalize_user_identity` |
+| `alembic check` | No new upgrade operations detected |
+| `pytest tests/test_concurrency_postgres.py` (PostgreSQL) | 26 passed w 24.8 s; tyle samo, ile SQLite pominął |
+| `rg 'from oncall\.models\|import oncall\.models' src tests migrations` | 0 trafień; `src/oncall/models.py` nie istnieje |
+| `rg '\.(commit\|rollback)\(' src/oncall` | wyłącznie `database.py` (UoW), `seed_admin.py`, `seed_demo.py` |
+| `rg 'date\.today\|datetime\.now\|datetime\.utcnow' src/oncall` | wyłącznie `domain/clock.py` (`SystemClock`) |
+| `rg 'SchedulingPorts\|AdminPorts\|...' src tests` | wyłącznie literały w guardzie DOD-9 |
+
+### Dziewięć wierszy DoD
+
+| ID | Status | Dowód na `04c1724` |
+|---|---|---|
+| DOD-1 | PASS | snapshot OpenAPI strukturalnie równy `app.openapi()` (63 ścieżki, 77 operacji, 95 schematów); PR-y planu nie dotknęły `contracts/openapi.json`; jedyna zmiana w oknie serii to #9 (pola `app_name`/`app_subtitle` w `/api/v1/config`, osobno zatwierdzona zmiana produktowa spoza planu); `tests/contract/test_http_contract.py`, `test_access_contract.py`, `test_admin_contract.py`, `test_ical.py`, `test_notifications.py`, `test_scheduler.py` zielone |
+| DOD-2 | PASS | `tests/architecture/test_dependencies.py` (allowlist importów domeny) i `tests/test_domain_boundaries.py` (świeży interpreter, brak FastAPI/SQLAlchemy/adapterów) zielone |
+| DOD-3 | PASS | guard DOD-3 zielony bez `xfail`; `test_unit_of_work_per_request.py`, `test_unit_of_work.py`, `test_unit_of_work_in_the_worker.py` (6), `test_outbox_crash_points.py` (6), `test_worker_progress.py` (10) zielone; worker ma pięć nazwanych kroków, każdy na własnym `SqlAlchemyUnitOfWork`; `notifications/service.py` i `policy.py` tylko flushują |
+| DOD-4 | PASS | guard DOD-4 zielony; `tests/domain/test_clock.py`, `test_clock_boundary.py` (23:30 UTC / 01:30 Warsaw) zielone; `time.monotonic()` pozostaje w workerze i solverze |
+| DOD-5 | PASS | `test_generated_schedule_obeys_rules.py` (8) i `test_scheduler.py` (29, fixed-seed) zielone |
+| DOD-6 | PASS | guard DOD-6 zielony; `model_registry.py` zawiera wyłącznie 9 importów modułów modeli, nie nazywa żadnej klasy; `test_model_registry.py` (8) pina: rejestr mapuje dokładnie to, co pakiet definiuje, import nie konfiguruje mapperów, importują go tylko `bootstrap/http.py`, `worker.py`, oba seedy, `migrations/env.py` i `tests/conftest.py`; `alembic check` bez operacji |
+| DOD-7 | PASS | pełny `test_concurrency_postgres.py` 26/26 na PostgreSQL 17; `test_abandoned_generation_runs.py`, crash points zielone; claim `FOR UPDATE SKIP LOCKED` i compare-and-set na `running` żyją w `SqlAlchemyRunClaims`, nie w `worker.py` |
+| DOD-8 | PASS | nowy guard DOD-8 (poniżej) zielony na `src/oncall`, `scripts/` i `migrations/env.py`; przegląd człowieka: brak identyfikatorów rund QA i defektów w komentarzach runtime; pozostałości opisane w „Ryzyka resztkowe" |
+| DOD-9 | PASS | guard DOD-9 zielony; inwentarz: 70 protokołów, największy 7 metod (`SignInAccounts`, `AccountBook`, `TeamDirectory`, `PublishedRoster`, `SchedulePublication`, `ShareLinks`); 26 bundles, największy 8 pól (`PublicationPorts`, dokładnie na limicie); nazwy legacy występują tylko jako literały guardu; dwa trace'y poniżej |
+
+### Dwa ręczne trace'y
+
+Command, `POST /api/v1/swaps`: `routes/swaps.py::create_swap` →
+`presentation/swaps.py::SwapRequestCreate` → `domain/swaps/use_cases.py::request_swap(SwapRequestInput, SwapPorts)`
+→ `SwapRequestStore.add` → `infrastructure/sqlalchemy/swaps.py::SqlAlchemySwapRequests.add`
+(wiersze `swap_requests` i `swap_request_slots`, tylko `flush`) → `SwapJournal.requested`
+→ `SqlAlchemySwapJournal.requested` → `notifications/triggers.py::notify_swap_requested`
+→ `enqueue_notification` (wiersz `notification_outbox`, `flush`) oraz `audit.record_audit`
+(wiersz `audit_events`) → `swap_response` → commit w `database.py::get_db`
+(`SqlAlchemyUnitOfWork`, zależność o zasięgu funkcji z `bootstrap/providers.py::DbSession`).
+Odmowa `RecordedRefusal` przechodzi tą samą granicą przez `commit_transaction`.
+
+Query, `GET /api/v1/schedules/published`: `routes/published.py::published_schedule`
+→ `bootstrap/providers.py::calendar_reader` (`CalendarPorts`) →
+`domain/calendar/use_cases.py::dashboard(audience, ..., today=business_today())`
+→ `PublishedRoster.duties_in_force` → `infrastructure/sqlalchemy/roster.py::SqlAlchemyPublishedRoster`
+(`assignments`, `schedules`) i `CalendarRoster` → `SqlAlchemyCalendarRoster`
+(`team_members`, `users`, `swap_requests`) → mapper w route do
+`presentation/published.py::PublishedScheduleResponse` → ta sama granica UoW.
+
+### Przegląd strukturalny serii
+
+- Schemat bazy: wszystkie 32 pliki `migrations/versions` są identyczne
+  z `485310c~1` na poziomie AST (różnice to wyłącznie `ruff format` z #8);
+  `migrations/env.py` zmienia jedynie import rejestru (#15). Nie doszła
+  żadna migracja.
+- Nowe klasy serii to protokoły, bundles, modele feature'owe, adaptery
+  i trzy wartości workera (`_Claimed`, `_Ending`, `_RequesterMissing`).
+  Żadna nazwa `*Factory`/`*Strategy`/`*Manager` nie doszła. `Argon2Passwords`,
+  `DirectoryAuthentication` i `CpSatSolver` tłumaczą (wątek, wyjątki
+  katalogu, mapowanie problemu), nie przekazują 1:1.
+- `worker.py` importuje `SessionFactory` tylko jako korzeń wstrzyknięcia w
+  `__main__`; każdy krok otwiera UoW na przekazanej fabryce.
+
+### Luka dowodowa domknięta przez Agenta 5
+
+Tabela DoD obiecywała dla DOD-8 „source guard na identyfikatory
+rund/defektów", a Agent 0 dostał w zadaniu cztery guardy. Guard DOD-8 został
+dodany w `tests/architecture/test_completion_dod.py`: czyta komentarze
+(tokenizer) i docstringi (AST) w `src/oncall`, `scripts/` i
+`migrations/env.py`, odrzuca `QA-REPORT`, `QA<n>`, `round <n>` i
+`phase <n>`; historyczne migracje i testy są poza zakresem (finding A14
+dotyczy komentarzy produkcyjnych; migracja `0032` cytuje QA7 i pozostaje
+zamrożona). Czułość: projekt tymczasowy w teście oraz mutacja
+`src/oncall/policy.py` z komentarzem `QA7 par. 8`, wykryta jako
+`policy.py:34 cites QA history: 'QA7'` i cofnięta.
+
+### Ryzyka resztkowe (nieblokujące)
+
+- `routes/domain_edge.py::refusals_as_http` przyjmuje `db`, którego ciało
+  już nie używa; pozostałość po commitach w route'ach sprzed fazy 2a.
+- Trzy pomocniki „compatibility" sprzed planu, używane wyłącznie przez
+  testy: `worker._generation_error`, `scheduler.py:1087` (wejście do budowy
+  modelu) i sformułowanie docstringu settera `User.display_name`
+  (`access_models.py:85`, sam setter jest w użyciu przez oba seedy).
+- Docstringi testów cytują rundy QA jako pochodzenie regresji; poza
+  zakresem DOD-8 (A14) i celowo nieobjęte guardem. Komentarz
+  `filterwarnings` w `pyproject.toml` cytuje QA7-L17.
+- `PublicationPorts` ma dokładnie 8 pól; następny konsument publikacji
+  wymusza podział, nie podniesienie limitu.

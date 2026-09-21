@@ -1,6 +1,6 @@
 # Backend architecture review and action plan
 
-Status: all six phases complete; both leftover items closed in phase 6f  
+Status: complete; all six phases done, and the definition of done below was independently audited and closed on 2026-09-21 at `04c1724` (evidence: `ARCHITECTURE_DOD_COMPLETION_PLAN.md`, section 15)  
 Review date: 2026-09-15  
 Decisions approved: 2026-09-15  
 Scope: `backend/src/oncall`, runtime configuration, migrations as persistence context  
@@ -2019,6 +2019,25 @@ Rules for the target:
   snapshot passed. The warnings a coordinator sees are behaviour, not
   contract: the snapshot did not move.
 
+- **Definition of done closed on 2026-09-21.** An independent audit of the
+  tree after phase 6f found four of the nine conditions below met in prose
+  only: the central `models.py`, broad port bundles, scattered worker
+  transaction owners and wall-clock reads outside the clock.
+  `ARCHITECTURE_DOD_COMPLETION_PLAN.md` turned each into an executable gate
+  first (#5, four strict `xfail`s), then closed them one layer per PR: the
+  clock seam (#6), feature-owned model modules with an import-only mapper
+  registry (#15), consumer-owned ports (#17) and one unit of work per worker
+  step (#19). A separate closure auditor re-ran every gate on `04c1724`:
+  662 tests passed with 26 PostgreSQL-gated skips, all 26 passed on
+  PostgreSQL 17 after migrations from empty and a clean `alembic check`,
+  Ruff, mypy over 111 files and the unchanged OpenAPI snapshot passed, and
+  two manual traces (`POST /api/v1/swaps`, `GET /api/v1/schedules/published`)
+  followed one request from route to table and back through one unit of
+  work. The one promised gate that did not exist, a source guard for
+  historical QA references (finding A14), was added in the closure PR.
+  Per-condition evidence and the residual, non-blocking findings are in
+  that document's section 15.
+
 ### Phase 0 — Contract freeze and decisions (mandatory)
 
 Goal: make “no behavior change” testable before moving code.
@@ -2152,3 +2171,7 @@ The plan is complete when:
 - worker state transitions and recovery are explicit and tested on PostgreSQL;
 - comments explain current intent, not the history of previous QA rounds;
 - the code is simpler to navigate, with fewer broad interfaces and no new ceremony-only abstractions.
+
+Every condition was confirmed on `04c1724` by the independent closure audit
+recorded in `ARCHITECTURE_DOD_COMPLETION_PLAN.md`, section 15, which maps
+each one to its executable gate and the command output that proves it.

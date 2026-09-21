@@ -1,11 +1,16 @@
 """Executable gates for the architecture completion definition of done.
 
-Each gate is strict-xfailed only while its corresponding production gap exists.
-The small temporary projects below mutation-check the scanners themselves, so a
-green gate cannot mean that its forbidden construct went unnoticed.
+Every gate runs unconditionally. While a production gap existed its gate was
+strict-xfailed, and the agent closing the gap removed the marker in the same
+change. The small temporary projects below mutation-check the scanners
+themselves, so a green gate cannot mean that its forbidden construct went
+unnoticed.
 """
 
 import ast
+import io
+import re
+import tokenize
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -45,6 +50,13 @@ LEGACY_PORT_NAMES = frozenset(
 )
 MAX_PROTOCOL_METHODS = 8
 MAX_BUNDLE_FIELDS = 8
+
+#: Runtime code whose comments describe current invariants: the package, the
+#: scripts and the live Alembic environment. Historical migrations are frozen
+#: and keep whatever they said when they ran.
+RUNTIME_SOURCES = (PACKAGE_PATH, Path("scripts"), MIGRATIONS_PATH / "env.py")
+#: How past QA rounds, their defects and the plan's phases were cited.
+HISTORICAL_REFERENCE = re.compile(r"QA-REPORT|\bQA\d|\b[Rr]ound \d|\b[Pp]hase \d")
 
 
 def _python_files(*roots: Path) -> list[Path]:
@@ -275,6 +287,53 @@ def _port_structure_violations(project_root: Path) -> list[str]:
     return sorted(set(violations))
 
 
+def _runtime_files(project_root: Path) -> list[Path]:
+    files: list[Path] = []
+    for source in RUNTIME_SOURCES:
+        path = project_root / source
+        if path.is_file():
+            files.append(path)
+        elif path.is_dir():
+            files.extend(path.rglob("*.py"))
+    return sorted(files)
+
+
+def _comments_and_docstrings(path: Path) -> list[tuple[int, str]]:
+    """Every comment and docstring in the file, each with its first line.
+
+    Other string literals are data - messages, keys, SQL - and are not read.
+    """
+    source = path.read_text()
+    found = [
+        (token.start[0], token.string)
+        for token in tokenize.generate_tokens(io.StringIO(source).readline)
+        if token.type == tokenize.COMMENT
+    ]
+    for node in ast.walk(ast.parse(source, filename=str(path))):
+        if not isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        first = node.body[0] if node.body else None
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            found.append((first.lineno, first.value.value))
+    return found
+
+
+def _historical_reference_violations(project_root: Path) -> list[str]:
+    violations: list[str] = []
+    for path in _runtime_files(project_root):
+        for line, text in _comments_and_docstrings(path):
+            match = HISTORICAL_REFERENCE.search(text)
+            if match:
+                violations.append(
+                    f"{_location(path, project_root, line)} cites QA history: {match.group()!r}"
+                )
+    return violations
+
+
 def _write(root: Path, relative_path: str, source: str) -> None:
     path = root / relative_path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -375,6 +434,40 @@ def test_dod_6_guard_rejects_central_imports_but_allows_consumer_local_models(
     assert any("worker.py:1 imports" in violation for violation in violations)
     assert any("admin.py:1 imports" in violation for violation in violations)
     assert all("service.py" not in violation for violation in violations)
+
+
+def test_dod_8_runtime_comments_describe_current_invariants_not_qa_history() -> None:
+    _assert_no_violations(
+        _historical_reference_violations(PROJECT_ROOT), "Historical QA references"
+    )
+
+
+def test_dod_8_guard_reads_runtime_comments_and_docstrings_only(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/oncall/worker.py",
+        '"""Drains the outbox (QA-REPORT-5, N2 decision)."""\n'
+        "# Reclaimed once round 4 found a stuck run.\n"
+        "message = 'QA7 par. 8'\n"
+        "def run():\n"
+        "    # phase 5g moved this here\n"
+        "    pass\n",
+    )
+    _write(tmp_path, "scripts/openapi_snapshot.py", "#: Frozen in Phase 0.\n")
+    _write(tmp_path, "migrations/env.py", "# QA-REPORT-4 chose this url\n")
+    _write(tmp_path, "migrations/versions/0001_history.py", "# QA7-L04: the template example\n")
+    _write(tmp_path, "tests/test_swaps.py", '"""QA7-L05: a link must not leak."""\n')
+
+    violations = _historical_reference_violations(tmp_path)
+
+    assert len(violations) == 5
+    assert any("worker.py:1 cites QA history: 'QA-REPORT'" in v for v in violations)
+    assert any("worker.py:2 cites QA history: 'round 4'" in v for v in violations)
+    assert any("worker.py:5 cites QA history: 'phase 5'" in v for v in violations)
+    assert any("openapi_snapshot.py:1 cites QA history: 'Phase 0'" in v for v in violations)
+    assert any("env.py:1 cites QA history: 'QA-REPORT'" in v for v in violations)
+    assert all("worker.py:3" not in v for v in violations)
+    assert all("migrations/versions" not in v and "tests/" not in v for v in violations)
 
 
 def test_dod_9_ports_are_consumer_owned_and_small() -> None:
