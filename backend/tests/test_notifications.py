@@ -29,6 +29,13 @@ class FakeProvider:
         self.sent.append(message)
 
 
+async def _stored(db_factory) -> NotificationOutbox:
+    """The one outbox row as stored, read on a session that has never seen it:
+    a drain writes through units of work of its own."""
+    async with db_factory() as reader:
+        return await reader.scalar(select(NotificationOutbox))
+
+
 def message(recipient: str = "anna@example.com") -> NotificationMessage:
     return NotificationMessage(
         channel="email",
@@ -45,68 +52,68 @@ async def test_retry_delay_grows_exponentially_and_caps() -> None:
     assert retry_delay(10) == timedelta(hours=1)
 
 
-async def test_enqueue_and_drain_sends_message(db, frozen_clock) -> None:
+async def test_enqueue_and_drain_sends_message(db, db_factory, frozen_clock) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider()
-    stats = await drain_outbox(db, {"email": provider})
+    stats = await drain_outbox(db_factory, {"email": provider})
     assert stats["sent"] == 1
     assert provider.sent[0].recipient == "anna@example.com"
-    row = await db.scalar(select(NotificationOutbox))
+    row = await _stored(db_factory)
     assert row.status == NotificationStatus.sent
     assert as_utc(row.sent_at) == frozen_clock.instant
 
 
-async def test_temporary_error_retries_with_backoff(db, frozen_clock) -> None:
+async def test_temporary_error_retries_with_backoff(db, db_factory, frozen_clock) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider(error=TemporaryNotificationError("połączenie odrzucone"))
-    stats = await drain_outbox(db, {"email": provider})
+    stats = await drain_outbox(db_factory, {"email": provider})
     assert stats["retried"] == 1
-    row = await db.scalar(select(NotificationOutbox))
+    row = await _stored(db_factory)
     assert row.status == NotificationStatus.pending
     assert row.attempts == 1
     assert as_utc(row.next_attempt_at) == frozen_clock.instant + retry_delay(1)
     assert "odrzucone" in row.last_error
 
 
-async def test_temporary_error_fails_after_max_attempts(db) -> None:
+async def test_temporary_error_fails_after_max_attempts(db, db_factory) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider(error=TemporaryNotificationError("down"))
-    stats = await drain_outbox(db, {"email": provider}, max_attempts=1)
+    stats = await drain_outbox(db_factory, {"email": provider}, max_attempts=1)
     assert stats["failed"] == 1
-    row = await db.scalar(select(NotificationOutbox))
+    row = await _stored(db_factory)
     assert row.status == NotificationStatus.failed
 
 
-async def test_permanent_error_fails_without_retry(db) -> None:
+async def test_permanent_error_fails_without_retry(db, db_factory) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider(error=NotificationError("zły adres"))
-    stats = await drain_outbox(db, {"email": provider})
+    stats = await drain_outbox(db_factory, {"email": provider})
     assert stats["failed"] == 1
-    row = await db.scalar(select(NotificationOutbox))
+    row = await _stored(db_factory)
     assert row.status == NotificationStatus.failed
     assert row.attempts == 0
 
 
-async def test_disabled_provider_marks_skipped(db) -> None:
+async def test_disabled_provider_marks_skipped(db, db_factory) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider(error=NotificationDisabled("brak konfiguracji"))
-    stats = await drain_outbox(db, {"email": provider})
+    stats = await drain_outbox(db_factory, {"email": provider})
     assert stats["skipped"] == 1
-    row = await db.scalar(select(NotificationOutbox))
+    row = await _stored(db_factory)
     assert row.status == NotificationStatus.skipped
 
 
-async def test_missing_provider_marks_failed(db) -> None:
+async def test_missing_provider_marks_failed(db, db_factory) -> None:
     await enqueue_notification(db, message())
     await db.commit()
-    stats = await drain_outbox(db, {})
+    stats = await drain_outbox(db_factory, {})
     assert stats["failed"] == 1
-    row = await db.scalar(select(NotificationOutbox))
+    row = await _stored(db_factory)
     assert row.status == NotificationStatus.failed
     assert "providera" in row.last_error
 
@@ -121,36 +128,36 @@ async def test_dedup_key_prevents_duplicates(db) -> None:
     assert count == 1
 
 
-async def test_drain_respects_next_attempt_time(db, frozen_clock) -> None:
+async def test_drain_respects_next_attempt_time(db, db_factory, frozen_clock) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider(error=TemporaryNotificationError("down"))
-    await drain_outbox(db, {"email": provider})
+    await drain_outbox(db_factory, {"email": provider})
 
     frozen_clock.advance(timedelta(seconds=30))
-    assert (await drain_outbox(db, {"email": FakeProvider()}))["sent"] == 0
+    assert (await drain_outbox(db_factory, {"email": FakeProvider()}))["sent"] == 0
 
     frozen_clock.advance(retry_delay(1))
-    assert (await drain_outbox(db, {"email": FakeProvider()}))["sent"] == 1
+    assert (await drain_outbox(db_factory, {"email": FakeProvider()}))["sent"] == 1
 
 
-async def test_unexpected_provider_error_is_retried(db) -> None:
+async def test_unexpected_provider_error_is_retried(db, db_factory) -> None:
     await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider(error=RuntimeError("bug"))
-    stats = await drain_outbox(db, {"email": provider})
+    stats = await drain_outbox(db_factory, {"email": provider})
     assert stats["retried"] == 1
-    row = await db.scalar(select(NotificationOutbox))
+    row = await _stored(db_factory)
     assert row.status == NotificationStatus.pending
     assert "bug" in row.last_error
 
 
-async def test_batch_size_limits_rows(db) -> None:
+async def test_batch_size_limits_rows(db, db_factory) -> None:
     for _ in range(5):
         await enqueue_notification(db, message())
     await db.commit()
     provider = FakeProvider()
-    stats = await drain_outbox(db, {"email": provider}, batch_size=2)
+    stats = await drain_outbox(db_factory, {"email": provider}, batch_size=2)
     assert stats["sent"] == 2
     pending = await db.scalar(
         select(func.count())
@@ -176,8 +183,7 @@ async def test_attempts_accumulate_across_drains_until_the_row_gives_up(db, db_f
     seen = []
     for drain in range(4):
         now = start + timedelta(hours=drain)
-        async with db_factory() as worker:
-            stats = await drain_outbox(worker, {"email": provider}, now=now, max_attempts=4)
+        stats = await drain_outbox(db_factory, {"email": provider}, now=now, max_attempts=4)
         async with db_factory() as reader:
             row = await reader.scalar(select(NotificationOutbox))
         seen.append((stats, row.attempts, row.status, row.next_attempt_at))

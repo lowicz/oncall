@@ -156,10 +156,7 @@ async def test_a_completed_run_of_the_same_range_does_not_block_a_new_one(client
 
 
 @pytest.mark.anyio
-async def test_notification_cycle_leaves_a_queued_generation_alone(
-    db, db_factory, monkeypatch
-) -> None:
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
+async def test_notification_cycle_leaves_a_queued_generation_alone(db, db_factory) -> None:
     user = await create_user(db, "koord.split", role=UserRole.coordinator)
     run = ScheduleRun(
         starts_on=date(2027, 7, 1),
@@ -171,7 +168,7 @@ async def test_notification_cycle_leaves_a_queued_generation_alone(
     db.add(run)
     await db.commit()
 
-    stats = await notification_cycle()
+    stats = await notification_cycle(db_factory)
     assert "schedule_runs" not in stats
 
     await db.refresh(run)
@@ -180,8 +177,6 @@ async def test_notification_cycle_leaves_a_queued_generation_alone(
 
 @pytest.mark.anyio
 async def test_generation_cycle_claims_one_queued_run(db, db_factory, monkeypatch) -> None:
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
-
     async def fake_generate(_request, _user, session, progress=None):
         return await staged_draft(session, starts_on=date(2027, 7, 1))
 
@@ -197,15 +192,15 @@ async def test_generation_cycle_claims_one_queued_run(db, db_factory, monkeypatc
     db.add(run)
     await db.commit()
 
-    assert await generation_cycle() == 1
+    assert await generation_cycle(db_factory) == 1
     await db.refresh(run)
     assert run.status == "completed"
 
-    assert await generation_cycle() == 0
+    assert await generation_cycle(db_factory) == 0
 
 
 @pytest.mark.anyio
-async def test_the_oldest_queued_run_is_claimed_first(db) -> None:
+async def test_the_oldest_queued_run_is_claimed_first(db, db_factory) -> None:
     """The queue is first in, first out, and the coordinator is told so.
 
     `queue_position` counts the active runs queued before theirs, so a lane
@@ -217,7 +212,7 @@ async def test_the_oldest_queued_run_is_claimed_first(db) -> None:
     newest = await _queued(db, user.id, date(2027, 9, 1), created_at=now)
     oldest = await _queued(db, user.id, date(2027, 10, 1), created_at=now - timedelta(minutes=5))
 
-    claimed = await _claim_run(db)
+    claimed = await _claim_run(db_factory)
 
     assert claimed is not None
     assert claimed.id == oldest.id, "the later request was claimed first"

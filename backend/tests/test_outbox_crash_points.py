@@ -98,9 +98,8 @@ async def test_a_crash_before_the_outcome_costs_one_message_not_the_batch(
     await _enqueue(db, frozen_clock, 3)
     first = _Provider(die_after=3)
 
-    async with db_factory() as dying:
-        with pytest.raises(_Crash):
-            await drain_outbox(dying, {"email": first})
+    with pytest.raises(_Crash):
+        await drain_outbox(db_factory, {"email": first})
 
     assert first.recipients == list(WHO)
     recorded = {row.recipient: row.status for row in await _rows(db_factory)}
@@ -111,8 +110,7 @@ async def test_a_crash_before_the_outcome_costs_one_message_not_the_batch(
     # The worker comes back once the lease has run out.
     second = _Provider()
     frozen_clock.advance(DEFAULT_LEASE)
-    async with db_factory() as restarted:
-        stats = await drain_outbox(restarted, {"email": second})
+    stats = await drain_outbox(db_factory, {"email": second})
 
     assert second.recipients == [WHO[2]], "a message outside the crash was re-sent"
     assert stats["sent"] == 1
@@ -132,27 +130,24 @@ async def test_a_claimed_row_is_never_lost_only_delayed_by_its_lease(
     """
     await _enqueue(db, frozen_clock, 2)
 
-    async with db_factory() as dying:
-        with pytest.raises(_Crash):
-            await drain_outbox(dying, {"email": _Provider(die_after=1)})
+    with pytest.raises(_Crash):
+        await drain_outbox(db_factory, {"email": _Provider(die_after=1)})
 
     claimed = await _rows(db_factory)
     assert [row.status for row in claimed] == [NotificationStatus.claimed] * 2
 
     # Still leased: another worker must not take them.
     provider = _Provider()
-    async with db_factory() as too_early:
-        assert await drain_outbox(too_early, {"email": provider}) == {
-            "sent": 0,
-            "retried": 0,
-            "failed": 0,
-            "skipped": 0,
-        }
+    assert await drain_outbox(db_factory, {"email": provider}) == {
+        "sent": 0,
+        "retried": 0,
+        "failed": 0,
+        "skipped": 0,
+    }
     assert provider.recipients == []
 
     frozen_clock.advance(DEFAULT_LEASE)
-    async with db_factory() as later:
-        await drain_outbox(later, {"email": provider})
+    await drain_outbox(db_factory, {"email": provider})
     assert provider.recipients == list(WHO[:2])
 
 
@@ -169,17 +164,15 @@ async def test_a_crash_inside_the_claim_delivers_nothing_at_all(
     await _enqueue(db, frozen_clock, 2)
     provider = _Provider()
 
-    async with db_factory() as dying:
-        _kill_the_commit(monkeypatch)
-        with pytest.raises(_Crash):
-            await drain_outbox(dying, {"email": provider})
+    _kill_the_commit(monkeypatch)
+    with pytest.raises(_Crash):
+        await drain_outbox(db_factory, {"email": provider})
     monkeypatch.undo()
 
     assert provider.recipients == []
     assert [row.status for row in await _rows(db_factory)] == [NotificationStatus.pending] * 2
 
-    async with db_factory() as restarted:
-        await drain_outbox(restarted, {"email": provider})
+    await drain_outbox(db_factory, {"email": provider})
     assert provider.recipients == list(WHO[:2])
 
 
@@ -188,19 +181,16 @@ async def test_a_claim_holds_the_row_only_for_its_lease(db, db_factory, frozen_c
     await _enqueue(db, frozen_clock, 1)
     now = frozen_clock.instant
 
-    async with db_factory() as worker:
-        with pytest.raises(_Crash):
-            await drain_outbox(
-                worker, {"email": _Provider(die_after=1)}, now=now, lease=timedelta(minutes=30)
-            )
+    with pytest.raises(_Crash):
+        await drain_outbox(
+            db_factory, {"email": _Provider(die_after=1)}, now=now, lease=timedelta(minutes=30)
+        )
 
     provider = _Provider()
-    async with db_factory() as other:
-        await drain_outbox(other, {"email": provider}, now=now + timedelta(minutes=29))
+    await drain_outbox(db_factory, {"email": provider}, now=now + timedelta(minutes=29))
     assert provider.recipients == []
 
-    async with db_factory() as other:
-        await drain_outbox(other, {"email": provider}, now=now + timedelta(minutes=31))
+    await drain_outbox(db_factory, {"email": provider}, now=now + timedelta(minutes=31))
     assert provider.recipients == [WHO[0]]
 
 
@@ -214,10 +204,39 @@ async def test_every_attempt_at_one_message_carries_the_same_key(
     provider = _Provider(die_after=1)
 
     for offset in (timedelta(0), DEFAULT_LEASE, DEFAULT_LEASE * 2):
-        async with db_factory() as worker:
-            with pytest.raises(_Crash):
-                await drain_outbox(worker, {"email": provider}, now=frozen_clock.instant + offset)
+        with pytest.raises(_Crash):
+            await drain_outbox(db_factory, {"email": provider}, now=frozen_clock.instant + offset)
 
     keys = {item.idempotency_key for item in provider.sent}
     assert len(provider.sent) == 3
     assert keys == {str(row_id)}
+
+
+async def test_no_transaction_is_open_while_a_provider_is_called(
+    db, db_factory, frozen_clock
+) -> None:
+    """The provider is somebody else's server, at their pace, so nothing the
+    drain opened may still be in a transaction while it waits on one - above
+    all not the claim, whose row locks would then last as long as the server
+    takes to answer. A drain is one unit of work for the claim and one per
+    recorded outcome, and the sends happen between them."""
+    await _enqueue(db, frozen_clock, 2)
+    opened: list[AsyncSession] = []
+    open_during_send: list[list[AsyncSession]] = []
+
+    def sessions() -> AsyncSession:
+        session = db_factory()
+        opened.append(session)
+        return session
+
+    class _Watching(_Provider):
+        async def send(self, message: NotificationMessage) -> None:
+            open_during_send.append([s for s in opened if s.in_transaction()])
+            await super().send(message)
+
+    provider = _Watching()
+    stats = await drain_outbox(sessions, {"email": provider})
+
+    assert stats["sent"] == 2
+    assert open_during_send == [[], []]
+    assert len(opened) == 3, "one claim and one outcome per message"

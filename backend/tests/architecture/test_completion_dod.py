@@ -9,8 +9,6 @@ import ast
 from collections.abc import Iterable
 from pathlib import Path
 
-import pytest
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_PATH = Path("src/oncall")
 MIGRATIONS_PATH = Path("migrations")
@@ -288,11 +286,6 @@ def _assert_no_violations(violations: Iterable[str], title: str) -> None:
     assert found == [], f"{title}:\n" + "\n".join(found)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="DOD-3: transaction ownership is not centralized yet",
-)
 def test_dod_3_only_transaction_owners_commit_or_rollback() -> None:
     _assert_no_violations(_transaction_violations(PROJECT_ROOT), "Transaction boundary violations")
 

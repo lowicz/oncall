@@ -162,10 +162,9 @@ async def test_the_worker_writes_a_moving_bar_between_the_milestones(
         return await staged_draft(session)
 
     monkeypatch.setattr("oncall.worker.generate_draft", fake_generate)
-    monkeypatch.setattr("oncall.worker.SessionFactory", db_factory)
     monkeypatch.setattr("oncall.worker.time", _Clock())
 
-    assert await process_schedule_run(db) == 1
+    assert await process_schedule_run(db_factory) == 1
 
     # Filtered rather than indexed: whether the very first sample catches the
     # loop's first write depends on scheduling, but the movement between the
@@ -174,5 +173,6 @@ async def test_the_worker_writes_a_moving_bar_between_the_milestones(
     assert len(set(moving)) >= 2, samples
     assert moving == sorted(moving), samples
     assert samples == sorted(samples), samples
+    await db.refresh(run)
     assert run.status == "completed"
     assert run.progress == 100

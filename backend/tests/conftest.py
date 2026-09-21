@@ -189,6 +189,7 @@ async def generate_draft_directly(
         user,
         db,
     )
+    await db.commit()
     response = await get_schedule(stored.id, user, schedule_query_ports(db))
     return response.model_dump(mode="json")
 

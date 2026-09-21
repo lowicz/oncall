@@ -98,6 +98,13 @@ files = [
   # mistyped method is caught; mypy follows the imports into every adapter.
   "src/oncall/bootstrap/providers.py",
   "src/oncall/infrastructure/sqlalchemy/handover.py",
+  # The worker and what it drives. Every transaction it opens is a unit of
+  # work named after its step, and the run's state transitions live in the
+  # generation queue adapter rather than in the worker.
+  "src/oncall/worker.py",
+  "src/oncall/notifications/service.py",
+  "src/oncall/policy.py",
+  "src/oncall/infrastructure/sqlalchemy/scheduling_generation.py",
   "scripts/openapi_snapshot.py",
   "tests/architecture/test_dependencies.py",
   "tests/architecture/test_completion_dod.py",

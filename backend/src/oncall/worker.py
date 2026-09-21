@@ -18,6 +18,12 @@ back a swap notification behind it. The solve itself runs in
 a worker thread, so the notification loop keeps its rhythm while a lane is
 busy. Reminders are deduplicated per date and schedule, so the scan can repeat
 safely within the day.
+
+Every database step opens exactly one `SqlAlchemyUnitOfWork` on the session
+factory the process was started with, and that unit of work is the only thing
+here that commits or rolls back. A generation is five named steps: recover,
+claim, solve-and-store, heartbeat (once a second while the solve lives) and
+finish.
 """
 
 import asyncio
@@ -30,25 +36,26 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.config import get_settings
-from oncall.database import SessionFactory
+from oncall.database import SessionFactory, SqlAlchemyUnitOfWork
 from oncall.domain.clock import as_utc, utc_now
 from oncall.domain.handover import remind_of_handover
 from oncall.domain.scheduling import generation
 from oncall.domain.scheduling.errors import GenerationFailed
-from oncall.domain.scheduling.models import GenerationRequest, RunOutcome, RunState
+from oncall.domain.scheduling.models import GenerationRequest, GenerationRun, RunOutcome
 from oncall.domain.scheduling.ports import StoredSchedule
 from oncall.domain.scheduling.solver import ProgressCallback
 from oncall.domain.team import Actor
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.handover import handover_ports
 from oncall.infrastructure.sqlalchemy.scheduling import generation_ports
-from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
-from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
+from oncall.infrastructure.sqlalchemy.scheduling_generation import (
+    SqlAlchemyGenerationQueue,
+    SqlAlchemyRunClaims,
+)
 from oncall.metrics import emit
 from oncall.notifications.email import default_providers
 from oncall.notifications.service import drain_outbox, outbox_health
@@ -57,6 +64,12 @@ from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS
 logger = logging.getLogger(__name__)
 
 WARSAW = ZoneInfo("Europe/Warsaw")
+
+#: A worker's database: every step opens its unit of work on this factory.
+Sessions = async_sessionmaker[AsyncSession]
+
+#: What a run whose requester was deleted reads when it ends.
+REQUESTER_MISSING_ERROR = "Konto zlecające już nie istnieje"
 
 
 def _generation_failure(exc: Exception) -> tuple[str, list[str] | None]:
@@ -92,10 +105,9 @@ async def generate_draft(
     db: AsyncSession,
     progress: ProgressCallback | None = None,
 ) -> StoredSchedule:
-    """Generate one draft and store it in its own unit of work."""
-    stored = await generation.generate_draft(request, generation_ports(db, user), progress)
-    await db.commit()
-    return stored
+    """Generate one draft and stage it on `db`; the caller's unit of work
+    writes it."""
+    return await generation.generate_draft(request, generation_ports(db, user), progress)
 
 
 async def scan_handover(db: AsyncSession, *, now_warsaw: datetime) -> int:
@@ -105,42 +117,42 @@ async def scan_handover(db: AsyncSession, *, now_warsaw: datetime) -> int:
     )
 
 
-async def notification_cycle() -> dict[str, int]:
+async def notification_cycle(factory: Sessions) -> dict[str, int]:
     """One outbox drain plus one handover scan.
 
     Runs on a fixed rhythm in the worker, independent of any generation in
     flight, so a notification enqueued mid-generation is delivered within two
-    of these cycles rather than waiting out the solve.
+    of these cycles rather than waiting out the solve. The drain owns its own
+    units of work (see `drain_outbox`); the scan is one more.
     """
     settings = get_settings()
-    async with SessionFactory() as db:
-        stats = await drain_outbox(
-            db,
-            default_providers(settings),
-            batch_size=settings.worker_batch_size,
-            max_attempts=settings.notification_max_attempts,
-            lease=timedelta(seconds=settings.notification_lease_seconds),
-        )
-    async with SessionFactory() as db:
+    stats = await drain_outbox(
+        factory,
+        default_providers(settings),
+        batch_size=settings.worker_batch_size,
+        max_attempts=settings.notification_max_attempts,
+        lease=timedelta(seconds=settings.notification_lease_seconds),
+    )
+    async with SqlAlchemyUnitOfWork(factory) as db:
         stats["handover"] = await scan_handover(db, now_warsaw=utc_now().astimezone(WARSAW))
-        await db.commit()
     return stats
 
 
-async def recover_abandoned(db: AsyncSession) -> int:
-    """Free the ranges held by runs whose worker died mid-solve.
+async def recover_abandoned(factory: Sessions) -> int:
+    """The recover step: free the ranges held by runs whose worker died
+    mid-solve.
 
     Runs before every claim rather than only at start-up: a lane killed while
     its siblings keep working leaves a stuck row that no restart would ever
     see. On an idle lane this is one indexed statement a second that matches
     nothing, which is cheaper than the bookkeeping a throttle would need.
     """
-    reclaimed = await generation.recover_abandoned_runs(
-        SqlAlchemyGenerationQueue(db),
-        stale_after=get_settings().stale_run_seconds,
-        now=utc_now(),
-    )
-    await db.commit()
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        reclaimed = await generation.recover_abandoned_runs(
+            SqlAlchemyGenerationQueue(db),
+            stale_after=get_settings().stale_run_seconds,
+            now=utc_now(),
+        )
     if reclaimed:
         # A measurement rather than a sentence, at the severity the sentence
         # had: a run only reaches here because a worker died holding it.
@@ -148,29 +160,15 @@ async def recover_abandoned(db: AsyncSession) -> int:
     return reclaimed
 
 
-async def generation_cycle() -> int:
+async def generation_cycle(factory: Sessions) -> int:
     """Reclaim what died, then claim and run one queued generation.
 
-    Each generation lane calls this on its own session so two lanes never share
-    an ``AsyncSession``. Returns 1 if a run was processed, 0 if the queue was
-    empty.
+    Every step opens a session of its own, so two lanes - or a lane's solve and
+    its progress bar - never share an ``AsyncSession``. Returns 1 if a run was
+    processed, 0 if the queue was empty.
     """
-    async with SessionFactory() as db:
-        await recover_abandoned(db)
-        return await process_schedule_run(db)
-
-
-async def worker_cycle() -> dict[str, int]:
-    """One notification cycle followed by one generation cycle.
-
-    The live worker runs notifications and generation as separate loops
-    (:func:`worker_main`); this wrapper keeps a single deterministic seam for
-    tests and for ``archive/docs/qa-suite-6/load_worker.py``, whose acceptance is
-    phrased in whole worker cycles.
-    """
-    stats = await notification_cycle()
-    stats["schedule_runs"] = await generation_cycle()
-    return stats
+    await recover_abandoned(factory)
+    return await process_schedule_run(factory)
 
 
 #: Where the bar stands once a lane has taken the run and before the solver
@@ -246,40 +244,72 @@ class _Bar:
         return self.progress
 
 
-async def _claim_run(db: AsyncSession) -> ScheduleRun | None:
-    """Take the oldest queued run for this lane alone, or answer None.
+async def _claim_run(factory: Sessions) -> GenerationRun | None:
+    """The claim step: take the oldest queued run for this lane alone.
 
-    ``SKIP LOCKED`` is what lets lanes run side by side: a lane never queues
-    behind another lane's row, it moves on to the next one. The claim is
-    committed before the solve starts, which is what makes a killed worker
-    leave a `running` row behind - see `recover_abandoned_runs`.
+    Committed before the solve starts, which releases the lock `SKIP LOCKED`
+    took before anything slow happens - and which is what makes a killed
+    worker leave a `running` row behind, see `recover_abandoned_runs`.
     """
-    run = await db.scalar(
-        select(ScheduleRun)
-        .where(ScheduleRun.status == RunState.queued)
-        .order_by(ScheduleRun.created_at)
-        .limit(1)
-        .with_for_update(skip_locked=True)
-    )
-    if run is None:
-        return None
-    run.status = RunState.running
-    run.progress = CLAIMED_PROGRESS
-    await db.commit()
-    return run
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        return await SqlAlchemyRunClaims(db).claim_oldest(progress=CLAIMED_PROGRESS)
+
+
+class _RequesterMissing(Exception):
+    """The account that asked for the run was deleted after it was claimed."""
+
+
+async def _solve_and_store(
+    factory: Sessions, run: GenerationRun, requester_id: uuid.UUID, progress: ProgressCallback
+) -> uuid.UUID | None:
+    """The solve-and-store step: load the requester, solve, and store the
+    draft, all in one unit of work.
+
+    No row lock is held while the solver runs: the run's own row was released
+    when the claim committed, and the generator takes none before it stores
+    the draft. Anything that fails in here - after the draft was staged
+    included - rolls all of it back, so a failed run leaves no half of a draft.
+    """
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        user = await db.get(User, requester_id)
+        if user is None:
+            raise _RequesterMissing
+        stored = await generate_draft(
+            GenerationRequest(
+                actor=Actor(user.id, user.display_name, user.role),
+                starts_on=run.starts_on,
+                ends_on=run.ends_on,
+            ),
+            user,
+            db,
+            progress=progress,
+        )
+    return stored.id
+
+
+async def _heartbeat(factory: Sessions, run_id: uuid.UUID, progress: int) -> None:
+    """The heartbeat step: touch the held run with where its bar stands."""
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        await SqlAlchemyRunClaims(db).heartbeat(run_id, progress)
 
 
 async def _report_progress(
-    run_id: uuid.UUID, milestones: list[str], solving: Task[Any], *, start: int
+    factory: Sessions,
+    run_id: uuid.UUID,
+    milestones: list[str],
+    solving: Task[Any],
+    *,
+    start: int,
 ) -> None:
     """Keep the run's row current until the solve finishes.
 
-    Deliberately takes `run_id` and not the session the generation is using.
-    An `AsyncSession` must not be used by two concurrent tasks. Writing
-    through the generation's session from here smuggles an autoflushed UPDATE
-    into whatever transaction it has open, which takes a lock on this very row
-    inside a transaction whose lifetime this loop does not control - and holds
-    it until that transaction ends, however long the solve runs.
+    Every pass is a heartbeat step on a session of its own, never a write
+    through the session the generation is using. An `AsyncSession` must not
+    be used by two concurrent tasks. Writing through the generation's session
+    from here smuggles an autoflushed UPDATE into whatever transaction it has
+    open, which takes a lock on this very row inside a transaction whose
+    lifetime this loop does not control - and holds it until that transaction
+    ends, however long the solve runs.
 
     Every pass writes, not only the passes where the bar moves: the touch is
     also this run's heartbeat, and `recover_abandoned_runs` reads `updated_at`
@@ -294,41 +324,76 @@ async def _report_progress(
         # that way: calling `advance` twice would consume the milestone list
         # twice and double the announced budget.
         progress = bar.advance(milestones)
-        async with SessionFactory() as progress_db:
-            await progress_db.execute(
-                update(ScheduleRun)
-                .where(ScheduleRun.id == run_id, ScheduleRun.status == RunState.running)
-                .values(progress=progress)
-            )
-            await progress_db.commit()
+        await _heartbeat(factory, run_id, progress)
 
 
-async def _finish_run(db: AsyncSession, run_id: uuid.UUID, **values: object) -> bool:
-    """Write a run's final state, but only while this worker still holds it.
+@dataclass(frozen=True)
+class _Ending:
+    """How a run ends: the outcome an operator reads, and what the terminal
+    write records for the coordinator."""
+
+    outcome: RunOutcome
+    schedule_id: uuid.UUID | None = None
+    error: str = ""
+    conflicts: list[str] | None = None
+
+
+async def _finish_run(factory: Sessions, run_id: uuid.UUID, ending: _Ending) -> bool:
+    """The finish step: write the run's terminal state, but only while this
+    lane still holds it.
 
     A lane that stalls past `stale_run_seconds` has its run declared abandoned
     and failed by somebody else; if it then wakes up and finishes, writing
     `completed` over that would resurrect a run the coordinator has already
-    been told about and may have replaced by hand. The predicate makes the
-    late writer lose instead, and it answers False so the caller can say so.
+    been told about and may have replaced by hand. Every transition here is
+    compare-and-set on `running`, so the late writer loses instead, and this
+    answers False so the caller can say so.
     """
-    result = await db.execute(
-        update(ScheduleRun)
-        .where(ScheduleRun.id == run_id, ScheduleRun.status == RunState.running)
-        .values(**values)
-    )
-    await db.commit()
-    if result.rowcount != 1:
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        claims = SqlAlchemyRunClaims(db)
+        if ending.outcome is RunOutcome.completed:
+            held = await claims.complete(run_id, ending.schedule_id)
+        elif ending.outcome is RunOutcome.requester_missing:
+            held = await claims.fail_unstarted(run_id, ending.error)
+        else:
+            held = await claims.fail(run_id, ending.error, ending.conflicts)
+    if not held:
         logger.warning("Generation run %s was reclaimed before it finished", run_id)
-    return result.rowcount == 1
+    return held
 
 
-async def process_schedule_run(db: AsyncSession) -> int:
+async def _generate(factory: Sessions, run: GenerationRun) -> _Ending:
+    """Solve and store the run's draft while its bar reports, and say how it
+    ended."""
+    # The column is `ON DELETE SET NULL`, so a deleted requester leaves no id
+    # to look up rather than an id that finds nothing.
+    if run.requested_by_id is None:
+        return _Ending(RunOutcome.requester_missing, error=REQUESTER_MISSING_ERROR)
+    try:
+        # Real milestones from the solver turn the progress bar from a
+        # spinner into an actual signal.
+        milestones: list[str] = []
+        solving = asyncio.create_task(
+            _solve_and_store(factory, run, run.requested_by_id, milestones.append)
+        )
+        await _report_progress(factory, run.id, milestones, solving, start=run.progress)
+        schedule_id = await solving
+    except _RequesterMissing:
+        # Deleted after the claim, while this lane already held the run.
+        return _Ending(RunOutcome.requester_missing, error=REQUESTER_MISSING_ERROR)
+    except Exception as exc:  # noqa: BLE001 - failure is returned to polling client
+        message, conflicts = _generation_failure(exc)
+        outcome = RunOutcome.infeasible if isinstance(exc, GenerationFailed) else RunOutcome.error
+        return _Ending(outcome, error=message, conflicts=conflicts)
+    return _Ending(RunOutcome.completed, schedule_id=schedule_id)
+
+
+async def process_schedule_run(factory: Sessions) -> int:
     """Take one queued run through to a draft, or to a readable failure.
 
-    Four steps with four owners: claiming picks the run and marks it held, the
-    generation task solves it on this session, the progress reporter keeps the
-    row current on sessions of its own, and finishing writes the terminal state
+    Claim, solve-and-store, heartbeat and finish are separate steps with one
+    unit of work each: the claim commits before the solve starts, the
+    heartbeats commit while it runs, and the finish writes the terminal state
     if this lane still holds the run. Returns 1 if a run was processed, 0 if
     the queue was empty.
 
@@ -338,66 +403,19 @@ async def process_schedule_run(db: AsyncSession) -> int:
     `run_seconds` is this lane's own work on it, taken from the monotonic clock
     because a wall clock can step sideways mid-solve.
     """
-    run = await _claim_run(db)
+    run = await _claim_run(factory)
     if run is None:
         return 0
-    run_id, start = run.id, run.progress
     taken_at = time.monotonic()
     waited = max(0.0, (utc_now() - as_utc(run.created_at)).total_seconds())
-    # The column is `ON DELETE SET NULL`, so a deleted requester leaves no id
-    # to look up rather than an id that finds nothing.
-    user = await db.get(User, run.requested_by_id) if run.requested_by_id else None
-    if user is None:
-        outcome = RunOutcome.requester_missing
-        values: dict[str, object] = {
-            "status": RunState.failed,
-            "progress": 100,
-            "error": "Konto zlecające już nie istnieje",
-        }
-    else:
-        try:
-            # Real milestones from the solver turn the progress bar from a
-            # spinner into an actual signal.
-            milestones: list[str] = []
-            solving = asyncio.create_task(
-                generate_draft(
-                    GenerationRequest(
-                        actor=Actor(user.id, user.display_name, user.role),
-                        starts_on=run.starts_on,
-                        ends_on=run.ends_on,
-                    ),
-                    user,
-                    db,
-                    progress=milestones.append,
-                )
-            )
-            await _report_progress(run_id, milestones, solving, start=start)
-            result = await solving
-        except Exception as exc:  # noqa: BLE001 - failure is returned to polling client
-            message, conflicts = _generation_failure(exc)
-            outcome = (
-                RunOutcome.infeasible if isinstance(exc, GenerationFailed) else RunOutcome.error
-            )
-            values = {
-                "status": RunState.failed,
-                "progress": 100,
-                "error": message,
-                "conflicts": conflicts,
-            }
-        else:
-            outcome = RunOutcome.completed
-            values = {
-                "status": RunState.completed,
-                "progress": 100,
-                "schedule_id": result.id,
-            }
-    held = await _finish_run(db, run_id, **values)
+    ending = await _generate(factory, run)
+    held = await _finish_run(factory, run.id, ending)
     emit(
         "generation",
-        run=run_id,
+        run=run.id,
         # A lane that no longer holds the run did the work and lost it, whatever
         # it was about to write.
-        outcome=outcome if held else RunOutcome.reclaimed,
+        outcome=ending.outcome if held else RunOutcome.reclaimed,
         queued_seconds=waited,
         run_seconds=time.monotonic() - taken_at,
     )
@@ -432,11 +450,11 @@ async def sample_metrics(db: AsyncSession, *, now: datetime) -> None:
     )
 
 
-async def _notification_loop() -> None:
+async def _notification_loop(factory: Sessions) -> None:
     settings = get_settings()
     while True:
         try:
-            stats = await notification_cycle()
+            stats = await notification_cycle(factory)
             if any(stats.values()):
                 emit("notifications", **stats)
         except Exception:
@@ -444,30 +462,30 @@ async def _notification_loop() -> None:
         await asyncio.sleep(settings.worker_poll_seconds)
 
 
-async def _metrics_loop() -> None:
+async def _metrics_loop(factory: Sessions) -> None:
     """Sample both queues on a timer, starting immediately.
 
     A loop of its own rather than a few lines added to the notification cycle:
     the loops here are independent on purpose, and a sample that rode along
     with the drain would tie how often the numbers appear to how often
-    notifications are attempted, and would change what `worker_cycle` returns.
+    notifications are attempted, and would change what `notification_cycle` returns.
     """
     settings = get_settings()
     while True:
         try:
-            async with SessionFactory() as db:
+            async with SqlAlchemyUnitOfWork(factory) as db:
                 await sample_metrics(db, now=utc_now())
         except Exception:
             logger.exception("Metrics sample failed")
         await asyncio.sleep(settings.metrics_interval_seconds)
 
 
-async def _generation_loop() -> None:
+async def _generation_loop(factory: Sessions) -> None:
     settings = get_settings()
     while True:
         processed = 0
         try:
-            processed = await generation_cycle()
+            processed = await generation_cycle(factory)
         except Exception:
             logger.exception("Generation cycle failed")
         # A lane that just finished a run checks the queue again immediately;
@@ -475,7 +493,7 @@ async def _generation_loop() -> None:
         await asyncio.sleep(0 if processed else settings.generation_poll_seconds)
 
 
-async def worker_main() -> None:
+async def worker_main(factory: Sessions) -> None:
     settings = get_settings()
     logger.info(
         "Worker started (notifications every %.1f s, %d generation lane(s))",
@@ -483,12 +501,12 @@ async def worker_main() -> None:
         settings.generation_concurrency,
     )
     async with asyncio.TaskGroup() as group:
-        group.create_task(_notification_loop())
-        group.create_task(_metrics_loop())
+        group.create_task(_notification_loop(factory))
+        group.create_task(_metrics_loop(factory))
         for _ in range(settings.generation_concurrency):
-            group.create_task(_generation_loop())
+            group.create_task(_generation_loop(factory))
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    asyncio.run(worker_main())
+    asyncio.run(worker_main(SessionFactory))
