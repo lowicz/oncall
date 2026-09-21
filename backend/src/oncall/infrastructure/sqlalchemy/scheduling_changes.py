@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.scheduling.models import ChangeRecord
-from oncall.domain.scheduling.ports import ChangeLog
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequestSlot
@@ -22,7 +21,7 @@ def _to_record(row: AuditEvent) -> ChangeRecord:
     )
 
 
-class SqlAlchemyChangeLog(ChangeLog):
+class SqlAlchemyChangeLog:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

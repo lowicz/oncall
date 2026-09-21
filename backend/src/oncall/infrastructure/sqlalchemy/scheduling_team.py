@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from oncall.domain.scheduling.ports import SchedulingTeam
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind
 from oncall.fairness import EligibilityPeriod, FairnessMemberInput
@@ -16,7 +15,7 @@ from oncall.infrastructure.sqlalchemy.team import to_member
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
-class SqlAlchemySchedulingTeam(SchedulingTeam):
+class SqlAlchemySchedulingTeam:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

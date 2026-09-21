@@ -6,11 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.reports.models import RosterEntry
-from oncall.domain.reports.ports import ReportRoster
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
-class SqlAlchemyReportRoster(ReportRoster):
+class SqlAlchemyReportRoster:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

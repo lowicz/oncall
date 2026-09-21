@@ -5,12 +5,12 @@ from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.domain.handover import HandoverNotices, HandoverPorts
+from oncall.domain.handover import HandoverPorts
 from oncall.infrastructure.sqlalchemy.roster import SqlAlchemyPublishedRoster
 from oncall.notifications.triggers import enqueue_handover_reminders
 
 
-class SqlAlchemyHandoverNotices(HandoverNotices):
+class SqlAlchemyHandoverNotices:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

@@ -14,7 +14,11 @@ from oncall.domain.admin.models import (
     NewEligibilityPeriod,
     RotationMember,
 )
-from oncall.domain.admin.ports import AdminPorts
+from oncall.domain.admin.ports import (
+    AccountAdministrationPorts,
+    EligibilityAdministrationPorts,
+    MembershipAdministrationPorts,
+)
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import AssignmentRole, AuthSource, UserRole
 from tests.domain.fakes import FakeJournal
@@ -55,9 +59,6 @@ class FakeAccounts:
     def put(self, item: Account) -> Account:
         self.by_id[item.id] = item
         return item
-
-    async def accounts(self):
-        return sorted(self.by_id.values(), key=lambda item: (item.last_name, item.first_name))
 
     async def account(self, account_id):
         return self.by_id.get(account_id)
@@ -231,8 +232,23 @@ class AdminWorld:
     journal: FakeJournal = field(default_factory=FakeJournal)
 
     @property
-    def ports(self) -> AdminPorts:
-        return AdminPorts(accounts=self.accounts, rotation=self.rotation, journal=self.journal)
+    def account_administration(self) -> AccountAdministrationPorts:
+        return AccountAdministrationPorts(
+            accounts=self.accounts,
+            identifiers=self.accounts,
+            members=self.rotation,
+            journal=self.journal,
+        )
+
+    @property
+    def membership_administration(self) -> MembershipAdministrationPorts:
+        return MembershipAdministrationPorts(
+            accounts=self.accounts, rotation=self.rotation, journal=self.journal
+        )
+
+    @property
+    def eligibility_administration(self) -> EligibilityAdministrationPorts:
+        return EligibilityAdministrationPorts(rotation=self.rotation, journal=self.journal)
 
 
 def slot(day: date, role: AssignmentRole = AssignmentRole.primary) -> Slot:

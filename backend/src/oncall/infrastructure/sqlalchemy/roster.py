@@ -7,7 +7,6 @@ from datetime import date
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.domain.ports import FairnessHistory, PublishedRoster, RosterPolicy
 from oncall.domain.roster import Duty, ScheduleRef, Slot
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import LateShiftAnchor, RotationMode, ScheduleStatus
@@ -42,7 +41,7 @@ def _from_effective(item: EffectiveAssignment) -> Duty:
     )
 
 
-class SqlAlchemyPublishedRoster(PublishedRoster):
+class SqlAlchemyPublishedRoster:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._held_schedules: set[uuid.UUID] = set()
@@ -130,7 +129,7 @@ class SqlAlchemyPublishedRoster(PublishedRoster):
             row.is_override = True
 
 
-class SqlAlchemyRosterPolicy(RosterPolicy):
+class SqlAlchemyRosterPolicy:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -141,7 +140,7 @@ class SqlAlchemyRosterPolicy(RosterPolicy):
         return (await load_policy(self._session)).rotation_mode
 
 
-class SqlAlchemyFairnessHistory(FairnessHistory):
+class SqlAlchemyFairnessHistory:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

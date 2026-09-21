@@ -174,7 +174,7 @@ async def generate_draft_directly(
     """
     from oncall.domain.scheduling.models import GenerationRequest
     from oncall.domain.team import Actor
-    from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+    from oncall.infrastructure.sqlalchemy.scheduling import schedule_query_ports
     from oncall.presentation.scheduling import GenerateScheduleRequest
     from oncall.routes.scheduling import get_schedule
     from oncall.worker import generate_draft
@@ -189,7 +189,7 @@ async def generate_draft_directly(
         user,
         db,
     )
-    response = await get_schedule(stored.id, user, scheduling_ports(db))
+    response = await get_schedule(stored.id, user, schedule_query_ports(db))
     return response.model_dump(mode="json")
 
 

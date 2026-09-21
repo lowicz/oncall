@@ -45,7 +45,7 @@ def declare(world: World, actor: Actor, target, kind=AvailabilityKind.prefer_not
     ends_on = dates.get("ends_on", DAY + timedelta(days=2))
     return declare_availability(
         AvailabilityDeclaration(actor, target, kind, starts_on, ends_on, note="urlop"),
-        world.availability,
+        world.availability_writes,
         today=TODAY,
     )
 
@@ -160,11 +160,11 @@ async def test_withdrawing_removes_only_the_members_own_entry(world) -> None:
     with pytest.raises(errors.AvailabilityEntryNotFound):
         await withdraw_availability(
             AvailabilityWithdrawal(world.coordinator, MemberById(other.id), entry.id),
-            world.availability,
+            world.availability_writes,
         )
     await withdraw_availability(
         AvailabilityWithdrawal(world.coordinator, MemberById(world.anna.id), entry.id),
-        world.availability,
+        world.availability_writes,
     )
 
     assert world.ledger.removed == [entry.id]
@@ -174,6 +174,8 @@ async def test_withdrawing_removes_only_the_members_own_entry(world) -> None:
 
 async def test_listing_resolves_whose_entries_are_read(world) -> None:
     stored(world, AvailabilityKind.prefer, DAY, DAY)
-    result = await list_availability(AvailabilityQuery(own(world), OwnMember()), world.availability)
+    result = await list_availability(
+        AvailabilityQuery(own(world), OwnMember()), world.availability_reads
+    )
     assert result.member == world.anna
     assert len(result.entries) == 1

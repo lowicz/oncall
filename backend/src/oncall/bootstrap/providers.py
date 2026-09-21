@@ -7,22 +7,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import CurrentUser
 from oncall.database import get_db
-from oncall.domain.access.ports import AccessPorts
-from oncall.domain.admin.ports import AdminPorts, AuditTrail, RotationDirectory
+from oncall.domain.access.ports import AccountLinks, OwnProfiles, PasswordPorts, SignInPorts
+from oncall.domain.admin.ports import (
+    AccountAdministrationPorts,
+    AuditTrail,
+    EligibilityAdministrationPorts,
+    MembershipAdministrationPorts,
+    RotationDirectory,
+)
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.balance.ports import BalancePorts
 from oncall.domain.calendar.ports import CalendarPorts
 from oncall.domain.history.ports import HistoryPorts
 from oncall.domain.overrides.ports import OverridePorts
 from oncall.domain.reports.ports import ReportPorts
-from oncall.domain.scheduling.ports import SchedulingPorts
+from oncall.domain.scheduling.ports import (
+    CurrentPolicy,
+    DraftPorts,
+    GenerationRequestPorts,
+    PolicyPorts,
+    PublicationPorts,
+    ScheduleQueryPorts,
+)
 from oncall.domain.sharing.ports import (
     CalendarSubscriptionPorts,
     LinkFeedPorts,
     MemberFeedPorts,
     ShareExchangePorts,
     ShareLinkCommandPorts,
-    ShareLinkQueryPorts,
+    ShareLinks,
 )
 from oncall.domain.swaps.ports import SwapPorts
 from oncall.infrastructure.credentials import Argon2Passwords, DirectoryAuthentication
@@ -52,7 +65,14 @@ from oncall.infrastructure.sqlalchemy.roster import (
     SqlAlchemyPublishedRoster,
     SqlAlchemyRosterPolicy,
 )
-from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling import (
+    draft_ports,
+    generation_request_ports,
+    policy_ports,
+    publication_ports,
+    schedule_query_ports,
+)
+from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyPolicyStore
 from oncall.infrastructure.sqlalchemy.sessions import SqlAlchemySessions
 from oncall.infrastructure.sqlalchemy.sharing import SqlAlchemyCalendarFeeds, SqlAlchemyShareLinks
 from oncall.infrastructure.sqlalchemy.swaps import SqlAlchemySwapJournal, SqlAlchemySwapRequests
@@ -63,12 +83,32 @@ DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
 DirectoryAuth = Annotated[LdapAuthenticator, Depends(get_directory_authenticator)]
 
 
-def scheduling_reader(db: DbSession) -> SchedulingPorts:
-    return scheduling_ports(db)
+def schedule_queries(db: DbSession) -> ScheduleQueryPorts:
+    return schedule_query_ports(db)
 
 
-def scheduling_writer(db: DbSession, actor: CurrentUser) -> SchedulingPorts:
-    return scheduling_ports(db, actor)
+def policy_reader(db: DbSession) -> CurrentPolicy:
+    return SqlAlchemyPolicyStore(db)
+
+
+def policy_writer(db: DbSession, actor: CurrentUser) -> PolicyPorts:
+    return policy_ports(db, actor)
+
+
+def generation_requests(db: DbSession) -> GenerationRequestPorts:
+    return generation_request_ports(db)
+
+
+def draft_writer(db: DbSession, actor: CurrentUser) -> DraftPorts:
+    return draft_ports(db, actor)
+
+
+def publication_reader(db: DbSession) -> PublicationPorts:
+    return publication_ports(db)
+
+
+def publication_writer(db: DbSession, actor: CurrentUser) -> PublicationPorts:
+    return publication_ports(db, actor)
 
 
 def availability_reader(db: DbSession, actor: CurrentUser) -> AvailabilityReadPorts:
@@ -158,9 +198,26 @@ def history_writer(db: DbSession, actor: CurrentUser) -> HistoryPorts:
     return HistoryPorts(archive=history, journal=history)
 
 
-def admin_ports(db: DbSession, actor: CurrentUser) -> AdminPorts:
-    return AdminPorts(
+def account_admin(db: DbSession, actor: CurrentUser) -> AccountAdministrationPorts:
+    accounts = SqlAlchemyAccounts(db)
+    return AccountAdministrationPorts(
+        accounts=accounts,
+        identifiers=accounts,
+        members=SqlAlchemyRotation(db),
+        journal=SqlAlchemyAdminJournal(db, actor),
+    )
+
+
+def membership_admin(db: DbSession, actor: CurrentUser) -> MembershipAdministrationPorts:
+    return MembershipAdministrationPorts(
         accounts=SqlAlchemyAccounts(db),
+        rotation=SqlAlchemyRotation(db),
+        journal=SqlAlchemyAdminJournal(db, actor),
+    )
+
+
+def eligibility_admin(db: DbSession, actor: CurrentUser) -> EligibilityAdministrationPorts:
+    return EligibilityAdministrationPorts(
         rotation=SqlAlchemyRotation(db),
         journal=SqlAlchemyAdminJournal(db, actor),
     )
@@ -170,24 +227,41 @@ def audit_trail(db: DbSession) -> AuditTrail:
     return SqlAlchemyAuditTrail(db)
 
 
-def access_ports(db: DbSession, directory: DirectoryAuth) -> AccessPorts:
-    return AccessPorts(
+def sign_in(db: DbSession, directory: DirectoryAuth) -> SignInPorts:
+    return SignInPorts(
         attempts=SqlAlchemyLoginAttempts(db),
         accounts=SqlAlchemyAccessAccounts(db),
         passwords=Argon2Passwords(),
         directory=DirectoryAuthentication(directory),
         sessions=SqlAlchemySessions(db),
-        links=SqlAlchemyAccountLinks(db),
         journal=SqlAlchemyAccessJournal(db),
     )
+
+
+def account_links(db: DbSession) -> AccountLinks:
+    return SqlAlchemyAccountLinks(db)
+
+
+def password_choice(db: DbSession) -> PasswordPorts:
+    return PasswordPorts(
+        links=SqlAlchemyAccountLinks(db),
+        accounts=SqlAlchemyAccessAccounts(db),
+        passwords=Argon2Passwords(),
+        sessions=SqlAlchemySessions(db),
+        journal=SqlAlchemyAccessJournal(db),
+    )
+
+
+def own_profiles(db: DbSession) -> OwnProfiles:
+    return SqlAlchemyAccessAccounts(db)
 
 
 def session_store(db: DbSession) -> SqlAlchemySessions:
     return SqlAlchemySessions(db)
 
 
-def share_link_query(db: DbSession) -> ShareLinkQueryPorts:
-    return ShareLinkQueryPorts(links=SqlAlchemyShareLinks(db))
+def share_link_query(db: DbSession) -> ShareLinks:
+    return SqlAlchemyShareLinks(db)
 
 
 def share_link_command(db: DbSession, actor: CurrentUser) -> ShareLinkCommandPorts:
@@ -232,8 +306,13 @@ def calendar_subscription(db: DbSession) -> CalendarSubscriptionPorts:
     )
 
 
-SchedulingReader = Annotated[SchedulingPorts, Depends(scheduling_reader)]
-SchedulingWriter = Annotated[SchedulingPorts, Depends(scheduling_writer)]
+ScheduleQueryProvider = Annotated[ScheduleQueryPorts, Depends(schedule_queries)]
+PolicyReader = Annotated[CurrentPolicy, Depends(policy_reader)]
+PolicyWriter = Annotated[PolicyPorts, Depends(policy_writer)]
+GenerationRequestProvider = Annotated[GenerationRequestPorts, Depends(generation_requests)]
+DraftWriter = Annotated[DraftPorts, Depends(draft_writer)]
+PublicationReader = Annotated[PublicationPorts, Depends(publication_reader)]
+PublicationWriter = Annotated[PublicationPorts, Depends(publication_writer)]
 AvailabilityReader = Annotated[AvailabilityReadPorts, Depends(availability_reader)]
 AvailabilityWriter = Annotated[AvailabilityWritePorts, Depends(availability_writer)]
 SwapProvider = Annotated[SwapPorts, Depends(swap_ports)]
@@ -245,11 +324,16 @@ ReportProvider = Annotated[ReportPorts, Depends(report_ports)]
 TeamProvider = Annotated[RotationDirectory, Depends(team_reader)]
 HistoryReader = Annotated[HistoryPorts, Depends(history_reader)]
 HistoryWriter = Annotated[HistoryPorts, Depends(history_writer)]
-AdminProvider = Annotated[AdminPorts, Depends(admin_ports)]
+AccountAdminProvider = Annotated[AccountAdministrationPorts, Depends(account_admin)]
+MembershipAdminProvider = Annotated[MembershipAdministrationPorts, Depends(membership_admin)]
+EligibilityAdminProvider = Annotated[EligibilityAdministrationPorts, Depends(eligibility_admin)]
 AuditProvider = Annotated[AuditTrail, Depends(audit_trail)]
-AccessProvider = Annotated[AccessPorts, Depends(access_ports)]
+SignInProvider = Annotated[SignInPorts, Depends(sign_in)]
+AccountLinkProvider = Annotated[AccountLinks, Depends(account_links)]
+PasswordProvider = Annotated[PasswordPorts, Depends(password_choice)]
+OwnProfileProvider = Annotated[OwnProfiles, Depends(own_profiles)]
 SessionProvider = Annotated[SqlAlchemySessions, Depends(session_store)]
-ShareLinkQueryProvider = Annotated[ShareLinkQueryPorts, Depends(share_link_query)]
+ShareLinkQueryProvider = Annotated[ShareLinks, Depends(share_link_query)]
 ShareLinkCommandProvider = Annotated[ShareLinkCommandPorts, Depends(share_link_command)]
 ShareExchangeProvider = Annotated[ShareExchangePorts, Depends(share_exchange)]
 MemberFeedProvider = Annotated[MemberFeedPorts, Depends(member_feed)]
@@ -257,27 +341,37 @@ LinkFeedProvider = Annotated[LinkFeedPorts, Depends(link_feed)]
 CalendarSubscriptionProvider = Annotated[CalendarSubscriptionPorts, Depends(calendar_subscription)]
 
 __all__ = [
-    "AccessProvider",
-    "AdminProvider",
+    "AccountAdminProvider",
+    "AccountLinkProvider",
+    "AuditProvider",
     "AvailabilityReader",
     "AvailabilityWriter",
-    "AuditProvider",
     "BalanceProvider",
     "CalendarReader",
     "CalendarSubscriptionProvider",
     "CalendarWriter",
+    "DraftWriter",
+    "EligibilityAdminProvider",
+    "GenerationRequestProvider",
     "HistoryReader",
     "HistoryWriter",
     "LinkFeedProvider",
     "MemberFeedProvider",
+    "MembershipAdminProvider",
     "OverrideProvider",
+    "OwnProfileProvider",
+    "PasswordProvider",
+    "PolicyReader",
+    "PolicyWriter",
+    "PublicationReader",
+    "PublicationWriter",
     "ReportProvider",
-    "SchedulingReader",
-    "SchedulingWriter",
+    "ScheduleQueryProvider",
     "SessionProvider",
     "ShareExchangeProvider",
     "ShareLinkCommandProvider",
     "ShareLinkQueryProvider",
+    "SignInProvider",
     "SwapProvider",
     "TeamProvider",
 ]

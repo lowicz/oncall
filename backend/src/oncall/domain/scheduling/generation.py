@@ -14,13 +14,14 @@ from oncall.domain.scheduling.models import (
     QueueHealth,
     RunState,
     RunView,
-    SuggestedRange,
 )
-from oncall.domain.scheduling.planning import suggested_range as calculate_suggested_range
 from oncall.domain.scheduling.ports import (
+    GenerationPorts,
     GenerationQueue,
+    GenerationRequestPorts,
     NewDraft,
-    SchedulingPorts,
+    QueueMonitor,
+    RunRecovery,
     StoredSchedule,
 )
 from oncall.domain.scheduling.solver import (
@@ -53,9 +54,9 @@ async def uncovered_dates(starts_on: date, roster: PublishedRoster, today: date)
     ]
 
 
-async def _recent_run_seconds(ports: SchedulingPorts, fallback: float) -> float:
+async def _recent_run_seconds(queue: GenerationQueue, fallback: float) -> float:
     """Mean wall-clock duration of the last few finished generations."""
-    rows = await ports.queue.recent_completed(5)
+    rows = await queue.recent_completed(5)
     spans = [
         (run.updated_at - run.created_at).total_seconds()
         for run in rows
@@ -66,17 +67,17 @@ async def _recent_run_seconds(ports: SchedulingPorts, fallback: float) -> float:
 
 
 async def view_run(
-    run: GenerationRun, solve_seconds: float, ports: SchedulingPorts, *, lanes: int
+    run: GenerationRun, solve_seconds: float, queue: GenerationQueue, *, lanes: int
 ) -> RunView:
     """Describe a run and its position in the active generation queue."""
     if run.status != RunState.queued:
         return RunView(run, solve_seconds, 0 if run.status == RunState.running else None, None)
-    ahead = await ports.queue.active_runs_before(run.created_at) or 0
+    ahead = await queue.active_runs_before(run.created_at) or 0
     lanes = max(1, lanes)
     slots_ahead = ahead // lanes
     if slots_ahead == 0:
         return RunView(run, solve_seconds, ahead, 0)
-    per_run = await _recent_run_seconds(ports, solve_seconds)
+    per_run = await _recent_run_seconds(queue, solve_seconds)
     return RunView(run, solve_seconds, ahead, int(slots_ahead * per_run))
 
 
@@ -86,9 +87,7 @@ async def view_run(
 ABANDONED_RUN_ERROR = "Generowanie przerwane: proces roboczy przestał odpowiadać. Zleć je ponownie."
 
 
-async def recover_abandoned_runs(
-    queue: GenerationQueue, *, stale_after: float, now: datetime
-) -> int:
+async def recover_abandoned_runs(queue: RunRecovery, *, stale_after: float, now: datetime) -> int:
     """Fail runs whose worker died mid-solve, and answer with how many.
 
     A run is claimed by setting it to `running`, which is committed before the
@@ -106,7 +105,7 @@ async def recover_abandoned_runs(
     return await queue.abandon_stale_runs(now - timedelta(seconds=stale_after), ABANDONED_RUN_ERROR)
 
 
-async def queue_health(queue: GenerationQueue, *, now: datetime) -> QueueHealth:
+async def queue_health(queue: QueueMonitor, *, now: datetime) -> QueueHealth:
     """What the queue looks like from outside: how deep, and how long a wait.
 
     The ages are computed here rather than in the adapter so the moment they
@@ -136,7 +135,7 @@ def _age(moment: datetime | None, now: datetime) -> float:
 
 
 async def queue_generation(
-    request: GenerationRequest, ports: SchedulingPorts, *, lanes: int, today: date
+    request: GenerationRequest, ports: GenerationRequestPorts, *, lanes: int, today: date
 ) -> QueuedGeneration:
     solve_seconds = (await ports.policy.current()).solve_seconds
     uncovered = tuple(await uncovered_dates(request.starts_on, ports.roster, today))
@@ -145,29 +144,26 @@ async def queue_generation(
     run = await ports.queue.active_run_for(request.starts_on, request.ends_on)
     if run is None:
         run = await ports.queue.enqueue(request.starts_on, request.ends_on, request.actor.user_id)
-    return QueuedGeneration(await view_run(run, solve_seconds, ports, lanes=lanes), uncovered)
+    return QueuedGeneration(await view_run(run, solve_seconds, ports.queue, lanes=lanes), uncovered)
 
 
 async def runs_in_flight(
-    actor_id: uuid.UUID, status: str | None, ports: SchedulingPorts, *, lanes: int
+    actor_id: uuid.UUID, status: str | None, ports: GenerationRequestPorts, *, lanes: int
 ) -> list[RunView]:
     wanted = [status] if status else [state.value for state in ACTIVE_RUN_STATES]
     runs = await ports.queue.runs_of(actor_id, wanted, 10)
     solve_seconds = (await ports.policy.current()).solve_seconds
-    return [await view_run(run, solve_seconds, ports, lanes=lanes) for run in runs]
+    return [await view_run(run, solve_seconds, ports.queue, lanes=lanes) for run in runs]
 
 
-async def generation_status(run_id: uuid.UUID, ports: SchedulingPorts, *, lanes: int) -> RunView:
+async def generation_status(
+    run_id: uuid.UUID, ports: GenerationRequestPorts, *, lanes: int
+) -> RunView:
     run = await ports.queue.run(run_id)
     if run is None:
         raise errors.GenerationRunNotFound(run_id)
     solve_seconds = (await ports.policy.current()).solve_seconds
-    return await view_run(run, solve_seconds, ports, lanes=lanes)
-
-
-async def suggest_range(ports: SchedulingPorts, *, today: date) -> SuggestedRange:
-    spans = await ports.schedules.covering_spans(today - timedelta(days=7))
-    return calculate_suggested_range(today, spans)
+    return await view_run(run, solve_seconds, ports.queue, lanes=lanes)
 
 
 _FAILURE_MESSAGES = {
@@ -197,7 +193,7 @@ def _solver_member(member: Member) -> SolverMember:
 
 async def generate_draft(
     request: GenerationRequest,
-    ports: SchedulingPorts,
+    ports: GenerationPorts,
     progress: ProgressCallback | None = None,
 ) -> StoredSchedule:
     """Build and store one draft. The worker owns the surrounding transaction."""
@@ -249,6 +245,6 @@ async def generate_draft(
             (item, member_ids.get(item.assignee_name)) for item in result.assignments
         ),
     )
-    stored = await ports.schedules.store_draft(draft)
+    stored = await ports.drafts.store_draft(draft)
     await ports.journal.draft_generated(stored, draft)
     return stored

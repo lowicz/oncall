@@ -7,7 +7,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response, status
 
 from oncall.auth import CsrfGuard
-from oncall.bootstrap.providers import AdminProvider, AuditProvider
+from oncall.bootstrap.providers import (
+    AccountAdminProvider,
+    AuditProvider,
+    EligibilityAdminProvider,
+    MembershipAdminProvider,
+)
 from oncall.config import get_settings
 from oncall.domain.admin import errors, use_cases
 from oncall.domain.admin.models import (
@@ -61,27 +66,31 @@ def _admin_errors():
     return domain_errors_as_http(ADMIN_ERROR_STATUSES)
 
 
-async def _stored_account(ports: AdminProvider, account: Account) -> AdminUserResponse:
+async def _stored_account(ports: AccountAdminProvider, account: Account) -> AdminUserResponse:
     return AdminUserResponse.model_validate(await ports.accounts.account(account.id))
 
 
-async def _stored_member(ports: AdminProvider, member_id: uuid.UUID) -> TeamMemberResponse:
+async def _stored_member(
+    ports: MembershipAdminProvider, member_id: uuid.UUID
+) -> TeamMemberResponse:
     return TeamMemberResponse.model_validate(await ports.rotation.member(member_id))
 
 
-async def _stored_period(ports: AdminProvider, eligibility_id: uuid.UUID) -> EligibilityResponse:
+async def _stored_period(
+    ports: EligibilityAdminProvider, eligibility_id: uuid.UUID
+) -> EligibilityResponse:
     return EligibilityResponse.model_validate(await ports.rotation.period(eligibility_id))
 
 
 @router.get("/users", response_model=list[AdminUserResponse])
-async def list_users(_: Admin, ports: AdminProvider) -> list[AdminUserResponse]:
+async def list_users(_: Admin, ports: AccountAdminProvider) -> list[AdminUserResponse]:
     accounts = await use_cases.list_accounts(ports.accounts)
     return [AdminUserResponse.model_validate(account) for account in accounts]
 
 
 @router.post("/users", response_model=AdminUserCreatedResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
-    payload: AdminUserCreate, actor: Admin, ports: AdminProvider, _: CsrfGuard
+    payload: AdminUserCreate, actor: Admin, ports: AccountAdminProvider, _: CsrfGuard
 ) -> AdminUserCreatedResponse:
     with _admin_errors():
         created = await use_cases.create_account(
@@ -108,7 +117,7 @@ async def update_user(
     user_id: uuid.UUID,
     payload: AdminUserUpdate,
     actor: Admin,
-    ports: AdminProvider,
+    ports: AccountAdminProvider,
     _: CsrfGuard,
 ) -> AdminUserResponse:
     changes = payload.model_dump(exclude_unset=True)
@@ -124,7 +133,7 @@ async def update_user(
 
 @router.post("/users/{user_id}/reset", response_model=PasswordLinkResponse)
 async def issue_password_reset(
-    user_id: uuid.UUID, actor: Admin, ports: AdminProvider, _: CsrfGuard
+    user_id: uuid.UUID, actor: Admin, ports: AccountAdminProvider, _: CsrfGuard
 ) -> PasswordLinkResponse:
     with _admin_errors():
         token = await use_cases.issue_password_reset(
@@ -134,7 +143,9 @@ async def issue_password_reset(
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: uuid.UUID, actor: Admin, ports: AdminProvider, _: CsrfGuard) -> None:
+async def delete_user(
+    user_id: uuid.UUID, actor: Admin, ports: AccountAdminProvider, _: CsrfGuard
+) -> None:
     with _admin_errors():
         await use_cases.delete_account(
             AccountAction(actor=actor_from(actor), account_id=user_id), ports
@@ -145,7 +156,7 @@ async def delete_user(user_id: uuid.UUID, actor: Admin, ports: AdminProvider, _:
     "/team-members", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_team_member(
-    payload: TeamMemberCreate, actor: Admin, ports: AdminProvider, _: CsrfGuard
+    payload: TeamMemberCreate, actor: Admin, ports: MembershipAdminProvider, _: CsrfGuard
 ) -> TeamMemberResponse:
     with _admin_errors():
         member = await use_cases.enrol_in_rotation(
@@ -162,7 +173,7 @@ async def update_team_member(
     member_id: uuid.UUID,
     payload: TeamMemberUpdate,
     actor: Admin,
-    ports: AdminProvider,
+    ports: MembershipAdminProvider,
     _: CsrfGuard,
 ) -> TeamMemberResponse:
     with _admin_errors():
@@ -186,7 +197,7 @@ async def create_eligibility(
     member_id: uuid.UUID,
     payload: EligibilityCreate,
     actor: Admin,
-    ports: AdminProvider,
+    ports: EligibilityAdminProvider,
     _: CsrfGuard,
 ) -> EligibilityResponse:
     with _admin_errors():
@@ -208,7 +219,7 @@ async def update_eligibility(
     eligibility_id: uuid.UUID,
     payload: EligibilityUpdate,
     actor: Admin,
-    ports: AdminProvider,
+    ports: EligibilityAdminProvider,
     _: CsrfGuard,
 ) -> EligibilityResponse:
     with _admin_errors():
@@ -225,7 +236,7 @@ async def update_eligibility(
 
 @router.delete("/eligibility/{eligibility_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_eligibility(
-    eligibility_id: uuid.UUID, actor: Admin, ports: AdminProvider, _: CsrfGuard
+    eligibility_id: uuid.UUID, actor: Admin, ports: EligibilityAdminProvider, _: CsrfGuard
 ) -> None:
     with _admin_errors():
         await use_cases.revoke_eligibility(

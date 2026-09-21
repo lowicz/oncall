@@ -14,7 +14,6 @@ from oncall.domain.sharing.models import (
     NewShareLink,
     ShareLink,
 )
-from oncall.domain.sharing.ports import CalendarFeeds, FeedJournal, ShareLinkJournal, ShareLinks
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import FeedTokenKind
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -50,7 +49,7 @@ def _to_feed(row: CalendarFeedToken) -> CalendarFeed:
     )
 
 
-class SqlAlchemyShareLinks(ShareLinks, ShareLinkJournal):
+class SqlAlchemyShareLinks:
     """Share links and their audit trail over one session.
 
     One object implements both ports because the audit entry of a new link
@@ -151,7 +150,7 @@ class SqlAlchemyShareLinks(ShareLinks, ShareLinkJournal):
         )
 
 
-class SqlAlchemyCalendarFeeds(CalendarFeeds, FeedJournal):
+class SqlAlchemyCalendarFeeds:
     def __init__(self, session: AsyncSession, actor: User | None = None) -> None:
         self._session = session
         self._actor = actor

@@ -7,7 +7,6 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from oncall.domain.ports import TeamDirectory
 from oncall.domain.team import AvailabilityPeriod, Member, RolePeriod
 from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -42,7 +41,7 @@ def to_member(row: TeamMember) -> Member:
     )
 
 
-class SqlAlchemyTeamDirectory(TeamDirectory):
+class SqlAlchemyTeamDirectory:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

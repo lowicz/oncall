@@ -25,7 +25,7 @@ from oncall.domain.access.models import (
     SignInRequest,
     retry_after_seconds,
 )
-from oncall.domain.access.ports import AccessPorts
+from oncall.domain.access.ports import AccountLinks, OwnProfiles, PasswordPorts, SignInPorts
 from oncall.domain.accounts import Account
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import as_utc
@@ -34,7 +34,7 @@ from oncall.domain.vocabulary import AccountTokenKind, AuthSource
 
 async def sign_in(
     request: SignInRequest,
-    ports: AccessPorts,
+    ports: SignInPorts,
     *,
     now: datetime,
     session_lifetime: timedelta,
@@ -86,7 +86,7 @@ async def sign_in(
 
 
 async def _sign_in_as(
-    account: Account, ports: AccessPorts, *, now: datetime, session_lifetime: timedelta
+    account: Account, ports: SignInPorts, *, now: datetime, session_lifetime: timedelta
 ) -> SignedIn:
     """Open the session for an account that has already been authenticated."""
     session = await ports.sessions.open_for_account(account.id, now + session_lifetime)
@@ -98,7 +98,7 @@ async def _sign_in_as(
     )
 
 
-async def _enforce_throttle(request: SignInRequest, ports: AccessPorts, now: datetime) -> None:
+async def _enforce_throttle(request: SignInRequest, ports: SignInPorts, now: datetime) -> None:
     since = now - LOGIN_THROTTLE_WINDOW
     login_failures = await ports.attempts.failures_since(request.login_label, since)
     ip_failures = await ports.attempts.failures_since(request.ip_label, since)
@@ -111,12 +111,12 @@ async def _enforce_throttle(request: SignInRequest, ports: AccessPorts, now: dat
     raise errors.LoginThrottled(label, retry_after_seconds(times))
 
 
-async def _reject(request: SignInRequest, ports: AccessPorts, now: datetime) -> NoReturn:
+async def _reject(request: SignInRequest, ports: SignInPorts, now: datetime) -> NoReturn:
     await ports.attempts.failed(request, now - FAILED_LOGIN_SERIES_WINDOW)
     raise errors.LoginRejected()
 
 
-async def synchronize_directory_account(identity: DirectoryIdentity, ports: AccessPorts) -> Account:
+async def synchronize_directory_account(identity: DirectoryIdentity, ports: SignInPorts) -> Account:
     """The account a directory identity signs in as: provisioned on first
     sign-in, linked when a local account carries its personnel number, and
     kept in step with the directory afterwards."""
@@ -158,15 +158,17 @@ async def synchronize_directory_account(identity: DirectoryIdentity, ports: Acce
 
 
 async def describe_account_link(
-    token: str, kind: AccountTokenKind, ports: AccessPorts, *, now: datetime
+    token: str, kind: AccountTokenKind, links: AccountLinks, *, now: datetime
 ) -> Account:
-    link = await ports.links.link(token, kind)
+    link = await links.link(token, kind)
     if link is None or link.used_at is not None or as_utc(link.expires_at) <= now:
         raise errors.AccountLinkInvalid()
     return link.credentials.account
 
 
-async def choose_password(choice: PasswordChoice, ports: AccessPorts, *, now: datetime) -> Account:
+async def choose_password(
+    choice: PasswordChoice, ports: PasswordPorts, *, now: datetime
+) -> Account:
     """Activate an account or reset its password with a one-time link."""
     link = await ports.links.link_for_use(choice.token, choice.kind)
     if link is None or link.used_at is not None or as_utc(link.expires_at) <= now:
@@ -187,17 +189,17 @@ async def choose_password(choice: PasswordChoice, ports: AccessPorts, *, now: da
     return account
 
 
-async def describe_account(account: Account, ports: AccessPorts) -> AccountOverview:
+async def describe_account(account: Account, profiles: OwnProfiles) -> AccountOverview:
     return AccountOverview(
-        account=account, has_team_member=await ports.accounts.has_team_member(account.id)
+        account=account, has_team_member=await profiles.has_team_member(account.id)
     )
 
 
 async def change_own_phone(
-    account_id: uuid.UUID | None, phone: str | None, ports: AccessPorts
+    account_id: uuid.UUID | None, phone: str | None, profiles: OwnProfiles
 ) -> AccountOverview:
     """The one detail account owners edit themselves. A share-link session has
     no account to edit."""
     if account_id is None:
         raise errors.ShareSessionHasNoAccount()
-    return await describe_account(await ports.accounts.change_phone(account_id, phone), ports)
+    return await describe_account(await profiles.change_phone(account_id, phone), profiles)

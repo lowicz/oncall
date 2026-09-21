@@ -11,7 +11,13 @@ from oncall.auth import (
     get_current_session,
     set_session_cookie,
 )
-from oncall.bootstrap.providers import AccessProvider, SessionProvider
+from oncall.bootstrap.providers import (
+    AccountLinkProvider,
+    OwnProfileProvider,
+    PasswordProvider,
+    SessionProvider,
+    SignInProvider,
+)
 from oncall.config import get_settings
 from oncall.database import get_db
 from oncall.domain.access import errors, use_cases
@@ -96,7 +102,7 @@ async def login(
     request: Request,
     response: Response,
     db: DbSession,
-    ports: AccessProvider,
+    ports: SignInProvider,
 ) -> UserResponse:
     async with refusals_as_http(db, ACCESS_ERROR_STATUSES, headers=ACCESS_ERROR_HEADERS):
         signed_in = await use_cases.sign_in(
@@ -115,10 +121,10 @@ async def password_token_info(
     token: Annotated[str, Query(min_length=20, max_length=200)],
     kind: AccountTokenKind,
     db: DbSession,
-    ports: AccessProvider,
+    links: AccountLinkProvider,
 ) -> AccountTokenInfoResponse:
     async with refusals_as_http(db, ACCESS_ERROR_STATUSES):
-        account = await use_cases.describe_account_link(token, kind, ports, now=utc_now())
+        account = await use_cases.describe_account_link(token, kind, links, now=utc_now())
     return AccountTokenInfoResponse(username=account.username, display_name=account.display_name)
 
 
@@ -126,7 +132,7 @@ async def _choose_password(
     payload: SetPasswordRequest,
     kind: AccountTokenKind,
     db: AsyncSession,
-    ports: AccessProvider,
+    ports: PasswordProvider,
 ) -> None:
     async with refusals_as_http(db, ACCESS_ERROR_STATUSES):
         await use_cases.choose_password(
@@ -138,20 +144,22 @@ async def _choose_password(
 
 @router.post("/api/v1/auth/activate", status_code=status.HTTP_204_NO_CONTENT)
 async def activate_account(
-    payload: SetPasswordRequest, db: DbSession, ports: AccessProvider
+    payload: SetPasswordRequest, db: DbSession, ports: PasswordProvider
 ) -> None:
     await _choose_password(payload, AccountTokenKind.activation, db, ports)
 
 
 @router.post("/api/v1/auth/reset", status_code=status.HTTP_204_NO_CONTENT)
-async def reset_password(payload: SetPasswordRequest, db: DbSession, ports: AccessProvider) -> None:
+async def reset_password(
+    payload: SetPasswordRequest, db: DbSession, ports: PasswordProvider
+) -> None:
     await _choose_password(payload, AccountTokenKind.password_reset, db, ports)
 
 
 @router.get("/api/v1/auth/me", response_model=UserResponse)
-async def me(principal: CurrentPrincipal, ports: AccessProvider) -> UserResponse:
+async def me(principal: CurrentPrincipal, profiles: OwnProfileProvider) -> UserResponse:
     if principal.user is not None:
-        overview = await use_cases.describe_account(account_from_row(principal.user), ports)
+        overview = await use_cases.describe_account(account_from_row(principal.user), profiles)
         return user_response(overview)
     return share_principal_response(principal)
 
@@ -161,14 +169,14 @@ async def update_my_phone(
     payload: UpdateOwnPhoneRequest,
     principal: CurrentPrincipal,
     db: DbSession,
-    ports: AccessProvider,
+    profiles: OwnProfileProvider,
     _: CsrfGuard,
 ) -> UserResponse:
     async with refusals_as_http(db, ACCESS_ERROR_STATUSES):
         overview = await use_cases.change_own_phone(
             principal.user.id if principal.user is not None else None,
             payload.phone,
-            ports,
+            profiles,
         )
     return user_response(overview)
 

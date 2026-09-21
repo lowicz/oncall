@@ -16,7 +16,6 @@ from oncall.domain.access.models import (
     SignInRequest,
     StoredCredentials,
 )
-from oncall.domain.access.ports import AccessAccounts, AccessJournal, AccountLinks, LoginAttempts
 from oncall.domain.accounts import Account
 from oncall.domain.clock import utc_now
 from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
@@ -50,7 +49,7 @@ def _credentials(row: User) -> StoredCredentials:
     return StoredCredentials(account=account_from_row(row), password_hash=row.password_hash)
 
 
-class SqlAlchemyLoginAttempts(LoginAttempts):
+class SqlAlchemyLoginAttempts:
     """Attempts are audit rows: one per failed attempt per label, and one
     rolling row per series of failures or of throttling, so a flood does not
     write a row per request."""
@@ -144,15 +143,9 @@ class SqlAlchemyLoginAttempts(LoginAttempts):
         )
 
 
-class SqlAlchemyAccessAccounts(AccessAccounts):
+class SqlAlchemyAccessAccounts:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-
-    async def account(self, account_id: uuid.UUID) -> Account | None:
-        row = await self._session.scalar(
-            select(User).where(User.id == account_id).execution_options(populate_existing=True)
-        )
-        return account_from_row(row) if row is not None else None
 
     async def credentials_for_login(self, login: str) -> StoredCredentials | None:
         row = await self._session.scalar(select(User).where(User.username == login))
@@ -233,7 +226,7 @@ class SqlAlchemyAccessAccounts(AccessAccounts):
         return account_from_row(row)
 
 
-class SqlAlchemyAccountLinks(AccountLinks):
+class SqlAlchemyAccountLinks:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -274,7 +267,7 @@ class SqlAlchemyAccountLinks(AccountLinks):
         row.used_at = at
 
 
-class SqlAlchemyAccessJournal(AccessJournal):
+class SqlAlchemyAccessJournal:
     """Account events, each written in the name of the account itself."""
 
     def __init__(self, session: AsyncSession) -> None:

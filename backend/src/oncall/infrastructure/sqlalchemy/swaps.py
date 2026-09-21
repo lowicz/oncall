@@ -8,7 +8,6 @@ from sqlalchemy.orm import selectinload
 from oncall.audit import record_audit
 from oncall.domain.roster import Slot
 from oncall.domain.swaps.models import ACTIVE_SWAP_STATUSES, NewSwapRequest, SwapRequest
-from oncall.domain.swaps.ports import SwapJournal, SwapRequestStore
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest as SwapRequestRow
@@ -44,7 +43,7 @@ def _to_request(row: SwapRequestRow, slots: list[Slot]) -> SwapRequest:
     )
 
 
-class SqlAlchemySwapRequests(SwapRequestStore):
+class SqlAlchemySwapRequests:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._held_days: set[date] = set()
@@ -154,7 +153,7 @@ def _headline(request: SwapRequest) -> str:
     return f"{request.service_date} · {ROLE_AUDIT_LABELS[request.role]}"
 
 
-class SqlAlchemySwapJournal(SwapJournal):
+class SqlAlchemySwapJournal:
     """Queues the e-mails and writes the audit entries in the acting account's
     name, inside the caller's unit of work."""
 

@@ -83,11 +83,6 @@ class FeedJournal(Protocol):
 
 
 @dataclass(frozen=True)
-class ShareLinkQueryPorts:
-    links: ShareLinks
-
-
-@dataclass(frozen=True)
 class ShareLinkCommandPorts:
     links: ShareLinks
     link_journal: ShareLinkJournal
@@ -118,18 +113,5 @@ class LinkFeedPorts:
 class CalendarSubscriptionPorts:
     links: ShareLinks
     feeds: CalendarFeeds
-    team: TeamDirectory
-    roster: PublishedRoster
-
-
-@dataclass(frozen=True)
-class SharingPorts:
-    """Compatibility aggregate for callers awaiting capability migration."""
-
-    links: ShareLinks
-    sessions: SignedInSessions
-    link_journal: ShareLinkJournal
-    feeds: CalendarFeeds
-    feed_journal: FeedJournal
     team: TeamDirectory
     roster: PublishedRoster

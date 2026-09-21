@@ -3,12 +3,11 @@
 import anyio
 
 from oncall.config import get_settings
-from oncall.domain.scheduling.ports import Solver
 from oncall.domain.scheduling.solver import ProgressCallback, SolveProblem, SolverResult
 from oncall.scheduler import generate_schedule
 
 
-class CpSatSolver(Solver):
+class CpSatSolver:
     async def solve(self, problem: SolveProblem, progress: ProgressCallback | None) -> SolverResult:
         # CP-SAT is synchronous and CPU-bound. Running it in the event-loop used
         # to freeze health checks and every other request for up to 30 seconds.

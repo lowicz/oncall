@@ -22,7 +22,7 @@ from oncall.domain.scheduling.models import (
     ScheduledDuty,
     ScheduleSummary,
 )
-from oncall.domain.scheduling.ports import NewDraft, Schedules, StoredSchedule
+from oncall.domain.scheduling.ports import NewDraft, StoredSchedule
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import ScheduleStatus
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
@@ -70,7 +70,7 @@ def _with_assignments():
     )
 
 
-class SqlAlchemySchedules(Schedules):
+class SqlAlchemySchedules:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._rows: dict[uuid.UUID, ScheduleRow] = {}

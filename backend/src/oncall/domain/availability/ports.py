@@ -71,7 +71,3 @@ class AvailabilityWritePorts:
     roster: PublishedRoster
     ledger: AvailabilityLedger
     journal: AvailabilityJournal
-
-
-# Compatibility alias for callers not yet migrated to capability-specific ports.
-AvailabilityPorts = AvailabilityWritePorts

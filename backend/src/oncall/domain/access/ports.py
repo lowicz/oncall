@@ -1,3 +1,8 @@
+"""What the account owner's own operations need, one consumer at a time:
+signing in, choosing a password through a one-time link, and the owner's own
+profile.
+"""
+
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -34,18 +39,18 @@ class LoginAttempts(Protocol):
     async def identity_conflict(self, login: str) -> None: ...
 
 
-class AccessAccounts(Protocol):
-    async def account(self, account_id: uuid.UUID) -> Account | None: ...
+class SignInAccounts(Protocol):
+    """Accounts as signing in finds them, and as the directory keeps them."""
 
     async def credentials_for_login(self, login: str) -> StoredCredentials | None: ...
+
+    async def has_team_member(self, account_id: uuid.UUID) -> bool: ...
 
     async def account_with_personnel_number(self, personnel_number: str) -> Account | None: ...
 
     async def account_named(self, login: str) -> Account | None:
         """Case-insensitive."""
         ...
-
-    async def has_team_member(self, account_id: uuid.UUID) -> bool: ...
 
     async def provision_from_directory(self, login: str, identity: DirectoryIdentity) -> Account:
         """A new viewer account the directory vouches for."""
@@ -62,20 +67,14 @@ class AccessAccounts(Protocol):
         self, account_id: uuid.UUID, changes: dict[str, str | None]
     ) -> Account: ...
 
-    async def set_password(self, account_id: uuid.UUID, password_hash: str) -> None: ...
 
-    async def change_phone(self, account_id: uuid.UUID, phone: str | None) -> Account: ...
-
-
-class PasswordHasher(Protocol):
+class PasswordVerifier(Protocol):
     async def verify(self, password_hash: str | None, password: str) -> bool: ...
 
     async def verify_decoy(self, password: str) -> None:
         """Spend what a real verification costs, so a refusal takes as long
         whether or not the account exists."""
         ...
-
-    async def hash(self, password: str) -> str: ...
 
 
 class Directory(Protocol):
@@ -90,7 +89,25 @@ class AccountSessions(Protocol):
         self, account_id: uuid.UUID, expires_at: datetime
     ) -> SignedInSession: ...
 
-    async def end_all_for_account(self, account_id: uuid.UUID) -> None: ...
+
+class SignInJournal(Protocol):
+    async def signed_in(self, account: Account) -> None: ...
+
+    async def provisioned(self, account: Account) -> None: ...
+
+    async def linked(self, account: Account, *, login: str) -> None: ...
+
+    async def synced(self, account: Account, *, fields: list[str]) -> None: ...
+
+
+@dataclass(frozen=True)
+class SignInPorts:
+    attempts: LoginAttempts
+    accounts: SignInAccounts
+    passwords: PasswordVerifier
+    directory: Directory
+    sessions: AccountSessions
+    journal: SignInJournal
 
 
 class AccountLinks(Protocol):
@@ -103,24 +120,34 @@ class AccountLinks(Protocol):
     async def mark_used(self, link_id: uuid.UUID, at: datetime) -> None: ...
 
 
-class AccessJournal(Protocol):
-    async def signed_in(self, account: Account) -> None: ...
+class AccountPasswords(Protocol):
+    async def set_password(self, account_id: uuid.UUID, password_hash: str) -> None: ...
 
-    async def provisioned(self, account: Account) -> None: ...
 
-    async def linked(self, account: Account, *, login: str) -> None: ...
+class PasswordHasher(Protocol):
+    async def hash(self, password: str) -> str: ...
 
-    async def synced(self, account: Account, *, fields: list[str]) -> None: ...
 
+class AccountSignOut(Protocol):
+    async def end_all_for_account(self, account_id: uuid.UUID) -> None: ...
+
+
+class PasswordJournal(Protocol):
     async def password_set(self, account: Account, kind: AccountTokenKind) -> None: ...
 
 
 @dataclass(frozen=True)
-class AccessPorts:
-    attempts: LoginAttempts
-    accounts: AccessAccounts
-    passwords: PasswordHasher
-    directory: Directory
-    sessions: AccountSessions
+class PasswordPorts:
     links: AccountLinks
-    journal: AccessJournal
+    accounts: AccountPasswords
+    passwords: PasswordHasher
+    sessions: AccountSignOut
+    journal: PasswordJournal
+
+
+class OwnProfiles(Protocol):
+    """The details account owners read and edit themselves."""
+
+    async def has_team_member(self, account_id: uuid.UUID) -> bool: ...
+
+    async def change_phone(self, account_id: uuid.UUID, phone: str | None) -> Account: ...

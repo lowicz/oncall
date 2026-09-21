@@ -34,14 +34,14 @@ from oncall.domain.sharing.ports import (
     MemberFeedPorts,
     ShareExchangePorts,
     ShareLinkCommandPorts,
-    ShareLinkQueryPorts,
+    ShareLinks,
 )
 from oncall.domain.team import Actor
 from oncall.domain.vocabulary import FeedTokenKind, UserRole
 
 
-async def list_share_links(ports: ShareLinkQueryPorts) -> list[ShareLink]:
-    return await ports.links.links()
+async def list_share_links(links: ShareLinks) -> list[ShareLink]:
+    return await links.links()
 
 
 async def create_share_link(

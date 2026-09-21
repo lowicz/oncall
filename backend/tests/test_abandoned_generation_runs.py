@@ -25,7 +25,7 @@ from sqlalchemy import select
 from oncall.domain.clock import utc_now
 from oncall.domain.scheduling.generation import ABANDONED_RUN_ERROR, recover_abandoned_runs
 from oncall.domain.vocabulary import UserRole
-from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
 from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS
 from oncall.worker import generation_cycle, process_schedule_run
@@ -68,7 +68,7 @@ async def _run(db, *, status: str, age_seconds: float, offset_days: int = 0) -> 
 
 async def _recover(db) -> int:
     reclaimed = await recover_abandoned_runs(
-        scheduling_ports(db).queue, stale_after=CUTOFF, now=utc_now()
+        SqlAlchemyGenerationQueue(db), stale_after=CUTOFF, now=utc_now()
     )
     await db.commit()
     return reclaimed
@@ -87,7 +87,7 @@ async def _as_stored(db_factory, run_id) -> ScheduleRun:
 async def test_a_dead_run_stops_holding_its_range(db, db_factory) -> None:
     """The reproduction: without recovery the range is blocked for ever."""
     run = await _run(db, status="running", age_seconds=3 * 60 * 60)
-    queue = scheduling_ports(db).queue
+    queue = SqlAlchemyGenerationQueue(db)
 
     blocking = await queue.active_run_for(STARTS, ENDS)
     assert blocking is not None and blocking.id == run.id
@@ -222,7 +222,7 @@ async def test_a_reclaimed_run_is_not_resurrected_by_the_worker_that_lost_it(
         async with db_factory() as other:
             assert (
                 await recover_abandoned_runs(
-                    scheduling_ports(other).queue,
+                    SqlAlchemyGenerationQueue(other),
                     stale_after=0.0,
                     now=utc_now() + timedelta(seconds=1),
                 )

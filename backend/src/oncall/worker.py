@@ -46,7 +46,8 @@ from oncall.domain.scheduling.solver import ProgressCallback
 from oncall.domain.team import Actor
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.handover import handover_ports
-from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling import generation_ports
+from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
 from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.metrics import emit
 from oncall.notifications.email import default_providers
@@ -92,7 +93,7 @@ async def generate_draft(
     progress: ProgressCallback | None = None,
 ) -> StoredSchedule:
     """Generate one draft and store it in its own unit of work."""
-    stored = await generation.generate_draft(request, scheduling_ports(db, user), progress)
+    stored = await generation.generate_draft(request, generation_ports(db, user), progress)
     await db.commit()
     return stored
 
@@ -135,7 +136,7 @@ async def recover_abandoned(db: AsyncSession) -> int:
     nothing, which is cheaper than the bookkeeping a throttle would need.
     """
     reclaimed = await generation.recover_abandoned_runs(
-        scheduling_ports(db).queue,
+        SqlAlchemyGenerationQueue(db),
         stale_after=get_settings().stale_run_seconds,
         now=utc_now(),
     )
@@ -411,7 +412,7 @@ async def sample_metrics(db: AsyncSession, *, now: datetime) -> None:
     going out" - are usually the same question, and a shared timestamp makes
     the two records comparable.
     """
-    queue = await generation.queue_health(scheduling_ports(db).queue, now=now)
+    queue = await generation.queue_health(SqlAlchemyGenerationQueue(db), now=now)
     emit(
         "queue",
         queued=queue.queued,

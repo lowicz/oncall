@@ -16,6 +16,12 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `models.py`. A new model module joins `model_registry.py`, which only the
   process entry points, `migrations/env.py` and `tests/conftest.py` import
   (`tests/architecture/test_model_registry.py` holds both rules).
+- Ports are consumer-owned: each backend use-case module takes its own small
+  `*Ports` bundle, or one protocol directly, from its feature's `ports.py`.
+  Adapters satisfy them structurally without subclassing; strict mypy over
+  `bootstrap/providers.py` is what checks the fit. The DOD-9 guard in
+  `tests/architecture/test_completion_dod.py` caps protocols and bundles at 8
+  members and forbids the old broad bundle names.
 - `frontend/scripts/build-docs.mjs` renders `docs/` into
   `frontend/public/docs/` (gitignored). It runs as `prebuild`, so `npm run
   build` always refreshes it, and it fails the build on an unlisted page, a

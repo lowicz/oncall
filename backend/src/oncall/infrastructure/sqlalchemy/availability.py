@@ -11,7 +11,6 @@ from oncall.domain.availability.models import (
     AvailabilityEntry,
     NewAvailabilityEntry,
 )
-from oncall.domain.availability.ports import AvailabilityJournal, AvailabilityLedger
 from oncall.domain.roster import Duty
 from oncall.domain.team import Member
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -44,7 +43,7 @@ def _on_behalf_details(member: Member, actor: User, on_behalf: bool) -> dict:
     }
 
 
-class SqlAlchemyAvailability(AvailabilityLedger, AvailabilityJournal):
+class SqlAlchemyAvailability:
     """The availability ledger and its journal over one session and one actor.
 
     One object implements both ports because the audit entry names the row the

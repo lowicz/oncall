@@ -1,32 +1,18 @@
-"""Reading, correcting and changing the lifecycle of schedule drafts."""
+"""Correcting drafts and moving editable schedules through their lifecycle."""
 
 import uuid
-from datetime import timedelta
 
 from oncall.domain.ports import TeamDirectory
 from oncall.domain.scheduling import errors
 from oncall.domain.scheduling.models import (
-    Comparison,
     DraftCorrection,
-    FairnessImpact,
-    LensImpact,
     Schedule,
-    ScheduleSummary,
     Transition,
     UnavailabilityConflict,
 )
-from oncall.domain.scheduling.planning import comparison_metrics, member_rest_warnings
-from oncall.domain.scheduling.ports import SchedulingPorts
-from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode, ScheduleStatus
-from oncall.fairness import (
-    ACCEPTANCE_POINTS,
-    FairnessDuty,
-    compute_fairness,
-    criterion_member_ids,
-    graded_lenses,
-    lens_spread,
-    project_duties,
-)
+from oncall.domain.scheduling.planning import member_rest_warnings
+from oncall.domain.scheduling.ports import DraftPorts
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus
 from oncall.workdays import is_working_day, polish_holidays
 
 
@@ -48,86 +34,7 @@ async def unavailability_conflicts(
     return tuple(conflicts)
 
 
-async def open_drafts(limit: int, ports: SchedulingPorts) -> list[ScheduleSummary]:
-    return await ports.schedules.open_drafts(limit)
-
-
-async def compare_variants(
-    left_id: uuid.UUID, right_id: uuid.UUID, ports: SchedulingPorts
-) -> Comparison:
-    by_id = await ports.schedules.schedules((left_id, right_id))
-    if left_id not in by_id or right_id not in by_id:
-        raise errors.VariantNotFound()
-    left, right = by_id[left_id], by_id[right_id]
-    if (left.starts_on, left.ends_on) != (right.starts_on, right.ends_on):
-        raise errors.VariantRangesDiffer()
-    if {left.rotation_mode, right.rotation_mode} != {RotationMode.daily, RotationMode.weekly}:
-        raise errors.VariantModesMismatch()
-    return Comparison(
-        left.starts_on, left.ends_on, (comparison_metrics(left), comparison_metrics(right))
-    )
-
-
-async def fairness_impact(schedule_id: uuid.UUID, ports: SchedulingPorts) -> FairnessImpact:
-    schedule = await ports.schedules.schedule(schedule_id)
-    if schedule is None:
-        raise errors.ScheduleNotFound(schedule_id)
-    # Both sides use one rolling window. The draft replaces regenerated slots
-    # instead of adding a second duty on top of the published assignment.
-    projected_end = schedule.ends_on
-    projected_start = projected_end - timedelta(days=365)
-    members = await ports.members.active_between(projected_start, projected_end)
-    historical = await ports.history.duties_in_force(projected_start, projected_end)
-    draft_duties = [
-        FairnessDuty(
-            service_date=item.service_date,
-            role=item.role,
-            assignee_name=item.assignee_name,
-            member_id=item.member_id,
-        )
-        for item in schedule.assignments
-    ]
-    holidays = polish_holidays(projected_start, projected_end)
-    baseline = compute_fairness(
-        members,
-        historical,
-        holidays=holidays,
-        window_start=projected_start,
-        window_end=projected_end,
-    )
-    projected = compute_fairness(
-        members,
-        project_duties(historical, draft_duties),
-        holidays=holidays,
-        window_start=projected_start,
-        window_end=projected_end,
-    )
-    policy = await ports.policy.current()
-    late_shift_balanced = policy.late_shift_anchor == LateShiftAnchor.independent
-    criterion_ids = criterion_member_ids(members, projected_end)
-    spreads = tuple(
-        LensImpact(
-            lens=lens,
-            before=lens_spread(baseline.members, lens, criterion_ids),
-            after=lens_spread(projected.members, lens, criterion_ids),
-            meets_criterion=lens_spread(projected.members, lens, criterion_ids)
-            <= ACCEPTANCE_POINTS,
-        )
-        for lens in graded_lenses(late_shift_balanced)
-    )
-    return FairnessImpact(
-        schedule=schedule,
-        as_of=projected_end,
-        baseline=tuple(baseline.members),
-        projected=tuple(projected.members),
-        criterion_ids=frozenset(criterion_ids),
-        late_shift_balanced=late_shift_balanced,
-        criterion_points=ACCEPTANCE_POINTS,
-        spreads=spreads,
-    )
-
-
-async def correct_draft(correction: DraftCorrection, ports: SchedulingPorts) -> list[str]:
+async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[str]:
     """Give one draft slot to another eligible and available member."""
     schedule = await ports.schedules.schedule_to_correct(correction.schedule_id)
     if schedule is None or schedule.status != ScheduleStatus.draft:
@@ -167,7 +74,7 @@ async def correct_draft(correction: DraftCorrection, ports: SchedulingPorts) -> 
     return warnings
 
 
-async def delete_schedule(schedule_id: uuid.UUID, ports: SchedulingPorts) -> None:
+async def delete_schedule(schedule_id: uuid.UUID, ports: DraftPorts) -> None:
     schedule = await ports.schedules.schedule(schedule_id)
     if schedule is None:
         raise errors.ScheduleNotFound(schedule_id)
@@ -188,7 +95,7 @@ async def delete_schedule(schedule_id: uuid.UUID, ports: SchedulingPorts) -> Non
     await ports.schedules.delete(schedule.id)
 
 
-async def propose(transition: Transition, ports: SchedulingPorts) -> None:
+async def propose(transition: Transition, ports: DraftPorts) -> None:
     schedule = await ports.schedules.schedule(transition.schedule_id)
     if schedule is None:
         raise errors.ScheduleNotFound(transition.schedule_id)
@@ -205,7 +112,7 @@ async def propose(transition: Transition, ports: SchedulingPorts) -> None:
     await ports.journal.schedule_proposed(schedule.id)
 
 
-async def withdraw(transition: Transition, ports: SchedulingPorts) -> None:
+async def withdraw(transition: Transition, ports: DraftPorts) -> None:
     if not await ports.schedules.change_status(
         transition.schedule_id,
         from_status=ScheduleStatus.proposed,

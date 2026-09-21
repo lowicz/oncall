@@ -23,7 +23,6 @@ from oncall.domain.admin.models import (
     NewEligibilityPeriod,
     RotationMember,
 )
-from oncall.domain.admin.ports import AccountBook, AdminJournal, AuditTrail, RotationBook
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, ScheduleStatus, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -70,7 +69,7 @@ def _to_member(row: TeamMember, eligibility: list[Eligibility]) -> RotationMembe
     )
 
 
-class SqlAlchemyAccounts(AccountBook):
+class SqlAlchemyAccounts:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -183,7 +182,7 @@ class SqlAlchemyAccounts(AccountBook):
         return IssuedToken(raw=raw, kind=kind, expires_at=expires_at)
 
 
-class SqlAlchemyRotation(RotationBook):
+class SqlAlchemyRotation:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -346,7 +345,7 @@ class SqlAlchemyRotation(RotationBook):
         )
 
 
-class SqlAlchemyAuditTrail(AuditTrail):
+class SqlAlchemyAuditTrail:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -393,7 +392,7 @@ class SqlAlchemyAuditTrail(AuditTrail):
         ]
 
 
-class SqlAlchemyAdminJournal(AdminJournal):
+class SqlAlchemyAdminJournal:
     def __init__(self, session: AsyncSession, actor: User) -> None:
         self._session = session
         self._actor = actor

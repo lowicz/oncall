@@ -8,13 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from oncall.domain.scheduling.models import ApprovedSwap, PendingSwap
-from oncall.domain.scheduling.ports import PublicationSwaps
 from oncall.domain.vocabulary import SwapStatus
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
-class SqlAlchemyPublicationSwaps(PublicationSwaps):
+class SqlAlchemyPublicationSwaps:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

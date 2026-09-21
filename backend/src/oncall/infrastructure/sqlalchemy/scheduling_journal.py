@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oncall.audit import record_audit
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import PendingSwapNotice, Schedule, SchedulingPolicy
-from oncall.domain.scheduling.ports import NewDraft, SchedulingJournal, StoredSchedule
+from oncall.domain.scheduling.ports import NewDraft, StoredSchedule
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.notifications import triggers
 
 
-class SqlAlchemySchedulingJournal(SchedulingJournal):
+class SqlAlchemySchedulingJournal:
     def __init__(self, session: AsyncSession, actor: User | None) -> None:
         self._session = session
         self._actor = actor

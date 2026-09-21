@@ -5,10 +5,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 
 from oncall.auth import CsrfGuard
-from oncall.bootstrap.providers import SchedulingReader, SchedulingWriter
+from oncall.bootstrap.providers import (
+    DraftWriter,
+    GenerationRequestProvider,
+    PolicyReader,
+    PolicyWriter,
+    PublicationReader,
+    PublicationWriter,
+    ScheduleQueryProvider,
+)
 from oncall.config import get_settings
 from oncall.domain.clock import business_today, utc_now
-from oncall.domain.scheduling import drafts, errors, generation, policy, publication
+from oncall.domain.scheduling import drafts, errors, generation, policy, publication, queries
 from oncall.domain.scheduling.models import (
     DraftCorrection,
     GenerationRequest,
@@ -16,7 +24,7 @@ from oncall.domain.scheduling.models import (
     PublicationRequest,
     Transition,
 )
-from oncall.domain.scheduling.ports import SchedulingPorts
+from oncall.domain.scheduling.ports import ScheduleQueryPorts
 from oncall.domain.vocabulary import UserRole
 from oncall.fairness_data import member_response
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -50,11 +58,6 @@ from oncall.routes.domain_edge import actor_from, domain_errors_as_http
 
 router = APIRouter(prefix="/api/v1/scheduling", tags=["scheduling"])
 Coordinator = Annotated[User, Depends(require_roles(UserRole.coordinator, UserRole.admin))]
-
-
-def _utc_today() -> date:
-    """Compatibility name; scheduling dates follow the business clock."""
-    return business_today()
 
 
 def _lanes() -> int:
@@ -119,15 +122,15 @@ def _scheduling_errors():
 
 
 async def _written_schedule(
-    schedule_id: uuid.UUID, ports: SchedulingPorts, *, warnings: list[str] | None = None
+    schedule_id: uuid.UUID, reads: ScheduleQueryPorts, *, warnings: list[str] | None = None
 ) -> DraftScheduleResponse:
     """The schedule read back after its unit of work is written."""
-    schedule = await ports.schedules.schedule(schedule_id)
+    schedule = await reads.schedules.schedule(schedule_id)
     if schedule is None:
         with _scheduling_errors():
             raise errors.ScheduleNotFound(schedule_id)
     return schedule_response(
-        await publication.view_schedule(schedule, ports, today=_utc_today(), warnings=warnings)
+        await queries.view_schedule(schedule, reads, today=business_today(), warnings=warnings)
     )
 
 
@@ -135,14 +138,14 @@ async def _written_schedule(
 async def queue_generation(
     payload: GenerateScheduleRequest,
     user: Coordinator,
-    ports: SchedulingWriter,
+    ports: GenerationRequestProvider,
     _: CsrfGuard,
 ) -> QueuedRunResponse:
     queued = await generation.queue_generation(
         GenerationRequest(actor_from(user), payload.starts_on, payload.ends_on),
         ports,
         lanes=_lanes(),
-        today=_utc_today(),
+        today=business_today(),
     )
     return queued_run_response(queued)
 
@@ -150,7 +153,7 @@ async def queue_generation(
 @router.get("/runs", response_model=list[dict])
 async def list_runs(
     user: Coordinator,
-    ports: SchedulingReader,
+    ports: GenerationRequestProvider,
     run_status: Annotated[str | None, Query(alias="status")] = None,
 ) -> list[RunResponse]:
     """This coordinator's generations that are still in flight.
@@ -165,7 +168,7 @@ async def list_runs(
 
 @router.get("/runs/{run_id}", response_model=dict)
 async def generation_status(
-    run_id: uuid.UUID, _: Coordinator, ports: SchedulingReader
+    run_id: uuid.UUID, _: Coordinator, ports: GenerationRequestProvider
 ) -> RunResponse:
     with _scheduling_errors():
         view = await generation.generation_status(run_id, ports, lanes=_lanes())
@@ -173,21 +176,21 @@ async def generation_status(
 
 
 @router.get("/suggested-range", response_model=dict[str, date])
-async def suggested_range(_: Coordinator, ports: SchedulingReader) -> SuggestedRangeResponse:
-    suggestion = await generation.suggest_range(ports, today=business_today())
+async def suggested_range(_: Coordinator, reads: ScheduleQueryProvider) -> SuggestedRangeResponse:
+    suggestion = await queries.suggest_range(reads.schedules, today=business_today())
     return suggested_range_response(suggestion)
 
 
 @router.get("/policy", response_model=SchedulingPolicyResponse)
-async def get_policy(_: Coordinator, ports: SchedulingReader) -> SchedulingPolicyResponse:
-    return SchedulingPolicyResponse.model_validate(await policy.current_policy(ports))
+async def get_policy(_: Coordinator, store: PolicyReader) -> SchedulingPolicyResponse:
+    return SchedulingPolicyResponse.model_validate(await policy.current_policy(store))
 
 
 @router.put("/policy", response_model=SchedulingPolicyResponse)
 async def update_policy(
     payload: SchedulingPolicyUpdate,
     _: Coordinator,
-    ports: SchedulingWriter,
+    ports: PolicyWriter,
     __: CsrfGuard,
 ) -> SchedulingPolicyResponse:
     with _scheduling_errors():
@@ -210,7 +213,8 @@ async def override_draft_assignment(
     schedule_id: uuid.UUID,
     payload: DraftOverrideRequest,
     user: Coordinator,
-    ports: SchedulingWriter,
+    ports: DraftWriter,
+    reads: ScheduleQueryProvider,
     __: CsrfGuard,
 ) -> DraftScheduleResponse:
     with _scheduling_errors():
@@ -225,13 +229,13 @@ async def override_draft_assignment(
             ),
             ports,
         )
-    return await _written_schedule(schedule_id, ports, warnings=warnings)
+    return await _written_schedule(schedule_id, reads, warnings=warnings)
 
 
 @router.get("/drafts", response_model=list[ScheduleSummaryResponse])
 async def list_drafts(
     _: Coordinator,
-    ports: SchedulingReader,
+    reads: ScheduleQueryProvider,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[ScheduleSummaryResponse]:
     """Drafts and proposals still awaiting a decision.
@@ -239,7 +243,10 @@ async def list_drafts(
     Without this the generator result lived only in component state: reloading
     the page orphaned the draft in the database with no way back to it.
     """
-    return [schedule_summary_response(item) for item in await drafts.open_drafts(limit, ports)]
+    return [
+        schedule_summary_response(item)
+        for item in await queries.open_drafts(limit, reads.schedules)
+    ]
 
 
 @router.get("/compare", response_model=dict)
@@ -247,20 +254,20 @@ async def compare_schedules(
     left_id: Annotated[uuid.UUID, Query()],
     right_id: Annotated[uuid.UUID, Query()],
     _: Coordinator,
-    ports: SchedulingReader,
+    reads: ScheduleQueryProvider,
 ) -> ComparisonResponse:
     with _scheduling_errors():
-        comparison = await drafts.compare_variants(left_id, right_id, ports)
+        comparison = await queries.compare_variants(left_id, right_id, reads.schedules)
     return comparison_response(comparison)
 
 
 @router.get("/{schedule_id}", response_model=DraftScheduleResponse)
 async def get_schedule(
-    schedule_id: uuid.UUID, _: Coordinator, ports: SchedulingReader
+    schedule_id: uuid.UUID, _: Coordinator, reads: ScheduleQueryProvider
 ) -> DraftScheduleResponse:
     """One schedule with its assignments, so a draft survives a page reload."""
     with _scheduling_errors():
-        view = await publication.show_schedule(schedule_id, ports, today=_utc_today())
+        view = await queries.show_schedule(schedule_id, reads, today=business_today())
     return schedule_response(view)
 
 
@@ -268,10 +275,10 @@ async def get_schedule(
 async def draft_fairness_impact(
     schedule_id: uuid.UUID,
     _: Coordinator,
-    ports: SchedulingReader,
+    reads: ScheduleQueryProvider,
 ) -> DraftFairnessImpactResponse:
     with _scheduling_errors():
-        impact = await drafts.fairness_impact(schedule_id, ports)
+        impact = await queries.fairness_impact(schedule_id, reads)
     criterion_ids = set(impact.criterion_ids)
     return DraftFairnessImpactResponse(
         schedule_id=impact.schedule.id,
@@ -298,7 +305,7 @@ async def draft_fairness_impact(
 
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_schedule(
-    schedule_id: uuid.UUID, _: Coordinator, ports: SchedulingWriter, __: CsrfGuard
+    schedule_id: uuid.UUID, _: Coordinator, ports: DraftWriter, __: CsrfGuard
 ) -> None:
     """Discard a draft or a proposal.
 
@@ -314,14 +321,15 @@ async def propose_schedule(
     schedule_id: uuid.UUID,
     payload: ScheduleTransitionRequest,
     user: Coordinator,
-    ports: SchedulingWriter,
+    ports: DraftWriter,
+    reads: ScheduleQueryProvider,
     __: CsrfGuard,
 ) -> DraftScheduleResponse:
     with _scheduling_errors():
         await drafts.propose(
             Transition(actor_from(user), schedule_id, payload.expected_version), ports
         )
-    return await _written_schedule(schedule_id, ports)
+    return await _written_schedule(schedule_id, reads)
 
 
 @router.post("/{schedule_id}/withdraw", response_model=DraftScheduleResponse)
@@ -329,22 +337,23 @@ async def withdraw_schedule(
     schedule_id: uuid.UUID,
     payload: ScheduleTransitionRequest,
     user: Coordinator,
-    ports: SchedulingWriter,
+    ports: DraftWriter,
+    reads: ScheduleQueryProvider,
     __: CsrfGuard,
 ) -> DraftScheduleResponse:
     with _scheduling_errors():
         await drafts.withdraw(
             Transition(actor_from(user), schedule_id, payload.expected_version), ports
         )
-    return await _written_schedule(schedule_id, ports)
+    return await _written_schedule(schedule_id, reads)
 
 
 @router.get("/{schedule_id}/publish-preview", response_model=PublishPreviewResponse)
 async def publication_preview(
-    schedule_id: uuid.UUID, _: Coordinator, ports: SchedulingReader
+    schedule_id: uuid.UUID, _: Coordinator, ports: PublicationReader
 ) -> PublishPreviewResponse:
     with _scheduling_errors():
-        preview = await publication.preview_publication(schedule_id, ports, today=_utc_today())
+        preview = await publication.preview_publication(schedule_id, ports, today=business_today())
     return publication_preview_response(preview)
 
 
@@ -353,7 +362,8 @@ async def publish_schedule(
     schedule_id: uuid.UUID,
     payload: ScheduleTransitionRequest,
     user: Coordinator,
-    ports: SchedulingWriter,
+    ports: PublicationWriter,
+    reads: ScheduleQueryProvider,
     __: CsrfGuard,
 ) -> DraftScheduleResponse:
     with _scheduling_errors():
@@ -368,7 +378,7 @@ async def publish_schedule(
                 change_resolutions=dict(payload.change_resolutions),
             ),
             ports,
-            today=_utc_today(),
+            today=business_today(),
             now=utc_now(),
         )
-    return await _written_schedule(schedule_id, ports)
+    return await _written_schedule(schedule_id, reads)
