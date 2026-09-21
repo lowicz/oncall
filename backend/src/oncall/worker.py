@@ -468,7 +468,7 @@ async def _metrics_loop(factory: Sessions) -> None:
     A loop of its own rather than a few lines added to the notification cycle:
     the loops here are independent on purpose, and a sample that rode along
     with the drain would tie how often the numbers appear to how often
-    notifications are attempted, and would change what `worker_cycle` returns.
+    notifications are attempted, and would change what `notification_cycle` returns.
     """
     settings = get_settings()
     while True:
