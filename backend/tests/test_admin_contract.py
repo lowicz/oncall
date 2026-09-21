@@ -10,17 +10,11 @@ from sqlalchemy import select
 
 from oncall.domain.admin.models import RESET_LINK_LIFETIME
 from oncall.domain.clock import as_utc, business_today
-from oncall.models import (
-    AccountToken,
-    Assignment,
-    AssignmentRole,
-    AuditEvent,
-    AuthSource,
-    Eligibility,
-    TeamMember,
-    User,
-    UserRole,
-)
+from oncall.domain.vocabulary import AssignmentRole, AuthSource, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
 TODAY = business_today()

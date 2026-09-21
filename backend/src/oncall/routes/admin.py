@@ -23,7 +23,7 @@ from oncall.domain.admin.models import (
     NewAccount,
 )
 from oncall.domain.vocabulary import UserRole
-from oncall.models import User
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.admin import (
     AdminUserCreate,

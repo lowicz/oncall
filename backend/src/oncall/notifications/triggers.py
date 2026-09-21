@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
-from oncall.models import AssignmentRole, TeamMember, User, UserRole
+from oncall.domain.vocabulary import AssignmentRole, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications import templates
 from oncall.notifications.base import NotificationMessage
 from oncall.notifications.service import enqueue_notification

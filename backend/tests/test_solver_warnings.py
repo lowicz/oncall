@@ -7,16 +7,9 @@ oba źródła jadą razem i są rozróżnialne, a reguły podają nazwisko i dni
 
 from datetime import date
 
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    Eligibility,
-    RotationMode,
-    Schedule,
-    ScheduleStatus,
-    TeamMember,
-    UserRole,
-)
+from oncall.domain.vocabulary import AssignmentRole, RotationMode, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
 from tests.conftest import create_user, login
 
 MONDAY = date(2026, 9, 7)

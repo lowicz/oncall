@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from ortools.sat.python import cp_model
 
-from oncall.models import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
 from oncall.scheduler import (
     TIE_BREAK_FRACTION,
     DateRange,

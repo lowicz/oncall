@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select
 
 from oncall.config import get_settings
-from oncall.models import NotificationOutbox
+from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
 from oncall.worker import scan_handover
 from tests.conftest import create_member, create_published_schedule, create_user
 

@@ -10,7 +10,7 @@ from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import PendingSwapNotice, Schedule, SchedulingPolicy
 from oncall.domain.scheduling.ports import NewDraft, SchedulingJournal, StoredSchedule
 from oncall.domain.vocabulary import AssignmentRole
-from oncall.models import User
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.notifications import triggers
 
 

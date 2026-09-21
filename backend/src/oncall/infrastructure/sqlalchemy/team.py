@@ -3,15 +3,26 @@
 import uuid
 from collections.abc import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from oncall.domain.ports import TeamDirectory
 from oncall.domain.team import AvailabilityPeriod, Member, RolePeriod
-from oncall.models import TeamMember, User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
-_WITH_PERIODS = (selectinload(TeamMember.eligibility), selectinload(TeamMember.availability))
+
+def _members_with_periods() -> Select[tuple[TeamMember]]:
+    """The member query `to_member` needs.
+
+    Built per call, not once at import: a loader option configures every
+    mapper, and at import time the modules declaring them may not all be loaded.
+    """
+    return select(TeamMember).options(
+        selectinload(TeamMember.eligibility), selectinload(TeamMember.availability)
+    )
 
 
 def to_member(row: TeamMember) -> Member:
@@ -36,9 +47,7 @@ class SqlAlchemyTeamDirectory(TeamDirectory):
         self._session = session
 
     async def _one(self, *criteria) -> Member | None:
-        row = await self._session.scalar(
-            select(TeamMember).options(*_WITH_PERIODS).where(*criteria)
-        )
+        row = await self._session.scalar(_members_with_periods().where(*criteria))
         return to_member(row) if row is not None else None
 
     async def member_for_account(self, user_id: uuid.UUID) -> Member | None:
@@ -52,14 +61,13 @@ class SqlAlchemyTeamDirectory(TeamDirectory):
 
     async def members(self, member_ids: Iterable[uuid.UUID]) -> dict[uuid.UUID, Member]:
         rows = await self._session.scalars(
-            select(TeamMember).options(*_WITH_PERIODS).where(TeamMember.id.in_(list(member_ids)))
+            _members_with_periods().where(TeamMember.id.in_(list(member_ids)))
         )
         return {row.id: to_member(row) for row in rows}
 
     async def colleagues_of(self, member_id: uuid.UUID) -> list[Member]:
         rows = await self._session.scalars(
-            select(TeamMember)
-            .options(*_WITH_PERIODS)
+            _members_with_periods()
             .where(TeamMember.id != member_id)
             .order_by(TeamMember.display_name)
         )

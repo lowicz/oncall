@@ -16,18 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from oncall.domain.scheduling.publication import stale_changes_count
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    AuditEvent,
-    Availability,
-    AvailabilityKind,
-    Schedule,
-    ScheduleStatus,
-    User,
-    UserRole,
-)
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from tests.conftest import create_member
 
 START = date.today() + timedelta(days=7)

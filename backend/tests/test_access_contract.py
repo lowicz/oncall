@@ -11,23 +11,16 @@ from sqlalchemy import func, select, update
 from oncall.auth import hash_password, token_hash
 from oncall.config import get_settings
 from oncall.domain.clock import as_utc
+from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken, Session, User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.sharing_models import CalendarFeedToken, ShareLink
 from oncall.ldap_auth import (
     DirectoryIdentityError,
     DirectoryUnavailableError,
     get_directory_authenticator,
 )
 from oncall.main import app
-from oncall.models import (
-    AccountToken,
-    AccountTokenKind,
-    AuditEvent,
-    AuthSource,
-    CalendarFeedToken,
-    Session,
-    ShareLink,
-    User,
-    UserRole,
-)
 from tests.conftest import (
     TEST_PASSWORD,
     create_member,

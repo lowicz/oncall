@@ -11,7 +11,8 @@ import pytest
 from sqlalchemy import select
 
 from oncall.domain.scheduling.models import RunState
-from oncall.models import DEFAULT_SOLVE_SECONDS, ScheduleRun, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import DEFAULT_SOLVE_SECONDS, ScheduleRun
 from oncall.scheduler import total_time_budget
 from oncall.worker import _claim_run, generation_cycle, notification_cycle
 from tests.conftest import create_user, login, staged_draft

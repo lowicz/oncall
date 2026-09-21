@@ -114,6 +114,17 @@ jobs:
           cache-dependency-glob: backend/uv.lock
       - name: Install from the lock
         run: uv sync --extra dev --frozen
+      # The database is still empty here, so the migrations run from the
+      # first one; `alembic check` then fails if the ORM metadata and the
+      # migrated schema differ. The suite below builds its own tables.
+      - name: Migrations from an empty database
+        env:
+          ONCALL_DATABASE_URL: ${{ env.ONCALL_TEST_POSTGRES_URL }}
+        run: uv run --frozen alembic upgrade head
+      - name: ORM metadata matches the migrated schema
+        env:
+          ONCALL_DATABASE_URL: ${{ env.ONCALL_TEST_POSTGRES_URL }}
+        run: uv run --frozen alembic check
       - name: Tests (PostgreSQL)
         run: uv run --frozen pytest -q tests/test_concurrency_postgres.py --junitxml "$RUNNER_TEMP/junit-backend-postgres.xml"
       - name: Summary

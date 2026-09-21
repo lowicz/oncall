@@ -15,7 +15,7 @@ from datetime import date, timedelta
 
 from ortools.sat.python import cp_model
 
-from oncall.models import AssignmentRole, LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.scheduler import SCALE, DateRange, SolverMember, _build_model
 from oncall.workdays import polish_holidays
 

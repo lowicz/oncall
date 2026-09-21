@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import token_hash
 from oncall.domain.clock import utc_now
-from oncall.models import AccountToken, AccountTokenKind, User
+from oncall.domain.vocabulary import AccountTokenKind
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
 
 
 async def issue_account_token(

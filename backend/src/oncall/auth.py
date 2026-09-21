@@ -17,7 +17,9 @@ from oncall.database import get_db
 from oncall.domain.clock import as_utc as as_utc
 from oncall.domain.clock import utc_now
 from oncall.domain.sharing.models import link_is_active
-from oncall.models import Session, ShareLink, User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import Session, User
+from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
 
 password_hasher = PasswordHasher()
 

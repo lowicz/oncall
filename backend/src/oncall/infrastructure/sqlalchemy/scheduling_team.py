@@ -13,7 +13,7 @@ from oncall.domain.team import Member
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind
 from oncall.fairness import EligibilityPeriod, FairnessMemberInput
 from oncall.infrastructure.sqlalchemy.team import to_member
-from oncall.models import TeamMember
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
 class SqlAlchemySchedulingTeam(SchedulingTeam):

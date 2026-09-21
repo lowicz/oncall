@@ -3,7 +3,9 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from oncall.models import Availability, AvailabilityKind, SwapRequest
+from oncall.domain.vocabulary import AvailabilityKind
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
 from oncall.presentation.availability import AvailabilityCreate
 from oncall.presentation.scheduling import GenerateScheduleRequest
 from oncall.presentation.swaps import SwapDecisionRequest

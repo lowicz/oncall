@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oncall import auth
 from oncall.domain.access.models import LOGIN_ATTEMPTS_PER_IP
 from oncall.domain.clock import as_utc
-from oncall.models import AuditEvent
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from tests.conftest import TEST_PASSWORD, create_user
 
 

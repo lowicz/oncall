@@ -14,15 +14,11 @@ from oncall.domain.scheduling.publication import (
     change_resolution_conflicts,
     override_original_assignees,
 )
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    AuditEvent,
-    Schedule,
-    ScheduleStatus,
-)
 from tests.conftest import create_member, create_user
 
 DAY = date(2026, 11, 3)

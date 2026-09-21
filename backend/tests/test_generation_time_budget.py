@@ -14,7 +14,7 @@ from datetime import date
 import pytest
 from ortools.sat.python import cp_model
 
-from oncall.models import AssignmentRole, RotationMode, UserRole
+from oncall.domain.vocabulary import AssignmentRole, RotationMode, UserRole
 from oncall.scheduler import (
     GENERATION_BUDGET_PASSES,
     DateRange,

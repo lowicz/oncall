@@ -33,6 +33,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.config import get_settings
 from oncall.database import SessionFactory
 from oncall.domain.clock import as_utc, utc_now
@@ -43,10 +44,11 @@ from oncall.domain.scheduling.models import GenerationRequest, RunOutcome, RunSt
 from oncall.domain.scheduling.ports import StoredSchedule
 from oncall.domain.scheduling.solver import ProgressCallback
 from oncall.domain.team import Actor
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.handover import handover_ports
 from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.metrics import emit
-from oncall.models import ScheduleRun, User
 from oncall.notifications.email import default_providers
 from oncall.notifications.service import drain_outbox, outbox_health
 from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS

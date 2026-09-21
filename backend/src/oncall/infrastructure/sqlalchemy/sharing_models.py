@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,6 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from oncall.domain.clock import utc_now
 from oncall.domain.vocabulary import FeedTokenKind
 from oncall.infrastructure.sqlalchemy.base import Base
+
+if TYPE_CHECKING:
+    from oncall.infrastructure.sqlalchemy.access_models import User
 
 
 class ShareLink(Base):
@@ -25,7 +29,7 @@ class ShareLink(Base):
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    created_by: Mapped[User] = relationship()  # noqa: F821
+    created_by: Mapped[User] = relationship()
 
 
 class CalendarFeedToken(Base):

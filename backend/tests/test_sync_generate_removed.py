@@ -7,8 +7,8 @@ korzysta z `/scheduling/runs`; sama funkcja żyje dalej dla workera i testów.
 
 from datetime import date, timedelta
 
+from oncall.domain.vocabulary import UserRole
 from oncall.main import app
-from oncall.models import UserRole
 from tests.conftest import create_member, create_user, generate_draft_directly, login
 
 

@@ -1,8 +1,8 @@
 import uuid
 from datetime import UTC, date, datetime
 
+from oncall.domain.vocabulary import AssignmentRole
 from oncall.ical import IcsEvent, build_ics
-from oncall.models import AssignmentRole
 
 
 def event(**overrides) -> IcsEvent:

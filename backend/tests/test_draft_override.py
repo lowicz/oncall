@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
-from oncall.models import Assignment, AssignmentRole, Schedule, ScheduleStatus, UserRole
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from tests.conftest import create_member, create_user, login
 
 

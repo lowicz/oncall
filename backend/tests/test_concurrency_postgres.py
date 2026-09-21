@@ -31,29 +31,27 @@ from oncall.domain.scheduling.generation import (
     recover_abandoned_runs,
 )
 from oncall.domain.scheduling.models import RunState
-from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
-from oncall.main import app
-from oncall.models import (
-    AccountToken,
+from oncall.domain.vocabulary import (
     AccountTokenKind,
-    Assignment,
     AssignmentRole,
-    AuditEvent,
-    Availability,
-    Base,
-    Eligibility,
-    NotificationOutbox,
-    NotificationStatus,
-    Schedule,
-    ScheduleRun,
     ScheduleStatus,
-    ShareLink,
-    SwapRequest,
     SwapStatus,
-    TeamMember,
-    User,
     UserRole,
 )
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.base import Base
+from oncall.infrastructure.sqlalchemy.notification_models import (
+    NotificationOutbox,
+    NotificationStatus,
+)
+from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule, ScheduleRun
+from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
+from oncall.main import app
 from oncall.notifications import triggers
 from oncall.notifications.base import NotificationMessage
 from oncall.notifications.service import drain_outbox, enqueue_notification, outbox_health
@@ -531,7 +529,7 @@ async def test_one_share_link_exchanged_twice_at_once_starts_one_session(pg, mon
     from datetime import UTC, datetime
 
     from oncall.auth import token_hash
-    from oncall.models import Session
+    from oncall.infrastructure.sqlalchemy.access_models import Session
 
     admin = await create_user(pg, "admin1", role=UserRole.admin)
     link = ShareLink(
@@ -571,7 +569,8 @@ async def test_one_activation_link_used_twice_at_once_sets_one_password(pg, monk
     from datetime import UTC, datetime
 
     from oncall.auth import token_hash
-    from oncall.models import AccountToken, AccountTokenKind
+    from oncall.domain.vocabulary import AccountTokenKind
+    from oncall.infrastructure.sqlalchemy.access_models import AccountToken
 
     user = await create_user(pg, "nowa")
     user.password_hash = None

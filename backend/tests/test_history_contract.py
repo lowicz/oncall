@@ -6,14 +6,10 @@ from datetime import date, timedelta
 
 from sqlalchemy import delete, select
 
-from oncall.models import (
-    AssignmentRole,
-    AuditEvent,
-    Eligibility,
-    Schedule,
-    ScheduleStatus,
-    UserRole,
-)
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
 # 2026-09-21 is a Monday; 2026-09-26 a Saturday.

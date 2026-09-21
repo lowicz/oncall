@@ -21,7 +21,7 @@ import sys
 from datetime import date, timedelta
 
 from oncall.domain.scheduling.solver import PreferenceRange
-from oncall.models import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
 from oncall.scheduler import DateRange, SolverMember, _build_model
 from oncall.workdays import polish_holidays
 

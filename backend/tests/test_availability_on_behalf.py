@@ -11,7 +11,10 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import AuditEvent, Availability, NotificationOutbox, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
 from tests.conftest import create_member, create_user, login
 
 

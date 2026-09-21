@@ -7,7 +7,8 @@ naturalną reakcją jest uruchomienie generowania drugi raz (LOW5-09).
 
 from datetime import date
 
-from oncall.models import ScheduleRun, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from tests.conftest import create_user, login
 
 

@@ -10,7 +10,9 @@ from oncall.auth import CurrentUser
 #: One message for one cause, defined with the domain error it names;
 #: member-scoped endpoints outside the domain answer 403 with the same text.
 from oncall.domain.errors import NOT_A_TEAM_MEMBER as NOT_A_TEAM_MEMBER
-from oncall.models import TeamMember, User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
 def require_roles(

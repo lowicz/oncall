@@ -19,7 +19,7 @@ from oncall.domain.swaps.models import (
 )
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus, UserRole
 from oncall.fairness_data import member_response
-from oncall.models import User
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.rules import rule_violation_responses
 from oncall.presentation.swaps import (

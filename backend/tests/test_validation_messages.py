@@ -1,6 +1,6 @@
 """QA7-L18: FastAPI's default 422 body is English next to a Polish interface."""
 
-from oncall.models import UserRole
+from oncall.domain.vocabulary import UserRole
 from tests.conftest import create_user, login
 
 

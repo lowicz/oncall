@@ -2,8 +2,8 @@ import json
 from datetime import date
 from pathlib import Path
 
+from oncall.domain.vocabulary import RotationMode
 from oncall.main import app
-from oncall.models import RotationMode
 from oncall.scheduler import generate_schedule
 from tests.test_scheduler import member
 
@@ -55,7 +55,7 @@ async def test_public_response_and_validation_envelopes(client) -> None:
 
 
 async def test_login_cookie_and_csrf_contract(client, db) -> None:
-    from oncall.models import UserRole
+    from oncall.domain.vocabulary import UserRole
     from tests.conftest import create_user
 
     await create_user(db, "kontrakt", role=UserRole.member, display_name="Jan Kontrakt")

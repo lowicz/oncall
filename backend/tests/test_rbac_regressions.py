@@ -1,7 +1,7 @@
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import UserRole
+from oncall.domain.vocabulary import UserRole
 
 from .conftest import create_user, login
 

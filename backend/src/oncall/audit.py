@@ -10,7 +10,8 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import AuditEvent, User
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 
 
 def record_audit(

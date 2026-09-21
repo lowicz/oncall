@@ -11,6 +11,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   test scripts. Historical, not maintained; see `archive/README.md`. Source
   comments that cite `archive/docs/PLAN.md` or `archive/docs/SOLVER.md` point
   there.
+- ORM rows live in the feature-owned `*_model.py`/`*_models.py` modules under
+  `backend/src/oncall/infrastructure/sqlalchemy/`; there is no central
+  `models.py`. A new model module joins `model_registry.py`, which only the
+  process entry points, `migrations/env.py` and `tests/conftest.py` import
+  (`tests/architecture/test_model_registry.py` holds both rules).
 - `frontend/scripts/build-docs.mjs` renders `docs/` into
   `frontend/public/docs/` (gitignored). It runs as `prebuild`, so `npm run
   build` always refreshes it, and it fails the build on an unlisted page, a
@@ -34,6 +39,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d`. The
   base file mounts nothing from the host so it comes up on a machine with no
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
+- The disposable contract PostgreSQL (`docker-compose.contract.yml`, port
+  55432) takes its Compose project name from the checkout directory, `oncall`,
+  like the main stack: pass `-p <other-name>` to its `up` and `down`.
 - `podman compose` here delegates to the Docker Compose plugin and needs
   `systemctl --user start podman.socket` first.
 - Browser QA of the frontend against the published images: start the
@@ -45,10 +53,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 ## CI and releases
 
 - `.github/workflows/ci.yml` is the gate list (backend: ruff check + format,
-  mypy, pytest on SQLite, OpenAPI snapshot; backend-postgres: the concurrency
-  suite against postgres:17; frontend: eslint, tsc, vitest, `npm run build`,
-  site render; compose-config; image-build without push). `ci-ok` is the one
-  required status. Run the same commands locally before pushing.
+  mypy, pytest on SQLite, OpenAPI snapshot; backend-postgres: migrations from
+  empty plus `alembic check`, then the concurrency suite against postgres:17;
+  frontend: eslint, tsc, vitest, `npm run build`, site render; compose-config;
+  image-build without push). `ci-ok` is the one required status. Run the same
+  commands locally before pushing.
 - A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: validates the tag,
   calls `ci.yml`, publishes both images with SBOM, provenance, attestation and
   cosign signature, creates the GitHub Release. Published versions are

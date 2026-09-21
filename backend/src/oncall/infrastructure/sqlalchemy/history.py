@@ -12,8 +12,11 @@ from oncall.domain.history.models import IMPORT_NAME_PREFIX, HistoryImport, NewH
 from oncall.domain.history.ports import HistoryArchive, HistoryJournal
 from oncall.domain.roster import Slot
 from oncall.domain.team import Member
+from oncall.domain.vocabulary import ScheduleStatus
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team import to_member
-from oncall.models import Assignment, Schedule, ScheduleStatus, TeamMember, User
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
 class SqlAlchemyHistory(HistoryArchive, HistoryJournal):

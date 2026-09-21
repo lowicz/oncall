@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import oncall.models  # noqa: F401  # registers every mapped class
+import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.config import get_settings
 from oncall.infrastructure.sqlalchemy.base import Base
 

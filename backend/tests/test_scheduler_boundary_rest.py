@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from oncall.models import AssignmentRole, RotationMode
+from oncall.domain.vocabulary import AssignmentRole, RotationMode
 from oncall.scheduler import DateRange, SolverMember, generate_schedule
 
 

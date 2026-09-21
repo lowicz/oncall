@@ -8,22 +8,17 @@ from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.auth import hash_password
 from oncall.database import SqlAlchemyUnitOfWork, get_db
 from oncall.domain import clock
 from oncall.domain.clock import business_today, utc_now
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.base import Base
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
 from oncall.main import app
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    Base,
-    Eligibility,
-    Schedule,
-    ScheduleStatus,
-    TeamMember,
-    User,
-    UserRole,
-)
 from tests.frozen_clock import FrozenClock
 
 TEST_PASSWORD = "test-password-123"

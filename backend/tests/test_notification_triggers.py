@@ -3,7 +3,8 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from oncall.domain.clock import business_today
-from oncall.models import NotificationOutbox, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
 from oncall.notifications.triggers import notify_schedule_published
 from tests.conftest import (
     create_member,

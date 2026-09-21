@@ -25,7 +25,8 @@ from datetime import UTC, date, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import Assignment, AssignmentRole, Schedule, ScheduleStatus
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.workdays import is_working_day, polish_holidays
 
 #: Statuses that describe duty actually served or scheduled to be served.

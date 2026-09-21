@@ -18,7 +18,7 @@ from oncall.domain.overrides.models import (
     OverrideInput,
 )
 from oncall.domain.vocabulary import UserRole
-from oncall.models import User
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.calendar import (

@@ -18,8 +18,9 @@ from oncall.domain.access import errors, use_cases
 from oncall.domain.access.models import AccountOverview, PasswordChoice, SignInRequest
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import utc_now
+from oncall.domain.vocabulary import AccountTokenKind, UserRole
 from oncall.infrastructure.sqlalchemy.access import account_from_row
-from oncall.models import AccountTokenKind, Session, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import Session
 from oncall.presentation.access import (
     AccountTokenInfoResponse,
     LoginRequest,

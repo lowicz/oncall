@@ -10,9 +10,9 @@ from oncall.domain.roster import Slot
 from oncall.domain.swaps.models import ACTIVE_SWAP_STATUSES, NewSwapRequest, SwapRequest
 from oncall.domain.swaps.ports import SwapJournal, SwapRequestStore
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest as SwapRequestRow
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequestSlot
-from oncall.models import User
 from oncall.notifications import triggers
 from oncall.rules import RuleViolation
 

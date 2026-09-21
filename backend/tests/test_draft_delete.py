@@ -8,7 +8,9 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import Assignment, AuditEvent, Schedule, ScheduleStatus, UserRole
+from oncall.domain.vocabulary import ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from tests.conftest import (
     create_member,
     create_published_schedule,

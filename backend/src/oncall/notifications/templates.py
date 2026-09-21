@@ -7,7 +7,7 @@ events differently without changing the business logic.
 
 from datetime import date
 
-from oncall.models import AssignmentRole
+from oncall.domain.vocabulary import AssignmentRole
 
 #: Role names as the team reads them, mirroring `frontend/src/lib/labels.ts`.
 #: „late_shift" is an internal identifier and must never reach a reader.

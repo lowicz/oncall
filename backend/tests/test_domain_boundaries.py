@@ -36,7 +36,6 @@ FORBIDDEN_PREFIXES = (
     "aiosqlite",
     "oncall.infrastructure",
     "oncall.routes",
-    "oncall.models",
     "oncall.database",
     "oncall.config",
 )

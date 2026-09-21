@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,6 +10,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from oncall.domain.clock import utc_now
 from oncall.domain.vocabulary import AvailabilityKind
 from oncall.infrastructure.sqlalchemy.base import Base
+
+if TYPE_CHECKING:
+    from oncall.infrastructure.sqlalchemy.access_models import User
+    from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
 class Availability(Base):
@@ -26,8 +31,8 @@ class Availability(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    member: Mapped[TeamMember] = relationship(back_populates="availability")  # noqa: F821
-    created_by: Mapped[User | None] = relationship()  # noqa: F821
+    member: Mapped[TeamMember] = relationship(back_populates="availability")
+    created_by: Mapped[User | None] = relationship()
 
 
 __all__ = ["Availability"]

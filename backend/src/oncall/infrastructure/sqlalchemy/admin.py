@@ -26,14 +26,10 @@ from oncall.domain.admin.models import (
 from oncall.domain.admin.ports import AccountBook, AdminJournal, AuditTrail, RotationBook
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, ScheduleStatus, UserRole
-from oncall.models import (
-    Assignment,
-    AuditEvent,
-    Eligibility,
-    Schedule,
-    TeamMember,
-    User,
-)
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
 
 
 def _to_account(row: User, member_id: uuid.UUID | None) -> Account:

@@ -9,8 +9,9 @@ from oncall.bootstrap.providers import HistoryReader, HistoryWriter
 from oncall.domain.history import use_cases
 from oncall.domain.history.errors import HistoryRejected
 from oncall.domain.history.models import HistoryImportError, HistoryUpload, ParsedHistoryRow
+from oncall.domain.vocabulary import UserRole
 from oncall.history_import import parse_history_csv
-from oncall.models import User, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.history import (
     HistoryCommitRequest,

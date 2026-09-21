@@ -10,11 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from oncall.domain.ports import FairnessHistory, PublishedRoster, RosterPolicy
 from oncall.domain.roster import Duty, ScheduleRef, Slot
 from oncall.domain.team import Member
-from oncall.domain.vocabulary import LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import LateShiftAnchor, RotationMode, ScheduleStatus
 from oncall.effective import EffectiveAssignment, effective_assignments
 from oncall.fairness import FairnessDuty, FairnessMemberInput
 from oncall.fairness_data import latest_publish_end, load_inputs
-from oncall.models import Assignment, Schedule, ScheduleStatus
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.policy import load_policy
 
 

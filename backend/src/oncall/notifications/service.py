@@ -34,7 +34,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from oncall.domain.clock import as_utc, utc_now
-from oncall.models import NotificationOutbox, NotificationStatus
+from oncall.infrastructure.sqlalchemy.notification_models import (
+    NotificationOutbox,
+    NotificationStatus,
+)
 from oncall.notifications.base import (
     NotificationDisabled,
     NotificationError,

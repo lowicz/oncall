@@ -8,15 +8,10 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy import delete, select
 
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
 from oncall.effective import effective_assignments
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    Eligibility,
-    Schedule,
-    ScheduleStatus,
-    UserRole,
-)
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
 DAY = date(2026, 9, 23)

@@ -17,9 +17,11 @@ from oncall.domain.calendar.models import (
 from oncall.domain.calendar.ports import CalendarEvents, CalendarJournal, CalendarRoster
 from oncall.domain.team import RolePeriod
 from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, SwapStatus
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.calendar_model import CalendarEvent as CalendarEventRow
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
-from oncall.models import Schedule, TeamMember, User
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
 def _to_event(row: CalendarEventRow) -> CalendarEvent:

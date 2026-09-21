@@ -21,7 +21,8 @@ from oncall.config import get_settings
 from oncall.domain.clock import utc_now
 from oncall.domain.sharing import errors, use_cases
 from oncall.domain.sharing.models import ShareLinkRequest, ShareLinkRevocation
-from oncall.models import User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.sharing import (
     ShareExchangeRequest,

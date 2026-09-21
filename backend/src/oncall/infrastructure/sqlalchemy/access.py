@@ -20,7 +20,9 @@ from oncall.domain.access.ports import AccessAccounts, AccessJournal, AccountLin
 from oncall.domain.accounts import Account
 from oncall.domain.clock import utc_now
 from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
-from oncall.models import AccountToken, AuditEvent, TeamMember, User
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 #: Sign-in attempts live in the audit trail under these actions.
 ATTEMPT = "auth.login_attempt"

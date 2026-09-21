@@ -54,7 +54,8 @@ class SwapRequestSlot(Base):
         ForeignKey("swap_requests.id", ondelete="CASCADE"), index=True
     )
     service_date: Mapped[date] = mapped_column(Date)
-    role: Mapped[AssignmentRole] = mapped_column(Enum(AssignmentRole, native_enum=False))
+    #: Twenty characters wide, as migration 0027 created the column.
+    role: Mapped[AssignmentRole] = mapped_column(Enum(AssignmentRole, native_enum=False, length=20))
     swap_request: Mapped[SwapRequest] = relationship(back_populates="slots")
 
 

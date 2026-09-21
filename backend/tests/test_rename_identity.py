@@ -13,8 +13,10 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.fairness import FairnessDuty, FairnessMemberInput, compute_fairness
-from oncall.models import Assignment, AssignmentRole, TeamMember, UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
 START = date.today() - timedelta(days=10)

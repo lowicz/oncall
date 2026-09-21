@@ -2,7 +2,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from oncall.auth import verify_password
-from oncall.models import AuthSource, User, UserRole
+from oncall.domain.vocabulary import AuthSource, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from tests.conftest import create_user, login
 
 

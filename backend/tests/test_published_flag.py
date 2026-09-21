@@ -8,13 +8,8 @@ leży w bazie jako grafik `superseded`.
 from datetime import timedelta
 
 from oncall.domain.clock import business_today
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    RotationMode,
-    Schedule,
-    ScheduleStatus,
-)
+from oncall.domain.vocabulary import AssignmentRole, RotationMode, ScheduleStatus
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from tests.conftest import create_member, create_user, login
 
 TODAY = business_today()

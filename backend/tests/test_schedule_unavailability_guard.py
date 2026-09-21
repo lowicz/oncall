@@ -8,18 +8,16 @@ wygenerował (BLK użytkownika z QA-REPORT-4, BD-01).
 
 from datetime import date
 
-from oncall.models import (
-    Assignment,
+from oncall.domain.vocabulary import (
     AssignmentRole,
-    Availability,
     AvailabilityKind,
-    Eligibility,
     RotationMode,
-    Schedule,
     ScheduleStatus,
-    TeamMember,
     UserRole,
 )
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
 from tests.conftest import create_user, login
 
 WEEKDAY = date(2026, 9, 7)

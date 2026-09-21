@@ -9,14 +9,9 @@ from httpx import AsyncClient
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import (
-    AssignmentRole,
-    Eligibility,
-    SwapRequest,
-    SwapRequestSlot,
-    SwapStatus,
-    UserRole,
-)
+from oncall.domain.vocabulary import AssignmentRole, SwapStatus, UserRole
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
 # 2026-09-21 is a Monday; the 26th-27th are the weekend (a day-off block).

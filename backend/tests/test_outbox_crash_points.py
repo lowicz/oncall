@@ -22,7 +22,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import NotificationOutbox, NotificationStatus
+from oncall.infrastructure.sqlalchemy.notification_models import (
+    NotificationOutbox,
+    NotificationStatus,
+)
 from oncall.notifications.base import NotificationMessage
 from oncall.notifications.service import (
     DEFAULT_LEASE,

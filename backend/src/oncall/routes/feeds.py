@@ -21,8 +21,9 @@ from oncall.config import get_settings
 from oncall.domain.clock import business_today, utc_now
 from oncall.domain.sharing import use_cases
 from oncall.domain.sharing.models import FeedRevocation, LinkFeedRequest, OwnFeedRequest
+from oncall.domain.vocabulary import UserRole
 from oncall.ical import IcsEvent, build_ics
-from oncall.models import User, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.sharing import (
     FeedTokenCreate,
