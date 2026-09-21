@@ -72,8 +72,18 @@ Granica 3 uwzględnia niepodzielne bloki weekendowe 2X. Soczewka `11–19` podle
 kryterium wyłącznie przy powiązaniu „Niezależnie od on-call”; przy kotwiczeniu
 jej rozkład jest w celu jedynie rozstrzygaczem remisów.
 
-Gdy zastana nierówność czyni kryterium nieosiągalnym, generator podaje
-**najniższą osiągalną rozpiętość** zamiast milczącej porażki.
+Kryterium jest liczone dla całego okna, więc **zastany dług** - nierówność
+odziedziczona z historii - może uczynić je nieosiągalnym w jednym zakresie.
+Generator spłaca taki dług w ograniczonym tempie (najwyżej połowa udziału
+osoby na zakres, patrz [Sprawiedliwość](sprawiedliwosc.md#wpływ-na-kolejne-generowanie)),
+więc nie próbuje domknąć całej różnicy kosztem miesiąca „wszystko albo nic”.
+Zamiast milczącej porażki podaje wtedy **najniższą rozpiętość osiągalną w tym
+zakresie** - liczbę wyznaczoną dla pełnego okna, nie ograniczoną z góry - i
+w ostrzeżeniu wskazuje, że przyczyną jest historia, nie jakość generowania.
+Gdy kryterium jest w zasięgu zakresu, ale tempo spłaty go nie domyka,
+ostrzeżenie mówi, że wyrównanie dokończy kolejny zakres. Gdy to obsada,
+eligibility lub reguły nie pozwalają zejść poniżej progu, ostrzeżenie nazywa
+tę przyczynę zamiast długu.
 
 Solver i raport sprawiedliwości liczą to samo okno i tę samą historię - rozjazd
 między nimi był w przeszłości źródłem błędu, więc obie ścieżki korzystają z

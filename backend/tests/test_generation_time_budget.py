@@ -35,6 +35,12 @@ def _member(name: str) -> SolverMember:
     )
 
 
+#: The scripted solver hands back a roster with no duties in it, so it is a
+#: debt carried in from history that puts the 12-month window over the
+#: criterion and makes the floor question arise at all.
+DEBT = {("Osoba 0", AssignmentRole.primary): 60.0}
+
+
 def test_total_budget_is_the_per_pass_budget_times_the_pass_count() -> None:
     assert total_time_budget(15) == 15 * GENERATION_BUDGET_PASSES
     assert total_time_budget(30) == 30 * GENERATION_BUDGET_PASSES
@@ -106,7 +112,7 @@ def test_the_floor_bisection_yields_no_number_once_the_budget_is_spent(
         ends_on=date(2026, 9, 20),
         mode=RotationMode.hybrid,
         members=[_member(f"Osoba {index}") for index in range(6)],
-        historical_points={},
+        historical_points=DEBT,
         holidays=set(),
         solve_seconds=0.8,
     )
@@ -141,12 +147,15 @@ def test_floor_probes_stop_after_the_first_feasible_solution(monkeypatch) -> Non
         ends_on=date(2026, 9, 20),
         mode=RotationMode.hybrid,
         members=[_member(f"Osoba {index}") for index in range(6)],
-        historical_points={},
+        historical_points=DEBT,
         holidays=set(),
         solve_seconds=5,
     )
 
     assert result.acceptance_floor is not None
+    # Nothing but the lens arithmetic bounds the bisection from below, so the
+    # floor lands where that bound says and not at a fixed probe ceiling.
+    assert result.acceptance_floor > 10
     assert stop_flags[:3] == [False, False, False]
     assert stop_flags[3:]
     assert all(stop_flags[3:])

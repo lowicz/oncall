@@ -87,7 +87,14 @@ Po prawej:
   wartością sprzed szkicu i znacznikiem **lepiej** / **gorzej**, kryterium
   odbioru na każdej soczewce, tabela osób z odchyleniem po publikacji i
   werdykt. Przelicza się po każdej Twojej korekcie, więc wpływ decyzji widzisz
-  przed przekazaniem grafiku dalej.
+  przed przekazaniem grafiku dalej. Werdykt odróżnia dwie sytuacje: gdy
+  soczewki poza kryterium były poza nim już przed szkicem, to **zastany dług
+  historyczny** - szkic go spłaca w ograniczonym tempie, a panel podaje, o ile
+  zmniejsza rozrzut i jaka rozpiętość jest w tym zakresie w ogóle osiągalna;
+  poprawianie komórek ani ponowne generowanie tego długu nie usunie. Gdy zaś
+  soczewka, która przed szkicem mieściła się w kryterium, po publikacji je
+  przekracza, to wada szkicu i wtedy warto poprawić komórki albo wygenerować
+  ponownie.
 - **Ustawienia tej propozycji** - zakres, wersja, tryb rotacji, powiązanie
   `11–19`, wagi i budżet solvera; **Zmień i generuj ponownie** otwiera panel
   ustawień.

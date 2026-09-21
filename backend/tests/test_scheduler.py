@@ -500,7 +500,7 @@ def role_points(
     """Points each of `names` collects in one role, weekends and holidays at 2X."""
     points = dict.fromkeys(names, 0)
     for item in result.assignments:
-        if item.role != role:
+        if item.role != role or item.assignee_name not in points:
             continue
         weight = (
             1
@@ -594,7 +594,8 @@ def test_tie_break_spreads_duty_instead_of_piling_it_on_one_person() -> None:
     range whatever happens and minimizing it only decides the lowest person.
     Everybody in between is free, and every split of the remaining duty scores
     the same - which is how the generator used to produce a 2/2/2/4 staircase
-    from a fixed seed.
+    from a fixed seed. The surplus holder still takes their bounded share of
+    the range; the staircase question is about the other four.
     """
     names = ["Anna", "Marek", "Ola", "Piotr"]
     result = generate_schedule(

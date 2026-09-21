@@ -55,7 +55,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `backend/pyproject.toml`, repeated as `UV_VERSION` in `ci.yml` and in
   `backend/Dockerfile`; Renovate's `uv` group moves all three). Any other uv
   refuses to run in `backend/` and prints the `uv self update` that fixes it;
-  write `uv.lock` only with the pinned release.
+  without touching the machine's uv, `uvx --from 'uv==<pinned>' uv run ...`
+  runs the pinned release from the uv cache. Write `uv.lock` only with the
+  pinned release.
 - HTTPS is an overlay, never a flag on the base file:
   `docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d`. The
   base file mounts nothing from the host so it comes up on a machine with no
