@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from oncall.domain.clock import business_today
-from oncall.models import UserRole
+from oncall.domain.vocabulary import UserRole
 from tests.conftest import (
     create_member,
     create_published_schedule,

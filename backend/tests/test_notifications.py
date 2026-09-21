@@ -3,7 +3,10 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 
 from oncall.domain.clock import as_utc
-from oncall.models import NotificationOutbox, NotificationStatus
+from oncall.infrastructure.sqlalchemy.notification_models import (
+    NotificationOutbox,
+    NotificationStatus,
+)
 from oncall.notifications.base import (
     NotificationDisabled,
     NotificationError,

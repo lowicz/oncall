@@ -8,7 +8,8 @@ baner, a ekran nie twierdzi, że grafik spełnia wszystkie reguły twarde.
 
 from datetime import date
 
-from oncall.models import Availability, AvailabilityKind
+from oncall.domain.vocabulary import AvailabilityKind
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from tests.conftest import login
 from tests.test_schedule_unavailability_guard import WEEKDAY, _complete_draft, _seed_team
 

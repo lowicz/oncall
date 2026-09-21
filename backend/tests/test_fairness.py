@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, timedelta
 
+from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.fairness import (
     EligibilityPeriod,
     FairnessDuty,
@@ -9,7 +10,6 @@ from oncall.fairness import (
     day_weight,
     duty_points,
 )
-from oncall.models import AssignmentRole, UserRole
 from tests.conftest import (
     create_member,
     create_published_schedule,

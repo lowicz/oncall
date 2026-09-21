@@ -14,7 +14,8 @@ from sqlalchemy import select
 
 from oncall.config import get_settings
 from oncall.domain.clock import as_utc
-from oncall.models import AuditEvent, Session
+from oncall.infrastructure.sqlalchemy.access_models import Session
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from tests.conftest import TEST_PASSWORD, create_member, create_published_schedule, create_user
 
 BOUNDARY = datetime(2026, 9, 15, 23, 30, tzinfo=UTC)

@@ -25,8 +25,8 @@ from oncall.domain.scheduling.models import (
 from oncall.domain.scheduling.ports import NewDraft, Schedules, StoredSchedule
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import ScheduleStatus
-from oncall.models import Assignment
-from oncall.models import Schedule as ScheduleRow
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule as ScheduleRow
 
 #: PostgreSQL advisory lock serialising publication of overlapping ranges.
 PUBLICATION_LOCK_KEY = 20260902

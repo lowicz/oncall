@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
-from oncall.models import RotationMode, SchedulingPolicy
+from oncall.domain.vocabulary import RotationMode
+from oncall.infrastructure.sqlalchemy.scheduling_models import SchedulingPolicy
 
 
 async def load_policy(db: AsyncSession) -> SchedulingPolicy:

@@ -2,7 +2,8 @@ import csv
 import io
 from datetime import UTC, date, datetime
 
-from oncall.models import Assignment, AssignmentRole, Schedule, ScheduleStatus, UserRole
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from tests.conftest import create_member, create_user, login
 
 

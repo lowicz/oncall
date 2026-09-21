@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, UserRole
 from oncall.fairness import (
     ACCEPTANCE_POINTS,
     slot_exposure,
@@ -25,13 +26,8 @@ from oncall.fairness_data import (
     generator_history_window,
     solver_history,
 )
-from oncall.models import (
-    AssignmentRole,
-    Availability,
-    AvailabilityKind,
-    TeamMember,
-    UserRole,
-)
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.scheduler import DateRange, PreferenceRange, SolverMember, _days, _role_day_weight
 from oncall.workdays import polish_holidays
 from tests.conftest import (

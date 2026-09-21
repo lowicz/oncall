@@ -14,7 +14,7 @@ generation happens to break.
 from datetime import date
 
 from oncall.domain.scheduling.solver import PreferenceRange
-from oncall.models import AssignmentRole, AvailabilityKind
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind
 from oncall.scheduler import (
     DateRange,
     GeneratedAssignment,

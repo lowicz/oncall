@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from oncall.domain.clock import utc_now
-from oncall.models import AssignmentRole
+from oncall.domain.vocabulary import AssignmentRole
 
 #: Role names as the team reads them, mirroring `frontend/src/lib/labels.ts`.
 #: „late_shift" is an internal identifier and must never reach a reader.

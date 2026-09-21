@@ -4,19 +4,14 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
+import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.auth import hash_password
 from oncall.database import SessionFactory
 from oncall.domain.clock import business_today, utc_now
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    Eligibility,
-    Schedule,
-    ScheduleStatus,
-    TeamMember,
-    User,
-    UserRole,
-)
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
 from oncall.workdays import is_working_day, polish_holidays
 
 DEMO_NAMES = ["Anna Kowalska", "Marek Nowak", "Ola Wiśniewska", "Piotr Zieliński"]

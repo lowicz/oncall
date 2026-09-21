@@ -19,9 +19,14 @@ from oncall.config import get_settings
 from oncall.domain.scheduling import generation
 from oncall.domain.scheduling.errors import GenerationFailed
 from oncall.domain.scheduling.models import RunOutcome, RunState
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.notification_models import (
+    NotificationOutbox,
+    NotificationStatus,
+)
 from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
+from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.metrics import emit, render
-from oncall.models import NotificationOutbox, NotificationStatus, ScheduleRun, UserRole
 from oncall.notifications.service import outbox_health
 from oncall.worker import (
     generation_cycle,

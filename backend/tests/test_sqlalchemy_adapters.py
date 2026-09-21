@@ -12,28 +12,27 @@ from oncall.domain.access import errors as AccessErrors
 from oncall.domain.availability.models import NewAvailabilityEntry
 from oncall.domain.overrides.models import OverrideMove
 from oncall.domain.swaps.models import NewSwapRequest
+from oncall.domain.vocabulary import (
+    AssignmentRole,
+    AvailabilityKind,
+    LateShiftAnchor,
+    ScheduleStatus,
+    SwapStatus,
+    UserRole,
+)
 from oncall.infrastructure.sqlalchemy.access import SqlAlchemyAccessAccounts
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.availability import SqlAlchemyAvailability
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.overrides import SqlAlchemyOverrideJournal
 from oncall.infrastructure.sqlalchemy.roster import (
     SqlAlchemyPublishedRoster,
     SqlAlchemyRosterPolicy,
 )
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
 from oncall.infrastructure.sqlalchemy.swaps import SqlAlchemySwapJournal, SqlAlchemySwapRequests
 from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    AuditEvent,
-    Availability,
-    AvailabilityKind,
-    LateShiftAnchor,
-    Schedule,
-    ScheduleStatus,
-    SwapRequest,
-    SwapStatus,
-    UserRole,
-)
 from oncall.rules import RuleViolation
 from tests.conftest import create_member, create_published_schedule, create_user
 

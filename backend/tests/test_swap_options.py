@@ -7,15 +7,10 @@ tak pobiera dla każdej opcji; tutaj jadą tylko fakty, których to nie zawiera.
 
 from datetime import UTC, date, datetime, timedelta
 
-from oncall.models import (
-    Assignment,
-    AssignmentRole,
-    Availability,
-    AvailabilityKind,
-    Schedule,
-    ScheduleStatus,
-    TeamMember,
-)
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleStatus
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from tests.conftest import create_member, create_user, login
 
 # A working day near today: the 11-19 shift exists only on working days, so a

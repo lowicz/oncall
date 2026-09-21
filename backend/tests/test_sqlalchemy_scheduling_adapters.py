@@ -6,20 +6,20 @@ from sqlalchemy import select
 
 from oncall.domain.scheduling.ports import NewDraft
 from oncall.domain.scheduling.solver import GeneratedAssignment, SolverResult
-from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
-from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
-from oncall.infrastructure.sqlalchemy.scheduling_publication import SqlAlchemyPublicationSwaps
-from oncall.infrastructure.sqlalchemy.scheduling_schedules import SqlAlchemySchedules
-from oncall.models import (
+from oncall.domain.vocabulary import (
     AssignmentRole,
-    AuditEvent,
     RotationMode,
-    Schedule,
     ScheduleStatus,
-    SwapRequest,
     SwapStatus,
     UserRole,
 )
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
+from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
+from oncall.infrastructure.sqlalchemy.scheduling_publication import SqlAlchemyPublicationSwaps
+from oncall.infrastructure.sqlalchemy.scheduling_schedules import SqlAlchemySchedules
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
 from tests.conftest import create_member, create_published_schedule, create_user
 
 DAY = date.today() + timedelta(days=30)

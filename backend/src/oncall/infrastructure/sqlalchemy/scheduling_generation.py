@@ -18,8 +18,8 @@ from oncall.domain.scheduling.models import (
     SchedulingPolicy,
 )
 from oncall.domain.scheduling.ports import GenerationQueue, PolicyStore
-from oncall.models import ScheduleRun
-from oncall.models import SchedulingPolicy as PolicyRow
+from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
+from oncall.infrastructure.sqlalchemy.scheduling_models import SchedulingPolicy as PolicyRow
 from oncall.policy import load_policy
 
 

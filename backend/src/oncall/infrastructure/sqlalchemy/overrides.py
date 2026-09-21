@@ -8,7 +8,7 @@ from oncall.domain.overrides.models import OverrideMove
 from oncall.domain.overrides.ports import OverrideJournal
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import AssignmentRole
-from oncall.models import User
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.notifications import triggers
 from oncall.rules import RuleViolation
 

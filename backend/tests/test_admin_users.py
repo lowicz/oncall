@@ -3,7 +3,9 @@ from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy import select
 
-from oncall.models import AuditEvent, AuthSource, TeamMember, UserRole
+from oncall.domain.vocabulary import AuthSource, UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from tests.conftest import TEST_PASSWORD, create_user, login
 
 

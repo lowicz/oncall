@@ -19,7 +19,7 @@ from oncall.domain.scheduling.models import (
 from oncall.domain.scheduling.ports import SchedulingPorts
 from oncall.domain.vocabulary import UserRole
 from oncall.fairness_data import member_response
-from oncall.models import User
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.reports import DraftFairnessImpactResponse, DraftLensSpreadResponse
 from oncall.presentation.scheduling import (

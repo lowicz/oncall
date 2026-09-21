@@ -4,7 +4,8 @@ import pytest
 
 from oncall.domain.scheduling.errors import IncompleteSchedule, SamePersonOnBothOnCallRoles
 from oncall.domain.scheduling.planning import validate_complete
-from oncall.models import Assignment, AssignmentRole, Schedule, ScheduleStatus
+from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 
 
 def schedule_with(assignments: list[Assignment]) -> Schedule:

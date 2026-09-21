@@ -7,9 +7,10 @@ from sqlalchemy import func, select, update
 
 from oncall.domain.admin import errors
 from oncall.domain.admin.models import AccountRecord, NewEligibilityPeriod
-from oncall.domain.vocabulary import AccountTokenKind
+from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
 from oncall.infrastructure.sqlalchemy.admin import SqlAlchemyAccounts, SqlAlchemyRotation
-from oncall.models import AccountToken, Assignment, AssignmentRole, User, UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
 from tests.conftest import create_member, create_published_schedule, create_user
 
 TODAY = date.today()

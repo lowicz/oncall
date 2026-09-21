@@ -2,7 +2,8 @@ from datetime import date, timedelta
 
 from sqlalchemy import select
 
-from oncall.models import AuditEvent, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from tests.conftest import create_user, login
 
 TODAY = date.today()

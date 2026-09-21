@@ -6,7 +6,8 @@ ustawieniach generowania" do kontrolki, która nie istniała.
 
 import pytest
 
-from oncall.models import DEFAULT_SOLVE_SECONDS, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import DEFAULT_SOLVE_SECONDS
 from oncall.scheduler import SOLVE_SECONDS
 from tests.conftest import create_user, login
 

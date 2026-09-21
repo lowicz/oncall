@@ -2,7 +2,8 @@ import pytest
 from sqlalchemy import select
 
 from oncall.database import SqlAlchemyUnitOfWork
-from oncall.models import User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 
 
 def _user(username: str) -> User:

@@ -6,22 +6,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.clock import business_today
-from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
-from oncall.models import (
-    Assignment,
+from oncall.domain.vocabulary import (
     AssignmentRole,
-    AuditEvent,
-    Availability,
     AvailabilityKind,
-    NotificationOutbox,
-    Schedule,
     ScheduleStatus,
-    SwapRequest,
-    SwapRequestSlot,
     SwapStatus,
-    User,
     UserRole,
 )
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
+from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
 from oncall.presentation.scheduling import ScheduleTransitionRequest
 from oncall.routes.scheduling import publication_preview, publish_schedule
 from oncall.workdays import is_working_day, polish_holidays

@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.scheduling.models import ChangeRecord
 from oncall.domain.scheduling.ports import ChangeLog
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequestSlot
-from oncall.models import AuditEvent, Eligibility
+from oncall.infrastructure.sqlalchemy.team_models import Eligibility
 
 
 def _to_record(row: AuditEvent) -> ChangeRecord:

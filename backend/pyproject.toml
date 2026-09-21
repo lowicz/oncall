@@ -82,6 +82,20 @@ files = [
   "scripts/openapi_snapshot.py",
   "tests/architecture/test_dependencies.py",
   "tests/architecture/test_completion_dod.py",
+  "tests/architecture/test_model_registry.py",
+  # The mapped rows, each in the feature module that owns it, and the registry
+  # that loads them all for the entry points, Alembic and the test bootstrap.
+  "src/oncall/infrastructure/sqlalchemy/base.py",
+  "src/oncall/infrastructure/sqlalchemy/model_registry.py",
+  "src/oncall/infrastructure/sqlalchemy/access_models.py",
+  "src/oncall/infrastructure/sqlalchemy/audit_model.py",
+  "src/oncall/infrastructure/sqlalchemy/availability_model.py",
+  "src/oncall/infrastructure/sqlalchemy/calendar_model.py",
+  "src/oncall/infrastructure/sqlalchemy/notification_models.py",
+  "src/oncall/infrastructure/sqlalchemy/scheduling_models.py",
+  "src/oncall/infrastructure/sqlalchemy/sharing_models.py",
+  "src/oncall/infrastructure/sqlalchemy/swap_models.py",
+  "src/oncall/infrastructure/sqlalchemy/team_models.py",
   # Every presentation module except calendar.py, whose typing waits on the
   # `Duty.schedule_version` question recorded in the phase 4a note.
   "src/oncall/presentation/access.py",

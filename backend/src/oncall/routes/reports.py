@@ -9,7 +9,8 @@ from oncall.bootstrap.providers import ReportProvider
 from oncall.domain.reports.errors import InvalidMonth
 from oncall.domain.reports.models import DutyTally, MonthlyReport
 from oncall.domain.reports.use_cases import monthly_report
-from oncall.models import User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.routes.domain_edge import domain_errors_as_http
 

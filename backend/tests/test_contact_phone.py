@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 
-from oncall.models import AuthSource, UserRole
+from oncall.domain.vocabulary import AuthSource, UserRole
 from tests.conftest import create_user, login
 
 

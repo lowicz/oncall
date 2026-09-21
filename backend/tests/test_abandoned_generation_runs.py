@@ -24,8 +24,9 @@ from sqlalchemy import select
 
 from oncall.domain.clock import utc_now
 from oncall.domain.scheduling.generation import ABANDONED_RUN_ERROR, recover_abandoned_runs
+from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.scheduling import scheduling_ports
-from oncall.models import ScheduleRun, UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS
 from oncall.worker import generation_cycle, process_schedule_run
 from tests.conftest import create_user, staged_draft

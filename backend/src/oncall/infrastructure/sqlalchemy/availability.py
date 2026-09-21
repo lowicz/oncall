@@ -14,8 +14,9 @@ from oncall.domain.availability.models import (
 from oncall.domain.availability.ports import AvailabilityJournal, AvailabilityLedger
 from oncall.domain.roster import Duty
 from oncall.domain.team import Member
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
-from oncall.models import TeamMember, User
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications import triggers
 
 

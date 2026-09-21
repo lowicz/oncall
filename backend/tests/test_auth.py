@@ -4,7 +4,7 @@ from fastapi import Response
 
 from oncall.auth import hash_password, set_session_cookie, share_link_active, verify_password
 from oncall.config import get_settings
-from oncall.models import ShareLink
+from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
 from tests.conftest import create_user, login
 
 

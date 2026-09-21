@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from oncall.domain.vocabulary import AvailabilityKind
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleStatus
 from oncall.effective import effective_assignments, sorted_assignments
 from oncall.fairness import (
     ONCALL_ROLES,
@@ -34,13 +34,9 @@ from oncall.fairness import history_window as history_window
 from oncall.fairness import project_duties as project_duties
 from oncall.fairness import reassign as reassign
 from oncall.fairness import window as window
-from oncall.models import (
-    AssignmentRole,
-    Schedule,
-    ScheduleStatus,
-    TeamMember,
-    User,
-)
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.presentation.reports import FairnessCategoryResponse, FairnessMemberResponse
 from oncall.workdays import polish_holidays
 

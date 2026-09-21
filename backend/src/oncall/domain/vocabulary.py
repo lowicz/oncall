@@ -1,7 +1,7 @@
 """The on-call rotation's own words, free of any framework.
 
-Declared here and re-exported by `oncall.models`, so the tables and the
-domain speak the same vocabulary without the domain depending on the database.
+Declared here and imported by the SQLAlchemy model modules, so the tables and
+the domain speak the same vocabulary without the domain depending on the database.
 Declaring them beside the SQLAlchemy tables instead would drag the ORM into
 every pure module that needs a role name, `rules` and `fairness` included.
 """

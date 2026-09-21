@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends
 
 from oncall.bootstrap.providers import TeamProvider
 from oncall.domain.admin.use_cases import list_rotation
-from oncall.models import User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.admin import TeamMemberResponse
 

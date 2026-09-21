@@ -18,7 +18,8 @@ from oncall.domain.availability.models import (
     OwnMember,
 )
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
-from oncall.models import User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.availability import (
     AvailabilityCreate,

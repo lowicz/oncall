@@ -8,7 +8,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.models import UserRole
+from oncall.domain.vocabulary import UserRole
 from tests.conftest import (
     create_member,
     create_published_schedule,

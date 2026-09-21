@@ -4,7 +4,8 @@ from sqlalchemy import func, select
 
 from oncall.audit import record_audit
 from oncall.domain.clock import as_utc, business_today
-from oncall.models import AuditEvent, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from tests.conftest import (
     create_member,
     create_published_schedule,

@@ -7,7 +7,7 @@ inside the first fortnight and no Polish holiday interferes.
 
 from datetime import date, timedelta
 
-from oncall.models import AssignmentRole, LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.rules import (
     anchor_violations,
     day_off_block_violations,

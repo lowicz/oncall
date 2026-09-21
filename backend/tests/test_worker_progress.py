@@ -10,7 +10,8 @@ from datetime import date, timedelta
 
 from sqlalchemy import select
 
-from oncall.models import ScheduleRun, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS
 from oncall.worker import (
     CLAIMED_PROGRESS,

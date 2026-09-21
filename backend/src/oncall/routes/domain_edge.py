@@ -20,7 +20,7 @@ from oncall.auth import Principal
 from oncall.domain.calendar.models import Audience
 from oncall.domain.errors import DomainError, NotATeamMember, RecordedRefusal
 from oncall.domain.team import Actor
-from oncall.models import User
+from oncall.infrastructure.sqlalchemy.access_models import User
 
 #: A domain error type, the HTTP status it answers with, and optionally how
 #: its body and headers are built (the error's message and none otherwise).

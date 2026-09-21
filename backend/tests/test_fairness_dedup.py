@@ -13,8 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.clock import business_today
+from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.fairness_data import history_window, solver_history
-from oncall.models import AssignmentRole, TeamMember, UserRole
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.workdays import polish_holidays
 from tests.conftest import (
     create_member,

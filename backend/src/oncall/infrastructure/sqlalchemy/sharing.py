@@ -17,9 +17,9 @@ from oncall.domain.sharing.models import (
 from oncall.domain.sharing.ports import CalendarFeeds, FeedJournal, ShareLinkJournal, ShareLinks
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import FeedTokenKind
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.sharing_models import CalendarFeedToken
 from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink as ShareLinkRow
-from oncall.models import User
 
 
 def _to_link(row: ShareLinkRow) -> ShareLink:

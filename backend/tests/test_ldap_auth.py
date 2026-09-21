@@ -5,6 +5,10 @@ import pytest
 from sqlalchemy import select
 
 from oncall.config import Settings
+from oncall.domain.vocabulary import AuthSource, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.ldap_auth import (
     DirectoryIdentity,
     DirectoryIdentityError,
@@ -13,7 +17,6 @@ from oncall.ldap_auth import (
     get_directory_authenticator,
 )
 from oncall.main import app
-from oncall.models import AuditEvent, AuthSource, TeamMember, User, UserRole
 from tests.conftest import create_member, create_user, login
 
 

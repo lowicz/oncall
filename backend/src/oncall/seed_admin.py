@@ -3,9 +3,11 @@ import os
 
 from sqlalchemy import select
 
+import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.auth import hash_password
 from oncall.database import SessionFactory
-from oncall.models import User, UserRole
+from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 
 
 async def seed_admin() -> None:

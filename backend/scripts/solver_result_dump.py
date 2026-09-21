@@ -31,7 +31,7 @@ from dataclasses import fields
 from datetime import date, timedelta
 
 from oncall.domain.scheduling.solver import PreferenceRange, SolverResult
-from oncall.models import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
 from oncall.scheduler import DateRange, SolverMember, generate_schedule
 from oncall.workdays import polish_holidays
 

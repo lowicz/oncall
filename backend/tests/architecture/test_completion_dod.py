@@ -15,6 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_PATH = Path("src/oncall")
 MIGRATIONS_PATH = Path("migrations")
 HISTORICAL_MIGRATIONS_PATH = MIGRATIONS_PATH / "versions"
+CENTRAL_MODELS_MODULE = "oncall.models"
 
 TRANSACTION_OWNER_FILES = frozenset(
     {
@@ -140,7 +141,7 @@ def _resolve_relative_base(package: str, level: int) -> str | None:
 
 def _imports_central_registry(path: Path, node: ast.ImportFrom, package_root: Path) -> bool:
     if node.level == 0:
-        return node.module == "oncall.models" or (
+        return node.module == CENTRAL_MODELS_MODULE or (
             node.module == "oncall" and any(alias.name == "models" for alias in node.names)
         )
     if not path.is_relative_to(package_root):
@@ -149,7 +150,7 @@ def _imports_central_registry(path: Path, node: ast.ImportFrom, package_root: Pa
     if base is None:
         return False
     if node.module:
-        return f"{base}.{node.module}" == "oncall.models"
+        return f"{base}.{node.module}" == CENTRAL_MODELS_MODULE
     return base == "oncall" and any(alias.name == "models" for alias in node.names)
 
 
@@ -157,7 +158,7 @@ def _imports_central_models(path: Path, tree: ast.Module, package_root: Path) ->
     lines: list[int] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            if any(alias.name == "oncall.models" for alias in node.names):
+            if any(alias.name == CENTRAL_MODELS_MODULE for alias in node.names):
                 lines.append(node.lineno)
         elif isinstance(node, ast.ImportFrom) and _imports_central_registry(
             path, node, package_root
@@ -177,7 +178,8 @@ def _central_models_violations(project_root: Path) -> list[str]:
     for path in _python_files(*roots):
         for line in _imports_central_models(path, _tree(path), package_root):
             violations.append(
-                f"{_location(path, project_root, line)} imports the central oncall.models module"
+                f"{_location(path, project_root, line)} imports the central "
+                f"{CENTRAL_MODELS_MODULE} module"
             )
     return violations
 
@@ -352,11 +354,6 @@ def test_dod_4_guard_rejects_runtime_time_but_allows_clock_and_migrations(
     assert all("migrations/versions" not in violation for violation in violations)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="DOD-6: the central ORM registry and its imports remain",
-)
 def test_dod_6_has_no_central_models_module_or_imports() -> None:
     _assert_no_violations(
         _central_models_violations(PROJECT_ROOT), "Central ORM registry violations"
@@ -367,7 +364,7 @@ def test_dod_6_guard_rejects_central_imports_but_allows_consumer_local_models(
     tmp_path: Path,
 ) -> None:
     _write(tmp_path, "src/oncall/models.py", "class User:\n    pass\n")
-    _write(tmp_path, "src/oncall/worker.py", "from oncall.models import User\n")
+    _write(tmp_path, "src/oncall/worker.py", f"from {CENTRAL_MODELS_MODULE} import User\n")
     _write(tmp_path, "src/oncall/routes/admin.py", "from .. import models\n")
     _write(
         tmp_path,

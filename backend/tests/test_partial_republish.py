@@ -12,7 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.clock import business_today
-from oncall.models import Schedule, ScheduleStatus, UserRole
+from oncall.domain.vocabulary import ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from tests.conftest import (
     create_member,
     create_published_schedule,

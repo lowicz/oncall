@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import token_hash
 from oncall.domain.accounts import SignedInSession
-from oncall.models import Session
+from oncall.infrastructure.sqlalchemy.access_models import Session
 
 
 class SqlAlchemySessions:
