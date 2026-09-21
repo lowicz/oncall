@@ -83,11 +83,29 @@ siebie (skrót swojego wyniku ma też na ekranie Moje).
 
 ## Wpływ na kolejne generowanie
 
-Dodatnia różnica (powyżej udziału) **lekko zmniejsza**, a ujemna **lekko
-zwiększa** preferencję kolejnych przydziałów. To wpływ miękki:
+Dodatnia różnica (powyżej udziału) zmniejsza, a ujemna zwiększa udział osoby
+w kolejnym generowanym zakresie - ale **w ograniczonym tempie**. W jednym
+zakresie generator koryguje udział osoby o najwyżej **połowę jej udziału w tym
+zakresie** na każdej soczewce. Przy miesiącu, w którym uczciwy udział wynosi
+5 punktów `PRIMARY`, osoba z nadwyżką dostanie ich około 2,5, osoba z
+niedoborem około 7,5, a każdy pozostaje przy wszystkich rodzajach dyżurów.
+Dług większy niż to ograniczenie **nie znika w jednym zakresie**: spłacają go
+kolejne generowania, po kawałku, aż raport wróci w granice kryterium.
+
+Bez tego ograniczenia rok nierównej historii był spłacany w całości w jednym
+miesiącu: każdy dyżur trafiał do najbardziej zadłużonych, a reszta zespołu nie
+dostawała nic albo tylko jeden rodzaj dyżuru. Ograniczenie tempa zamienia
+takie miesiące „wszystko albo nic” na wyrównanie rozłożone na kilka zakresów.
+
+To nadal wpływ miękki:
 
 - nie jest gwarancją,
 - nie łamie eligibility, dostępności ani reguł ciągłości,
 - działa tylko o tyle, o ile pozwala waga „Równy udział”.
 
 Ustawienie tej wagi na `0` wyłącza wyrównywanie całkowicie.
+
+Prognoza przy szkicu odróżnia dług zastany od wady szkicu: gdy soczewki poza
+kryterium były poza nim już przed szkicem, panel mówi to wprost i podaje
+najniższą rozpiętość osiągalną w tym zakresie - patrz
+[Kryterium odbioru](generator.md#kryterium-odbioru).

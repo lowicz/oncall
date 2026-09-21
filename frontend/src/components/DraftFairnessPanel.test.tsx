@@ -41,13 +41,76 @@ describe('DraftFairnessPanel criterion summary', () => {
     expect(screen.queryByText(/nieosiągalne przy zastanym/)).not.toBeInTheDocument()
   })
 
-  it('names the lowest achievable spread when the criterion is unattainable', async () => {
+  it('blames inherited debt, names the floor and the repayment when the failing lenses were failing before', async () => {
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(
       impact({
         criterion_met: false,
-        acceptance_floor: 6,
+        acceptance_floor: 58,
         spreads: [
-          { lens: 'primary', before: 7.0, after: 5.0, meets_criterion: false },
+          { lens: 'primary', before: 73.0, after: 67.0, meets_criterion: false },
+          { lens: 'secondary', before: 80.0, after: 74.0, meets_criterion: false },
+          { lens: 'weekends', before: 2.0, after: 2.0, meets_criterion: true },
+          { lens: 'holidays', before: 2.0, after: 2.0, meets_criterion: true },
+        ],
+      }),
+    )
+    renderScreen(<DraftFairnessPanel result={result} />)
+    expect(await screen.findByText(/niespełnione przez zastany dług historyczny/)).toBeInTheDocument()
+    const box = screen.getByText(/nie wada szkicu/)
+    expect(box).toHaveTextContent('Szkic zmniejsza rozrzut z 80 do 74 pkt.')
+    expect(box).toHaveTextContent('najwyżej połowę jej udziału')
+    expect(box).toHaveTextContent('Najniższa rozpiętość osiągalna w tym zakresie to 58 pkt.')
+    expect(box).not.toHaveTextContent('popraw komórki')
+    expect(screen.getAllByText(/nie spełnia/).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('still calls the shortfall inherited when the solver could not name a floor', async () => {
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(
+      impact({
+        criterion_met: false,
+        acceptance_floor: null,
+        spreads: [
+          { lens: 'primary', before: 40.0, after: 35.0, meets_criterion: false },
+          { lens: 'secondary', before: 2.0, after: 2.0, meets_criterion: true },
+          { lens: 'weekends', before: 2.0, after: 2.0, meets_criterion: true },
+          { lens: 'holidays', before: 2.0, after: 2.0, meets_criterion: true },
+        ],
+      }),
+    )
+    renderScreen(<DraftFairnessPanel result={result} />)
+    expect(await screen.findByText(/niespełnione przez zastany dług historyczny/)).toBeInTheDocument()
+    const box = screen.getByText(/nie wada szkicu/)
+    expect(box).toHaveTextContent('Szkic zmniejsza rozrzut z 40 do 35 pkt.')
+    expect(box).not.toHaveTextContent('Najniższa rozpiętość osiągalna')
+    expect(screen.queryByText(/popraw komórki/)).not.toBeInTheDocument()
+  })
+
+  it('points at manual edits when an inherited shortfall got wider instead of narrower', async () => {
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(
+      impact({
+        criterion_met: false,
+        acceptance_floor: 30,
+        spreads: [
+          { lens: 'primary', before: 40.0, after: 42.0, meets_criterion: false },
+          { lens: 'secondary', before: 2.0, after: 2.0, meets_criterion: true },
+          { lens: 'weekends', before: 2.0, after: 2.0, meets_criterion: true },
+          { lens: 'holidays', before: 2.0, after: 2.0, meets_criterion: true },
+        ],
+      }),
+    )
+    renderScreen(<DraftFairnessPanel result={result} />)
+    const box = await screen.findByText(/nie wada szkicu/)
+    expect(box).toHaveTextContent('Szkic nie zmniejsza rozrzutu (40 → 42 pkt); jeśli wprowadzono ręczne korekty, sprawdź je.')
+    expect(screen.getByText('gorzej')).toBeInTheDocument()
+  })
+
+  it('tells the coordinator to fix the draft when a lens that met the criterion stops meeting it', async () => {
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(
+      impact({
+        criterion_met: false,
+        acceptance_floor: null,
+        spreads: [
+          { lens: 'primary', before: 2.0, after: 5.0, meets_criterion: false },
           { lens: 'secondary', before: 10.0, after: 6.0, meets_criterion: false },
           { lens: 'weekends', before: 2.0, after: 2.0, meets_criterion: true },
           { lens: 'holidays', before: 2.0, after: 2.0, meets_criterion: true },
@@ -55,9 +118,9 @@ describe('DraftFairnessPanel criterion summary', () => {
       }),
     )
     renderScreen(<DraftFairnessPanel result={result} />)
-    expect(await screen.findByText(/Najniższa osiągalna rozpiętość to 6/)).toBeInTheDocument()
-    expect(screen.getByText(/przyczyną jest zastana nierówność/)).toBeInTheDocument()
-    expect(screen.getAllByText(/nie spełnia/).length).toBeGreaterThanOrEqual(2)
+    expect(await screen.findByText('Kryterium niespełnione')).toBeInTheDocument()
+    expect(screen.getByText(/popraw komórki w macierzy albo wygeneruj ponownie/)).toBeInTheDocument()
+    expect(screen.queryByText(/zastany dług/)).not.toBeInTheDocument()
   })
 
   it('puts departed people outside the criterion table section', async () => {

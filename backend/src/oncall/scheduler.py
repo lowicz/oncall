@@ -47,6 +47,16 @@ class _Lens:
     #: Whether the lens fights for the acceptance criterion with a range term.
     #: The anchored 11-19 lens is not graded (decision D1).
     graded: bool = True
+    #: Per member, the inherited deviation this range leaves unpaid, in the
+    #: same units as ``deviations``: added to a deviation it gives the full
+    #: 12-month deviation the fairness report measures.
+    unpaid: tuple[int, ...] = ()
+    #: Spread of the inherited deviations alone, in points: what the report
+    #: showed the day before the range opens.
+    history_spread: float = 0.0
+    #: Lowest 12-month spread any solution of this range can reach, in points;
+    #: the bisection that names the floor starts here.
+    window_spread_floor: int = 0
 
 
 @dataclass(frozen=True)
@@ -160,13 +170,22 @@ def date_ranges(days: list[date]) -> str:
 # counts in its own units, roughly a point off the report metric at worst;
 # the binding check stays the draft impact preview.
 
-#: Bisection bounds and per-probe budget for the deviation mechanism: when the
-#: criterion proves unattainable, the coordinator is told the lowest achievable
-#: spread instead of being left with a silent failure. Proving a cap
-#: infeasible takes under a second on the measured instance; finding a
-#: feasible solution always burns the whole probe budget, so it stays short.
-FLOOR_PROBE_MAX_POINTS = 10
+#: Per-probe budget of the floor bisection: when the criterion is missed on
+#: the 12-month window, the coordinator is told the lowest spread this range
+#: can reach instead of being left with a silent failure. Proving a cap
+#: infeasible takes under a second on the measured instance; a feasible probe
+#: stops at its first solution, so the budget only bounds the hard ones.
 FLOOR_PROBE_SECONDS = 25.0
+
+#: How much of the inherited imbalance one range may level, as a fraction of
+#: the member's own fair share of that range. The history window carries
+#: deviations worth several monthly shares after an unfair year; fed into the
+#: objective unbounded they sent every slot to the largest debtors until they
+#: were level, so a month had people with no duties at all and one person
+#: with two thirds of them. Clamping the carried-in deviation to half a share
+#: keeps everybody between half and one and a half of their normal share, and
+#: the rest of the debt waits for the next range.
+REPAYMENT_SHARE = 0.5
 
 #: Below this many seconds left, an optional pass (the floor bisection) is not
 #: worth starting.
@@ -610,6 +629,118 @@ def _add_continuity_terms(
     return tuple(terms)
 
 
+@dataclass(frozen=True)
+class _LensBalance:
+    """Where every member starts in one lens, in points, before a slot is dealt.
+
+    ``inherited`` is the deviation the history window carries in: what the
+    fairness report showed the day before the range opens. ``repayable`` is
+    the part of it this range levels - the inherited deviation clamped to
+    :data:`REPAYMENT_SHARE` of the member's own ``horizon_share``, after the
+    shift that keeps the repayable parts summing to zero - and the difference
+    between the two is what the range leaves for the next one.
+    """
+
+    inherited: dict[str, float]
+    repayable: dict[str, float]
+    horizon_share: dict[str, float]
+    #: Points the horizon hands out in this lens, over every member.
+    horizon_total: float
+
+
+def _lens_balance(
+    members: list[SolverMember],
+    definition: _LensDefinition,
+    history_days: list[date],
+    horizon_days: list[date],
+) -> _LensBalance:
+    """Split one lens's history into what this range repays and what it keeps.
+
+    Pure arithmetic over the lens definition: no model, no variables, so the
+    repayment bound can be checked on its own.
+    """
+    roles = definition.roles
+    counts = definition.counts
+    weight = definition.weight
+    historical = definition.historical
+
+    def exposure(member: SolverMember, span: list[date]) -> float:
+        """The member's exposure to this lens over one span - the same
+        per-`(day, role)`-slot formula the fairness report uses, dropping
+        hard-unavailable days (decision D3, variant B)."""
+        if not span:
+            return 0.0
+        return slot_exposure(
+            roles=roles,
+            window_start=span[0],
+            window_end=span[-1],
+            include=counts,
+            weight=weight,
+            is_eligible=member.eligible,
+            is_unavailable=partial(_is_hard_unavailable, member),
+        )
+
+    def shares(total: float, exposures: dict[str, float]) -> dict[str, float]:
+        exposure_total = sum(exposures.values())
+        if not exposure_total:
+            return dict.fromkeys(exposures, 0.0)
+        return {name: total * value / exposure_total for name, value in exposures.items()}
+
+    historical_total = sum(historical.get(member.name, 0.0) for member in members)
+    historical_share = shares(
+        historical_total, {member.name: exposure(member, history_days) for member in members}
+    )
+    horizon_total = float(sum(weight(day) for day in horizon_days if counts(day) for _ in roles))
+    horizon_share = shares(
+        horizon_total, {member.name: exposure(member, horizon_days) for member in members}
+    )
+    inherited = {
+        member.name: historical.get(member.name, 0.0) - historical_share[member.name]
+        for member in members
+    }
+    allowance = {name: REPAYMENT_SHARE * horizon_share[name] for name in inherited}
+    shift = _conserving_shift(inherited, allowance)
+    repayable = {
+        name: _clamp(deviation - shift, allowance[name]) for name, deviation in inherited.items()
+    }
+    return _LensBalance(inherited, repayable, horizon_share, horizon_total)
+
+
+def _clamp(value: float, bound: float) -> float:
+    return max(-bound, min(bound, value))
+
+
+def _conserving_shift(deviations: dict[str, float], allowance: dict[str, float]) -> float:
+    """The offset at which the clamped deviations sum to zero.
+
+    The range's points are fixed, so whatever one person gives up another has
+    to take: the repayable parts must sum to zero, as the deviations do.
+    Clamping each deviation on its own breaks that whenever the allowances
+    bind unevenly - one person far over their share among many slightly under
+    it would be asked to give up more than their allowance, and the levelling
+    would push them below half a share. The clamped sum falls monotonically
+    as the offset grows, so a bisection finds where it crosses zero.
+    """
+    if not any(allowance.values()):
+        return 0.0
+
+    def clamped_sum(shift: float) -> float:
+        return sum(
+            _clamp(deviation - shift, allowance[name]) for name, deviation in deviations.items()
+        )
+
+    widest = max(allowance.values())
+    low = min(deviations.values()) - widest
+    high = max(deviations.values()) + widest
+    for _ in range(64):
+        middle = (low + high) / 2
+        if clamped_sum(middle) > 0:
+            low = middle
+        else:
+            high = middle
+    return (low + high) / 2
+
+
 def _fairness_lens(
     context: _ModelBuildContext,
     coverage: _CoverageModel,
@@ -622,6 +753,11 @@ def _fairness_lens(
     on-call roles, the 11-19 shift, and, because points alone would let one
     person take every Saturday and stay level, weekend and holiday duty.
 
+    The deviations the objective levels start from the repayable part of the
+    inherited imbalance (see :class:`_LensBalance`); the unpaid rest rides
+    along as a per-member constant, so the 12-month deviation the report will
+    show is always one addition away.
+
     Returns ``None`` when fewer than two members can hold any of its duties,
     because a lens nobody competes for has nothing to level.
     """
@@ -631,39 +767,13 @@ def _fairness_lens(
     roles = definition.roles
     counts = definition.counts
     weight = definition.weight
-    historical = definition.historical
-
-    def member_exposure(member: SolverMember, span_start: date, span_end: date) -> float:
-        """The member's exposure to this lens over one window - the same
-        per-`(day, role)`-slot formula the fairness report uses, dropping
-        hard-unavailable days (decision D3, variant B)."""
-        return slot_exposure(
-            roles=roles,
-            window_start=span_start,
-            window_end=span_end,
-            include=counts,
-            weight=weight,
-            is_eligible=member.eligible,
-            is_unavailable=partial(_is_hard_unavailable, member),
-        )
-
-    historical_total = sum(historical.get(member.name, 0.0) for member in members)
-    historical_exposure = {
-        member.name: member_exposure(member, history_days[0], history_days[-1])
-        if history_days
-        else 0.0
-        for member in members
-    }
-    historical_exposure_total = sum(historical_exposure.values())
-    horizon_total = sum(weight(day) for day in days if counts(day) for _role in roles)
-    horizon_exposure = {
-        member.name: member_exposure(member, days[0], days[-1]) for member in members
-    }
-    horizon_exposure_total = sum(horizon_exposure.values())
+    balance = _lens_balance(members, definition, history_days, days)
 
     deviations: list[_Term] = []
     baselines: list[int] = []
     upper_bounds: list[int] = []
+    unpaid: list[int] = []
+    inherited: list[float] = []
     for member_index, member in enumerate(members):
         weighted = [
             variables[(day_index, role, member_index)] * weight(day)
@@ -674,19 +784,8 @@ def _fairness_lens(
         ]
         if not weighted:
             continue
-        historical_expected = (
-            historical_total * historical_exposure[member.name] / historical_exposure_total
-            if historical_exposure_total
-            else 0.0
-        )
-        horizon_expected = (
-            horizon_total * horizon_exposure[member.name] / horizon_exposure_total
-            if horizon_exposure_total
-            else 0.0
-        )
-        baseline = round(
-            (historical.get(member.name, 0.0) - historical_expected - horizon_expected) * SCALE
-        )
+        name = member.name
+        baseline = round((balance.repayable[name] - balance.horizon_share[name]) * SCALE)
         deviations.append(baseline + sum(weighted) * SCALE)
         baselines.append(baseline)
         upper_bounds.append(
@@ -700,6 +799,8 @@ def _fairness_lens(
                 if (day_index, role, member_index) in variables
             )
         )
+        unpaid.append(round((balance.inherited[name] - balance.repayable[name]) * SCALE))
+        inherited.append(balance.inherited[name])
     if len(deviations) < 2:
         return None
 
@@ -707,10 +808,21 @@ def _fairness_lens(
     # counts slots and not days - true for the single-role lenses and for
     # `weekends` and `holidays` too - the deviations sum to a constant and
     # their mean is known before solving.
-    mean = round((sum(baselines) + SCALE * horizon_total) / len(deviations))
+    mean = round((sum(baselines) + SCALE * balance.horizon_total) / len(deviations))
     lower_bound = min(baselines)
     upper_bound = max(upper_bounds)
     span = max(1, upper_bound - lower_bound)
+    # Whatever the range does, a member ends at or above where they start on
+    # the 12-month window and at or below their own ceiling, so no solution
+    # can pull the window spread under the widest such gap between two people.
+    window_lower = [start + rest for start, rest in zip(baselines, unpaid, strict=True)]
+    window_upper = [ceiling + rest for ceiling, rest in zip(upper_bounds, unpaid, strict=True)]
+    window_spread_floor = max(
+        window_lower[first] - window_upper[second]
+        for first in range(len(window_lower))
+        for second in range(len(window_upper))
+        if first != second
+    )
     return _Lens(
         definition.label,
         tuple(deviations),
@@ -719,6 +831,41 @@ def _fairness_lens(
         lower_bound,
         upper_bound,
         definition.graded,
+        unpaid=tuple(unpaid),
+        history_spread=max(inherited) - min(inherited),
+        window_spread_floor=max(0, ceil(window_spread_floor / SCALE)),
+    )
+
+
+def _role_lens_definition(context: _ModelBuildContext, role: AssignmentRole) -> _LensDefinition:
+    """The lens of one duty role: its points per day and the history it starts from.
+
+    Decision D1: when anchored, the 11-19 lens leaves the range family. The
+    hard anchor ties the shift count to the anchor role's weekday duties, and
+    that role is balanced in points - a weekend duty is 2 points and zero
+    shifts, a Wednesday duty 1 point and one shift - so both targets cannot
+    be levelled at once: CP-SAT proves the 3-point criterion infeasible in
+    half a second and the floor for this roster is 6 points. The lens
+    therefore keeps only its distribution terms as a tie-breaker, priced by
+    TIE_BREAK_FRACTION; the measured price is zero, so today it leaves the
+    objective entirely and only the anchor's own lenses fight for the
+    criterion. With `independent` there is no anchor and the lens keeps full
+    rights.
+    """
+    holidays = context.holidays
+    return _LensDefinition(
+        label=role.value,
+        roles=(role,),
+        counts=partial(_role_counts_day, role, holidays=holidays),
+        weight=partial(_role_day_weight, role, holidays=holidays),
+        historical={
+            member.name: context.historical_points.get((member.name, role), 0.0)
+            for member in context.members
+        },
+        graded=(
+            role != AssignmentRole.late_shift
+            or context.late_shift_anchor == LateShiftAnchor.independent
+        ),
     )
 
 
@@ -726,36 +873,9 @@ def _fairness_lens_definitions(context: _ModelBuildContext) -> tuple[_LensDefini
     """The five lenses the objective levels, in the order it builds them."""
     members = context.members
     holidays = context.holidays
-    historical_points = context.historical_points
     historical_lenses = context.historical_lenses or {}
 
-    definitions = [
-        # Decision D1: when anchored, the 11-19 lens leaves the range family.
-        # The hard anchor ties the shift count to the anchor role's
-        # weekday duties, and that role is balanced in points - a weekend duty
-        # is 2 points and zero shifts, a Wednesday duty 1 point and one shift -
-        # so both targets cannot be levelled at once: CP-SAT proves the 3-point
-        # criterion infeasible in half a second and the floor for this roster is
-        # 6 points. The lens therefore keeps only its distribution terms as a
-        # tie-breaker, priced by TIE_BREAK_FRACTION; the measured price is zero,
-        # so today it leaves the objective entirely and only the anchor's own
-        # lenses fight for the criterion. With `independent` there is no anchor
-        # and the lens keeps full rights.
-        _LensDefinition(
-            label=role.value,
-            roles=(role,),
-            counts=partial(_role_counts_day, role, holidays=holidays),
-            weight=partial(_role_day_weight, role, holidays=holidays),
-            historical={
-                member.name: historical_points.get((member.name, role), 0.0) for member in members
-            },
-            graded=(
-                role != AssignmentRole.late_shift
-                or context.late_shift_anchor == LateShiftAnchor.independent
-            ),
-        )
-        for role in AssignmentRole
-    ]
+    definitions = [_role_lens_definition(context, role) for role in AssignmentRole]
     # The same two lenses the fairness report shows, defined so that a holiday
     # falling at a weekend is counted once, as a weekend.
     definitions.append(
@@ -803,37 +923,18 @@ def _hinted_load(
 
     The hint walk hands each slot to whoever is furthest behind, so this is the
     starting position it reads, and it is carried forward as the walk assigns.
+    It is the repayable part of the inherited deviation, the same bounded
+    position the objective levels, so the walk approximates the optimum
+    instead of the all-or-nothing split the full debt would suggest.
     """
-    members = context.members
-    holidays = context.holidays
-    historical_points = context.historical_points
-
+    horizon_days = _days(context.starts_on, context.ends_on)
     load: dict[tuple[int, AssignmentRole], float] = {}
     for role in AssignmentRole:
-        role_history = {
-            member.name: historical_points.get((member.name, role), 0.0) for member in members
-        }
-        total_points = sum(role_history.values())
-        exposures = {
-            member.name: slot_exposure(
-                roles=(role,),
-                window_start=history_days[0],
-                window_end=history_days[-1],
-                include=partial(_role_counts_day, role, holidays=holidays),
-                weight=partial(_role_day_weight, role, holidays=holidays),
-                is_eligible=member.eligible,
-                is_unavailable=partial(_is_hard_unavailable, member),
-            )
-            if history_days
-            else 0.0
-            for member in members
-        }
-        total_exposure = sum(exposures.values())
-        for member_index, member in enumerate(members):
-            expected = (
-                total_points * exposures[member.name] / total_exposure if total_exposure else 0.0
-            )
-            load[(member_index, role)] = role_history[member.name] - expected
+        balance = _lens_balance(
+            context.members, _role_lens_definition(context, role), history_days, horizon_days
+        )
+        for member_index, member in enumerate(context.members):
+            load[(member_index, role)] = balance.repayable[member.name]
     return load
 
 
@@ -942,6 +1043,7 @@ def _build_model_from_context(
     acceptance_cap: int | None = None,
     fairness_only: bool = False,
     fairness_bound: int | None = None,
+    window_cap: int | None = None,
 ) -> _BuiltModel:
     """One complete CP-SAT model.
 
@@ -958,7 +1060,10 @@ def _build_model_from_context(
     ``acceptance_cap``, when set, bounds every graded lens range to that many
     points as a hard constraint, turning the acceptance criterion into
     something the model guarantees rather than something the objective hopes
-    for.
+    for. It caps the deviations the objective levels, which start from the
+    repayable part of the inherited debt; ``window_cap`` caps the full
+    12-month deviations the fairness report measures instead, and is what the
+    floor probes ask about.
     """
     starts_on = context.starts_on
     history_window = context.history_window
@@ -1018,6 +1123,15 @@ def _build_model_from_context(
             # The range is used raw: at its maximum it contributes one `span`
             # per lens, the same order as every normalized spread term below.
             fairness_terms.append(maximum - minimum)
+            if window_cap is not None:
+                window_low = lens.lower_bound + min(lens.unpaid)
+                window_high = lens.upper_bound + max(lens.unpaid)
+                window_max = model.new_int_var(window_low, window_high, f"wmax_{lens.label}")
+                window_min = model.new_int_var(window_low, window_high, f"wmin_{lens.label}")
+                for deviation, rest in zip(lens.deviations, lens.unpaid, strict=True):
+                    model.add(window_max >= deviation + rest)
+                    model.add(window_min <= deviation + rest)
+                model.add(window_max - window_min <= window_cap * SCALE)
         elif not TIE_BREAK_FRACTION:
             # The measured tie-break price is zero: a lens that cannot bid into
             # the objective gets no variables either.
@@ -1083,6 +1197,7 @@ def _build_model(
     acceptance_cap: int | None = None,
     fairness_only: bool = False,
     fairness_bound: int | None = None,
+    window_cap: int | None = None,
 ) -> _BuiltModel:
     """Compatibility entry point for focused model tests."""
     return _build_model_from_context(
@@ -1105,6 +1220,7 @@ def _build_model(
         acceptance_cap=acceptance_cap,
         fairness_only=fairness_only,
         fairness_bound=fairness_bound,
+        window_cap=window_cap,
     )
 
 
@@ -1141,6 +1257,7 @@ class _CriterionPass:
 
     model: cp_model.CpModel
     variables: _AssignmentVariables
+    lenses: list[_Lens]
     #: True only when the criterion pass proved its own optimum, not merely
     #: found a solution: that is what makes the claim a proof.
     fairness_proven: bool
@@ -1149,6 +1266,7 @@ class _CriterionPass:
 def _criterion_pass(
     model: cp_model.CpModel,
     variables: _AssignmentVariables,
+    lenses: list[_Lens],
     *,
     spacing: bool,
     solve_seconds: float,
@@ -1168,21 +1286,21 @@ def _criterion_pass(
     unchanged model is then returned as it came in.
     """
     if solve_seconds < 10:
-        return _CriterionPass(model, variables, False)
+        return _CriterionPass(model, variables, lenses, False)
 
     fairness_model, fairness_variables, fairness_conflicts, _ = build(
         spacing, ACCEPTANCE_POINTS, fairness_only=True
     )
     if fairness_conflicts:
-        return _CriterionPass(model, variables, False)
+        return _CriterionPass(model, variables, lenses, False)
 
     fairness_solver, fairness_status = solve(fairness_model, solve_seconds * 0.5)
     if fairness_status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        return _CriterionPass(model, variables, False)
+        return _CriterionPass(model, variables, lenses, False)
 
     fairness_proven = fairness_status == cp_model.OPTIMAL
     fairness_optimum = round(fairness_solver.objective_value) if fairness_proven else None
-    bounded_model, bounded_variables, _conflicts, _ = build(
+    bounded_model, bounded_variables, _conflicts, bounded_lenses = build(
         spacing, ACCEPTANCE_POINTS, fairness_bound=fairness_optimum
     )
     bounded_model.clear_hints()  # type: ignore[no-untyped-call]
@@ -1194,7 +1312,7 @@ def _criterion_pass(
         )
     for variable, value in phase_hints.values():
         bounded_model.add_hint(variable, value)
-    return _CriterionPass(bounded_model, bounded_variables, fairness_proven)
+    return _CriterionPass(bounded_model, bounded_variables, bounded_lenses, fairness_proven)
 
 
 @dataclass(frozen=True)
@@ -1209,10 +1327,13 @@ class _RecoveredSolve:
 
     model: cp_model.CpModel
     variables: _AssignmentVariables
+    lenses: list[_Lens]
     solver: cp_model.CpSolver
     status: cp_model.CpSolverStatus
     warnings: tuple[str, ...]
-    acceptance_floor: int | None
+    #: Whether the model that produced the solution still had the spacing
+    #: rules compiled in; the floor probes have to ask under the same rules.
+    spacing: bool
 
 
 def _recover_from_infeasible(
@@ -1222,7 +1343,6 @@ def _recover_from_infeasible(
     spacing_suspended: str,
     build: Callable[..., _BuiltModel],
     solve: Callable[..., tuple[cp_model.CpSolver, cp_model.CpSolverStatus]],
-    lowest_achievable_spread: Callable[[bool], int | None],
 ) -> _RecoveredSolve:
     """Find out which of three things blocked the run, and say so.
 
@@ -1235,11 +1355,14 @@ def _recover_from_infeasible(
     would answer nothing, so the cap is kept and the spacing rules are dropped:
     a solution then pins the blame on the spacing rules, another proof of
     infeasibility pins it on the criterion. Only in the second case is the cap
-    abandoned, and then the lowest reachable spread is reported as a number
-    rather than the run failing silently (decision D2).
+    abandoned and the run solved on the objective alone; how far the result
+    then is from the criterion is judged afterwards on the 12-month window,
+    like every other run (decision D2).
     """
     if spacing:
-        relaxed_model, relaxed_variables, relaxed_conflicts, _ = build(False, ACCEPTANCE_POINTS)
+        relaxed_model, relaxed_variables, relaxed_conflicts, relaxed_lenses = build(
+            False, ACCEPTANCE_POINTS
+        )
         relaxed_status: cp_model.CpSolverStatus = cp_model.INFEASIBLE
         relaxed_solver: cp_model.CpSolver | None = None
         if not relaxed_conflicts:
@@ -1249,44 +1372,105 @@ def _recover_from_infeasible(
             return _RecoveredSolve(
                 relaxed_model,
                 relaxed_variables,
+                relaxed_lenses,
                 relaxed_solver,
                 relaxed_status,
                 (spacing_suspended,),
-                None,
+                False,
             )
 
-    # The criterion itself is unattainable. Drop the cap and solve normally,
-    # then report the lowest achievable spread. The spacing rules are suspended
-    # only when they independently block coverage.
+    # The criterion itself is unattainable in this range. Drop the cap and
+    # solve normally; the spacing rules are suspended only when they
+    # independently block coverage.
     warnings: list[str] = []
-    model, variables, _, _ = build(spacing, None)
+    model, variables, _, lenses = build(spacing, None)
     solver, status = solve(model, solve_seconds)
     final_spacing = spacing
     if status == cp_model.INFEASIBLE and spacing:
-        fallback_model, fallback_variables, _, _ = build(False, None)
+        fallback_model, fallback_variables, _, fallback_lenses = build(False, None)
         solver, status = solve(fallback_model, solve_seconds)
-        model, variables = fallback_model, fallback_variables
+        model, variables, lenses = fallback_model, fallback_variables, fallback_lenses
         final_spacing = False
         if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             warnings.append(spacing_suspended)
+    return _RecoveredSolve(model, variables, lenses, solver, status, tuple(warnings), final_spacing)
 
-    acceptance_floor: int | None = None
-    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        acceptance_floor = lowest_achievable_spread(final_spacing)
-        if acceptance_floor is not None:
-            warnings.append(
-                f"Kryterium {ACCEPTANCE_POINTS} punktów rozpiętości jest "
-                "nieosiągalne przy zastanym długu historycznym. Najniższa "
-                f"osiągalna rozpiętość to {acceptance_floor} punktów - "
-                "przyczyną jest zastana nierówność, nie jakość generowania."
+
+def _window_spreads(solver: cp_model.CpSolver, lenses: list[_Lens]) -> dict[str, int]:
+    """Each graded lens's 12-month spread in the solved model, in deviation units.
+
+    The report judges the rolling window, not the range alone, so this is the
+    number the run is judged on whichever model produced it: the criterion
+    pass may have kept the range level while inherited debt still holds the
+    window open.
+    """
+    spreads: dict[str, int] = {}
+    for lens in lenses:
+        if not lens.graded:
+            continue
+        values = [
+            solver.value(deviation) + rest
+            for deviation, rest in zip(lens.deviations, lens.unpaid, strict=True)
+        ]
+        spreads[lens.label] = max(values) - min(values)
+    return spreads
+
+
+#: How the generator paces inherited debt, in the coordinator's words.
+_PACED_REPAYMENT = (
+    "Generator spłaca dług stopniowo - w jednym zakresie koryguje udział "
+    "osoby o najwyżej połowę jej udziału w tym zakresie - żeby nikt nie "
+    "został bez dyżurów."
+)
+
+
+def _criterion_warning(lenses: list[_Lens], spreads: dict[str, int], floor: int | None) -> str:
+    """Why the 12-month criterion is missed, with the number that makes it actionable.
+
+    ``floor`` is the lowest window spread this range can reach: above the
+    criterion it names the gap nothing in the draft can close, at or below it
+    the criterion was reachable and the run stopped short of it on purpose
+    (paced repayment) or by chance (a search that ran out of time). ``None``
+    means the probes ran out of budget before deciding.
+    """
+    history_spread = {lens.label: lens.history_spread for lens in lenses}
+    failing = [label for label, spread in spreads.items() if spread > ACCEPTANCE_POINTS * SCALE]
+    inherited = all(history_spread[label] > ACCEPTANCE_POINTS for label in failing)
+    criterion = f"Kryterium {ACCEPTANCE_POINTS} punktów rozpiętości"
+    if inherited:
+        if floor is None:
+            return (
+                f"Zastany dług historyczny: {criterion.lower()} nie jest spełnione "
+                "po tym zakresie; nie udało się wyznaczyć najniższej osiągalnej "
+                f"rozpiętości w budżecie czasu. {_PACED_REPAYMENT} Przyczyną jest "
+                "zastana nierówność, nie jakość generowania."
             )
-        else:
-            warnings.append(
-                f"Kryterium {ACCEPTANCE_POINTS} punktów rozpiętości jest "
-                "nieosiągalne przy zastanym długu historycznym; nie "
-                "udało się wyznaczyć najniższej osiągalnej rozpiętości."
+        if floor <= ACCEPTANCE_POINTS:
+            return (
+                f"Zastany dług historyczny: {criterion.lower()} byłoby osiągalne w "
+                f"tym zakresie, ale {_PACED_REPAYMENT[0].lower()}{_PACED_REPAYMENT[1:]} "
+                "Kolejny zakres dokończy wyrównanie."
             )
-    return _RecoveredSolve(model, variables, solver, status, tuple(warnings), acceptance_floor)
+        return (
+            f"Zastany dług historyczny: {criterion.lower()} jest nieosiągalne w tym "
+            f"zakresie, najniższa osiągalna rozpiętość to {floor} punktów. "
+            f"{_PACED_REPAYMENT} Przyczyną jest zastana nierówność, nie jakość "
+            "generowania."
+        )
+    if floor is None:
+        return (
+            f"{criterion} nie jest spełnione po tym zakresie; nie udało się "
+            "wyznaczyć najniższej osiągalnej rozpiętości w budżecie czasu."
+        )
+    if floor <= ACCEPTANCE_POINTS:
+        return (
+            f"{criterion} jest osiągalne w tym zakresie, ale znalezione rozwiązanie "
+            "go nie spełnia; dłuższy budżet czasu może pomóc."
+        )
+    return (
+        f"{criterion} jest nieosiągalne w tym zakresie przy tej obsadzie, "
+        f"eligibility i regułach; najniższa osiągalna rozpiętość to {floor} punktów."
+    )
 
 
 def _solution_assignments(
@@ -1436,6 +1620,7 @@ def generate_schedule(
         *,
         fairness_only: bool = False,
         fairness_bound: int | None = None,
+        window_cap: int | None = None,
     ) -> _BuiltModel:
         return _build_model_from_context(
             context,
@@ -1443,9 +1628,10 @@ def generate_schedule(
             acceptance_cap=cap_points,
             fairness_only=fairness_only,
             fairness_bound=fairness_bound,
+            window_cap=window_cap,
         )
 
-    model, variables, conflicts, _lenses = build(spacing, ACCEPTANCE_POINTS)
+    model, variables, conflicts, lenses = build(spacing, ACCEPTANCE_POINTS)
     if conflicts:
         return SolverResult((), tuple(conflicts), "INFEASIBLE", failure_reason="PRECHECK")
 
@@ -1487,32 +1673,40 @@ def generate_schedule(
         status = solver.solve(model)
         return solver, status
 
-    def cap_feasible(spacing_rules: bool, cap_points: int) -> bool:
-        probe_model, _probe_variables, probe_conflicts, _ = build(spacing_rules, cap_points)
+    def window_cap_feasible(spacing_rules: bool, cap_points: int) -> bool:
+        probe_model, _probe_variables, probe_conflicts, _ = build(
+            spacing_rules, None, window_cap=cap_points
+        )
         if probe_conflicts:
             return False
         _probe, probe_status = solve(probe_model, FLOOR_PROBE_SECONDS, feasibility_only=True)
         return probe_status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 
-    def lowest_achievable_spread(spacing_rules: bool) -> int | None:
-        """Lowest per-lens cap the roster can still meet, above the criterion.
+    def lowest_window_spread(spacing_rules: bool, lenses: list[_Lens], achieved: int) -> int | None:
+        """Lowest 12-month spread this range can reach, in points.
 
-        Only called after the criterion itself was proven infeasible on the
-        same spacing, so the bisection always starts one point above it. It
-        draws on whatever budget the earlier passes left: a starved probe would
-        report a wrong floor, and the warning states that number as fact, so
-        the search stops and returns None once the time runs low.
+        Bisects between what the lenses prove no solution can beat and the
+        spread the run itself achieved, so the answer is never capped by a
+        fixed probe range: an inherited debt of sixty points is named as such.
+        At or below the criterion the exact value does not matter - one probe
+        at the criterion settles that it is reachable. The bisection draws on
+        whatever budget the earlier passes left: a starved probe would report
+        a wrong floor, and the warning states that number as fact, so the
+        search stops and returns None once the time runs low.
         """
-        if time_left() < MIN_PASS_SECONDS:
-            return None
-        if not cap_feasible(spacing_rules, FLOOR_PROBE_MAX_POINTS):
-            return None
-        low, high = ACCEPTANCE_POINTS + 1, FLOOR_PROBE_MAX_POINTS
+        low = max((lens.window_spread_floor for lens in lenses if lens.graded), default=0)
+        high = achieved
+        if low <= ACCEPTANCE_POINTS:
+            if time_left() < MIN_PASS_SECONDS:
+                return None
+            if window_cap_feasible(spacing_rules, ACCEPTANCE_POINTS):
+                return ACCEPTANCE_POINTS
+            low = ACCEPTANCE_POINTS + 1
         while low < high:
             if time_left() < MIN_PASS_SECONDS:
                 return None
             mid = (low + high) // 2
-            if cap_feasible(spacing_rules, mid):
+            if window_cap_feasible(spacing_rules, mid):
                 high = mid
             else:
                 low = mid + 1
@@ -1535,13 +1729,15 @@ def generate_schedule(
     criterion = _criterion_pass(
         model,
         variables,
+        lenses,
         spacing=spacing,
         solve_seconds=solve_seconds,
         build=build,
         solve=solve,
     )
-    model, variables = criterion.model, criterion.variables
+    model, variables, lenses = criterion.model, criterion.variables, criterion.lenses
     fairness_proven = criterion.fairness_proven
+    final_spacing = spacing
     phase_elapsed = time.monotonic() - phase_started
     solver, status = solve(model, max(0.05, solve_seconds - phase_elapsed))
 
@@ -1552,16 +1748,28 @@ def generate_schedule(
             spacing_suspended=spacing_suspended,
             build=build,
             solve=solve,
-            lowest_achievable_spread=lowest_achievable_spread,
         )
-        model, variables = recovered.model, recovered.variables
+        model, variables, lenses = recovered.model, recovered.variables, recovered.lenses
         solver, status = recovered.solver, recovered.status
         warnings.extend(recovered.warnings)
-        acceptance_floor = recovered.acceptance_floor
+        final_spacing = recovered.spacing
 
     status_name = solver.status_name(status)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return _failure_result(status, status_name, solve_seconds, tuple(warnings))
+
+    # The criterion is judged where the report judges it: on the 12-month
+    # window. A run that kept the range level can still miss it because of
+    # debt this range leaves unpaid, and the coordinator is told which it is
+    # and how low this range could go at all.
+    spreads = _window_spreads(solver, lenses)
+    widest = max(spreads.values(), default=0)
+    if widest > ACCEPTANCE_POINTS * SCALE:
+        floor = lowest_window_spread(final_spacing, lenses, ceil(widest / SCALE))
+        warnings.append(_criterion_warning(lenses, spreads, floor))
+        if floor is not None and floor > ACCEPTANCE_POINTS:
+            acceptance_floor = floor
+
     if progress_callback is not None:
         progress_callback(SOLVE_DONE)
     assignments = _solution_assignments(solver, variables, days, members)

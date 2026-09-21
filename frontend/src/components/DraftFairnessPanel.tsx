@@ -22,6 +22,18 @@ export function worstSpread(impact: DraftFairnessImpact) {
 }
 
 /**
+ * Why the criterion is missed. `inherited` when every lens outside it was
+ * outside it before the draft too: history the generator repays at a bounded
+ * pace, not a defect of this draft. `draft` when a lens that met the criterion
+ * stops meeting it - that is what editing cells or regenerating can fix.
+ */
+export function shortfallCause(impact: DraftFairnessImpact): 'met' | 'inherited' | 'draft' {
+  if (impact.criterion_met) return 'met'
+  const failing = impact.spreads.filter((item) => !item.meets_criterion)
+  return failing.length > 0 && failing.every((item) => item.before > impact.criterion_points) ? 'inherited' : 'draft'
+}
+
+/**
  * Balance after this draft version: the spread as one number against the
  * state before, the criterion chips per lens, one row per person with the
  * projected deviation and the points, and the verdict.
@@ -40,6 +52,7 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
   const criterionMembers = projected.filter((item) => item.in_criterion !== false)
   const formerMembers = projected.filter((item) => item.in_criterion === false)
   const spread = impact.data ? worstSpread(impact.data) : null
+  const cause = impact.data ? shortfallCause(impact.data) : null
   const verdict = spread
     ? spread.after < spread.before - 0.05 ? 'lepiej' : spread.after > spread.before + 0.05 ? 'gorzej' : 'bez zmian'
     : null
@@ -96,15 +109,27 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
               </tbody>
             </table>
           )}
-          {!impact.data.criterion_met && impact.data.acceptance_floor != null ? (
-            <Box tone="warn" title={`Kryterium ${impact.data.criterion_points} punktów jest nieosiągalne przy zastanym długu historycznym.`}>
-              Najniższa osiągalna rozpiętość to {impact.data.acceptance_floor} punktów - przyczyną jest zastana nierówność, nie jakość generowania.
+          {cause === 'met' && (
+            <Box tone="ok" title="Kryterium spełnione">
+              Po publikacji nikt nie przekracza ±{formatPoints(impact.data.criterion_points)} pkt na żadnej soczewce.
             </Box>
-          ) : (
-            <Box tone={impact.data.criterion_met ? 'ok' : 'warn'} title={impact.data.criterion_met ? 'Kryterium spełnione' : 'Kryterium niespełnione'}>
-              {impact.data.criterion_met
-                ? `Po publikacji nikt nie przekracza ±${formatPoints(impact.data.criterion_points)} pkt na żadnej soczewce.`
-                : `Po publikacji rozrzut na co najmniej jednej soczewce przekracza ${formatPoints(impact.data.criterion_points)} pkt; popraw komórki w macierzy albo wygeneruj ponownie.`}
+          )}
+          {cause === 'inherited' && (
+            <Box tone="warn" title={`Kryterium ${impact.data.criterion_points} pkt niespełnione przez zastany dług historyczny.`}>
+              Soczewki poza kryterium były poza nim już przed tym szkicem: to zastana nierówność, nie wada szkicu.
+              {' '}
+              {spread.after < spread.before - 0.05
+                ? `Szkic zmniejsza rozrzut z ${formatDecimal(spread.before)} do ${formatDecimal(spread.after)} pkt.`
+                : `Szkic nie zmniejsza rozrzutu (${formatDecimal(spread.before)} → ${formatDecimal(spread.after)} pkt); jeśli wprowadzono ręczne korekty, sprawdź je.`}
+              {' '}
+              Generator spłaca dług stopniowo - w jednym zakresie koryguje udział osoby o najwyżej połowę jej udziału, żeby nikt nie został bez dyżurów - więc wyrównanie dokończą kolejne zakresy; ponowne generowanie tego nie zmieni.
+              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${impact.data.acceptance_floor} pkt.`}
+            </Box>
+          )}
+          {cause === 'draft' && (
+            <Box tone="warn" title="Kryterium niespełnione">
+              Co najmniej jedna soczewka, która przed szkicem mieściła się w {impact.data.criterion_points} pkt, po publikacji przekracza tę rozpiętość; popraw komórki w macierzy albo wygeneruj ponownie.
+              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${impact.data.acceptance_floor} pkt.`}
             </Box>
           )}
         </>
