@@ -22,3 +22,16 @@ services:
       - ${ONCALL_TLS_KEY_FILE:-./tls/privkey.pem}:/etc/nginx/tls/privkey.pem:ro
       # The complete CA trust bundle this deployment must trust.
       - ${ONCALL_TLS_CA_FILE:-./tls/ca.pem}:/etc/nginx/tls/ca.pem:ro
+
+  # Enabling HTTPS must also make the session cookie Secure, or the browser
+  # would send it in cleartext on the pre-redirect port-80 request. This
+  # overlay sets it for both processes so the documented HTTPS command is safe
+  # without hand-editing .env; an explicit ONCALL_SESSION_COOKIE_SECURE in .env
+  # still overrides it. The backend also refuses to start with an https:// base
+  # URL and a non-Secure cookie (see backend Settings).
+  api:
+    environment:
+      ONCALL_SESSION_COOKIE_SECURE: "true"
+  worker:
+    environment:
+      ONCALL_SESSION_COOKIE_SECURE: "true"

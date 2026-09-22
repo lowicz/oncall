@@ -1,5 +1,7 @@
+import ipaddress
 import logging
 from datetime import timedelta
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -93,10 +95,45 @@ def share_principal_response(principal: Principal) -> UserResponse:
     )
 
 
+@lru_cache
+def _trusted_networks(
+    proxies: tuple[str, ...],
+) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    networks = []
+    for entry in proxies:
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:
+            # A malformed entry trusts nothing rather than everything.
+            continue
+    return tuple(networks)
+
+
+def _peer_is_trusted(peer: str | None) -> bool:
+    if peer is None:
+        return False
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    networks = _trusted_networks(tuple(get_settings().trusted_proxies))
+    return any(address in network for network in networks)
+
+
 def _client_ip(request: Request) -> str:
-    """Return the address accepted by the trusted reverse proxy."""
+    """The caller's address for the per-IP throttle and the security log.
+
+    `X-Real-IP` is honoured only when the immediate TCP peer is a trusted
+    reverse proxy (`ONCALL_TRUSTED_PROXIES`): the shipped nginx sets it from
+    `$remote_addr` over a private network. A direct caller - the API exposed
+    without nginx in front - cannot spoof its throttle bucket by rotating the
+    header; its own socket address is used instead.
+    """
+    peer = request.client.host if request.client else None
     real_ip = request.headers.get("x-real-ip", "").strip()
-    return real_ip or (request.client.host if request.client else "unknown")
+    if real_ip and _peer_is_trusted(peer):
+        return real_ip
+    return peer or "unknown"
 
 
 def _log_refusal(login: str, refusal: DomainError) -> None:

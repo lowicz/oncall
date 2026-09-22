@@ -21,6 +21,8 @@ ARG ONCALL_VERSION=dev
 ENV ONCALL_VERSION=${ONCALL_VERSION}
 COPY frontend/nginx.http.conf /etc/nginx/presets/http.conf
 COPY frontend/nginx.https.conf /etc/nginx/presets/https.conf
+# Included by both presets at /etc/nginx/security-headers.conf.
+COPY frontend/nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY frontend/docker-entrypoint.d/40-tls.sh /docker-entrypoint.d/40-tls.sh
 RUN chmod +x /docker-entrypoint.d/40-tls.sh
 COPY --from=build /app/dist /usr/share/nginx/html

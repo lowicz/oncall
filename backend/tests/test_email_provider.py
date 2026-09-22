@@ -74,6 +74,21 @@ async def test_local_hostname_is_optional(monkeypatch) -> None:
     assert captured["local_hostname"] is None
 
 
+async def test_empty_local_hostname_is_normalized_to_none(monkeypatch) -> None:
+    """#35: the documented empty default (and how compose passes an unset value)
+    resolves to "", which aiosmtplib rejects; it must reach the library as None
+    so every notification is not silently dropped."""
+    captured = {}
+
+    async def fake_send(email_message, **kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(aiosmtplib, "send", fake_send)
+    provider = SmtpEmailProvider(settings_with(smtp_local_hostname=""))
+    await provider.send(message())
+    assert captured["local_hostname"] is None
+
+
 async def test_missing_host_disables_provider() -> None:
     provider = SmtpEmailProvider(settings_with(smtp_host=None))
     with pytest.raises(NotificationDisabled):

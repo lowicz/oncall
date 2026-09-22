@@ -61,7 +61,10 @@ class SmtpEmailProvider:
                 port=settings.smtp_port,
                 username=settings.smtp_username,
                 password=settings.smtp_password,
-                local_hostname=settings.smtp_local_hostname,
+                # aiosmtplib rejects an empty string; the documented default and
+                # how compose passes an unset value both resolve to "", so
+                # normalise it to None and let the library use the system FQDN.
+                local_hostname=settings.smtp_local_hostname or None,
                 use_tls=settings.smtp_use_tls,
                 start_tls=settings.smtp_starttls,
             )

@@ -88,14 +88,17 @@ ONCALL_WEB_HTTPS_PORT=8443
 Powiedz też backendowi, że ruch idzie po HTTPS:
 
 ```bash
-ONCALL_SESSION_COOKIE_SECURE=true
 ONCALL_PUBLIC_BASE_URL=https://oncall.firma.example:8443
 ONCALL_CORS_ORIGINS=["https://oncall.firma.example:8443"]
 ```
 
-`ONCALL_SESSION_COOKIE_SECURE=true` jest wymagane, żeby cookie sesji nie
-wyciekło po HTTP. Bez `ONCALL_PUBLIC_BASE_URL` na `https://` linki w e-mailach i
-kanałach ICS prowadziłyby pod adres, który już nie działa.
+Nakładka TLS sama ustawia `ONCALL_SESSION_COOKIE_SECURE=true` dla usług `api` i
+`worker`, więc cookie sesji nie wycieka po HTTP bez ręcznej edycji `.env`
+(jawne `ONCALL_SESSION_COOKIE_SECURE` w `.env` nadal ma pierwszeństwo). Backend
+dodatkowo **nie wystartuje**, jeżeli `ONCALL_PUBLIC_BASE_URL` jest na `https://`,
+a cookie sesji nie jest `Secure` - błędnej konfiguracji nie da się uruchomić po
+cichu. Bez `ONCALL_PUBLIC_BASE_URL` na `https://` linki w e-mailach i kanałach
+ICS prowadziłyby pod adres, który już nie działa.
 
 Wszystkie trzy pliki muszą istnieć na hoście **przed** startem kontenera.
 
@@ -191,6 +194,11 @@ pozostałych dwóch. Warto podpiąć datę ważności certyfikatu pod monitoring
 
 ## Uwagi bezpieczeństwa
 
+- nginx dokłada nagłówki bezpieczeństwa do każdej odpowiedzi
+  (`Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`), a na ścieżce HTTPS dodatkowo
+  `Strict-Transport-Security`. Wersja nginx nie jest ujawniana
+  (`server_tokens off`).
 - `ssl_protocols TLSv1.2 TLSv1.3` - TLS 1.0 i 1.1 są wyłączone.
 - Klucz prywatny nigdy nie trafia do obrazu ani do repozytorium. Katalog `tls/`
   oraz `*.pem`, `*.key`, `*.crt` i `*.p12` są w `.gitignore` i w `.dockerignore`.

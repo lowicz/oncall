@@ -52,6 +52,18 @@ def test_build_ics_escapes_special_characters() -> None:
     assert "X-WR-CALNAME:nazwa\\, z\\;przecinkiem" in content
 
 
+def test_build_ics_escapes_carriage_returns() -> None:
+    """#34: a bare CR (or CRLF) in a value must be escaped, not passed through
+    where it would split the content line for lenient clients."""
+    ics = build_ics([event(assignee_name="Anna\rBcc: x")], calendar_name="cal\r\nnazwa")
+    # No raw CR survives except the ones nginx-style CRLF line endings use, and
+    # those are always followed by LF; a bare CR inside a value would not be.
+    assert "\r" not in ics.replace("\r\n", "")
+    content = lines(ics)
+    assert "SUMMARY:PRIMARY · Anna\\nBcc: x" in content
+    assert "X-WR-CALNAME:cal\\nnazwa" in content
+
+
 def test_build_ics_marks_override_in_description() -> None:
     ics = build_ics([event(is_override=True)], calendar_name="x")
     assert any("override" in line for line in lines(ics))
