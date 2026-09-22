@@ -66,6 +66,13 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
   The directory's CA for LDAP is the same kind of overlay
   (`docker-compose.ldap-ca.yml`, `docs/wdrozenie/ldap.md`).
+- Every Compose service is `read_only` with `cap_drop: [ALL]` and
+  `no-new-privileges`; only `db` adds back what the postgres entrypoint needs.
+  `.github/scripts/compose-hardening.sh` (CI) enforces it, so a new runtime
+  write path gets its own `tmpfs` or volume, never a relaxation. The web image
+  is `nginxinc/nginx-unprivileged` (uid 101): it listens on 8080/8443 inside
+  the container and reads the TLS key as uid 101
+  (`docs/wdrozenie/uruchomienie.md`, "Uprawnienia kontenerów").
 - nginx sends the security headers from a shared
   `frontend/nginx-security-headers.conf` included by both presets and re-added
   in every location that sets its own `add_header` (nginx drops inherited ones);

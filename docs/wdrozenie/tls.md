@@ -50,17 +50,16 @@ wraz z pośrednimi - format pliku nie zmienia się, zmienia się jego zawartoś�
 
 ### Kompletny systemowy pakiet zaufania
 
-`ca.pem` to pełny zestaw urzędów, którym ma ufać to wdrożenie. Przy starcie
-kontenera jest:
-
-1. **dopisywany do magazynu zaufania kontenera** (`/etc/ssl/certs/ca-certificates.crt`),
-   więc proxowane backendy HTTPS i narzędzia w kontenerze ufają tym samym
-   urzędom co wdrożenie; publiczne korzenie z obrazu zostają na miejscu,
-2. wskazywany nginx jako `ssl_trusted_certificate`.
+`ca.pem` to pełny zestaw urzędów, którym ma ufać to wdrożenie. nginx czyta go
+bezpośrednio jako `ssl_trusted_certificate`.
 
 Ten sam plik jest gotowy jako `proxy_ssl_trusted_certificate`, gdyby API miało
 kiedyś być proxowane po HTTPS - odpowiednie linie są w
 `frontend/nginx.https.conf` jako komentarz.
+
+Magazynu zaufania samego kontenera (`/etc/ssl/certs`) skrypt startowy nie
+zmienia: obraz działa jako zwykły użytkownik na systemie plików tylko do
+odczytu, a nic w nim nie sprawdza certyfikatów według tego magazynu.
 
 ## Włączenie
 
@@ -102,8 +101,26 @@ ICS prowadziłyby pod adres, który już nie działa.
 
 Wszystkie trzy pliki muszą istnieć na hoście **przed** startem kontenera.
 
-Prawa na hoście: certyfikat i pakiet CA `0644`, klucz `0600` (właściciel `root`
-albo `101`; nginx czyta klucz jako root przed zmianą użytkownika).
+### Prawa do plików
+
+nginx działa w kontenerze jako zwykły użytkownik o numerze `101` i jako on
+czyta wszystkie trzy pliki. Certyfikat i pakiet CA mają prawa `0644`, klucz
+`0600` z właścicielem `101`:
+
+```bash
+sudo chown 101:101 /etc/pki/oncall/oncall.key
+sudo chmod 600 /etc/pki/oncall/oncall.key
+```
+
+Pod **bezrootowym Podmanem** użytkownik `101` z kontenera ma na hoście inny
+numer, więc właściciela ustawia się z przestrzeni nazw użytkownika Podmana:
+
+```bash
+podman unshare chown 101:101 ./tls/privkey.pem
+```
+
+Klucz, którego ten użytkownik nie przeczyta, zatrzymuje start kontenera z
+komunikatem wskazującym plik - patrz niżej.
 
 ## Weryfikacja
 
@@ -116,7 +133,8 @@ curl -v https://localhost:8443/ --cacert ./tls/ca.pem   # 200, HTML
 openssl s_client -connect localhost:8443 -showcerts </dev/null | head -20
 ```
 
-Skrypt startowy nie pozwala wystartować z brakującym plikiem. Typowe komunikaty:
+Skrypt startowy nie pozwala wystartować z brakującym albo nieczytelnym plikiem.
+Typowe komunikaty:
 
 ```
 oncall: ONCALL_TLS_ENABLED=true but /etc/nginx/tls/cert.pem is missing or empty.
@@ -129,6 +147,15 @@ oncall: ONCALL_TLS_KEY_FILE must point at the private key. A bind source that do
 oncall: exist on the host is created as an empty directory rather than
 oncall: refused, so create the file first.
 ```
+
+```
+oncall: /etc/nginx/tls/privkey.pem is not readable by the nginx user (uid 101).
+oncall: nginx runs unprivileged, so the file ONCALL_TLS_KEY_FILE points at must be
+oncall: readable by the container's uid 101; docs/wdrozenie/tls.md shows how.
+```
+
+Ostatni komunikat znaczy, że klucz ma złego właściciela albo złe prawa - patrz
+[Prawa do plików](#prawa-do-plików).
 
 ## Skąd wziąć pliki
 
@@ -167,6 +194,8 @@ pośrednimi. Jako `ca.pem` wskaż systemowy pakiet zaufania hosta, na przykład
 mkcert -install
 mkcert -cert-file tls/cert.pem -key-file tls/privkey.pem localhost 127.0.0.1 oncall.local
 cp "$(mkcert -CAROOT)/rootCA.pem" tls/ca.pem
+sudo chown 101:101 tls/privkey.pem
+# pod bezrootowym Podmanem zamiast tego: podman unshare chown 101:101 tls/privkey.pem
 ```
 
 Daje zieloną kłódkę na maszynie deweloperskiej. Nie nadaje się do produkcji.
@@ -181,14 +210,16 @@ docker compose exec web nginx -s reload
 ```
 
 Reload nie zrywa istniejących połączeń. Wymiana pojedynczego pliku nie dotyka
-pozostałych dwóch. Warto podpiąć datę ważności certyfikatu pod monitoring.
+pozostałych dwóch. Nowy klucz potrzebuje tych samych praw co poprzedni
+([Prawa do plików](#prawa-do-plików)). Warto podpiąć datę ważności certyfikatu
+pod monitoring.
 
 ## Warianty alternatywne
 
 | Wariant | Kiedy | Konsekwencje |
 | --- | --- | --- |
 | TLS na nginx w tym obrazie | brak centralnego reverse proxy | pełna kontrola, zero dodatkowych usług |
-| Zewnętrzne reverse proxy przed Compose (Traefik, nginx, HAProxy, F5) | organizacja ma centralny punkt terminacji | `ONCALL_TLS_ENABLED=false`, proxy kieruje na `web`, certyfikaty poza projektem |
+| Zewnętrzne reverse proxy przed Compose (Traefik, nginx, HAProxy, F5) | organizacja ma centralny punkt terminacji | `ONCALL_TLS_ENABLED=false`, proxy kieruje na `web` (port hosta albo `web:8080` w sieci Compose), certyfikaty poza projektem |
 | TLS na uvicorn zamiast nginx | odradzane | rozdziela zarządzanie certyfikatami na dwa miejsca, uboższa obsługa TLS |
 | mTLS (certyfikaty klienckie) | dostęp tylko z urządzeń firmowych | `ssl_client_certificate /etc/nginx/tls/ca.pem; ssl_verify_client on;` - wymaga dystrybucji certyfikatów klienckich i nie zastępuje logowania |
 
@@ -200,6 +231,9 @@ pozostałych dwóch. Warto podpiąć datę ważności certyfikatu pod monitoring
   `Strict-Transport-Security`. Wersja nginx nie jest ujawniana
   (`server_tokens off`).
 - `ssl_protocols TLSv1.2 TLSv1.3` - TLS 1.0 i 1.1 są wyłączone.
+- nginx działa jako zwykły użytkownik `101`, bez uprawnień jądra i na systemie
+  plików tylko do odczytu - patrz
+  [Uprawnienia kontenerów](uruchomienie.md#uprawnienia-kontenerów).
 - Klucz prywatny nigdy nie trafia do obrazu ani do repozytorium. Katalog `tls/`
   oraz `*.pem`, `*.key`, `*.crt` i `*.p12` są w `.gitignore` i w `.dockerignore`.
 - Kanały ICS idą przez ten sam nginx (`/calendar/`), więc są objęte tym samym

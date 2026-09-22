@@ -135,8 +135,8 @@ describe.each(presets)('nginx security headers - $name', ({ parsed, tls }) => {
     expect(docs['script-src']).toEqual([...app['script-src'], "'unsafe-inline'"])
   })
 
-  it('HSTS is present exactly when the content server is TLS (listen 443)', () => {
-    expect(String(server.listen).includes('443')).toBe(tls)
+  it('HSTS is present exactly when the content server is TLS (listen ... ssl)', () => {
+    expect(/\sssl\b/.test(String(server.listen))).toBe(tls)
     const hsts = effectiveHeaders(locationBlock(server, '/'), server).find(
       (h) => h.name === 'Strict-Transport-Security',
     )
@@ -147,6 +147,23 @@ describe.each(presets)('nginx security headers - $name', ({ parsed, tls }) => {
     } else {
       expect(hsts).toBeFalsy()
     }
+  })
+})
+
+// nginx runs as uid 101 without any capability (frontend/Dockerfile,
+// docker-compose.yml), so it can bind no port below 1024, and Compose maps the
+// host ports onto exactly these two.
+describe.each(presets)('nginx runs unprivileged - $name', ({ parsed, tls }) => {
+  const listenPorts = serverBlocks(parsed).flatMap((block) =>
+    asArray(block.listen).map((listen) => Number(listen.trim().split(/\s+/)[0].split(':').pop())),
+  )
+
+  it('listens on 8080, and on 8443 for TLS', () => {
+    expect([...new Set(listenPorts)].sort((a, b) => a - b)).toEqual(tls ? [8080, 8443] : [8080])
+  })
+
+  it('keeps the container port out of the redirects it makes itself', () => {
+    expect(contentServer(parsed).absolute_redirect).toBe('off')
   })
 })
 

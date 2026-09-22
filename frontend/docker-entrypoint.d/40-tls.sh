@@ -8,15 +8,24 @@
 #   /etc/nginx/tls/privkey.pem  its private key, unencrypted
 #   /etc/nginx/tls/ca.pem       the complete CA trust bundle for this system
 #
-# The CA bundle is added to the container trust store, so proxied HTTPS
-# backends and in-container tools trust the same authorities the deployment
-# does, and is wired into nginx as `ssl_trusted_certificate`.
+# nginx reads the CA bundle itself, as `ssl_trusted_certificate`. The
+# container's own trust store is left as the image ships it: the image runs as
+# an unprivileged user on a read-only root filesystem, and nothing in it checks
+# a peer certificate against that store.
 #
 # Nothing is mounted as a directory. A directory mount hides which of the three
 # files is actually missing, and a bind source that does not exist on the host
 # is created as an empty directory rather than refused - so the mount succeeds
 # and nginx fails later, on a path, with no hint as to which variable is
 # wrong. Checking each file here turns that into one sentence.
+#
+# nginx runs as uid 101 and reads each file as that user, the private key
+# included, so a file that user cannot read stops the start here, named,
+# rather than in nginx's own error.
+#
+# The chosen preset is copied into /etc/nginx/conf.d, which Compose mounts as a
+# tmpfs: under the read-only root filesystem it is the one configuration
+# directory nginx may write.
 set -eu
 
 CONF_DIR=/etc/nginx/conf.d
@@ -42,6 +51,12 @@ require_file() {
         echo "oncall: mount $what there, through $variable." >&2
         exit 1
     fi
+    if [ ! -r "$path" ]; then
+        echo "oncall: $path is not readable by the nginx user (uid $(id -u))." >&2
+        echo "oncall: nginx runs unprivileged, so the file $variable points at must be" >&2
+        echo "oncall: readable by the container's uid $(id -u); docs/wdrozenie/tls.md shows how." >&2
+        exit 1
+    fi
 }
 
 if [ "${ONCALL_TLS_ENABLED:-false}" = "true" ]; then
@@ -50,16 +65,10 @@ if [ "${ONCALL_TLS_ENABLED:-false}" = "true" ]; then
     require_file "$CA_FILE" "the complete system trust CA bundle" ONCALL_TLS_CA_FILE
 
     cp /etc/nginx/presets/https.conf "$CONF_DIR/default.conf"
-
-    # Appended, not replaced: the bundle carries the authorities this
-    # deployment must trust, and the image's public roots stay in place for
-    # everything else. Duplicates are harmless.
-    cat "$CA_FILE" >> /etc/ssl/certs/ca-certificates.crt
-    echo "oncall: CA bundle from $CA_FILE added to the container trust store"
-    echo "oncall: TLS enabled, serving HTTPS on 443 and redirecting HTTP on 80"
+    echo "oncall: TLS enabled, serving HTTPS on container port 8443 and redirecting HTTP on 8080"
 else
     cp /etc/nginx/presets/http.conf "$CONF_DIR/default.conf"
-    echo "oncall: TLS disabled, serving plain HTTP on 80"
+    echo "oncall: TLS disabled, serving plain HTTP on container port 8080"
 fi
 
 # Fails here, with the offending directive named, rather than after the daemon
