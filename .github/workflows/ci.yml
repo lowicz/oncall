@@ -211,6 +211,8 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.tls.yml config --quiet
       - name: The development overlay changes nothing but where images come from
         run: .github/scripts/compose-parity.sh
+      - name: Documented environment variables are wired into Compose
+        run: .github/scripts/env-vars-wired.sh
 
   image-build:
     # Builds both Dockerfiles exactly as release.yml will, but never pushes:

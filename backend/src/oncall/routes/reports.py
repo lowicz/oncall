@@ -63,6 +63,23 @@ HEADERS = (
 
 REPORT_ERROR_STATUSES = {InvalidMonth: status.HTTP_422_UNPROCESSABLE_CONTENT}
 
+#: Characters that make a spreadsheet treat a cell as a formula, plus the
+#: control characters some parsers strip before deciding.
+_CSV_FORMULA_LEADERS = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _csv_safe(value: str) -> str:
+    """Neutralise spreadsheet formula injection in a user-derived cell.
+
+    A member name such as ``=1+337`` would otherwise be evaluated as a formula
+    when the export is opened in Excel or LibreOffice. Prefixing it with an
+    apostrophe keeps the value literal text while reading back unchanged through
+    a plain CSV parser.
+    """
+    if value and value[0] in _CSV_FORMULA_LEADERS:
+        return "'" + value
+    return value
+
 
 async def _report(ports: ReportProvider, month: str) -> MonthlyReport:
     with domain_errors_as_http(REPORT_ERROR_STATUSES):
@@ -98,7 +115,7 @@ async def monthly_report_csv(
     writer = csv.writer(output, lineterminator="\n")
     writer.writerow(HEADERS)
     for row in report.rows:
-        writer.writerow((month, row.name, *_row_values(row.tally)))
+        writer.writerow((month, _csv_safe(row.name), *_row_values(row.tally)))
     return Response(
         content="\ufeff" + output.getvalue(),
         media_type="text/csv; charset=utf-8",

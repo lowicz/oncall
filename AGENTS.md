@@ -45,7 +45,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   refuses to start without it. Building from the checkout is the overlay
   `docker-compose.dev.yml` (`-f docker-compose.yml -f docker-compose.dev.yml`),
   which may change nothing but `image`/`build`; `.github/scripts/compose-parity.sh`
-  enforces that in CI.
+  enforces that in CI. `.github/scripts/env-vars-wired.sh` (same CI job) fails
+  if an `ONCALL_*` documented in `.env.example` is referenced by no Compose
+  file, so a documented knob cannot silently go unplumbed.
 - The `web` image builds from the **repository root** (`context: .`,
   `dockerfile: frontend/Dockerfile`), because the image carries `docs/` as well
   as `frontend/`. The root `.dockerignore` governs that build. `backend/Dockerfile`
@@ -64,6 +66,17 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
   The directory's CA for LDAP is the same kind of overlay
   (`docker-compose.ldap-ca.yml`, `docs/wdrozenie/ldap.md`).
+- nginx sends the security headers from a shared
+  `frontend/nginx-security-headers.conf` included by both presets and re-added
+  in every location that sets its own `add_header` (nginx drops inherited ones);
+  the CSP and HSTS live next to each include. The app CSP is strict
+  (`script-src 'self'`), so the SPA theme bootstrap stays external in
+  `frontend/public/theme-init.js`; `/docs/` relaxes only `script-src` for its
+  inline pre-paint scripts. `frontend/scripts/nginx-headers.test.mjs` guards it.
+- An https `ONCALL_PUBLIC_BASE_URL` requires `ONCALL_SESSION_COOKIE_SECURE=true`
+  or `Settings` (`backend/src/oncall/config.py`) refuses to start; the TLS
+  overlay sets it for `api` and `worker`. The login throttle / security log
+  trust `X-Real-IP` only from `ONCALL_TRUSTED_PROXIES` (`routes/access.py`).
 - The API process logs `oncall.*` at INFO to stderr (`configure_logging` in
   `backend/src/oncall/bootstrap/http.py`, run from the lifespan) and leaves
   libraries at WARNING, so SQLAlchemy never logs statements with their
@@ -124,9 +137,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   (`ONCALL_APP_NAME`, `ONCALL_APP_SUBTITLE`) through `useBranding()`; the
   source tree carries no organisation name.
 - The theme preference lives in `localStorage` under `oncall-theme`
-  (`dark` | `light` | `system`); `index.html` and the docs template
-  (`scripts/build-docs.mjs`) apply it before first paint with the same key,
-  and `src/theme.ts` owns it afterwards.
+  (`dark` | `light` | `system`); the SPA applies it before first paint from the
+  external `public/theme-init.js` (external so the CSP stays strict) and the
+  docs template (`scripts/build-docs.mjs`) inlines the same logic with the same
+  key, and `src/theme.ts` owns it afterwards.
 - `src/test/setup.ts` pins the clock to a fixed instant. Screens hide actions
   for dates already past, so fixtures written as concrete dates need it.
 

@@ -19,6 +19,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oncall}
       POSTGRES_USER: ${POSTGRES_USER:-oncall}
@@ -34,12 +36,18 @@ services:
   api:
     image: *api-image
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       ONCALL_APP_NAME: ${ONCALL_APP_NAME:-On-call}
       ONCALL_APP_SUBTITLE: ${ONCALL_APP_SUBTITLE:-}
       ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
+      ONCALL_DATABASE_POOL_SIZE: ${ONCALL_DATABASE_POOL_SIZE:-3}
+      ONCALL_DATABASE_MAX_OVERFLOW: ${ONCALL_DATABASE_MAX_OVERFLOW:-2}
       ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS: ${ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS:-1}
       ONCALL_SESSION_COOKIE_SECURE: ${ONCALL_SESSION_COOKIE_SECURE:-false}
+      ONCALL_CORS_ORIGINS: '${ONCALL_CORS_ORIGINS:-["http://localhost:8080"]}'
+      ONCALL_TRUSTED_PROXIES: '${ONCALL_TRUSTED_PROXIES:-["127.0.0.0/8","::1/128","10.0.0.0/8","172.16.0.0/12","192.168.0.0/16","fc00::/7"]}'
       ONCALL_ADMIN_USERNAME: ${ONCALL_ADMIN_USERNAME:-}
       ONCALL_ADMIN_PASSWORD: ${ONCALL_ADMIN_PASSWORD:-}
       ONCALL_ADMIN_DISPLAY_NAME: ${ONCALL_ADMIN_DISPLAY_NAME:-Administrator}
@@ -85,11 +93,18 @@ services:
     # The same image as the API, running the outbox and generation worker.
     image: *api-image
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     command: ["python", "-m", "oncall.worker"]
     environment:
       ONCALL_APP_NAME: ${ONCALL_APP_NAME:-On-call}
       ONCALL_APP_SUBTITLE: ${ONCALL_APP_SUBTITLE:-}
       ONCALL_DATABASE_URL: ${ONCALL_DATABASE_URL:-postgresql+asyncpg://oncall:oncall@db:5432/oncall}
+      ONCALL_DATABASE_POOL_SIZE: ${ONCALL_DATABASE_POOL_SIZE:-3}
+      ONCALL_DATABASE_MAX_OVERFLOW: ${ONCALL_DATABASE_MAX_OVERFLOW:-2}
+      # The worker builds Settings too, so the https-requires-Secure-cookie
+      # guard runs here as well; it must see the same value as the API.
+      ONCALL_SESSION_COOKIE_SECURE: ${ONCALL_SESSION_COOKIE_SECURE:-false}
       ONCALL_SMTP_HOST: ${ONCALL_SMTP_HOST:-}
       ONCALL_SMTP_PORT: ${ONCALL_SMTP_PORT:-587}
       ONCALL_SMTP_USERNAME: ${ONCALL_SMTP_USERNAME:-}
@@ -122,6 +137,8 @@ services:
     # /docs/.
     image: *web-image
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       ONCALL_TLS_ENABLED: ${ONCALL_TLS_ENABLED:-false}
     ports:

@@ -2,8 +2,9 @@ import os
 from functools import lru_cache
 from math import ceil
 from pathlib import Path
+from typing import Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CGROUP_ROOT = Path("/sys/fs/cgroup")
@@ -61,7 +62,26 @@ class Settings(BaseSettings):
     session_cookie_name: str = "oncall_session"
     session_cookie_secure: bool = False
     session_ttl_hours: int = 12
-    cors_origins: list[str] = ["http://localhost:5173"]
+    #: The application is served same-origin behind nginx, so the browser never
+    #: makes a cross-origin API call in production and the allow-list is only
+    #: the deployment's own origin. A developer running the Vite server directly
+    #: (not through its `/api` proxy) adds `http://localhost:5173`.
+    cors_origins: list[str] = ["http://localhost:8080"]
+    #: Networks whose `X-Real-IP` is trusted for the per-IP login throttle and
+    #: the security log. The shipped nginx reaches the API over a private
+    #: container network and overwrites `X-Real-IP` with the real peer
+    #: (`$remote_addr`), so the loopback and private ranges are trusted by
+    #: default and a remote client cannot forge its throttle bucket even if the
+    #: API port is published by mistake. Tighten this to the proxy's own address
+    #: when the API is deliberately exposed without nginx in front.
+    trusted_proxies: list[str] = [
+        "127.0.0.0/8",
+        "::1/128",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "fc00::/7",
+    ]
 
     # Optional Active Directory / LDAP authentication. Local accounts remain
     # available regardless of this switch or the directory's availability.
@@ -132,6 +152,22 @@ class Settings(BaseSettings):
     #: has, and a minute of silence is the most an operator has to wait to see
     #: it.
     metrics_interval_seconds: float = Field(default=60.0, ge=5, le=3600)
+
+    @model_validator(mode="after")
+    def _https_requires_secure_cookie(self) -> Self:
+        """An https deployment must issue a `Secure` session cookie.
+
+        Without this a TLS deployment that forgot the flag would keep serving
+        the auth cookie over the pre-redirect cleartext request; failing at
+        startup makes that misconfiguration impossible to run silently.
+        """
+        if self.public_base_url.lower().startswith("https://") and not self.session_cookie_secure:
+            raise ValueError(
+                "ONCALL_PUBLIC_BASE_URL is https:// but ONCALL_SESSION_COOKIE_SECURE is false; "
+                "set ONCALL_SESSION_COOKIE_SECURE=true so the session cookie is never sent in "
+                "cleartext."
+            )
+        return self
 
 
 @lru_cache

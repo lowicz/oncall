@@ -30,7 +30,16 @@ class IcsEvent:
 
 
 def _escape(value: str) -> str:
-    return value.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+    # A bare CR must be escaped too, or it splits the content line for lenient
+    # clients; CRLF, CR and LF all fold to a single escaped newline.
+    return (
+        value.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\r\n", "\\n")
+        .replace("\r", "\\n")
+        .replace("\n", "\\n")
+    )
 
 
 def _fold(line: str) -> list[str]:

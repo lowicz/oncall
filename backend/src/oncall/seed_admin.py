@@ -9,6 +9,18 @@ from oncall.database import SessionFactory
 from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 
+#: Placeholders shipped in .env.example and other obvious defaults. Each is at
+#: least 12 characters, so the length check alone would let a careless copy
+#: bootstrap a publicly known admin password.
+KNOWN_DEFAULT_PASSWORDS = frozenset(
+    {
+        "replace-with-at-least-12-characters",
+        "changemechangeme",
+        "administrator",
+        "password1234",
+    }
+)
+
 
 async def seed_admin() -> None:
     username = os.environ.get("ONCALL_ADMIN_USERNAME")
@@ -20,6 +32,11 @@ async def seed_admin() -> None:
     if not username or not password or len(password) < 12:
         raise SystemExit(
             "Set both ONCALL_ADMIN_USERNAME and ONCALL_ADMIN_PASSWORD (minimum 12 characters)."
+        )
+    if password.strip().lower() in KNOWN_DEFAULT_PASSWORDS:
+        raise SystemExit(
+            "ONCALL_ADMIN_PASSWORD is the .env.example placeholder or an obvious default; "
+            "choose a real password before bootstrapping the admin account."
         )
 
     async with SessionFactory() as db:
