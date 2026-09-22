@@ -130,6 +130,16 @@ describe('ScheduleScreen range in the URL', () => {
     expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeChecked()
   })
 
+  it('opens around a day chosen in the command palette', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?dzien=2026-09-24')
+
+    expect(await screen.findByRole('heading', { level: 2, name: '17 wrz – 14 paź' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-17', '2026-10-14'))
+  })
+
   it.each([
     ['a start', '/grafik?od=2026-13-45'],
     ['a focused day', '/grafik?dzien=2026-13-45'],
