@@ -35,6 +35,7 @@ dev = [
   "mypy>=2.3,<3",
   "pytest>=9,<10",
   "pytest-asyncio>=1.4,<2",
+  "pytest-cov>=7.1,<8",
   "ruff>=0.9,<1",
 ]
 
@@ -57,6 +58,11 @@ filterwarnings = [
   "ignore:tagMap is deprecated. Please use TAG_MAP instead:DeprecationWarning:ldap3",
   "ignore:typeMap is deprecated. Please use TYPE_MAP instead:DeprecationWarning:ldap3",
 ]
+
+# CI runs `pytest --cov --cov-report=xml` and hands coverage.xml to SonarCloud.
+[tool.coverage.run]
+source = ["src/oncall"]
+branch = true
 
 [tool.uv]
 # The application only ever runs on Linux (the container). Resolving the lock

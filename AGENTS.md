@@ -114,8 +114,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   report it as `ci-ok`, never `ci / ci-ok`, which is its name only under
   release.yml. SonarCloud (`sonarcloud` job, identity in
   `sonar-project.properties`) is not in `ci-ok` needs and skips cleanly when
-  `SONAR_TOKEN` is missing, so fork pull requests stay green. Run the same
-  required commands locally before pushing.
+  `SONAR_TOKEN` is missing, so fork pull requests stay green. Its quality
+  gate (check "SonarCloud Code Analysis") requires 80% coverage on new code,
+  taken from the backend and frontend jobs' reports
+  (`uv run pytest --cov --cov-report=xml`, `npm test -- --coverage`). Run the
+  same required commands locally before pushing.
 - A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: validates the tag,
   calls `ci.yml`, publishes both images with SBOM, provenance, attestation and
   cosign signature, creates the GitHub Release. Published versions are

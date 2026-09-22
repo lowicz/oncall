@@ -32,5 +32,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // `npm test -- --coverage` (CI) writes coverage/lcov.info for SonarCloud,
+    // which reads paths from the repository root, hence the projectRoot.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**'],
+      reporter: [['lcov', { projectRoot: '..' }], 'text-summary'],
+    },
   },
 })
