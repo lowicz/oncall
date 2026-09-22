@@ -46,7 +46,7 @@ async def _roster(db: AsyncSession):
 
 @pytest.mark.anyio
 async def test_swapping_the_anchor_role_moves_the_late_shift_with_it(
-    client: AsyncClient, db: AsyncSession
+    client: AsyncClient, db: AsyncSession, frozen_clock: object
 ) -> None:
     members = await _team(db)
     schedule = await _roster(db)
@@ -96,7 +96,7 @@ async def test_swapping_the_anchor_role_moves_the_late_shift_with_it(
 
 @pytest.mark.anyio
 async def test_replacement_without_late_shift_eligibility_takes_only_the_anchor(
-    client: AsyncClient, db: AsyncSession
+    client: AsyncClient, db: AsyncSession, frozen_clock: object
 ) -> None:
     members = await _team(db)
     schedule = await _roster(db)
