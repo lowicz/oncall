@@ -42,3 +42,13 @@ async def test_invalid_enum_message_is_polish(client, db) -> None:
     error = response.json()["detail"][0]
     assert error["loc"] == ["body", "kind"]
     assert error["msg"].startswith("Nieprawidłowa wartość. Dozwolone:")
+
+
+async def test_pattern_mismatch_message_is_polish(client, db) -> None:
+    await create_user(db, "kasia", role=UserRole.coordinator)
+    await login(client, "kasia")
+    response = await client.get("/api/v1/reports/monthly", params={"month": "wrzesien"})
+    assert response.status_code == 422, response.text
+    error = response.json()["detail"][0]
+    assert error["loc"] == ["query", "month"]
+    assert error["msg"] == "Wartość ma nieprawidłowy format."
