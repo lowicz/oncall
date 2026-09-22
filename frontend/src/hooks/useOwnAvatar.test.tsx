@@ -8,7 +8,16 @@ const AVATAR_URL = '/api/v1/auth/me/avatar'
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
 
 function answer(status: number, body: BodyInit | null = null, contentType = 'application/json') {
-  return vi.fn(() => Promise.resolve(new Response(body, { status, headers: { 'Content-Type': contentType } })))
+  const response = new Response(body, { status, headers: { 'Content-Type': contentType } })
+  // In a browser `response.blob()` and `new FileReader()` share one realm; in
+  // jsdom the global `fetch`/`Response` come from Node (undici), whose Blob the
+  // jsdom `FileReader` rejects as "not of type Blob". Hand back a same-realm
+  // Blob so the test exercises the real data-URL path instead of that mismatch.
+  if (body instanceof Uint8Array) {
+    const blob = new Blob([body], { type: contentType })
+    response.blob = () => Promise.resolve(blob)
+  }
+  return vi.fn(() => Promise.resolve(response))
 }
 
 function renderAvatar(user: Parameters<typeof useOwnAvatar>[0]) {
