@@ -219,7 +219,7 @@ npm run dev          # http://localhost:5173, /api przekazywane na :8000
 ## Podman
 
 `podman compose` deleguje do zainstalowanego dostawcy Compose i akceptuje te
-same pliki bez zmian. Cztery rzeczy warto wiedzieć:
+same pliki bez zmian. Pięć rzeczy warto wiedzieć:
 
 - **Gniazdo API.** Dostawca Compose rozmawia z Podmanem przez gniazdo
   użytkownika. Jeśli polecenie kończy się komunikatem „failed to connect to the
@@ -234,6 +234,8 @@ same pliki bez zmian. Cztery rzeczy warto wiedzieć:
   zatrzymać start. Dlatego plik bazowy nie montuje niczego z hosta, a
   montowania TLS są w osobnej nakładce, która sprawdza każdy plik przy
   starcie - patrz [TLS](tls.md).
+- **Start po restarcie.** Jednostka systemd użytkownika, linger i skrypt
+  setupu - patrz [Systemd (Podman Compose)](systemd.md).
 
 Sprawdzenie samych plików, bez uruchamiania:
 

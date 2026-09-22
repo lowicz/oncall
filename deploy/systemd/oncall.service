@@ -1,0 +1,22 @@
+# User-level oneshot for the Podman Compose stack.
+# Install with deploy/systemd/install-user-unit.sh so WorkingDirectory is the
+# checkout (via a drop-in) and linger is enabled. The unit calls
+# oncall-stack.sh; it does not name compose files and does not load .env.
+#
+# This is not a system service and not Quadlet. Container crashes stay with
+# Podman (restart: unless-stopped on the compose services).
+
+[Unit]
+Description=On-call (Podman Compose)
+Wants=podman.socket
+After=podman.socket
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=infinity
+ExecStart=/usr/bin/bash ./deploy/systemd/oncall-stack.sh up
+ExecStop=/usr/bin/bash ./deploy/systemd/oncall-stack.sh down
+
+[Install]
+WantedBy=default.target
