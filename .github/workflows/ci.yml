@@ -30,7 +30,7 @@ env:
   # The versions the images are built with (backend/Dockerfile,
   # frontend/Dockerfile); CI tests exactly those. UV_VERSION is also the
   # `required-version` of backend/pyproject.toml, which uv enforces.
-  UV_VERSION: "0.12.16"
+  UV_VERSION: "0.12.17"
   PYTHON_VERSION: "3.14"
   NODE_VERSION: "22"
 
