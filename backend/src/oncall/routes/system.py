@@ -18,4 +18,5 @@ async def public_config() -> PublicConfigResponse:
         ldap_enabled=settings.ldap_enabled,
         app_name=settings.app_name,
         app_subtitle=settings.app_subtitle,
+        version=settings.version,
     )

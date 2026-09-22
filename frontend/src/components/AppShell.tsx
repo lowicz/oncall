@@ -46,11 +46,15 @@ function RailLink({ path, label, icon, badge }: { path: string; label: string; i
 /**
  * The account menu behind the avatar: who is logged in, the theme and the
  * matrix density as radio groups (Base UI keeps the menu open while they
- * change), the documentation, the palette and the way out.
+ * change), the documentation, the palette and the way out. The release
+ * running closes the menu as a dim footer: this menu is the one place every
+ * layout has (a phone, the collapsed rail, a share-link session), so it is
+ * where the version can always be found.
  */
-function AccountMenu({ displayName, roleLine, share, onPalette, onLogout, logoutPending }: {
+function AccountMenu({ displayName, roleLine, version, share, onPalette, onLogout, logoutPending }: {
   displayName: string
   roleLine: string | null
+  version: string
   share: boolean
   onPalette: () => void
   onLogout: () => void
@@ -79,6 +83,12 @@ function AccountMenu({ displayName, roleLine, share, onPalette, onLogout, logout
       {!share && <MenuItem onClick={onPalette}><Icon name="search" /> Paleta poleceń <span className="kbd" style={{ marginLeft: 'auto' }}>Ctrl K</span></MenuItem>}
       <MenuSeparator />
       <MenuItem onClick={onLogout} disabled={logoutPending}><Icon name="logout" /> Wyloguj</MenuItem>
+      {version && (
+        <>
+          <MenuSeparator />
+          <div className="menu-block dim small">{`Wersja ${version}`}</div>
+        </>
+      )}
     </Menu>
   )
 }
@@ -143,6 +153,7 @@ export function AppShell({ displayName, access, share }: {
     <AccountMenu
       displayName={displayName}
       roleLine={roleLine}
+      version={branding.version}
       share={Boolean(share)}
       onPalette={() => setPaletteOpen(true)}
       onLogout={doLogout}
@@ -172,6 +183,7 @@ export function AppShell({ displayName, access, share }: {
           <div className="rail-foot">
             <a href={docsHref} className="nav-link" style={{ padding: 0 }}><Icon name="doc" /><span>Dokumentacja</span></a>
             <button type="button" onClick={() => setPaletteOpen(true)}>Paleta <span className="kbd">Ctrl</span> <span className="kbd">K</span></button>
+            {branding.version && <span>{`Wersja ${branding.version}`}</span>}
           </div>
         </aside>
       )}

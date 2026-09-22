@@ -8,7 +8,7 @@ afterEach(() => vi.restoreAllMocks())
 
 async function signInRefusedWith(error: ApiError) {
   vi.spyOn(api, 'publicConfig').mockResolvedValue({
-    app_name: 'On-call', app_subtitle: '', ldap_enabled: true,
+    app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0',
   })
   vi.spyOn(api, 'login').mockRejectedValue(error)
   renderScreen(<Login />)

@@ -23,7 +23,7 @@ const member = (over: Partial<TeamMember> & { id: string }): TeamMember => ({
 function mockData(users: AdminUser[] = [user({ id: 'u1' })], members: TeamMember[] = []) {
   vi.spyOn(api, 'adminUsers').mockResolvedValue(users)
   vi.spyOn(api, 'team').mockResolvedValue(members)
-  vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false, app_name: 'On-call', app_subtitle: '' })
+  vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0' })
 }
 
 const rowOf = async (username: string) => (await screen.findByText(username, { selector: 'td' })).closest('tr') as HTMLTableRowElement
