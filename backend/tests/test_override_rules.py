@@ -81,6 +81,7 @@ async def test_override_check_names_the_rules_before_the_fact(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the overridden duty must still lie ahead
 async def test_override_proceeds_returns_violations_and_audits_the_rule(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -116,6 +117,7 @@ async def test_override_proceeds_returns_violations_and_audits_the_rule(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the overridden duty must still lie ahead
 async def test_clean_override_returns_no_violations(client: AsyncClient, db: AsyncSession) -> None:
     members = await _team(db)
     schedule = await _roster(db)
@@ -212,6 +214,7 @@ async def test_override_check_does_not_invent_an_anchor_split(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the overridden duty must still lie ahead
 async def test_override_of_anchor_role_moves_late_shift_in_one_version(
     client: AsyncClient, db: AsyncSession
 ) -> None:
