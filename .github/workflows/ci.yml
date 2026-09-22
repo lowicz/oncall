@@ -1,10 +1,12 @@
 # Pull request and main-branch gates.
 #
-# One workflow, five parallel jobs and one aggregating check (`ci-ok`) for
-# branch protection. Nothing here needs more than read access and nothing here
-# pushes an image, so a pull request from a fork (read-only token, no secrets)
-# runs exactly the same jobs. release.yml calls this workflow before it
-# publishes, so an image can only come from a commit that passed every gate.
+# One workflow, five parallel jobs that feed `ci-ok` for branch protection,
+# plus a SonarCloud scan that is not required. Nothing in the required jobs
+# needs more than read access and nothing here pushes an image, so a pull
+# request from a fork (read-only token, no secrets) still gets a green
+# `ci-ok`. The SonarCloud job skips cleanly when SONAR_TOKEN is missing.
+# release.yml calls this workflow before it publishes, so an image can only
+# come from a commit that passed every required gate.
 #
 # Every action is pinned to a full commit SHA; Renovate (renovate.json5) moves
 # the pins forward, and the tool versions in `env` below with them.
@@ -263,6 +265,40 @@ jobs:
           fi
           echo "$IMAGE runs as uid $uid"
 
+  sonarcloud:
+    # Static analysis on SonarCloud (https://sonarcloud.io). Not in ci-ok's
+    # needs list: fork pull requests have no SONAR_TOKEN, and a missing token
+    # must not turn the required status red. The job itself exits green when
+    # the secret is unavailable. Project key and organisation live in
+    # sonar-project.properties at the repository root.
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check whether SONAR_TOKEN is available
+        id: token
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "SONAR_TOKEN unavailable; skipping SonarCloud scan."
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.token.outputs.available == 'true'
+        with:
+          # Full history improves blame and new-code detection on SonarCloud.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: SonarCloud Scan
+        if: steps.token.outputs.available == 'true'
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
   ci-ok:
     # The one status branch protection requires. The `main-protected` ruleset
     # must list it as `ci-ok` from GitHub Actions, the name every pull request
@@ -270,7 +306,8 @@ jobs:
     # workflow as job `ci`, so requiring that name blocks every pull request
     # (docs/wdrozenie/wydania.md, "Ustawienia repozytorium"). `if: always()`
     # so a failed or cancelled job still produces a (red) status instead of
-    # a missing one.
+    # a missing one. sonarcloud is deliberately absent from needs: a fork PR
+    # has no SONAR_TOKEN and must not block the required check.
     name: ci-ok
     if: always()
     needs: [backend, backend-postgres, frontend, compose-config, image-build]

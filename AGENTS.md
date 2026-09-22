@@ -109,12 +109,16 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `npm run build`, site render; compose-config; image-build without push).
   `ci-ok` is the one required status (ruleset `main-protected`); pull requests
   report it as `ci-ok`, never `ci / ci-ok`, which is its name only under
-  release.yml. Run the same commands locally before pushing.
+  release.yml. SonarCloud (`sonarcloud` job, identity in
+  `sonar-project.properties`) is not in `ci-ok` needs and skips cleanly when
+  `SONAR_TOKEN` is missing, so fork pull requests stay green. Run the same
+  required commands locally before pushing.
 - A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: validates the tag,
   calls `ci.yml`, publishes both images with SBOM, provenance, attestation and
   cosign signature, creates the GitHub Release. Published versions are
-  immutable; the workflow refuses a version already in GHCR. No repository
-  secrets exist or are needed. User-facing description: `docs/wdrozenie/wydania.md`.
+  immutable; the workflow refuses a version already in GHCR. Release uses only
+  `GITHUB_TOKEN` and OIDC (no release secrets). User-facing description:
+  `docs/wdrozenie/wydania.md`.
 - Actions are pinned to full commit SHAs with a version comment; Renovate
   (`renovate.json5`, the Mend GitHub App - no Dependabot) moves them, together
   with both lockfiles, the base images (by tag, no digest pins) and the tool
