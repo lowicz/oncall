@@ -4,10 +4,13 @@ from math import ceil
 from pathlib import Path
 from typing import Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CGROUP_ROOT = Path("/sys/fs/cgroup")
+
+#: What a build from a checkout calls itself; only a release image knows better.
+DEV_VERSION = "dev"
 
 
 def _read_int(path: Path) -> int | None:
@@ -54,6 +57,13 @@ class Settings(BaseSettings):
     #: public repository carries no organisation name.
     app_name: str = "On-call"
     app_subtitle: str = ""
+    #: The release this process runs, shown in the interface. The image bakes
+    #: in the git tag it was built from (backend/Dockerfile, ARG ONCALL_VERSION
+    #: from release.yml), so this names what really runs even when the host's
+    #: ONCALL_VERSION in .env is a floating tag such as `1.2`; Compose passes
+    #: no ONCALL_VERSION to the containers on purpose. A checkout build has no
+    #: tag and says `dev`.
+    version: str = DEV_VERSION
     environment: str = "development"
     database_url: str = "postgresql+asyncpg://oncall:oncall@localhost:5432/oncall"
     database_pool_size: int = Field(default=3, ge=1, le=20)
@@ -152,6 +162,12 @@ class Settings(BaseSettings):
     #: has, and a minute of silence is the most an operator has to wait to see
     #: it.
     metrics_interval_seconds: float = Field(default=60.0, ge=5, le=3600)
+
+    @field_validator("version")
+    @classmethod
+    def _blank_version_means_dev(cls, value: str) -> str:
+        """An empty ONCALL_VERSION (a copied .env with the line unset) is a dev build."""
+        return value.strip() or DEV_VERSION
 
     @model_validator(mode="after")
     def _https_requires_secure_cookie(self) -> Self:

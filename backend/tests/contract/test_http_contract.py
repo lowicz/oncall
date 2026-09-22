@@ -28,7 +28,7 @@ async def test_public_response_and_validation_envelopes(client) -> None:
     config = await client.get("/api/v1/config")
     assert (config.status_code, config.json()) == (
         200,
-        {"ldap_enabled": False, "app_name": "On-call", "app_subtitle": ""},
+        {"ldap_enabled": False, "app_name": "On-call", "app_subtitle": "", "version": "dev"},
     )
 
     invalid = await client.post(
@@ -52,6 +52,20 @@ async def test_public_response_and_validation_envelopes(client) -> None:
             ]
         },
     )
+
+
+async def test_public_config_names_the_release_baked_into_the_image(client, monkeypatch) -> None:
+    """The interface shows the version this process runs, so the config endpoint
+    passes the image's baked-in release tag through unchanged."""
+    from oncall.config import Settings
+    from oncall.routes import system
+
+    monkeypatch.setattr(system, "get_settings", lambda: Settings(version="1.4.0-rc.1"))
+
+    config = await client.get("/api/v1/config")
+
+    assert config.status_code == 200
+    assert config.json()["version"] == "1.4.0-rc.1"
 
 
 async def test_login_cookie_and_csrf_contract(client, db) -> None:

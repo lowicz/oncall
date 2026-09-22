@@ -11,6 +11,9 @@ export interface PublicConfig {
   app_name: string
   /** Optional second line under the name; empty hides it. */
   app_subtitle: string
+  /** The release running, as its image was built: `1.2.0`, `1.3.0-rc.1`, or
+   *  `dev` for a build from a checkout. */
+  version: string
 }
 
 export interface ShareSession {

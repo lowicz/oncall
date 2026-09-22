@@ -1,5 +1,10 @@
 # Rozwiązywanie problemów
 
+Zgłaszając problem, podaj numer wersji aplikacji: jest u dołu listwy
+nawigacji, na końcu menu konta pod awatarem, a na telefonie na ekranie
+„Więcej”. Wersja `dev` oznacza uruchomienie zbudowane z repozytorium, nie z
+wydania.
+
 ## Logowanie
 
 **„Nieprawidłowy login lub hasło”**

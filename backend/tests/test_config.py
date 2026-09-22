@@ -56,3 +56,23 @@ def test_https_base_url_with_a_secure_cookie_is_accepted() -> None:
 def test_plain_http_deployment_may_keep_a_non_secure_cookie() -> None:
     settings = Settings(public_base_url="http://localhost:8080", session_cookie_secure=False)
     assert settings.session_cookie_secure is False
+
+
+def test_version_comes_from_the_image_environment(monkeypatch) -> None:
+    """release.yml bakes the tag into the image as ONCALL_VERSION; that is the
+    version the interface shows."""
+    monkeypatch.setenv("ONCALL_VERSION", "1.4.0")
+
+    assert Settings().version == "1.4.0"
+
+
+def test_version_defaults_to_dev_for_a_checkout_build(monkeypatch) -> None:
+    monkeypatch.delenv("ONCALL_VERSION", raising=False)
+
+    assert Settings().version == "dev"
+
+
+def test_blank_or_padded_version_is_normalised() -> None:
+    assert Settings(version="").version == "dev"
+    assert Settings(version="   ").version == "dev"
+    assert Settings(version=" 1.4.0 ").version == "1.4.0"

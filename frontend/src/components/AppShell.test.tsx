@@ -25,7 +25,15 @@ function renderShell(
   access: Access,
   displayName = 'Piotr Zieliński',
   share: ShareSession | null = null,
+  version: string | null = '1.4.0',
 ) {
+  // `null`: the configuration never arrives, as in the first moments after
+  // the page loads.
+  vi.spyOn(api, 'publicConfig').mockImplementation(() => (
+    version === null
+      ? new Promise(() => {})
+      : Promise.resolve({ ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version })
+  ))
   vi.spyOn(api, 'publishedSchedule').mockResolvedValue({
     generated_at: '2026-09-01T10:00:00Z',
     is_published: true,
@@ -240,6 +248,58 @@ describe('AppShell account menu', () => {
     expect(screen.getByRole('banner')).toHaveTextContent('Teraz')
     const menu = await openMenu()
     expect(within(menu).getByRole('menuitem', { name: /Wyloguj/ })).toBeInTheDocument()
+  })
+})
+
+describe('AppShell version', () => {
+  const openMenu = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /^Konto: / }))
+    return screen.findByRole('menu')
+  }
+
+  it('names the release running at the foot of the rail', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false })
+    const line = await screen.findByText('Wersja 1.4.0')
+    expect(line.closest('.rail-foot')).not.toBeNull()
+  })
+
+  it('closes the account menu with it, so a phone finds it without the rail', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true })
+    await screen.findByRole('navigation', { name: 'Nawigacja dolna' })
+    expect(screen.queryByText('Wersja 1.4.0')).not.toBeInTheDocument()
+    const menu = await openMenu()
+    expect(within(menu).getByText('Wersja 1.4.0')).toBeInTheDocument()
+  })
+
+  it('shows it to a share-link session, which has no rail either', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false }, 'Odbiorca', {
+      label: 'Audyt', starts_on: '2026-09-05', ends_on: '2026-10-02', expires_at: '2026-10-03T00:00:00Z',
+    })
+    await screen.findByText(/zakres 05-09-2026/)
+    const menu = await openMenu()
+    expect(within(menu).getByText('Wersja 1.4.0')).toBeInTheDocument()
+  })
+
+  it('shows no version line until the configuration has arrived', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false }, 'Piotr Zieliński', null, null)
+    await screen.findByRole('link', { name: /Teraz/ })
+    expect(screen.queryByText(/^Wersja/)).not.toBeInTheDocument()
+    const menu = await openMenu()
+    expect(within(menu).queryByText(/^Wersja/)).not.toBeInTheDocument()
+  })
+
+  it('lists it on the phone „Więcej” screen under the application settings', async () => {
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({
+      ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0',
+    })
+    renderScreen(<MoreScreen displayName="Ola Zielińska" access={{ role: 'member', hasTeamMember: true }} />)
+    expect(await screen.findByText('1.4.0')).toBeInTheDocument()
+    expect(screen.getByText('Wersja')).toBeInTheDocument()
   })
 })
 

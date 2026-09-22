@@ -38,6 +38,14 @@ ONCALL_VERSION=1.2.3
 Bez tej zmiennej Compose **odmawia startu** i mówi, czego brakuje. To celowe:
 każdy host deklaruje, co uruchamia, a plik `.env` jest zapisem tej decyzji.
 
+Numer wydania, które naprawdę działa, aplikacja pokazuje sama: u dołu listwy
+nawigacji, na końcu menu konta pod awatarem, a na telefonie na ekranie
+„Więcej”. Nie czyta go z `.env`, tylko z obrazu: pipeline wydania wpisuje tag
+do obu obrazów przy budowaniu (`ONCALL_VERSION` w `backend/Dockerfile` i
+`frontend/Dockerfile`), a API podaje go w `/api/v1/config`. Dlatego przy
+`ONCALL_VERSION=1.2` w `.env` aplikacja pokazuje pełny numer, np. `1.2.3`,
+a obraz zbudowany z repozytorium (nakładka deweloperska) pokazuje `dev`.
+
 ## Aktualizacja i cofnięcie
 
 Aktualizacja to przejście na tag wydania, zmiana jednej linii i pobranie
@@ -50,6 +58,8 @@ sed -i 's/^ONCALL_VERSION=.*/ONCALL_VERSION=1.2.4/' .env
 docker compose pull
 docker compose up -d
 ```
+
+Po starcie numer wersji w menu konta potwierdza, że działa już nowe wydanie.
 
 Pliki Compose (`docker-compose.yml` i nakładki) należą do wydania tak samo
 jak obrazy: zakładają te same porty w kontenerach, użytkowników i ścieżki

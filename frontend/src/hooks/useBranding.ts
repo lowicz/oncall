@@ -10,6 +10,12 @@ export const DEFAULT_APP_NAME = 'On-call'
  * the e-mails and the calendar feeds all say the same thing and the source
  * tree carries no organisation name. Fetched once per session; until it
  * arrives the neutral default is shown.
+ *
+ * The version comes the same way, from the API process itself: it is the
+ * release tag baked into the image (`dev` for a checkout build), so the
+ * interface names what really runs rather than a string built into the
+ * bundle. Empty until the configuration has arrived; the shell shows no
+ * version line rather than a wrong one.
  */
 export function useBranding() {
   const config = useQuery({
@@ -20,7 +26,8 @@ export function useBranding() {
   })
   const name = config.data?.app_name?.trim() || DEFAULT_APP_NAME
   const subtitle = config.data?.app_subtitle?.trim() || ''
-  return { name, subtitle, ldapEnabled: config.data?.ldap_enabled ?? false, loaded: config.isSuccess }
+  const version = config.data?.version?.trim() || ''
+  return { name, subtitle, version, ldapEnabled: config.data?.ldap_enabled ?? false, loaded: config.isSuccess }
 }
 
 /** "Teraz · On-call" in the browser tab; the screen name first so several tabs

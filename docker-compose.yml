@@ -10,6 +10,11 @@
 # users and writable paths match), so an upgrade or a rollback checks out that
 # release's tag and changes that one line.
 #
+# ONCALL_VERSION is passed to no service on purpose: each image carries the
+# exact tag it was built from (its Dockerfile's ONCALL_VERSION, set by
+# release.yml), and that is the version the application shows. The host's
+# value may be a floating `1.2` or `1`; the image's is the full number.
+#
 # Building from this checkout is an overlay, not a switch in this file:
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 # HTTPS is another overlay (docker-compose.tls.yml, docs/wdrozenie/tls.md).

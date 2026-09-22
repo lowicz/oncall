@@ -2369,12 +2369,17 @@
           "ldap_enabled": {
             "title": "Ldap Enabled",
             "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
           }
         },
         "required": [
           "ldap_enabled",
           "app_name",
-          "app_subtitle"
+          "app_subtitle",
+          "version"
         ],
         "title": "PublicConfigResponse",
         "type": "object"

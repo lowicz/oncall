@@ -4,14 +4,16 @@ import { api } from '../api'
 import { Access, adminNav, coordinationNav, docsHref, primaryNav, roleLabels, visibleFor } from '../lib/nav'
 import { Avatar, Icon, List, ListRow, PageHeader, SectionHeading, Button } from '../ui'
 import { DensitySegmented, ThemeSegmented } from '../components/AppShell'
+import { useBranding } from '../hooks/useBranding'
 
 /**
  * The fifth bottom tab on a phone: every screen the four tabs do not hold,
- * the theme, the documentation and the way out. On a desktop the rail has all
- * of it, so this screen is reachable but not linked.
+ * the theme, the documentation, the way out and the release running. On a
+ * desktop the rail has all of it, so this screen is reachable but not linked.
  */
 export function MoreScreen({ displayName, access }: { displayName: string; access: Access }) {
   const queryClient = useQueryClient()
+  const branding = useBranding()
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: () => {
@@ -56,6 +58,11 @@ export function MoreScreen({ displayName, access }: { displayName: string; acces
           <ListRow aside={<Button size="sm" icon="logout" onClick={() => logout.mutate()} loading={logout.isPending}>Wyloguj</Button>}>
             <b>Sesja</b>
           </ListRow>
+          {branding.version && (
+            <ListRow aside={<span className="muted">{branding.version}</span>}>
+              <b>Wersja</b>
+            </ListRow>
+          )}
         </List>
       </div>
     </div>

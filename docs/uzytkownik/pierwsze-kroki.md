@@ -32,7 +32,8 @@ Na szerokim ekranie po lewej jest **listwa nawigacji**, od góry:
   miesięczny**, **Import historii**,
 - sekcja **Administracja**: **Osoby**, **Wydarzenia**, **Udostępnienia**,
   **Audyt**,
-- na dole link **Dokumentacja** i przycisk **Paleta** (`Ctrl K`).
+- na dole link **Dokumentacja**, przycisk **Paleta** (`Ctrl K`) i numer
+  wersji aplikacji.
 
 Widoczne są tylko te pozycje, do których masz uprawnienia. Liczba zamian
 czekających na Twoją decyzję pojawia się jako znacznik przy pozycji „Zamiany”.
@@ -41,11 +42,12 @@ Nad treścią każdego ekranu biegnie pasek **Dyżur teraz**: kto ma dziś
 `PRIMARY`, `SECONDARY` i `11–19`, z telefonem i czasem do końca dyżuru, pole
 **Szukaj…** otwierające paletę poleceń oraz Twój awatar. Kliknięcie awatara
 otwiera menu konta: nazwa i rola, motyw, gęstość macierzy, link do
-dokumentacji, paleta poleceń i **Wyloguj**.
+dokumentacji, paleta poleceń, **Wyloguj** i na samym dole numer wersji
+aplikacji, która właśnie działa (ten sam, co u dołu listwy).
 
 Na telefonie listwa znika, a u dołu ekranu są zakładki **Teraz**, **Grafik**,
 **Moje**, **Zamiany** i **Więcej**. Pod „Więcej” są pozostałe ekrany Twojej
-roli, motyw, gęstość, dokumentacja i wylogowanie.
+roli, motyw, gęstość, dokumentacja, wylogowanie i numer wersji.
 
 ## Paleta poleceń
 
