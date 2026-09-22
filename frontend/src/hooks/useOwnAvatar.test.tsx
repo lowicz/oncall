@@ -7,7 +7,7 @@ import { useOwnAvatar } from './useOwnAvatar'
 const AVATAR_URL = '/api/v1/auth/me/avatar'
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
 
-function answer(status: number, body: BodyInit | null = null, contentType = 'application/json') {
+function answer(status: number, body: string | Uint8Array<ArrayBuffer> | null = null, contentType = 'application/json') {
   const response = new Response(body, { status, headers: { 'Content-Type': contentType } })
   // In a browser `response.blob()` and `new FileReader()` share one realm; in
   // jsdom the global `fetch`/`Response` come from Node (undici), whose Blob the
