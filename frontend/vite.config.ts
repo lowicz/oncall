@@ -32,5 +32,14 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // `vitest run --coverage` (CI) writes coverage/lcov.info for SonarCloud
+    // (sonar-project.properties). Its paths are relative to the repository
+    // root, which is where the scan runs.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
+      reporter: ['text-summary', ['lcovonly', { projectRoot: '..' }]],
+    },
   },
 })
