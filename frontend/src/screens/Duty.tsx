@@ -12,6 +12,7 @@ import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
 import { AnchorButton, Box, Chip, LinkButton, PageHeader, SectionHeading, StatusBadge, Tag, cx } from '../ui'
 
 const roleClass: Record<AssignmentRole, string> = { primary: '', secondary: 'dcard-s', late_shift: 'dcard-l' }
+const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 
 /**
  * One role's duty right now, as a card for a phone: who, until when, a
@@ -105,11 +106,12 @@ export function DutyScreen({ role, displayName, hasTeamMember }: {
   // superseded schedule and fills `id` too (MED5-01).
   const published = schedule.data?.is_published ? schedule.data : null
   const actionable = groupSwaps(swaps.data ?? [], { displayName, role }).actionable.length
-  const nextOwn = hasTeamMember
-    ? (schedule.data?.assignments ?? [])
-      .filter((item) => item.assignee_name === displayName && item.service_date >= today)
-      .sort((a, b) => a.service_date.localeCompare(b.service_date))[0]
-    : undefined
+  const ownAhead = hasTeamMember
+    ? (schedule.data?.assignments ?? []).filter((item) => item.assignee_name === displayName && item.service_date >= today)
+    : []
+  const nextOwnDate = ownAhead.map((item) => item.service_date).sort()[0]
+  // Every role of that day, the way Moje names it ("SECONDARY + 11–19").
+  const nextOwnRoles = ROLE_ORDER.filter((value) => ownAhead.some((item) => item.service_date === nextOwnDate && item.role === value))
   const generatorHref = published?.ends_on
     ? `/generator?od=${addDays(published.ends_on, 1)}&do=${addDays(published.ends_on, 28)}`
     : '/generator'
@@ -158,9 +160,9 @@ export function DutyScreen({ role, displayName, hasTeamMember }: {
           />
         </div>
       )}
-      {narrow && nextOwn && (
+      {narrow && nextOwnDate && (
         <p className="muted small">
-          Twój następny dyżur: <b>{formatDayShort(nextOwn.service_date)} · {roleLabels[nextOwn.role]}</b>
+          Twój następny dyżur: <b>{formatDayShort(nextOwnDate)} · {nextOwnRoles.map((value) => roleLabels[value]).join(' + ')}</b>
         </p>
       )}
       <CalendarMatrix

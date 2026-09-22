@@ -202,6 +202,21 @@ describe('DutyScreen on a phone', () => {
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
   })
 
+  it('names every role of the next own duty day', async () => {
+    pretendNarrow(true)
+    const base = publication()
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({
+      assignments: [
+        ...base.assignments,
+        { service_date: '2026-09-12', role: 'late_shift', assignee_name: 'Anna Kowalska', is_override: false },
+      ],
+    }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    expect(await screen.findByText(/Twój następny dyżur:/)).toHaveTextContent('so 12 wrz · SECONDARY + 11–19')
+  })
+
   it('marks the 11–19 shift as not applicable on a day off', async () => {
     pretendNarrow(true)
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ today_is_day_off: true, today_holiday_name: null }))
