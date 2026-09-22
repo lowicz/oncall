@@ -217,6 +217,8 @@ jobs:
         run: .github/scripts/env-vars-wired.sh
       - name: Every service is read-only and drops all capabilities
         run: .github/scripts/compose-hardening.sh
+      - name: User systemd unit calls the stack script
+        run: .github/scripts/systemd-user-unit.sh
 
   image-build:
     # Builds both Dockerfiles exactly as release.yml will, but never pushes:

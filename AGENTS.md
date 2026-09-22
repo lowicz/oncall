@@ -93,7 +93,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   55432) takes its Compose project name from the checkout directory, `oncall`,
   like the main stack: pass `-p <other-name>` to its `up` and `down`.
 - `podman compose` here delegates to the Docker Compose plugin and needs
-  `systemctl --user start podman.socket` first.
+  `systemctl --user start podman.socket` first. A user oneshot that brings
+  the stack up after reboot is `deploy/systemd/oncall.service` (it calls
+  `oncall-stack.sh`; not Quadlet); setup and linger are in
+  `docs/wdrozenie/systemd.md`.
 - Browser QA of the frontend against the published images: start the
   compose stack (API on 8080) and run the Vite dev server with its `/api`
   proxy pointed at `http://localhost:8080`; the checked-in

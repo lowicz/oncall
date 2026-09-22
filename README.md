@@ -31,6 +31,7 @@ docker compose up -d
 
 The frontend is served at `http://localhost:8080`, while the API is available through the same origin under `/api`.
 Versions, upgrades, rollback and image verification: [docs/wdrozenie/wydania.md](docs/wdrozenie/wydania.md).
+To start the Podman stack after reboot without an interactive login, use the user systemd unit: [docs/wdrozenie/systemd.md](docs/wdrozenie/systemd.md).
 
 ## Development
 
