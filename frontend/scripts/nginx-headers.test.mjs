@@ -1,65 +1,167 @@
 /**
- * The nginx presets ship the security headers issue #29 asked for. Asserted on
- * the config files themselves (a running nginx is not available in CI), plus
- * the SPA's inline-script handling: the theme bootstrap is an external script,
- * so the strict `script-src 'self'` CSP does not need an inline allowance.
+ * The nginx presets ship the security headers issue #29 asked for. Rather than
+ * grep the config text, this parses each preset into a semantic model and
+ * asserts the EFFECTIVE response headers nginx would emit, honouring add_header
+ * inheritance: a location that declares any add_header of its own (directly or
+ * through an include) does not inherit the server-level add_headers, so every
+ * such location re-includes the shared snippet. The SPA's inline-script handling
+ * is checked against a parsed DOM: the theme bootstrap is an external script, so
+ * the strict `script-src 'self'` CSP needs no inline allowance.
  */
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import Parser from '@webantic/nginx-config-parser'
+import { JSDOM } from 'jsdom'
 import { describe, expect, it } from 'vitest'
 
 const read = (name) => readFileSync(resolve(process.cwd(), name), 'utf8')
+const parser = new Parser()
 
-const snippet = read('nginx-security-headers.conf')
-const http = read('nginx.http.conf')
-const https = read('nginx.https.conf')
-const indexHtml = read('index.html')
+const SNIPPET_INCLUDE = '/etc/nginx/security-headers.conf'
+const snippetRaw = asArray(parser.toJSON(read('nginx-security-headers.conf')).add_header)
 
-describe('nginx security headers', () => {
-  it('the shared snippet sets the common headers, always', () => {
-    for (const directive of [
-      'add_header X-Content-Type-Options "nosniff" always;',
-      'add_header X-Frame-Options "DENY" always;',
-      'add_header Referrer-Policy',
-      'add_header Permissions-Policy',
-    ]) {
-      expect(snippet).toContain(directive)
-    }
-    // Every add_header in the snippet is marked always (sent on errors too).
-    for (const line of snippet.split('\n')) {
-      if (line.trim().startsWith('add_header')) expect(line).toMatch(/always;\s*$/)
-    }
-  })
+function asArray(value) {
+  if (value == null) return []
+  return Array.isArray(value) ? value : [value]
+}
 
-  for (const [name, conf] of [
-    ['http', http],
-    ['https', https],
-  ]) {
-    it(`the ${name} preset includes the snippet and hides the version`, () => {
-      expect(conf).toContain('include /etc/nginx/security-headers.conf;')
-      expect(conf).toContain('server_tokens off;')
-    })
+// Parse one `add_header <name> <value> [always]` directive into a header.
+function parseHeader(directive) {
+  let rest = directive.trim()
+  const always = / always$/.test(rest)
+  if (always) rest = rest.slice(0, -' always'.length).trim()
+  const space = rest.indexOf(' ')
+  const name = rest.slice(0, space)
+  let value = rest.slice(space + 1).trim()
+  if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1)
+  return { name, value, always }
+}
 
-    it(`the ${name} preset ships a strict Content-Security-Policy`, () => {
-      expect(conf).toMatch(/add_header Content-Security-Policy ".*script-src 'self'/)
-      expect(conf).toMatch(/add_header Content-Security-Policy ".*frame-ancestors 'none'/)
-      expect(conf).toMatch(/add_header Content-Security-Policy ".*object-src 'none'/)
-      // The app CSP (served at `/` and inherited by /api) forbids inline script.
-      expect(conf).toMatch(
-        /location \/ \{[^}]*script-src 'self'; style-src[^}]*\}/s,
-      )
-    })
+// The add_header directives a block contributes itself: its own directives plus
+// anything the shared snippet include pulls in. An empty result means the block
+// inherits its parent's headers.
+function contributed(block) {
+  if (!block) return []
+  const fromInclude = asArray(block.include).flatMap((inc) =>
+    inc === SNIPPET_INCLUDE ? snippetRaw : [],
+  )
+  return [...fromInclude, ...asArray(block.add_header)]
+}
+
+// Effective headers for a location: its own contribution wins outright, else it
+// inherits the server's (nginx add_header inheritance is all-or-nothing).
+function effectiveHeaders(location, server) {
+  const own = contributed(location)
+  const raw = own.length ? own : contributed(server)
+  return raw.map(parseHeader)
+}
+
+function parseCsp(value) {
+  const directives = {}
+  for (const part of value.split(';')) {
+    const tokens = part.trim().split(/\s+/).filter(Boolean)
+    if (tokens.length) directives[tokens[0]] = tokens.slice(1)
   }
+  return directives
+}
 
-  it('HSTS is on the TLS preset only', () => {
-    expect(https).toMatch(/add_header Strict-Transport-Security ".*max-age=\d+.*" always;/)
-    expect(http).not.toContain('Strict-Transport-Security')
+const serverBlocks = (parsed) => asArray(parsed.server)
+const contentServer = (parsed) =>
+  serverBlocks(parsed).find((s) => Object.keys(s).some((k) => k.startsWith('location ')))
+const locationBlock = (server, path) => server[`location ${path}`]
+
+const presets = [
+  { name: 'http (plain-HTTP preset)', parsed: parser.toJSON(read('nginx.http.conf')), tls: false },
+  { name: 'https (TLS preset)', parsed: parser.toJSON(read('nginx.https.conf')), tls: true },
+]
+
+// Where a browser lands: the SPA shell, the docs, the proxied API and calendar.
+const responsePaths = ['/', '/docs/', '/api/', '/calendar/']
+
+describe.each(presets)('nginx security headers - $name', ({ parsed, tls }) => {
+  const server = contentServer(parsed)
+
+  it('hides the nginx version on every server block', () => {
+    for (const block of serverBlocks(parsed)) expect(block.server_tokens).toBe('off')
   })
 
-  it('the SPA bootstrap is external, so no inline script is served', () => {
-    expect(indexHtml).toContain('<script src="/theme-init.js"></script>')
-    // No inline <script> body: every <script> tag carries a src.
-    const inlineScript = /<script(?![^>]*\bsrc=)[^>]*>[^<]*\S[^<]*<\/script>/
-    expect(indexHtml).not.toMatch(inlineScript)
+  it.each(responsePaths)('%s sends the common security headers, always', (path) => {
+    const headers = effectiveHeaders(locationBlock(server, path), server)
+    const byName = (name) => headers.find((h) => h.name === name)
+    for (const name of [
+      'X-Content-Type-Options',
+      'X-Frame-Options',
+      'Referrer-Policy',
+      'Permissions-Policy',
+      'Content-Security-Policy',
+    ]) {
+      const header = byName(name)
+      expect(header, `${path} is missing ${name}`).toBeTruthy()
+      expect(header.always, `${path} ${name} is not marked always`).toBe(true)
+    }
+    expect(byName('X-Content-Type-Options').value).toBe('nosniff')
+    expect(byName('X-Frame-Options').value).toBe('DENY')
+  })
+
+  it.each(responsePaths)('%s CSP blocks framing and plugins, and only /docs/ relaxes script-src', (path) => {
+    const headers = effectiveHeaders(locationBlock(server, path), server)
+    const csp = parseCsp(headers.find((h) => h.name === 'Content-Security-Policy').value)
+    expect(csp['frame-ancestors']).toEqual(["'none'"])
+    expect(csp['object-src']).toEqual(["'none'"])
+    if (path === '/docs/') {
+      expect(csp['script-src']).toContain("'self'")
+      expect(csp['script-src']).toContain("'unsafe-inline'")
+    } else {
+      expect(csp['script-src']).toEqual(["'self'"])
+    }
+  })
+
+  it('the docs CSP relaxes script-src and nothing else', () => {
+    const app = parseCsp(
+      effectiveHeaders(locationBlock(server, '/'), server).find(
+        (h) => h.name === 'Content-Security-Policy',
+      ).value,
+    )
+    const docs = parseCsp(
+      effectiveHeaders(locationBlock(server, '/docs/'), server).find(
+        (h) => h.name === 'Content-Security-Policy',
+      ).value,
+    )
+    expect(Object.keys(docs).sort()).toEqual(Object.keys(app).sort())
+    for (const name of Object.keys(app)) {
+      if (name === 'script-src') continue
+      expect(docs[name], `docs ${name} differs from the app CSP`).toEqual(app[name])
+    }
+    expect(docs['script-src']).toEqual([...app['script-src'], "'unsafe-inline'"])
+  })
+
+  it('HSTS is present exactly when the content server is TLS (listen 443)', () => {
+    expect(String(server.listen).includes('443')).toBe(tls)
+    const hsts = effectiveHeaders(locationBlock(server, '/'), server).find(
+      (h) => h.name === 'Strict-Transport-Security',
+    )
+    if (tls) {
+      expect(hsts).toBeTruthy()
+      expect(hsts.always).toBe(true)
+      expect(hsts.value).toMatch(/max-age=\d+/)
+    } else {
+      expect(hsts).toBeFalsy()
+    }
+  })
+})
+
+describe('SPA index.html keeps the CSP strict', () => {
+  const scripts = [...new JSDOM(read('index.html')).window.document.querySelectorAll('script')]
+
+  it('serves no inline script: every <script> is external with an empty body', () => {
+    expect(scripts.length).toBeGreaterThan(0)
+    for (const script of scripts) {
+      expect(script.getAttribute('src')).toBeTruthy()
+      expect(script.textContent.trim()).toBe('')
+    }
+  })
+
+  it('loads the external theme bootstrap', () => {
+    expect(scripts.some((s) => s.getAttribute('src') === '/theme-init.js')).toBe(true)
   })
 })
