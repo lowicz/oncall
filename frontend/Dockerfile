@@ -5,7 +5,7 @@
 # The Node major CI tests with (NODE_VERSION in .github/workflows/ci.yml,
 # node-version in pages.yml). Renovate's "Node.js" group moves them together
 # and reads this line only in the `node:<major>-alpine` form.
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
