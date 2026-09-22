@@ -30,6 +30,10 @@ export interface CurrentUser {
   has_team_member: boolean
   email: string | null
   share: ShareSession | null
+  /** Where this person's own photo is served when the directory may hold
+   *  one; null for a local account, a share link or a deployment that reads
+   *  no photos. Whether there is one is only known once it is fetched. */
+  avatar_url: string | null
 }
 
 export interface AccountTokenInfo {
@@ -611,6 +615,17 @@ function parseError(body: unknown, status: number): ApiError {
   return new ApiError(`Błąd HTTP ${status}`, status)
 }
 
+/** The file's bytes as a `data:` URL, which an `<img>` shows with no object
+ *  URL to revoke and which the strict CSP allows. */
+function asDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error ?? new Error('Nie udało się odczytać obrazu'))
+    reader.readAsDataURL(blob)
+  })
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -646,6 +661,18 @@ async function followRun(
 
 export const api = {
   me: () => request<CurrentUser>('/api/v1/auth/me'),
+  /** The person's own photo from the directory as a data URL, or null when
+   *  the directory holds none for them. A directory that cannot answer is an
+   *  error, so the caller keeps its fallback either way. */
+  ownAvatar: async (url: string): Promise<string | null> => {
+    const response = await fetch(url, { credentials: 'include' })
+    if (response.status === 404) return null
+    if (!response.ok) {
+      const body = await response.json().catch(() => null)
+      throw parseError(body, response.status)
+    }
+    return asDataUrl(await response.blob())
+  },
   publicConfig: () => request<PublicConfig>('/api/v1/config'),
   login: (username: string, password: string) =>
     request<CurrentUser>('/api/v1/auth/login', {

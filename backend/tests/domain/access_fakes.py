@@ -152,16 +152,24 @@ class FakePasswords:
 
 
 class FakeDirectory:
-    def __init__(self, identity=None, failure: str | None = None) -> None:
+    def __init__(self, identity=None, failure: str | None = None, photo=None) -> None:
         self.identity = identity
         self.failure = failure
+        self.stored_photo = photo
         self.calls = 0
+        self.photo_calls: list[str] = []
 
     async def authenticate(self, login, password):
         self.calls += 1
         if self.failure:
             raise DirectoryFailure(self.failure)
         return self.identity
+
+    async def photo(self, login):
+        self.photo_calls.append(login)
+        if self.failure:
+            raise DirectoryFailure(self.failure)
+        return self.stored_photo
 
 
 class FakeSessions:

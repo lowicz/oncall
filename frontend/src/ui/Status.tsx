@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { cx } from './cx'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
@@ -85,12 +85,20 @@ export function AvailabilityMark({ kind, className, withLabel }: { kind: Availab
   )
 }
 
-/** Circle with initials, for the account menu and people lists. */
-export function Avatar({ name, size = 26, className }: { name: string; size?: number; className?: string }) {
+/**
+ * Circle with initials, for the account menu and people lists; the person's
+ * photo instead when there is one (`src`), and the initials again the moment
+ * the browser cannot show it. Decorative: the element around it names the
+ * person.
+ */
+export function Avatar({ name, size = 26, className, src }: { name: string; size?: number; className?: string; src?: string | null }) {
+  // The source the browser refused, so a new one is tried afresh.
+  const [broken, setBroken] = useState<string | null>(null)
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('')
+  const photo = src && src !== broken ? src : null
   return (
-    <span className={cx('ava', className)} style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }} aria-hidden="true">
-      {initials || '?'}
+    <span className={cx('ava', photo && 'ava-photo', className)} style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }} aria-hidden="true">
+      {photo ? <img className="ava-img" src={photo} alt="" onError={() => setBroken(photo)} /> : (initials || '?')}
     </span>
   )
 }

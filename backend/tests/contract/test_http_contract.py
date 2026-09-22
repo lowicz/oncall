@@ -87,6 +87,7 @@ async def test_login_cookie_and_csrf_contract(client, db) -> None:
         "email": None,
         "phone": None,
         "share": None,
+        "avatar_url": None,
     }
     assert len(response.headers["x-csrf-token"]) == 43
     cookie = response.headers["set-cookie"]

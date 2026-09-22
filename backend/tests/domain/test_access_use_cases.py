@@ -6,7 +6,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from oncall.domain.access import errors, use_cases
-from oncall.domain.access.models import DirectoryIdentity, PasswordChoice, SignInRequest
+from oncall.domain.access.models import (
+    DirectoryIdentity,
+    DirectoryPhoto,
+    PasswordChoice,
+    SignInRequest,
+)
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.errors import RecordedRefusal
 from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
@@ -321,3 +326,28 @@ async def test_a_deleted_account_refuses_the_phone_edit(world) -> None:
     session, so the id in that session can name a row that is gone."""
     with pytest.raises(errors.AccountGone):
         await use_cases.change_own_phone(uuid.uuid4(), "+48 600", world.accounts)
+
+
+async def test_only_a_directory_account_has_a_photo_and_only_its_own(world) -> None:
+    world.directory.stored_photo = DirectoryPhoto("image/png", b"\x89PNG\r\n\x1a\n")
+
+    # A local account and a share-link session (no account) have none, and
+    # the directory is not even asked.
+    assert await use_cases.own_photo(account("ola"), world.directory) is None
+    assert await use_cases.own_photo(None, world.directory) is None
+    assert world.directory.photo_calls == []
+
+    ola = account("ola", auth_source=AuthSource.ldap)
+    photo = await use_cases.own_photo(ola, world.directory)
+
+    assert photo == world.directory.stored_photo
+    assert world.directory.photo_calls == ["ola"]
+
+
+async def test_a_directory_outage_while_reading_the_photo_keeps_its_reason(world) -> None:
+    world.directory.failure = "connection_refused"
+
+    with pytest.raises(errors.DirectoryUnavailable) as failure:
+        await use_cases.own_photo(account("ola", auth_source=AuthSource.ldap), world.directory)
+
+    assert failure.value.reason == "connection_refused"

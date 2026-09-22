@@ -3,17 +3,23 @@ from dataclasses import replace
 import pytest
 from sqlalchemy import select
 
+from oncall.config import Settings
 from oncall.domain.vocabulary import AuthSource, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.ldap_auth import (
     DirectoryIdentity,
+    DirectoryPhoto,
     DirectoryUnavailableError,
     get_directory_authenticator,
 )
 from oncall.main import app
+from oncall.routes import access
 from tests.conftest import create_member, create_user, login
+
+AVATAR_URL = "/api/v1/auth/me/avatar"
+JPEG_PHOTO = b"\xff\xd8\xff\xe0" + bytes(range(256))
 
 
 class FakeDirectory:
@@ -21,16 +27,25 @@ class FakeDirectory:
         self,
         identity: DirectoryIdentity | None = None,
         error: Exception | None = None,
+        photo: DirectoryPhoto | None = None,
     ) -> None:
         self.identity = identity
         self.error = error
+        self.stored_photo = photo
         self.calls: list[tuple[str, str]] = []
+        self.photo_calls: list[str] = []
 
     async def authenticate(self, username: str, password: str) -> DirectoryIdentity | None:
         self.calls.append((username, password))
         if self.error:
             raise self.error
         return self.identity
+
+    async def photo(self, username: str) -> DirectoryPhoto | None:
+        self.photo_calls.append(username)
+        if self.error:
+            raise self.error
+        return self.stored_photo
 
 
 def directory_identity(**changes) -> DirectoryIdentity:
@@ -46,6 +61,20 @@ def directory_identity(**changes) -> DirectoryIdentity:
 
 def use_directory(directory: FakeDirectory) -> None:
     app.dependency_overrides[get_directory_authenticator] = lambda: directory
+
+
+def offer_photos(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The deployment reads photos: the directory is on, with the default
+    photo attribute."""
+    monkeypatch.setattr(access, "get_settings", lambda: Settings(ldap_enabled=True))
+
+
+async def directory_login(client) -> dict:
+    response = await client.post(
+        "/api/v1/auth/login", json={"username": "anna", "password": "directory-secret"}
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
 async def test_first_ldap_login_provisions_viewer_and_is_audited(client, db) -> None:
@@ -232,3 +261,93 @@ async def test_directory_identity_cannot_link_when_username_is_taken_elsewhere(c
     assert response.status_code == 409
     await db.refresh(local)
     assert local.auth_source == AuthSource.local
+
+
+async def test_a_directory_account_is_shown_its_own_photo_read_on_request(
+    client, db, monkeypatch
+) -> None:
+    offer_photos(monkeypatch)
+    directory = FakeDirectory(directory_identity(), photo=DirectoryPhoto("image/jpeg", JPEG_PHOTO))
+    use_directory(directory)
+
+    signed_in = await directory_login(client)
+    current = await client.get("/api/v1/auth/me")
+    avatar = await client.get(AVATAR_URL)
+
+    assert signed_in["avatar_url"] == AVATAR_URL
+    assert current.json()["avatar_url"] == AVATAR_URL
+    assert avatar.status_code == 200, avatar.text
+    assert avatar.headers["content-type"] == "image/jpeg"
+    # Never kept by the browser: the next person on the same computer must
+    # not be shown this face out of its cache.
+    assert avatar.headers["cache-control"] == "no-store"
+    assert avatar.content == JPEG_PHOTO
+    # Asked in the person's own name only, and only once signing in is done.
+    assert directory.photo_calls == ["anna"]
+
+
+async def test_a_local_account_has_no_avatar_and_the_directory_is_not_asked(
+    client, db, monkeypatch
+) -> None:
+    offer_photos(monkeypatch)
+    await create_user(db, "local")
+    directory = FakeDirectory(photo=DirectoryPhoto("image/jpeg", JPEG_PHOTO))
+    use_directory(directory)
+
+    signed_in = await login(client, "local")
+    avatar = await client.get(AVATAR_URL)
+
+    assert signed_in["avatar_url"] is None
+    assert avatar.status_code == 404
+    assert directory.photo_calls == []
+
+
+async def test_a_deployment_without_directory_photos_offers_no_avatar(client, db) -> None:
+    """The default settings: no directory, so no photo attribute to read even
+    for an account that signed in through the directory."""
+    directory = FakeDirectory(directory_identity(), photo=DirectoryPhoto("image/jpeg", JPEG_PHOTO))
+    use_directory(directory)
+
+    signed_in = await directory_login(client)
+
+    assert signed_in["avatar_url"] is None
+
+
+async def test_a_directory_account_without_a_photo_keeps_the_initials(
+    client, db, monkeypatch
+) -> None:
+    offer_photos(monkeypatch)
+    use_directory(FakeDirectory(directory_identity(), photo=None))
+
+    signed_in = await directory_login(client)
+    avatar = await client.get(AVATAR_URL)
+
+    # The answer says a photo may exist; only the fetch finds out it does not.
+    assert signed_in["avatar_url"] == AVATAR_URL
+    assert avatar.status_code == 404
+    assert avatar.json() == {"detail": "Brak zdjęcia w katalogu"}
+
+
+async def test_a_directory_outage_while_reading_the_photo_is_one_generic_answer(
+    client, db, monkeypatch
+) -> None:
+    offer_photos(monkeypatch)
+    directory = FakeDirectory(directory_identity())
+    use_directory(directory)
+    await directory_login(client)
+    directory.error = DirectoryUnavailableError(
+        "Konto serwisowe LDAP nie może się zalogować",
+        phase="service_bind",
+        reason="invalidCredentials",
+    )
+
+    avatar = await client.get(AVATAR_URL)
+
+    assert avatar.status_code == 503
+    # The client's own message, which names the service account, stays in
+    # the log; the browser learns only that the directory did not answer.
+    assert avatar.json() == {"detail": "Katalog jest chwilowo niedostępny"}
+
+
+async def test_the_avatar_needs_a_session(client) -> None:
+    assert (await client.get(AVATAR_URL)).status_code == 401

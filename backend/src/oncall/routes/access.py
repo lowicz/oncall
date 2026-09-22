@@ -17,6 +17,7 @@ from oncall.auth import (
 )
 from oncall.bootstrap.providers import (
     AccountLinkProvider,
+    DirectoryPhotoProvider,
     OwnProfileProvider,
     PasswordProvider,
     SessionProvider,
@@ -29,9 +30,10 @@ from oncall.domain.access.models import AccountOverview, PasswordChoice, SignInR
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import utc_now
 from oncall.domain.errors import DomainError
-from oncall.domain.vocabulary import AccountTokenKind, UserRole
+from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
 from oncall.infrastructure.sqlalchemy.access import account_from_row
 from oncall.infrastructure.sqlalchemy.access_models import Session
+from oncall.ldap_auth import photos_offered
 from oncall.presentation.access import (
     AccountTokenInfoResponse,
     LoginRequest,
@@ -40,16 +42,18 @@ from oncall.presentation.access import (
     UpdateOwnPhoneRequest,
     UserResponse,
 )
-from oncall.routes.domain_edge import refusals_as_http
+from oncall.routes.domain_edge import domain_errors_as_http, refusals_as_http
 
 router = APIRouter()
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
+AVATAR_PATH = "/api/v1/auth/me/avatar"
 
 
 ACCESS_ERROR_STATUSES = {
     errors.LoginThrottled: status.HTTP_429_TOO_MANY_REQUESTS,
     errors.LoginRejected: status.HTTP_401_UNAUTHORIZED,
     errors.DirectoryLoginUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    errors.DirectoryUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     errors.DirectoryIdentityConflict: status.HTTP_409_CONFLICT,
     errors.AccountLinkInvalid: status.HTTP_400_BAD_REQUEST,
     DirectoryPasswordReadOnly: status.HTTP_409_CONFLICT,
@@ -67,6 +71,7 @@ ACCESS_ERROR_HEADERS = {
 
 def user_response(overview: AccountOverview) -> UserResponse:
     account = overview.account
+    may_have_photo = account.auth_source == AuthSource.ldap and photos_offered(get_settings())
     return UserResponse(
         username=account.username,
         display_name=account.display_name,
@@ -74,6 +79,7 @@ def user_response(overview: AccountOverview) -> UserResponse:
         has_team_member=overview.has_team_member,
         email=account.email,
         phone=account.phone,
+        avatar_url=AVATAR_PATH if may_have_photo else None,
     )
 
 
@@ -238,6 +244,33 @@ async def me(principal: CurrentPrincipal, profiles: OwnProfileProvider) -> UserR
         overview = await use_cases.describe_account(account_from_row(principal.user), profiles)
         return user_response(overview)
     return share_principal_response(principal)
+
+
+@router.get(
+    AVATAR_PATH,
+    response_class=Response,
+    responses={
+        200: {
+            "description": "The person's own photo as the directory holds it",
+            "content": {"image/jpeg": {}, "image/png": {}},
+        },
+        404: {"description": "No photo: a local account, a share link or none in the directory"},
+        503: {"description": "The directory could not answer"},
+    },
+)
+async def my_avatar(principal: CurrentPrincipal, photos: DirectoryPhotoProvider) -> Response:
+    """The signed-in person's photo, read from the directory on request and
+    never stored here. `no-store`, so a browser shared by two people never
+    shows one the other's face from its cache; the interface keeps it in
+    memory for the session instead."""
+    account = account_from_row(principal.user) if principal.user is not None else None
+    with domain_errors_as_http(ACCESS_ERROR_STATUSES):
+        photo = await use_cases.own_photo(account, photos)
+    if photo is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Brak zdjęcia w katalogu")
+    return Response(
+        content=photo.data, media_type=photo.media_type, headers={"Cache-Control": "no-store"}
+    )
 
 
 @router.patch("/api/v1/auth/me", response_model=UserResponse)

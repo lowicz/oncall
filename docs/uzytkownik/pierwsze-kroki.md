@@ -40,7 +40,8 @@ czekających na Twoją decyzję pojawia się jako znacznik przy pozycji „Zamia
 
 Nad treścią każdego ekranu biegnie pasek **Dyżur teraz**: kto ma dziś
 `PRIMARY`, `SECONDARY` i `11–19`, z telefonem i czasem do końca dyżuru, pole
-**Szukaj…** otwierające paletę poleceń oraz Twój awatar. Kliknięcie awatara
+**Szukaj…** otwierające paletę poleceń oraz Twój awatar: zdjęcie z katalogu
+firmowego, jeśli Twoje konto je ma, albo inicjały. Kliknięcie awatara
 otwiera menu konta: nazwa i rola, motyw, gęstość macierzy, link do
 dokumentacji, paleta poleceń, **Wyloguj** i na samym dole numer wersji
 aplikacji, która właśnie działa (ten sam, co u dołu listwy).

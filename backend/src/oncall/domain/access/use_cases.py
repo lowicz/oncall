@@ -1,5 +1,5 @@
-"""Signing in, the directory link, one-time account links and the account
-owner's own details.
+"""Signing in, the directory link, one-time account links, the account
+owner's own details and their photo from the directory.
 
 Signing in is guarded twice: a throttle keyed by login and by address, and a
 constant cost per refusal (one password verification, real or decoy), so a
@@ -20,12 +20,19 @@ from oncall.domain.access.models import (
     LOGIN_THROTTLE_WINDOW,
     AccountOverview,
     DirectoryIdentity,
+    DirectoryPhoto,
     PasswordChoice,
     SignedIn,
     SignInRequest,
     retry_after_seconds,
 )
-from oncall.domain.access.ports import AccountLinks, OwnProfiles, PasswordPorts, SignInPorts
+from oncall.domain.access.ports import (
+    AccountLinks,
+    DirectoryPhotos,
+    OwnProfiles,
+    PasswordPorts,
+    SignInPorts,
+)
 from oncall.domain.accounts import Account
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import as_utc
@@ -205,3 +212,18 @@ async def change_own_phone(
     if account_id is None:
         raise errors.ShareSessionHasNoAccount()
     return await describe_account(await profiles.change_phone(account_id, phone), profiles)
+
+
+async def own_photo(account: Account | None, photos: DirectoryPhotos) -> DirectoryPhoto | None:
+    """The signed-in person's photo, which only the directory holds: a local
+    account has none, and neither has a share-link session, which has no
+    account at all. None as well when the directory holds no photo for the
+    person or one this application will not serve; the interface shows the
+    initials in every such case. The directory is asked in the person's own
+    name only, so nobody fetches another person's photo this way."""
+    if account is None or account.auth_source != AuthSource.ldap:
+        return None
+    try:
+        return await photos.photo(account.username)
+    except errors.DirectoryFailure as failure:
+        raise errors.DirectoryUnavailable(failure.reason) from failure

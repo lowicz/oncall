@@ -37,14 +37,34 @@ Powiązanie z kontem lokalnym opisuje [Role i dostęp](../produkt/role-i-dostep.
 | `ONCALL_LDAP_ATTRIBUTE_FIRST_NAME` | `givenName` | imię, wymagane |
 | `ONCALL_LDAP_ATTRIBUTE_LAST_NAME` | `sn` | nazwisko, może być puste |
 | `ONCALL_LDAP_ATTRIBUTE_EMAIL` | `mail` | e-mail, może być pusty |
+| `ONCALL_LDAP_ATTRIBUTE_PHOTO` | `thumbnailPhoto` | zdjęcie użytkownika pokazywane jako awatar - patrz [Zdjęcie użytkownika](#zdjęcie-użytkownika); puste wyłącza |
 
 Wielkość liter w nazwach atrybutów nie ma znaczenia (`employeeID` i
 `employeeid` to ten sam atrybut). Z domyślnym filtrem użytkownik loguje się
 samą nazwą konta (`anna`), nie `anna@firma.example` ani `FIRMA\anna`.
 
 Minimalne prawa konta serwisowego: odczyt kont w `ONCALL_LDAP_BASE_DN` i
-czterech atrybutów powyżej. Hasło użytkownika sprawdza sam katalog - aplikacja
+pięciu atrybutów powyżej. Hasło użytkownika sprawdza sam katalog - aplikacja
 go nie przechowuje.
+
+## Zdjęcie użytkownika
+
+Konto z katalogu widzi w menu konta (prawy górny róg, na telefonie także
+ekran „Więcej”) swoje zdjęcie z katalogu zamiast inicjałów. Active Directory
+trzyma je w `thumbnailPhoto` (to samo zdjęcie pokazują Outlook i Teams),
+katalog z klasą `inetOrgPerson` - w `jpegPhoto`; wskaż ten atrybut w
+`ONCALL_LDAP_ATTRIBUTE_PHOTO`. Konta lokalne i sesje z linku mają zawsze
+inicjały.
+
+Zdjęcie jest czytane na żądanie, po zalogowaniu, tylko dla zalogowanej osoby:
+konto serwisowe wyszukuje jej konto tym samym filtrem co przy logowaniu i
+odczytuje jeden atrybut. Aplikacja nie zapisuje zdjęcia w bazie ani w logu;
+przeglądarka trzyma je w pamięci do końca sesji i nie zapisuje w swojej
+pamięci podręcznej, więc kolejna osoba na tym samym komputerze go nie
+zobaczy. Pokazywany jest tylko JPEG albo PNG (rozpoznawany po zawartości, nie
+po nazwie) o rozmiarze do 256 KiB - inną wartość, brak zdjęcia, brak prawa
+odczytu atrybutu albo niedostępny katalog interfejs kwituje inicjałami, a
+powód jest w logu jako `event=ldap_photo` ([Diagnostyka](#diagnostyka)).
 
 ## Certyfikat katalogu
 
@@ -113,13 +133,14 @@ Udane logowanie to jeden wiersz `INFO`:
 | --- | --- |
 | `attempt` | identyfikator jednej próby logowania |
 | `login` | login wpisany przez użytkownika |
-| `outcome` | `event=login`: `signed_in`, `rejected`, `throttled`, `directory_unavailable`, `identity_conflict`; `event=ldap_auth`: `rejected`, `unavailable`, `invalid_identity` |
+| `outcome` | `event=login`: `signed_in`, `rejected`, `throttled`, `directory_unavailable`, `identity_conflict`; `event=ldap_auth`: `rejected`, `unavailable`, `invalid_identity`; `event=ldap_photo`: `skipped`, `unavailable` |
 | `phase` | krok, na którym próba się zatrzymała |
 | `reason` | powód - tabela poniżej; kod wyniku LDAP (np. `invalidCredentials`) albo nazwa nadana przez aplikację |
 | `detail` | krótkie uzupełnienie, np. komunikat weryfikacji certyfikatu |
 | `result` | numeryczny kod wyniku LDAP |
 | `ad_code`, `ad_reason` | kod Active Directory z odmowy logowania, np. `775` / `account_locked` |
 | `attribute` | nazwa atrybutu z błędną wartością (sama nazwa, bez wartości) |
+| `size`, `limit` | przy `photo_too_large`: rozmiar zdjęcia w katalogu i największy pokazywany, w bajtach |
 | `missing` | puste zmienne konfiguracji |
 | `cause` | przy `event=login`: dlaczego odmówiono albo skąd konflikt tożsamości |
 | `source` | przy `signed_in`: `local` albo `ldap` |
@@ -151,6 +172,8 @@ Udane logowanie to jeden wiersz `INFO`:
 | `user_bind` | `invalidCredentials` | (`rejected`) `ad_reason`: `invalid_credentials` - złe hasło; `account_locked`, `password_expired`, `password_must_change`, `account_disabled`, `account_expired` - stan konta w AD |
 | `attributes` | `personnel_number_missing`, `personnel_number_not_numeric` | atrybut z `attribute=` jest pusty albo nie same cyfry; w wielu domenach numer jest w `employeeID` - wskaż go w [konfiguracji](#konfiguracja) |
 | `attributes` | `first_name_missing`, `email_invalid`, `attribute_too_long`, `attribute_not_text` | popraw wartość atrybutu w AD albo wskaż inny atrybut |
+| `attributes` | `photo_too_large`, `photo_format_unsupported` | (`ldap_photo`, `skipped`) zdjęcie w atrybucie z `attribute=` jest większe niż `limit=` bajtów albo nie jest plikiem JPEG ani PNG; wgraj mniejsze zdjęcie do katalogu |
+| `search` | `user_not_found` | (`ldap_photo`, `skipped`) zalogowane konto zniknęło z katalogu od czasu logowania |
 | dowolna | `unexpected_error` | błąd w aplikacji albo bibliotece LDAP: zgłoś go z polami `error` i `at` |
 
 Przy `event=login`:
@@ -162,9 +185,10 @@ Przy `event=login`:
 | `identity_conflict` | `personnel_number_mismatch` | konto o tym loginie ma inny numer kadrowy albo żadnego - popraw go na koncie |
 | `identity_conflict` | `login_taken` | konto z tym numerem kadrowym istnieje, ale login z katalogu ma inne konto |
 
-Odmowy (`rejected`) mają poziom `INFO`, problemy do naprawienia po stronie
-wdrożenia - `WARNING`, `unexpected_error` - `ERROR`. Ten sam powód, po polsku,
-trafia do audytu jako „Logowanie LDAP niedostępne”.
+Odmowy (`rejected`) i pominięte zdjęcia (`skipped`) mają poziom `INFO`,
+problemy do naprawienia po stronie wdrożenia - `WARNING`, `unexpected_error` -
+`ERROR`. Ten sam powód, po polsku, trafia do audytu jako „Logowanie LDAP
+niedostępne”; odczyt zdjęcia nie jest logowaniem i do audytu nie trafia.
 
 ### Czego log nie zawiera
 

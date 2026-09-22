@@ -49,10 +49,12 @@ function RailLink({ path, label, icon, badge }: { path: string; label: string; i
  * change), the documentation, the palette and the way out. The release
  * running closes the menu as a dim footer: this menu is the one place every
  * layout has (a phone, the collapsed rail, a share-link session), so it is
- * where the version can always be found.
+ * where the version can always be found. The avatar is the person's photo
+ * from the directory when there is one, their initials otherwise.
  */
-function AccountMenu({ displayName, roleLine, version, share, onPalette, onLogout, logoutPending }: {
+function AccountMenu({ displayName, avatar, roleLine, version, share, onPalette, onLogout, logoutPending }: {
   displayName: string
+  avatar: string | null
   roleLine: string | null
   version: string
   share: boolean
@@ -67,7 +69,7 @@ function AccountMenu({ displayName, roleLine, version, share, onPalette, onLogou
       align="end"
       trigger={(
         <button type="button" className="ib" aria-label={`Konto: ${displayName}`} title={displayName} style={{ border: 0 }}>
-          <Avatar name={displayName} />
+          <Avatar name={displayName} src={avatar} />
         </button>
       )}
     >
@@ -100,8 +102,10 @@ function AccountMenu({ displayName, roleLine, version, share, onPalette, onLogou
  * no rail (it can only look at the published schedule) but a banner naming
  * the link and its range.
  */
-export function AppShell({ displayName, access, share }: {
+export function AppShell({ displayName, avatar = null, access, share }: {
   displayName: string
+  /** The person's own photo as a data URL, or null for the initials. */
+  avatar?: string | null
   access: Access
   share: ShareSession | null
 }) {
@@ -152,6 +156,7 @@ export function AppShell({ displayName, access, share }: {
   const accountMenu = (
     <AccountMenu
       displayName={displayName}
+      avatar={avatar}
       roleLine={roleLine}
       version={branding.version}
       share={Boolean(share)}

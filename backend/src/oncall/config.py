@@ -111,6 +111,12 @@ class Settings(BaseSettings):
     ldap_attribute_first_name: str = "givenName"
     ldap_attribute_last_name: str = "sn"
     ldap_attribute_email: str = "mail"
+    #: The person's photo, shown as their avatar in the interface. Active
+    #: Directory keeps a small JPEG in `thumbnailPhoto` (what Outlook and
+    #: Teams show); an inetOrgPerson directory keeps one in `jpegPhoto`. Read
+    #: on demand for the signed-in person only and never stored; empty turns
+    #: the photo off, so the service account then needs no right to read it.
+    ldap_attribute_photo: str = "thumbnailPhoto"
 
     # External SMTP service. Not hosted by this project; when smtp_host is
     # unset, e-mail notifications are marked as skipped instead of sent.

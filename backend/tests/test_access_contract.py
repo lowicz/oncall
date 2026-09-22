@@ -458,6 +458,7 @@ async def test_successful_logins_and_own_account(client, db, frozen_clock) -> No
         "email": "ola@example.com",
         "phone": None,
         "share": None,
+        "avatar_url": None,
     }
     csrf = response.headers["x-csrf-token"]
     session = await db.scalar(select(Session))
