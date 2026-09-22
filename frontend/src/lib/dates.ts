@@ -9,6 +9,17 @@ export function warsawDate() {
   }).format(new Date())
 }
 
+/**
+ * Whether a value is a calendar date written as YYYY-MM-DD. The shape alone
+ * is not enough: 2026-13-45 matches it but is not a day, and 2026-02-30
+ * would silently roll over into March.
+ */
+export function isIsoDate(value: string | null): value is string {
+  if (value === null || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = parse(value)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
 export function addDays(value: string, days: number) {
   const result = new Date(`${value}T12:00:00Z`)
   result.setUTCDate(result.getUTCDate() + days)

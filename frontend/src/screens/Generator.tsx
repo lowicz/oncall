@@ -5,7 +5,7 @@ import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSumm
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { pluralPl } from '../lib/plural'
 import { formatPoints } from '../lib/fairness'
-import { addDays, formatDate, formatDayShort, formatRange, warsawDate } from '../lib/dates'
+import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
 import { DraftFairnessPanel, worstSpread } from '../components/DraftFairnessPanel'
 import { DraftList } from '../components/DraftList'
@@ -99,7 +99,9 @@ export function GeneratorPanel() {
   const policy = useQuery({ queryKey: ['scheduling-policy'], queryFn: api.schedulingPolicy })
   const drafts = useQuery({ queryKey: ['draft-schedules'], queryFn: api.draftSchedules })
   const [searchParams, setSearchParams] = useSearchParams()
-  const hasLinkedRange = searchParams.has('od') || searchParams.has('do')
+  const linkedStart = searchParams.get('od')
+  const linkedEnd = searchParams.get('do')
+  const hasLinkedRange = isIsoDate(linkedStart) || isIsoDate(linkedEnd)
   const suggestedRange = useQuery({
     queryKey: ['suggested-schedule-range'],
     queryFn: api.suggestedScheduleRange,
@@ -108,8 +110,8 @@ export function GeneratorPanel() {
   // The calendar sends coordinators here with `od`/`do` prefilled when a gap
   // sits outside the published range, so the next step is one click away.
   const [range, setRange] = useState({
-    starts_on: searchParams.get('od') ?? today,
-    ends_on: searchParams.get('do') ?? addDays(today, 13),
+    starts_on: isIsoDate(linkedStart) ? linkedStart : today,
+    ends_on: isIsoDate(linkedEnd) ? linkedEnd : addDays(today, 13),
   })
   const [result, setResult] = useState<DraftSchedule | null>(null)
   const [runProgress, setRunProgress] = useState<ScheduleRun | null>(null)

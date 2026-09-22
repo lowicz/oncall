@@ -130,6 +130,29 @@ describe('ScheduleScreen range in the URL', () => {
     expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeChecked()
   })
 
+  it.each([
+    ['a start', '/grafik?od=2026-13-45'],
+    ['a focused day', '/grafik?dzien=2026-13-45'],
+  ])('falls back to today on %s that looks like a date but does not exist', async (_, route) => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule(route)
+
+    expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 3 paź' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-10-03'))
+  })
+
+  it('ignores an end that does not exist and keeps the start', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-01&do=2026-13-45')
+
+    expect(await screen.findByRole('heading', { level: 2, name: '1 – 28 wrz' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-01', '2026-09-28'))
+  })
+
   it('opens the legend from its link and toggles the day list', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))

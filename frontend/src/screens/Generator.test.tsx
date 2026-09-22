@@ -111,6 +111,16 @@ describe('GeneratorPanel draft persistence', () => {
     expect(api.suggestedScheduleRange).not.toHaveBeenCalled()
   })
 
+  it('uses the server range when the linked dates do not exist', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />, { route: '/generator?od=2026-13-45&do=2026-02-30' })
+
+    await waitFor(() => {
+      expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21')
+      expect(document.querySelector('#generator-to')).toHaveValue('2026-10-18')
+    })
+  })
+
   it('generates for the range the coordinator edits, not the suggested one', async () => {
     stub([])
     const generate = vi
