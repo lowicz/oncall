@@ -15,14 +15,24 @@ COPY frontend/ ./
 COPY docs/ /docs/
 RUN npm run build
 
-FROM nginx:1.27-alpine
+# The official nginx build for an unprivileged user: master and workers run as
+# uid 101, the pid file and temporary files live in /tmp, and the server
+# listens on 8080 (HTTP) and 8443 (HTTPS), since binding below 1024 needs a
+# capability the container does not have. Compose runs it with a read-only root
+# filesystem; /tmp and /etc/nginx/conf.d are its only writable paths there.
+FROM nginxinc/nginx-unprivileged:1.27-alpine
 # Set by the release workflow to the version tag; `dev` for local builds.
 ARG ONCALL_VERSION=dev
 ENV ONCALL_VERSION=${ONCALL_VERSION}
+# Root only to install the files below: they stay root-owned, so the nginx
+# user can read them but never change them.
+USER root
 COPY frontend/nginx.http.conf /etc/nginx/presets/http.conf
 COPY frontend/nginx.https.conf /etc/nginx/presets/https.conf
 # Included by both presets at /etc/nginx/security-headers.conf.
 COPY frontend/nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY frontend/docker-entrypoint.d/40-tls.sh /docker-entrypoint.d/40-tls.sh
-RUN chmod +x /docker-entrypoint.d/40-tls.sh
+RUN chmod 0755 /docker-entrypoint.d/40-tls.sh
 COPY --from=build /app/dist /usr/share/nginx/html
+USER 101:101
+EXPOSE 8080 8443

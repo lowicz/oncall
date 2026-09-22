@@ -213,10 +213,13 @@ jobs:
         run: .github/scripts/compose-parity.sh
       - name: Documented environment variables are wired into Compose
         run: .github/scripts/env-vars-wired.sh
+      - name: Every service is read-only and drops all capabilities
+        run: .github/scripts/compose-hardening.sh
 
   image-build:
     # Builds both Dockerfiles exactly as release.yml will, but never pushes:
-    # this job runs for pull requests, including ones from forks.
+    # this job runs for pull requests, including ones from forks. The build is
+    # loaded into the runner's Docker only to check who the image runs as.
     name: image builds (${{ matrix.name }}, no push)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -240,10 +243,25 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: false
+          load: true
+          tags: oncall-${{ matrix.name }}:ci
           build-args: ONCALL_VERSION=ci-${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           # A fork's token cannot write this repository's cache; reading is fine.
           cache-to: ${{ github.event.pull_request.head.repo.fork != true && format('type=gha,mode=max,scope={0}', matrix.name) || '' }}
+      # Compose drops every capability, which only an unprivileged process
+      # runs well under; a base image or Dockerfile change that falls back to
+      # root fails here instead of in a deployment.
+      - name: The image runs as an unprivileged user
+        env:
+          IMAGE: oncall-${{ matrix.name }}:ci
+        run: |
+          uid=$(docker run --rm --entrypoint id "$IMAGE" -u)
+          if [ "$uid" = 0 ]; then
+            echo "::error::$IMAGE runs as root"
+            exit 1
+          fi
+          echo "$IMAGE runs as uid $uid"
 
   ci-ok:
     # The one status branch protection requires. The `main-protected` ruleset

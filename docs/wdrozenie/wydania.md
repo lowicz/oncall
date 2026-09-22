@@ -40,21 +40,30 @@ każdy host deklaruje, co uruchamia, a plik `.env` jest zapisem tej decyzji.
 
 ## Aktualizacja i cofnięcie
 
-Aktualizacja to zmiana jednej linii i pobranie obrazów:
+Aktualizacja to przejście na tag wydania, zmiana jednej linii i pobranie
+obrazów:
 
 ```bash
+git fetch --tags
+git checkout v1.2.4
 sed -i 's/^ONCALL_VERSION=.*/ONCALL_VERSION=1.2.4/' .env
 docker compose pull
 docker compose up -d
 ```
 
+Pliki Compose (`docker-compose.yml` i nakładki) należą do wydania tak samo
+jak obrazy: zakładają te same porty w kontenerach, użytkowników i ścieżki
+zapisu (patrz [Uprawnienia kontenerów](uruchomienie.md#uprawnienia-kontenerów)).
+Dlatego pochodzą z tego samego tagu git co `ONCALL_VERSION`; obraz z innego
+wydania niż plik Compose może nie wystartować.
+
 Migracje bazy wykonują się przy starcie usługi `api` (patrz
 [Uruchomienie](uruchomienie.md#konto-administratora)).
 
-Cofnięcie do poprzedniej wersji wygląda tak samo, z poprzednim numerem.
-Obrazy wcześniejszych wydań pozostają w rejestrze. Migracje bazy nie cofają
-się automatycznie - jeśli wydanie zmieniło schemat, sprawdź w jego opisie na
-GitHubie, czy cofnięcie wymaga dodatkowych kroków.
+Cofnięcie do poprzedniej wersji wygląda tak samo, z poprzednim tagiem i
+numerem. Obrazy wcześniejszych wydań pozostają w rejestrze. Migracje bazy nie
+cofają się automatycznie - jeśli wydanie zmieniło schemat, sprawdź w jego
+opisie na GitHubie, czy cofnięcie wymaga dodatkowych kroków.
 
 ## Weryfikacja pochodzenia obrazu
 
@@ -110,8 +119,8 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 | `backend` | zgodność `uv.lock` z `pyproject.toml` (przed instalacją), `ruff check`, `ruff format`, `mypy`, `pytest` na SQLite, zgodność OpenAPI ze snapshotem |
 | `backend-postgres` | zestaw współbieżności na prawdziwym PostgreSQL 17 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
-| `compose-config` | poprawność `docker-compose.yml` z każdą nakładką i to, że nakładka deweloperska zmienia tylko źródło obrazów |
-| `image-build` | oba Dockerfile budują się (bez publikacji) |
+| `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, i to, że każda usługa działa tylko do odczytu i bez uprawnień jądra |
+| `image-build` | oba Dockerfile budują się (bez publikacji), a żaden obraz nie działa jako root |
 
 Jeden zbiorczy status `ci-ok` jest wymagany do scalenia zmian w `main`. Wymaga
 go reguła `main-protected` w ustawieniach repozytorium, opisana w

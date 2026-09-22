@@ -6,12 +6,19 @@
 #
 # ONCALL_VERSION names the release to run (docs/wdrozenie/wydania.md). Without
 # it Compose refuses to start instead of guessing: a host always states what
-# it runs, and a rollback is that one line changed back.
+# it runs. This file belongs to the same release as the images it names (ports,
+# users and writable paths match), so an upgrade or a rollback checks out that
+# release's tag and changes that one line.
 #
 # Building from this checkout is an overlay, not a switch in this file:
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 # HTTPS is another overlay (docker-compose.tls.yml, docs/wdrozenie/tls.md).
 # Both files work unchanged under Docker Compose and Podman Compose.
+#
+# Every service runs on a read-only root filesystem with every Linux capability
+# dropped: what a service may write is its tmpfs mounts and volumes below, and
+# only the database's entrypoint gets a few capabilities back.
+# .github/scripts/compose-hardening.sh fails CI if a service loses any of it.
 x-api-image: &api-image ghcr.io/lowicz/oncall-api:${ONCALL_VERSION:?set ONCALL_VERSION in .env - a release version for production, dev with docker-compose.dev.yml - see docs/wdrozenie/wydania.md}
 x-web-image: &web-image ghcr.io/lowicz/oncall-web:${ONCALL_VERSION:?set ONCALL_VERSION in .env - a release version for production, dev with docker-compose.dev.yml - see docs/wdrozenie/wydania.md}
 
@@ -21,6 +28,24 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    # The data directory is the volume below; the server's socket and its lock
+    # file go to /var/run/postgresql.
+    tmpfs:
+      - /var/run/postgresql
+      - /tmp
+    cap_drop:
+      - ALL
+    # The image's entrypoint starts as root: it hands the data directory to the
+    # postgres user (CHOWN, and DAC_READ_SEARCH and FOWNER to reach and chmod a
+    # directory that user owns), then drops to it (SETUID, SETGID). The server
+    # itself runs as that user with no capability at all.
+    cap_add:
+      - CHOWN
+      - DAC_READ_SEARCH
+      - FOWNER
+      - SETGID
+      - SETUID
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oncall}
       POSTGRES_USER: ${POSTGRES_USER:-oncall}
@@ -38,6 +63,12 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    # The application writes no files; /tmp is for libraries that expect one.
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
     environment:
       ONCALL_APP_NAME: ${ONCALL_APP_NAME:-On-call}
       ONCALL_APP_SUBTITLE: ${ONCALL_APP_SUBTITLE:-}
@@ -95,6 +126,11 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
     command: ["python", "-m", "oncall.worker"]
     environment:
       ONCALL_APP_NAME: ${ONCALL_APP_NAME:-On-call}
@@ -139,16 +175,28 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    # nginx keeps its pid file and temporary files in /tmp; the entrypoint
+    # copies the HTTP or HTTPS preset into conf.d at every start. A tmpfs
+    # belongs to root, so conf.d gets /tmp's mode to let the nginx user write
+    # it (`uid=` would be tidier, but Podman refuses that option).
+    tmpfs:
+      - /tmp
+      - /etc/nginx/conf.d:mode=1777
+    cap_drop:
+      - ALL
     environment:
       ONCALL_TLS_ENABLED: ${ONCALL_TLS_ENABLED:-false}
+    # nginx runs as an unprivileged user, so it listens on 8080 and 8443 inside
+    # the container; the host ports are the deployment's choice.
     ports:
-      - "${ONCALL_WEB_HTTP_PORT:-8080}:80"
-      - "${ONCALL_WEB_HTTPS_PORT:-8443}:443"
-    # Plain HTTP first; with the TLS overlay port 80 only redirects, so the
-    # second request asks HTTPS directly (the certificate is the deployment's
-    # own, not one this check can judge).
+      - "${ONCALL_WEB_HTTP_PORT:-8080}:8080"
+      - "${ONCALL_WEB_HTTPS_PORT:-8443}:8443"
+    # Plain HTTP first; with the TLS overlay 8080 only redirects, so the second
+    # request asks HTTPS directly (the certificate is the deployment's own, not
+    # one this check can judge).
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/docs/index.html || wget -q -O /dev/null --no-check-certificate https://127.0.0.1/docs/index.html"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/docs/index.html || wget -q -O /dev/null --no-check-certificate https://127.0.0.1:8443/docs/index.html"]
       interval: 10s
       timeout: 5s
       retries: 6

@@ -87,9 +87,45 @@ Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej
 Proces roboczy ma w Compose przydział 2 CPU i z niego wynika domyślna liczba
 wątków solvera. Zmiana przydziału zmienia tę liczbę automatycznie.
 
+## Uprawnienia kontenerów
+
+Każda usługa działa z głównym systemem plików **tylko do odczytu**, bez żadnych
+uprawnień jądra (`cap_drop: [ALL]`) i z `no-new-privileges`. Zapisuje wyłącznie
+do swoich montowań `tmpfs` i wolumenów:
+
+| Usługa | Użytkownik | Zapis | Porty w kontenerze |
+| --- | --- | --- | --- |
+| `db` | `postgres` (70) | wolumen `oncall-db`, `/var/run/postgresql`, `/tmp` | 5432 |
+| `api` | `10001` | `/tmp` | 8000 |
+| `worker` | `10001` | `/tmp` | - |
+| `web` | `101` (nginx) | `/tmp`, `/etc/nginx/conf.d` | 8080, 8443 |
+
+- **`web` słucha na 8080 i 8443.** Zwykły użytkownik nie otworzy portu poniżej
+  1024, więc nginx w kontenerze używa 8080 (HTTP) i 8443 (HTTPS).
+  `ONCALL_WEB_HTTP_PORT` i `ONCALL_WEB_HTTPS_PORT` nadal wybierają porty
+  hosta. Reverse proxy w tej samej sieci Compose kieruje ruch na `web:8080`.
+- **Klucz TLS czyta użytkownik `101`.** Właściciel i prawa klucza - patrz
+  [TLS](tls.md#prawa-do-plików).
+- **Baza dostaje kilka uprawnień z powrotem.** Skrypt startowy obrazu
+  `postgres` rusza jako root, oddaje katalog danych użytkownikowi `postgres` i
+  przechodzi na niego, do czego potrzebuje `CHOWN`, `DAC_READ_SEARCH`,
+  `FOWNER`, `SETUID` i `SETGID`. Sam serwer bazy działa już bez żadnych.
+- **`tmpfs` to pamięć RAM.** Pliki tymczasowe nginx (duże odpowiedzi API) liczą
+  się do pamięci kontenera.
+
+CI sprawdza te ustawienia dla pliku bazowego i każdej nakładki
+(`.github/scripts/compose-hardening.sh`) i odrzuca obraz, który uruchamiałby
+się jako root.
+
 ## Aktualizacja
 
+Pliki Compose należą do wydania tak samo jak obrazy: zakładają te same porty,
+użytkowników i ścieżki zapisu. Bierz je z tego samego tagu git co
+`ONCALL_VERSION`:
+
 ```bash
+git fetch --tags
+git checkout v<nowy numer>
 # w .env: ONCALL_VERSION=<nowy numer>
 docker compose pull
 docker compose up -d
@@ -183,13 +219,16 @@ npm run dev          # http://localhost:5173, /api przekazywane na :8000
 ## Podman
 
 `podman compose` deleguje do zainstalowanego dostawcy Compose i akceptuje te
-same pliki bez zmian. Trzy rzeczy warto wiedzieć:
+same pliki bez zmian. Cztery rzeczy warto wiedzieć:
 
 - **Gniazdo API.** Dostawca Compose rozmawia z Podmanem przez gniazdo
   użytkownika. Jeśli polecenie kończy się komunikatem „failed to connect to the
   docker API”, uruchom raz `systemctl --user start podman.socket`.
 - **Tryb bezrootowy.** Porty poniżej 1024 wymagają uprawnień; domyślne `8080` i
   `8443` działają bez nich.
+- **Użytkownicy kontenerów mają na hoście inne numery.** Klucz TLS, który
+  czyta nginx (`101` w kontenerze), dostaje właściciela przez
+  `podman unshare chown` - patrz [TLS](tls.md#prawa-do-plików).
 - **Brakujące źródło montowania** zachowuje się tak samo jak pod Dockerem:
   nieistniejąca ścieżka hosta zostaje utworzona jako pusty katalog, zamiast
   zatrzymać start. Dlatego plik bazowy nie montuje niczego z hosta, a
