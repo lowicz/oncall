@@ -11,6 +11,11 @@ stopped in, a stable reason code and, where the library gave one, a short
 detail such as the certificate verification message. The person signing in
 still gets the one generic answer; docs/wdrozenie/ldap.md tells an operator
 what each reason means and what to change.
+
+The person's photo takes the same road on request (`event=ldap_photo`): the
+service account looks the signed-in login up again and reads one attribute,
+which is served only when it holds a small JPEG or PNG. Nothing of it is
+stored or logged.
 """
 
 import asyncio
@@ -22,7 +27,7 @@ import re
 import ssl
 import time
 import traceback
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -47,8 +52,19 @@ from oncall.config import Settings, get_settings
 # Declared by the domain, which decides what a directory identity may sign in
 # as; re-exported so callers of this client keep one import.
 from oncall.domain.access.models import DirectoryIdentity as DirectoryIdentity
+from oncall.domain.access.models import DirectoryPhoto as DirectoryPhoto
 
 DEFAULT_USER_FILTER = "(&(objectClass=user)(sAMAccountName={username}))"
+#: The largest photo served. Active Directory itself caps `thumbnailPhoto` at
+#: 100 KiB and Outlook keeps it under 10 KiB; a larger value is not a
+#: thumbnail and the interface shows initials instead.
+PHOTO_MAX_BYTES = 256 * 1024
+#: What the photo bytes must start with to be served, and as what. Decided
+#: here from the bytes, never from anything the directory says about them.
+_PHOTO_SIGNATURES = (
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+)
 
 #: What the audit trail records as the reason, by the phase that failed.
 _PHASE_MESSAGES = {
@@ -124,9 +140,10 @@ class DirectoryIdentityError(Exception):
 
 
 class _Attempt:
-    """Where one authentication is, so that its failure can say so."""
+    """Where one directory conversation is, so that its failure can say so."""
 
-    def __init__(self, login: str, server: str, tls: str) -> None:
+    def __init__(self, event: str, login: str, server: str, tls: str) -> None:
+        self.event = event
         self.login = login
         self.server = server
         self.tls = tls
@@ -144,7 +161,7 @@ class _Attempt:
 
     def log(self, outcome: str, level: int, phase: str, **fields: object) -> None:
         login_log.emit(
-            "ldap_auth",
+            self.event,
             level=level,
             login=self.login,
             outcome=outcome,
@@ -156,6 +173,12 @@ class _Attempt:
         )
 
 
+def photos_offered(settings: Settings) -> bool:
+    """Whether a directory account may have a photo to show: the directory is
+    in use and an attribute to read the photo from is configured."""
+    return settings.ldap_enabled and bool(settings.ldap_attribute_photo)
+
+
 class LdapAuthenticator:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -164,6 +187,15 @@ class LdapAuthenticator:
         if not self.settings.ldap_enabled:
             return None
         return await asyncio.to_thread(self._authenticate_sync, username, password)
+
+    async def photo(self, username: str) -> DirectoryPhoto | None:
+        """The photo the directory holds for this login, or None when photos
+        are not read, the login is not in the directory, or the value is
+        absent, too large or not a JPEG or PNG. Raises
+        `DirectoryUnavailableError` when the directory cannot answer."""
+        if not photos_offered(self.settings):
+            return None
+        return await asyncio.to_thread(self._photo_sync, username)
 
     def _endpoint(self) -> tuple[str, str, int] | None:
         """Scheme, host and port of the configured server; None when the URI
@@ -363,9 +395,20 @@ class LdapAuthenticator:
         )
 
     def _authenticate_sync(self, username: str, password: str) -> DirectoryIdentity | None:
-        attempt = _Attempt(username, *self._server_label())
+        return self._run(
+            "ldap_auth",
+            username,
+            lambda attempt: self._authenticate(attempt, username, password),
+        )
+
+    def _photo_sync(self, username: str) -> DirectoryPhoto | None:
+        return self._run("ldap_photo", username, lambda attempt: self._photo(attempt, username))
+
+    def _run[T](self, event: str, username: str, conversation: Callable[[_Attempt], T]) -> T:
+        """One conversation with the directory, its failure logged once."""
+        attempt = _Attempt(event, username, *self._server_label())
         try:
-            return self._authenticate(attempt, username, password)
+            return conversation(attempt)
         except DirectoryUnavailableError as failure:
             attempt.log(
                 "unavailable",
@@ -401,22 +444,12 @@ class LdapAuthenticator:
                 UNEXPECTED_FAILURE, phase=attempt.phase, reason="unexpected_error"
             ) from exc
 
-    def _authenticate(
-        self, attempt: _Attempt, username: str, password: str
-    ) -> DirectoryIdentity | None:
-        settings = self.settings
+    def _lookup(
+        self, attempt: _Attempt, server: Server, username: str, attributes: list[str]
+    ) -> Any | None:
+        """The one entry the configured filter finds for the login, with these
+        attributes, read as the service account; None when there is none."""
         bind_dn, bind_password, base_dn, search_filter = self._search_settings(username)
-        server = self._server()
-        attributes = list(
-            dict.fromkeys(
-                (
-                    settings.ldap_attribute_personnel_number,
-                    settings.ldap_attribute_first_name,
-                    settings.ldap_attribute_last_name,
-                    settings.ldap_attribute_email,
-                )
-            )
-        )
         with (
             self._session(attempt, server, bind_dn, bind_password, "service_bind") as service,
             attempt.enter("search"),
@@ -433,7 +466,6 @@ class LdapAuthenticator:
             )
             entries = list(service.entries)
         if not entries:
-            attempt.log("rejected", logging.INFO, "search", reason="user_not_found")
             return None
         if len(entries) != 1:
             raise DirectoryUnavailableError(
@@ -441,7 +473,27 @@ class LdapAuthenticator:
                 phase="search",
                 reason="multiple_entries",
             )
-        entry = entries[0]
+        return entries[0]
+
+    def _authenticate(
+        self, attempt: _Attempt, username: str, password: str
+    ) -> DirectoryIdentity | None:
+        settings = self.settings
+        server = self._server()
+        attributes = list(
+            dict.fromkeys(
+                (
+                    settings.ldap_attribute_personnel_number,
+                    settings.ldap_attribute_first_name,
+                    settings.ldap_attribute_last_name,
+                    settings.ldap_attribute_email,
+                )
+            )
+        )
+        entry = self._lookup(attempt, server, username, attributes)
+        if entry is None:
+            attempt.log("rejected", logging.INFO, "search", reason="user_not_found")
+            return None
         if not password:
             # Never sent: a DN with an empty password is an unauthenticated
             # bind, which Active Directory answers with success.
@@ -461,6 +513,53 @@ class LdapAuthenticator:
         # use must not answer differently from a wrong password.
         attempt.phase = "attributes"
         return self._identity(entry, username)
+
+    def _photo(self, attempt: _Attempt, username: str) -> DirectoryPhoto | None:
+        attribute = self.settings.ldap_attribute_photo
+        entry = self._lookup(attempt, self._server(), username, [attribute])
+        if entry is None:
+            attempt.log("skipped", logging.INFO, "search", reason="user_not_found")
+            return None
+        attempt.phase = "attributes"
+        data = self._raw_value(entry, attribute)
+        if not data:
+            return None
+        if len(data) > PHOTO_MAX_BYTES:
+            attempt.log(
+                "skipped",
+                logging.INFO,
+                "attributes",
+                reason="photo_too_large",
+                attribute=attribute,
+                size=len(data),
+                limit=PHOTO_MAX_BYTES,
+            )
+            return None
+        media_type = next(
+            (kind for signature, kind in _PHOTO_SIGNATURES if data.startswith(signature)), None
+        )
+        if media_type is None:
+            attempt.log(
+                "skipped",
+                logging.INFO,
+                "attributes",
+                reason="photo_format_unsupported",
+                attribute=attribute,
+            )
+            return None
+        return DirectoryPhoto(media_type, bytes(data))
+
+    @staticmethod
+    def _raw_value(entry: Any, attribute: str) -> bytes:
+        """The attribute's first value as the directory sent it, or b'' when
+        the entry has none. Matched like `_value`, without regard to case."""
+        wanted = attribute.lower()
+        for name, values in entry.entry_raw_attributes.items():
+            if name.lower() != wanted or not values:
+                continue
+            value = values[0] if isinstance(values, list) else values
+            return value if isinstance(value, bytes) else str(value).encode()
+        return b""
 
 
 def _unavailable(phase: str, exc: LDAPException) -> DirectoryUnavailableError:

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 import { Access } from './lib/nav'
+import { useOwnAvatar } from './hooks/useOwnAvatar'
 import { AppShell } from './components/AppShell'
 import { Login } from './screens/Login'
 import { ShareExchange } from './screens/ShareExchange'
@@ -51,8 +52,9 @@ function Guarded({ allowed, children }: { allowed: boolean; children: ReactNode 
   return <>{children}</>
 }
 
-function Dashboard({ displayName, role, hasTeamMember, share }: {
+function Dashboard({ displayName, avatar, role, hasTeamMember, share }: {
   displayName: string
+  avatar: string | null
   role: Access['role']
   hasTeamMember: boolean
   share: Parameters<typeof AppShell>[0]['share']
@@ -64,12 +66,12 @@ function Dashboard({ displayName, role, hasTeamMember, share }: {
 
   return (
     <Routes>
-      <Route element={<AppShell displayName={displayName} access={access} share={share} />}>
+      <Route element={<AppShell displayName={displayName} avatar={avatar} access={access} share={share} />}>
         <Route index element={<DutyScreen role={role} displayName={displayName} hasTeamMember={hasTeamMember} />} />
         <Route path="grafik" element={<ScheduleScreen role={role} displayName={displayName} hasTeamMember={hasTeamMember} />} />
         {/* The old path stays linkable. */}
         <Route path="kalendarz" element={<Navigate to="/grafik" replace />} />
-        <Route path="wiecej" element={<MoreScreen displayName={displayName} access={access} />} />
+        <Route path="wiecej" element={<MoreScreen displayName={displayName} avatar={avatar} access={access} />} />
         <Route
           path="moje"
           element={(
@@ -151,6 +153,9 @@ function Dashboard({ displayName, role, hasTeamMember, share }: {
 
 function Home() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
+  // Fetched beside the session check, never before it answers: the dashboard
+  // shows initials until the photo arrives, and for good if it never does.
+  const avatar = useOwnAvatar(me.data)
   if (me.isLoading) {
     return <div className="center"><LoadingBlock label="Sprawdzanie sesji" rows={2} /></div>
   }
@@ -158,6 +163,7 @@ function Home() {
   return (
     <Dashboard
       displayName={me.data.display_name}
+      avatar={avatar}
       role={me.data.role}
       hasTeamMember={me.data.has_team_member}
       share={me.data.share}

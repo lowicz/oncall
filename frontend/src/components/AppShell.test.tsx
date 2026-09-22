@@ -21,11 +21,14 @@ const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   ...over,
 })
 
+const PHOTO = 'data:image/png;base64,iVBORw0KGgo='
+
 function renderShell(
   access: Access,
   displayName = 'Piotr Zieliński',
   share: ShareSession | null = null,
   version: string | null = '1.4.0',
+  avatar: string | null = null,
 ) {
   // `null`: the configuration never arrives, as in the first moments after
   // the page loads.
@@ -48,7 +51,7 @@ function renderShell(
   })
   return renderScreen(
     <Routes>
-      <Route element={<AppShell displayName={displayName} access={access} share={share} />}>
+      <Route element={<AppShell displayName={displayName} avatar={avatar} access={access} share={share} />}>
         <Route path="*" element={<div>treść</div>} />
       </Route>
     </Routes>,
@@ -181,7 +184,47 @@ describe('AppShell on a phone', () => {
   })
 })
 
+describe('AppShell avatar', () => {
+  const trigger = () => screen.findByRole('button', { name: /^Konto: / })
+
+  it('shows the initials when there is no photo', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false })
+    const button = await trigger()
+    expect(button).toHaveTextContent('PZ')
+    expect(button.querySelector('img')).not.toBeInTheDocument()
+  })
+
+  it('shows the photo from the directory instead of the initials', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false }, 'Piotr Zieliński', null, '1.4.0', PHOTO)
+    const button = await trigger()
+    const image = button.querySelector('img')
+    expect(image).toHaveAttribute('src', PHOTO)
+    // Decorative: the button already names the person.
+    expect(image).toHaveAttribute('alt', '')
+    expect(button).not.toHaveTextContent('PZ')
+    expect(button).toHaveAccessibleName('Konto: Piotr Zieliński')
+  })
+
+  it('falls back to the initials when the browser cannot show the photo', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false }, 'Piotr Zieliński', null, '1.4.0', PHOTO)
+    const button = await trigger()
+    fireEvent.error(button.querySelector('img')!)
+    expect(button).toHaveTextContent('PZ')
+    expect(button.querySelector('img')).not.toBeInTheDocument()
+  })
+})
+
 describe('MoreScreen identity', () => {
+  it('shows the same photo as the account menu', async () => {
+    renderScreen(<MoreScreen displayName="Ola Zielińska" avatar={PHOTO} access={{ role: 'member', hasTeamMember: true }} />)
+    const heading = await screen.findByRole('heading', { name: /Ola Zielińska/ })
+    expect(heading.querySelector('img')).toHaveAttribute('src', PHOTO)
+    expect(heading).not.toHaveTextContent('OZ')
+  })
+
   it('names the logged-in person and the role, and repeats the documentation link', async () => {
     renderScreen(<MoreScreen displayName="Ola Zielińska" access={{ role: 'coordinator', hasTeamMember: true }} />)
     expect(await screen.findByRole('heading', { name: /Ola Zielińska/ })).toBeInTheDocument()

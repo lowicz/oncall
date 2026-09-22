@@ -47,6 +47,14 @@ class DirectoryLoginUnavailable(RecordedRefusal):
         self.reason = reason
 
 
+class DirectoryUnavailable(DomainError):
+    """The directory could not answer for the signed-in person's own data."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__("Katalog jest chwilowo niedostępny")
+        self.reason = reason
+
+
 class DirectoryIdentityTaken(DomainError):
     """The login or personnel number the directory vouches for belongs to
     another account here."""

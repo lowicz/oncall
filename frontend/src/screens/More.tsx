@@ -11,7 +11,7 @@ import { useBranding } from '../hooks/useBranding'
  * the theme, the documentation, the way out and the release running. On a
  * desktop the rail has all of it, so this screen is reachable but not linked.
  */
-export function MoreScreen({ displayName, access }: { displayName: string; access: Access }) {
+export function MoreScreen({ displayName, avatar = null, access }: { displayName: string; avatar?: string | null; access: Access }) {
   const queryClient = useQueryClient()
   const branding = useBranding()
   const logout = useMutation({
@@ -30,7 +30,7 @@ export function MoreScreen({ displayName, access }: { displayName: string; acces
   return (
     <div className="page page-narrow">
       <PageHeader
-        title={<span className="row"><Avatar name={displayName} size={36} /> {displayName}</span>}
+        title={<span className="row"><Avatar name={displayName} size={36} src={avatar} /> {displayName}</span>}
         sub={roleLabels[access.role] !== displayName ? roleLabels[access.role] : undefined}
       />
       {groups.map((group) => (

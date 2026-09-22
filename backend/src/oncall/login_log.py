@@ -5,7 +5,9 @@ LDAP conversation run on a worker thread. The browser is told as little as
 possible on purpose - one answer for every rejected password, one for every
 directory outage - so the reason has to be somewhere else, and this is it: a
 logfmt line per outcome in the API log, `event=login` for how the attempt
-ended and `event=ldap_auth` for where a directory attempt stopped.
+ended and `event=ldap_auth` for where a directory attempt stopped. Reading
+the signed-in person's photo takes the same road: `event=ldap_photo` records
+where that read stopped when it does not yield an image.
 
 Every record of one attempt carries the same random `attempt=` id, set by the
 login endpoint and carried to the LDAP thread by the context, so the lines of

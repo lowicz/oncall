@@ -1,6 +1,6 @@
 """What the account owner's own operations need, one consumer at a time:
-signing in, choosing a password through a one-time link, and the owner's own
-profile.
+signing in, choosing a password through a one-time link, the owner's own
+profile and their photo from the directory.
 """
 
 import uuid
@@ -11,6 +11,7 @@ from typing import Protocol
 from oncall.domain.access.models import (
     AccountLink,
     DirectoryIdentity,
+    DirectoryPhoto,
     SignInRequest,
     StoredCredentials,
 )
@@ -151,3 +152,10 @@ class OwnProfiles(Protocol):
     async def has_team_member(self, account_id: uuid.UUID) -> bool: ...
 
     async def change_phone(self, account_id: uuid.UUID, phone: str | None) -> Account: ...
+
+
+class DirectoryPhotos(Protocol):
+    async def photo(self, login: str) -> DirectoryPhoto | None:
+        """The photo the directory holds for this login, or None when it holds
+        none it can serve or is not in use. Raises `DirectoryFailure`."""
+        ...

@@ -7,7 +7,7 @@ socket is missing. The two socket tests at the end supply one, because the
 defect that stopped every directory sign-in lived there.
 
 Every test that logs checks the records for the secrets it handed over: the
-passwords, the service account's DN and the person's entry.
+passwords, the service account's DN, the person's entry and their photo.
 """
 
 import logging
@@ -29,8 +29,10 @@ from ldap3.core.exceptions import (
 
 from oncall.config import Settings
 from oncall.ldap_auth import (
+    PHOTO_MAX_BYTES,
     DirectoryIdentity,
     DirectoryIdentityError,
+    DirectoryPhoto,
     DirectoryUnavailableError,
     LdapAuthenticator,
 )
@@ -43,7 +45,11 @@ ANNA_PASSWORD = "anna-Secret-91c2"
 WRONG_PASSWORD = "wrong-Secret-5d1e"
 #: What no log record may contain: credentials, DNs and attribute values.
 SECRETS = (SERVICE_PASSWORD, ANNA_PASSWORD, WRONG_PASSWORD, "Oncall Service", "OU=Staff")
-PERSONAL_DATA = ("Nowak", "000042", "anna@corp.example.com")
+PERSONAL_DATA = ("Nowak", "000042", "anna@corp.example.com", "PHOTO-MARKER")
+#: Photos as a directory holds them: the file's bytes, here with a marker the
+#: log check looks for and a run of every byte value, as a real image has.
+JPEG_PHOTO = b"\xff\xd8\xff\xe0" + b"JFIF-PHOTO-MARKER-8231" + bytes(range(256))
+PNG_PHOTO = b"\x89PNG\r\n\x1a\n" + b"PNG-PHOTO-MARKER-4471" + bytes(range(256))
 
 #: Wording recorded from a Samba Active Directory domain controller and
 #: Python's ssl module, so the classification is tested on what they send.
@@ -503,3 +509,111 @@ def test_a_closed_port_is_a_refused_connection(caplog) -> None:
         authenticator._authenticate_sync("anna", ANNA_PASSWORD)
 
     assert (failure.value.phase, failure.value.reason) == ("connect", "connection_refused")
+
+
+def test_a_photo_is_served_as_the_image_its_bytes_say_it_is(lab, diagnostics) -> None:
+    lab.add_anna(thumbnailPhoto=JPEG_PHOTO)
+
+    photo = lab.authenticator()._photo_sync("anna")
+
+    assert photo == DirectoryPhoto("image/jpeg", JPEG_PHOTO)
+    assert records(diagnostics) == []
+
+
+async def test_the_photo_is_read_off_the_event_loop(lab) -> None:
+    lab.add_anna(thumbnailPhoto=PNG_PHOTO)
+
+    assert await lab.authenticator().photo("anna") == DirectoryPhoto("image/png", PNG_PHOTO)
+
+
+@pytest.mark.parametrize("configured", ["jpegPhoto", "JPEGPHOTO"])
+def test_the_photo_attribute_is_configurable_and_matched_without_regard_to_case(
+    lab, configured
+) -> None:
+    lab.add_anna(jpegPhoto=JPEG_PHOTO)
+
+    photo = lab.authenticator(ldap_attribute_photo=configured)._photo_sync("anna")
+
+    assert photo == DirectoryPhoto("image/jpeg", JPEG_PHOTO)
+
+
+def test_an_account_without_a_photo_has_none_and_logs_nothing(lab, diagnostics) -> None:
+    lab.add_anna()
+
+    assert lab.authenticator()._photo_sync("anna") is None
+    assert records(diagnostics) == []
+
+
+@pytest.mark.parametrize(
+    ("value", "reason", "details"),
+    [
+        (
+            b"\xff\xd8\xff" + bytes(PHOTO_MAX_BYTES),
+            "photo_too_large",
+            {"size": str(PHOTO_MAX_BYTES + 3), "limit": str(PHOTO_MAX_BYTES)},
+        ),
+        (b"GIF89a" + bytes(range(64)), "photo_format_unsupported", {}),
+        (b"<svg xmlns='http://www.w3.org/2000/svg'></svg>", "photo_format_unsupported", {}),
+        ("not a picture at all", "photo_format_unsupported", {}),
+    ],
+)
+def test_a_photo_that_is_not_a_small_jpeg_or_png_is_skipped_and_named_not_shown(
+    lab, diagnostics, value, reason, details
+) -> None:
+    lab.add_anna(thumbnailPhoto=value)
+
+    assert lab.authenticator()._photo_sync("anna") is None
+
+    [record] = records(diagnostics)
+    expected = {"phase": "attributes", "reason": reason, "attribute": "thumbnailPhoto", **details}
+    assert record | expected == record
+    assert (record["event"], record["outcome"], record["level"]) == (
+        "ldap_photo",
+        "skipped",
+        "INFO",
+    )
+    for fragment in ("svg", "GIF", "picture"):
+        assert fragment not in diagnostics.text
+
+
+def test_a_login_the_directory_no_longer_has_gets_no_photo(lab, diagnostics) -> None:
+    lab.add_anna(thumbnailPhoto=JPEG_PHOTO)
+
+    assert lab.authenticator()._photo_sync("nobody") is None
+
+    [record] = records(diagnostics)
+    assert (record["event"], record["outcome"], record["phase"], record["reason"]) == (
+        "ldap_photo",
+        "skipped",
+        "search",
+        "user_not_found",
+    )
+
+
+def test_a_directory_failure_while_reading_the_photo_says_where_and_why(lab, diagnostics) -> None:
+    lab.add_anna(thumbnailPhoto=JPEG_PHOTO)
+    lab.fail("bind", bind_refused("52e"), dn=SERVICE_DN)
+
+    with pytest.raises(DirectoryUnavailableError) as failure:
+        lab.authenticator()._photo_sync("anna")
+
+    assert (failure.value.phase, failure.value.reason) == ("service_bind", "invalidCredentials")
+    [record] = records(diagnostics)
+    assert (record["event"], record["outcome"], record["level"], record["phase"]) == (
+        "ldap_photo",
+        "unavailable",
+        "WARNING",
+        "service_bind",
+    )
+
+
+async def test_photos_are_not_read_while_the_directory_or_the_attribute_is_off(
+    lab, diagnostics
+) -> None:
+    lab.add_anna(thumbnailPhoto=JPEG_PHOTO)
+    # Any conversation would fail loudly; none is expected.
+    lab.fail("open", LDAPSocketOpenError("unable to open socket"))
+
+    assert await lab.authenticator(ldap_enabled=False).photo("anna") is None
+    assert await lab.authenticator(ldap_attribute_photo="").photo("anna") is None
+    assert records(diagnostics) == []

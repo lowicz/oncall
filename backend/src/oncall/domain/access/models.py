@@ -73,6 +73,15 @@ class DirectoryIdentity:
 
 
 @dataclass(frozen=True)
+class DirectoryPhoto:
+    """A person's photo as the directory holds it: the bytes of one image
+    file and its media type, read for the person's own avatar."""
+
+    media_type: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class SignedIn:
     account: Account
     session: SignedInSession

@@ -2,7 +2,7 @@
 
 from oncall import auth, ldap_auth
 from oncall.domain.access.errors import DirectoryFailure
-from oncall.domain.access.models import DirectoryIdentity
+from oncall.domain.access.models import DirectoryIdentity, DirectoryPhoto
 
 
 class Argon2Passwords:
@@ -29,4 +29,10 @@ class DirectoryAuthentication:
         try:
             return await self._authenticator.authenticate(login, password)
         except (ldap_auth.DirectoryUnavailableError, ldap_auth.DirectoryIdentityError) as exc:
+            raise DirectoryFailure(str(exc)) from exc
+
+    async def photo(self, login: str) -> DirectoryPhoto | None:
+        try:
+            return await self._authenticator.photo(login)
+        except ldap_auth.DirectoryUnavailableError as exc:
             raise DirectoryFailure(str(exc)) from exc

@@ -3661,6 +3661,17 @@
       },
       "UserResponse": {
         "properties": {
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
           "display_name": {
             "title": "Display Name",
             "type": "string"
@@ -5269,6 +5280,56 @@
           }
         },
         "summary": "Update My Phone"
+      }
+    },
+    "/api/v1/auth/me/avatar": {
+      "get": {
+        "description": "The signed-in person's photo, read from the directory on request and\nnever stored here. `no-store`, so a browser shared by two people never\nshows one the other's face from its cache; the interface keeps it in\nmemory for the session instead.",
+        "operationId": "my_avatar_api_v1_auth_me_avatar_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {},
+              "image/png": {}
+            },
+            "description": "The person's own photo as the directory holds it"
+          },
+          "404": {
+            "description": "No photo: a local account, a share link or none in the directory"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "The directory could not answer"
+          }
+        },
+        "summary": "My Avatar"
       }
     },
     "/api/v1/auth/password-token": {

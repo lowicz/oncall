@@ -7,7 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import CurrentUser
 from oncall.database import get_db
-from oncall.domain.access.ports import AccountLinks, OwnProfiles, PasswordPorts, SignInPorts
+from oncall.domain.access.ports import (
+    AccountLinks,
+    DirectoryPhotos,
+    OwnProfiles,
+    PasswordPorts,
+    SignInPorts,
+)
 from oncall.domain.admin.ports import (
     AccountAdministrationPorts,
     AuditTrail,
@@ -256,6 +262,10 @@ def own_profiles(db: DbSession) -> OwnProfiles:
     return SqlAlchemyAccessAccounts(db)
 
 
+def directory_photos(directory: DirectoryAuth) -> DirectoryPhotos:
+    return DirectoryAuthentication(directory)
+
+
 def session_store(db: DbSession) -> SqlAlchemySessions:
     return SqlAlchemySessions(db)
 
@@ -332,6 +342,7 @@ SignInProvider = Annotated[SignInPorts, Depends(sign_in)]
 AccountLinkProvider = Annotated[AccountLinks, Depends(account_links)]
 PasswordProvider = Annotated[PasswordPorts, Depends(password_choice)]
 OwnProfileProvider = Annotated[OwnProfiles, Depends(own_profiles)]
+DirectoryPhotoProvider = Annotated[DirectoryPhotos, Depends(directory_photos)]
 SessionProvider = Annotated[SqlAlchemySessions, Depends(session_store)]
 ShareLinkQueryProvider = Annotated[ShareLinks, Depends(share_link_query)]
 ShareLinkCommandProvider = Annotated[ShareLinkCommandPorts, Depends(share_link_command)]
@@ -350,6 +361,7 @@ __all__ = [
     "CalendarReader",
     "CalendarSubscriptionProvider",
     "CalendarWriter",
+    "DirectoryPhotoProvider",
     "DraftWriter",
     "EligibilityAdminProvider",
     "GenerationRequestProvider",

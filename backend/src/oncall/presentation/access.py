@@ -39,6 +39,11 @@ class UserResponse(BaseModel):
     email: str | None = None
     phone: str | None = None
     share: ShareSessionInfo | None = None
+    #: Where the person's own photo is served when the directory may hold one:
+    #: a directory account on a deployment that reads photos. None for a local
+    #: account, a share-link session or a deployment without them. The image
+    #: is fetched separately so this answer never waits on the directory.
+    avatar_url: str | None = None
 
 
 class UpdateOwnPhoneRequest(BaseModel):
