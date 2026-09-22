@@ -171,7 +171,7 @@ async def test_valid_swap_still_passes_and_approve_rechecks_the_rules(
 
 @pytest.mark.anyio
 async def test_coordinator_cannot_approve_own_swap_when_another_approver_exists(
-    client: AsyncClient, db: AsyncSession
+    client: AsyncClient, db: AsyncSession, frozen_clock
 ) -> None:
     members = await _team(db)
     coordinator = await create_user(
