@@ -32,7 +32,7 @@
     "@webantic/nginx-config-parser": "^1.6.1",
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
+    "eslint-plugin-react-refresh": "^0.5.0",
     "globals": "^16.3.0",
     "jsdom": "^30.0.1",
     "marked": "^18.0.13",
