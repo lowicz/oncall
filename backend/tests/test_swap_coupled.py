@@ -199,7 +199,7 @@ async def test_options_mark_a_blocked_candidate_instead_of_hiding_them(
 
 @pytest.mark.anyio
 async def test_options_block_a_candidate_the_coupled_move_double_books(
-    client: AsyncClient, db: AsyncSession
+    client: AsyncClient, db: AsyncSession, frozen_clock
 ) -> None:
     """The clicked-slot filter only checks the opposite of the clicked role. A
     coupled swap of 11-19 also moves the anchor role, so a candidate already on
