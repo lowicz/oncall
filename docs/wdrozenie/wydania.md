@@ -130,14 +130,48 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 | `backend-postgres` | zestaw współbieżności na prawdziwym PostgreSQL 17 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
 | `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, i to, że każda usługa działa tylko do odczytu i bez uprawnień jądra |
+| `workflows` | każda akcja w workflow jest przypięta do pełnego SHA z komentarzem wersji, każdy workflow deklaruje uprawnienia tokenu, a w repozytorium nie ma konfiguracji aktualizacji Dependabota |
 | `image-build` | oba Dockerfile budują się (bez publikacji), a żaden obraz nie działa jako root |
 | `sonarcloud` | statyczna analiza na SonarCloud (klucz `lowicz_oncall`) z pokryciem testami z zadań `backend` i `frontend`, więc startuje po nich; pomija się bez sekretu `SONAR_TOKEN` |
 
-Jeden zbiorczy status `ci-ok` jest wymagany do scalenia zmian w `main`.
-Zadanie `sonarcloud` nie wchodzi w jego skład: pull request z forka nie ma
-dostępu do `SONAR_TOKEN`, a brak tokenu nie może zablokować scalenia.
-Wymaga go reguła `main-protected` w ustawieniach repozytorium, opisana w
+Zbiorczy status `ci-ok` obejmuje wszystkie zadania z tabeli poza
+`sonarcloud`: pull request z forka nie ma dostępu do `SONAR_TOKEN`, a brak
+tokenu nie może zaczerwienić `ci-ok`. Wynik SonarCloud to osobny status,
+bramka jakości `SonarCloud Code Analysis`, którą zgłasza sam SonarCloud po
+skanie. Do scalenia w `main` reguła `main-protected` wymaga `ci-ok`, bramki
+jakości SonarCloud i obu skanów z sekcji
+[Skanowanie bezpieczeństwa](#skanowanie-bezpieczeństwa); pełna lista jest w
 [Ustawieniach repozytorium](#ustawienia-repozytorium).
+
+## Skanowanie bezpieczeństwa
+
+Na bezpieczeństwo kodu i zależności składa się pięć elementów; dwa pierwsze
+to workflow bezpieczeństwa działające obok `ci.yml`:
+
+| Narzędzie | Kiedy | Co sprawdza i co blokuje |
+| --- | --- | --- |
+| CodeQL (`codeql.yml`) | każdy pull request, każdy push do `main`, co tydzień w poniedziałek rano | analiza backendu (Python), frontendu (TypeScript i JavaScript) i samych workflow (GitHub Actions) zapytaniami `security-extended`; wyniki trafiają do Security → Code scanning, a scalenie blokuje reguła wyników skanowania kodu w `main-protected` |
+| Dependency Review (`dependency-review.yml`) | każdy pull request | porównuje zależności pull requesta z gałęzią docelową w grafie zależności GitHuba (`backend/uv.lock`, `frontend/package-lock.json`, akcje w workflow); status `dependency-review` jest czerwony, gdy zmiana wnosi zależność, także deweloperską, z podatnością o ważności high lub critical; pull request bez zmian zależności przechodzi |
+| SonarCloud (zadanie `sonarcloud` w `ci.yml`) | każdy pull request i push do `main` | jakość kodu, podatności i pokrycie testami; bramka jakości (m.in. 80% pokrycia nowego kodu) zgłasza status `SonarCloud Code Analysis` |
+| Dependabot alerts | stale | alerty o znanych podatnościach w zależnościach, w Security → Dependabot; Dependabot nie otwiera pull requestów |
+| Renovate | harmonogram, a przy alercie od razu | jedyny bot otwierający pull requesty z aktualizacjami, także poprawkami bezpieczeństwa (patrz [Aktualizacje zależności](#aktualizacje-zależności)) |
+
+Dependabot jest tu wyłącznie źródłem alertów. Repozytorium nie ma pliku
+`.github/dependabot.yml` (zadanie `workflows` odrzuca go w CI), a
+„Dependabot security updates” w ustawieniach są wyłączone, więc dwa boty nigdy
+nie otwierają konkurencyjnych pull requestów z tą samą poprawką.
+
+Alert CodeQL, który okazał się fałszywy, zamyka się w Security → Code
+scanning przyciskiem „Dismiss alert” z podanym powodem; nie wyłącza się
+zapytań w workflow. Podatność bez dostępnej poprawki, którą trzeba na razie
+zaakceptować, dopisuje się do wejścia `allow-ghsas` kroku w
+`dependency-review.yml`, z komentarzem, dlaczego i do kiedy.
+
+Pull request z forka nie ma dostępu do `SONAR_TOKEN`, więc nie dostaje
+statusu `SonarCloud Code Analysis` i czeka na niego. Taką zmianę osoba
+utrzymująca repozytorium przenosi na gałąź w tym repozytorium (np.
+`gh pr checkout <numer>`, a potem push pod nową nazwą) i scala ją z pull
+requesta otwartego z tej gałęzi.
 
 ## Aktualizacje zależności
 
@@ -211,27 +245,59 @@ projektem, więc `backend/uv.lock` powstaje zawsze tą samą wersją.
 ## Ustawienia repozytorium
 
 Część zasad z tej strony to ustawienia GitHuba, a nie pliki repozytorium.
-Ustawia je raz osoba utrzymująca repozytorium:
+Żaden plik w repozytorium ich nie ustawia ani nie zmienia: raz, ręcznie,
+ustawia je osoba z uprawnieniami administratora repozytorium, a pull request
+zmieniający workflow nie wystarczy, żeby zaczęły obowiązywać.
 
 | Ustawienie | Wartość |
 | --- | --- |
-| Settings → Rules → Rulesets → `main-protected` | gałąź domyślna; zakaz usuwania i wymuszonego pusha; „Require status checks to pass” z jednym statusem: `ci-ok`, źródło GitHub Actions |
+| Settings → Rules → Rulesets → `main-protected` | gałąź domyślna; zakaz usuwania i wymuszonego pusha; „Require status checks to pass” z „Require branches to be up to date before merging” i statusami z tabeli niżej; „Require code scanning results” z narzędziem CodeQL, „Security alerts”: High or higher, „Alerts”: Errors |
 | Settings → Pages → Source | GitHub Actions |
-| Settings → Advanced Security → Dependabot alerts | włączone: Renovate czyta z nich alerty bezpieczeństwa GitHuba |
+| Settings → Advanced Security → Dependency graph | włączony (w publicznym repozytorium zawsze): z niego korzystają Dependency Review i alerty Dependabota |
+| Settings → Advanced Security → Dependabot alerts | włączone: źródło alertów bezpieczeństwa, z którego korzysta też Renovate |
 | Settings → Advanced Security → Dependabot security updates | wyłączone: poprawki bezpieczeństwa otwiera Renovate |
+| Settings → Advanced Security → Code scanning → CodeQL analysis | konfiguracja zaawansowana z `codeql.yml`; „Default setup” nieskonfigurowany, bo przy włączonym GitHub odrzuca wyniki z workflow |
 
-Wymagany status nazywa się dokładnie `ci-ok`, bo pod tą nazwą zgłasza go
+Statusy wymagane przez „Require status checks to pass”:
+
+| Status | Źródło („Add checks”) | Skąd pochodzi |
+| --- | --- | --- |
+| `ci-ok` | GitHub Actions | zbiorcze zadanie `ci.yml` |
+| `dependency-review` | GitHub Actions | `dependency-review.yml` |
+| `SonarCloud Code Analysis` | SonarQube Cloud (aplikacja SonarCloud) | bramka jakości po zadaniu `sonarcloud` |
+
+Wyników CodeQL nie dodaje się jako statusu: pilnuje ich reguła „Require code
+scanning results”, która czeka na analizę CodeQL dla ostatniego commitu pull
+requesta i blokuje scalenie przy nowym alercie bezpieczeństwa o ważności
+high lub critical albo alercie klasy error.
+
+Status nazywa się dokładnie `ci-ok`, bo pod tą nazwą zgłasza go
 każdy pull request. Pod nazwą `ci / ci-ok` ten sam status pojawia się tylko w
 przebiegu `release.yml`, który wywołuje `ci.yml` jako zadanie `ci`. Pull
 request nigdy jej nie zgłasza, więc reguła, która jej wymaga, blokuje każde
 scalenie. Ustawienie: w regule `main-protected` zaznacz „Require status checks
-to pass”, przez „Add checks” dodaj `ci-ok` ze źródłem GitHub Actions (jeśli
-jest tam `ci / ci-ok`, usuń go) i zapisz zmiany. Sprawdzenie:
+to pass”, przez „Add checks” dodaj trzy statusy z tabeli, każdy z jego
+źródłem (jeśli jest tam `ci / ci-ok`, usuń go), zaznacz „Require code
+scanning results”, dodaj CodeQL z progami z tabeli wyżej i zapisz zmiany.
+Statusy `dependency-review` i `SonarCloud Code Analysis` pojawiają się na
+liście „Add checks”, gdy zgłosił je już choć jeden pull request.
+Sprawdzenie:
 
 ```bash
 gh api repos/lowicz/oncall/rules/branches/main \
-  --jq '.[].parameters.required_status_checks // empty'
-# [{"context":"ci-ok","integration_id":15368}]
+  --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
+# ci-ok
+# dependency-review
+# SonarCloud Code Analysis
+gh api repos/lowicz/oncall/rules/branches/main \
+  --jq '.[] | select(.type == "code_scanning") | .parameters.code_scanning_tools'
+# [{"alerts_threshold":"errors","security_alerts_threshold":"high_or_higher","tool":"CodeQL"}]
+gh api -i repos/lowicz/oncall/vulnerability-alerts | head -1
+# HTTP/2.0 204 No Content   (alerty Dependabota włączone; 404 znaczy wyłączone)
+gh api repos/lowicz/oncall/automated-security-fixes --jq .enabled
+# false
+gh api repos/lowicz/oncall/code-scanning/default-setup --jq .state
+# not-configured
 ```
 
 ## Dokumentacja na GitHub Pages

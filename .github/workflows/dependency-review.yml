@@ -1,0 +1,39 @@
+# Dependency Review: every pull request is compared with its base branch in
+# GitHub's dependency graph (backend/uv.lock and pyproject.toml,
+# frontend/package-lock.json and package.json, the actions in these
+# workflows). A dependency the pull request adds or moves to a version with a
+# known high or critical vulnerability fails the `dependency-review` check,
+# which the `main-protected` ruleset requires. A pull request that changes no
+# dependency passes.
+#
+# Renovate (renovate.json5) is what proposes dependency updates; this check
+# only reviews whatever a pull request changes, Renovate's included.
+#
+# An advisory with no fix that has to be accepted for now goes into an
+# `allow-ghsas` input of the step below, with a comment saying why and until
+# when.
+name: dependency-review
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: dependency-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: dependency-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          # Development dependencies run in CI and build the web image, so
+          # their vulnerabilities count too.
+          fail-on-scopes: runtime, development, unknown

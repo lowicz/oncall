@@ -109,16 +109,24 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   before the install, ruff check + format, mypy, pytest on SQLite, OpenAPI
   snapshot; backend-postgres: migrations from empty plus `alembic check`, then
   the concurrency suite against postgres:17; frontend: eslint, tsc, vitest,
-  `npm run build`, site render; compose-config; image-build without push).
-  `ci-ok` is the one required status (ruleset `main-protected`); pull requests
-  report it as `ci-ok`, never `ci / ci-ok`, which is its name only under
-  release.yml. SonarCloud (`sonarcloud` job, identity in
+  `npm run build`, site render; compose-config; workflows; image-build
+  without push). `ci-ok` is the one status of ci.yml the ruleset
+  `main-protected` requires; pull requests report it as `ci-ok`, never
+  `ci / ci-ok`, which is its name only under release.yml. SonarCloud (`sonarcloud` job, identity in
   `sonar-project.properties`) is not in `ci-ok` needs and skips cleanly when
-  `SONAR_TOKEN` is missing, so fork pull requests stay green. Its quality
-  gate wants 80% coverage on new code, read from the `backend/coverage.xml`
-  (`pytest --cov`) and `frontend/coverage/lcov.info` (`npm test --
-  --coverage`) reports the test jobs upload, so changed lines need tests.
-  Run the same required commands locally before pushing.
+  `SONAR_TOKEN` is missing, so `ci-ok` stays green for forks; the ruleset
+  requires its quality gate as the separate `SonarCloud Code Analysis`
+  status. The gate wants 80% coverage on new code, read from the
+  `backend/coverage.xml` (`pytest --cov`) and `frontend/coverage/lcov.info`
+  (`npm test -- --coverage`) reports the test jobs upload, so changed lines
+  need tests. Run the same required commands locally before pushing.
+- Security scanning: `codeql.yml` (advanced setup; GitHub's default setup
+  must stay off) and `dependency-review.yml` (fails on high/critical). The
+  full list of required checks and admin-only settings is
+  `docs/wdrozenie/wydania.md` ("Ustawienia repozytorium"). Dependabot only
+  raises alerts: `.github/scripts/workflow-security.sh` (CI job `workflows`)
+  rejects a `.github/dependabot.yml`, an unpinned action or a workflow
+  without top-level `permissions`.
 - A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: validates the tag,
   calls `ci.yml`, publishes both images with SBOM, provenance, attestation and
   cosign signature, creates the GitHub Release. Published versions are
