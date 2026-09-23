@@ -21,6 +21,9 @@ class DirectOverrideRequest(BaseModel):
     role: AssignmentRole
     replacement_member_id: uuid.UUID
     reason: str | None = Field(default=None, max_length=500)
+    #: Required when the correction breaks a hard rule: the coordinator saw
+    #: the violations (`/override/check`) and goes ahead knowingly.
+    acknowledge_rule_violations: bool = False
 
     @model_validator(mode="after")
     def historical_reason_required(self) -> DirectOverrideRequest:
@@ -55,6 +58,7 @@ class BatchOverrideRequest(BaseModel):
     expected_version: int = Field(ge=1)
     assignments: list[BatchOverrideItem] = Field(min_length=1, max_length=200)
     reason: str = Field(min_length=10, max_length=500)
+    acknowledge_rule_violations: bool = False
 
 
 def override_assignment_response(result: DutyOverridden) -> AssignmentResponse:

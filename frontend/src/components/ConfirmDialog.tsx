@@ -16,6 +16,7 @@ export function ConfirmDialog({
   confirmColor = 'primary',
   reasonLabel,
   reasonMinLength = 1,
+  confirmDisabled = false,
   pending = false,
   error,
   onCancel,
@@ -28,6 +29,9 @@ export function ConfirmDialog({
   confirmColor?: 'primary' | 'error' | 'warning'
   reasonLabel?: string
   reasonMinLength?: number
+  /** Something in `description` still needs the user's input, e.g. an
+   *  acknowledgement checkbox. */
+  confirmDisabled?: boolean
   pending?: boolean
   /** Mutation failure, rendered here so it is visible while this dialog covers
    *  whatever surface launched the action. */
@@ -41,7 +45,7 @@ export function ConfirmDialog({
   }, [open])
   const needsReason = Boolean(reasonLabel)
   const tooShort = reason.trim().length > 0 && reason.trim().length < reasonMinLength
-  const blocked = pending || (needsReason && reason.trim().length < reasonMinLength)
+  const blocked = pending || confirmDisabled || (needsReason && reason.trim().length < reasonMinLength)
 
   return (
     <Dialog

@@ -138,17 +138,41 @@ async def test_a_historical_correction_needs_a_reason(world) -> None:
         await override(world, world.ewa, day=TODAY - timedelta(days=1), reason="krótko")
 
 
-async def test_a_correction_that_breaks_rules_goes_through_with_the_violations(world) -> None:
+@pytest.mark.parametrize("acknowledged", [None, False])
+async def test_a_correction_that_breaks_rules_is_refused_without_acknowledgement(
+    world, acknowledged
+) -> None:
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.ewa)
+    extra = {} if acknowledged is None else {"acknowledge_rule_violations": acknowledged}
+
+    with pytest.raises(errors.RuleViolationsNotAcknowledged) as refused:
+        await override(world, world.ewa, **extra)
+
+    assert "max_consecutive" in {item.rule for item in refused.value.violations}
+    assert world.roster.handed_over == []
+    assert world.roster.schedule_ref.version == 1
+    assert world.journal.events == []
+
+
+async def test_an_acknowledged_correction_goes_through_with_the_violations(world) -> None:
     for offset in (1, 2, 3):
         world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.ewa)
 
-    result = await override(world, world.ewa)
+    result = await override(world, world.ewa, acknowledge_rule_violations=True)
 
     assert "max_consecutive" in {item.rule for item in result.violations}
     assert world.journal.events[0][1]["violations"] == list(result.violations)
 
 
-def batch(world: World, *lines, reason="Odejście z zespołu", version=None):
+async def test_a_clean_correction_needs_no_acknowledgement(world) -> None:
+    result = await override(world, world.ewa, acknowledge_rule_violations=False)
+
+    assert result.violations == ()
+    assert world.roster.schedule_ref.version == 2
+
+
+def batch(world: World, *lines, reason="Odejście z zespołu", version=None, acknowledged=False):
     return override_duties_in_batch(
         BatchOverrideInput(
             actor=COORDINATOR,
@@ -156,6 +180,7 @@ def batch(world: World, *lines, reason="Odejście z zespołu", version=None):
             expected_version=version or world.roster.schedule_ref.version,
             lines=tuple(lines),
             reason=reason,
+            acknowledge_rule_violations=acknowledged,
         ),
         world.overrides,
     )
@@ -166,6 +191,7 @@ async def test_a_batch_rewrites_every_slot_as_one_version(world) -> None:
         world,
         BatchOverrideLine(DAY, AssignmentRole.primary, world.ewa.id),
         BatchOverrideLine(DAY, AssignmentRole.late_shift, world.anna.id),
+        acknowledged=True,
     )
 
     assert [item.assignee_name for item in results] == ["Ewa", "Anna"]
@@ -174,6 +200,21 @@ async def test_a_batch_rewrites_every_slot_as_one_version(world) -> None:
         OverrideMove(DAY, AssignmentRole.primary, "Anna"),
         OverrideMove(DAY, AssignmentRole.late_shift, "Bartek"),
     ]
+
+
+async def test_a_batch_that_breaks_rules_is_refused_without_acknowledgement(world) -> None:
+    lines = (
+        BatchOverrideLine(DAY, AssignmentRole.primary, world.ewa.id),
+        BatchOverrideLine(DAY, AssignmentRole.late_shift, world.anna.id),
+    )
+
+    with pytest.raises(errors.RuleViolationsNotAcknowledged) as refused:
+        await batch(world, *lines)
+
+    assert "late_shift_anchor" in {item.rule for item in refused.value.violations}
+    assert world.roster.handed_over == []
+    assert world.roster.schedule_ref.version == 1
+    assert world.journal.events == []
 
 
 async def test_a_batch_under_weekly_rotation_reports_no_rest_violations(world) -> None:

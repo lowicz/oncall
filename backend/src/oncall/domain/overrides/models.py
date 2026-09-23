@@ -30,6 +30,9 @@ class OverrideInput:
     expected_version: int
     schedule_id: uuid.UUID | None = None
     reason: str | None = None
+    #: The coordinator has seen the hard rules this correction breaks and
+    #: goes ahead anyway; without it such a correction is refused.
+    acknowledge_rule_violations: bool = False
 
 
 @dataclass(frozen=True)
@@ -46,6 +49,7 @@ class BatchOverrideInput:
     expected_version: int
     lines: tuple[BatchOverrideLine, ...]
     reason: str
+    acknowledge_rule_violations: bool = False
 
 
 @dataclass(frozen=True)

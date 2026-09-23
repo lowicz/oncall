@@ -1,6 +1,6 @@
 import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AssignmentRole, CalendarData, CalendarEventColor, CalendarEventRef, UserRole, api } from '../api'
+import { ApiError, AssignmentRole, CalendarData, CalendarEventColor, CalendarEventRef, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { formatDate, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
@@ -22,6 +22,7 @@ import {
   AvailabilityMark,
   Box,
   Button,
+  Checkbox,
   Chip,
   ChipRow,
   EmptyState,
@@ -130,6 +131,7 @@ export function CalendarMatrix({
   const [staffOpen, setStaffOpen] = useState(false)
   const [staffMemberId, setStaffMemberId] = useState<string | null>(null)
   const [confirmOverride, setConfirmOverride] = useState(false)
+  const [violationsAcknowledged, setViolationsAcknowledged] = useState(false)
   const [eventTitle, setEventTitle] = useState('')
   const [eventColor, setEventColor] = useState<CalendarEventColor>('blue')
   const [eventFormOpen, setEventFormOpen] = useState(false)
@@ -156,9 +158,18 @@ export function CalendarMatrix({
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
     },
+    onError: (error) => {
+      // The roster moved between the check and the write, and the override
+      // now breaks a rule the confirmation did not show: check again so the
+      // violations and their acknowledgement appear.
+      if (error instanceof ApiError && error.violations.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['override-check'] })
+      }
+    },
   })
-  // Decision D3: the hard rules this override would break are shown in the
-  // confirmation before the coordinator clicks, not after the fact.
+  // The hard rules this override would break are shown in the confirmation
+  // before the coordinator clicks, and saving waits for their explicit
+  // acknowledgement: the API refuses an unacknowledged rule-breaking override.
   const overrideCheck = useQuery({
     queryKey: ['override-check', selected?.day.service_date, selectedRole, staffMemberId],
     queryFn: () => api.directOverrideCheck({
@@ -528,7 +539,7 @@ export function CalendarMatrix({
             <Button
               variant="primary"
               disabled={override.isPending || Boolean(staffBlockReason)}
-              onClick={() => { override.reset(); setConfirmOverride(true) }}
+              onClick={() => { override.reset(); setViolationsAcknowledged(false); setConfirmOverride(true) }}
             >
               {selectedAssignment ? 'Zmień obsadę…' : 'Obsadź…'}
             </Button>
@@ -747,6 +758,12 @@ export function CalendarMatrix({
                   ))}
                 </ul>
                 <div className="box-next">Naruszenie trafi do dziennika audytu.</div>
+                <Checkbox
+                  label="Rozumiem i świadomie łamię te reguły"
+                  checked={violationsAcknowledged}
+                  onChange={(event) => setViolationsAcknowledged(event.target.checked)}
+                  disabled={override.isPending}
+                />
               </Box>
             )}
             {/* MED6-04: the same balance projection a team member sees before a
@@ -771,6 +788,8 @@ export function CalendarMatrix({
           ? 'Powód korekty historycznej (minimum 10 znaków)'
           : undefined}
         reasonMinLength={10}
+        confirmDisabled={overrideCheck.isLoading
+          || ((overrideCheck.data?.length ?? 0) > 0 && !violationsAcknowledged)}
         pending={override.isPending}
         error={override.error ? override.error.message : null}
         onCancel={() => setConfirmOverride(false)}
@@ -781,6 +800,7 @@ export function CalendarMatrix({
           role: selectedRole,
           replacement_member_id: staffMemberId,
           reason: reason || undefined,
+          acknowledge_rule_violations: (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged,
         })}
       />
       <ConfirmDialog

@@ -151,9 +151,6 @@ class Settings(BaseSettings):
     #: beating however long it takes.
     stale_run_seconds: float = Field(default=120.0, ge=10, le=3600)
     solver_workers: int = Field(default=available_cpu_count(), ge=1, le=8)
-    #: Seeds the policy row's budget on first use; afterwards the policy field
-    #: owns it and this variable is no longer read.
-    solver_seconds: float = Field(default=15.0, gt=0, le=300)
     solver_log: bool = False
     notification_max_attempts: int = 5
     #: How long a worker's claim on an outbox row holds before the row becomes

@@ -1,6 +1,7 @@
-"""D3/Z9: the coordinator override proceeds even when it breaks a hard rule,
-but the violations are computed before the fact, returned in the response and
-written to the audit log with their rule ids."""
+"""A coordinator correction may break a hard rule only knowingly: the
+violations are computed before the fact, the write is refused until the
+request carries `acknowledge_rule_violations: true`, and an acknowledged
+correction returns them and writes them to the audit log with their rule ids."""
 
 from datetime import date
 
@@ -80,9 +81,58 @@ async def test_override_check_names_the_rules_before_the_fact(
     assert "2026-09-28" in magda["days"]
 
 
+def _breaking_override(schedule, members: dict, **extra) -> dict:
+    return {
+        "schedule_id": str(schedule.id),
+        "expected_version": schedule.version,
+        "service_date": "2026-09-28",
+        "role": "secondary",
+        "replacement_member_id": str(members["Magdalena Woźniak"].id),
+        **extra,
+    }
+
+
 @pytest.mark.anyio
 @pytest.mark.usefixtures("frozen_clock")  # the overridden duty must still lie ahead
-async def test_override_proceeds_returns_violations_and_audits_the_rule(
+@pytest.mark.parametrize("acknowledgement", [{}, {"acknowledge_rule_violations": False}])
+async def test_override_that_breaks_a_rule_is_refused_without_acknowledgement(
+    client: AsyncClient, db: AsyncSession, acknowledgement: dict
+) -> None:
+    members = await _team(db)
+    schedule = await _roster(db)
+    await login(client, "koord")
+
+    response = await client.post(
+        "/api/v1/calendar/override", json=_breaking_override(schedule, members, **acknowledgement)
+    )
+
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["reason"] == "RULE_VIOLATIONS"
+    assert detail["message"] and detail["next_step"]
+    three_in_seven = next(item for item in detail["violations"] if item["rule"] == "three_in_seven")
+    assert three_in_seven["member_name"] == "Magdalena Woźniak"
+    assert three_in_seven["message"]
+    assert "2026-09-28" in three_in_seven["days"]
+    # Nothing was written: no new version, no hand-over, no audit entry.
+    await db.refresh(schedule)
+    assert schedule.version == 1
+    held = await db.scalar(
+        select(Assignment.assignee_name).where(
+            Assignment.schedule_id == schedule.id,
+            Assignment.service_date == date(2026, 9, 28),
+            Assignment.role == AssignmentRole.secondary,
+        )
+    )
+    assert held == "Julia Kowal"
+    assert (
+        await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
+    ).all() == []
+
+
+@pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the overridden duty must still lie ahead
+async def test_acknowledged_override_returns_violations_and_audits_the_rule(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     members = await _team(db)
@@ -91,16 +141,9 @@ async def test_override_proceeds_returns_violations_and_audits_the_rule(
 
     response = await client.post(
         "/api/v1/calendar/override",
-        json={
-            "schedule_id": str(schedule.id),
-            "expected_version": schedule.version,
-            "service_date": "2026-09-28",
-            "role": "secondary",
-            "replacement_member_id": str(members["Magdalena Woźniak"].id),
-        },
+        json=_breaking_override(schedule, members, acknowledge_rule_violations=True),
     )
 
-    # The coordinator is warned, not blocked: the operation goes through.
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["assignee_name"] == "Magdalena Woźniak"
@@ -113,6 +156,7 @@ async def test_override_proceeds_returns_violations_and_audits_the_rule(
     assert len(events) == 1
     details = events[0].details
     assert "three_in_seven" in {item["rule"] for item in details["rule_violations"]}
+    assert "świadome naruszenie reguł: " in events[0].summary
     assert "three_in_seven" in events[0].summary
 
 
@@ -148,6 +192,47 @@ async def test_clean_override_returns_no_violations(client: AsyncClient, db: Asy
     assert response.json()["rule_violations"] == []
 
 
+def _breaking_batch(schedule, members: dict, **extra) -> dict:
+    return {
+        "schedule_id": str(schedule.id),
+        "expected_version": schedule.version,
+        "reason": "Test atomowej korekty wsadowej",
+        "assignments": [
+            {
+                "service_date": "2026-09-28",
+                "role": "primary",
+                "replacement_member_id": str(members["Magdalena Woźniak"].id),
+            },
+            {
+                "service_date": "2026-09-28",
+                "role": "secondary",
+                "replacement_member_id": str(members["Magdalena Woźniak"].id),
+            },
+        ],
+        **extra,
+    }
+
+
+@pytest.mark.anyio
+async def test_batch_override_that_breaks_a_rule_is_refused_without_acknowledgement(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    members = await _team(db)
+    schedule = await _roster(db)
+    await login(client, "koord")
+
+    response = await client.post(
+        "/api/v1/calendar/override/batch", json=_breaking_batch(schedule, members)
+    )
+
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["reason"] == "RULE_VIOLATIONS"
+    assert "same_day_oncall" in {item["rule"] for item in detail["violations"]}
+    await db.refresh(schedule)
+    assert schedule.version == 1
+
+
 @pytest.mark.anyio
 async def test_batch_override_reports_violations_created_by_the_whole_batch(
     client: AsyncClient, db: AsyncSession
@@ -158,23 +243,7 @@ async def test_batch_override_reports_violations_created_by_the_whole_batch(
 
     response = await client.post(
         "/api/v1/calendar/override/batch",
-        json={
-            "schedule_id": str(schedule.id),
-            "expected_version": schedule.version,
-            "reason": "Test atomowej korekty wsadowej",
-            "assignments": [
-                {
-                    "service_date": "2026-09-28",
-                    "role": "primary",
-                    "replacement_member_id": str(members["Magdalena Woźniak"].id),
-                },
-                {
-                    "service_date": "2026-09-28",
-                    "role": "secondary",
-                    "replacement_member_id": str(members["Magdalena Woźniak"].id),
-                },
-            ],
-        },
+        json=_breaking_batch(schedule, members, acknowledge_rule_violations=True),
     )
 
     assert response.status_code == 200, response.text
@@ -183,6 +252,12 @@ async def test_batch_override_reports_violations_created_by_the_whole_batch(
         for assignment in response.json()
         for violation in assignment["rule_violations"]
     }
+    event = await db.scalar(
+        select(AuditEvent).where(AuditEvent.action == "schedule.override_batch")
+    )
+    assert event is not None
+    assert "świadome naruszenie reguł: " in event.summary
+    assert "same_day_oncall" in event.summary
 
 
 @pytest.mark.anyio

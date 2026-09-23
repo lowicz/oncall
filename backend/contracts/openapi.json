@@ -570,6 +570,11 @@
       "BatchOverrideRequest": {
         "additionalProperties": false,
         "properties": {
+          "acknowledge_rule_violations": {
+            "default": false,
+            "title": "Acknowledge Rule Violations",
+            "type": "boolean"
+          },
           "assignments": {
             "items": {
               "$ref": "#/components/schemas/BatchOverrideItem"
@@ -1241,6 +1246,11 @@
       "DirectOverrideRequest": {
         "additionalProperties": false,
         "properties": {
+          "acknowledge_rule_violations": {
+            "default": false,
+            "title": "Acknowledge Rule Violations",
+            "type": "boolean"
+          },
           "expected_version": {
             "minimum": 1.0,
             "title": "Expected Version",
@@ -6726,7 +6736,7 @@
     },
     "/api/v1/calendar/override/check": {
       "post": {
-        "description": "The hard rules the override would break, computed before the fact so\nthe confirmation dialog can show them (decision D3: warned, not blocked).",
+        "description": "The hard rules the override would break, computed before the fact so\nthe confirmation dialog can show them and ask for their acknowledgement.",
         "operationId": "direct_override_check_api_v1_calendar_override_check_post",
         "parameters": [
           {

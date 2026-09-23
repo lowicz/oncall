@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { CalendarMatrix } from './CalendarMatrix'
 import { ScheduleScreen } from '../screens/Schedule'
-import { api } from '../api'
+import { ApiError, api } from '../api'
 import type { CalendarData, SwapImpact } from '../api'
 
 const day = (offset: number): string => {
@@ -159,17 +159,27 @@ const startStaffChange = async (cellName: RegExp, replacement: string) => {
   fireEvent.change(picker, { target: { value: option.getAttribute('value') } })
 }
 
+const threeInSeven = {
+  rule: 'three_in_seven',
+  message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.',
+  member_name: 'Marek Nowak',
+  days: [day(1), day(2), day(3), day(4)],
+}
+
+/** Open the confirmation for handing Anna's primary duty on day(1) to Marek. */
+const confirmHandOver = async () => {
+  const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
+  fireEvent.click(annaCells[0])
+  fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
+  fireEvent.change(await screen.findByRole('combobox', { name: 'Osoba' }), { target: { value: 'm2' } })
+  fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…/ }))
+  return screen.findByRole('button', { name: /^Zmień obsadę$/ })
+}
+
 describe('CalendarMatrix override confirmation', () => {
   it('shows the hard rules the override would break before confirming', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
-    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([
-      {
-        rule: 'three_in_seven',
-        message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.',
-        member_name: 'Marek Nowak',
-        days: [day(1), day(2), day(3), day(4)],
-      },
-    ])
+    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([threeInSeven])
     renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
@@ -181,8 +191,53 @@ describe('CalendarMatrix override confirmation', () => {
     expect(check).toHaveBeenCalledWith(
       expect.objectContaining({ replacement_member_id: 'm2', role: 'primary' }),
     )
-    // Warned, not blocked: the confirm button stays enabled.
-    expect(screen.getByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })).toBeEnabled()
+    // Saving waits for the explicit acknowledgement.
+    expect(screen.getByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })).toBeDisabled()
+  })
+
+  it('sends the acknowledgement only once the coordinator ticks it', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([threeInSeven])
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
+    const override = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
+    renderScreen(matrix())
+
+    const confirm = await confirmHandOver()
+    const acknowledgement = await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
+    expect(acknowledgement).not.toBeChecked()
+    expect(confirm).toBeDisabled()
+
+    fireEvent.click(acknowledgement)
+    expect(confirm).toBeEnabled()
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(override).toHaveBeenCalled())
+    expect(override.mock.calls[0][0]).toMatchObject({
+      replacement_member_id: 'm2', acknowledge_rule_violations: true,
+    })
+  })
+
+  it('checks again and asks for the acknowledgement when the write finds a new violation', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
+    const check = vi.spyOn(api, 'directOverrideCheck')
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([threeInSeven])
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
+    const override = vi.spyOn(api, 'directOverride').mockRejectedValueOnce(
+      new ApiError('Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie', 409, [threeInSeven]),
+    )
+    renderScreen(matrix())
+
+    const confirm = await confirmHandOver()
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(override).toHaveBeenCalledTimes(1))
+    expect(override.mock.calls[0][0]).toMatchObject({ acknowledge_rule_violations: false })
+    expect(await screen.findByText(/Ta korekta złamie reguły twarde/)).toBeInTheDocument()
+    expect(check).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeChecked()
+    expect(screen.getByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })).toBeDisabled()
   })
 
   it('shows no warning when the override is clean', async () => {
@@ -193,8 +248,10 @@ describe('CalendarMatrix override confirmation', () => {
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
     fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
 
-    await screen.findByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })
+    const confirm = await screen.findByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })
     expect(screen.queryByText(/Ta korekta złamie reguły twarde/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /świadomie łamię/ })).not.toBeInTheDocument()
+    await waitFor(() => expect(confirm).toBeEnabled())
   })
 })
 
@@ -233,6 +290,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     await waitFor(() => expect(override).toHaveBeenCalled())
     expect(override.mock.calls[0][0]).toMatchObject({
       service_date: day(1), role: 'primary', replacement_member_id: 'm2',
+      acknowledge_rule_violations: false,
     })
   })
 
