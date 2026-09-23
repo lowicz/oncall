@@ -266,7 +266,9 @@ describe('SwapPanel new request', () => {
       schedule_id: 'sched-1', service_date: '2099-09-14', role: 'primary', replacement_member_id: 'p1', note: 'Wyjazd',
     })
     expect(await screen.findByText('Wysłano do: Piotr Zieliński')).toBeInTheDocument()
-    expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'true')
+    // The inbox switch goes through the router's search params and can land
+    // a render after the toast.
+    await waitFor(() => expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'true'))
     await waitFor(() => expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument())
   })
 

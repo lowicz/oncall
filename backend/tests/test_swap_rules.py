@@ -15,6 +15,7 @@ from tests.conftest import (
     create_user,
     login,
 )
+from tests.frozen_clock import FrozenClock
 
 START = date(2026, 9, 22)  # Tuesday; the 26th-27th are the weekend
 
@@ -55,6 +56,7 @@ async def _roster(db: AsyncSession):
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_swap_breaking_three_in_seven_is_rejected_at_create(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -86,6 +88,7 @@ async def test_swap_breaking_three_in_seven_is_rejected_at_create(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_swapping_the_late_shift_couples_the_anchor_role(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -113,7 +116,7 @@ async def test_swapping_the_late_shift_couples_the_anchor_role(
 
 @pytest.mark.anyio
 async def test_valid_swap_still_passes_and_approve_rechecks_the_rules(
-    client: AsyncClient, db: AsyncSession
+    client: AsyncClient, db: AsyncSession, frozen_clock: FrozenClock
 ) -> None:
     """A clean swap (a primary weekday slot, which the secondary anchor does
     not touch) is created; when the roster moves before approval so the same
@@ -138,7 +141,9 @@ async def test_valid_swap_still_passes_and_approve_rechecks_the_rules(
 
     # Between request and approval Marek picks up secondary on 21, 22 and 24
     # elsewhere, so taking primary on the 23rd now puts four duties in one
-    # seven-day window.
+    # seven-day window. The frozen clock keeps the 23rd ahead and moves on so
+    # this later publication is the one in force.
+    frozen_clock.advance(timedelta(minutes=1))
     await create_published_schedule(
         db,
         starts_on=START - timedelta(days=1),
@@ -170,8 +175,9 @@ async def test_valid_swap_still_passes_and_approve_rechecks_the_rules(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_coordinator_cannot_approve_own_swap_when_another_approver_exists(
-    client: AsyncClient, db: AsyncSession, frozen_clock
+    client: AsyncClient, db: AsyncSession
 ) -> None:
     members = await _team(db)
     coordinator = await create_user(

@@ -42,15 +42,10 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/oncall"]
 
-# `pytest --cov` (CI) writes coverage.xml for SonarCloud
-# (sonar-project.properties). SQLAlchemy's async layer runs statements in
-# greenlets, which coverage has to follow to see the code they reach.
+# `pytest --cov` (CI) measures the application package; its coverage.xml
+# feeds the SonarCloud scan.
 [tool.coverage.run]
-source = ["src/oncall"]
-concurrency = ["greenlet", "thread"]
-
-[tool.coverage.xml]
-output = "coverage.xml"
+source_pkgs = ["oncall"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

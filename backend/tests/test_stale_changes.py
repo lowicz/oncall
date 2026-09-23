@@ -194,3 +194,27 @@ async def test_a_batch_override_slot_inside_the_window_counts(db: AsyncSession) 
     await db.commit()
 
     assert await stale_changes_count(schedule, SqlAlchemyChangeLog(db)) == 1
+
+
+@pytest.mark.anyio
+async def test_only_a_correction_to_another_schedule_counts(db: AsyncSession) -> None:
+    """The coordinator's own correction to this draft is part of the draft;
+    the same correction made to another schedule over these days is not."""
+    schedule = await _draft(db)
+    other = await _draft(db)
+    db.add_all(
+        [
+            AuditEvent(
+                actor_label="Koordynator",
+                action="schedule.draft_override",
+                entity_type="schedule",
+                entity_id=str(target.id),
+                summary="Korekta szkicu",
+                details={"service_date": schedule.starts_on.isoformat(), "role": "primary"},
+            )
+            for target in (schedule, other)
+        ]
+    )
+    await db.commit()
+
+    assert await stale_changes_count(schedule, SqlAlchemyChangeLog(db)) == 1

@@ -120,3 +120,31 @@ async def test_draft_override_warns_about_rest_rule_violation(client, db) -> Non
     # A warning without a name and a date says only that something is wrong.
     assert all(ola.display_name in item["message"] for item in warnings), warnings
     assert all("Dni: " in item["message"] for item in warnings), warnings
+
+
+async def test_a_correction_to_the_draft_does_not_mark_it_stale(client, db) -> None:
+    """The "Szkic nieaktualny" warning means the draft's inputs moved since generation; the
+    coordinator's own correction to this draft is part of the draft."""
+    schedule, ola, monday = await _draft_setup(client, db)
+    response = await client.post(
+        f"/api/v1/scheduling/{schedule.id}/override",
+        json={
+            "expected_version": schedule.version,
+            "service_date": str(monday),
+            "role": "primary",
+            "replacement_member_id": str(ola.id),
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    draft = await client.get(f"/api/v1/scheduling/{schedule.id}")
+    assert draft.status_code == 200, draft.text
+    assert draft.json()["stale_changes_count"] == 0
+    proposed = await client.post(
+        f"/api/v1/scheduling/{schedule.id}/propose",
+        json={"expected_version": response.json()["version"]},
+    )
+    assert proposed.status_code == 200, proposed.text
+    preview = await client.get(f"/api/v1/scheduling/{schedule.id}/publish-preview")
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["stale_changes_count"] == 0
