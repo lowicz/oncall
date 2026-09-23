@@ -130,3 +130,38 @@ async def test_coordinator_filing_for_own_member_is_not_on_behalf(
     actions = {event.action for event in audited}
     assert actions == {"availability.created"}
     assert (await db.scalar(select(NotificationOutbox))) is None
+
+
+async def test_each_entry_is_audited_with_its_own_id(client: AsyncClient, db: AsyncSession):
+    """The draft staleness count finds an entry's dates through the id its
+    audit event carries, so every entry, hard or soft, must be recorded with
+    it, including entries filed back to back."""
+    _, beata = await _beata(db)
+    cezary_user = await create_user(db, "cezary.maj", display_name="Cezary Maj")
+    cezary = await create_member(db, cezary_user, display_name="Cezary Maj")
+    await create_user(db, "adam.nowicki", role=UserRole.coordinator, display_name="Adam Nowicki")
+    await login(client, "adam.nowicki")
+
+    day = date.today() + timedelta(days=7)
+    filed = [
+        (beata.id, "unavailable", day),
+        (cezary.id, "unavailable", day),
+        (beata.id, "prefer_not", day + timedelta(days=1)),
+    ]
+    created_ids = set()
+    for member_id, kind, on in filed:
+        created = await client.post(
+            f"/api/v1/availability/members/{member_id}",
+            json={"kind": kind, "starts_on": str(on), "ends_on": str(on)},
+        )
+        assert created.status_code == 201, created.text
+        created_ids.add(created.json()["id"])
+
+    audited = (
+        await db.scalars(
+            select(AuditEvent.entity_id).where(
+                AuditEvent.action == "availability.created_on_behalf"
+            )
+        )
+    ).all()
+    assert sorted(map(str, audited)) == sorted(created_ids)

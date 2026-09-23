@@ -83,6 +83,13 @@ STALE_INPUT_ACTIONS = (
 )
 
 
+def _entity_uuid(event: ChangeRecord) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(event.entity_id) if event.entity_id else None
+    except ValueError:
+        return None
+
+
 async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
     """How many audit events since generation could have changed this draft's
     inputs.
@@ -116,47 +123,55 @@ async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
             continue
         by_action[event.action].append(event)
 
-    def entity_ids(actions: tuple[str, ...]) -> tuple[list[ChangeRecord], set[uuid.UUID]]:
-        matched = [item for action in actions for item in by_action.pop(action, [])]
-        ids = {uuid.UUID(item.entity_id) for item in matched if item.entity_id}
-        return matched, ids
-
     count = sum(len(by_action.pop(action, [])) for action in _UNCONDITIONAL_STALE_ACTIONS)
 
-    availability_events, availability_ids = entity_ids(_AVAILABILITY_CREATED_ACTIONS)
+    def entity_ids(actions: tuple[str, ...]) -> tuple[list[uuid.UUID], int]:
+        """The entities the events of `actions` name, one per event, and how
+        many events name none this can read. Such an event cannot be checked
+        against the window, so it counts unconditionally, like a deleted
+        entity does."""
+        ids = [_entity_uuid(item) for action in actions for item in by_action.pop(action, [])]
+        named = [entity_id for entity_id in ids if entity_id is not None]
+        return named, len(ids) - len(named)
+
+    availability_ids, unreadable = entity_ids(_AVAILABILITY_CREATED_ACTIONS)
+    count += unreadable
     if availability_ids:
-        spans = await changes.availability_spans(availability_ids)
+        spans = await changes.availability_spans(set(availability_ids))
         count += sum(
             1
-            for event in availability_events
-            if (span := spans.get(uuid.UUID(event.entity_id))) is not None
+            for entity_id in availability_ids
+            if (span := spans.get(entity_id)) is not None
             and span[0] <= window_end
             and span[1] >= window_start
         )
 
-    eligibility_events, eligibility_ids = entity_ids(_ELIGIBILITY_LIVE_ACTIONS)
+    eligibility_ids, unreadable = entity_ids(_ELIGIBILITY_LIVE_ACTIONS)
+    count += unreadable
     if eligibility_ids:
-        periods = await changes.eligibility_spans(eligibility_ids)
+        periods = await changes.eligibility_spans(set(eligibility_ids))
         count += sum(
             1
-            for event in eligibility_events
-            if (period := periods.get(uuid.UUID(event.entity_id))) is not None
+            for entity_id in eligibility_ids
+            if (period := periods.get(entity_id)) is not None
             and period[0] <= window_end
             and (period[1] is None or period[1] >= window_start)
         )
 
-    membership_events, membership_ids = entity_ids(_MEMBERSHIP_ACTIONS)
+    membership_ids, unreadable = entity_ids(_MEMBERSHIP_ACTIONS)
+    count += unreadable
     if membership_ids:
         roster = {item.member_id for item in schedule.assignments if item.member_id}
-        count += sum(1 for event in membership_events if uuid.UUID(event.entity_id) in roster)
+        count += sum(1 for entity_id in membership_ids if entity_id in roster)
 
-    swap_events, swap_ids = entity_ids(_SWAP_ACTIONS)
+    swap_ids, unreadable = entity_ids(_SWAP_ACTIONS)
+    count += unreadable
     if swap_ids:
-        slot_days = await changes.swap_slot_days(swap_ids)
+        slot_days = await changes.swap_slot_days(set(swap_ids))
         count += sum(
             1
-            for event in swap_events
-            if any(relevant(day) for day in slot_days.get(uuid.UUID(event.entity_id), []))
+            for entity_id in swap_ids
+            if any(relevant(day) for day in slot_days.get(entity_id, []))
         )
 
     for event in by_action.pop("schedule.override_batch", []):
