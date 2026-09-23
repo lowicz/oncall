@@ -23,6 +23,13 @@ def _moves_detail(moves: list[OverrideMove]) -> list[dict]:
     ]
 
 
+def _acknowledged_suffix(violations: list[RuleViolation]) -> str:
+    """The audit summary names the hard rules a correction broke; the use case
+    accepts such a correction only with the coordinator's acknowledgement."""
+    rule_ids = sorted({violation.rule for violation in violations})
+    return f" · świadome naruszenie reguł: {', '.join(rule_ids)}" if rule_ids else ""
+
+
 def _violations_detail(violations: list[RuleViolation]) -> list[dict]:
     return [
         {
@@ -59,7 +66,6 @@ class SqlAlchemyOverrideJournal:
             previous_name=previous_name,
             new_name=new_name,
         )
-        rule_ids = sorted({violation.rule for violation in violations})
         record_audit(
             self._session,
             actor=self._actor,
@@ -68,7 +74,7 @@ class SqlAlchemyOverrideJournal:
             entity_id=schedule_id,
             summary=(
                 f"Override {service_date} · {role.value}: {previous_name} → {new_name}"
-                + (f" · świadome naruszenie reguł: {', '.join(rule_ids)}" if rule_ids else "")
+                + _acknowledged_suffix(violations)
             ),
             details={
                 "service_date": service_date.isoformat(),
@@ -95,7 +101,7 @@ class SqlAlchemyOverrideJournal:
             action="schedule.override_batch",
             entity_type="schedule",
             entity_id=schedule_id,
-            summary=f"Przepisano wsadowo {len(slots)} dyżurów",
+            summary=f"Przepisano wsadowo {len(slots)} dyżurów" + _acknowledged_suffix(violations),
             details={
                 "reason": reason,
                 "slots": [f"{day}:{role.value}" for day, role in slots],

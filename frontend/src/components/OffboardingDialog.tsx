@@ -1,14 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { AssignmentRole, TeamMember, api } from '../api'
+import { ApiError, AssignmentRole, RuleViolation, TeamMember, api } from '../api'
 import { formatDate } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
-import { Box, Button, Dialog, Field, LoadingBlock, RoleMark, Select } from '../ui'
+import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select } from '../ui'
 
 /**
  * Ending somebody's rotation: every duty after the exit date gets a
  * replacement picked here, then the eligibility periods are closed and the
  * member's active_until is set, in that order.
+ *
+ * A rewrite that breaks a hard rule is refused by the API until it is
+ * acknowledged. The refusal lists the violations for that one schedule; the
+ * coordinator acknowledges them and confirms again, which resends only what
+ * is still left to rewrite.
  */
 export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }: {
   open: boolean
@@ -44,6 +49,8 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   const duties = (calendar.data?.assignments ?? []).filter((item) => item.member_id === member.id && item.service_date > activeUntil)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [confirming, setConfirming] = useState(false)
+  const [refusal, setRefusal] = useState<{ scheduleId: string; violations: RuleViolation[] } | null>(null)
+  const [acknowledged, setAcknowledged] = useState<string[]>([])
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
   const candidates = (day: string, role: AssignmentRole) => {
     const roleLoad = new Map<string, number>()
@@ -62,17 +69,29 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
         return result
       }, new Map<string, typeof duties>())
       for (const [scheduleId, group] of groups) {
-        await api.batchOverride({
-          schedule_id: scheduleId,
-          expected_version: group[0].schedule_version,
-          assignments: group.map((item) => ({
-            service_date: item.service_date,
-            role: item.role,
-            replacement_member_id: replacements[key(item.service_date, item.role)],
-          })),
-          reason: `Zakończenie rotacji ${member.display_name}`,
-        })
+        try {
+          await api.batchOverride({
+            schedule_id: scheduleId,
+            expected_version: group[0].schedule_version,
+            assignments: group.map((item) => ({
+              service_date: item.service_date,
+              role: item.role,
+              replacement_member_id: replacements[key(item.service_date, item.role)],
+            })),
+            reason: `Zakończenie rotacji ${member.display_name}`,
+            acknowledge_rule_violations: acknowledged.includes(scheduleId),
+          })
+        } catch (error) {
+          if (error instanceof ApiError && error.violations.length > 0) {
+            setRefusal({ scheduleId, violations: error.violations })
+            // Schedules rewritten before this one are already saved: reload
+            // so the retry sends only the duties this person still holds.
+            await calendar.refetch()
+          }
+          throw error
+        }
       }
+      setRefusal(null)
       for (const period of member.eligibility) {
         if (period.starts_on > activeUntil) await api.deleteEligibility(period.id)
         else if (!period.ends_on || period.ends_on > activeUntil) {
@@ -84,6 +103,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     onSuccess: onDone,
   })
   const complete = duties.every((item) => replacements[key(item.service_date, item.role)])
+  const refusalAcknowledged = refusal !== null && acknowledged.includes(refusal.scheduleId)
 
   return (
     <Dialog
@@ -98,7 +118,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
           <Button onClick={onClose} disabled={submit.isPending}>Anuluj</Button>
           <Button
             variant={confirming ? 'danger' : 'primary'}
-            disabled={calendar.isLoading || !complete || submit.isPending}
+            disabled={calendar.isLoading || !complete || submit.isPending || (refusal !== null && !refusalAcknowledged)}
             loading={submit.isPending}
             onClick={() => (confirming ? submit.mutate() : setConfirming(true))}
           >
@@ -109,7 +129,30 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     >
       {calendar.isLoading && <LoadingBlock label="Szukam przyszłych dyżurów" rows={2} />}
       {calendar.error && <Box tone="bad" role="alert" title={calendar.error.message} />}
-      {submit.error && <Box tone="bad" role="alert" title={submit.error.message} />}
+      {submit.error && !refusal && <Box tone="bad" role="alert" title={submit.error.message} />}
+      {refusal && (
+        <Box tone="warn" role="alert" title="Przepisanie złamie reguły twarde">
+          <ul className="box-list">
+            {refusal.violations.map((violation, index) => (
+              <li key={index}>
+                {violation.message} ({violation.member_name}: {violation.days.map(formatDate).join(', ')})
+              </li>
+            ))}
+          </ul>
+          <div className="box-next">Wybierz innych zastępców albo potwierdź świadome naruszenie; trafi ono do dziennika audytu.</div>
+          <Checkbox
+            label="Rozumiem i świadomie łamię te reguły"
+            checked={refusalAcknowledged}
+            disabled={submit.isPending}
+            onChange={(event) => {
+              const scheduleId = refusal.scheduleId
+              setAcknowledged((current) => event.target.checked
+                ? [...current, scheduleId]
+                : current.filter((item) => item !== scheduleId))
+            }}
+          />
+        </Box>
+      )}
       {confirming && (
         <Box tone="warn" title={`Potwierdź przepisanie ${duties.length} dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem ${formatDate(activeUntil)}.`} />
       )}
@@ -124,7 +167,13 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
             <Select
               id={id}
               value={replacements[key(item.service_date, item.role)] ?? ''}
-              onChange={(event) => setReplacements((current) => ({ ...current, [key(item.service_date, item.role)]: event.target.value }))}
+              onChange={(event) => {
+                setReplacements((current) => ({ ...current, [key(item.service_date, item.role)]: event.target.value }))
+                // An acknowledgement covers the violations it was given for,
+                // not whatever a different pick would break.
+                setRefusal(null)
+                setAcknowledged([])
+              }}
             >
               <option value="">Wybierz zastępcę</option>
               {candidates(item.service_date, item.role).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.display_name}</option>)}

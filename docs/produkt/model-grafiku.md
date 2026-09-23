@@ -112,8 +112,15 @@ stawek ani raportów** i nie wpływają na solver.
 
 - **Korekta koordynatora (override)** - koordynator lub administrator zmienia
   przydział w jednej komórce bez zgody zastępcy i bez dodatkowego kroku
-  akceptacji. Nadal respektuje reguły twarde, zapisuje override, korzysta z
-  wersjonowania i dotyczy wyłącznie wybranego dnia i roli.
+  akceptacji. Zapisuje override, korzysta z wersjonowania i dotyczy wyłącznie
+  wybranego dnia i roli. Reguły twarde są sprawdzane przed zapisem, ale nie
+  blokują korekty bezwarunkowo: w sytuacji awaryjnej koordynator może je
+  **świadomie** złamać. Korekta łamiąca regułę twardą przechodzi tylko z jawnym
+  potwierdzeniem - w API polem `acknowledge_rule_violations: true`; bez niego
+  (albo z `false`) żądanie kończy się odpowiedzią `409` z listą naruszeń i
+  niczego nie zmienia. Potwierdzone naruszenie trafia do dziennika audytu jako
+  „świadome naruszenie reguł” wraz z identyfikatorami reguł. Tak samo działa
+  korekta wsadowa przy zakończeniu rotacji.
 - **Zamiana (swap)** - wniosek członka zespołu, który wymaga zgody zastępcy i
   zatwierdzenia koordynatora. Może objąć jedną rolę i dzień, obie role dnia,
   zakres albo cały tydzień. Zatwierdzenie tworzy override i **nie regeneruje

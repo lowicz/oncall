@@ -731,6 +731,8 @@ export const api = {
       replacement_member_id: string
     }>
     reason: string
+    /** Required when the batch breaks a hard rule (409 with the violations otherwise). */
+    acknowledge_rule_violations?: boolean
   }) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
     return request<Assignment[]>('/api/v1/calendar/override/batch', {
@@ -773,6 +775,8 @@ export const api = {
     role: AssignmentRole
     replacement_member_id: string
     reason?: string
+    /** Required when the override breaks a hard rule (409 with the violations otherwise). */
+    acknowledge_rule_violations?: boolean
   }) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
     return request<Assignment>('/api/v1/calendar/override', {
