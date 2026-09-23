@@ -30,6 +30,7 @@
       "pages": [
         "wdrozenie/uruchomienie.md",
         "wdrozenie/systemd.md",
+        "wdrozenie/aktualizacja.md",
         "wdrozenie/wydania.md",
         "wdrozenie/tls.md",
         "wdrozenie/ldap.md"

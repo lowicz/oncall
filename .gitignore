@@ -3,6 +3,8 @@
 .env.local
 .env.*.local
 !.env.example
+# Kopie zapasowe deploy/update.sh w katalogu wdrożenia (także .env z sekretami)
+/.backup/
 
 # Certyfikaty generowane lokalnie (docs/wdrozenie/tls.md opisuje jak je odtworzyc)
 tls/

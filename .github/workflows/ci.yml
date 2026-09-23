@@ -234,6 +234,10 @@ jobs:
         run: .github/scripts/compose-hardening.sh
       - name: User systemd unit calls the stack script
         run: .github/scripts/systemd-user-unit.sh
+      - name: Deployment update script (POSIX sh, .env merge, whole runs)
+        run: |
+          shellcheck --shell=sh deploy/update.sh deploy/update.test.sh
+          sh deploy/update.test.sh
 
   workflows:
     name: workflow files (pinned actions, token permissions, no Dependabot updates)

@@ -32,6 +32,12 @@ docker compose up -d
 The frontend is served at `http://localhost:8080`, while the API is available through the same origin under `/api`.
 Versions, upgrades, rollback and image verification: [docs/wdrozenie/wydania.md](docs/wdrozenie/wydania.md).
 To start the Podman stack after reboot without an interactive login, use the user systemd unit: [docs/wdrozenie/systemd.md](docs/wdrozenie/systemd.md).
+Such a host moves to another release, `.env` merged with the new `.env.example` and the unit restarted, with one command: [docs/wdrozenie/aktualizacja.md](docs/wdrozenie/aktualizacja.md).
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lowicz/oncall/main/deploy/update.sh |
+  sh -s -- 1.2.3
+```
 
 ## Development
 
