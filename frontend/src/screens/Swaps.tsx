@@ -311,6 +311,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const items = swaps.data ?? []
   const counts: Record<Inbox, number> = { 'do-mnie': 0, moje: 0, 'w-toku': 0, zamkniete: 0 }
   for (const item of items) counts[inboxOf(item, displayName)] += 1
+  // A coordinator's "Do zatwierdzenia" lists every open request of others, but
+  // its badge counts only those waiting for approval, as the header does.
+  const awaitingApproval = items.filter((item) => inboxOf(item, displayName) === 'w-toku' && needsMyDecision(item, viewer)).length
+  const badges: Record<Inbox, number> = { ...counts, 'w-toku': coordinator ? awaitingApproval : counts['w-toku'] }
   const actionable = items.filter((item) => needsMyDecision(item, viewer)).length
   const otherOpen = items.filter((item) => isOpen(item) && !needsMyDecision(item, viewer)).length
   // The address names the inbox; without one, open where something waits.
@@ -319,7 +323,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     ? requested
     : counts['do-mnie'] > 0
       ? 'do-mnie'
-      : coordinator && items.some((item) => item.status === 'pending_coordinator' && inboxOf(item, displayName) === 'w-toku')
+      : awaitingApproval > 0
         ? 'w-toku'
         : counts.moje > 0
           ? 'moje'
@@ -376,12 +380,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 type="button"
                 className={cx('sech-link', inbox === value && 'on')}
                 aria-pressed={inbox === value}
+                // The badge would otherwise run into the label ("Do mnie0").
+                aria-label={value === 'zamkniete' ? undefined : `${inboxLabels[value]}: ${pluralPl(badges[value], ['sprawa', 'sprawy', 'spraw'])}`}
                 onClick={() => setInbox(value)}
               >
                 {inboxLabels[value]}
                 {value !== 'zamkniete' && (
-                  <Tag tone={value === 'w-toku' && coordinator && counts[value] > 0 ? 'late' : undefined} className="tab-count">
-                    {counts[value]}
+                  <Tag tone={value === 'w-toku' && coordinator && badges[value] > 0 ? 'late' : undefined} className="tab-count">
+                    {badges[value]}
                   </Tag>
                 )}
               </button>
