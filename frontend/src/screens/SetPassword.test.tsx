@@ -44,4 +44,15 @@ describe('SetPassword', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Hasła nie są identyczne')
     expect(reset).not.toHaveBeenCalled()
   })
+
+  it.each(['activate', 'reset'] as const)('shows the configured subtitle with its own casing on %s', async (mode) => {
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({
+      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: false, version: '1.4.0',
+    })
+    vi.spyOn(api, 'passwordTokenInfo').mockResolvedValue({
+      username: 'anna', display_name: 'Anna Kowalska',
+    })
+    renderScreen(<SetPassword mode={mode} />, { route: `/${mode}?token=one-time-token-value` })
+    expect(await screen.findByText(/Zespół infrastruktury \(UAT\)/)).toHaveTextContent('On-call · Zespół infrastruktury (UAT)')
+  })
 })

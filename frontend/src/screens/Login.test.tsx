@@ -42,4 +42,12 @@ describe('Login', () => {
     expect(alert).toHaveTextContent('skontaktuj się z nim')
     expect(alert).not.toHaveTextContent('wyłączone')
   })
+
+  it('shows the configured subtitle with its own casing', async () => {
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({
+      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: true, version: '1.4.0',
+    })
+    renderScreen(<Login />)
+    expect(await screen.findByText(/Zespół infrastruktury \(UAT\)/)).toHaveTextContent('On-call · Zespół infrastruktury (UAT)')
+  })
 })

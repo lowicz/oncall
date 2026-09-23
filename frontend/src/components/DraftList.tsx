@@ -36,7 +36,7 @@ export function DraftList({ activeId, onOpen, onDelete, deleting }: {
       {drafts.isLoading && <LoadingBlock label="Wczytywanie szkiców" rows={2} />}
       {drafts.error && <ErrorState error={drafts.error} onRetry={() => drafts.refetch()} />}
       {drafts.data?.length === 0 && (
-        <EmptyState compact icon="wand" title="Brak szkiców" description="Utwórz nowy, wybierając zakres dat poniżej." />
+        <EmptyState compact icon="wand" title="Brak szkiców" description="Utwórz nowy, wybierając zakres dat powyżej." />
       )}
       {all.length > 0 && (
         <List className="panel">

@@ -21,7 +21,7 @@ export function AuthFrame({ title, sub, children, screen }: {
           <h1 className="login-title">{title}</h1>
           <p className="login-sub">
             {branding.name}
-            {branding.subtitle && <> · {branding.subtitle.toLocaleLowerCase('pl-PL')}</>}
+            {branding.subtitle && <> · {branding.subtitle}</>}
             {sub && <> · {sub}</>}
           </p>
         </div>

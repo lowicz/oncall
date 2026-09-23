@@ -201,6 +201,14 @@ describe('GeneratorPanel draft persistence', () => {
     renderScreen(<GeneratorPanel />)
     expect(await screen.findByText(/Brak szkiców/)).toBeInTheDocument()
   })
+
+  it('points the empty draft list at the new-draft form above it', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />)
+    const hint = await screen.findByText('Utwórz nowy, wybierając zakres dat powyżej.')
+    const form = screen.getByRole('form', { name: 'Nowy szkic' })
+    expect(form.compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
 
 describe('GeneratorPanel transitions', () => {
