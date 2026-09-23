@@ -51,6 +51,10 @@ services:
       - FOWNER
       - SETGID
       - SETUID
+    # The fallbacks are the publicly known local development credentials. A
+    # non-local host sets its own POSTGRES_PASSWORD and ONCALL_DATABASE_URL in
+    # .env (docs/wdrozenie/uruchomienie.md, "Hasło bazy danych"). No port is
+    # published: the database is reachable only on this project's network.
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oncall}
       POSTGRES_USER: ${POSTGRES_USER:-oncall}

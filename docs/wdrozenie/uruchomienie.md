@@ -17,7 +17,8 @@ Compose nie zapewnia.
 ```bash
 cp .env.example .env
 # ustaw ONCALL_VERSION (numer wydania, np. 1.2.3)
-# oraz ONCALL_ADMIN_USERNAME i ONCALL_ADMIN_PASSWORD (min. 12 znaków)
+# oraz ONCALL_ADMIN_USERNAME i ONCALL_ADMIN_PASSWORD (min. 12 znaków);
+# poza własnym komputerem także POSTGRES_PASSWORD i ONCALL_DATABASE_URL
 docker compose pull
 docker compose up -d
 ```
@@ -34,6 +35,10 @@ Aplikacja odpowiada na `http://localhost:8080`, API pod tym samym adresem na
 
 Bez `ONCALL_VERSION` w `.env` Compose odmawia startu i wypisuje, czego brakuje.
 Każdy host ma w ten sposób zapisane, którą wersję uruchamia.
+
+Hasło bazy z `.env.example` jest publicznie znane i służy tylko pracy lokalnej.
+Każdy host inny niż własny komputer ustawia przed pierwszym startem własne -
+patrz [Hasło bazy danych](#hasło-bazy-danych).
 
 ## Konto administratora
 
@@ -68,6 +73,8 @@ Pełna lista z komentarzami jest w `.env.example`.
 | Zmienna | Domyślnie | Znaczenie |
 | --- | --- | --- |
 | `ONCALL_VERSION` | brak - wymagana | wersja obrazów do uruchomienia, patrz [Wydania](wydania.md) |
+| `POSTGRES_PASSWORD` | lokalne, publicznie znane | hasło bazy; poza własnym komputerem unikalne, patrz [Hasło bazy danych](#hasło-bazy-danych) |
+| `ONCALL_DATABASE_URL` | adres z lokalnym hasłem | połączenie `api` i `worker` z bazą; to samo hasło co `POSTGRES_PASSWORD` |
 | `ONCALL_WEB_HTTP_PORT` | `8080` | port HTTP wystawiony na hosta |
 | `ONCALL_WEB_HTTPS_PORT` | `8443` | port HTTPS wystawiony na hosta |
 | `ONCALL_APP_NAME` | `On-call` | nazwa produktu w interfejsie, e-mailach i nazwach kalendarzy |
@@ -86,6 +93,67 @@ Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej
 
 Proces roboczy ma w Compose przydział 2 CPU i z niego wynika domyślna liczba
 wątków solvera. Zmiana przydziału zmienia tę liczbę automatycznie.
+
+## Hasło bazy danych
+
+`.env.example` i `docker-compose.yml` mają domyślne hasło PostgreSQL, takie samo
+w każdej kopii repozytorium. Jest publicznie znane i istnieje wyłącznie dla
+wygody pracy lokalnej: `docker compose up` na własnym komputerze działa bez
+dodatkowej konfiguracji.
+
+**Każde wdrożenie inne niż lokalne** - serwer testowy, przedprodukcyjny,
+produkcyjny, każda maszyna współdzielona z innymi - ustawia w `.env` przed
+pierwszym startem dwie wartości:
+
+- `POSTGRES_PASSWORD` - unikalne, losowe hasło tego wdrożenia, np. z
+  `openssl rand -hex 32`;
+- `ONCALL_DATABASE_URL` - adres z tym samym hasłem oraz tym samym
+  użytkownikiem i bazą co `POSTGRES_USER` i `POSTGRES_DB`.
+
+```bash
+POSTGRES_PASSWORD=<unikalne hasło>
+ONCALL_DATABASE_URL=postgresql+asyncpg://oncall:<to samo hasło>@db:5432/oncall
+```
+
+`api` i `worker` czytają ten sam `ONCALL_DATABASE_URL`, więc to jedna zmiana w
+`.env`. Hasło z `openssl rand -hex` ma tylko cyfry i litery `a-f`; znaki takie
+jak `@`, `:`, `/`, `#` czy `%` trzeba w adresie zakodować procentowo (`@` to
+`%40`).
+
+**Obraz `postgres` czyta `POSTGRES_PASSWORD` tylko raz**, przy zakładaniu
+pustego wolumenu `oncall-db`. Na istniejącej bazie zmiana w `.env` niczego w
+PostgreSQL nie zmienia, a `api` i `worker` przestają się łączyć. Hasło działającej
+bazy zmienia się najpierw w samej bazie, potem w `.env`:
+
+```bash
+docker compose exec db psql -U oncall -d oncall -c '\password oncall'
+# w .env: nowe POSTGRES_PASSWORD i to samo hasło w ONCALL_DATABASE_URL
+docker compose up -d
+```
+
+`psql` pyta o nowe hasło dwa razy i nie zapisuje go w historii powłoki.
+`docker compose up -d` odtwarza kontenery, których konfiguracja się zmieniła.
+
+### Granica zaufania
+
+W `docker-compose.yml` usługa `db` nie publikuje żadnego portu: PostgreSQL
+słucha na 5432 tylko w sieci Compose tego projektu, w której łączą się z nim
+`api` i `worker`. Ani z innych maszyn, ani przez `localhost` na hoście bazy nie
+da się osiągnąć. CI pilnuje, żeby ani plik bazowy, ani żadna nakładka z
+repozytorium nie dodały jej portu (`.github/scripts/compose-hardening.sh`).
+
+Hasło chroni więc bazę przed tym, co ma dostęp do sieci kontenerów:
+
+- przed innymi kontenerami dołączonymi do sieci Compose, np. reverse proxy
+  kierującym ruch na `web:8080`;
+- przed przejętą usługą `web`, która jest w tej samej sieci co baza;
+- pod Dockerem na Linuksie także przed użytkownikami samego hosta, bo adres
+  kontenera w sieci mostkowej jest z hosta osiągalny.
+
+Kto ma dostęp do demona Dockera lub Podmana na hoście, ma pełny dostęp do bazy
+niezależnie od hasła. Własna nakładka, która doda usłudze `db` port, przenosi
+bazę poza tę granicę: wtedy unikalne hasło jest jej jedyną ochroną, a port
+powinien słuchać tylko na `127.0.0.1`.
 
 ## Uprawnienia kontenerów
 

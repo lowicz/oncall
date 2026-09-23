@@ -69,7 +69,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Every Compose service is `read_only` with `cap_drop: [ALL]` and
   `no-new-privileges`; only `db` adds back what the postgres entrypoint needs.
   `.github/scripts/compose-hardening.sh` (CI) enforces it, so a new runtime
-  write path gets its own `tmpfs` or volume, never a relaxation. The web image
+  write path gets its own `tmpfs` or volume, never a relaxation. The same
+  script keeps `db` without host ports: its Compose password is a public local
+  default (`docs/wdrozenie/uruchomienie.md`, "Hasło bazy danych"). The web image
   is `nginxinc/nginx-unprivileged` (uid 101): it listens on 8080/8443 inside
   the container and reads the TLS key as uid 101
   (`docs/wdrozenie/uruchomienie.md`, "Uprawnienia kontenerów").
