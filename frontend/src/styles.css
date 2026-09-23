@@ -69,7 +69,8 @@ button:disabled { cursor: default; }
 .now { display: flex; background: var(--line); gap: 1px; border-bottom: 1px solid var(--line); }
 .now-slot { background: var(--s1); padding: 8px 14px; display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; }
 .now-tools { background: var(--s1); padding: 6px 12px; display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-.now-who { font-weight: 650; flex: 0 0 auto; }
+/* A long name gives way to an ellipsis; the phone number never does. */
+.now-who { font-weight: 650; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .now-who-none { color: var(--dim); font-weight: 500; }
 .now-tel { font: 12px var(--mono); color: var(--sig); text-decoration: none; flex: 0 0 auto; }
 .now-tel:hover { text-decoration: underline; }
