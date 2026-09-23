@@ -16,16 +16,25 @@ from oncall.domain.admin import errors
 from oncall.domain.admin.models import (
     Account,
     AccountRecord,
+    AdministeredAccount,
     AuditEntry,
     AuditFilter,
     EligibilityPeriod,
     IssuedToken,
     NewEligibilityPeriod,
+    PendingActivation,
     RotationMember,
 )
+from oncall.domain.clock import as_utc
 from oncall.domain.roster import Slot
-from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, ScheduleStatus, UserRole
-from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.domain.vocabulary import (
+    AccountTokenKind,
+    AssignmentRole,
+    AuthSource,
+    ScheduleStatus,
+    UserRole,
+)
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
@@ -45,6 +54,36 @@ def _to_account(row: User, member_id: uuid.UUID | None) -> Account:
         is_active=row.is_active,
         created_at=row.created_at,
         member_id=member_id,
+    )
+
+
+#: When the newest unused activation link of the account in the outer query
+#: stops working.
+_ACTIVATION_LINK_EXPIRY = (
+    select(func.max(AccountToken.expires_at))
+    .where(
+        AccountToken.user_id == User.id,
+        AccountToken.kind == AccountTokenKind.activation,
+        AccountToken.used_at.is_(None),
+    )
+    .correlate(User)
+    .scalar_subquery()
+)
+
+
+def _to_administered(
+    row: User, member_id: uuid.UUID | None, link_expires_at: datetime | None
+) -> AdministeredAccount:
+    pending = row.auth_source == AuthSource.local and row.password_hash is None
+    return AdministeredAccount(
+        **vars(_to_account(row, member_id)),
+        pending_activation=(
+            PendingActivation(
+                link_expires_at=as_utc(link_expires_at) if link_expires_at is not None else None
+            )
+            if pending
+            else None
+        ),
     )
 
 
@@ -73,24 +112,24 @@ class SqlAlchemyAccounts:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def accounts(self) -> list[Account]:
+    async def accounts(self) -> list[AdministeredAccount]:
         rows = await self._session.execute(
-            select(User, TeamMember.id)
+            select(User, TeamMember.id, _ACTIVATION_LINK_EXPIRY)
             .outerjoin(TeamMember, TeamMember.user_id == User.id)
             .order_by(User.last_name, User.first_name)
         )
-        return [_to_account(user, member_id) for user, member_id in rows.tuples()]
+        return [_to_administered(*row) for row in rows.tuples()]
 
-    async def account(self, account_id: uuid.UUID) -> Account | None:
+    async def account(self, account_id: uuid.UUID) -> AdministeredAccount | None:
         row = (
             await self._session.execute(
-                select(User, TeamMember.id)
+                select(User, TeamMember.id, _ACTIVATION_LINK_EXPIRY)
                 .outerjoin(TeamMember, TeamMember.user_id == User.id)
                 .where(User.id == account_id)
                 .execution_options(populate_existing=True)
             )
         ).first()
-        return _to_account(*row) if row is not None else None
+        return _to_administered(*row) if row is not None else None
 
     async def username_taken(self, username: str) -> bool:
         return bool(
@@ -426,6 +465,14 @@ class SqlAlchemyAdminJournal:
             entity_type="user",
             entity_id=account.id,
             summary=f"Wygenerowano link resetu hasła dla {account.username}",
+        )
+
+    async def activation_link_issued(self, account: Account) -> None:
+        self._record(
+            action="admin.activation_link_issued",
+            entity_type="user",
+            entity_id=account.id,
+            summary=f"Wygenerowano nowy link aktywacyjny dla {account.username}",
         )
 
     async def account_deleted(self, account: Account) -> None:

@@ -155,6 +155,16 @@
             "title": "Last Name",
             "type": "string"
           },
+          "pending_activation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingActivationResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "personnel_number": {
             "anyOf": [
               {
@@ -196,7 +206,8 @@
           "role",
           "email",
           "is_active",
-          "created_at"
+          "created_at",
+          "pending_activation"
         ],
         "title": "AdminUserResponse",
         "type": "object"
@@ -2358,6 +2369,27 @@
           "expires_at"
         ],
         "title": "PasswordLinkResponse",
+        "type": "object"
+      },
+      "PendingActivationResponse": {
+        "properties": {
+          "link_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Expires At"
+          }
+        },
+        "required": [
+          "link_expires_at"
+        ],
+        "title": "PendingActivationResponse",
         "type": "object"
       },
       "PublicConfigResponse": {
@@ -4917,6 +4949,81 @@
           }
         },
         "summary": "Update User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/activation": {
+      "post": {
+        "operationId": "reissue_activation_api_v1_admin_users__user_id__activation_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLinkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reissue Activation",
         "tags": [
           "admin"
         ]

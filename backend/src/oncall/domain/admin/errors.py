@@ -78,6 +78,18 @@ class DirectoryPasswordReadOnly(AdminConflict):
         self.account_id = account_id
 
 
+class AccountAlreadyActivated(AdminConflict):
+    def __init__(self, account_id: uuid.UUID) -> None:
+        super().__init__("Konto ma już hasło; zamiast linku aktywacyjnego wygeneruj reset hasła")
+        self.account_id = account_id
+
+
+class DisabledAccountActivation(AdminConflict):
+    def __init__(self, account_id: uuid.UUID) -> None:
+        super().__init__("Konto jest wyłączone; włącz je, zanim wygenerujesz link aktywacyjny")
+        self.account_id = account_id
+
+
 class OwnRoleOrStatusChange(AdminConflict):
     def __init__(self) -> None:
         super().__init__("Nie możesz zmienić własnej roli ani statusu")

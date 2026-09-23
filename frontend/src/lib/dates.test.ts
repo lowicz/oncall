@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAuditTime, formatDate, formatDateLong, formatDay, formatDayShort, formatRange, formatShortDate, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
+import { formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatRange, formatShortDate, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
 
 describe('global date formatting', () => {
   it('formats API dates and timestamps as DD-MM-YYYY', () => {
@@ -11,8 +11,13 @@ describe('global date formatting', () => {
     expect(formatDay('2026-09-03')).toBe('czw 03-09-2026')
   })
 
-  it('uses hyphens in audit timestamps, without repeating the timezone (QA7-L16)', () => {
-    expect(formatAuditTime('2026-09-03T10:15:00Z')).toMatch(/^03-09-2026, \d{2}:\d{2}$/)
+  it('writes a timestamp with hyphens, in Warsaw time, without repeating the timezone', () => {
+    expect(formatMoment('2026-09-03T10:15:00Z')).toBe('03-09-2026, 12:15')
+    expect(formatMoment('2026-01-15T10:15:00Z')).toBe('15-01-2026, 11:15')
+  })
+
+  it('dates a moment just after midnight in Warsaw by the Warsaw day', () => {
+    expect(formatMoment('2026-09-03T22:30:00Z')).toBe('04-09-2026, 00:30')
   })
 })
 

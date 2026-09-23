@@ -9,6 +9,14 @@ from oncall.domain.vocabulary import AssignmentRole, AuthSource, UserRole
 from oncall.presentation.validation import validate_phone
 
 
+class PendingActivationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    #: When the newest activation link stops working (in the past once it has
+    #: expired); null when no unused link is left.
+    link_expires_at: datetime | None
+
+
 class AdminUserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -24,6 +32,9 @@ class AdminUserResponse(BaseModel):
     phone: str | None = None
     is_active: bool
     created_at: datetime
+    #: Set while a local account still waits for its first password, whether
+    #: or not it is enabled; null once activated and for a directory account.
+    pending_activation: PendingActivationResponse | None
 
 
 class AdminUserUpdate(BaseModel):
@@ -168,6 +179,7 @@ __all__ = [
     "EligibilityResponse",
     "EligibilityUpdate",
     "PasswordLinkResponse",
+    "PendingActivationResponse",
     "TeamMemberCreate",
     "TeamMemberResponse",
     "TeamMemberUpdate",

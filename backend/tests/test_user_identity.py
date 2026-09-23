@@ -72,6 +72,7 @@ async def test_admin_users_expose_split_identity_and_auth_source(client, db) -> 
             "email": None,
             "phone": None,
             "is_active": True,
+            "pending_activation": None,
         }
     ]
 

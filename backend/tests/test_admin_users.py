@@ -1,9 +1,11 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from oncall.domain.vocabulary import AuthSource, UserRole
+from oncall.infrastructure.sqlalchemy.access_models import AccountToken
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from tests.conftest import TEST_PASSWORD, create_user, login
@@ -223,3 +225,153 @@ async def test_admin_changes_are_audited(client, db) -> None:
     await client.post("/api/v1/admin/users", json={"username": "new", "first_name": "Nowa"})
     actions = set(await db.scalars(select(AuditEvent.action)))
     assert "admin.user_created" in actions
+
+
+def expiry(user: dict) -> datetime:
+    return datetime.fromisoformat(user["pending_activation"]["link_expires_at"])
+
+
+async def listed(client) -> dict[str, dict]:
+    response = await client.get("/api/v1/admin/users")
+    assert response.status_code == 200, response.text
+    return {user["username"]: user for user in response.json()}
+
+
+async def test_the_list_tells_pending_activations_from_activated_accounts(client, db) -> None:
+    await create_user(db, "admin", role=UserRole.admin)
+    ldap_user = await create_user(db, "ldap-user")
+    ldap_user.auth_source = AuthSource.ldap
+    ldap_user.password_hash = None
+    await db.commit()
+    await login(client, "admin")
+    created = {}
+    for username in ("czeka", "aktywna", "wygasla", "wylaczona"):
+        response = await client.post(
+            "/api/v1/admin/users", json={"username": username, "first_name": username}
+        )
+        assert response.status_code == 201, response.text
+        created[username] = response.json()
+    activated = await client.post(
+        "/api/v1/auth/activate",
+        json={
+            "token": token_from(created["aktywna"]["activation_url"]),
+            "password": "x-Pass-4242-y",
+        },
+    )
+    assert activated.status_code == 204, activated.text
+    await db.execute(
+        update(AccountToken)
+        .where(AccountToken.user_id == uuid.UUID(created["wygasla"]["user"]["id"]))
+        .values(expires_at=datetime.now(UTC) - timedelta(hours=1))
+    )
+    await db.commit()
+    disabled = await client.patch(
+        f"/api/v1/admin/users/{created['wylaczona']['user']['id']}", json={"is_active": False}
+    )
+    assert disabled.status_code == 200, disabled.text
+
+    users = await listed(client)
+
+    now = datetime.now(UTC)
+    assert created["czeka"]["user"]["pending_activation"] is not None
+    assert timedelta(hours=23) < expiry(users["czeka"]) - now <= timedelta(hours=24)
+    assert users["czeka"]["is_active"] is True
+    assert expiry(users["wygasla"]) < now
+    assert users["wylaczona"]["is_active"] is False
+    assert users["wylaczona"]["pending_activation"] is not None
+    assert disabled.json()["pending_activation"] is not None
+    for username in ("aktywna", "admin", "ldap-user"):
+        assert users[username]["pending_activation"] is None
+
+
+async def test_an_expired_activation_link_is_replaced_by_a_fresh_one(client, db) -> None:
+    await create_user(db, "admin", role=UserRole.admin)
+    await login(client, "admin")
+    created = (
+        await client.post("/api/v1/admin/users", json={"username": "nowa", "first_name": "Nowa"})
+    ).json()
+    user_id = created["user"]["id"]
+    await db.execute(
+        update(AccountToken)
+        .where(AccountToken.user_id == uuid.UUID(user_id))
+        .values(expires_at=datetime.now(UTC) - timedelta(minutes=1))
+    )
+    await db.commit()
+
+    reissued = await client.post(f"/api/v1/admin/users/{user_id}/activation")
+
+    assert reissued.status_code == 200, reissued.text
+    body = reissued.json()
+    assert urlparse(body["url"]).path == "/activate"
+    issued_until = datetime.fromisoformat(body["expires_at"])
+    assert timedelta(hours=23) < issued_until - datetime.now(UTC) <= timedelta(hours=24)
+    assert expiry((await listed(client))["nowa"]) == issued_until
+    old = await client.post(
+        "/api/v1/auth/activate",
+        json={"token": token_from(created["activation_url"]), "password": "x-Pass-4242-y"},
+    )
+    assert old.status_code == 400
+    again = await client.post(f"/api/v1/admin/users/{user_id}/activation")
+    superseded = await client.post(
+        "/api/v1/auth/activate",
+        json={"token": token_from(body["url"]), "password": "x-Pass-4242-y"},
+    )
+    assert superseded.status_code == 400
+    activated = await client.post(
+        "/api/v1/auth/activate",
+        json={"token": token_from(again.json()["url"]), "password": "x-Pass-4242-y"},
+    )
+    assert activated.status_code == 204, activated.text
+    assert (await listed(client))["nowa"]["pending_activation"] is None
+    actions = list(
+        await db.scalars(
+            select(AuditEvent.action).where(AuditEvent.action == "admin.activation_link_issued")
+        )
+    )
+    assert len(actions) == 2
+
+    after = await client.post(f"/api/v1/admin/users/{user_id}/activation")
+    assert after.status_code == 409
+    assert "reset hasła" in after.json()["detail"]
+
+
+async def test_only_an_admin_reissues_an_activation_link_and_only_when_it_applies(
+    client, db
+) -> None:
+    await create_user(db, "admin", role=UserRole.admin)
+    await create_user(db, "koordynator", role=UserRole.coordinator)
+    ldap_user = await create_user(db, "ldap-user")
+    ldap_user.auth_source = AuthSource.ldap
+    ldap_user.password_hash = None
+    await db.commit()
+    await login(client, "admin")
+    pending = (
+        await client.post("/api/v1/admin/users", json={"username": "nowa", "first_name": "Nowa"})
+    ).json()["user"]
+    disabled = (
+        await client.post("/api/v1/admin/users", json={"username": "off", "first_name": "Off"})
+    ).json()["user"]
+    await client.patch(f"/api/v1/admin/users/{disabled['id']}", json={"is_active": False})
+
+    directory = await client.post(f"/api/v1/admin/users/{ldap_user.id}/activation")
+    switched_off = await client.post(f"/api/v1/admin/users/{disabled['id']}/activation")
+    missing = await client.post(f"/api/v1/admin/users/{uuid.uuid4()}/activation")
+    csrf = client.headers.pop("X-CSRF-Token")
+    without_csrf = await client.post(f"/api/v1/admin/users/{pending['id']}/activation")
+    client.headers["X-CSRF-Token"] = csrf
+
+    assert directory.status_code == 409
+    assert switched_off.status_code == 409
+    assert "wyłączone" in switched_off.json()["detail"]
+    assert missing.status_code == 404
+    assert without_csrf.status_code == 403
+
+    await login(client, "koordynator")
+    coordinator = await client.post(f"/api/v1/admin/users/{pending['id']}/activation")
+    assert coordinator.status_code == 403
+    issued = list(
+        await db.scalars(
+            select(AuditEvent.action).where(AuditEvent.action == "admin.activation_link_issued")
+        )
+    )
+    assert issued == []

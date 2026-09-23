@@ -286,6 +286,13 @@ export interface AdminUser {
   phone: string | null
   is_active: boolean
   created_at: string
+  /**
+   * Set while a local account still waits for its first password, whether or
+   * not it is enabled; null once activated and for a directory account.
+   * `link_expires_at` is in the past once the newest link has expired, and
+   * null when no unused link is left.
+   */
+  pending_activation: { link_expires_at: string | null } | null
 }
 
 export interface AdminUserInput {
@@ -1129,6 +1136,12 @@ export const api = {
   issuePasswordReset: async (id: string) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
     return request<{ url: string; expires_at: string }>(`/api/v1/admin/users/${id}/reset`, {
+      method: 'POST', headers: { 'X-CSRF-Token': csrf_token },
+    })
+  },
+  reissueActivation: async (id: string) => {
+    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
+    return request<{ url: string; expires_at: string }>(`/api/v1/admin/users/${id}/activation`, {
       method: 'POST', headers: { 'X-CSRF-Token': csrf_token },
     })
   },

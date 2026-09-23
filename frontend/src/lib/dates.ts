@@ -41,14 +41,22 @@ export function formatDate(value: string) {
   return `${match[3]}-${match[2]}-${match[1]}`
 }
 
-// The timezone used to be repeated on every row (QA7-L16); the audit screen
-// now states it once in its own header and this only formats the moment.
-export function formatAuditTime(value: string) {
-  const time = new Date(value).toLocaleTimeString('pl-PL', {
+/**
+ * A timestamp as "DD-MM-YYYY, HH:MM" in Europe/Warsaw, the day and the time
+ * both, so a moment just after midnight there is not dated the day before.
+ * Screens state the timezone once, in their own header or hint.
+ */
+export function formatMoment(value: string) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Warsaw',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  })
-  return `${formatDate(value)}, ${time}`
+    hourCycle: 'h23',
+  }).formatToParts(new Date(value)).map(({ type, value: part }) => [type, part]))
+  return `${parts.day}-${parts.month}-${parts.year}, ${parts.hour}:${parts.minute}`
 }
 
 const WEEKDAYS = ['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob']

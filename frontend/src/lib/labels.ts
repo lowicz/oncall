@@ -102,6 +102,7 @@ export const auditActionLabels: Record<string, string> = {
   'admin.user_updated': 'Zmieniono konto',
   'admin.user_deleted': 'Usunięto konto',
   'admin.password_reset_issued': 'Wygenerowano reset hasła',
+  'admin.activation_link_issued': 'Wygenerowano link aktywacyjny',
   'admin.team_member_created': 'Dodano do rotacji',
   'admin.team_member_updated': 'Zmieniono rotację',
   'admin.eligibility_created': 'Dodano eligibility',

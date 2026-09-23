@@ -21,6 +21,25 @@ LISTED_SLOTS = 20
 
 
 @dataclass(frozen=True)
+class PendingActivation:
+    """A local account nobody has chosen a password for yet, so it cannot
+    sign in even though it is enabled."""
+
+    #: When the newest activation link stops working; in the past once it
+    #: has expired, and None when no unused link is left.
+    link_expires_at: datetime | None
+
+
+@dataclass(frozen=True)
+class AdministeredAccount(Account):
+    """An account as its administrator sees it."""
+
+    #: None once the account has a password, and always for a directory
+    #: account, whose password the directory owns.
+    pending_activation: PendingActivation | None = None
+
+
+@dataclass(frozen=True)
 class NewAccount:
     actor: Actor
     username: str
