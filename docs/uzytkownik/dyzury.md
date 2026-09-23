@@ -28,6 +28,9 @@ tygodni, tydzień wstecz i do przodu, powrót do dziś, **Tylko z dyżurem**,
 **Legenda** i **Lista dni**. Gdy nikt nie jest jeszcze w rotacji, sekcja
 zamiast pustej macierzy mówi to wprost i nie pokazuje kontrolek;
 administrator dostaje w niej przycisk **Otwórz Osoby**, żeby dodać zespół.
+Gdy zespół ma osoby, ale żadna nie jest w rotacji w widocznym zakresie,
+sekcja też mówi to wprost, lecz zostawia kontrolki, żeby przejść do zakresu
+z dyżurami.
 
 Na telefonie ekran zamienia pasek „Dyżur teraz” na trzy karty - `PRIMARY`,
 `SECONDARY` i `11–19` - z nazwiskiem, oknem pokrycia, przyciskami **Zadzwoń**,

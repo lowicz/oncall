@@ -150,9 +150,7 @@ class SqlAlchemyCalendarRoster:
         ]
 
     async def has_any_members(self) -> bool:
-        return (
-            await self._session.scalar(select(TeamMember.id).limit(1))
-        ) is not None
+        return (await self._session.scalar(select(TeamMember.id).limit(1))) is not None
 
     async def approved_swap_slots(
         self, starts_on: date, ends_on: date
