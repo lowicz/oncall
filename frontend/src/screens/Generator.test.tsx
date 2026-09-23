@@ -260,8 +260,9 @@ describe('GeneratorPanel transitions', () => {
     expect(within(dialog).getByText(/zmiana Anna Kowalska, szkic Marek Nowak/)).toBeInTheDocument()
     expect(within(dialog).getByText('Te oczekujące zamiany zostaną anulowane')).toBeInTheDocument()
     expect(within(dialog).getByText('Przed grafikiem pozostanie luka')).toBeInTheDocument()
-    expect(within(dialog).getByText(/Szkic nieaktualny: od wygenerowania zmieniło się 2 wpisów/))
+    expect(within(dialog).getByText('Szkic nieaktualny: od wygenerowania zmieniły się 2 wpisy.'))
       .toBeInTheDocument()
+    expect(within(dialog).getByText(/w tym zakresie zostanie anulowana\.$/)).toBeInTheDocument()
     expect(within(dialog).getByText('Publikacja naruszy reguły odpoczynku')).toBeInTheDocument()
 
     fireEvent.change(within(dialog).getByLabelText('Decyzja'), { target: { value: 'draft' } })

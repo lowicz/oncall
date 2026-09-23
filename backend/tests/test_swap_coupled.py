@@ -2,7 +2,7 @@
 swap, a replacement without 11-19 eligibility still takes the anchor role, and
 `day_off_block` warns instead of blocking on the swap path."""
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -13,6 +13,7 @@ from oncall.domain.vocabulary import AssignmentRole, SwapStatus, UserRole
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
 from oncall.infrastructure.sqlalchemy.team_models import Eligibility
 from tests.conftest import create_member, create_published_schedule, create_user, login
+from tests.frozen_clock import FrozenClock
 
 # 2026-09-21 is a Monday; the 26th-27th are the weekend (a day-off block).
 START = date(2026, 9, 21)
@@ -45,6 +46,7 @@ async def _roster(db: AsyncSession):
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_swapping_the_anchor_role_moves_the_late_shift_with_it(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -95,6 +97,7 @@ async def test_swapping_the_anchor_role_moves_the_late_shift_with_it(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_replacement_without_late_shift_eligibility_takes_only_the_anchor(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -128,6 +131,7 @@ async def test_replacement_without_late_shift_eligibility_takes_only_the_anchor(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_day_off_block_split_warns_but_does_not_block(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -167,10 +171,13 @@ async def test_day_off_block_split_warns_but_does_not_block(
 
 @pytest.mark.anyio
 async def test_options_mark_a_blocked_candidate_instead_of_hiding_them(
-    client: AsyncClient, db: AsyncSession
+    client: AsyncClient, db: AsyncSession, frozen_clock: FrozenClock
 ) -> None:
+    # The frozen clock keeps the swapped duty ahead; it moves on between the
+    # two publications so the later one is the one in force.
     await _team(db)
     await _roster(db)
+    frozen_clock.advance(timedelta(minutes=1))
     # Julia already serves secondary on 21, 22, 24 elsewhere, so taking 25 too
     # is a four-in-seven break - she must stay visible with a reason.
     await create_published_schedule(
@@ -239,6 +246,7 @@ async def test_options_block_a_candidate_the_coupled_move_double_books(
 
 
 @pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_backfilled_slot_lets_a_legacy_request_still_approve(
     client: AsyncClient, db: AsyncSession
 ) -> None:

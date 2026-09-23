@@ -34,6 +34,7 @@ dist/
 frontend/public/docs/
 site/
 .vite/
+frontend/coverage/
 *.tsbuildinfo
 npm-debug.log*
 yarn-error.log*

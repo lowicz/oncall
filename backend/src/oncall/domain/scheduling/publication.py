@@ -96,7 +96,9 @@ async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
     membership and eligibility changes are checked against dates too, since
     those rows carry their own `starts_on`/`ends_on`, except team membership,
     which is checked against this schedule's own roster instead - a person
-    who never appears in it cannot make this draft stale.
+    who never appears in it cannot make this draft stale. A correction made to
+    this draft itself is part of the draft, not a change to its inputs, so it
+    never counts.
     """
     if schedule.created_at is None:
         return 0
@@ -108,7 +110,10 @@ async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
 
     events = await changes.changes_since(schedule.created_at, STALE_INPUT_ACTIONS)
     by_action: dict[str, list[ChangeRecord]] = defaultdict(list)
+    own_id = str(schedule.id)
     for event in events:
+        if event.action == "schedule.draft_override" and event.entity_id == own_id:
+            continue
         by_action[event.action].append(event)
 
     def entity_ids(actions: tuple[str, ...]) -> tuple[list[ChangeRecord], set[uuid.UUID]]:
