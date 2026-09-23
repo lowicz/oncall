@@ -1,6 +1,6 @@
 import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AssignmentRole, CalendarData, CalendarEventColor, UserRole, api } from '../api'
+import { AssignmentRole, CalendarData, CalendarEventColor, CalendarEventRef, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { formatDate, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
@@ -133,6 +133,7 @@ export function CalendarMatrix({
   const [eventTitle, setEventTitle] = useState('')
   const [eventColor, setEventColor] = useState<CalendarEventColor>('blue')
   const [eventFormOpen, setEventFormOpen] = useState(false)
+  const [eventToDelete, setEventToDelete] = useState<CalendarEventRef | null>(null)
 
   const closeInspector = () => {
     setSelected(null)
@@ -183,6 +184,7 @@ export function CalendarMatrix({
   const deleteEvent = useMutation({
     mutationFn: api.deleteCalendarEvent,
     onSuccess: (_result, eventId) => {
+      setEventToDelete(null)
       setSelected((current) => current ? {
         ...current,
         day: { ...current.day, events: current.day.events.filter((event) => event.id !== eventId) },
@@ -627,7 +629,7 @@ export function CalendarMatrix({
                   <div key={event.id} className="row" style={{ justifyContent: 'space-between' }}>
                     <span><i className="event-swatch" style={{ background: `var(--ev-${event.color})` }} />{event.title}</span>
                     {canCoordinate && (
-                      <Button size="sm" variant="ghost" icon="trash" disabled={deleteEvent.isPending} onClick={() => deleteEvent.mutate(event.id)}>Usuń</Button>
+                      <Button size="sm" variant="ghost" icon="trash" disabled={deleteEvent.isPending} onClick={() => { deleteEvent.reset(); setEventToDelete(event) }}>Usuń</Button>
                     )}
                   </div>
                 ))}
@@ -756,6 +758,17 @@ export function CalendarMatrix({
           replacement_member_id: staffMemberId,
           reason: reason || undefined,
         })}
+      />
+      <ConfirmDialog
+        open={Boolean(eventToDelete)}
+        pending={deleteEvent.isPending}
+        error={deleteEvent.error ? deleteEvent.error.message : null}
+        onCancel={() => setEventToDelete(null)}
+        onConfirm={() => eventToDelete && deleteEvent.mutate(eventToDelete.id)}
+        title="Usunąć wydarzenie?"
+        confirmLabel="Usuń"
+        confirmColor="error"
+        description={eventToDelete && <>„{eventToDelete.title}” zniknie ze wszystkich dni, na które je dodano. Tej operacji nie da się cofnąć.</>}
       />
     </>
   )

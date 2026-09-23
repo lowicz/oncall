@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarEvent, CalendarEventInput, api } from '../../api'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateField } from '../../components/DateField'
 import { EVENT_COLORS } from '../../components/CalendarMatrix'
 import { addDays, formatDate, warsawDate } from '../../lib/dates'
@@ -13,6 +14,7 @@ export function CalendarEventsPanel() {
   const [range, setRange] = useState({ starts_on: today, ends_on: addDays(today, 89) })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<CalendarEventInput>(emptyInput)
+  const [toDelete, setToDelete] = useState<CalendarEvent | null>(null)
   const queryClient = useQueryClient()
   const queryKey = ['calendar-events', range.starts_on, range.ends_on]
   const events = useQuery({ queryKey, queryFn: () => api.calendarEvents(range.starts_on, range.ends_on) })
@@ -25,7 +27,10 @@ export function CalendarEventsPanel() {
     mutationFn: () => (editingId ? api.updateCalendarEvent({ id: editingId, ...form }) : api.createCalendarEvent(form)),
     onSuccess: () => { reset(); refresh() },
   })
-  const remove = useMutation({ mutationFn: api.deleteCalendarEvent, onSuccess: refresh })
+  const remove = useMutation({
+    mutationFn: api.deleteCalendarEvent,
+    onSuccess: () => { setToDelete(null); refresh() },
+  })
   const edit = (event: CalendarEvent) => {
     setEditingId(event.id)
     setForm({ starts_on: event.starts_on, ends_on: event.ends_on, title: event.title, color: event.color })
@@ -57,7 +62,7 @@ export function CalendarEventsPanel() {
                   aside={(
                     <>
                       <Button size="sm" onClick={() => edit(event)}>Edytuj</Button>
-                      <Button size="sm" variant="ghost" icon="trash" disabled={remove.isPending} onClick={() => remove.mutate(event.id)}>Usuń</Button>
+                      <Button size="sm" variant="ghost" icon="trash" disabled={remove.isPending} onClick={() => { remove.reset(); setToDelete(event) }}>Usuń</Button>
                     </>
                   )}
                 >
@@ -107,6 +112,17 @@ export function CalendarEventsPanel() {
           </div>
         </form>
       </div>
+      <ConfirmDialog
+        open={Boolean(toDelete)}
+        pending={remove.isPending}
+        error={remove.error ? remove.error.message : null}
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => toDelete && remove.mutate(toDelete.id)}
+        title="Usunąć wydarzenie?"
+        confirmLabel="Usuń"
+        confirmColor="error"
+        description={toDelete && <>{toDelete.title} ({formatDate(toDelete.starts_on)}{toDelete.ends_on !== toDelete.starts_on && ` – ${formatDate(toDelete.ends_on)}`}). Tej operacji nie da się cofnąć.</>}
+      />
     </div>
   )
 }

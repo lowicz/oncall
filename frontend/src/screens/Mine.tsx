@@ -7,6 +7,7 @@ import {
   AvailabilityInput,
   AvailabilityKind,
   CalendarData,
+  FeedToken,
   FeedTokenCreated,
   SwapRequest,
   UserRole,
@@ -19,6 +20,7 @@ import { pluralPl } from '../lib/plural'
 import { isOpen, needsMyDecision } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatRange, relativeDay, warsawDate } from '../lib/dates'
 import { useNarrow } from '../hooks/useMediaQuery'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
 import { coverageWindowText } from '../components/CalendarMatrix'
 import {
@@ -619,6 +621,7 @@ function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open
   const [label, setLabel] = useState('')
   const [created, setCreated] = useState<FeedTokenCreated | null>(null)
   const [showRevoked, setShowRevoked] = useState(false)
+  const [toRevoke, setToRevoke] = useState<FeedToken | null>(null)
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['feeds'] })
   const create = useMutation({
     mutationFn: (name: string) => api.createFeed(name),
@@ -628,55 +631,71 @@ function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open
       invalidate()
     },
   })
-  const revoke = useMutation({ mutationFn: (id: string) => api.revokeFeed(id), onSuccess: invalidate })
+  const revoke = useMutation({
+    mutationFn: (id: string) => api.revokeFeed(id),
+    onSuccess: () => { setToRevoke(null); invalidate() },
+  })
   const visible = feeds.data?.filter((feed) => showRevoked || !feed.revoked_at) ?? []
   return (
-    <Panel open={open} onOpenChange={onOpenChange} title="Subskrypcja kalendarza (ICS)" meta={<Tag>tylko Twoje dyżury</Tag>}>
-      <p className="muted small">Adres ICS pokazuje wyłącznie Twoje dyżury i aktualizuje się po zamianach. Dodaj go w swojej aplikacji kalendarza.</p>
-      <form
-        className="stack-sm"
-        aria-label="Nowa subskrypcja"
-        onSubmit={(event) => {
-          event.preventDefault()
-          create.mutate(label.trim() || 'Mój kalendarz')
-        }}
-      >
-        <Field label="Nazwa subskrypcji" id="feed-label">
-          {({ id }) => <Input id={id} name={id} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="np. telefon" />}
-        </Field>
-        <div className="row">
-          <Button type="submit" variant="primary" loading={create.isPending} icon="plus">Utwórz adres ICS</Button>
-        </div>
-      </form>
-      {(create.error || revoke.error) && <Box tone="bad" role="alert" title={create.error?.message ?? revoke.error?.message} />}
-      {created && (
-        <Box tone="ok" role="status" title="Nowy adres ICS. Zapisz go teraz, nie pokażemy go ponownie.">
-          <div className="token-once"><code>{created.url}</code><CopyButton value={created.url} /></div>
-        </Box>
-      )}
-      {feeds.isLoading && <LoadingBlock label="Wczytywanie subskrypcji" rows={2} />}
-      {feeds.data && visible.length === 0 && (
-        <EmptyState compact icon="link" title="Nie masz jeszcze subskrypcji" description="Pierwszy adres utworzysz powyżej." />
-      )}
-      {visible.length > 0 && (
-        <List className="panel">
-          {visible.map((feed) => (
-            <ListRow
-              key={feed.id}
-              aside={feed.revoked_at
-                ? <StatusBadge tone="bad">odwołana</StatusBadge>
-                : <Button size="sm" variant="ghost" disabled={revoke.isPending} onClick={() => revoke.mutate(feed.id)}>Odwołaj</Button>}
-            >
-              <b>{feed.label}</b>
-              <small>utworzono {formatDate(feed.created_at)}{feed.last_used_at ? ` · ostatnie użycie ${formatDate(feed.last_used_at)}` : ' · jeszcze nieużyta'}</small>
-            </ListRow>
-          ))}
-        </List>
-      )}
-      {feeds.data?.some((feed) => feed.revoked_at) && (
-        <Checkbox label="Pokaż odwołane" checked={showRevoked} onChange={(event) => setShowRevoked(event.target.checked)} />
-      )}
-    </Panel>
+    <>
+      <Panel open={open} onOpenChange={onOpenChange} title="Subskrypcja kalendarza (ICS)" meta={<Tag>tylko Twoje dyżury</Tag>}>
+        <p className="muted small">Adres ICS pokazuje wyłącznie Twoje dyżury i aktualizuje się po zamianach. Dodaj go w swojej aplikacji kalendarza.</p>
+        <form
+          className="stack-sm"
+          aria-label="Nowa subskrypcja"
+          onSubmit={(event) => {
+            event.preventDefault()
+            create.mutate(label.trim() || 'Mój kalendarz')
+          }}
+        >
+          <Field label="Nazwa subskrypcji" id="feed-label">
+            {({ id }) => <Input id={id} name={id} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="np. telefon" />}
+          </Field>
+          <div className="row">
+            <Button type="submit" variant="primary" loading={create.isPending} icon="plus">Utwórz adres ICS</Button>
+          </div>
+        </form>
+        {(create.error || revoke.error) && <Box tone="bad" role="alert" title={create.error?.message ?? revoke.error?.message} />}
+        {created && (
+          <Box tone="ok" role="status" title="Nowy adres ICS. Zapisz go teraz, nie pokażemy go ponownie.">
+            <div className="token-once"><code>{created.url}</code><CopyButton value={created.url} /></div>
+          </Box>
+        )}
+        {feeds.isLoading && <LoadingBlock label="Wczytywanie subskrypcji" rows={2} />}
+        {feeds.data && visible.length === 0 && (
+          <EmptyState compact icon="link" title="Nie masz jeszcze subskrypcji" description="Pierwszy adres utworzysz powyżej." />
+        )}
+        {visible.length > 0 && (
+          <List className="panel">
+            {visible.map((feed) => (
+              <ListRow
+                key={feed.id}
+                aside={feed.revoked_at
+                  ? <StatusBadge tone="bad">odwołana</StatusBadge>
+                  : <Button size="sm" variant="ghost" disabled={revoke.isPending} onClick={() => { revoke.reset(); setToRevoke(feed) }}>Odwołaj</Button>}
+              >
+                <b>{feed.label}</b>
+                <small>utworzono {formatDate(feed.created_at)}{feed.last_used_at ? ` · ostatnie użycie ${formatDate(feed.last_used_at)}` : ' · jeszcze nieużyta'}</small>
+              </ListRow>
+            ))}
+          </List>
+        )}
+        {feeds.data?.some((feed) => feed.revoked_at) && (
+          <Checkbox label="Pokaż odwołane" checked={showRevoked} onChange={(event) => setShowRevoked(event.target.checked)} />
+        )}
+      </Panel>
+      <ConfirmDialog
+        open={Boolean(toRevoke)}
+        pending={revoke.isPending}
+        error={revoke.error ? revoke.error.message : null}
+        onCancel={() => setToRevoke(null)}
+        onConfirm={() => toRevoke && revoke.mutate(toRevoke.id)}
+        title="Odwołać subskrypcję ICS?"
+        confirmLabel="Odwołaj subskrypcję"
+        confirmColor="error"
+        description={toRevoke && <>Adres „{toRevoke.label}” przestanie działać w aplikacjach kalendarza, które go używają. Odwołanego adresu nie da się przywrócić - trzeba będzie utworzyć nowy.</>}
+      />
+    </>
   )
 }
 

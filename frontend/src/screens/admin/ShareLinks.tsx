@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShareLinkCreated, api } from '../../api'
+import { ShareLink, ShareLinkCreated, api } from '../../api'
 import { addDays, formatDate, warsawDate } from '../../lib/dates'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { CopyButton } from '../../components/CopyButton'
 import { DateField } from '../../components/DateField'
 import { Box, Button, Checkbox, EmptyState, ErrorState, Field, Input, List, ListRow, LoadingBlock, PageHeader, SectionHeading, Select, StatusBadge, StatusTone } from '../../ui'
@@ -21,6 +22,7 @@ export function ShareLinksPanel() {
   const [created, setCreated] = useState<ShareLinkCreated | null>(null)
   const [feedUrl, setFeedUrl] = useState<{ linkId: string; url: string } | null>(null)
   const [showRevoked, setShowRevoked] = useState(false)
+  const [toRevoke, setToRevoke] = useState<ShareLink | null>(null)
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['share-links'] })
   const create = useMutation({
     mutationFn: api.createShareLink,
@@ -34,7 +36,10 @@ export function ShareLinksPanel() {
     mutationFn: api.createShareLinkFeed,
     onSuccess: (value, linkId) => setFeedUrl({ linkId, url: value.url }),
   })
-  const revoke = useMutation({ mutationFn: api.revokeShareLink, onSuccess: invalidate })
+  const revoke = useMutation({
+    mutationFn: api.revokeShareLink,
+    onSuccess: () => { setToRevoke(null); invalidate() },
+  })
   const error = create.error ?? createFeed.error ?? revoke.error
   const visible = links.data?.filter((link) => showRevoked || !link.revoked_at) ?? []
 
@@ -94,7 +99,7 @@ export function ShareLinksPanel() {
                     {feedUrl?.linkId === link.id
                       ? <CopyButton value={feedUrl.url} label="Kopiuj ICS" />
                       : <Button size="sm" disabled={createFeed.isPending || Boolean(link.revoked_at)} onClick={() => createFeed.mutate(link.id)}>Kanał ICS</Button>}
-                    <Button size="sm" variant="ghost" disabled={revoke.isPending || Boolean(link.revoked_at)} onClick={() => revoke.mutate(link.id)}>Odwołaj</Button>
+                    <Button size="sm" variant="ghost" disabled={revoke.isPending || Boolean(link.revoked_at)} onClick={() => { revoke.reset(); setToRevoke(link) }}>Odwołaj</Button>
                   </>
                 )}
               >
@@ -105,6 +110,17 @@ export function ShareLinksPanel() {
           })}
         </List>
       )}
+      <ConfirmDialog
+        open={Boolean(toRevoke)}
+        pending={revoke.isPending}
+        error={revoke.error ? revoke.error.message : null}
+        onCancel={() => setToRevoke(null)}
+        onConfirm={() => toRevoke && revoke.mutate(toRevoke.id)}
+        title="Odwołać link udostępnienia?"
+        confirmLabel="Odwołaj link"
+        confirmColor="error"
+        description={toRevoke && <>Link dla „{toRevoke.label}” ({formatDate(toRevoke.starts_on)} – {formatDate(toRevoke.ends_on)}) przestanie działać. Tej operacji nie da się cofnąć.</>}
+      />
     </div>
   )
 }

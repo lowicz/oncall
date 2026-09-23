@@ -70,6 +70,9 @@ kontekstu, na przykład okna zmian produkcyjnych albo zamrożenia.
 Pola „Pokaż od” i „Pokaż do” zawężają listę poniżej; „Od” i „Do” w formularzu
 to zakres samego wydarzenia.
 
+**Usuń** - tu i w panelu dnia na grafiku - pyta o potwierdzenie; usuniętego
+wydarzenia nie da się przywrócić.
+
 ## Import historii (`/import`, koordynator)
 
 1. Pobierz szablon CSV ze strony albo użyj `examples/history.csv`.
@@ -110,8 +113,8 @@ Otwarcie linku wymienia jednorazowy token na ograniczoną sesję podglądową, a
 token znika z paska adresu. Sesja widzi wyłącznie opublikowany grafik przycięty
 do zakresu linku.
 
-**Odwołanie działa natychmiast** - trwające sesje z tego linku przestają
-działać.
+**Odwołanie działa natychmiast** po potwierdzeniu - trwające sesje z tego
+linku przestają działać, a odwołanego linku nie da się przywrócić.
 
 Stałą formą dostępu dla osoby spoza rotacji jest imienne konto `viewer`; link
 czasowy jest wyjątkiem.
