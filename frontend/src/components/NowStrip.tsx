@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CurrentDuty, api } from '../api'
 import { roleLabels } from '../lib/labels'
+import { WEEKDAYS } from '../lib/dates'
 import { RoleLabel, Skeleton, cx } from '../ui'
 
 const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
-const WEEKDAYS = ['nd', 'pn', 'wt', 'śr', 'cz', 'pt', 'so']
 
 /** When the coverage ends as a local Date, given the duty's day and window. */
 export function coverageEnd(duty: CurrentDuty): Date | null {

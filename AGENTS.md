@@ -161,6 +161,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Dates and months are native inputs (`DateField`, `MonthField`, ISO values
   in and out); selects are native `<select>`. Tests drive them with
   `fireEvent.change`, not with option clicks.
+- Every number, date, weekday and month a screen prints goes through
+  `src/lib/numbers.ts` (decimal comma) and `src/lib/dates.ts` (DD-MM-RRRR, one
+  weekday set equal to the API's `weekday`); screens call no `toLocaleString`
+  and keep no name arrays of their own.
 - The product name and subtitle come from `/api/v1/config`
   (`ONCALL_APP_NAME`, `ONCALL_APP_SUBTITLE`) through `useBranding()`; the
   source tree carries no organisation name.

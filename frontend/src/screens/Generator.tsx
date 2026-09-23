@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, api } from '../api'
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { pluralFormPl, pluralPl } from '../lib/plural'
-import { formatPoints } from '../lib/fairness'
+import { formatPoints } from '../lib/numbers'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
 import { DraftFairnessPanel, worstSpread } from '../components/DraftFairnessPanel'
@@ -532,7 +532,7 @@ export function GeneratorPanel() {
               <div className="panel panel-padded stack-sm">
                 <KeyValue
                   items={[
-                    { key: 'Zakres', value: `${result.starts_on} → ${result.ends_on}`, mono: true },
+                    { key: 'Zakres', value: `${formatDate(result.starts_on)} – ${formatDate(result.ends_on)}`, mono: true },
                     { key: 'Wersja', value: `v${result.version}`, mono: true },
                     { key: 'Tryb rotacji', value: rotationLabels[result.rotation_mode] },
                     { key: `Powiązanie ${roleLabels.late_shift}`, value: lateShiftAnchorLabels[policy.data?.late_shift_anchor ?? 'secondary'] },

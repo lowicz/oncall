@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapRequest, SwapStatus, UserRole, api } from '../api'
 import { roleLabels, swapStatusLabels } from '../lib/labels'
 import { pluralPl } from '../lib/plural'
+import { formatDecimal, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
 import { SwapViewer, canCoordinate, canWithdraw, isOpen, needsMyDecision } from '../lib/swaps'
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
@@ -114,10 +115,9 @@ function stageDetail(item: SwapRequest, viewer: SwapViewer): string {
 function Effect({ impact }: { impact: SwapImpact | undefined }) {
   if (!impact) return <span className="muted">–</span>
   const gained = impact.replacement.after.total_points - impact.replacement.before.total_points
-  const signed = `${gained > 0 ? '+' : ''}${gained.toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
   return (
     <span className="mono">
-      {firstName(impact.replacement.display_name)} {signed}
+      {firstName(impact.replacement.display_name)} {signedPoints(gained)}
     </span>
   )
 }
@@ -586,7 +586,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                       <span className="rank-facts">
                         {deviation !== null && (
                           <span className={cx(deviation > 0 ? 'rank-fact-warn' : 'rank-fact-ok')}>
-                            {Math.abs(deviation).toLocaleString('pl-PL')} pkt {deviation > 0 ? 'powyżej' : 'poniżej'} udziału
+                            {formatDecimal(Math.abs(deviation))} pkt {deviation > 0 ? 'powyżej' : 'poniżej'} udziału
                           </span>
                         )}
                         {!blocked && (benefit ?? 0) > 0 && <span className="rank-fact-ok">poprawia bilans</span>}

@@ -1,4 +1,5 @@
 import { AssignmentRole, AvailabilityKind, CalendarData } from '../api'
+import { MONTHS_SHORT, formatMonth } from './dates'
 
 /** Roles that must be staffed every single day. The 11-19 shift is working-days
  *  only (archive/docs/PLAN.md §3), so a missing one is not a coverage gap. */
@@ -179,15 +180,6 @@ export function staffingCandidates(
     })
 }
 
-const MONTHS = [
-  'styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec',
-  'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień',
-]
-
-const MONTHS_SHORT = [
-  'sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru',
-]
-
 export interface MonthGroup {
   key: string
   label: string
@@ -207,11 +199,10 @@ export function monthGroups(days: CalendarData['days']): MonthGroup[] {
       continue
     }
     const [year, month] = key.split('-')
-    const index = Number(month) - 1
     groups.push({
       key,
-      label: `${MONTHS[index]} ${year}`,
-      shortLabel: `${MONTHS_SHORT[index]} ${year}`,
+      label: formatMonth(key),
+      shortLabel: `${MONTHS_SHORT[Number(month) - 1]} ${year}`,
       span: 1,
     })
   }

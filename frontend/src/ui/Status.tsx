@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react'
 import { cx } from './cx'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
+import { signedPoints } from '../lib/numbers'
 
 export type StatusTone = 'draft' | 'prop' | 'pub' | 'ok' | 'warn' | 'bad' | 'sig' | 'muted'
 
@@ -117,7 +118,7 @@ export function DeviationBar({ value, max, label, className, showValue = true }:
 }) {
   const width = Math.min(100, Math.abs(value) / Math.max(max, 0.01) * 100)
   const over = value > 0
-  const formatted = `${value > 0 ? '+' : ''}${value.toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
+  const formatted = signedPoints(value)
   return (
     <span className={cx('dev', className)} role="img" aria-label={label ?? `odchylenie ${formatted}`}>
       <span className="dev-track">

@@ -45,7 +45,7 @@ describe('DraftFairnessPanel criterion summary', () => {
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(
       impact({
         criterion_met: false,
-        acceptance_floor: 58,
+        acceptance_floor: 58.5,
         spreads: [
           { lens: 'primary', before: 73.0, after: 67.0, meets_criterion: false },
           { lens: 'secondary', before: 80.0, after: 74.0, meets_criterion: false },
@@ -59,7 +59,7 @@ describe('DraftFairnessPanel criterion summary', () => {
     const box = screen.getByText(/nie wada szkicu/)
     expect(box).toHaveTextContent('Szkic zmniejsza rozrzut z 80 do 74 pkt.')
     expect(box).toHaveTextContent('najwyżej połowę jej udziału')
-    expect(box).toHaveTextContent('Najniższa rozpiętość osiągalna w tym zakresie to 58 pkt.')
+    expect(box).toHaveTextContent('Najniższa rozpiętość osiągalna w tym zakresie to 58,5 pkt.')
     expect(box).not.toHaveTextContent('popraw komórki')
     expect(screen.getAllByText(/nie spełnia/).length).toBeGreaterThanOrEqual(2)
   })

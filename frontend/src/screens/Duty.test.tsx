@@ -204,7 +204,7 @@ describe('DutyScreen on a phone', () => {
     expect(within(primary).getByRole('link', { name: 'SMS' })).toHaveAttribute('href', 'sms:+48601220118')
     expect(within(primary).getByText(/Następny PRIMARY:/)).toHaveTextContent('Marek Nowak, jutro')
     expect(screen.getByRole('article', { name: '11–19' })).toHaveTextContent('nikt nie odbierze tej roli')
-    expect(screen.getByText(/Twój następny dyżur:/)).toHaveTextContent('so 12 wrz · SECONDARY')
+    expect(screen.getByText(/Twój następny dyżur:/)).toHaveTextContent('sob 12 wrz · SECONDARY')
     // The phone reads the schedule as a list.
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
   })
@@ -236,7 +236,7 @@ describe('DutyScreen on a phone', () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
-    expect(await screen.findByText(/Twój następny dyżur:/)).toHaveTextContent('so 12 wrz · SECONDARY + 11–19')
+    expect(await screen.findByText(/Twój następny dyżur:/)).toHaveTextContent('sob 12 wrz · SECONDARY + 11–19')
   })
 
   it('marks the 11–19 shift as not applicable on a day off', async () => {

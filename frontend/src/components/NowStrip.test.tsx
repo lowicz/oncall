@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
-import { NowStrip } from './NowStrip'
+import { NowStrip, coverageEnd, formatUntil } from './NowStrip'
 import { api } from '../api'
 import type { CurrentDuty, PublishedSchedule } from '../api'
 
@@ -41,5 +41,12 @@ describe('NowStrip', () => {
     // The name may be cut with an ellipsis on a narrow bar; its title still carries it whole.
     expect(await within(strip).findByTitle('Katarzyna Dąbrowska-Wróblewska')).toHaveTextContent('Katarzyna Dąbrowska-Wróblewska')
     expect(within(strip).getByRole('link', { name: '+48 600 100 005' })).toHaveAttribute('href', 'tel:+48600100005')
+  })
+
+  it('names the end of the duty with the weekday abbreviation every screen uses', () => {
+    // Wednesday 19:00 to Thursday 09:00.
+    const end = coverageEnd(duty({}))
+    expect(formatUntil(end, new Date('2026-09-09T21:00:00'))).toBe('do czw 09:00 · 12 h 0 min')
+    expect(formatUntil(coverageEnd(duty({ service_date: '2026-09-12', is_day_off: true })), new Date('2026-09-14T09:00:00'))).toBe('do niedz 00:00')
   })
 })

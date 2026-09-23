@@ -144,7 +144,7 @@ describe('ScheduleScreen default range', () => {
 
     await waitFor(() => expect(calendarCall).toHaveBeenCalledWith(day(0), day(6)))
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveAccessibleName(expect.stringMatching(/pon/))
+    expect(dialog).toHaveAccessibleName(expect.stringMatching(/^pt 11-09-2026/))
   })
 })
 
@@ -208,7 +208,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/Z wiersza osoby: Anna Kowalska/)).toBeInTheDocument()
     // The person's name is context, not the dialog's title.
-    expect(dialog).toHaveAccessibleName(expect.stringMatching(/pon/))
+    expect(dialog).toHaveAccessibleName(expect.stringMatching(/^czw 10-09-2026/))
     expect(dialog).not.toHaveAccessibleName(expect.stringMatching(/Anna Kowalska/))
   })
 

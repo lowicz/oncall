@@ -265,7 +265,8 @@ table.lg tr.row-off td, table.lg tr.row-off th { opacity: 0.6; }
 .btn-bad { color: var(--bad); }
 .btn-bad:hover:not(:disabled) { color: var(--bad); }
 table.lg tr.drill-row:hover td { background: var(--sig-soft); }
-table.lg tr.total td { font-weight: 650; border-top: 1px solid var(--line2); }
+table.lg tfoot th { text-align: left; padding: 8px; }
+table.lg tr.total td, table.lg tr.total th { font-weight: 650; border-top: 1px solid var(--line2); }
 table.lg th button { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; letter-spacing: inherit; text-transform: inherit; }
 table.lg th button[aria-sort] { color: var(--fg); }
 .td-actions { text-align: right; white-space: nowrap; }
@@ -561,7 +562,17 @@ button.rank-c:hover:not(:disabled) { background: var(--s2); }
 .toolbar .field { flex: 0 1 auto; min-width: 120px; }
 .toolbar .field-grow { flex: 1 1 220px; }
 .toolbar .check { align-self: center; }
-table.report-table th { white-space: nowrap; }
+table.report-table thead th { white-space: nowrap; }
+table.report-table th.n, table.report-table td.n { padding-left: 6px; padding-right: 6px; }
+table.report-table .person { position: sticky; left: 0; z-index: 1; min-width: 9em; background: var(--s1); }
+.scroll-area-start table.report-table .person { box-shadow: inset -1px 0 0 var(--line2), 8px 0 10px -8px rgba(0, 0, 0, 0.45); }
+.scroll-area { overflow: hidden; }
+.scroll-area-hint { margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
+.scroll-area-frame { position: relative; }
+.scroll-area-viewport { overflow-x: auto; }
+.scroll-area-viewport:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.scroll-area-frame::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 40px; background: linear-gradient(to right, transparent, var(--s1)); pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+.scroll-area-end .scroll-area-frame::after { opacity: 1; }
 .avail-day-sel { box-shadow: inset 0 0 0 2px var(--fg); }
 .avail-day-conflict.avail-day-sel { box-shadow: inset 0 0 0 2px var(--fg), 0 0 0 2px var(--warn); }
 

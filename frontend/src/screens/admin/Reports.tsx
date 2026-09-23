@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '../../api'
-import { warsawDate } from '../../lib/dates'
+import { formatMonth, warsawDate } from '../../lib/dates'
+import { formatDecimal } from '../../lib/numbers'
 import { MonthField } from '../../components/MonthField'
-import { Box, Button, ErrorState, LoadingBlock, PageHeader } from '../../ui'
+import { Box, Button, ErrorState, LoadingBlock, PageHeader, ScrollArea } from '../../ui'
 
 const COLUMNS = [
   'primary_workdays', 'primary_weekends', 'primary_holidays',
@@ -65,11 +66,11 @@ export function MonthlyReportsPanel() {
         </Box>
       )}
       {rows.length > 0 && (
-        <div className="panel wide-scroll">
-          <table className="lg report-table" aria-label={`Raport za ${month}`}>
+        <ScrollArea label={`Raport za ${formatMonth(month)}`} hint="Tabela jest szersza niż ekran - przewiń ją w bok, aby zobaczyć wszystkie kolumny, w tym punkty.">
+          <table className="lg report-table" aria-label={`Raport za ${formatMonth(month)}`}>
             <thead>
               <tr>
-                <th scope="col" rowSpan={2}>Osoba</th>
+                <th scope="col" rowSpan={2} className="person">Osoba</th>
                 <th scope="colgroup" colSpan={3} className="n">PRIMARY</th>
                 <th scope="colgroup" colSpan={3} className="n">SECONDARY</th>
                 <th scope="colgroup" colSpan={3} className="n">On-call razem</th>
@@ -86,19 +87,19 @@ export function MonthlyReportsPanel() {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.name}>
-                  <th scope="row">{row.name}</th>
-                  {COLUMNS.map((key) => <td key={key} className="n">{row[key]}</td>)}
+                  <th scope="row" className="person">{row.name}</th>
+                  {COLUMNS.map((key) => <td key={key} className="n">{formatDecimal(row[key])}</td>)}
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="total">
-                <th scope="row">Razem</th>
-                {COLUMNS.map((key) => <td key={key} className="n">{totals[key]}</td>)}
+                <th scope="row" className="person">Razem</th>
+                {COLUMNS.map((key) => <td key={key} className="n">{formatDecimal(totals[key])}</td>)}
               </tr>
             </tfoot>
           </table>
-        </div>
+        </ScrollArea>
       )}
     </div>
   )

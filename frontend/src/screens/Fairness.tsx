@@ -2,7 +2,8 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FairnessCategory, FairnessMember, FairnessReport, api } from '../api'
 import { lensLabels, roleLabels } from '../lib/labels'
-import { DEVIATION_SCALE, deviationWords, formatDecimal, formatPoints, monthlyTotals, roundPoints, signed, totalBalance } from '../lib/fairness'
+import { DEVIATION_SCALE, deviationWords, monthlyTotals, roundPoints, totalBalance } from '../lib/fairness'
+import { formatDecimal, formatPoints, signed } from '../lib/numbers'
 import { pluralPl } from '../lib/plural'
 import { formatDate, formatDayShort, formatShortDate, warsawDate } from '../lib/dates'
 import { DateField } from '../components/DateField'
@@ -99,7 +100,7 @@ function Drilldown({ member, report, asOf, lateShiftBalanced }: {
         {duties.data && duties.data.length > 0 && (
           <List className="panel drill-duties">
             {duties.data.map((duty) => (
-              <ListRow key={`${duty.service_date}-${duty.role}`} aside={<span className="mono">{duty.points} pkt</span>}>
+              <ListRow key={`${duty.service_date}-${duty.role}`} aside={<span className="mono">{formatDecimal(duty.points)} pkt</span>}>
                 <div className="row">
                   <RoleMark role={duty.role} size="sm" />
                   <span>{formatDayShort(duty.service_date)}</span>
@@ -285,7 +286,7 @@ export function FairnessPanel() {
       {report.isLoading && <LoadingBlock label="Wczytywanie raportu" />}
       {report.data && teamView && (
         <ChipRow label="Kryterium odbioru na soczewkach">
-          <Tag>kryterium {report.data.criterion_points} pkt</Tag>
+          <Tag>kryterium {formatDecimal(report.data.criterion_points)} pkt</Tag>
           {report.data.spreads.filter((spread) => spread.lens !== 'late_shift' || lateShiftBalanced).map((spread) => {
             const outliers = report.data?.outliers?.find((entry) => entry.lens === spread.lens)
             const detail = !spread.meets_criterion && outliers?.highest && outliers.lowest

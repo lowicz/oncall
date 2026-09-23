@@ -103,7 +103,8 @@ wydarzenia nie da się przywrócić.
    `secondary`, `late_shift`) i `assignee_name` (dokładna nazwa wyświetlana).
 3. Zapisz jako **UTF-8**, maksymalnie 5000 wierszy.
 4. Wgraj plik - najpierw zobaczysz **podgląd** z wykrytymi duplikatami,
-   nieznanymi osobami i konfliktami.
+   nieznanymi osobami i konfliktami. Błędy są ułożone według numeru wiersza,
+   tak jak w pliku, więc poprawiasz go od góry do dołu.
 5. Zatwierdź import.
 
 `late_shift` jest przyjmowany **tylko w polskie dni robocze**; wiersz z tą rolą
@@ -118,7 +119,9 @@ Import zasila historię, z której liczą raport sprawiedliwości i generator.
 3. „Pobierz CSV”.
 
 Ekran ostrzega, jeśli opublikowany grafik nie pokrywa całego miesiąca, i podaje,
-ile dni pokrywa. Opis kolumn jest w [Integracje](../produkt/integracje.md#raport-miesięczny-dla-kadr).
+ile dni pokrywa. Gdy tabela nie mieści się na ekranie (np. na telefonie), nad
+nią pojawia się podpowiedź, a tabelę przewijasz w bok; kolumna z osobą zostaje
+wtedy na miejscu. Opis kolumn jest w [Integracje](../produkt/integracje.md#raport-miesięczny-dla-kadr).
 
 Każdy slot liczy się z efektywnej wersji grafiku, po korektach i zamianach.
 Święto przypadające w sobotę lub niedzielę liczy się raz, jako weekend.

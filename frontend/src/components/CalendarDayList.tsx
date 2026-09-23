@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { AssignmentRole, CalendarData } from '../api'
 import { availabilityLabels, roleLabels } from '../lib/labels'
-import { addDays, formatDate, formatRange, isoWeek, warsawDate } from '../lib/dates'
+import { addDays, formatDay, formatRange, formatWeekday, isoWeek, warsawDate } from '../lib/dates'
 import { CoverageGap } from '../lib/calendar'
 import { AvailabilityMark, RoleMark, Tag, cx } from '../ui'
 
@@ -59,7 +59,7 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
               )}
             >
               <div className="dayrow-dt">
-                {day.weekday}
+                {formatWeekday(day.service_date)}
                 <b>{day.service_date.slice(8)}</b>
                 {day.service_date.slice(5, 7)}
               </div>
@@ -76,7 +76,7 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
                       key={role}
                       className="dayrow-role"
                       onClick={() => onSelectDay(day, role)}
-                      aria-label={`${roleLabels[role]}, ${day.weekday} ${formatDate(day.service_date)}, ${assignment?.assignee_name ?? 'brak obsady'}`}
+                      aria-label={`${roleLabels[role]}, ${formatDay(day.service_date)}, ${assignment?.assignee_name ?? 'brak obsady'}`}
                     >
                       <RoleMark role={role} change={assignment?.change_kind} />
                       <span className={cx(you && 'dayrow-you', !assignment && 'muted')}>

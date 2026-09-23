@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatRange, formatShortDate, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
+import { WEEKDAYS, WEEKDAYS_FROM_MONDAY, formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, formatWeekday, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
 
 describe('global date formatting', () => {
   it('formats API dates and timestamps as DD-MM-YYYY', () => {
@@ -18,6 +18,25 @@ describe('global date formatting', () => {
 
   it('dates a moment just after midnight in Warsaw by the Warsaw day', () => {
     expect(formatMoment('2026-09-03T22:30:00Z')).toBe('04-09-2026, 00:30')
+  })
+
+  it('abbreviates every weekday with one set, the words the API sends', () => {
+    expect(WEEKDAYS).toEqual(['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob'])
+    expect(WEEKDAYS_FROM_MONDAY).toEqual(['pon', 'wt', 'śr', 'czw', 'pt', 'sob', 'niedz'])
+    const week = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11']
+    expect(week.map(formatWeekday)).toEqual(WEEKDAYS_FROM_MONDAY)
+    // A day in running text and a day with its full date name the same weekday.
+    for (const day of week) {
+      expect(formatDayShort(day).split(' ')[0]).toBe(formatDay(day).split(' ')[0])
+    }
+    expect(formatDay('2026-10-05')).toBe('pon 05-10-2026')
+    expect(formatDayShort('2026-11-09')).toBe('pon 9 lis')
+    expect(formatDayShort('2026-10-03')).toBe('sob 3 paź')
+  })
+
+  it('names a month with or without its year', () => {
+    expect(formatMonth('2026-08')).toBe('sierpień 2026')
+    expect(formatMonth('2027-01', false)).toBe('styczeń')
   })
 })
 
@@ -49,7 +68,7 @@ describe('dates in running text', () => {
   it('names a day the way the screens do', () => {
     expect(formatShortDate('2026-10-03')).toBe('3 paź')
     expect(formatDayShort('2026-09-24')).toBe('czw 24 wrz')
-    expect(formatDayShort('2026-10-04')).toBe('nd 4 paź')
+    expect(formatDayShort('2026-10-04')).toBe('niedz 4 paź')
     expect(formatDateLong('2026-09-20')).toBe('Niedziela, 20 września')
   })
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ScheduleSummary, api } from '../api'
 import { rotationLabels } from '../lib/labels'
+import { formatDecimal } from '../lib/numbers'
 import { Button, Field, InlineError, Select } from '../ui'
 
 const METRICS: Array<[string, 'assignment_count' | 'handovers' | 'max_consecutive_days' | 'load_spread' | 'override_count']> = [
@@ -12,12 +13,27 @@ const METRICS: Array<[string, 'assignment_count' | 'handovers' | 'max_consecutiv
   ['Korekty ręczne', 'override_count'],
 ]
 
+/** The draft picked on one side: the person's choice while it still exists, else the only candidate. */
+function picked(candidates: ScheduleSummary[], choice: string | null) {
+  if (choice !== null && candidates.some((item) => item.id === choice)) return choice
+  return candidates.length === 1 ? candidates[0].id : ''
+}
+
+/**
+ * Daily against weekly on the same range. With exactly one draft of each kind
+ * there is nothing to choose, so both are picked and compared at once; with
+ * more, the person picks the pair and asks for it.
+ */
 export function ScheduleComparison({ drafts }: { drafts: ScheduleSummary[] }) {
   const daily = drafts.filter((item) => item.rotation_mode === 'daily')
   const weekly = drafts.filter((item) => item.rotation_mode === 'weekly')
-  const [leftId, setLeftId] = useState('')
-  const [rightId, setRightId] = useState('')
-  const [requested, setRequested] = useState<[string, string] | null>(null)
+  const [leftChoice, setLeftId] = useState<string | null>(null)
+  const [rightChoice, setRightId] = useState<string | null>(null)
+  const leftId = picked(daily, leftChoice)
+  const rightId = picked(weekly, rightChoice)
+  const [asked, setRequested] = useState<[string, string] | null>(null)
+  const onlyPair = daily.length === 1 && weekly.length === 1
+  const requested = asked ?? (onlyPair ? [leftId, rightId] : null)
   const comparison = useQuery({
     queryKey: ['schedule-comparison', requested],
     queryFn: () => api.compareSchedules(requested![0], requested![1]),
@@ -52,7 +68,7 @@ export function ScheduleComparison({ drafts }: { drafts: ScheduleSummary[] }) {
             <thead><tr><th>Metryka</th>{comparison.data.variants.map((item) => <th key={item.id} className="n">{rotationLabels[item.rotation_mode]}</th>)}</tr></thead>
             <tbody>
               {METRICS.map(([label, key]) => (
-                <tr key={key}><th scope="row">{label}</th>{comparison.data!.variants.map((item) => <td key={item.id} className="n">{item[key]}</td>)}</tr>
+                <tr key={key}><th scope="row">{label}</th>{comparison.data!.variants.map((item) => <td key={item.id} className="n">{formatDecimal(item[key])}</td>)}</tr>
               ))}
             </tbody>
           </table>
