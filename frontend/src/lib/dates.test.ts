@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAuditTime, formatDate, formatDateLong, formatDay, formatDayShort, formatRange, formatShortDate, fourWeekRangeEnd, isIsoDate, weeksBetween, weeksWord } from './dates'
+import { formatAuditTime, formatDate, formatDateLong, formatDay, formatDayShort, formatRange, formatShortDate, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
 
 describe('global date formatting', () => {
   it('formats API dates and timestamps as DD-MM-YYYY', () => {
@@ -55,6 +55,9 @@ describe('dates in running text', () => {
   })
 
   it('counts and declines weeks', () => {
+    expect(daysBetween('2026-09-10', '2026-09-10')).toBe(0)
+    expect(daysBetween('2026-09-10', '2026-11-04')).toBe(55)
+    expect(daysBetween('2026-03-31', '2026-03-28')).toBe(-3)
     expect(weeksBetween('2026-09-14', '2026-11-08')).toBe(8)
     expect(weeksBetween('2026-09-10', '2026-09-12')).toBe(1)
     expect(weeksWord(1)).toBe('1 tydzień')

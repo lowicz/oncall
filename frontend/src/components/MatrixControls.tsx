@@ -37,9 +37,24 @@ export function LegendPopover({ showAvailability, trigger }: { showAvailability:
 /**
  * The controls of the schedule matrix, laid out in a section heading the way
  * the accepted design has them: zoom, a week back / today / a week forward,
- * then the "only on duty", "legend" and "day list" links.
+ * then the "only on duty", "legend" and "day list" links. A screen whose range
+ * is fixed drops the zoom and the arrows; one with a bounded range disables
+ * the arrow that would leave it.
  */
-export function MatrixControls({ zoom, onZoom, onShift, onToday, hideIdle, onHideIdle, view, onView, showAvailability }: {
+export function MatrixControls({
+  zoom,
+  onZoom,
+  onShift,
+  onToday,
+  hideIdle,
+  onHideIdle,
+  view,
+  onView,
+  showAvailability,
+  showRange = true,
+  canShiftBack = true,
+  canShiftForward = true,
+}: {
   zoom: MatrixZoom
   onZoom: (zoom: MatrixZoom) => void
   onShift: (days: number) => void
@@ -49,25 +64,32 @@ export function MatrixControls({ zoom, onZoom, onShift, onToday, hideIdle, onHid
   view: MatrixView
   onView: (view: MatrixView) => void
   showAvailability: boolean
+  showRange?: boolean
+  canShiftBack?: boolean
+  canShiftForward?: boolean
 }) {
   return (
     <>
-      <Segmented<MatrixZoom>
-        size="sm"
-        label="Długość zakresu"
-        value={zoom}
-        onChange={onZoom}
-        options={[
-          { value: '2', label: '2 tyg.' },
-          { value: '4', label: '4 tyg.' },
-          { value: '8', label: '8 tyg.' },
-        ]}
-      />
-      <span className="row" style={{ gap: 4 }}>
-        <IconButton size="sm" label="Cofnij o tydzień" icon="chevron-left" onClick={() => onShift(-7)} />
-        <Button size="sm" onClick={onToday}>dziś</Button>
-        <IconButton size="sm" label="Do przodu o tydzień" icon="chevron-right" onClick={() => onShift(7)} />
-      </span>
+      {showRange && (
+        <>
+          <Segmented<MatrixZoom>
+            size="sm"
+            label="Długość zakresu"
+            value={zoom}
+            onChange={onZoom}
+            options={[
+              { value: '2', label: '2 tyg.' },
+              { value: '4', label: '4 tyg.' },
+              { value: '8', label: '8 tyg.' },
+            ]}
+          />
+          <span className="row" style={{ gap: 4 }}>
+            <IconButton size="sm" label="Cofnij o tydzień" icon="chevron-left" disabled={!canShiftBack} onClick={() => onShift(-7)} />
+            <Button size="sm" onClick={onToday}>dziś</Button>
+            <IconButton size="sm" label="Do przodu o tydzień" icon="chevron-right" disabled={!canShiftForward} onClick={() => onShift(7)} />
+          </span>
+        </>
+      )}
       <button type="button" className="sech-link" aria-pressed={hideIdle} onClick={() => onHideIdle(!hideIdle)}>Tylko z dyżurem</button>
       <LegendPopover showAvailability={showAvailability} trigger={<button type="button" className="sech-link">Legenda</button>} />
       <button

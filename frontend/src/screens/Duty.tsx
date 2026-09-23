@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AssignmentRole, CurrentDuty, UserRole, api } from '../api'
+import { AssignmentRole, CurrentDuty, ShareSession, UserRole, api } from '../api'
 import { roleLabels } from '../lib/labels'
 import { pluralPl } from '../lib/plural'
 import { groupSwaps } from '../lib/swaps'
-import { addDays, formatDateLong, formatDayShort, formatRange, formatShortDate, relativeDay, warsawDate, weeksWord } from '../lib/dates'
+import { addDays, daysBetween, formatDateLong, formatDayShort, formatRange, formatShortDate, relativeDay, warsawDate, weeksWord } from '../lib/dates'
 import { useNarrow } from '../hooks/useMediaQuery'
-import { CalendarMatrix, MatrixZoom } from '../components/CalendarMatrix'
+import { CalendarMatrix, CalendarRange, MatrixSummary, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
 import { AnchorButton, Box, Chip, LinkButton, PageHeader, SectionHeading, StatusBadge, Tag, cx } from '../ui'
 
@@ -73,16 +73,52 @@ export function DutyCard({ duty, role, todayDayOff, holidayName }: {
 }
 
 /**
+ * The days the matrix shows. A share link reads only its own range: a link
+ * that fits the widest zoom is shown whole with nothing to move, a longer one
+ * keeps the zoom and the arrows but its window never leaves the link.
+ */
+function matrixWindow(today: string, offset: number, zoom: MatrixZoom, share: ShareSession | null): {
+  range: CalendarRange
+  wholeLink: boolean
+  canShiftBack: boolean
+  canShiftForward: boolean
+} {
+  const length = WEEKS[zoom] * 7
+  if (share && daysBetween(share.starts_on, share.ends_on) < WEEKS['8'] * 7) {
+    return {
+      range: { starts_on: share.starts_on, ends_on: share.ends_on },
+      wholeLink: true,
+      canShiftBack: false,
+      canShiftForward: false,
+    }
+  }
+  const wanted = addDays(today, offset)
+  if (!share) {
+    return { range: { starts_on: wanted, ends_on: addDays(wanted, length - 1) }, wholeLink: false, canShiftBack: true, canShiftForward: true }
+  }
+  const latest = addDays(share.ends_on, 1 - length)
+  const start = wanted < share.starts_on ? share.starts_on : wanted > latest ? latest : wanted
+  return {
+    range: { starts_on: start, ends_on: addDays(start, length - 1) },
+    wholeLink: false,
+    canShiftBack: start > share.starts_on,
+    canShiftForward: start < latest,
+  }
+}
+
+/**
  * The landing screen. The title is today's date and the subtitle the state
  * of the published schedule; the strip above the page already says who is
  * on duty, so on a desktop the page goes straight to the risks and the
  * next weeks of the schedule. A phone has no strip and gets the duties as
  * cards with a call button instead.
  */
-export function DutyScreen({ role, displayName, hasTeamMember }: {
+export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   role: UserRole
   displayName: string
   hasTeamMember: boolean
+  /** A share-link session, which can read only the link's range. */
+  share?: ShareSession | null
 }) {
   const navigate = useNavigate()
   const narrow = useNarrow()
@@ -98,8 +134,16 @@ export function DutyScreen({ role, displayName, hasTeamMember }: {
   const [view, setView] = useState<MatrixView>(narrow ? 'list' : 'matrix')
   useEffect(() => { setView(narrow ? 'list' : 'matrix') }, [narrow])
 
-  const start = addDays(today, offset)
-  const range = { starts_on: start, ends_on: addDays(start, WEEKS[zoom] * 7 - 1) }
+  const { range, wholeLink, canShiftBack, canShiftForward } = matrixWindow(today, offset, zoom, share)
+  // From the window actually shown: a share link may have clamped it away
+  // from where the offset alone would put it.
+  const shift = (days: number) => setOffset(daysBetween(today, range.starts_on) + days)
+  // Nobody in the rotation now: the matrix's empty state says so, and there
+  // is nothing to zoom, filter or list. Once the view has been moved the
+  // controls stay, so it can always come back.
+  const nobodyNow = (summary: MatrixSummary) => summary.loaded && summary.people === 0 && offset === 0 && zoom === '4'
+  // "The next four weeks" only while the window starts today and is not a link's.
+  const upcoming = offset === 0 && !share
   const current = schedule.data?.current ?? []
   const byRole = (value: AssignmentRole) => current.find((item) => item.role === value)
   // Not `Boolean(schedule.data?.id)`: imported history is stored as a
@@ -179,28 +223,32 @@ export function DutyScreen({ role, displayName, hasTeamMember }: {
                 {pluralPl(actionable, ['zamiana czeka', 'zamiany czekają', 'zamian czeka'])} na Ciebie
               </Chip>
             )}
-            {fairness.data && (
+            {/* An empty team meets any criterion; saying so would mislead. */}
+            {fairness.data && fairness.data.members.length > 0 && (
               <Chip tone={fairness.data.criterion_met ? 'ok' : 'warn'} onClick={() => navigate('/sprawiedliwosc')} title="Otwórz raport sprawiedliwości">
                 {fairness.data.criterion_met ? 'Kryterium sprawiedliwości spełnione' : 'Kryterium sprawiedliwości niespełnione'}
               </Chip>
             )}
           </>
         )}
-        heading={(
+        heading={(summary) => (
           <SectionHeading
-            title={offset === 0 ? `Najbliższe ${weeksWord(WEEKS[zoom])}` : formatRange(range.starts_on, range.ends_on)}
-            meta={offset === 0 ? formatRange(range.starts_on, range.ends_on) : weeksWord(WEEKS[zoom])}
-            controls={(
+            title={upcoming ? `Najbliższe ${weeksWord(WEEKS[zoom])}` : formatRange(range.starts_on, range.ends_on)}
+            meta={wholeLink ? 'zakres linku' : upcoming ? formatRange(range.starts_on, range.ends_on) : weeksWord(WEEKS[zoom])}
+            controls={!nobodyNow(summary) && (
               <MatrixControls
                 zoom={zoom}
                 onZoom={setZoom}
-                onShift={(days) => setOffset((value) => value + days)}
+                onShift={shift}
                 onToday={() => setOffset(0)}
                 hideIdle={hideIdle}
                 onHideIdle={setHideIdle}
                 view={view}
                 onView={setView}
                 showAvailability={role !== 'viewer'}
+                showRange={!wholeLink}
+                canShiftBack={canShiftBack}
+                canShiftForward={canShiftForward}
               />
             )}
           />
