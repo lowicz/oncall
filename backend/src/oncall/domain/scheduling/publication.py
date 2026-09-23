@@ -586,15 +586,13 @@ async def publish(
     carried_slots = {item.slot for item in selected_carries}
     carried_names = {item.previous_assignee_name for item in selected_carries}
     carried_ids = await ports.members.ids_by_name(carried_names) if carried_names else {}
-    await ports.schedules.carry(
-        schedule.id,
-        [
-            CarriedChange(
-                item.slot, item.previous_assignee_name, carried_ids.get(item.previous_assignee_name)
-            )
-            for item in selected_carries
-        ],
-    )
+    carried = [
+        CarriedChange(
+            item.slot, item.previous_assignee_name, carried_ids.get(item.previous_assignee_name)
+        )
+        for item in selected_carries
+    ]
+    await ports.schedules.carry(schedule.id, carried)
     for change in selected_carries:
         await ports.journal.change_carried(
             schedule.id,
@@ -628,4 +626,4 @@ async def publish(
         else schedule.name
     )
     await ports.schedules.mark_published(schedule.id, name=name, published_at=now)
-    await ports.journal.schedule_published(schedule, name)
+    await ports.journal.schedule_published(schedule.with_carried(carried), name)

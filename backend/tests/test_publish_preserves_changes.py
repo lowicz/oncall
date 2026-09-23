@@ -308,3 +308,11 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
         )
     ]
     assert carried_notifications == []
+    published_mails = {
+        row.recipient: row.body
+        for row in await db.scalars(select(NotificationOutbox))
+        if row.context and row.context["event"] == "schedule_published"
+    }
+    # Each mail lists the slots as published: the carried SECONDARY is Ola's.
+    assert f"- {start} · SECONDARY" in published_mails["ola@example.com"]
+    assert f"- {start} · SECONDARY" not in published_mails["marek@example.com"]

@@ -468,6 +468,16 @@ async def test_publication_carries_a_safe_change_and_replaces_the_rest(world) ->
     # The carried slot keeps its holder, so nobody is told it changed.
     changed = dict(world.journal.events)["assignments_changed_by_publication"]["args"][1]
     assert changed == []
+    # The team is told about the slots as published, the carried one included.
+    announced = dict(world.journal.events)["schedule_published"]["args"][0]
+    (monday_primary,) = (
+        item for item in announced.assignments if item.slot == (MONDAY, AssignmentRole.primary)
+    )
+    assert (
+        monday_primary.assignee_name,
+        monday_primary.member_id,
+        monday_primary.is_override,
+    ) == ("Dawid", world.dawid.id, True)
 
 
 async def test_publication_asks_for_every_decision_in_turn(world) -> None:

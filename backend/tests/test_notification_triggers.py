@@ -3,7 +3,8 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from oncall.domain.clock import business_today
-from oncall.domain.vocabulary import UserRole
+from oncall.domain.scheduling.models import ScheduledDuty
+from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
 from oncall.notifications.triggers import notify_schedule_published
 from tests.conftest import (
@@ -169,17 +170,64 @@ async def test_direct_override_rejects_current_assignee_without_side_effects(cli
 
 
 async def test_publish_notification_goes_to_members_with_email(db) -> None:
-    today, _ = await _seed_team(db)
+    today, members = await _seed_team(db)
     piotr = await create_user(db, "piotr", email=None, display_name="Piotr Zieliński")
     await create_member(db, piotr, display_name="Piotr Zieliński")
     await notify_schedule_published(
-        db, name="Szkic X", starts_on=today, ends_on=today + timedelta(days=13)
+        db, name="Szkic X", starts_on=today, ends_on=today + timedelta(days=13), duties=[]
     )
     await db.commit()
     rows = await _outbox_rows(db)
     recipients = {row.recipient for row in rows}
     assert recipients == {"anna@example.com", "marek@example.com", "ola@example.com"}
     assert all("Opublikowano grafik" in row.subject for row in rows)
+
+
+async def test_publish_notification_lists_only_the_recipients_own_duties(db) -> None:
+    today, members = await _seed_team(db)
+    tomorrow = today + timedelta(days=1)
+
+    def duty(day, role, name, *, by_id=True):
+        return ScheduledDuty(
+            service_date=day,
+            role=role,
+            assignee_name=name,
+            member_id=members[name].id if by_id else None,
+            is_override=False,
+        )
+
+    await notify_schedule_published(
+        db,
+        name="Grafik X",
+        starts_on=today,
+        ends_on=tomorrow,
+        # Out of order on purpose: each mail reads by day, then PRIMARY first.
+        duties=[
+            duty(tomorrow, AssignmentRole.primary, "Anna Kowalska"),
+            duty(today, AssignmentRole.secondary, "Anna Kowalska"),
+            duty(today, AssignmentRole.primary, "Marek Nowak"),
+            # A row with no identity is matched by name.
+            duty(tomorrow, AssignmentRole.secondary, "Marek Nowak", by_id=False),
+        ],
+    )
+    await db.commit()
+    bodies = {row.recipient: row.body for row in await _outbox_rows(db)}
+
+    moje = "Moje dyżury: http://localhost:8080/moje\n"
+    assert bodies["anna@example.com"].endswith(moje)
+    assert (
+        f"Twoje dyżury w tym grafiku:\n- {today} · SECONDARY\n- {tomorrow} · PRIMARY\n\n"
+        in bodies["anna@example.com"]
+    )
+    assert (
+        f"Twoje dyżury w tym grafiku:\n- {today} · PRIMARY\n- {tomorrow} · SECONDARY\n\n"
+        in bodies["marek@example.com"]
+    )
+    assert "Anna" not in bodies["marek@example.com"]
+    # Somebody with nothing in the range still gets the mail and the link.
+    assert "W tym grafiku nie masz żadnych dyżurów." in bodies["ola@example.com"]
+    assert "Twoje dyżury w tym grafiku" not in bodies["ola@example.com"]
+    assert bodies["ola@example.com"].endswith(moje)
 
 
 async def test_unavailability_over_existing_duty_warns_member_and_coordinator(client, db) -> None:

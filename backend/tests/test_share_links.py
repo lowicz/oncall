@@ -108,6 +108,27 @@ async def test_exchange_starts_limited_viewer_session(client, db) -> None:
     assert second.status_code == 410
 
 
+async def test_share_session_gets_the_on_call_phone_but_not_the_email(client, db) -> None:
+    anna, _, today = await _seed_schedule(db)
+    anna.phone = "600100200"
+    await db.commit()
+    await create_user(db, "admin", role=UserRole.admin)
+    await login(client, "admin")
+    created = await _create_link(
+        client, starts_on=str(today - timedelta(days=2)), ends_on=str(today + timedelta(days=5))
+    )
+    token = _token_from_url(created["url"])
+
+    guest = client.__class__(transport=client._transport, base_url="http://test")
+    await guest.post("/api/v1/share/exchange", json={"token": token})
+
+    published = (await guest.get("/api/v1/schedules/published")).json()
+    primary = next(item for item in published["current"] if item["role"] == "primary")
+    assert primary["assignee_name"] == "Anna Kowalska"
+    assert primary["contact_phone"] == "600100200"
+    assert primary["contact_email"] is None
+
+
 async def test_share_session_hides_current_duty_outside_its_own_range(client, db) -> None:
     """QA7-L05: a link scoped to 14-20.09 must not leak who is on call today."""
     _, schedule, today = await _seed_schedule(db)

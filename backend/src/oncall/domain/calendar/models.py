@@ -33,9 +33,10 @@ class Audience:
         return self.role in (UserRole.coordinator, UserRole.admin)
 
     @property
-    def sees_contacts(self) -> bool:
-        """Contact details stay inside the team: a viewer or a share link gets
-        names and times only."""
+    def sees_contact_email(self) -> bool:
+        """E-mail addresses stay inside the team. A viewer or a share link
+        still gets the on-call phone numbers: calling whoever is on duty is
+        what they open the dashboard for."""
         return (
             self.share_range is None
             and self.account_id is not None

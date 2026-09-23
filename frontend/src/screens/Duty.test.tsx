@@ -202,6 +202,21 @@ describe('DutyScreen on a phone', () => {
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
   })
 
+  it('lets a viewer call and text the person on duty without their e-mail', async () => {
+    pretendNarrow(true)
+    const base = publication()
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({
+      current: base.current.map((item) => ({ ...item, contact_email: null })),
+    }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    renderScreen(<DutyScreen role="viewer" displayName="Service Desk" hasTeamMember={false} />)
+
+    const primary = await screen.findByRole('article', { name: 'PRIMARY' })
+    expect(within(primary).getByRole('link', { name: /Zadzwoń \+48 601 220 118/ })).toHaveAttribute('href', 'tel:+48601220118')
+    expect(within(primary).getByRole('link', { name: 'SMS' })).toHaveAttribute('href', 'sms:+48601220118')
+    expect(within(primary).queryByRole('link', { name: 'E-mail' })).not.toBeInTheDocument()
+  })
+
   it('names every role of the next own duty day', async () => {
     pretendNarrow(true)
     const base = publication()

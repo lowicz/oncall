@@ -347,7 +347,8 @@ class PublicationJournal(Protocol):
     ) -> None: ...
 
     async def schedule_published(self, schedule: Schedule, name: str) -> None:
-        """Tell the team, then record who published it."""
+        """Tell the team, then record who published it. `schedule` holds its
+        slots as published, carried changes included."""
         ...
 
 

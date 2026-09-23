@@ -158,7 +158,11 @@ class SqlAlchemySchedulingJournal:
 
     async def schedule_published(self, schedule: Schedule, name: str) -> None:
         await triggers.notify_schedule_published(
-            self._session, name=name, starts_on=schedule.starts_on, ends_on=schedule.ends_on
+            self._session,
+            name=name,
+            starts_on=schedule.starts_on,
+            ends_on=schedule.ends_on,
+            duties=schedule.assignments,
         )
         self._schedule_event(
             "schedule.published",

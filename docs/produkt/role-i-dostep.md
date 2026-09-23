@@ -43,7 +43,8 @@ zrobić tego sama.
 - dostępności i powodów niedostępności (to dane prywatne),
 - punktów, bilansu i prognoz sprawiedliwości,
 - wniosków o zamianę,
-- ustawień generowania i audytu.
+- ustawień generowania i audytu,
+- adresów e-mail dyżurnych (telefon dyżurnego widzi, żeby móc zadzwonić).
 
 Powód niedostępności jest prywatny również między członkami zespołu: widzi go
 autor wpisu oraz koordynator i administrator.
@@ -72,6 +73,8 @@ dat i datą wygaśnięcia (maksymalnie 30 dni). Otwarcie `/share/{token}` wymien
 jednorazowy token na ograniczoną sesję i usuwa token z paska adresu. Taka sesja:
 
 - widzi wyłącznie opublikowany grafik przycięty do zakresu linku,
+- widzi, kto ma dyżur teraz i pod jakim telefonem, o ile dzisiejszy dzień
+  mieści się w zakresie linku,
 - wygasa razem z linkiem,
 - przestaje działać natychmiast po odwołaniu linku.
 

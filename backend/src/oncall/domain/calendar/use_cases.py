@@ -245,14 +245,12 @@ async def _current_duties(
             ),
             None,
         )
-        #: The same contact, but only for an audience allowed to see it.
-        shown_contact = contact if audience.sees_contacts else None
         result.append(
             CurrentDuty(
                 duty=duty,
                 member_id=contact.member_id if contact else None,
-                contact_email=shown_contact.email if shown_contact else None,
-                contact_phone=shown_contact.phone if shown_contact else None,
+                contact_email=contact.email if contact and audience.sees_contact_email else None,
+                contact_phone=contact.phone if contact else None,
                 coverage_starts_at=starts_at,
                 coverage_ends_at=ends_at,
                 is_day_off=is_day_off(duty.service_date, holidays)
