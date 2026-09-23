@@ -289,6 +289,31 @@ async def test_deleting_an_account(world) -> None:
     # The audit entry is written first, so it is part of the same failed or
     # committed unit of work as the deletion itself.
     assert world.journal.names == ["account_deleted", "account_deleted"]
+    assert world.journal.events[-1][1]["pseudonym"] is None
+
+
+async def test_deleting_an_account_pseudonymises_its_member(world) -> None:
+    def enrolled(username):
+        person = world.accounts.put(account(username))
+        member = world.rotation.enrolled(person, START)
+        return world.accounts.put(replace(person, member_id=member.id)), member
+
+    person, member = enrolled("ola nowak")
+    taken, other = enrolled("tomasz zajety")
+    squatter = world.rotation.enrolled(None, START)
+    world.rotation.members[squatter.id] = replace(
+        squatter, display_name=f"Osoba usunięta #{other.id.hex[:6]}"
+    )
+
+    for target, owned, expected in (
+        (person, member, f"Osoba usunięta #{member.id.hex[:6]}"),
+        (taken, other, f"Osoba usunięta #{other.id.hex}"),
+    ):
+        await use_cases.delete_account(
+            AccountAction(as_actor(world.admin), target.id), world.account_administration
+        )
+        assert world.journal.events[-1][1]["pseudonym"] == expected
+        assert world.rotation.members[owned.id].display_name == expected
 
 
 async def test_enrolling_an_account_once(world) -> None:

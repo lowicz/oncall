@@ -87,6 +87,16 @@ class MemberNames(Protocol):
         """Carry an account's new name to its member and the duty labels."""
         ...
 
+    async def name_taken(self, display_name: str, *, other_than: uuid.UUID) -> bool:
+        """Whether another member already goes by this name."""
+        ...
+
+    async def pseudonymise_member(self, member_id: uuid.UUID, pseudonym: str) -> None:
+        """Replace the member's name with ``pseudonym`` on the member, on its
+        duty labels and on the unlinked labels that carry its name, unless
+        another member goes by that name too."""
+        ...
+
 
 class AccountJournal(Protocol):
     """The audit trail of account administration, written in the
@@ -102,7 +112,7 @@ class AccountJournal(Protocol):
 
     async def activation_link_issued(self, account: Account) -> None: ...
 
-    async def account_deleted(self, account: Account) -> None: ...
+    async def account_deleted(self, account: Account, *, pseudonym: str | None) -> None: ...
 
 
 @dataclass(frozen=True)

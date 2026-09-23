@@ -34,6 +34,7 @@ from oncall.domain.admin.models import (
     NewAccount,
     NewEligibilityPeriod,
     RotationMember,
+    deleted_member_name,
 )
 from oncall.domain.admin.ports import (
     AccountAdministrationPorts,
@@ -176,7 +177,15 @@ async def delete_account(action: AccountAction, ports: AccountAdministrationPort
         raise errors.OwnAccountDeletion()
     if account.is_active_admin and await ports.accounts.active_admin_count() == 1:
         raise errors.LastActiveAdminDeletion(account.id)
-    await ports.journal.account_deleted(account)
+    pseudonym = None
+    if account.member_id is not None:
+        # The member and its duty history stay for fairness; the name the
+        # account gave them does not.
+        pseudonym = deleted_member_name(account.member_id)
+        if await ports.members.name_taken(pseudonym, other_than=account.member_id):
+            pseudonym = deleted_member_name(account.member_id, short=False)
+        await ports.members.pseudonymise_member(account.member_id, pseudonym)
+    await ports.journal.account_deleted(account, pseudonym=pseudonym)
     await ports.accounts.close_account(account.id)
 
 

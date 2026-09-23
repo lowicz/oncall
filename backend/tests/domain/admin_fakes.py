@@ -175,6 +175,15 @@ class FakeRotation:
     async def rename_member(self, member_id, display_name):
         self.renamed.append((member_id, display_name))
 
+    async def name_taken(self, display_name, *, other_than):
+        return any(
+            item.display_name == display_name and item.id != other_than
+            for item in self.members.values()
+        )
+
+    async def pseudonymise_member(self, member_id, pseudonym):
+        self.members[member_id] = replace(self.members[member_id], display_name=pseudonym)
+
     async def period(self, eligibility_id):
         return self.periods_by_id.get(eligibility_id)
 

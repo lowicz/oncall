@@ -87,6 +87,19 @@ dyżurów i punkty zostają dla sprawiedliwości, a opublikowane dyżury tej oso
 po dziś pozostaną bez obsady. Operację potwierdza się, **wpisując login**
 osoby; do tego czasu przycisk jest nieaktywny. Nie da się jej cofnąć.
 
+Z konta znikają imię, nazwisko, e-mail, telefon i numer pracownika. Jeśli osoba
+była w rotacji, jej miejsce w zespole zostaje pod pseudonimem
+**„Osoba usunięta #…”** z sześcioma pierwszymi znakami identyfikatora członka
+zespołu. Pod nim pojawia się w grafiku, sprawiedliwości, raportach, kanałach
+kalendarza i przy swoich dotychczasowych dyżurach, także tych z importu
+historii zapisanych pod jej imieniem i nazwiskiem. Wyjątek: jeśli ktoś inny w zespole nosi to samo
+imię i nazwisko, zaimportowane dyżury bez przypisanej osoby zostają przy tej
+nazwie, bo mogą należeć do niego.
+
+Audyt jest wyjątkiem od usunięcia: wcześniejsze wpisy zachowują imię i nazwisko
+osoby, a wpis **„Usunięto konto”** zapisuje w szczegółach jej dotychczasową
+nazwę i nadany pseudonim. Nowe wpisy o tej osobie używają już tylko pseudonimu.
+
 ## Wydarzenia kalendarza (`/wydarzenia`, administrator)
 
 Warstwa informacyjna nanoszona na macierz: nazwa, zakres dat i kolor.
