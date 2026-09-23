@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from oncall.domain.admin.models import (
     Account,
     AccountRecord,
+    AdministeredAccount,
     AuditEntry,
     AuditFilter,
     EligibilityPeriod,
@@ -25,11 +26,11 @@ from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole
 
 
 class AccountBook(Protocol):
-    async def accounts(self) -> list[Account]:
+    async def accounts(self) -> list[AdministeredAccount]:
         """Every account, by last name and first name."""
         ...
 
-    async def account(self, account_id: uuid.UUID) -> Account | None:
+    async def account(self, account_id: uuid.UUID) -> AdministeredAccount | None:
         """The account as it is stored now."""
         ...
 
@@ -98,6 +99,8 @@ class AccountJournal(Protocol):
     ) -> None: ...
 
     async def reset_link_issued(self, account: Account) -> None: ...
+
+    async def activation_link_issued(self, account: Account) -> None: ...
 
     async def account_deleted(self, account: Account) -> None: ...
 

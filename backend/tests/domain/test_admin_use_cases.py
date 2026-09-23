@@ -18,6 +18,7 @@ from oncall.domain.admin.models import (
     Enrolment,
     MembershipChange,
     NewAccount,
+    PendingActivation,
 )
 from oncall.domain.team import Actor
 from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, AuthSource, UserRole
@@ -62,6 +63,10 @@ async def test_a_new_account_is_trimmed_audited_and_gets_an_activation_link(worl
     assert created.activation.kind == AccountTokenKind.activation
     assert created.activation.expires_at - datetime.now(UTC) > timedelta(hours=23)
     assert world.journal.names == ["account_created"]
+    listed = await use_cases.list_accounts(world.accounts)
+    assert [item.pending_activation for item in listed if item.id == created.account.id] == [
+        PendingActivation(created.activation.expires_at)
+    ]
 
 
 @pytest.mark.parametrize(
@@ -204,6 +209,63 @@ async def test_password_resets_are_for_local_accounts(world) -> None:
     )
     assert token.kind == AccountTokenKind.password_reset
     assert token.expires_at - datetime.now(UTC) <= timedelta(hours=1)
+
+
+def reissue(world, target):
+    return use_cases.reissue_activation(
+        AccountAction(as_actor(world.admin), target), world.account_administration
+    )
+
+
+@pytest.mark.parametrize(
+    "link_expires_at",
+    [datetime.now(UTC) + timedelta(hours=3), datetime.now(UTC) - timedelta(hours=3), None],
+    ids=["valid", "expired", "none-left"],
+)
+async def test_a_pending_account_gets_a_fresh_activation_link(world, link_expires_at) -> None:
+    person = world.accounts.put(
+        account("nowa osoba", pending_activation=PendingActivation(link_expires_at))
+    )
+
+    token = await reissue(world, person.id)
+
+    assert token.kind == AccountTokenKind.activation
+    assert token.expires_at - datetime.now(UTC) > timedelta(hours=23)
+    assert world.journal.names == ["activation_link_issued"]
+    stored = await world.accounts.account(person.id)
+    assert stored.pending_activation == PendingActivation(token.expires_at)
+
+
+@pytest.mark.parametrize(
+    ("target", "error"),
+    [
+        (lambda: account("aktywna osoba"), errors.AccountAlreadyActivated),
+        (
+            lambda: account(
+                "lu dap",
+                auth_source=AuthSource.ldap,
+                pending_activation=PendingActivation(None),
+            ),
+            errors.DirectoryPasswordReadOnly,
+        ),
+        (
+            lambda: account(
+                "wylaczona osoba", is_active=False, pending_activation=PendingActivation(None)
+            ),
+            errors.DisabledAccountActivation,
+        ),
+    ],
+    ids=["activated", "directory", "disabled"],
+)
+async def test_an_activation_link_is_only_for_an_enabled_pending_local_account(
+    world, target, error
+) -> None:
+    person = world.accounts.put(target())
+    with pytest.raises(error):
+        await reissue(world, person.id)
+    with pytest.raises(errors.AccountNotFound):
+        await reissue(world, uuid.uuid4())
+    assert world.accounts.tokens == [] and world.journal.events == []
 
 
 async def test_deleting_an_account(world) -> None:

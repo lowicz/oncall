@@ -20,6 +20,7 @@ from oncall.domain.admin.models import (
     AccountChange,
     AccountCreated,
     AccountRecord,
+    AdministeredAccount,
     AuditFilter,
     AuditPage,
     AuditQuery,
@@ -48,7 +49,7 @@ from oncall.domain.admin.ports import (
 from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, AuthSource, UserRole
 
 
-async def list_accounts(accounts: AccountBook) -> list[Account]:
+async def list_accounts(accounts: AccountBook) -> list[AdministeredAccount]:
     return await accounts.accounts()
 
 
@@ -145,6 +146,27 @@ async def issue_password_reset(
         account.id, AccountTokenKind.password_reset, RESET_LINK_LIFETIME
     )
     await ports.journal.reset_link_issued(account)
+    return token
+
+
+async def reissue_activation(
+    action: AccountAction, ports: AccountAdministrationPorts
+) -> IssuedToken:
+    """A new activation link for a local account still waiting for its first
+    password; the links issued before it stop working."""
+    account = await ports.accounts.account(action.account_id)
+    if account is None:
+        raise errors.AccountNotFound(action.account_id)
+    if account.auth_source != AuthSource.local:
+        raise errors.DirectoryPasswordReadOnly(account.id)
+    if account.pending_activation is None:
+        raise errors.AccountAlreadyActivated(account.id)
+    if not account.is_active:
+        raise errors.DisabledAccountActivation(account.id)
+    token = await ports.accounts.issue_token(
+        account.id, AccountTokenKind.activation, ACTIVATION_LINK_LIFETIME
+    )
+    await ports.journal.activation_link_issued(account)
     return token
 
 

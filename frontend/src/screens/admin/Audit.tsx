@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../../api'
 import { auditActionLabels, humanizeAuditSummary } from '../../lib/labels'
-import { formatAuditTime } from '../../lib/dates'
+import { formatMoment } from '../../lib/dates'
 import { DateField } from '../../components/DateField'
 import { Button, Checkbox, EmptyState, Field, InlineError, Input, List, ListRow, LoadingBlock, PageHeader, Select, Tag } from '../../ui'
 
@@ -113,7 +113,7 @@ export function AuditPanel() {
           {events.map((event) => (
             <ListRow key={event.id} aside={<Tag>{auditActionLabels[event.action] ?? event.action}</Tag>}>
               <div className="row">
-                <span className="mono muted small">{formatAuditTime(event.occurred_at)}</span>
+                <span className="mono muted small">{formatMoment(event.occurred_at)}</span>
                 <b>{humanizeAuditSummary(event.summary)}</b>
               </div>
               <small>{event.actor_label}</small>

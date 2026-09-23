@@ -3,12 +3,12 @@
 returns, and what the audit trail says afterwards."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
 
-from oncall.domain.admin.models import RESET_LINK_LIFETIME
+from oncall.domain.admin.models import ACTIVATION_LINK_LIFETIME, RESET_LINK_LIFETIME
 from oncall.domain.clock import as_utc, business_today
 from oncall.domain.vocabulary import AssignmentRole, AuthSource, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
@@ -74,7 +74,10 @@ async def test_creating_an_account(client, db, admin) -> None:
     assert body["activation_url"].startswith("http")
     assert "/activate?token=" in body["activation_url"]
     user = body["user"]
-    assert {key: user[key] for key in user if key not in {"id", "created_at"}} == {
+    exact = {
+        key: user[key] for key in user if key not in {"id", "created_at", "pending_activation"}
+    }
+    assert exact == {
         "username": "nowy",
         "personnel_number": None,
         "first_name": "Nowa",
@@ -87,6 +90,8 @@ async def test_creating_an_account(client, db, admin) -> None:
         "is_active": True,
     }
     assert datetime.fromisoformat(user["created_at"])
+    link_expires_at = datetime.fromisoformat(user["pending_activation"]["link_expires_at"])
+    assert timedelta(hours=23) < link_expires_at - datetime.now(UTC) <= timedelta(hours=24)
     event = await _audit(db, "admin.user_created")
     assert (event.entity_id, event.summary, event.details) == (
         user["id"],
@@ -196,6 +201,64 @@ async def test_password_reset_links(client, db, frozen_clock, admin) -> None:
     assert (event.entity_id, event.summary) == (
         str(local.id),
         "Wygenerowano link resetu hasła dla lokalny",
+    )
+
+
+async def test_activation_link_reissue(client, db, frozen_clock, admin) -> None:
+    activated = await create_user(db, "aktywny")
+    ldap = await create_user(db, "katalog")
+    ldap.auth_source = AuthSource.ldap
+    ldap.password_hash = None
+    await db.commit()
+    pending = (
+        await client.post("/api/v1/admin/users", json={"username": "nowy", "first_name": "Nowy"})
+    ).json()["user"]
+    disabled = (
+        await client.post("/api/v1/admin/users", json={"username": "off", "first_name": "Off"})
+    ).json()["user"]
+    await client.patch(f"/api/v1/admin/users/{disabled['id']}", json={"is_active": False})
+
+    for target, status, message in (
+        (uuid.uuid4(), 404, "Nie znaleziono użytkownika"),
+        (ldap.id, 409, "Hasło konta LDAP jest zarządzane przez AD"),
+        (
+            activated.id,
+            409,
+            "Konto ma już hasło; zamiast linku aktywacyjnego wygeneruj reset hasła",
+        ),
+        (
+            disabled["id"],
+            409,
+            "Konto jest wyłączone; włącz je, zanim wygenerujesz link aktywacyjny",
+        ),
+    ):
+        assert_error(await client.post(f"/api/v1/admin/users/{target}/activation"), status, message)
+    assert await _audit(db, "admin.activation_link_issued") is None
+
+    frozen_clock.advance(timedelta(minutes=1))
+    reissued = await client.post(f"/api/v1/admin/users/{pending['id']}/activation")
+    assert reissued.status_code == 200, reissued.text
+    assert "/activate?token=" in reissued.json()["url"]
+    expires_at = as_utc(datetime.fromisoformat(reissued.json()["expires_at"]))
+    assert expires_at == frozen_clock.instant + ACTIVATION_LINK_LIFETIME
+    tokens = (
+        await db.scalars(
+            select(AccountToken)
+            .where(AccountToken.user_id == uuid.UUID(pending["id"]))
+            .order_by(AccountToken.created_at)
+        )
+    ).all()
+    assert [token.used_at is None for token in tokens] == [False, True]
+    assert as_utc(tokens[0].used_at) == frozen_clock.instant
+    listed = await client.get("/api/v1/admin/users")
+    [row] = [user for user in listed.json() if user["id"] == pending["id"]]
+    assert as_utc(datetime.fromisoformat(row["pending_activation"]["link_expires_at"])) == (
+        expires_at
+    )
+    event = await _audit(db, "admin.activation_link_issued")
+    assert (event.entity_id, event.summary) == (
+        pending["id"],
+        "Wygenerowano nowy link aktywacyjny dla nowy",
     )
 
 

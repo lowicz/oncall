@@ -8,7 +8,7 @@ import { OffboardingDialog } from '../../components/OffboardingDialog'
 import { roleLabels as dutyRoleLabels, shortRoleLabels } from '../../lib/labels'
 import { roleLabels as accountRoleLabels } from '../../lib/nav'
 import { pluralPl } from '../../lib/plural'
-import { addDays, formatDate, formatShortDate, warsawDate } from '../../lib/dates'
+import { addDays, formatDate, formatMoment, formatShortDate, warsawDate } from '../../lib/dates'
 import { useBranding } from '../../hooks/useBranding'
 import {
   Avatar,
@@ -78,6 +78,26 @@ function RotationCell({ member, today }: { member?: TeamMember; today: string })
   )
 }
 
+/**
+ * Where a local account's activation stands: waiting while its newest link
+ * still works, expired once no link works any more. Null once the account has
+ * a password, and always for a directory account.
+ */
+type ActivationState = 'waiting' | 'expired'
+function activationState(user: AdminUser, now: number): ActivationState | null {
+  if (!user.pending_activation) return null
+  const expiresAt = user.pending_activation.link_expires_at
+  return expiresAt && Date.parse(expiresAt) > now ? 'waiting' : 'expired'
+}
+
+function activationLinkText(user: AdminUser, state: ActivationState) {
+  const expiresAt = user.pending_activation?.link_expires_at
+  if (state === 'waiting') return `link aktywacyjny ważny do ${formatMoment(expiresAt!)}`
+  return expiresAt ? `link aktywacyjny wygasł ${formatMoment(expiresAt)}` : 'brak ważnego linku aktywacyjnego'
+}
+
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
 function LinkResult({ value, label }: { value: string; label: string }) {
   return (
     <Box tone="ok" role="status" title={label}>
@@ -108,23 +128,31 @@ function EligibilityPeriodEditor({ item, value, pending, onChange, onDelete, onD
   )
 }
 
-function csvOf(rows: Row[], today: string) {
-  const head = ['osoba', 'login', 'numer', 'email', 'telefon', 'rola', 'logowanie', 'aktywne', 'rotacja', 'wejscie', 'wyjscie', 'kwalifikacje']
+function activationCsv(user: AdminUser, now: number) {
+  const state = activationState(user, now)
+  if (!state) return ''
+  return state === 'waiting' ? 'oczekuje' : 'oczekuje, link wygasł'
+}
+
+function csvOf(rows: Row[], today: string, now: number) {
+  const head = ['osoba', 'login', 'numer', 'email', 'telefon', 'rola', 'logowanie', 'aktywne', 'aktywacja', 'rotacja', 'wejscie', 'wyjscie', 'kwalifikacje']
   const cell = (value: string | null | undefined) => `"${(value ?? '').replace(/"/g, '""')}"`
   const lines = rows.map(({ user, member }) => [
     user.display_name, user.username, user.personnel_number, user.email, user.phone, accountRoleLabels[user.role],
-    authSourceLabels[user.auth_source], user.is_active ? 'tak' : 'nie', rotationState(member, today),
+    authSourceLabels[user.auth_source], user.is_active ? 'tak' : 'nie',
+    activationCsv(user, now), rotationState(member, today),
     member?.active_from, member?.active_until, heldRoles(member, today).map((role) => dutyRoleLabels[role]).join(' '),
   ].map(cell).join(';'))
   return [head.join(';'), ...lines].join('\n')
 }
 
-type Filter = 'all' | 'rotation' | 'outside' | 'inactive'
+type Filter = 'all' | 'rotation' | 'outside' | 'inactive' | 'pending'
 const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: 'all', label: 'Wszystkie' },
   { value: 'rotation', label: 'W rotacji' },
   { value: 'outside', label: 'Poza rotacją' },
   { value: 'inactive', label: 'Wyłączone' },
+  { value: 'pending', label: 'Oczekujące' },
 ]
 type DetailTab = 'account' | 'rotation' | 'access'
 
@@ -137,6 +165,7 @@ type DetailTab = 'account' | 'rotation' | 'access'
 export function PeoplePanel() {
   const queryClient = useQueryClient()
   const today = warsawDate()
+  const now = Date.now()
   const users = useQuery({ queryKey: ['admin-users'], queryFn: api.adminUsers })
   const team = useQuery({ queryKey: ['team'], queryFn: api.team })
   const branding = useBranding()
@@ -147,8 +176,10 @@ export function PeoplePanel() {
   const [newForm, setNewForm] = useState<AdminUserInput>(emptyAccount)
   const [activationUrl, setActivationUrl] = useState('')
   const [resetUrl, setResetUrl] = useState('')
+  const [reissuedUrl, setReissuedUrl] = useState('')
   const [confirmation, setConfirmation] = useState(false)
   const [resetConfirmation, setResetConfirmation] = useState(false)
+  const [reissueConfirmation, setReissueConfirmation] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTyped, setDeleteTyped] = useState('')
   const [closeConfirmation, setCloseConfirmation] = useState(false)
@@ -180,6 +211,7 @@ export function PeoplePanel() {
         || (filter === 'rotation' && (state === 'active' || state === 'entering'))
         || (filter === 'outside' && (state === 'outside' || state === 'ended'))
         || (filter === 'inactive' && !user.is_active)
+        || (filter === 'pending' && user.pending_activation !== null)
       return matchesSearch && matchesFilter
     })
   }, [allRows, search, filter, today])
@@ -189,6 +221,7 @@ export function PeoplePanel() {
     rotation: allRows.filter(({ member }) => rotationState(member, today) === 'active').length,
     entering: allRows.filter(({ member }) => rotationState(member, today) === 'entering').map(({ member }) => member!.active_from).sort(),
     inactive: allRows.filter(({ user }) => !user.is_active).length,
+    pending: allRows.filter(({ user }) => user.pending_activation !== null).length,
   }
 
   const refresh = () => {
@@ -214,6 +247,7 @@ export function PeoplePanel() {
     setAddingPeriod(false)
     setCloseConfirmation(false)
     setResetUrl('')
+    setReissuedUrl('')
   }
   const openNew = () => {
     setNewForm(emptyAccount)
@@ -303,6 +337,14 @@ export function PeoplePanel() {
     },
   })
   const resetPassword = useMutation({ mutationFn: (id: string) => api.issuePasswordReset(id), onSuccess: ({ url }) => setResetUrl(url) })
+  const reissueActivation = useMutation({
+    mutationFn: (id: string) => api.reissueActivation(id),
+    onSuccess: ({ url }) => {
+      setReissuedUrl(url)
+      setReissueConfirmation(false)
+      refresh()
+    },
+  })
   const deleteAccount = useMutation({
     mutationFn: (id: string) => api.deleteAdminUser(id),
     onSuccess: () => { setDeleteOpen(false); setSelectedId(null); refresh() },
@@ -353,8 +395,9 @@ export function PeoplePanel() {
   const ldapFieldsLocked = selectedRow?.user.auth_source === 'ldap'
   const selectedState = rotationState(selectedRow?.member, today)
   const selectedRoles = heldRoles(selectedRow?.member, today)
+  const selectedActivation = selectedRow ? activationState(selectedRow.user, now) : null
   const exportCsv = () => {
-    const blob = new Blob([`\uFEFF${csvOf(rows, today)}`], { type: 'text/csv;charset=utf-8' })
+    const blob = new Blob([`\uFEFF${csvOf(rows, today, now)}`], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -368,6 +411,7 @@ export function PeoplePanel() {
     `${counts.rotation} w rotacji`,
     counts.entering.length > 0 ? `${counts.entering.length === 1 ? '1 wchodzi' : `${counts.entering.length} wchodzi`} ${formatShortDate(counts.entering[0])}` : null,
     counts.inactive > 0 ? `${pluralPl(counts.inactive, ['wyłączone', 'wyłączone', 'wyłączonych'])}` : null,
+    counts.pending > 0 ? pluralPl(counts.pending, ['oczekuje na aktywację', 'oczekują na aktywację', 'oczekuje na aktywację']) : null,
   ].filter(Boolean).join(' · ')
 
   return (
@@ -432,6 +476,7 @@ export function PeoplePanel() {
               {rows.map((row) => {
                 const state = rotationState(row.member, today)
                 const needsPhone = !row.user.phone && (state === 'active' || state === 'entering')
+                const activation = activationState(row.user, now)
                 return (
                   <tr key={row.user.id} className={cx(selectedId === row.user.id && 'on', !row.user.is_active && 'row-off')}>
                     <th scope="row">
@@ -451,7 +496,11 @@ export function PeoplePanel() {
                     </td>
                     <td>
                       <Tag>{authSourceLabels[row.user.auth_source]}</Tag>
-                      <small>{row.user.auth_source === 'ldap' ? `pierwszy login ${formatDate(row.user.created_at)}` : `konto od ${formatDate(row.user.created_at)}`}</small>
+                      {activation && <> <StatusBadge tone={activation === 'waiting' ? 'warn' : 'bad'}>oczekuje na aktywację</StatusBadge></>}
+                      <small>
+                        {row.user.auth_source === 'ldap' ? `pierwszy login ${formatDate(row.user.created_at)}` : `konto od ${formatDate(row.user.created_at)}`}
+                        {activation && ` · ${activationLinkText(row.user, activation)}`}
+                      </small>
                     </td>
                     <td className="n"><Button size="sm" variant="ghost" onClick={() => openDetails(row)}>Otwórz</Button></td>
                   </tr>
@@ -512,7 +561,7 @@ export function PeoplePanel() {
                 {() => <Segmented<UserRole> label="Rola konta" value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
               </Field>
               <Box tone="sig" title="Po utworzeniu">
-                Dostaniesz link aktywacyjny ważny 24 godziny do przekazania; konto jest nieaktywne do ustawienia hasła.
+                Dostaniesz link aktywacyjny ważny 24 godziny do przekazania. Dopóki osoba nie ustawi hasła, nie może się zalogować, a lista kont pokazuje ją jako „oczekuje na aktywację”.
                 {branding.ldapEnabled && ' Przy pierwszym logowaniu LDAP z tym numerem pracownika konto dowiąże się do AD, a hasło lokalne przestanie działać.'}
               </Box>
             </>
@@ -540,6 +589,7 @@ export function PeoplePanel() {
             <StatusBadge tone={roleTone[selectedRow.user.role]}>{accountRoleLabels[selectedRow.user.role]}</StatusBadge>
             <Tag>{authSourceLabels[selectedRow.user.auth_source]}</Tag>
             {!selectedRow.user.is_active && <StatusBadge tone="bad">wyłączone</StatusBadge>}
+            {selectedActivation && <StatusBadge tone={selectedActivation === 'waiting' ? 'warn' : 'bad'}>oczekuje na aktywację</StatusBadge>}
           </>
         )}
         footer={selectedRow && (
@@ -740,8 +790,20 @@ export function PeoplePanel() {
                     />
                   )}
                 </Field>
-                <Checkbox label="Konto aktywne" hint="Wyłączone konto nie może się zalogować; historia dyżurów zostaje." checked={accountForm.is_active ?? false} onChange={(e) => setAccountForm({ ...accountForm, is_active: e.target.checked })} />
-                {selectedRow.user.auth_source === 'local' && (
+                <Checkbox label="Konto włączone" hint="Wyłączone konto nie może się zalogować; historia dyżurów zostaje." checked={accountForm.is_active ?? false} onChange={(e) => setAccountForm({ ...accountForm, is_active: e.target.checked })} />
+                {selectedActivation && (
+                  <Box tone={selectedActivation === 'waiting' ? 'warn' : 'bad'} title="Oczekuje na aktywację">
+                    Ta osoba nie ustawiła jeszcze hasła, więc nie może się zalogować.
+                    {` ${sentence(activationLinkText(selectedRow.user, selectedActivation))}. `}
+                    Nowy link unieważnia poprzedni.
+                    <div className="row" style={{ marginTop: 6 }}>
+                      <Button size="sm" icon="send" disabled={!selectedRow.user.is_active} onClick={() => setReissueConfirmation(true)}>Wygeneruj nowy link aktywacyjny</Button>
+                      {!selectedRow.user.is_active && <span className="muted small">Konto jest wyłączone; włącz je, żeby wysłać link.</span>}
+                    </div>
+                  </Box>
+                )}
+                {reissuedUrl && <LinkResult value={reissuedUrl} label="Nowy link aktywacyjny (ważny 24 godziny)" />}
+                {selectedRow.user.auth_source === 'local' && !selectedActivation && (
                   <div className="row">
                     <Button size="sm" icon="lock" onClick={() => setResetConfirmation(true)}>Wygeneruj reset hasła</Button>
                     <span className="muted small">Jednorazowy link ważny godzinę; przekaż go bezpiecznym kanałem.</span>
@@ -811,6 +873,16 @@ export function PeoplePanel() {
           </>
         )}
       </Dialog>
+      <ConfirmDialog
+        open={reissueConfirmation}
+        title="Wygenerować nowy link aktywacyjny?"
+        description="Poprzedni link aktywacyjny tej osoby przestanie działać. Nowy będzie ważny 24 godziny; przekaż go bezpiecznym kanałem."
+        confirmLabel="Wygeneruj link"
+        pending={reissueActivation.isPending}
+        error={reissueActivation.error ? reissueActivation.error.message : null}
+        onCancel={() => setReissueConfirmation(false)}
+        onConfirm={() => selectedRow && reissueActivation.mutate(selectedRow.user.id)}
+      />
       <ConfirmDialog
         open={resetConfirmation}
         title="Wygenerować reset hasła?"

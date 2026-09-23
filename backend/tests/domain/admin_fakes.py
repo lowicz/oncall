@@ -7,11 +7,13 @@ from datetime import UTC, date, datetime
 from oncall.domain.admin.models import (
     Account,
     AccountRecord,
+    AdministeredAccount,
     AuditEntry,
     AuditFilter,
     EligibilityPeriod,
     IssuedToken,
     NewEligibilityPeriod,
+    PendingActivation,
     RotationMember,
 )
 from oncall.domain.admin.ports import (
@@ -20,7 +22,7 @@ from oncall.domain.admin.ports import (
     MembershipAdministrationPorts,
 )
 from oncall.domain.roster import Slot
-from oncall.domain.vocabulary import AssignmentRole, AuthSource, UserRole
+from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, AuthSource, UserRole
 from tests.domain.fakes import FakeJournal
 
 
@@ -32,9 +34,10 @@ def account(
     is_active: bool = True,
     email: str | None = None,
     personnel_number: str | None = None,
-) -> Account:
+    pending_activation: PendingActivation | None = None,
+) -> AdministeredAccount:
     first, _, last = username.title().partition(" ")
-    return Account(
+    return AdministeredAccount(
         id=uuid.uuid4(),
         username=username.replace(" ", "."),
         personnel_number=personnel_number,
@@ -46,19 +49,23 @@ def account(
         phone=None,
         is_active=is_active,
         created_at=datetime.now(UTC),
+        pending_activation=pending_activation,
     )
 
 
 class FakeAccounts:
     def __init__(self) -> None:
-        self.by_id: dict[uuid.UUID, Account] = {}
+        self.by_id: dict[uuid.UUID, AdministeredAccount] = {}
         self.tokens: list[IssuedToken] = []
         self.referenced: set[uuid.UUID] = set()
         self.admin_counts = 0
 
-    def put(self, item: Account) -> Account:
+    def put(self, item: AdministeredAccount) -> AdministeredAccount:
         self.by_id[item.id] = item
         return item
+
+    async def accounts(self):
+        return sorted(self.by_id.values(), key=lambda item: (item.last_name, item.first_name))
 
     async def account(self, account_id):
         return self.by_id.get(account_id)
@@ -84,7 +91,7 @@ class FakeAccounts:
 
     async def open_account(self, record: AccountRecord):
         return self.put(
-            Account(
+            AdministeredAccount(
                 id=uuid.uuid4(),
                 username=record.username,
                 personnel_number=record.personnel_number,
@@ -96,6 +103,7 @@ class FakeAccounts:
                 phone=record.phone,
                 is_active=True,
                 created_at=datetime.now(UTC),
+                pending_activation=PendingActivation(link_expires_at=None),
             )
         )
 
@@ -112,6 +120,9 @@ class FakeAccounts:
     async def issue_token(self, account_id, kind, lifetime):
         token = IssuedToken(f"raw-{len(self.tokens)}", kind, datetime.now(UTC) + lifetime)
         self.tokens.append(token)
+        owner = self.by_id[account_id]
+        if kind == AccountTokenKind.activation and owner.pending_activation is not None:
+            self.put(replace(owner, pending_activation=PendingActivation(token.expires_at)))
         return token
 
 

@@ -9,14 +9,15 @@ Ekrany używane od czasu do czasu są w listwie nawigacji w sekcjach
 ## Osoby (`/osoby`, administrator)
 
 Pod tytułem jest bilans kont: ile ich jest, ile osób w rotacji, kto wchodzi
-do niej i kiedy, ile kont wyłączono. Tabela **Konta** ma kolumny, które
+do niej i kiedy, ile kont wyłączono i ile oczekuje na aktywację. Tabela **Konta** ma kolumny, które
 administrator naprawdę czyta: osoba z e-mailem, login z numerem pracownika,
 rola konta, rotacja (`W ROTACJI` z datą wejścia i kwalifikacjami, `OD 12 PAŹ`
 dla osoby, która dopiero wchodzi, `zakończona`, „poza rotacją”), telefon
 (brak u osoby w rotacji jest czerwony, bo pasek „Dyżur teraz” go potrzebuje)
-i sposób logowania (lokalne albo LDAP / AD). W nagłówku sekcji jest pole
-wyszukiwania (osoba, login, numer, telefon) i filtry **Wszystkie**, **W
-rotacji**, **Poza rotacją**, **Wyłączone**. **Eksport CSV** zapisuje widoczne
+i sposób logowania (lokalne albo LDAP / AD, a przy koncie lokalnym bez
+hasła znacznik `OCZEKUJE NA AKTYWACJĘ` - patrz niżej). W nagłówku sekcji jest
+pole wyszukiwania (osoba, login, numer, telefon) i filtry **Wszystkie**, **W
+rotacji**, **Poza rotacją**, **Wyłączone**, **Oczekujące**. **Eksport CSV** zapisuje widoczne
 wiersze, **Nowe konto** otwiera panel zakładania konta lokalnego.
 
 Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
@@ -29,12 +30,34 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   zostaje, a generator pomija rolę od następnego uruchomienia; dodanie chipa
   otwiera okres od dziś), „Wejście od” i „Wyjście do” oraz lista **okresów
   kwalifikacji** z możliwością edycji dat i dodania okresu,
-- **Dostęp** - rola konta, przełącznik „Konto aktywne” i, dla konta
-  lokalnego, **jednorazowy link** resetu hasła.
+- **Dostęp** - rola konta, przełącznik „Konto włączone” i, dla konta
+  lokalnego, **jednorazowy link** resetu hasła albo - dopóki konto czeka na
+  aktywację - nowy link aktywacyjny.
 
 Konto bez rotacji ma na zakładce Rotacja przycisk **Dodaj do rotacji** z datą
 wejścia. Link aktywacyjny nowego konta pokazuje się raz, po utworzeniu; link
 przekaż osobie bezpiecznym kanałem.
+
+### Konta oczekujące na aktywację
+
+Nowe konto lokalne nie ma hasła, dopóki osoba nie otworzy linku aktywacyjnego
+i go nie ustawi; do tego czasu nie może się zalogować, choć konto jest
+włączone. Takie konto ma w kolumnie „Logowanie” znacznik `OCZEKUJE NA
+AKTYWACJĘ` z terminem linku: żółty i „link aktywacyjny ważny do …”, póki link
+działa, czerwony i „link aktywacyjny wygasł …” (albo „brak ważnego linku
+aktywacyjnego”), gdy już nie działa. Ten sam znacznik jest w nagłówku panelu
+osoby, a filtr **Oczekujące** pokazuje tylko takie konta. Znacznik jest niezależny od wyłączenia: konto wyłączone
+przed aktywacją ma oba. Konta z katalogu (LDAP / AD) i konta, które mają już
+hasło, nigdy go nie mają. Eksport CSV podaje ten stan w kolumnie `aktywacja`.
+
+Na zakładce **Dostęp** takiego konta jest ramka „Oczekuje na aktywację” z
+terminem linku i przyciskiem **Wygeneruj nowy link aktywacyjny**. Po
+potwierdzeniu panel pokazuje nowy link, ważny 24 godziny; wcześniejsze linki
+aktywacyjne tej osoby przestają działać, a w audycie zostaje wpis
+„Wygenerowano link aktywacyjny”. Przycisk jest nieaktywny dla konta
+wyłączonego - najpierw je włącz. Konto, które ma już hasło, dostaje zamiast
+tego reset hasła (link ważny godzinę). Jak każdy link do konta, nowy link
+przekaż osobie bezpiecznym kanałem; aplikacja go nie wysyła.
 
 Numer pracownika ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
 `employeeNumber`, żeby konto lokalne powiązało się automatycznie przy pierwszym

@@ -142,6 +142,17 @@ async def issue_password_reset(
     return PasswordLinkResponse(url=account_url("reset", token.raw), expires_at=token.expires_at)
 
 
+@router.post("/users/{user_id}/activation", response_model=PasswordLinkResponse)
+async def reissue_activation(
+    user_id: uuid.UUID, actor: Admin, ports: AccountAdminProvider, _: CsrfGuard
+) -> PasswordLinkResponse:
+    with _admin_errors():
+        token = await use_cases.reissue_activation(
+            AccountAction(actor=actor_from(actor), account_id=user_id), ports
+        )
+    return PasswordLinkResponse(url=account_url("activate", token.raw), expires_at=token.expires_at)
+
+
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: uuid.UUID, actor: Admin, ports: AccountAdminProvider, _: CsrfGuard

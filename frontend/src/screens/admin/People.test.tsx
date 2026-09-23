@@ -8,7 +8,8 @@ import { PeoplePanel } from './People'
 const user = (over: Partial<AdminUser> & { id: string }): AdminUser => ({
   username: 'anna', personnel_number: '004512', first_name: 'Anna', last_name: 'Kowalska',
   display_name: 'Anna Kowalska', auth_source: 'local', role: 'member',
-  email: 'anna@example.com', phone: null, is_active: true, created_at: '2025-09-02T10:00:00Z', ...over,
+  email: 'anna@example.com', phone: null, is_active: true, created_at: '2025-09-02T10:00:00Z',
+  pending_activation: null, ...over,
 })
 
 const member = (over: Partial<TeamMember> & { id: string }): TeamMember => ({
@@ -216,6 +217,108 @@ describe('PeoplePanel person panel', () => {
     expect(confirm).toBeEnabled()
     fireEvent.click(confirm)
     await waitFor(() => expect(remove).toHaveBeenCalledWith('u1'))
+  })
+})
+
+// TEST_NOW is 10-09-2026 09:00 in Warsaw.
+const waiting = { link_expires_at: '2026-09-11T07:30:00Z' }
+const expired = { link_expires_at: '2026-09-09T22:15:00Z' }
+const pendingAccounts = () => [
+  user({ id: 'u1', pending_activation: waiting }),
+  user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj', email: null, pending_activation: expired }),
+  user({ id: 'u3', username: 'olek', first_name: 'Olek', last_name: 'Wyłączony', display_name: 'Olek Wyłączony', email: null, is_active: false, pending_activation: { link_expires_at: null } }),
+  user({ id: 'u4', username: 'tomasz', first_name: 'Tomasz', last_name: 'Lis', display_name: 'Tomasz Lis' }),
+  user({ id: 'u5', username: 'widz', first_name: 'Service', last_name: 'Desk', display_name: 'Service Desk', auth_source: 'ldap' }),
+]
+
+describe('PeoplePanel pending activation', () => {
+  it('marks accounts waiting for their first password, with how long the link lasts', async () => {
+    mockData(pendingAccounts())
+    renderScreen(<PeoplePanel />)
+
+    const anna = await rowOf('anna')
+    expect(within(anna).getByText('oczekuje na aktywację')).toHaveClass('st-warn')
+    expect(within(anna).getByText(/link aktywacyjny ważny do 11-09-2026, 09:30/)).toBeInTheDocument()
+    const ewa = await rowOf('ewa')
+    expect(within(ewa).getByText('oczekuje na aktywację')).toHaveClass('st-bad')
+    // 22:15 UTC is already the next day in Warsaw.
+    expect(within(ewa).getByText(/link aktywacyjny wygasł 10-09-2026, 00:15/)).toBeInTheDocument()
+    const olek = await rowOf('olek')
+    expect(within(olek).getByText('oczekuje na aktywację')).toBeInTheDocument()
+    expect(within(olek).getByText(/brak ważnego linku aktywacyjnego/)).toBeInTheDocument()
+    expect(within(olek).getByText('konto wyłączone')).toBeInTheDocument()
+    for (const username of ['tomasz', 'widz']) {
+      expect(within(await rowOf(username)).queryByText('oczekuje na aktywację')).not.toBeInTheDocument()
+    }
+    expect(screen.getByText(/5 kont · 0 w rotacji · 1 wyłączone · 3 oczekują na aktywację/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Oczekujące' }))
+    expect(screen.getByText('anna', { selector: 'td' })).toBeInTheDocument()
+    expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
+    expect(screen.getByText('olek', { selector: 'td' })).toBeInTheDocument()
+    expect(screen.queryByText('tomasz', { selector: 'td' })).not.toBeInTheDocument()
+    expect(screen.queryByText('widz', { selector: 'td' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Wyłączone' }))
+    expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
+    expect(screen.getByText('olek', { selector: 'td' })).toBeInTheDocument()
+  })
+
+  it('reissues the activation link from the access tab after a confirmation', async () => {
+    mockData([user({ id: 'u1', pending_activation: expired })])
+    const reissue = vi.spyOn(api, 'reissueActivation').mockResolvedValue({
+      url: 'http://localhost:8080/activate?token=fresh', expires_at: '2026-09-11T07:00:00Z',
+    })
+    const reset = vi.spyOn(api, 'issuePasswordReset')
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    expect(within(dialog).getByText('oczekuje na aktywację')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
+    expect(within(dialog).getByText(/nie ustawiła jeszcze hasła/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Link aktywacyjny wygasł 10-09-2026, 00:15\./)).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: /reset hasła/i })).not.toBeInTheDocument()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj nowy link aktywacyjny' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Wygenerować nowy link aktywacyjny?' })
+    expect(reissue).not.toHaveBeenCalled()
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Wygeneruj link' }))
+    await waitFor(() => expect(reissue).toHaveBeenCalledWith('u1'))
+    expect(await within(dialog).findByText(/activate\?token=fresh/)).toBeInTheDocument()
+    await waitFor(() => expect(api.adminUsers).toHaveBeenCalledTimes(2))
+    expect(reset).not.toHaveBeenCalled()
+  })
+
+  it('shows why a refused reissue failed', async () => {
+    mockData([user({ id: 'u1', pending_activation: waiting })])
+    vi.spyOn(api, 'reissueActivation').mockRejectedValue(new Error('Konto ma już hasło; zamiast linku aktywacyjnego wygeneruj reset hasła'))
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
+    expect(within(dialog).getByText(/Link aktywacyjny ważny do 11-09-2026, 09:30\./)).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj nowy link aktywacyjny' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Wygenerować nowy link aktywacyjny?' })
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Wygeneruj link' }))
+    expect(await within(confirmation).findByText(/Konto ma już hasło/)).toBeInTheDocument()
+  })
+
+  it('asks to enable a disabled account before reissuing its link', async () => {
+    mockData([user({ id: 'u1', is_active: false, pending_activation: { link_expires_at: null } })])
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
+    expect(within(dialog).getByText(/Brak ważnego linku aktywacyjnego\./)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Wygeneruj nowy link aktywacyjny' })).toBeDisabled()
+    expect(within(dialog).getByText(/włącz je, żeby wysłać link/)).toBeInTheDocument()
+  })
+
+  it('offers an activated local account a password reset instead', async () => {
+    mockData()
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    expect(within(dialog).queryByText('oczekuje na aktywację')).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
+    expect(within(dialog).getByRole('checkbox', { name: /Konto włączone/ })).toBeChecked()
+    expect(within(dialog).queryByRole('button', { name: 'Wygeneruj nowy link aktywacyjny' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Wygeneruj reset hasła' })).toBeInTheDocument()
   })
 })
 
