@@ -5,7 +5,7 @@ import { lensLabels, roleLabels } from '../lib/labels'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, roundPoints, totalBalance } from '../lib/fairness'
 import { formatDecimal, formatPoints, signed } from '../lib/numbers'
 import { pluralPl } from '../lib/plural'
-import { formatDate, formatDayShort, formatShortDate, warsawDate } from '../lib/dates'
+import { MONTHS_SHORT, formatDate, formatDayShort, formatShortDate, warsawDate } from '../lib/dates'
 import { DateField } from '../components/DateField'
 import {
   Box,
@@ -30,7 +30,6 @@ import {
 type Lens = 'total' | 'primary' | 'secondary' | 'late_shift' | 'weekends' | 'holidays'
 const LENSES: Lens[] = ['total', 'primary', 'secondary', 'late_shift', 'weekends', 'holidays']
 const LENS_LABEL: Record<Lens, string> = { total: 'Razem', ...lensLabels } as Record<Lens, string>
-const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
 const firstName = (name: string) => name.split(' ')[0]
 
 /** "12 / 10.5" - what the person did against the fair share, in mono. */
