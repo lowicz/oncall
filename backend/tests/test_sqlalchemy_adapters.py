@@ -230,9 +230,9 @@ async def test_availability_ledger_records_and_lists_entries(db, people) -> None
     assert await _count(db, Availability, Availability.id == recorded.id) == 0
 
 
-async def test_availability_audit_keeps_the_id_the_row_has_when_it_is_written(db, people) -> None:
-    """Pre-existing behaviour, preserved on purpose: a soft preference is
-    audited before the session flushes it, so its entry carries no id."""
+async def test_availability_audit_names_the_entry_before_the_session_flushes(db, people) -> None:
+    """A soft preference is audited before anything flushes the session; its
+    event still names the entry, which the draft staleness count reads."""
     anna = await SqlAlchemyTeamDirectory(db).member(people["anna"].id)
     ledger = SqlAlchemyAvailability(db, people["anna_user"])
     entry = NewAvailabilityEntry(
@@ -245,11 +245,11 @@ async def test_availability_audit_keeps_the_id_the_row_has_when_it_is_written(db
     )
     await ledger.record(entry)
     await ledger.declared(member=anna, entry=entry, on_behalf=False, duty_conflicts=[])
-    await ledger.recorded_entry()
+    recorded = await ledger.recorded_entry()
     await db.commit()
 
     event = await db.scalar(select(AuditEvent).where(AuditEvent.action == "availability.created"))
-    assert event.entity_id is None
+    assert event.entity_id == str(recorded.id)
     assert event.summary == f"Anna: chętnie wezmę {entry.starts_on} – {entry.ends_on}"
 
 

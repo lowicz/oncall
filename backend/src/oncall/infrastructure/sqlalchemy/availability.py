@@ -47,10 +47,9 @@ class SqlAlchemyAvailability:
     """The availability ledger and its journal over one session and one actor.
 
     One object implements both ports because the audit entry names the row the
-    ledger has just staged. Its id is whatever the row carries at that moment:
-    the session assigns it on flush, which the conflict lookup of a hard
-    „nie mogę" triggers and a soft preference does not. That is how entries
-    have always been audited, and the draft staleness count reads it.
+    ledger has just staged. The row gets its id when it is staged rather than
+    on flush, so the entry carries it whether or not anything has flushed the
+    session in between; the draft staleness count reads it.
     """
 
     def __init__(self, session: AsyncSession, actor: User) -> None:
@@ -78,6 +77,7 @@ class SqlAlchemyAvailability:
 
     async def record(self, entry: NewAvailabilityEntry) -> None:
         self._recorded = Availability(
+            id=uuid.uuid4(),
             member_id=entry.member_id,
             created_by_user_id=entry.created_by_user_id,
             kind=entry.kind,
