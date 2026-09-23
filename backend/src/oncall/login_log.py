@@ -16,7 +16,9 @@ one attempt can be picked out of concurrent traffic.
 Nothing here writes a password, a session token or cookie, the service
 account's DN or password, an entry's DN or attribute values, or the text a
 directory sends back with an error; callers pass codes and names, and a value
-that is not a plain word is quoted so it cannot forge a second record.
+that is not a plain word is quoted. A record is one line: a carriage return or
+line feed that reaches it anyway is written as `\\r` or `\\n`, so no input can
+forge a second record.
 """
 
 import json
@@ -54,12 +56,21 @@ def emit(event: str, *, level: int = logging.INFO, **fields: object) -> None:
     parts.extend(
         f"{name}={_rendered(value)}" for name, value in fields.items() if value is not None
     )
-    logger.log(level, "%s", " ".join(parts))
+    logger.log(level, "%s", _one_line(" ".join(parts)))
 
 
 def _rendered(value: object) -> str:
     text = str(value)[:_MAX_VALUE]
     return text if _BARE.fullmatch(text) else json.dumps(text)
+
+
+def _one_line(record: str) -> str:
+    """The record with its line breaks escaped, whatever produced them.
+
+    A quoted value already carries its breaks escaped; this holds for the
+    event name and a bare value too, and for any later change to rendering.
+    """
+    return record.replace("\r", "\\r").replace("\n", "\\n")
 
 
 __all__ = ["begin_attempt", "emit", "logger"]

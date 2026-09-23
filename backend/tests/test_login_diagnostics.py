@@ -174,12 +174,27 @@ async def test_an_unexpected_directory_error_is_an_outage_not_a_crash(client, db
     assert [record["level"] for record in records(diagnostics)] == ["ERROR", "INFO"]
 
 
-async def test_a_login_cannot_forge_a_log_record(client, db, lab, diagnostics) -> None:
-    await sign_in(client, "anna\nevent=login outcome=signed_in", WRONG_PASSWORD)
+@pytest.mark.parametrize(
+    ("line_break", "escaped"), [("\n", "\\n"), ("\r", "\\r"), ("\r\n", "\\r\\n")]
+)
+async def test_a_login_cannot_forge_a_log_record(
+    client, db, lab, diagnostics, line_break: str, escaped: str
+) -> None:
+    await sign_in(client, f"anna{line_break}event=login outcome=signed_in", WRONG_PASSWORD)
 
     messages = [r.getMessage() for r in diagnostics.records if r.name == "oncall.login"]
-    assert messages and all("\n" not in message for message in messages)
-    assert all('login="anna\\nevent=login outcome=signed_in"' in m for m in messages)
+    assert messages and all(len(message.splitlines()) == 1 for message in messages)
+    assert all(f'login="anna{escaped}event=login outcome=signed_in"' in m for m in messages)
+
+
+def test_a_plain_login_is_written_as_it_is(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="oncall")
+
+    login_log.emit("login", login="anna.kowalska@example.test", outcome="signed_in")
+
+    assert caplog.records[-1].getMessage() == (
+        "event=login login=anna.kowalska@example.test outcome=signed_in"
+    )
 
 
 def test_values_that_are_not_plain_words_are_quoted(caplog) -> None:
@@ -188,6 +203,14 @@ def test_values_that_are_not_plain_words_are_quoted(caplog) -> None:
     login_log.emit("login", login='a "b"', outcome="rejected", cause=None)
 
     assert caplog.records[-1].getMessage() == 'event=login login="a \\"b\\"" outcome=rejected'
+
+
+def test_a_record_holds_no_line_break_whatever_reaches_it(caplog) -> None:
+    caplog.set_level(logging.INFO, logger="oncall")
+
+    login_log.emit("login\r\nevent=forged", outcome="rejected")
+
+    assert caplog.records[-1].getMessage() == "event=login\\r\\nevent=forged outcome=rejected"
 
 
 def test_the_api_process_logs_the_application_at_info_and_libraries_at_warning() -> None:
