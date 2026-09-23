@@ -268,10 +268,10 @@ backup() {
 
 main() {
   if [ "${1:-}" = merge-env ]; then
-    [ "$#" -ge 3 ] && [ "$#" -le 4 ] || {
+    if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
       usage >&2
       exit 2
-    }
+    fi
     [ -f "$2" ] || die "no such file: $2"
     [ -f "$3" ] || die "no such file: $3"
     merge_env "$2" "$3" "${4:-}"
