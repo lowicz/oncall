@@ -98,7 +98,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `systemctl --user start podman.socket` first. A user oneshot that brings
   the stack up after reboot is `deploy/systemd/oncall.service` (it calls
   `oncall-stack.sh`; not Quadlet); setup and linger are in
-  `docs/wdrozenie/systemd.md`.
+  `docs/wdrozenie/systemd.md`. Such a host upgrades with `deploy/update.sh`
+  (POSIX sh, meant for `curl | sh -s -- X.Y.Z`; `docs/wdrozenie/aktualizacja.md`):
+  it merges `.env` into the release's `.env.example` changing no value but
+  `ONCALL_VERSION`, so a new deploy-side file or `.env` convention must keep
+  `deploy/update.test.sh` (CI job `compose-config`) green under dash and mawk.
 - Browser QA of the frontend against the published images: start the
   compose stack (API on 8080) and run the Vite dev server with its `/api`
   proxy pointed at `http://localhost:8080`; the checked-in

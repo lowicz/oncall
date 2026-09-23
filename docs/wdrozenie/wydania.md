@@ -61,6 +61,10 @@ docker compose up -d
 
 Po starcie numer wersji w menu konta potwierdza, że działa już nowe wydanie.
 
+Na hoście z jednostką użytkownika systemd (Podman) całą aktualizację, razem z
+dopisaniem nowych zmiennych do `.env`, kopią zapasową i restartem, robi
+skrypt `deploy/update.sh` - patrz [Aktualizacja wdrożenia](aktualizacja.md).
+
 Pliki Compose (`docker-compose.yml` i nakładki) należą do wydania tak samo
 jak obrazy: zakładają te same porty w kontenerach, użytkowników i ścieżki
 zapisu (patrz [Uprawnienia kontenerów](uruchomienie.md#uprawnienia-kontenerów)).
@@ -129,7 +133,7 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 | `backend` | zgodność `uv.lock` z `pyproject.toml` (przed instalacją), `ruff check`, `ruff format`, `mypy`, `pytest` na SQLite, zgodność OpenAPI ze snapshotem |
 | `backend-postgres` | zestaw współbieżności na prawdziwym PostgreSQL 17 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
-| `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, i to, że każda usługa działa tylko do odczytu i bez uprawnień jądra |
+| `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, to, że każda usługa działa tylko do odczytu i bez uprawnień jądra, oraz testy skryptu aktualizacji `deploy/update.sh` |
 | `workflows` | każda akcja w workflow jest przypięta do pełnego SHA z komentarzem wersji, każdy workflow deklaruje uprawnienia tokenu, a w repozytorium nie ma konfiguracji aktualizacji Dependabota |
 | `image-build` | oba Dockerfile budują się (bez publikacji), a żaden obraz nie działa jako root |
 | `sonarcloud` | statyczna analiza na SonarCloud (klucz `lowicz_oncall`) z pokryciem testami z zadań `backend` i `frontend`, więc startuje po nich; pomija się bez sekretu `SONAR_TOKEN` |

@@ -93,10 +93,18 @@ Ręczne `systemctl --user start podman.socket` jest opisane też w [Uruchomienie
 
 ## Aktualizacja wydania
 
-Jak w [Wydania i wersje](wydania.md): checkout tagu, nowy `ONCALL_VERSION` w `.env`, potem:
+Jednym poleceniem, razem z uzupełnieniem `.env` i restartem jednostki - patrz [Aktualizacja wdrożenia](aktualizacja.md):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lowicz/oncall/main/deploy/update.sh |
+  sh -s -- 1.2.3
+```
+
+Ręcznie, jak w [Wydania i wersje](wydania.md): checkout tagu, nowy `ONCALL_VERSION` w `.env`, potem:
 
 ```bash
 systemctl --user restart oncall
 ```
 
-Jeśli zmieniła się jednostka albo skrypt stosu w checkoutcie, uruchom skrypt setupu jeszcze raz i zrestartuj usługę.
+Jeśli zmieniła się jednostka, skopiuj ją do `~/.config/systemd/user/` i wykonaj `systemctl --user daemon-reload` przed restartem.
+Skrypt setupu uruchom ponownie z tymi samymi nazwami plików Compose co przy instalacji: bez nich zapisze drop-in od nowa, bez `ONCALL_COMPOSE_FILES`.
