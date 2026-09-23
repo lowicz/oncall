@@ -25,7 +25,12 @@ sprawiedliwości (prowadzi do raportu).
 Niżej jest sekcja **Najbliższe 4 tygodnie** z tą samą macierzą co na ekranie
 Grafik i tymi samymi kontrolkami w nagłówku sekcji: długość 2 / 4 / 8
 tygodni, tydzień wstecz i do przodu, powrót do dziś, **Tylko z dyżurem**,
-**Legenda** i **Lista dni**.
+**Legenda** i **Lista dni**. Gdy nikt nie jest jeszcze w rotacji, sekcja
+zamiast pustej macierzy mówi to wprost i nie pokazuje kontrolek;
+administrator dostaje w niej przycisk **Otwórz Osoby**, żeby dodać zespół.
+Gdy zespół ma osoby, ale żadna nie jest w rotacji w widocznym zakresie,
+sekcja też mówi to wprost, lecz zostawia kontrolki, żeby przejść do zakresu
+z dyżurami.
 
 Na telefonie ekran zamienia pasek „Dyżur teraz” na trzy karty - `PRIMARY`,
 `SECONDARY` i `11–19` - z nazwiskiem, oknem pokrycia, przyciskami **Zadzwoń**,
@@ -132,3 +137,8 @@ odczytu, bez danych o dostępności i bez akcji. Pasek „Dyżur teraz” i kart
 telefonie pokazują im telefon dyżurnego (z **Zadzwoń** i **SMS**), ale nie
 adres e-mail. Sesja z linku dodatkowo pokazuje pasek z nazwą linku, jego
 zakresem dat i datą ważności.
+
+Sekcja z macierzą na ekranie Teraz pokazuje w sesji z linku tylko dni z jego
+zakresu. Link obejmujący najwyżej 8 tygodni widać w całości, z nagłówkiem
+„zakres linku” i bez przełącznika długości oraz strzałek. W dłuższym linku
+strzałki przesuwają widok tylko w jego granicach.

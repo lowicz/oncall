@@ -371,6 +371,7 @@ export interface CalendarData {
     active_until?: string | null
     eligibility?: Array<{ role: AssignmentRole; starts_on: string; ends_on: string | null }>
   }>
+  team_has_members: boolean
   assignments: Array<Assignment & {
     schedule_id: string
     schedule_version: number

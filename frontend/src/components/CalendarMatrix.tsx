@@ -39,7 +39,7 @@ import {
 
 export type MatrixZoom = '2' | '4' | '8'
 export interface CalendarRange { starts_on: string; ends_on: string }
-export interface MatrixSummary { people: number; onDuty: number }
+export interface MatrixSummary { loaded: boolean; people: number; onDuty: number; teamHasMembers: boolean }
 type Day = CalendarData['days'][number]
 type Member = CalendarData['members'][number]
 
@@ -107,8 +107,8 @@ export function CalendarMatrix({
   /** False while the screen is still working out the default range. */
   enabled?: boolean
   /** The ruled section heading drawn between the risk chips and the grid; a
-   *  function receives how many people the range holds and how many of them
-   *  have a duty in it. */
+   *  function receives whether the range has loaded, how many people it holds
+   *  and how many of them have a duty in it. */
   heading?: ReactNode | ((summary: MatrixSummary) => ReactNode)
   /** The "Teraz" screen carries the risk chips; the full schedule does not. */
   showRisks?: boolean
@@ -215,9 +215,18 @@ export function CalendarMatrix({
     return hideIdle ? ordered.filter((member) => hasDutyInRange(member, data.assignments)) : ordered
   }, [data, displayName, hideIdle])
   const summary = useMemo<MatrixSummary>(() => ({
+    loaded: Boolean(data),
     people: data?.members.length ?? 0,
     onDuty: data ? data.members.filter((member) => hasDutyInRange(member, data.assignments)).length : 0,
+    teamHasMembers: data?.team_has_members ?? false,
   }), [data])
+  // Nobody belongs to the rotation in this range: there is no row to draw, so
+  // the matrix, the day list and "only on duty" have nothing to say. A team
+  // with nobody in it at all reads apart from a range that simply holds none of
+  // its members - the first tells an admin to add people, the second does not.
+  const noPeople = summary.loaded && summary.people === 0
+  const emptyTeam = noPeople && !summary.teamHasMembers
+  const noneInRange = noPeople && summary.teamHasMembers
   // Duties per person in the range, drawn as a load bar under the name so the
   // eye can compare rows without counting marks.
   const load = useMemo(() => {
@@ -362,10 +371,25 @@ export function CalendarMatrix({
           <Skeleton height={34 * 5} />
         </div>
       )}
-      {data && hideIdle && members.length === 0 && (
+      {emptyTeam && (
+        role === 'admin' ? (
+          <EmptyState
+            icon="people"
+            title="Nikt nie jest jeszcze w rotacji"
+            description="Dodaj osoby na ekranie Osoby."
+            action={<LinkButton to="/osoby" icon="people">Otwórz Osoby</LinkButton>}
+          />
+        ) : (
+          <EmptyState icon="people" title="Brak osób w rotacji" />
+        )
+      )}
+      {noneInRange && (
+        <EmptyState icon="people" title="Nikt nie jest w rotacji w tym zakresie" />
+      )}
+      {data && !noPeople && hideIdle && members.length === 0 && (
         <EmptyState compact icon="calendar" title="Nikt nie ma dyżuru w tym zakresie" />
       )}
-      {data && view === 'list' && (
+      {data && !noPeople && view === 'list' && (
         <CalendarDayList
           data={data}
           displayName={displayName}

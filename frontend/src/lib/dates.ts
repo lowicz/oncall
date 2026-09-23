@@ -115,10 +115,14 @@ export function formatRange(startsOn: string, endsOn: string) {
   return `${formatShortDate(startsOn)} – ${formatShortDate(endsOn)}`
 }
 
+/** Calendar days from one date to another: 0 for the same day, negative backwards. */
+export function daysBetween(from: string, to: string) {
+  return Math.round((parse(to).getTime() - parse(from).getTime()) / 86_400_000)
+}
+
 /** Whole weeks between two inclusive dates, for "4 tygodnie" in a heading. */
 export function weeksBetween(startsOn: string, endsOn: string) {
-  const days = Math.round((parse(endsOn).getTime() - parse(startsOn).getTime()) / 86_400_000) + 1
-  return Math.max(1, Math.round(days / 7))
+  return Math.max(1, Math.round((daysBetween(startsOn, endsOn) + 1) / 7))
 }
 
 /** "4 tygodnie", "8 tygodni", "1 tydzień". */

@@ -8,7 +8,7 @@ import type { FairnessReport, SwapRequest } from '../api'
 afterEach(() => vi.restoreAllMocks())
 
 const EMPTY_CALENDAR = {
-  starts_on: '2026-09-01', ends_on: '2026-09-30', days: [], members: [], assignments: [], availability: [],
+  starts_on: '2026-09-01', ends_on: '2026-09-30', days: [], members: [], team_has_members: false, assignments: [], availability: [],
 }
 
 const TEAM = [
@@ -79,6 +79,7 @@ describe('MineScreen duties', () => {
         { service_date: '2026-09-21', weekday: 'pon', is_day_off: false, holiday_name: null, published: true, events: [] },
       ],
       members: [{ id: 'm1', display_name: 'Julia Nowak' }, { id: 'm2', display_name: 'Marek Nowak' }],
+      team_has_members: true,
       assignments: [
         { schedule_id: 's1', schedule_version: 1, service_date: '2026-09-19', role: 'primary', assignee_name: 'Julia Nowak', member_id: 'm1', is_override: false, change_kind: null },
         { schedule_id: 's1', schedule_version: 1, service_date: '2026-09-19', role: 'secondary', assignee_name: 'Marek Nowak', member_id: 'm2', is_override: false, change_kind: null },

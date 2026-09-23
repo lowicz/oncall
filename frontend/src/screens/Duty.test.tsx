@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { DutyScreen } from './Duty'
 import { api } from '../api'
-import type { CalendarData, FairnessReport, PublishedSchedule, SwapRequest } from '../api'
+import type { CalendarData, FairnessMember, FairnessReport, PublishedSchedule, ShareSession, SwapRequest } from '../api'
 
 // The suite clock is 2026-09-10 (src/test/setup.ts), a Thursday.
 const TODAY = '2026-09-10'
@@ -37,6 +37,7 @@ const calendar = (startsOn: string, endsOn: string): CalendarData => ({
   ends_on: endsOn,
   days: [{ service_date: startsOn, weekday: 'czw', is_day_off: false, holiday_name: null, published: true, events: [] }],
   members: [{ id: 'm1', display_name: 'Anna Kowalska' }],
+  team_has_members: true,
   assignments: [],
   availability: [],
 })
@@ -47,8 +48,14 @@ const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   created_at: '2026-09-01T10:00:00Z', ...over,
 })
 
-const fairness = (met: boolean): FairnessReport => ({
-  as_of: TODAY, window_start: '2025-09-10', window_end: TODAY, totals: {}, members: [],
+const balance = { actual: 0, expected: 0, deviation: 0 }
+const anna: FairnessMember = {
+  member_id: 'm1', display_name: 'Anna Kowalska', active_from: '2025-01-01', eligible_days: {},
+  primary: balance, secondary: balance, late_shift: balance, weekends: balance, holidays: balance, total_points: 0,
+}
+
+const fairness = (met: boolean, members: FairnessMember[] = [anna]): FairnessReport => ({
+  as_of: TODAY, window_start: '2025-09-10', window_end: TODAY, totals: {}, members,
   late_shift_balanced: true, criterion_points: 3, criterion_met: met, spreads: [], latest_publish_end: '2026-10-03',
 })
 
@@ -239,5 +246,115 @@ describe('DutyScreen on a phone', () => {
     renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
     expect(await screen.findByRole('article', { name: '11–19' })).toHaveTextContent('nie dotyczy: dzień wolny')
     expect(screen.getByText(/dziś dzień wolny, stawka 2X/)).toBeInTheDocument()
+  })
+})
+
+describe('DutyScreen with nobody in the rotation', () => {
+  const noTeam = (startsOn: string, endsOn: string): CalendarData => ({ ...calendar(startsOn, endsOn), members: [], team_has_members: false })
+  const noneInRange = (startsOn: string, endsOn: string): CalendarData => ({ ...calendar(startsOn, endsOn), members: [], team_has_members: true })
+
+  it('tells the admin to add people instead of an empty panel, with no controls and no fairness verdict', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ is_published: false, id: null, version: null, ends_on: null, current: [], assignments: [] }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => noTeam(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true, []))
+    renderScreen(<DutyScreen role="admin" displayName="Administrator" hasTeamMember={false} />)
+
+    expect(await screen.findByText('Nikt nie jest jeszcze w rotacji')).toBeInTheDocument()
+    expect(screen.getByText('Dodaj osoby na ekranie Osoby.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Otwórz Osoby' })).toHaveAttribute('href', '/osoby')
+    expect(screen.getByRole('heading', { level: 2, name: 'Najbliższe 4 tygodnie' })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '4 tyg.' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Do przodu o tydzień' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Lista dni' })).not.toBeInTheDocument()
+    await waitFor(() => expect(api.fairness).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /Kryterium sprawiedliwości/ })).not.toBeInTheDocument()
+  })
+
+  it('says so to everyone else, on a phone too, without a day list', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ current: [], assignments: [] }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => noTeam(a, b))
+    renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
+
+    expect(await screen.findByText('Brak osób w rotacji')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Otwórz Osoby' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Grafik dzień po dniu' })).not.toBeInTheDocument()
+  })
+
+  it('when the team has members but none in the shown range, keeps the controls and does not tell the admin to add people', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ current: [], assignments: [] }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => noneInRange(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true, []))
+    renderScreen(<DutyScreen role="admin" displayName="Administrator" hasTeamMember={false} />)
+
+    expect(await screen.findByText('Nikt nie jest w rotacji w tym zakresie')).toBeInTheDocument()
+    expect(screen.queryByText('Nikt nie jest jeszcze w rotacji')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dodaj osoby na ekranie Osoby.')).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Do przodu o tydzień' })).toBeInTheDocument()
+  })
+
+  it('keeps the controls while the range is still loading', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(() => new Promise(() => {}))
+    renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
+
+    expect(await screen.findByLabelText('Wczytywanie grafiku')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeInTheDocument()
+    expect(screen.queryByText('Brak osób w rotacji')).not.toBeInTheDocument()
+  })
+})
+
+describe('DutyScreen in a share-link session', () => {
+  const link = (startsOn: string, endsOn: string): ShareSession => ({
+    label: 'Dla serwisu', starts_on: startsOn, ends_on: endsOn, expires_at: '2026-09-30T12:00:00Z',
+  })
+
+  it('shows a short link whole, names it the link range and offers no zoom or arrows', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    renderScreen(<DutyScreen role="viewer" displayName="Dla serwisu" hasTeamMember={false} share={link('2026-09-09', '2026-09-22')} />)
+
+    expect(await screen.findByRole('heading', { level: 2, name: '9 – 22 wrz' })).toBeInTheDocument()
+    expect(screen.getByText('zakres linku')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Najbliższe/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '4 tyg.' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cofnij o tydzień' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Do przodu o tydzień' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'dziś' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lista dni' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-09', '2026-09-22'))
+    expect(calendarCall).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a long link navigable but never lets the window leave it', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    renderScreen(<DutyScreen role="viewer" displayName="Dla serwisu" hasTeamMember={false} share={link('2026-09-01', '2026-10-31')} />)
+
+    expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 7 paź' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-10-07'))
+
+    // Back once is still inside the link; the second step stops on its first day.
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '3 – 30 wrz' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '1 – 28 wrz' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cofnij o tydzień' })).toBeDisabled()
+
+    // Eight weeks from today would run past the link: the window ends on its last day.
+    fireEvent.click(screen.getByRole('button', { name: 'dziś' }))
+    fireEvent.click(screen.getByRole('radio', { name: '8 tyg.' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '6 wrz – 31 paź' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Do przodu o tydzień' })).toBeDisabled()
+    // One step back moves from the window shown, not from where today would put it.
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '1 wrz – 26 paź' })).toBeInTheDocument()
+
+    for (const [startsOn, endsOn] of calendarCall.mock.calls) {
+      expect(startsOn >= '2026-09-01' && endsOn <= '2026-10-31').toBe(true)
+    }
   })
 })

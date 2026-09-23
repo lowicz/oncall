@@ -32,8 +32,15 @@ const calendar = (startsOn: string, endsOn: string): CalendarData => ({
     { id: 'm3', display_name: 'Ola Wiśniewska' },
     { id: 'm4', display_name: 'Piotr Zieliński' },
   ],
+  team_has_members: true,
   assignments: [],
   availability: [],
+})
+
+const emptyCalendar = (startsOn: string, endsOn: string): CalendarData => ({
+  ...calendar(startsOn, endsOn),
+  members: [],
+  team_has_members: false,
 })
 
 const proposal: ScheduleSummary = {
@@ -161,6 +168,23 @@ describe('ScheduleScreen range in the URL', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: '1 – 28 wrz' })).toBeInTheDocument()
     await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-01', '2026-09-28'))
+  })
+
+  // Grafik is the free-navigation view: its zoom and arrows are how one reaches
+  // ranges that do hold people, so they stay visible next to the empty state
+  // even when nobody is in the rotation (unlike "Teraz", which hides them).
+  it('keeps the zoom and week controls next to the empty state with nobody in the rotation', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => emptyCalendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-14&zoom=4')
+
+    expect(await screen.findByText('Brak osób w rotacji')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '2 tyg.' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '8 tyg.' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cofnij o tydzień' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'dziś' })).toBeInTheDocument()
   })
 
   it('opens the legend from its link and toggles the day list', async () => {

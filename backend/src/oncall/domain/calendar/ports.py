@@ -43,6 +43,10 @@ class CalendarRoster(Protocol):
         """Members active in the range, plus anyone holding a duty in it, by name."""
         ...
 
+    async def has_any_members(self) -> bool:
+        """Whether the team holds any member at all, regardless of range."""
+        ...
+
     async def approved_swap_slots(
         self, starts_on: date, ends_on: date
     ) -> set[tuple[uuid.UUID, date, AssignmentRole]]: ...

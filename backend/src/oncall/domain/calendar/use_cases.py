@@ -109,6 +109,7 @@ async def calendar_matrix(
     in_force = await ports.roster.duties_in_force(starts_on, ends_on)
     holding = {duty.member_id for duty in in_force.values() if duty.member_id is not None}
     members = await ports.calendar.members_for_range(starts_on, ends_on, holding)
+    team_has_members = bool(members) or await ports.calendar.has_any_members()
     swapped = await ports.calendar.approved_swap_slots(starts_on, ends_on)
     duties = [
         CalendarDuty(
@@ -164,6 +165,7 @@ async def calendar_matrix(
             for day in days
         ],
         members=members,
+        team_has_members=team_has_members,
         shows_eligibility=coordinates,
         duties=duties,
         availability=availability,

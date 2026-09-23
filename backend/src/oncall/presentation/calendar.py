@@ -94,6 +94,7 @@ class CalendarResponse(BaseModel):
     ends_on: date
     days: list[CalendarDayResponse]
     members: list[CalendarMemberResponse]
+    team_has_members: bool
     assignments: list[CalendarAssignmentResponse]
     availability: list[CalendarAvailabilityResponse]
 
@@ -133,6 +134,7 @@ def calendar_response(matrix: CalendarMatrix) -> CalendarResponse:
             )
             for member in matrix.members
         ],
+        team_has_members=matrix.team_has_members,
         assignments=[
             CalendarAssignmentResponse(
                 schedule_id=item.duty.schedule_id,
