@@ -288,6 +288,28 @@ class SqlAlchemyRotation:
             .values(assignee_name=display_name)
         )
 
+    async def name_taken(self, display_name: str, *, other_than: uuid.UUID) -> bool:
+        return bool(
+            await self._session.scalar(
+                select(TeamMember.id)
+                .where(TeamMember.display_name == display_name, TeamMember.id != other_than)
+                .limit(1)
+            )
+        )
+
+    async def pseudonymise_member(self, member_id: uuid.UUID, pseudonym: str) -> None:
+        row = await self._session.get(TeamMember, member_id)
+        name = row.display_name
+        await self.rename_member(member_id, pseudonym)
+        # Imported history can name the person without linking them. Labels are
+        # how those rows count, so they follow, unless a namesake may own them.
+        if not await self.name_taken(name, other_than=member_id):
+            await self._session.execute(
+                update(Assignment)
+                .where(Assignment.member_id.is_(None), Assignment.assignee_name == name)
+                .values(assignee_name=pseudonym)
+            )
+
     async def period(self, eligibility_id: uuid.UUID) -> EligibilityPeriod | None:
         row = await self._session.scalar(
             select(Eligibility)
@@ -475,13 +497,16 @@ class SqlAlchemyAdminJournal:
             summary=f"Wygenerowano nowy link aktywacyjny dla {account.username}",
         )
 
-    async def account_deleted(self, account: Account) -> None:
+    async def account_deleted(self, account: Account, *, pseudonym: str | None) -> None:
+        details = {"display_name": account.display_name}
+        if pseudonym is not None:
+            details["pseudonym"] = pseudonym
         self._record(
             action="admin.user_deleted",
             entity_type="user",
             entity_id=account.id,
             summary=f"Usunięto konto i dane osobowe: {account.username}",
-            details={"display_name": account.display_name},
+            details=details,
         )
 
     async def member_enrolled(self, member: RotationMember) -> None:

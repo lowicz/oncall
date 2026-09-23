@@ -264,8 +264,9 @@ async def test_activation_link_reissue(client, db, frozen_clock, admin) -> None:
 
 async def test_deleting_an_account(client, db, admin) -> None:
     free = await create_user(db, "wolny", display_name="Wo Lny")
-    await create_member(db, free, display_name="Wo Lny")
+    member = await create_member(db, free, display_name="Wo Lny")
     await db.commit()
+    pseudonym = f"Osoba usunięta #{member.id.hex[:6]}"
 
     assert_error(
         await client.delete(f"/api/v1/admin/users/{uuid.uuid4()}"),
@@ -284,9 +285,10 @@ async def test_deleting_an_account(client, db, admin) -> None:
     assert (event.entity_id, event.summary, event.details) == (
         str(free.id),
         "Usunięto konto i dane osobowe: wolny",
-        {"display_name": "Wo Lny"},
+        {"display_name": "Wo Lny", "pseudonym": pseudonym},
     )
-    orphan = await db.scalar(select(TeamMember).where(TeamMember.display_name == "Wo Lny"))
+    db.expire_all()
+    orphan = await db.scalar(select(TeamMember).where(TeamMember.display_name == pseudonym))
     assert orphan is not None and orphan.user_id is None
 
 

@@ -209,6 +209,8 @@ describe('PeoplePanel person panel', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Usuń konto…' }))
     const sheet = await screen.findByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })
     expect(within(sheet).getByText(/pozostaną bez obsady/)).toBeInTheDocument()
+    expect(within(sheet).getByText(/pojawi się jako „Osoba usunięta #…”/)).toBeInTheDocument()
+    expect(within(sheet).getByText(/Audyt zachowuje imię i nazwisko/)).toBeInTheDocument()
     const confirm = within(sheet).getByRole('button', { name: 'Usuń konto i dane' })
     expect(confirm).toBeDisabled()
     fireEvent.change(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić'), { target: { value: 'ann' } })
@@ -217,6 +219,16 @@ describe('PeoplePanel person panel', () => {
     expect(confirm).toBeEnabled()
     fireEvent.click(confirm)
     await waitFor(() => expect(remove).toHaveBeenCalledWith('u1'))
+  })
+
+  it('promises no pseudonym for an account that never joined the rotation', async () => {
+    mockData()
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Usuń konto…' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })
+    expect(within(sheet).getByText(/zostaną usunięte/)).toBeInTheDocument()
+    expect(within(sheet).queryByText(/Osoba usunięta/)).not.toBeInTheDocument()
   })
 })
 

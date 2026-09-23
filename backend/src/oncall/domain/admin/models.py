@@ -18,6 +18,17 @@ ACTIVATION_LINK_LIFETIME = timedelta(hours=24)
 RESET_LINK_LIFETIME = timedelta(hours=1)
 #: How many blocking slots a refusal names; the rest are left for a later try.
 LISTED_SLOTS = 20
+DELETED_MEMBER_PREFIX = "Osoba usunięta #"
+
+
+def deleted_member_name(member_id: uuid.UUID, *, short: bool = True) -> str:
+    """What a member is called once their account and personal data are gone.
+
+    Derived from the member id, so it is stable and names nobody; the short
+    form is the one people see, the full id the fallback should another member
+    already go by it.
+    """
+    return DELETED_MEMBER_PREFIX + (member_id.hex[:6] if short else member_id.hex)
 
 
 @dataclass(frozen=True)

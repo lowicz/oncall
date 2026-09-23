@@ -860,11 +860,14 @@ export function PeoplePanel() {
           <>
             <ul>
               <li>Konto zostanie wyłączone natychmiast; sesje wygasną.</li>
-              <li>Imię, nazwisko, e-mail, telefon i numer pracownika zostaną usunięte. Historia dyżurów i punkty zostają dla sprawiedliwości.</li>
+              <li>Imię, nazwisko, e-mail, telefon i numer pracownika zostaną usunięte.</li>
+              {selectedRow.member && (
+                <li>W grafiku, sprawiedliwości i raportach osoba pojawi się jako „Osoba usunięta #…”. Historia dyżurów i punkty zostają dla sprawiedliwości.</li>
+              )}
               {selectedRow.member && selectedState !== 'ended' && (
                 <li><b className="who-bad">Opublikowane dyżury tej osoby po dziś</b> pozostaną bez obsady i pojawią się w ryzykach. Zalecane: najpierw ustaw „wyjście do” i przepisz dyżury.</li>
               )}
-              <li>Operacji nie da się cofnąć. Audyt: „Usunięcie konta i danych”.</li>
+              <li>Operacji nie da się cofnąć. Audyt zachowuje imię i nazwisko: we wcześniejszych wpisach i we wpisie „Usunięto konto”, który zapisze też pseudonim.</li>
             </ul>
             {deleteAccount.error && <Box tone="bad" role="alert" title={deleteAccount.error.message} />}
             <Field label="Wpisz login, żeby potwierdzić" id="delete-confirm">
