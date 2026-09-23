@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAuditTime, formatDate, formatDateLong, formatDay, formatDayShort, formatRange, formatShortDate, fourWeekRangeEnd, weeksBetween, weeksWord } from './dates'
+import { formatAuditTime, formatDate, formatDateLong, formatDay, formatDayShort, formatRange, formatShortDate, fourWeekRangeEnd, isIsoDate, weeksBetween, weeksWord } from './dates'
 
 describe('global date formatting', () => {
   it('formats API dates and timestamps as DD-MM-YYYY', () => {
@@ -13,6 +13,19 @@ describe('global date formatting', () => {
 
   it('uses hyphens in audit timestamps, without repeating the timezone (QA7-L16)', () => {
     expect(formatAuditTime('2026-09-03T10:15:00Z')).toMatch(/^03-09-2026, \d{2}:\d{2}$/)
+  })
+})
+
+describe('dates from the address bar', () => {
+  it('accepts only days that exist', () => {
+    expect(isIsoDate('2026-09-10')).toBe(true)
+    expect(isIsoDate('2028-02-29')).toBe(true)
+    expect(isIsoDate('2026-13-45')).toBe(false)
+    expect(isIsoDate('2026-02-30')).toBe(false)
+    expect(isIsoDate('2026-02-29')).toBe(false)
+    expect(isIsoDate('2026-9-10')).toBe(false)
+    expect(isIsoDate('abc')).toBe(false)
+    expect(isIsoDate(null)).toBe(false)
   })
 })
 

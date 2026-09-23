@@ -2,14 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { UserRole, api } from '../api'
-import { addDays, formatRange, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
+import { addDays, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
 import { pluralPl } from '../lib/plural'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { LinkButton, PageHeader, SectionHeading } from '../ui'
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 function daysBetween(a: string, b: string) {
   return Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000) + 1
@@ -50,19 +48,20 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   // empty installation falls back to four weeks (QA7-L01).
   const published = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
   const drafts = useQuery({ queryKey: ['draft-schedules'], queryFn: api.draftSchedules, enabled: canCoordinate })
-  const focusDay = searchParams.get('dzien')
+  const dayParam = searchParams.get('dzien')
+  const focusDay = isIsoDate(dayParam) ? dayParam : null
   const focusPerson = searchParams.get('osoba')
   const od = searchParams.get('od')
   const legacyEnd = searchParams.get('do')
   const zoomParam = searchParams.get('zoom')
-  const explicitStart = od !== null && ISO_DATE.test(od)
+  const explicitStart = isIsoDate(od)
   const range = useMemo<CalendarRange>(() => {
-    if (explicitStart && legacyEnd && ISO_DATE.test(legacyEnd)) return { starts_on: od, ends_on: legacyEnd }
+    if (explicitStart && isIsoDate(legacyEnd)) return { starts_on: od, ends_on: legacyEnd }
     if (explicitStart) {
       const weeks = WEEKS[isZoom(zoomParam) ? zoomParam : '4']
       return { starts_on: od, ends_on: addDays(od, weeks * 7 - 1) }
     }
-    if (focusDay && ISO_DATE.test(focusDay)) {
+    if (focusDay) {
       return { starts_on: addDays(focusDay, -7), ends_on: addDays(focusDay, 20) }
     }
     const coveredEnd = published.data?.ends_on
