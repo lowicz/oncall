@@ -12,7 +12,7 @@ mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jes
 | --- | --- |
 | **Do mnie** | wnioski, w których to Ty masz przyjąć albo odrzucić zastępstwo |
 | **Moje** | Twoje własne, jeszcze otwarte prośby |
-| **Do zatwierdzenia** (u członka zespołu: **W toku**) | wnioski przyjęte przez zastępcę, czekające na koordynatora; u członka zespołu także inne otwarte sprawy |
+| **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie |
 | **Zamknięte** | zatwierdzone, odrzucone i wycofane |
 
 Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres

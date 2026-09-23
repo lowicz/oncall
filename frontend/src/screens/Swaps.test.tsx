@@ -87,6 +87,47 @@ describe('SwapPanel inbox', () => {
     expect(await screen.findByText('Zamiana wpisana do grafiku')).toBeInTheDocument()
   })
 
+  it('counts on "Do zatwierdzenia" only what waits for the coordinator, as the header does', async () => {
+    stub([
+      swap({ id: '1' }),
+      swap({ id: '2', service_date: '2026-09-15', status: 'pending_coordinator' }),
+    ])
+    renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
+
+    expect(await screen.findByText('1 czeka na Twoją decyzję · 1 czeka na drugą stronę · 0 zamkniętych')).toBeInTheDocument()
+    const tab = inbox(/^Do zatwierdzenia/)
+    expect(tab).toHaveAccessibleName('Do zatwierdzenia: 1 sprawa')
+    // The request still waiting for the replacement stays listed, just not counted.
+    expect(screen.getAllByRole('row', { name: /wrz/ })).toHaveLength(2)
+  })
+
+  it('does not badge or open "Do zatwierdzenia" while every request waits for a replacement', async () => {
+    stub([swap({ id: '1' })])
+    renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
+
+    expect(await screen.findByText('0 czeka na Twoją decyzję · 1 czeka na drugą stronę · 0 zamkniętych')).toBeInTheDocument()
+    const tab = inbox(/^Do zatwierdzenia/)
+    expect(tab).toHaveAccessibleName('Do zatwierdzenia: 0 spraw')
+    expect(tab).toHaveTextContent('0')
+    expect(tab).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('names each filter with its count spelled out for screen readers', async () => {
+    stub([
+      swap({ id: '1' }),
+      swap({ id: '2', replacement_name: 'Ola Wiśniewska' }),
+      swap({ id: '3', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_coordinator' }),
+      swap({ id: '4', status: 'approved' }),
+    ])
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+
+    await screen.findByText('1 czeka na Twoją decyzję · 2 czekają na drugą stronę · 1 zamknięta')
+    expect(screen.getByRole('button', { name: 'Do mnie: 1 sprawa' })).toHaveTextContent('Do mnie1')
+    expect(screen.getByRole('button', { name: 'Moje: 0 spraw' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'W toku: 2 sprawy' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Zamknięte' })).toBeInTheDocument()
+  })
+
   it('keeps settled requests under "Zamknięte" with no decisions left', async () => {
     stub([swap({ id: '1', status: 'approved' }), swap({ id: '2', status: 'rejected', decision_note: 'Urlop' })])
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="admin" hasTeamMember />)
