@@ -6,8 +6,10 @@ ustawieniach generowania" do kontrolki, która nie istniała.
 
 import pytest
 
+from oncall.config import Settings
 from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.scheduling_models import DEFAULT_SOLVE_SECONDS
+from oncall.policy import load_policy
 from oncall.scheduler import SOLVE_SECONDS
 from tests.conftest import create_user, login
 
@@ -58,3 +60,27 @@ async def test_the_run_reports_the_budget_the_policy_holds(client, db) -> None:
     )
     assert queued.status_code == 202, queued.text
     assert queued.json()["solve_seconds"] == 25
+
+
+def test_solver_seconds_is_no_longer_a_setting(monkeypatch) -> None:
+    """#61: `ONCALL_SOLVER_SECONDS` nigdy nie docierało do budżetu, bo wiersz
+    polityki tworzy migracja. Zmienna zniknęła z kontraktu; `.env`, który
+    wciąż ją ustawia, uruchamia się i niczego nie zmienia."""
+    monkeypatch.setenv("ONCALL_SOLVER_SECONDS", "10")
+
+    settings = Settings()
+
+    assert "solver_seconds" not in Settings.model_fields
+    assert not hasattr(settings, "solver_seconds")
+
+
+async def test_only_the_policy_sets_the_budget(db, monkeypatch) -> None:
+    monkeypatch.setenv("ONCALL_SOLVER_SECONDS", "10")
+
+    created = await load_policy(db)
+    assert created.solve_seconds == DEFAULT_SOLVE_SECONDS
+
+    created.solve_seconds = 45
+    await db.commit()
+    db.expunge_all()
+    assert (await load_policy(db)).solve_seconds == 45

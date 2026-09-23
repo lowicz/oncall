@@ -51,6 +51,10 @@ services:
       - FOWNER
       - SETGID
       - SETUID
+    # The fallbacks are the publicly known local development credentials. A
+    # non-local host sets its own POSTGRES_PASSWORD and ONCALL_DATABASE_URL in
+    # .env (docs/wdrozenie/uruchomienie.md, "Hasło bazy danych"). No port is
+    # published: the database is reachable only on this project's network.
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-oncall}
       POSTGRES_USER: ${POSTGRES_USER:-oncall}
@@ -110,7 +114,6 @@ services:
       ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-On-call <oncall@example.com>}
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
-      ONCALL_SOLVER_SECONDS: ${ONCALL_SOLVER_SECONDS:-15}
       ONCALL_SOLVER_LOG: ${ONCALL_SOLVER_LOG:-false}
       ONCALL_API_WORKERS: ${ONCALL_API_WORKERS:-}
     # The image has no curl; its own interpreter asks the health endpoint.
@@ -157,7 +160,6 @@ services:
       ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-On-call <oncall@example.com>}
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
-      ONCALL_SOLVER_SECONDS: ${ONCALL_SOLVER_SECONDS:-15}
       ONCALL_SOLVER_LOG: ${ONCALL_SOLVER_LOG:-false}
       ONCALL_GENERATION_CONCURRENCY: ${ONCALL_GENERATION_CONCURRENCY:-1}
     # The default CP-SAT worker count is derived from this cgroup CPU quota.

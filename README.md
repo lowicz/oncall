@@ -187,11 +187,11 @@ Solver derives its default worker count from the container's CPU quota (or proce
 affinity when no quota exists), capped at eight. Override it explicitly with
 `ONCALL_SOLVER_WORKERS` and enable diagnostic search output with
 `ONCALL_SOLVER_LOG=true`. The wall-clock budget is a field of the scheduling
-policy (5-300 seconds, 15 by default), editable by a coordinator under
-"Ustawienia generowania"; `ONCALL_SOLVER_SECONDS` only seeds that field when the
-policy row is created on first use. The asynchronous UI path runs in the Compose `worker`
-service, which has an explicit allocation of two CPUs; changing that allocation
-automatically changes the default solver worker count.
+policy (5-300 seconds, 15 by default), edited by a coordinator under
+"Ustawienia generatora"; no environment variable sets it. The asynchronous UI
+path runs in the Compose `worker` service, which has an explicit allocation of
+two CPUs; changing that allocation automatically changes the default solver
+worker count.
 
 ## Single-day swaps
 

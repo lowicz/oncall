@@ -230,7 +230,7 @@ jobs:
         run: .github/scripts/compose-parity.sh
       - name: Documented environment variables are wired into Compose
         run: .github/scripts/env-vars-wired.sh
-      - name: Every service is read-only and drops all capabilities
+      - name: Every service is read-only and drops all capabilities; db publishes no port
         run: .github/scripts/compose-hardening.sh
       - name: User systemd unit calls the stack script
         run: .github/scripts/systemd-user-unit.sh

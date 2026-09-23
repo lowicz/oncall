@@ -16,6 +16,7 @@ from oncall.domain.overrides.errors import (
     PublishedScheduleNotFound,
     RepeatedSlotInBatch,
     RosterChangedMeanwhile,
+    RuleViolationsNotAcknowledged,
     ScheduleSlotNotFound,
 )
 from oncall.domain.overrides.models import (
@@ -73,7 +74,7 @@ async def _schedule_for(
 
 async def check_override(check: OverrideCheck, ports: OverridePorts) -> list[RuleViolation]:
     """The hard rules an override would break, computed before the fact so the
-    confirmation can show them (decision D3: warned, not blocked)."""
+    confirmation can show them and ask the coordinator to acknowledge them."""
     holidays = polish_holidays(check.service_date, check.service_date)
     if check.role == AssignmentRole.late_shift and not is_working_day(check.service_date, holidays):
         # The override itself refuses this; there is nothing to check.
@@ -152,9 +153,10 @@ async def override_duty(
     roles_to_move = [override.role] + (
         [AssignmentRole.late_shift] if coupled_partner is not None else []
     )
-    # Decision D3: the operation proceeds, but the hard rules it breaks are
-    # computed on the same resolved roster the matrix shows, returned for the
-    # confirmation and written to the audit log with their rule ids.
+    # A correction may break a hard rule only knowingly: the violations are
+    # computed on the same resolved roster the matrix shows, the write is
+    # refused until the coordinator acknowledges them, and they go to the
+    # audit log with their rule ids.
     from_name = assignment.assignee_name if assignment is not None else replacement.display_name
     violations = await substitution_check(
         ports.roster,
@@ -163,6 +165,8 @@ async def override_duty(
         from_name,
         replacement.display_name,
     )
+    if violations and not override.acknowledge_rule_violations:
+        raise RuleViolationsNotAcknowledged(violations)
     if not await ports.roster.advance_version(
         schedule.id, expected_version=override.expected_version, only_if_published=True
     ):
@@ -231,6 +235,8 @@ async def override_duties_in_batch(
     unique_violations = list(
         {(item.rule, item.member_name, item.days): item for item in violations}.values()
     )
+    if unique_violations and not batch.acknowledge_rule_violations:
+        raise RuleViolationsNotAcknowledged(unique_violations)
     if not await ports.roster.advance_version(
         schedule.id, expected_version=batch.expected_version, only_if_published=False
     ):

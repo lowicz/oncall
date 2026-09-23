@@ -93,10 +93,12 @@ Z tego panelu:
 
 - **członek zespołu** może rozpocząć prośbę o zamianę własnego slotu,
 - **koordynator i administrator** mogą zmienić dowolny przydział bezpośrednio,
-  bez zgody zastępcy i bez kroku akceptacji. Zmiana nadal respektuje reguły
-  twarde, pokazuje wpływ na bilans punktów obu osób, zapisuje korektę i
-  dotyczy wyłącznie wybranego dnia i roli. Korekta dnia, który już minął,
-  wymaga podania powodu,
+  bez zgody zastępcy i bez kroku akceptacji. Zmiana pokazuje wpływ na bilans
+  punktów obu osób, zapisuje korektę i dotyczy wyłącznie wybranego dnia i roli.
+  Korekta dnia, który już minął, wymaga podania powodu. Jeśli zmiana złamie
+  regułę twardą, potwierdzenie wymienia naruszenia pod nagłówkiem „Ta korekta
+  złamie reguły twarde”, a przycisk zapisu działa dopiero po zaznaczeniu, że
+  łamiesz je świadomie; takie naruszenie trafia do dziennika audytu,
 - **koordynator i administrator** mogą z tego samego panelu dodać wydarzenie
   kalendarza na ten dzień.
 

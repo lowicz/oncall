@@ -145,7 +145,28 @@ OVERRIDE_ERROR_STATUSES = {
     override_errors.ScheduleSlotNotFound: status.HTTP_404_NOT_FOUND,
     override_errors.HistoricalCorrectionNeedsReason: status.HTTP_422_UNPROCESSABLE_CONTENT,
     override_errors.BatchCorrectionNeedsReason: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    override_errors.RuleViolationsNotAcknowledged: status.HTTP_409_CONFLICT,
 }
+
+
+def _unacknowledged_violations_detail(error: override_errors.RuleViolationsNotAcknowledged) -> dict:
+    return {
+        "message": str(error),
+        "reason": error.reason,
+        "next_step": error.next_step,
+        "violations": [
+            item.model_dump(mode="json") for item in rule_violation_responses(error.violations)
+        ],
+    }
+
+
+OVERRIDE_ERROR_DETAILS = {
+    override_errors.RuleViolationsNotAcknowledged: _unacknowledged_violations_detail
+}
+
+
+def _override_errors_as_http():
+    return domain_errors_as_http(OVERRIDE_ERROR_STATUSES, OVERRIDE_ERROR_DETAILS)
 
 
 @router.post("/override/check", response_model=list[RuleViolationResponse])
@@ -156,8 +177,8 @@ async def direct_override_check(
     __: CsrfGuard,
 ) -> list[RuleViolationResponse]:
     """The hard rules the override would break, computed before the fact so
-    the confirmation dialog can show them (decision D3: warned, not blocked)."""
-    with domain_errors_as_http(OVERRIDE_ERROR_STATUSES):
+    the confirmation dialog can show them and ask for their acknowledgement."""
+    with _override_errors_as_http():
         violations = await override_use_cases.check_override(
             OverrideCheck(
                 service_date=payload.service_date,
@@ -177,7 +198,7 @@ async def direct_override(
     ports: OverrideProvider,
     __: CsrfGuard,
 ) -> AssignmentResponse:
-    with domain_errors_as_http(OVERRIDE_ERROR_STATUSES):
+    with _override_errors_as_http():
         result = await override_use_cases.override_duty(
             OverrideInput(
                 actor=actor_from(user),
@@ -187,6 +208,7 @@ async def direct_override(
                 expected_version=payload.expected_version,
                 schedule_id=payload.schedule_id,
                 reason=payload.reason,
+                acknowledge_rule_violations=payload.acknowledge_rule_violations,
             ),
             ports,
         )
@@ -200,7 +222,7 @@ async def batch_override(
     ports: OverrideProvider,
     __: CsrfGuard,
 ) -> list[AssignmentResponse]:
-    with domain_errors_as_http(OVERRIDE_ERROR_STATUSES):
+    with _override_errors_as_http():
         results = await override_use_cases.override_duties_in_batch(
             BatchOverrideInput(
                 actor=actor_from(user),
@@ -211,6 +233,7 @@ async def batch_override(
                     for item in payload.assignments
                 ),
                 reason=payload.reason,
+                acknowledge_rule_violations=payload.acknowledge_rule_violations,
             ),
             ports,
         )

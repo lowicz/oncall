@@ -3,6 +3,7 @@ from datetime import date
 
 from oncall.domain.errors import DomainError
 from oncall.domain.vocabulary import AssignmentRole
+from oncall.rules import RuleViolation
 
 
 class LateShiftOnlyOnWorkingDays(DomainError):
@@ -87,3 +88,22 @@ class HistoricalCorrectionNeedsReason(DomainError):
 class BatchCorrectionNeedsReason(DomainError):
     def __init__(self) -> None:
         super().__init__("Korekta wsadowa wymaga powodu (minimum 10 znaków)")
+
+
+#: What the coordinator does next when a correction would break a hard rule.
+ACKNOWLEDGE_NEXT_STEP = (
+    "Wybierz inną osobę albo potwierdź świadome naruszenie reguł twardych;"
+    " trafi ono do dziennika audytu."
+)
+
+
+class RuleViolationsNotAcknowledged(DomainError):
+    """A correction that breaks a hard rule goes through only once the
+    coordinator has seen the violations and explicitly acknowledged them."""
+
+    reason = "RULE_VIOLATIONS"
+
+    def __init__(self, violations: list[RuleViolation]) -> None:
+        super().__init__("Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie")
+        self.violations = violations
+        self.next_step = ACKNOWLEDGE_NEXT_STEP
