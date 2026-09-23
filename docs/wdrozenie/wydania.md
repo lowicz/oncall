@@ -131,7 +131,7 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
 | `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, i to, że każda usługa działa tylko do odczytu i bez uprawnień jądra |
 | `image-build` | oba Dockerfile budują się (bez publikacji), a żaden obraz nie działa jako root |
-| `sonarcloud` | statyczna analiza na SonarCloud (klucz `lowicz_oncall`); pomija się bez sekretu `SONAR_TOKEN` |
+| `sonarcloud` | statyczna analiza na SonarCloud (klucz `lowicz_oncall`) z pokryciem testami z zadań `backend` i `frontend`, więc startuje po nich; pomija się bez sekretu `SONAR_TOKEN` |
 
 Jeden zbiorczy status `ci-ok` jest wymagany do scalenia zmian w `main`.
 Zadanie `sonarcloud` nie wchodzi w jego skład: pull request z forka nie ma

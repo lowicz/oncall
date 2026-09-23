@@ -215,5 +215,11 @@
       matchPackageNames: ['/^@mui\\//', '/^@emotion\\//'],
       groupName: 'frontend (MUI)',
     },
+    // ---- @vitest/coverage-v8 requires the exact vitest release; one PR ------
+    {
+      matchManagers: ['npm'],
+      matchPackageNames: ['vitest', '/^@vitest\\//'],
+      groupName: 'frontend (vitest)',
+    },
   ],
 }
