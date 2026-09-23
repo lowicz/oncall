@@ -158,6 +158,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   external `public/theme-init.js` (external so the CSP stays strict) and the
   docs template (`scripts/build-docs.mjs`) inlines the same logic with the same
   key, and `src/theme.ts` owns it afterwards.
+- API failures reach screens as `ApiError` (`parseError` in `src/api.ts`,
+  including FastAPI's list-shaped 422 `detail`); a raw `fetch` in `api.ts`
+  throws through `parseError` too. A 401 while signed in is handled once, in
+  the query client (`src/session.ts`): screens do not handle session loss.
 - `src/test/setup.ts` pins the clock to a fixed instant. Screens hide actions
   for dates already past, so fixtures written as concrete dates need it.
 

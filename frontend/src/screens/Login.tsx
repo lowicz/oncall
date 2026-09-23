@@ -4,6 +4,7 @@ import { api, ApiError } from '../api'
 import { useBranding } from '../hooks/useBranding'
 import { Box, Button, Field, IconButton, Input } from '../ui'
 import { AuthFrame } from '../components/AuthFrame'
+import { meKey } from '../session'
 
 /** What the person can do about a refused sign-in. Only a rejected login or
  *  password can mean a disabled account; a directory outage or a conflict
@@ -16,7 +17,9 @@ function loginHint(error: Error): string {
   return 'Spróbuj ponownie za chwilę. Jeśli problem się powtarza, powiadom administratora.'
 }
 
-export function Login() {
+/** `expired` says the session this tab held has ended, so the person knows
+ *  why the screen they were on gave way to this one. */
+export function Login({ expired = false }: { expired?: boolean }) {
   const queryClient = useQueryClient()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -24,7 +27,7 @@ export function Login() {
   const branding = useBranding()
   const login = useMutation({
     mutationFn: () => api.login(username, password),
-    onSuccess: (user) => queryClient.setQueryData(['me'], user),
+    onSuccess: (user) => queryClient.setQueryData(meKey, user),
     onError: () => setPassword(''),
   })
 
@@ -36,9 +39,13 @@ export function Login() {
   return (
     <AuthFrame title="Dyżury bez zgadywania." screen="Logowanie">
       <form onSubmit={submit} className="login-card" aria-label="Logowanie">
-        {login.error && (
+        {login.error ? (
           <Box tone="bad" role="alert" title={login.error.message}>
             {loginHint(login.error)}
+          </Box>
+        ) : expired && (
+          <Box tone="warn" role="status" title="Sesja wygasła">
+            Zaloguj się ponownie, aby wrócić do otwartego ekranu.
           </Box>
         )}
         <Field label="Login">

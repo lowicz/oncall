@@ -598,10 +598,31 @@ export class ApiError extends Error {
   }
 }
 
+/** The messages of a field validation error, whose `detail` is a list of
+ *  `{loc, msg}`: the first message for each field, each message once, as one
+ *  line of sentences. Null when the list carries no message. */
+function fieldMessages(detail: unknown[]): string | null {
+  const byField = new Map<string, string>()
+  for (const item of detail) {
+    if (typeof item !== 'object' || item === null) continue
+    const { loc, msg } = item as { loc?: unknown; msg?: unknown }
+    if (typeof msg !== 'string' || msg.trim() === '') continue
+    const field = Array.isArray(loc) ? loc.join('.') : ''
+    if (!byField.has(field)) byField.set(field, msg.trim())
+  }
+  const messages = [...new Set(byField.values())]
+  if (messages.length === 0) return null
+  if (messages.length === 1) return messages[0]
+  return messages.map((message) => (/[.!?]$/.test(message) ? message : `${message}.`)).join(' ')
+}
+
 function parseError(body: unknown, status: number): ApiError {
   if (typeof body === 'object' && body !== null && 'detail' in body) {
     const detail = (body as { detail: unknown }).detail
     if (typeof detail === 'string') return new ApiError(detail, status)
+    if (Array.isArray(detail)) {
+      return new ApiError(fieldMessages(detail) ?? `Błąd HTTP ${status}`, status)
+    }
     if (typeof detail === 'object' && detail !== null) {
       const record = detail as Record<string, unknown>
       const message = typeof record.message === 'string' ? record.message : `Błąd HTTP ${status}`
@@ -812,8 +833,8 @@ export const api = {
       body: form,
     })
     if (!response.ok) {
-      const body = await response.json().catch(() => null)
-      throw new Error(body?.detail ?? `Błąd HTTP ${response.status}`)
+      const body: unknown = await response.json().catch(() => null)
+      throw parseError(body, response.status)
     }
     return response.json() as Promise<HistoryImportPreview>
   },
