@@ -1,10 +1,13 @@
 # Pull request and main-branch gates.
 #
-# One workflow, five parallel jobs that feed `ci-ok` for branch protection,
-# plus a SonarCloud scan that is not required. Nothing in the required jobs
-# needs more than read access and nothing here pushes an image, so a pull
-# request from a fork (read-only token, no secrets) still gets a green
-# `ci-ok`. The SonarCloud job skips cleanly when SONAR_TOKEN is missing.
+# One workflow, six parallel jobs that feed `ci-ok` for branch protection,
+# plus a SonarCloud scan outside it. Nothing in the jobs behind `ci-ok` needs
+# more than read access and nothing here pushes an image, so a pull request
+# from a fork (read-only token, no secrets) still gets a green `ci-ok`. The
+# SonarCloud job skips cleanly when SONAR_TOKEN is missing; the quality gate
+# the ruleset requires is the `SonarCloud Code Analysis` status SonarCloud
+# itself reports. CodeQL (codeql.yml) and Dependency Review
+# (dependency-review.yml) are workflows of their own.
 # release.yml calls this workflow before it publishes, so an image can only
 # come from a commit that passed every required gate.
 #
@@ -232,6 +235,17 @@ jobs:
       - name: User systemd unit calls the stack script
         run: .github/scripts/systemd-user-unit.sh
 
+  workflows:
+    name: workflow files (pinned actions, token permissions, no Dependabot updates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Actions pinned to SHAs, permissions declared, Renovate the only update bot
+        run: .github/scripts/workflow-security.sh
+
   image-build:
     # Builds both Dockerfiles exactly as release.yml will, but never pushes:
     # this job runs for pull requests, including ones from forks. The build is
@@ -282,8 +296,11 @@ jobs:
   sonarcloud:
     # Static analysis on SonarCloud (https://sonarcloud.io). Not in ci-ok's
     # needs list: fork pull requests have no SONAR_TOKEN, and a missing token
-    # must not turn the required status red. The job itself exits green when
-    # the secret is unavailable. Project key and organisation live in
+    # must not turn ci-ok red. The job itself exits green when the secret is
+    # unavailable. The merge gate is SonarCloud's quality gate, the
+    # `SonarCloud Code Analysis` status the SonarCloud app reports after this
+    # scan, which the `main-protected` ruleset requires next to ci-ok
+    # (docs/wdrozenie/wydania.md). Project key and organisation live in
     # sonar-project.properties at the repository root. It waits for the test
     # jobs because it reads their coverage reports.
     name: SonarCloud
@@ -335,10 +352,11 @@ jobs:
     # (docs/wdrozenie/wydania.md, "Ustawienia repozytorium"). `if: always()`
     # so a failed or cancelled job still produces a (red) status instead of
     # a missing one. sonarcloud is deliberately absent from needs: a fork PR
-    # has no SONAR_TOKEN and must not block the required check.
+    # has no SONAR_TOKEN and must not turn ci-ok red; the ruleset requires
+    # SonarCloud's own quality gate status instead.
     name: ci-ok
     if: always()
-    needs: [backend, backend-postgres, frontend, compose-config, image-build]
+    needs: [backend, backend-postgres, frontend, compose-config, workflows, image-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

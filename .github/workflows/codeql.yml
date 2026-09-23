@@ -1,0 +1,66 @@
+# CodeQL code scanning (advanced setup): the Python backend, the
+# TypeScript/JavaScript frontend and the GitHub Actions workflows themselves.
+#
+# None of them needs a build (`build-mode: none`), so each language is one
+# job that reads the checkout and uploads its results to Security -> Code
+# scanning. The `main-protected` ruleset's code scanning rule turns those
+# results into a merge gate; the analysis job itself stays green when it finds
+# something (docs/wdrozenie/wydania.md, "Skanowanie bezpieczeństwa").
+#
+# Advanced setup and GitHub's default setup exclude each other: default setup
+# must stay "Not configured" in Settings -> Advanced Security, or GitHub
+# rejects the uploads from this workflow.
+#
+# Every action is pinned to a full commit SHA; Renovate (renovate.json5) moves
+# the pins forward with the other GitHub Actions.
+name: codeql
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Weekly, so new queries in a CodeQL release reach code nobody touched.
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+# A new push to a pull request supersedes the run in progress; on main every
+# run completes so each commit keeps its analysis.
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # `javascript-typescript` is one extractor for both languages; listing
+        # `javascript` or `typescript` as well would analyse the frontend
+        # twice.
+        language: [python, javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+          # archive/ is the historical docs tree (archive/README.md): kept
+          # verbatim, never built or shipped.
+          config: |
+            paths-ignore:
+              - archive
+      - uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
+        with:
+          category: /language:${{ matrix.language }}
