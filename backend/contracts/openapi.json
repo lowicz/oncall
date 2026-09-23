@@ -1042,6 +1042,10 @@
             "format": "date",
             "title": "Starts On",
             "type": "string"
+          },
+          "team_has_members": {
+            "title": "Team Has Members",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1049,6 +1053,7 @@
           "ends_on",
           "days",
           "members",
+          "team_has_members",
           "assignments",
           "availability"
         ],

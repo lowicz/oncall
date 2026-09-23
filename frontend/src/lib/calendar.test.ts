@@ -29,6 +29,7 @@ const data = (over: Partial<CalendarData> = {}): CalendarData => ({
   ends_on: '2026-09-02',
   days: [day('2026-09-01', 'wt'), day('2026-09-02', 'śr')],
   members: [{ id: 'm1', display_name: 'Anna' }],
+  team_has_members: true,
   assignments: [],
   availability: [],
   ...over,

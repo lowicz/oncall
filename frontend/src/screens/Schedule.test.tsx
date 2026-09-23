@@ -32,6 +32,7 @@ const calendar = (startsOn: string, endsOn: string): CalendarData => ({
     { id: 'm3', display_name: 'Ola Wiśniewska' },
     { id: 'm4', display_name: 'Piotr Zieliński' },
   ],
+  team_has_members: true,
   assignments: [],
   availability: [],
 })
@@ -39,6 +40,7 @@ const calendar = (startsOn: string, endsOn: string): CalendarData => ({
 const emptyCalendar = (startsOn: string, endsOn: string): CalendarData => ({
   ...calendar(startsOn, endsOn),
   members: [],
+  team_has_members: false,
 })
 
 const proposal: ScheduleSummary = {

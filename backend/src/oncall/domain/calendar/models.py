@@ -120,6 +120,9 @@ class CalendarMatrix:
     ends_on: date
     days: list[CalendarDay]
     members: list[CalendarMember]
+    #: Whether the team holds any member at all, independent of this range, so a
+    #: window with no active member reads apart from a team with nobody in it.
+    team_has_members: bool
     #: Eligibility is shown to coordinators only.
     shows_eligibility: bool
     duties: list[CalendarDuty]

@@ -138,10 +138,10 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   // From the window actually shown: a share link may have clamped it away
   // from where the offset alone would put it.
   const shift = (days: number) => setOffset(daysBetween(today, range.starts_on) + days)
-  // Nobody in the rotation now: the matrix's empty state says so, and there
-  // is nothing to zoom, filter or list. Once the view has been moved the
-  // controls stay, so it can always come back.
-  const nobodyNow = (summary: MatrixSummary) => summary.loaded && summary.people === 0 && offset === 0 && zoom === '4'
+  // The team holds nobody at all: no range has a row to zoom, filter or list,
+  // so the empty state stands alone. A team that simply has no member active in
+  // this window keeps its controls, so the view can move to where duties are.
+  const nobodyNow = (summary: MatrixSummary) => summary.loaded && summary.people === 0 && !summary.teamHasMembers
   // "The next four weeks" only while the window starts today and is not a link's.
   const upcoming = offset === 0 && !share
   const current = schedule.data?.current ?? []

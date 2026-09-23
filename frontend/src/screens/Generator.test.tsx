@@ -69,6 +69,7 @@ function stub(drafts: ScheduleSummary[], runs: ScheduleRun[] = []) {
     ends_on: '2026-09-18',
     days: [],
     members: [],
+    team_has_members: false,
     assignments: [],
     availability: [],
   })

@@ -27,6 +27,7 @@ const calendar = (): CalendarData => ({
     { id: 'm1', display_name: 'Anna Kowalska' },
     { id: 'm2', display_name: 'Marek Nowak' },
   ],
+  team_has_members: true,
   assignments: [
     {
       service_date: day(1),

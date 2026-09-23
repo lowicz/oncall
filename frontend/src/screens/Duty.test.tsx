@@ -37,6 +37,7 @@ const calendar = (startsOn: string, endsOn: string): CalendarData => ({
   ends_on: endsOn,
   days: [{ service_date: startsOn, weekday: 'czw', is_day_off: false, holiday_name: null, published: true, events: [] }],
   members: [{ id: 'm1', display_name: 'Anna Kowalska' }],
+  team_has_members: true,
   assignments: [],
   availability: [],
 })
@@ -249,7 +250,8 @@ describe('DutyScreen on a phone', () => {
 })
 
 describe('DutyScreen with nobody in the rotation', () => {
-  const noTeam = (startsOn: string, endsOn: string): CalendarData => ({ ...calendar(startsOn, endsOn), members: [] })
+  const noTeam = (startsOn: string, endsOn: string): CalendarData => ({ ...calendar(startsOn, endsOn), members: [], team_has_members: false })
+  const noneInRange = (startsOn: string, endsOn: string): CalendarData => ({ ...calendar(startsOn, endsOn), members: [], team_has_members: true })
 
   it('tells the admin to add people instead of an empty panel, with no controls and no fairness verdict', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ is_published: false, id: null, version: null, ends_on: null, current: [], assignments: [] }))
@@ -278,6 +280,20 @@ describe('DutyScreen with nobody in the rotation', () => {
     expect(await screen.findByText('Brak osób w rotacji')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Otwórz Osoby' })).not.toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Grafik dzień po dniu' })).not.toBeInTheDocument()
+  })
+
+  it('when the team has members but none in the shown range, keeps the controls and does not tell the admin to add people', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ current: [], assignments: [] }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => noneInRange(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true, []))
+    renderScreen(<DutyScreen role="admin" displayName="Administrator" hasTeamMember={false} />)
+
+    expect(await screen.findByText('Nikt nie jest w rotacji w tym zakresie')).toBeInTheDocument()
+    expect(screen.queryByText('Nikt nie jest jeszcze w rotacji')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dodaj osoby na ekranie Osoby.')).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Do przodu o tydzień' })).toBeInTheDocument()
   })
 
   it('keeps the controls while the range is still loading', async () => {
