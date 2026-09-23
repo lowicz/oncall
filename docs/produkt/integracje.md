@@ -26,6 +26,10 @@ Serwer SMTP jest **usługą zewnętrzną** - projekt nie hostuje poczty. Bez
 skonfigurowanego hosta SMTP wiadomości są oznaczane jako `skipped` z powodem
 zapisanym w kolejce.
 
+Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
+zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
+tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje** (`/moje`).
+
 ## Kanały ICS
 
 Aplikacje kalendarzowe subskrybują odwoływalne adresy tokenowe pod `/calendar`.

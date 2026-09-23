@@ -87,9 +87,10 @@ async def test_next_holder_of_the_role_is_reported(client: AsyncClient, db: Asyn
 
 
 @pytest.mark.anyio
-async def test_a_viewer_gets_names_and_times_but_no_contact(
+async def test_a_viewer_gets_the_phone_but_not_the_email(
     client: AsyncClient, db: AsyncSession
 ) -> None:
+    """Service Desk reads the dashboard to call whoever is on duty."""
     await _team(db)
     await create_user(db, "widz", role=UserRole.viewer)
     await create_published_schedule(
@@ -106,8 +107,9 @@ async def test_a_viewer_gets_names_and_times_but_no_contact(
     assert body["current"], "a viewer still sees who is on duty"
     for item in body["current"]:
         assert item["contact_email"] is None
-        assert item["contact_phone"] is None
         assert item["coverage_starts_at"]
+    primary = next(item for item in body["current"] if item["role"] == "primary")
+    assert primary["contact_phone"] == "600100200"
 
 
 @pytest.mark.anyio

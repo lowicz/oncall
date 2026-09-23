@@ -1,6 +1,7 @@
 """Schedules on their way to publication, and the generations that make them."""
 
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from enum import StrEnum
@@ -165,6 +166,24 @@ class Schedule:
             assignments=tuple(
                 replace(item, assignee_name=name, member_id=member_id, is_override=True)
                 if item.slot == slot
+                else item
+                for item in self.assignments
+            ),
+        )
+
+    def with_carried(self, changes: Iterable[CarriedChange]) -> Schedule:
+        """The schedule as published: every carried change in its slot."""
+        carried = {change.slot: change for change in changes}
+        return replace(
+            self,
+            assignments=tuple(
+                replace(
+                    item,
+                    assignee_name=carried[item.slot].assignee_name,
+                    member_id=carried[item.slot].member_id,
+                    is_override=True,
+                )
+                if item.slot in carried
                 else item
                 for item in self.assignments
             ),

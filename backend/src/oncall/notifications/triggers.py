@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
+from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
@@ -17,6 +18,9 @@ from oncall.notifications.base import NotificationMessage
 from oncall.notifications.service import enqueue_notification
 
 logger = logging.getLogger(__name__)
+
+#: The order a day's roles are read in: PRIMARY, SECONDARY, 11–19.
+_ROLE_ORDER = {role: index for index, role in enumerate(AssignmentRole)}
 
 
 async def _emails_for_names(db: AsyncSession, names: Iterable[str]) -> dict[str, str]:
@@ -269,12 +273,19 @@ async def notify_swap_approved(
 
 
 async def notify_schedule_published(
-    db: AsyncSession, *, name: str, starts_on: date, ends_on: date
+    db: AsyncSession,
+    *,
+    name: str,
+    starts_on: date,
+    ends_on: date,
+    duties: Iterable[ScheduledDuty],
 ) -> None:
+    """One e-mail per team member active in the range, listing only their own
+    duties from `duties` (the published slots)."""
     settings = get_settings()
     rows = (
         await db.execute(
-            select(TeamMember.display_name, User.email)
+            select(TeamMember.id, TeamMember.display_name, User.email)
             .join(User, TeamMember.user_id == User.id)
             .where(
                 TeamMember.active_from <= ends_on,
@@ -284,19 +295,32 @@ async def notify_schedule_published(
             )
         )
     ).all()
-    emails = {display_name: email for display_name, email in rows if email}
-    await _enqueue_for(
-        db,
-        emails,
-        names=list(emails),
-        build=lambda: templates.schedule_published(
-            name=name,
-            starts_on=starts_on,
-            ends_on=ends_on,
-            app_url=settings.public_base_url,
-        ),
-        context={"event": "schedule_published", "starts_on": starts_on.isoformat()},
-    )
+    in_order = sorted(duties, key=lambda duty: (duty.service_date, _ROLE_ORDER[duty.role]))
+    for member_id, display_name, email in rows:
+        if not email:
+            continue
+        own = [
+            (duty.service_date, duty.role)
+            for duty in in_order
+            if (
+                duty.member_id == member_id
+                if duty.member_id is not None
+                else duty.assignee_name == display_name
+            )
+        ]
+        await _enqueue_for(
+            db,
+            {display_name: email},
+            names=[display_name],
+            build=lambda own=own: templates.schedule_published(
+                name=name,
+                starts_on=starts_on,
+                ends_on=ends_on,
+                duties=own,
+                app_url=settings.public_base_url,
+            ),
+            context={"event": "schedule_published", "starts_on": starts_on.isoformat()},
+        )
 
 
 async def notify_availability_duty_conflict(

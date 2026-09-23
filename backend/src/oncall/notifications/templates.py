@@ -103,12 +103,25 @@ def swap_approved(
 
 
 def schedule_published(
-    *, name: str, starts_on: date, ends_on: date, app_url: str
+    *,
+    name: str,
+    starts_on: date,
+    ends_on: date,
+    duties: list[tuple[date, AssignmentRole]],
+    app_url: str,
 ) -> tuple[str, str]:
+    """`duties` are the recipient's own, in order; nobody else's belong here."""
     subject = f"Opublikowano grafik: {starts_on} – {ends_on}"
+    if duties:
+        own = "Twoje dyżury w tym grafiku:\n" + "\n".join(
+            f"- {day} · {ROLE_LABELS[role]}" for day, role in duties
+        )
+    else:
+        own = "W tym grafiku nie masz żadnych dyżurów."
     body = (
         f"Nowy grafik „{name}” ({starts_on} – {ends_on}) jest opublikowany.\n\n"
-        f"Sprawdź swoje dyżury: {app_url}/\n"
+        f"{own}\n\n"
+        f"Moje dyżury: {app_url}/moje\n"
     )
     return subject, body
 

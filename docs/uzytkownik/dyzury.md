@@ -128,5 +128,7 @@ listą.
 ## Widok tylko do odczytu
 
 Konto podglądowe i sesja z linku podglądowego widzą macierz w trybie tylko do
-odczytu, bez danych o dostępności i bez akcji. Sesja z linku dodatkowo
-pokazuje pasek z nazwą linku, jego zakresem dat i datą ważności.
+odczytu, bez danych o dostępności i bez akcji. Pasek „Dyżur teraz” i karty na
+telefonie pokazują im telefon dyżurnego (z **Zadzwoń** i **SMS**), ale nie
+adres e-mail. Sesja z linku dodatkowo pokazuje pasek z nazwą linku, jego
+zakresem dat i datą ważności.
