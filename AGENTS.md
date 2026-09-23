@@ -147,6 +147,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   the class names from `src/styles.css`. Colours, fonts and sizes are the
   custom properties in `src/tokens.css` (dark default, `data-theme="light"`,
   `data-density="compact"`); never hard-code a colour in a component.
+  Irreversible actions go through `components/ConfirmDialog`; one opened from
+  a `Panel` is rendered beside it, not inside, because Base UI draws no
+  backdrop for a nested dialog.
 - Dates and months are native inputs (`DateField`, `MonthField`, ISO values
   in and out); selects are native `<select>`. Tests drive them with
   `fireEvent.change`, not with option clicks.

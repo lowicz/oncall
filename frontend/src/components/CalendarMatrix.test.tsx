@@ -377,3 +377,47 @@ describe('CalendarMatrix hard unavailability', () => {
     expect(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ })).toBeEnabled()
   })
 })
+
+describe('CalendarMatrix event deletion', () => {
+  const withEvent = (): CalendarData => {
+    const base = calendar()
+    return {
+      ...base,
+      days: base.days.map((d, index) => index === 0 ? { ...d, events: [{ id: 'e1', title: 'Audyt', color: 'red' }] } : d),
+    }
+  }
+
+  const openDeletion = async () => {
+    const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
+    fireEvent.click(cells[0])
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
+    return screen.findByRole('dialog', { name: 'Usunąć wydarzenie?' })
+  }
+
+  it('keeps the event when the confirmation is cancelled', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(withEvent())
+    const remove = vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    renderScreen(matrix())
+
+    const confirm = await openDeletion()
+    expect(within(confirm).getByText(/„Audyt” zniknie ze wszystkich dni/)).toBeInTheDocument()
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Anuluj' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument())
+    expect(remove).not.toHaveBeenCalled()
+    expect(screen.getByText('Audyt')).toBeInTheDocument()
+  })
+
+  it('deletes the event once confirmed', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(withEvent())
+    const remove = vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    renderScreen(matrix())
+
+    const confirm = await openDeletion()
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Usuń' }))
+
+    await waitFor(() => expect(remove).toHaveBeenCalled())
+    expect(remove.mock.calls[0][0]).toBe('e1')
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument())
+  })
+})

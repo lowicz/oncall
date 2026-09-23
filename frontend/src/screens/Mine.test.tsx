@@ -258,4 +258,45 @@ describe('MineScreen ICS', () => {
     expect(await within(panel).findByText(/secret\.ics/)).toBeInTheDocument()
     expect(api.createFeed).toHaveBeenCalledWith('telefon')
   })
+
+  const FEED = { id: 'f1', label: 'telefon', created_at: '2026-09-01T10:00:00Z', last_used_at: null, revoked_at: null }
+
+  const openRevocation = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Eksport ICS (tylko moje)' }))
+    const panel = await screen.findByRole('dialog', { name: 'Subskrypcja kalendarza (ICS)' })
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Odwołaj' }))
+    return screen.findByRole('dialog', { name: 'Odwołać subskrypcję ICS?' })
+  }
+
+  it('keeps the subscription when the revocation is cancelled', async () => {
+    stub()
+    vi.spyOn(api, 'feeds').mockResolvedValue([FEED])
+    const revoke = vi.spyOn(api, 'revokeFeed').mockResolvedValue(undefined)
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+
+    const confirm = await openRevocation()
+    expect(within(confirm).getByText(/Adres „telefon” przestanie działać/)).toBeInTheDocument()
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Anuluj' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Odwołać subskrypcję ICS?' })).not.toBeInTheDocument())
+    expect(revoke).not.toHaveBeenCalled()
+  })
+
+  it('revokes the subscription once confirmed', async () => {
+    stub()
+    vi.spyOn(api, 'feeds')
+      .mockResolvedValueOnce([FEED])
+      .mockResolvedValue([{ ...FEED, revoked_at: '2026-09-10T10:00:00Z' }])
+    const revoke = vi.spyOn(api, 'revokeFeed').mockResolvedValue(undefined)
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+
+    const confirm = await openRevocation()
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Odwołaj subskrypcję' }))
+
+    await waitFor(() => expect(revoke).toHaveBeenCalledWith('f1'))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Odwołać subskrypcję ICS?' })).not.toBeInTheDocument())
+    expect(await screen.findByText('Nie masz jeszcze subskrypcji')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pokaż odwołane' }))
+    expect(await screen.findByText('odwołana')).toBeInTheDocument()
+  })
 })

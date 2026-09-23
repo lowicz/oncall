@@ -114,5 +114,6 @@ pokazują **wyłącznie Twoje dyżury**.
 Dyżury pojawią się jako wydarzenia całodniowe. Korekty i zatwierdzone zamiany
 przychodzą jako **aktualizacje istniejących wpisów**, nie jako nowe.
 
-Adres można odwołać w dowolnym momencie - przestaje działać natychmiast.
+Adres można odwołać w dowolnym momencie przyciskiem **Odwołaj**. Po potwierdzeniu
+przestaje działać natychmiast i nie da się go przywrócić - trzeba utworzyć nowy.
 Przełącznik **Pokaż odwołane** pod listą pokazuje także adresy już odwołane.
