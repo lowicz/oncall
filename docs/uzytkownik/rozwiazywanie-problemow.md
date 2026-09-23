@@ -25,6 +25,12 @@ Numer kadrowy na koncie nie zgadza się z `employeeNumber` w katalogu.
 Administrator poprawia numer na ekranie „Osoby”; zdarzenie jest w audycie jako
 „Konflikt tożsamości LDAP”.
 
+**„Sesja wygasła” nad formularzem logowania**
+Sesja skończyła się, gdy karta była otwarta: minął czas życia sesji, nastąpiło
+wylogowanie w innej karcie albo administrator wyłączył konto. Aplikacja
+porzuca wtedy wczytane dane i pokazuje logowanie pod tym samym adresem; po
+zalogowaniu wracasz na ekran, który był otwarty.
+
 **Zbyt wiele prób logowania**
 Logowanie jest chwilowo zablokowane („Zablokowano logowanie (zbyt wiele prób)”
 w audycie). Odczekaj i spróbuj ponownie.

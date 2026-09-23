@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, api } from '../api'
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
-import { pluralPl } from '../lib/plural'
+import { pluralFormPl, pluralPl } from '../lib/plural'
 import { formatPoints } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
@@ -658,10 +658,10 @@ export function GeneratorPanel() {
           )}
         >
           <ul>
-            <li><b>{pluralPl(result.assignments.length, ['przydział', 'przydziały', 'przydziałów'])}</b> w {pluralPl(days, ['dniu', 'dniach', 'dniach'])} stanie się opublikowanym grafikiem widocznym dla zespołu, kont podglądowych i linków.</li>
+            <li><b>{pluralPl(result.assignments.length, ['przydział', 'przydziały', 'przydziałów'])}</b> w {pluralPl(days, ['dniu', 'dniach', 'dniach'])} {pluralFormPl(result.assignments.length, ['stanie', 'staną', 'stanie'])} się opublikowanym grafikiem widocznym dla zespołu, kont podglądowych i linków.</li>
             <li>Wcześniejszy grafik zachowuje ważność poza tym zakresem; grafiki w całości pokryte nowym zakresem zostaną oznaczone jako zastąpione.</li>
-            {counts.soft > 0 && <li><b>{pluralPl(counts.soft, ['ostrzeżenie miękkie', 'ostrzeżenia miękkie', 'ostrzeżeń miękkich'])}</b> zostanie zapisanych w audycie jako zaakceptowane przez Ciebie.</li>}
-            {publishPreview.data?.pending_swaps.length ? <li><b>{pluralPl(publishPreview.data.pending_swaps.length, ['oczekująca zamiana', 'oczekujące zamiany', 'oczekujących zamian'])}</b> w tym zakresie zostanie anulowanych.</li> : null}
+            {counts.soft > 0 && <li><b>{pluralPl(counts.soft, ['ostrzeżenie miękkie', 'ostrzeżenia miękkie', 'ostrzeżeń miękkich'])}</b> {pluralFormPl(counts.soft, ['zostanie zapisane', 'zostaną zapisane', 'zostanie zapisanych'])} w audycie jako zaakceptowane przez Ciebie.</li>}
+            {publishPreview.data?.pending_swaps.length ? <li><b>{pluralPl(publishPreview.data.pending_swaps.length, ['oczekująca zamiana', 'oczekujące zamiany', 'oczekujących zamian'])}</b> w tym zakresie {pluralFormPl(publishPreview.data.pending_swaps.length, ['zostanie anulowana', 'zostaną anulowane', 'zostanie anulowanych'])}.</li> : null}
           </ul>
           {result.starts_on <= today && (
             <Box tone="warn" title="Ten zakres obejmuje dzisiejszy albo wcześniejszy dzień.">Publikacja może natychmiast zmienić dyżur, który już trwa.</Box>
@@ -716,7 +716,7 @@ export function GeneratorPanel() {
             <Box tone="warn" title="Przed grafikiem pozostanie luka">Nieobsadzone dni: {publishPreview.data.uncovered_before.map(formatDate).join(', ')}.</Box>
           ) : null}
           {publishPreview.data?.stale_changes_count ? (
-            <Box tone="warn" title={`Szkic nieaktualny: od wygenerowania zmieniło się ${publishPreview.data.stale_changes_count} wpisów.`} />
+            <Box tone="warn" title={`Szkic nieaktualny: od wygenerowania ${pluralFormPl(publishPreview.data.stale_changes_count, ['zmienił', 'zmieniły', 'zmieniło'])} się ${pluralPl(publishPreview.data.stale_changes_count, ['wpis', 'wpisy', 'wpisów'])}.`} />
           ) : null}
           {publishPreview.data?.rest_violations.length ? (
             <Box tone="bad" title="Publikacja naruszy reguły odpoczynku">

@@ -28,6 +28,7 @@ _VALIDATION_MESSAGES = {
     "string_too_short": "Wartość jest za krótka (minimum {min_length} znaków).",
     "string_too_long": "Wartość jest za długa (maksimum {max_length} znaków).",
     "enum": "Nieprawidłowa wartość. Dozwolone: {expected}.",
+    "string_pattern_mismatch": "Wartość ma nieprawidłowy format.",
 }
 
 

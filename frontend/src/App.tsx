@@ -15,6 +15,7 @@ import { FairnessPanel } from './screens/Fairness'
 import { SetPassword } from './screens/SetPassword'
 import { MoreScreen } from './screens/More'
 import { LoadingBlock } from './ui'
+import { SignedIn, meKey } from './session'
 
 // The admin screens and the generator are reached by one role each and not on
 // the landing path, so their code does not need to sit in the main bundle
@@ -152,14 +153,15 @@ function Dashboard({ displayName, avatar, role, hasTeamMember, share }: {
 }
 
 function Home() {
-  const me = useQuery({ queryKey: ['me'], queryFn: api.me, retry: false })
+  const me = useQuery<SignedIn>({ queryKey: meKey, queryFn: api.me, retry: false })
   // Fetched beside the session check, never before it answers: the dashboard
   // shows initials until the photo arrives, and for good if it never does.
-  const avatar = useOwnAvatar(me.data)
+  const avatar = useOwnAvatar(me.data ?? undefined)
   if (me.isLoading) {
     return <div className="center"><LoadingBlock label="Sprawdzanie sesji" rows={2} /></div>
   }
-  if (me.error || !me.data) return <Login />
+  // Null, not undefined: this tab had a session and it ended.
+  if (me.error || !me.data) return <Login expired={me.data === null} />
   return (
     <Dashboard
       displayName={me.data.display_name}

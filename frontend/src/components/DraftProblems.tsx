@@ -1,6 +1,7 @@
 import { DraftSchedule } from '../api'
 import { roleLabels } from '../lib/labels'
 import { formatDate, formatDayShort } from '../lib/dates'
+import { pluralFormPl, pluralPl } from '../lib/plural'
 import { Button, EmptyState, RoleMark, StatusBadge, StatusTone } from '../ui'
 import { DraftFocus } from './DraftScheduleMatrix'
 
@@ -57,7 +58,7 @@ export function draftProblems(result: DraftSchedule): Problem[] {
       key: 'gap',
       kind: 'gap',
       person: WHOLE,
-      detail: `${result.uncovered_before.length} ${result.uncovered_before.length === 1 ? 'nieobsadzony dzień' : 'nieobsadzonych dni'}: ${result.uncovered_before.map(formatDate).join(', ')}`,
+      detail: `${pluralPl(result.uncovered_before.length, ['nieobsadzony dzień', 'nieobsadzone dni', 'nieobsadzonych dni'])}: ${result.uncovered_before.map(formatDate).join(', ')}`,
     })
   }
   if (result.stale_changes_count) {
@@ -65,7 +66,7 @@ export function draftProblems(result: DraftSchedule): Problem[] {
       key: 'stale',
       kind: 'stale',
       person: WHOLE,
-      detail: `od wygenerowania zmieniło się ${result.stale_changes_count} wpisów`,
+      detail: `od wygenerowania ${pluralFormPl(result.stale_changes_count, ['zmienił', 'zmieniły', 'zmieniło'])} się ${pluralPl(result.stale_changes_count, ['wpis', 'wpisy', 'wpisów'])}`,
     })
   }
   return problems

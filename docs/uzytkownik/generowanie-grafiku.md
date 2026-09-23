@@ -109,7 +109,9 @@ Kliknij komórkę, w panelu dnia wybierz rolę i osobę, zapisz. Korekta:
 - nie regeneruje pozostałych dni,
 - podlega regułom twardym,
 - korzysta z wersjonowania,
-- jest oznaczona jako ręczna.
+- jest oznaczona jako ręczna,
+- nie oznacza szkicu jako nieaktualnego: to ostrzeżenie dotyczy tylko zmian
+  poza szkicem, np. dostępności wpisanej po wygenerowaniu.
 
 ## Ustawienia generatora
 
