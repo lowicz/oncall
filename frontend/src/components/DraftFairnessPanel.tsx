@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { DraftFairnessImpact, DraftSchedule, FairnessMember, api } from '../api'
 import { lensLabels } from '../lib/labels'
-import { DEVIATION_SCALE, deviationWords, formatDecimal, formatPoints, signedPoints, totalBalance } from '../lib/fairness'
+import { DEVIATION_SCALE, deviationWords, totalBalance } from '../lib/fairness'
+import { formatDecimal, formatPoints, signedPoints } from '../lib/numbers'
+import { formatDate } from '../lib/dates'
 import { Box, Chip, ChipRow, DeviationBar, ErrorState, LoadingBlock, StatusBadge } from '../ui'
 
 export function impactLabel(before: number, after: number) {
@@ -65,10 +67,10 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
       <tr key={after.member_id}>
         <th scope="row">
           {after.display_name}
-          <small>{joined ? `od ${after.active_from}` : `${signedPoints(beforeTotal.deviation)} → ${signedPoints(afterTotal.deviation)} · ${impactLabel(beforeTotal.deviation, afterTotal.deviation)}`}</small>
+          <small>{joined ? `od ${formatDate(after.active_from)}` : `${signedPoints(beforeTotal.deviation)} → ${signedPoints(afterTotal.deviation)} · ${impactLabel(beforeTotal.deviation, afterTotal.deviation)}`}</small>
         </th>
         <td><DeviationBar value={afterTotal.deviation} max={DEVIATION_SCALE} label={deviationWords(afterTotal.deviation)} /></td>
-        <td className="n">{afterTotal.actual}</td>
+        <td className="n">{formatDecimal(afterTotal.actual)}</td>
       </tr>
     )
   })
@@ -84,7 +86,7 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
             {verdict && <StatusBadge tone={verdict === 'lepiej' ? 'ok' : verdict === 'gorzej' ? 'warn' : 'muted'} className="ml-auto">{verdict}</StatusBadge>}
           </div>
           <ChipRow label="Kryterium odbioru">
-            <span className="tag">rozpiętość ≤ {impact.data.criterion_points} pkt na soczewce</span>
+            <span className="tag">rozpiętość ≤ {formatDecimal(impact.data.criterion_points)} pkt na soczewce</span>
             {impact.data.spreads.map((item) => (
               <Chip key={item.lens} tone={item.meets_criterion ? 'ok' : 'warn'}>
                 {lensLabels[item.lens] ?? item.lens}: {formatDecimal(item.before)} → {formatDecimal(item.after)} · {item.meets_criterion ? 'spełnia' : 'nie spełnia'}
@@ -115,7 +117,7 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
             </Box>
           )}
           {cause === 'inherited' && (
-            <Box tone="warn" title={`Kryterium ${impact.data.criterion_points} pkt niespełnione przez zastany dług historyczny.`}>
+            <Box tone="warn" title={`Kryterium ${formatDecimal(impact.data.criterion_points)} pkt niespełnione przez zastany dług historyczny.`}>
               Soczewki poza kryterium były poza nim już przed tym szkicem: to zastana nierówność, nie wada szkicu.
               {' '}
               {spread.after < spread.before - 0.05
@@ -123,13 +125,13 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
                 : `Szkic nie zmniejsza rozrzutu (${formatDecimal(spread.before)} → ${formatDecimal(spread.after)} pkt); jeśli wprowadzono ręczne korekty, sprawdź je.`}
               {' '}
               Generator spłaca dług stopniowo - w jednym zakresie koryguje udział osoby o najwyżej połowę jej udziału, żeby nikt nie został bez dyżurów - więc wyrównanie dokończą kolejne zakresy; ponowne generowanie tego nie zmieni.
-              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${impact.data.acceptance_floor} pkt.`}
+              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${formatDecimal(impact.data.acceptance_floor)} pkt.`}
             </Box>
           )}
           {cause === 'draft' && (
             <Box tone="warn" title="Kryterium niespełnione">
-              Co najmniej jedna soczewka, która przed szkicem mieściła się w {impact.data.criterion_points} pkt, po publikacji przekracza tę rozpiętość; popraw komórki w macierzy albo wygeneruj ponownie.
-              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${impact.data.acceptance_floor} pkt.`}
+              Co najmniej jedna soczewka, która przed szkicem mieściła się w {formatDecimal(impact.data.criterion_points)} pkt, po publikacji przekracza tę rozpiętość; popraw komórki w macierzy albo wygeneruj ponownie.
+              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${formatDecimal(impact.data.acceptance_floor)} pkt.`}
             </Box>
           )}
         </>

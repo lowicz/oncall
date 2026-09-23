@@ -3,6 +3,7 @@ import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
+import { MONTHS_SHORT } from '../lib/dates'
 import { Access, docsHref, visibleFor, allNav } from '../lib/nav'
 import { Icon, IconName, cx } from '../ui'
 import { ThemeMode, themeModeLabels, useThemeMode } from '../theme'
@@ -15,8 +16,6 @@ interface Item {
   icon: IconName
   run: () => void
 }
-
-const MONTHS = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
 
 function isoDay(year: number, month: number, day: number): string | null {
   if (month < 1 || month > 12 || day < 1) return null
@@ -37,7 +36,7 @@ export function parseDayQuery(query: string, today = new Date()): string | null 
   }
   match = /^(\d{1,2})\s+([a-ząćęłńóśźż]{3})[a-ząćęłńóśźż]*(?:\s+(\d{4}))?$/.exec(text)
   if (match) {
-    const month = MONTHS.indexOf(match[2])
+    const month = MONTHS_SHORT.indexOf(match[2])
     if (month < 0) return null
     const year = match[3] ? Number(match[3]) : today.getFullYear()
     return isoDay(year, month + 1, Number(match[1]))

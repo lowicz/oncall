@@ -35,7 +35,9 @@ Lista **Szkice** wypisuje istniejące szkice ze stanem (`SZKIC`, `DO
 AKCEPTACJI`), wersją, liczbą przydziałów i datą utworzenia. **Otwórz**
 przechodzi do propozycji, ikona kosza usuwa szkic. Jeżeli masz szkice w
 trybie dziennym i tygodniowym, rozwijana sekcja **Porównaj wariant dzienny i
-tygodniowy** zestawia ich metryki, zanim wybierzesz ten do publikacji.
+tygodniowy** zestawia ich metryki, zanim wybierzesz ten do publikacji. Gdy
+szkic każdego trybu jest tylko jeden, sekcja od razu wybiera oba i je porównuje;
+przy kilku wybierasz parę i klikasz **Porównaj**.
 
 ## W trakcie liczenia
 

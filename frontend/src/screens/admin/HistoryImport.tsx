@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HistoryImportPreview, api } from '../../api'
 import { formatDate } from '../../lib/dates'
 import { roleLabels } from '../../lib/labels'
+import { pluralPl } from '../../lib/plural'
+import { inFileOrder } from '../../lib/historyImport'
 import { AnchorButton, Box, Button, EmptyState, ErrorState, List, ListRow, LoadingBlock, PageHeader, RoleMark, SectionHeading, Steps, Tag } from '../../ui'
 
 /** Polish plural: 1 wiersz, 2-4 wiersze, 5+ wierszy (12-14 wierszy again). */
@@ -39,6 +41,8 @@ export function HistoryImportPanel() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['history-imports'] }),
   })
   const stage = commit.isSuccess ? 3 : preview ? 2 : 1
+  const errors = preview ? inFileOrder(preview.errors) : []
+  const errorCount = pluralPl(errors.length, ['błąd', 'błędy', 'błędów'])
 
   return (
     <div className="page">
@@ -81,20 +85,20 @@ export function HistoryImportPanel() {
         <section className="stack-sm" aria-label={preview.filename}>
           <SectionHeading
             title={preview.filename}
-            meta={`${pluralRows(preview.rows.length)} · ${preview.errors.length} błędów`}
+            meta={`${pluralRows(preview.rows.length)} · ${errorCount}`}
             controls={(
               <Button variant="primary" disabled={!preview.valid || commit.isPending} loading={commit.isPending} onClick={() => commit.mutate(preview)}>
                 {commit.isPending ? 'Importuję…' : 'Zatwierdź import'}
               </Button>
             )}
           />
-          {preview.errors.length > 0 && (
-            <Box tone="bad" title={`${preview.errors.length} ${preview.errors.length === 1 ? 'błąd' : 'błędów'} - popraw plik i wgraj go ponownie`}>
+          {errors.length > 0 && (
+            <Box tone="bad" title={`${errorCount} - popraw plik i wgraj go ponownie`}>
               <ul className="box-list">
-                {preview.errors.slice(0, 20).map((error, index) => (
+                {errors.slice(0, 20).map((error, index) => (
                   <li key={`${error.row_number}-${error.field}-${index}`}>{error.row_number ? `Wiersz ${error.row_number}: ` : ''}{error.message}</li>
                 ))}
-                {preview.errors.length > 20 && <li>… i {preview.errors.length - 20} więcej</li>}
+                {errors.length > 20 && <li>… i {errors.length - 20} więcej</li>}
               </ul>
             </Box>
           )}

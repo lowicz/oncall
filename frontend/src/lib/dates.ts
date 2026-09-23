@@ -59,17 +59,28 @@ export function formatMoment(value: string) {
   return `${parts.day}-${parts.month}-${parts.year}, ${parts.hour}:${parts.minute}`
 }
 
-const WEEKDAYS = ['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob']
+/**
+ * Polish weekday abbreviations, Sunday first like `Date.getDay()`. The one set
+ * every screen prints, and the same words the API sends as a day's `weekday`.
+ */
+export const WEEKDAYS = ['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob'] as const
+
+/** The same abbreviations Monday first, for the heads of a calendar grid. */
+export const WEEKDAYS_FROM_MONDAY = [...WEEKDAYS.slice(1), WEEKDAYS[0]]
 
 /** Parsed at midday UTC so a timezone shift can never move the calendar day. */
 function parse(value: string) {
   return new Date(`${value}T12:00:00Z`)
 }
 
+/** "czw" - the weekday of a calendar date. */
+export function formatWeekday(value: string) {
+  return WEEKDAYS[parse(value).getUTCDay()]
+}
+
 /** "czw 14-09-2026" - a weekday plus the globally consistent date format. */
 export function formatDay(value: string) {
-  const date = parse(value)
-  return `${WEEKDAYS[date.getUTCDay()]} ${formatDate(value)}`
+  return `${formatWeekday(value)} ${formatDate(value)}`
 }
 
 /** Plain-language distance from today, for choosing between upcoming duties. */
@@ -84,9 +95,9 @@ export function relativeDay(value: string, from = warsawDate()) {
   return `${Math.abs(days)} dni temu`
 }
 
-const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
+const MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień']
+export const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
 const MONTHS_GENITIVE = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca', 'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia']
-const WEEKDAYS_SHORT = ['nd', 'pn', 'wt', 'śr', 'czw', 'pt', 'so']
 const WEEKDAYS_LONG = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']
 
 /** "3 paź" - a date in running text, the way the screens name days. */
@@ -97,8 +108,13 @@ export function formatShortDate(value: string) {
 
 /** "czw 24 wrz" - a day in running text: weekday, day, month. */
 export function formatDayShort(value: string) {
-  const date = parse(value)
-  return `${WEEKDAYS_SHORT[date.getUTCDay()]} ${formatShortDate(value)}`
+  return `${formatWeekday(value)} ${formatShortDate(value)}`
+}
+
+/** "wrzesień 2026", or "wrzesień" - a month given as "2026-09". */
+export function formatMonth(month: string, withYear = true) {
+  const [year, index] = month.split('-').map(Number)
+  return withYear ? `${MONTHS[index - 1]} ${year}` : MONTHS[index - 1]
 }
 
 /** "Niedziela, 20 września" - the title of the dashboard. */

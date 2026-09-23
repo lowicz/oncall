@@ -168,7 +168,7 @@ describe('FairnessPanel lens links', () => {
     expect(duties).toHaveBeenCalledWith('Anna Kowalska', undefined)
     expect(screen.getByText('Co zrobi generator')).toBeInTheDocument()
     expect(screen.getByText(/Anna jest zgodnie z udziałem/)).toBeInTheDocument()
-    expect(screen.getByText('so 15 sie')).toBeInTheDocument()
+    expect(screen.getByText('sob 15 sie')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zwiń: Anna Kowalska' }))
     expect(screen.queryByText('Co zrobi generator')).not.toBeInTheDocument()
   })

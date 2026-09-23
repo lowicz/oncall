@@ -90,12 +90,12 @@ describe('MineScreen duties', () => {
     })
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     // Saturday: round-the-clock cover (coverage.py), 2X, the SECONDARY partner named.
-    const saturday = (await screen.findByText('so 19 wrz · PRIMARY')).closest('.list-row') as HTMLElement
+    const saturday = (await screen.findByText('sob 19 wrz · PRIMARY')).closest('.list-row') as HTMLElement
     expect(within(saturday).getByText(/całodobowo · 2X · S Marek/)).toBeInTheDocument()
     expect(within(saturday).getByText(/koliduje z Twoją niedostępnością/)).toBeInTheDocument()
     expect(within(saturday).getByRole('link', { name: 'Zamień' })).toHaveAttribute('href', '/zamiany?data=2026-09-19&rola=primary')
     // Two roles on one day are one row, with both windows.
-    const monday = screen.getByText('pn 21 wrz · SECONDARY + 11–19').closest('.list-row') as HTMLElement
+    const monday = screen.getByText('pon 21 wrz · SECONDARY + 11–19').closest('.list-row') as HTMLElement
     expect(within(monday).getByText(/19:00–09:00 \+ 11:00–19:00 · 1X/)).toBeInTheDocument()
     expect(screen.queryByText(/LATE_SHIFT/)).not.toBeInTheDocument()
     // The header names the next duty and the primary action starts a swap from it.
@@ -133,10 +133,10 @@ describe('MineScreen points and swaps', () => {
       swap({ id: 'w3', service_date: '2026-08-01', requester_name: 'Ola Wiśniewska', replacement_name: 'Ewa Maj' }),
     ])
     renderScreen(<MineScreen displayName="Julia Nowak" />)
-    const incoming = (await screen.findByText('Piotr → Ty · so 3 paź PRIMARY')).closest('.list-row') as HTMLElement
+    const incoming = (await screen.findByText('Piotr → Ty · sob 3 paź PRIMARY')).closest('.list-row') as HTMLElement
     expect(within(incoming).getByText('prośba do Ciebie · odpowiedz')).toBeInTheDocument()
     expect(within(incoming).getByRole('link', { name: 'Zdecyduj' })).toHaveAttribute('href', '/zamiany?skrzynka=do-mnie')
-    const outgoing = screen.getByText('Ty → Marek · pn 28 wrz PRIMARY').closest('.list-row') as HTMLElement
+    const outgoing = screen.getByText('Ty → Marek · pon 28 wrz PRIMARY').closest('.list-row') as HTMLElement
     expect(within(outgoing).getByText(/czeka na: Marek/)).toBeInTheDocument()
     // A swap between two other people is not mine.
     expect(screen.queryByText(/Ola/)).not.toBeInTheDocument()
@@ -164,7 +164,7 @@ describe('MineScreen availability calendar', () => {
     await waitFor(() => expect(remove).toHaveBeenCalledWith('a1'))
     // The day after stays declared: the entry is re-created around the cleared day.
     await waitFor(() => expect(create).toHaveBeenCalledWith({ kind: 'unavailable', note: 'Wyjazd', starts_on: '2026-09-21', ends_on: '2026-09-21' }))
-    expect(await screen.findByText('Wyczyszczono: nd 20 wrz')).toBeInTheDocument()
+    expect(await screen.findByText('Wyczyszczono: niedz 20 wrz')).toBeInTheDocument()
   })
 
   it('saves a click at once with the brush kind and the optional reason', async () => {
@@ -180,7 +180,7 @@ describe('MineScreen availability calendar', () => {
     fireEvent.click(cell(/niedz 20-09-2026/))
 
     await waitFor(() => expect(create).toHaveBeenCalledWith({ kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie' }))
-    expect(await screen.findByText('Zapisano: nd 20 wrz „wolę nie”')).toBeInTheDocument()
+    expect(await screen.findByText('Zapisano: niedz 20 wrz „wolę nie”')).toBeInTheDocument()
   })
 
   it('cannot paint a day that has passed', async () => {

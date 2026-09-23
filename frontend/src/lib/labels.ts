@@ -1,4 +1,5 @@
 import { AssignmentRole, AvailabilityKind, DraftSchedule, LateShiftAnchor, RotationMode } from '../api'
+import { formatDay } from './dates'
 
 export const roleLabels: Record<AssignmentRole, string> = {
   primary: 'PRIMARY',
@@ -51,7 +52,6 @@ export function cellLabel(
   memberName: string,
   day: {
     service_date: string
-    weekday: string
     is_day_off: boolean
     holiday_name: string | null
     events?: Array<{ title: string }>
@@ -59,7 +59,7 @@ export function cellLabel(
   duties: string[],
   availability?: AvailabilityKind,
 ) {
-  const parts = [memberName, `${day.weekday} ${day.service_date}`]
+  const parts = [memberName, formatDay(day.service_date)]
   if (day.is_day_off) parts.push(day.holiday_name ?? 'dzień wolny, stawka 2X')
   if (day.events?.length) parts.push(`wydarzenia: ${day.events.map((event) => event.title).join(', ')}`)
   parts.push(duties.length > 0 ? duties.join(', ') : 'brak dyżuru')

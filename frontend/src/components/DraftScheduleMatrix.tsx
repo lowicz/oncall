@@ -3,7 +3,9 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { monthGroups, startsWeek } from '../lib/calendar'
-import { formatDate, warsawDate } from '../lib/dates'
+import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
+import { roundPoints } from '../lib/fairness'
+import { signed } from '../lib/numbers'
 import { AvailabilityMark, Box, Button, ErrorState, Field, LoadingBlock, Panel, RoleMark, Select, Tag, cx } from '../ui'
 
 type Member = CalendarData['members'][number]
@@ -100,7 +102,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                     className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', day.service_date === today && 'td')}
                     title={[day.holiday_name, ...day.events.map((event) => event.title)].filter(Boolean).join(' · ') || undefined}
                   >
-                    <span>{day.weekday}</span>
+                    <span>{formatWeekday(day.service_date)}</span>
                     <b>{day.service_date.slice(8)}</b>
                   </th>
                 ))}
@@ -197,7 +199,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
             {!selectedAssignment && <p className="muted small">W tej roli nikt nie ma przydziału tego dnia; korekta zmienia istniejący przydział.</p>}
             {selectedBalance && selectedCategory && selectedAssignment && selectedAssignment.assignee_name !== selected.member.display_name && (
               <Box tone="sig" title={`Bilans ${roleLabels[selectedRole]}: ${selectedBalance.display_name}`}>
-                {selectedCategory.deviation} → {Math.round((selectedCategory.deviation + correctionPoints) * 100) / 100}
+                {signed(selectedCategory.deviation)} → {signed(roundPoints(selectedCategory.deviation + correctionPoints))}
                 {' '}({correctionPoints > 1 ? '+2 punkty za dzień 2X' : '+1 punkt'})
               </Box>
             )}

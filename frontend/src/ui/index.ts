@@ -12,6 +12,7 @@ export { Menu, MenuItem, MenuLink, MenuGroup, MenuRadioGroup, MenuSeparator } fr
 export { Tooltip, TooltipProvider } from './Tooltip'
 export { Tabs, TabPanel } from './Tabs'
 export { Disclosure } from './Disclosure'
+export { ScrollArea } from './ScrollArea'
 export type { TabItem } from './Tabs'
 export { ToastProvider, useToast } from './Toast'
 export { StatusBadge, Tag, Chip, ChipRow, RoleMark, RoleLabel, AvailabilityMark, Avatar, DeviationBar } from './Status'

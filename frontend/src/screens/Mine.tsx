@@ -15,10 +15,11 @@ import {
 } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
-import { DEVIATION_SCALE, deviationWords, formatPoints, monthlyTotals, totalBalance } from '../lib/fairness'
+import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
+import { formatPoints } from '../lib/numbers'
 import { pluralPl } from '../lib/plural'
 import { isOpen, needsMyDecision } from '../lib/swaps'
-import { addDays, formatDate, formatDay, formatDayShort, formatRange, relativeDay, warsawDate } from '../lib/dates'
+import { WEEKDAYS_FROM_MONDAY, addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, warsawDate } from '../lib/dates'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
@@ -49,7 +50,6 @@ import {
   useToast,
 } from '../ui'
 
-const WEEKDAY_HEAD = ['pn', 'wt', 'śr', 'cz', 'pt', 'so', 'nd']
 const toneOf: Record<AvailabilityKind, 'na' | 'wn' | 'ch'> = { unavailable: 'na', prefer_not: 'wn', prefer: 'ch' }
 const markOf: Record<AvailabilityKind, string> = { unavailable: 'N', prefer_not: 'W', prefer: 'C' }
 const roleDot: Record<AssignmentRole, string> = { primary: 'dot-p', secondary: 'dot-s', late_shift: 'dot-l' }
@@ -73,11 +73,6 @@ function monthDays(month: string) {
 }
 function weekdayIndex(iso: string) {
   return (new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7
-}
-const MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień']
-function monthLabel(month: string, withYear = true) {
-  const [y, m] = month.split('-').map(Number)
-  return withYear ? `${MONTHS[m - 1]} ${y}` : MONTHS[m - 1]
 }
 const firstName = (name: string) => name.split(' ')[0]
 const rangeText = (startsOn: string, endsOn: string) => (startsOn === endsOn ? formatDayShort(startsOn) : formatRange(startsOn, endsOn))
@@ -226,9 +221,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   return (
     <div className="avail-wrap">
       <div className="avail-cal-head" aria-hidden="true">
-        {WEEKDAY_HEAD.map((label, index) => <span key={label} className={cx(index >= 5 && 'we')}>{label}</span>)}
+        {WEEKDAYS_FROM_MONDAY.map((label, index) => <span key={label} className={cx(index >= 5 && 'we')}>{label}</span>)}
       </div>
-      <div className="avail-cal" role="grid" aria-label={`Kalendarz dostępności, ${monthLabel(month)}`}>
+      <div className="avail-cal" role="grid" aria-label={`Kalendarz dostępności, ${formatMonth(month)}`}>
         {Array.from({ length: lead }, (_, index) => <span key={`lead-${index}`} aria-hidden="true" />)}
         {days.map((date) => {
           const entry = entryFor(date)
@@ -383,7 +378,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
       <SectionHeading
         id="dostepnosc-title"
         title={heading}
-        meta={monthLabel(month)}
+        meta={formatMonth(month)}
         controls={(
           <>
             {canActOnBehalf && (
@@ -525,7 +520,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
                   {rows.length === 0 && <tr><td colSpan={4} className="muted">Brak dyżurów w tym okresie.</td></tr>}
                   {rows.map((row) => (
                     <tr key={row.month}>
-                      <td>{monthLabel(row.month, row.month.slice(0, 4) !== thisMonth.slice(0, 4))}</td>
+                      <td>{formatMonth(row.month, row.month.slice(0, 4) !== thisMonth.slice(0, 4))}</td>
                       <td className="n">{formatPoints(row.points)}</td>
                       <td className="n">{row.duties}</td>
                       <td className="n">{row.weekends}</td>

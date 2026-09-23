@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, FairnessMember, SwapImpactMember, api } from '../api'
-import { formatDay } from '../lib/dates'
+import { formatDate, formatDay } from '../lib/dates'
+import { formatDecimal, signed } from '../lib/numbers'
 import { Box, InlineError, LoadingBlock, cx } from '../ui'
 
 type Lens = keyof Pick<FairnessMember, 'primary' | 'secondary' | 'late_shift' | 'weekends' | 'holidays'>
@@ -15,11 +16,8 @@ const LENSES: Array<[string, Lens]> = [
 
 function delta(before: number, after: number) {
   const change = Math.round((after - before) * 100) / 100
-  if (change === 0) return null
-  return change > 0 ? `+${change}` : String(change)
+  return change === 0 ? null : signed(change)
 }
-
-const dev = (value: number) => `${value > 0 ? '+' : ''}${value.toLocaleString('pl-PL', { maximumFractionDigits: 2 })}`
 
 function Side({ side, direction }: { side: SwapImpactMember; direction: string }) {
   const rows = LENSES.map(([label, key]) => {
@@ -33,10 +31,10 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
       <div className="impact-row" key={key}>
         <span>
           <b>{label}</b>
-          <span className="muted small"> punkty {before.actual} → {after.actual} ({moved})</span>
+          <span className="muted small"> punkty {formatDecimal(before.actual)} → {formatDecimal(after.actual)} ({moved})</span>
         </span>
         <span className={cx('impact-d', closer ? 'impact-d-ok' : further ? 'impact-d-warn' : '')}>
-          {dev(before.deviation)} → {dev(after.deviation)}
+          {signed(before.deviation)} → {signed(after.deviation)}
           <br />
           <small>{closer ? 'bliżej równowagi' : further ? 'dalej od równowagi' : 'bez zmiany'}</small>
         </span>
@@ -82,7 +80,7 @@ export function SwapImpactPreview({ serviceDate, role, replacementId, mode = 'sw
       <div className="impact-h">Wpływ na bilans</div>
       <div className="small muted">
         {formatDay(impact.data.service_date)} to {impact.data.points === 2 ? '2 punkty (2X)' : '1 punkt'}.
-        {' '}Okno {impact.data.window_start} - {impact.data.window_end}.
+        {' '}Okno {formatDate(impact.data.window_start)} – {formatDate(impact.data.window_end)}.
       </div>
       <Side side={impact.data.requester} direction={fromDirection} />
       <Side side={impact.data.replacement} direction="przejmuje dyżur" />

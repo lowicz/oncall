@@ -2,7 +2,7 @@ import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, CalendarEventColor, CalendarEventRef, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
-import { formatDate, fourWeekRangeEnd, warsawDate } from '../lib/dates'
+import { formatDate, formatDay, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
   MEMBER_GROUP_LABELS,
   availabilityDutyConflicts,
@@ -441,7 +441,7 @@ export function CalendarMatrix({
                       title={[day.holiday_name, ...day.events.map((event) => event.title), gap ? 'brak pełnej obsady' : null]
                         .filter(Boolean).join(' · ') || undefined}
                     >
-                      <span>{day.weekday}</span>
+                      <span>{formatWeekday(day.service_date)}</span>
                       <b>{day.service_date.slice(8)}</b>
                       {gap && <span className="sr-only">brak pełnej obsady</span>}
                     </th>
@@ -525,7 +525,7 @@ export function CalendarMatrix({
       <Panel
         open={Boolean(selected)}
         onOpenChange={(open) => { if (!open) closeInspector() }}
-        title={selected ? `${selected.day.weekday} ${formatDate(selected.day.service_date)}` : ''}
+        title={selected ? formatDay(selected.day.service_date) : ''}
         meta={selected && (
           <>
             <Tag tone={selected.day.is_day_off ? 'late' : undefined}>{dayTag(selected.day)}</Tag>

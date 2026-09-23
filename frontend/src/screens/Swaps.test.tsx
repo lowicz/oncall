@@ -48,11 +48,11 @@ describe('SwapPanel inbox', () => {
 
     expect(await screen.findByText('1 czeka na Twoją decyzję · 0 czeka na drugą stronę · 0 zamkniętych')).toBeInTheDocument()
     expect(inbox(/^Do mnie/)).toHaveAttribute('aria-pressed', 'true')
-    const row = screen.getByRole('row', { name: /pn 14 wrz/ })
+    const row = screen.getByRole('row', { name: /pon 14 wrz/ })
     expect(within(row).getByText('czeka na Ciebie')).toBeInTheDocument()
 
     fireEvent.click(within(row).getByRole('button', { name: /Zdecyduj/ }))
-    const sheet = await screen.findByRole('dialog', { name: 'Zamiana · pn 14 wrz PRIMARY' })
+    const sheet = await screen.findByRole('dialog', { name: 'Zamiana · pon 14 wrz PRIMARY' })
     expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeEnabled()
     expect(within(sheet).getByRole('button', { name: 'Odrzuć' })).toBeDisabled()
   })
@@ -267,7 +267,7 @@ describe('SwapPanel new request', () => {
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14|primary' } })
-    expect(screen.getByText('Oddajesz: pn 14 wrz · PRIMARY')).toBeInTheDocument()
+    expect(screen.getByText('Oddajesz: pon 14 wrz · PRIMARY')).toBeInTheDocument()
     // Candidates are ranked, and each carries the balance and the reported
     // preference, so comparing two of them no longer means selecting each one
     // and reading the impact preview twice (MED5-09).
