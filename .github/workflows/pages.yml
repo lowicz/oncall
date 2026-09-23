@@ -19,6 +19,7 @@ on:
     paths:
       - docs/**
       - frontend/scripts/build-docs.mjs
+      - frontend/scripts/heading-slug.mjs
       - frontend/docs-template/**
       - frontend/package.json
       - frontend/package-lock.json

@@ -39,6 +39,7 @@ import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promi
 import { dirname, join, parse, posix, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Marked, Renderer } from 'marked'
+import { slugify } from './heading-slug.mjs'
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const docsRoot = resolve(appRoot, '../docs')
@@ -101,18 +102,6 @@ async function markdownFiles(dir, prefix = '') {
   }
   return found.sort()
 }
-
-/**
- * GitHub-compatible heading slug, so an anchor written against the Markdown
- * source resolves the same way in the rendered page.
- */
-const slugify = (text) =>
-  text
-    .toLowerCase()
-    .replace(/<[^>]+>/g, '')
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .trim()
-    .replace(/\s+/g, '-')
 
 const escapeHtml = (text) =>
   text.replace(/[&<>"']/g, (char) =>
