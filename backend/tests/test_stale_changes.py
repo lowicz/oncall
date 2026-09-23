@@ -218,3 +218,69 @@ async def test_only_a_correction_to_another_schedule_counts(db: AsyncSession) ->
     await db.commit()
 
     assert await stale_changes_count(schedule, SqlAlchemyChangeLog(db)) == 1
+
+
+@pytest.mark.anyio
+async def test_an_availability_change_without_a_readable_id_counts_without_failing(
+    db: AsyncSession,
+) -> None:
+    """An entry audited without its id, or with one that is not a UUID, cannot
+    be checked against the window, so it counts like a deleted one; the
+    entries next to it that do carry an id are still checked by their dates."""
+    schedule = await _draft(db)
+    member_id = await _member(db, "Anna Kowalska")
+    far_future = schedule.ends_on + timedelta(days=365)
+    inside, outside = (
+        Availability(
+            member_id=member_id, kind=AvailabilityKind.unavailable, starts_on=day, ends_on=day
+        )
+        for day in (schedule.starts_on, far_future)
+    )
+    db.add_all([inside, outside])
+    await db.flush()
+    db.add_all(
+        [
+            AuditEvent(
+                actor_label="Koordynator",
+                action="availability.created_on_behalf",
+                entity_type="availability",
+                entity_id=entity_id,
+                summary="Koordynator w imieniu Anna Kowalska: nie mogę",
+            )
+            for entity_id in (str(inside.id), str(outside.id), None, "not-a-uuid")
+        ]
+    )
+    await db.commit()
+
+    assert await stale_changes_count(schedule, SqlAlchemyChangeLog(db)) == 3
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "action",
+    ["admin.eligibility_updated", "admin.team_member_updated", "swap.accepted"],
+)
+async def test_a_change_without_an_id_counts_in_every_group_checked_by_id(
+    db: AsyncSession, action: str
+) -> None:
+    schedule = await _draft(db)
+    db.add_all(
+        [
+            AuditEvent(
+                actor_label="Koordynator",
+                action=action,
+                entity_type="unknown",
+                entity_id=entity_id,
+                summary="Zdarzenie bez identyfikatora",
+            )
+            for entity_id in (None, "00000000-0000-0000-0000-000000000000")
+        ]
+    )
+    await db.commit()
+    schedule = await db.scalar(
+        select(Schedule)
+        .options(selectinload(Schedule.assignments))
+        .where(Schedule.id == schedule.id)
+    )
+
+    assert await stale_changes_count(schedule, SqlAlchemyChangeLog(db)) == 1
