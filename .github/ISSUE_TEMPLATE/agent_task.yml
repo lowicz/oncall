@@ -1,0 +1,114 @@
+name: Task or bug report
+description: A structured report that is quick for a person to write and complete enough for an AI agent to pick up without guessing.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Fill in what you know; the required fields are the minimum an agent needs to start work without asking back.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      description: Pick the closest type.
+      options:
+        - Bug
+        - Enhancement
+        - Documentation
+        - Operations / deployment
+        - Tech debt / refactor
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Routes the issue to the right part of the code and can drive labels later.
+      options:
+        - Frontend
+        - Backend / API
+        - Schedule generator
+        - Notifications / e-mail
+        - Deployment / Docker / systemd
+        - CI / security / dependencies
+        - Documentation
+        - Not sure / several areas
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What needs to be done
+      description: One or a few sentences describing the expected outcome.
+      placeholder: "e.g. On the month view, show a warning when a shift falls outside a team member's active date range."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and current behaviour
+      description: What happens now, where it is visible, and why it is a problem.
+      placeholder: "Which screen or endpoint, which user role, which environment, what you saw versus what you expected."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce or example
+      description: For a bug, the steps. For a task, an example scenario or data set the agent should work from.
+      placeholder: |
+        1. Sign in as ...
+        2. Go to ...
+        3. Do ...
+        4. Expected ... / Actual ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: The conditions under which the work is done.
+      placeholder: |
+        - The user sees ...
+        - The API returns ...
+        - A regression test covers ...
+        - The documentation says ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and out of scope
+      description: What not to touch, which behaviour must stay unchanged, or what belongs in a separate issue.
+      placeholder: "e.g. Do not change the permission model. No data migration. Do not rebuild the whole view."
+    validations:
+      required: false
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and references
+      description: Links, screenshots, log excerpts, file names, related PRs or issues, earlier decisions.
+      placeholder: "Paste anything the agent should read before changing code."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Does not replace triage, but helps ordering.
+      options:
+        - Low
+        - Normal
+        - High
+        - Urgent (blocks use or a release)
+      default: 1
+    validations:
+      required: true
