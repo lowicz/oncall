@@ -159,6 +159,13 @@
       rangeStrategy: 'pin',
     },
     {
+      // requires-python is the interpreter bound, not a dependency: it stays a
+      // range and the dashboard-gated "Python" group moves it with the runtime.
+      matchManagers: ['pep621'],
+      matchDepTypes: ['requires-python'],
+      rangeStrategy: 'update-lockfile',
+    },
+    {
       matchManagers: ['dockerfile', 'docker-compose'],
       groupName: 'container base images',
       matchUpdateTypes: ['minor', 'patch'],
