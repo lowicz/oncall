@@ -4,9 +4,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## Layout
 
-- `docs/` - product and user documentation in Polish (the UI is Polish), rendered
-  to static HTML and served at `/docs/`. Every page must be listed in
-  `docs/toc.json`.
+- `docs/` is only for maintained product and user documentation in Polish (the
+  UI is Polish), rendered to static HTML and served at `/docs/`. Never put QA
+  reports, plans, test scripts or screenshots there. Every page must be listed
+  in `docs/toc.json`.
 - `archive/docs/` - the former `docs/` tree: plans, QA reports, screenshots and
   test scripts. Historical, not maintained; see `archive/README.md`. Source
   comments that cite `archive/docs/PLAN.md` or `archive/docs/SOLVER.md` point
@@ -48,10 +49,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `docker-compose.yml` is the production file: it runs the published images
   `ghcr.io/lowicz/oncall-api` (services `api` and `worker`) and
   `ghcr.io/lowicz/oncall-web`, pinned by `ONCALL_VERSION` from `.env`, and
-  refuses to start without it. Building from the checkout is the overlay
-  `docker-compose.dev.yml` (`-f docker-compose.yml -f docker-compose.dev.yml`),
-  which may change nothing but `image`/`build`; `.github/scripts/compose-parity.sh`
-  enforces that in CI. `.github/scripts/env-vars-wired.sh` (same CI job) fails
+  refuses to start without it. Building from the checkout requires
+  `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`;
+  never use bare `docker compose up --build`, because the production file has
+  no build definitions. The dev overlay may change nothing but `image`/`build`;
+  `.github/scripts/compose-parity.sh` enforces that in CI. `.github/scripts/env-vars-wired.sh` (same CI job) fails
   if an `ONCALL_*` documented in `.env.example` is referenced by no Compose
   file, so a documented knob cannot silently go unplumbed.
 - The `web` image builds from the **repository root** (`context: .`,
@@ -117,6 +119,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## CI and releases
 
+- Run backend checks from `backend/` through `uv`; never invoke bare tools or
+  guess `.venv` paths. `README.md` ("Local backend") gives the canonical test
+  and quality commands.
 - `.github/workflows/ci.yml` is the gate list (backend: `uv lock --check`
   before the install, ruff check + format, mypy, pytest on SQLite, OpenAPI
   snapshot; backend-postgres: migrations from empty plus `alembic check`, then
