@@ -52,6 +52,7 @@ class NotificationOutbox(Base):
     recipient: Mapped[str] = mapped_column(String(320))
     subject: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text)
+    html_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     context: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[NotificationStatus] = mapped_column(
         Enum(NotificationStatus, native_enum=False), default=NotificationStatus.pending

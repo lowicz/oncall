@@ -26,6 +26,15 @@ Serwer SMTP jest **usługą zewnętrzną** - projekt nie hostuje poczty. Bez
 skonfigurowanego hosta SMTP wiadomości są oznaczane jako `skipped` z powodem
 zapisanym w kolejce.
 
+Każda wiadomość wychodzi w dwóch wersjach naraz (`multipart/alternative`):
+jako zwykły tekst, który mówi wszystko sam, i jako HTML w jasnym motywie
+aplikacji - z tym samym oznaczeniem ról (PRIMARY, SECONDARY, 11–19), tymi
+samymi kolorami i datami w postaci `czw 24-09-2026`, jaką pokazują ekrany.
+Wersja HTML jest pisana pod Outlook 365: układ na tabelach, style wpisane w
+elementy, bez czcionek webowych, obrazków i przezroczystości. Nazwa i podtytuł
+w nagłówku wiadomości pochodzą z `ONCALL_APP_NAME` i `ONCALL_APP_SUBTITLE`, a
+przyciski prowadzą pod `ONCALL_PUBLIC_BASE_URL`.
+
 Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
 zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
 tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje** (`/moje`).

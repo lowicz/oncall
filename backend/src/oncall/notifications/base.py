@@ -16,7 +16,11 @@ class NotificationMessage:
     channel: str
     recipient: str
     subject: str
+    #: Plain text that says everything on its own; every channel can carry it.
     body: str
+    #: The same message as an HTML document, for a channel that renders one.
+    #: The e-mail provider sends both as one ``multipart/alternative`` mail.
+    html_body: str | None = None
     context: dict = field(default_factory=dict)
     #: Stable across every retry of the same outbox row, so a provider can tell
     #: a repeat of one message from a second message. Delivery is at-least-once

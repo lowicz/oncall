@@ -41,7 +41,12 @@ class SmtpEmailProvider:
         # recognisable as the same message - to a deduplicating relay, to a
         # mail client threading it, and to whoever is reading the logs.
         email["Message-ID"] = self.message_id(message)
+        # The plain text first, so a client that renders no HTML - and a row
+        # enqueued before the HTML rendering existed - still reads the whole
+        # message; the HTML part is the alternative a client prefers when it can.
         email.set_content(message.body)
+        if message.html_body:
+            email.add_alternative(message.html_body, subtype="html")
         return email
 
     def message_id(self, message: NotificationMessage) -> str:

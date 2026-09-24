@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -62,6 +63,30 @@ async def test_enqueue_and_drain_sends_message(db, db_factory, frozen_clock) -> 
     row = await _stored(db_factory)
     assert row.status == NotificationStatus.sent
     assert as_utc(row.sent_at) == frozen_clock.instant
+
+
+async def test_the_html_body_reaches_the_provider(db, db_factory) -> None:
+    """The outbox row keeps both bodies, and the claim hands both to the provider."""
+    html = "<html><body>Treść</body></html>"
+    await enqueue_notification(db, replace(message(), html_body=html))
+    await db.commit()
+    provider = FakeProvider()
+
+    await drain_outbox(db_factory, {"email": provider})
+
+    assert provider.sent[0].body == "Treść"
+    assert provider.sent[0].html_body == html
+    assert (await _stored(db_factory)).html_body == html
+
+
+async def test_a_row_without_html_is_delivered_as_plain_text(db, db_factory) -> None:
+    await enqueue_notification(db, message())
+    await db.commit()
+    provider = FakeProvider()
+
+    await drain_outbox(db_factory, {"email": provider})
+
+    assert provider.sent[0].html_body is None
 
 
 async def test_temporary_error_retries_with_backoff(db, db_factory, frozen_clock) -> None:

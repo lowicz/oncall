@@ -8,19 +8,41 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.config import get_settings
+from oncall.config import Settings, get_settings
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications import templates
 from oncall.notifications.base import NotificationMessage
+from oncall.notifications.layout import Brand
 from oncall.notifications.service import enqueue_notification
+from oncall.notifications.templates import RenderedEmail
 
 logger = logging.getLogger(__name__)
 
 #: The order a day's roles are read in: PRIMARY, SECONDARY, 11–19.
 _ROLE_ORDER = {role: index for index, role in enumerate(AssignmentRole)}
+
+
+def _brand(settings: Settings) -> Brand:
+    """What every mail says about the application: its name, subtitle and address."""
+    return Brand(
+        name=settings.app_name,
+        subtitle=settings.app_subtitle,
+        url=settings.public_base_url,
+    )
+
+
+def _message(recipient: str, rendered: RenderedEmail, context: dict) -> NotificationMessage:
+    return NotificationMessage(
+        channel="email",
+        recipient=recipient,
+        subject=rendered.subject,
+        body=rendered.text,
+        html_body=rendered.html,
+        context=context,
+    )
 
 
 async def _emails_for_names(db: AsyncSession, names: Iterable[str]) -> dict[str, str]:
@@ -58,17 +80,10 @@ async def _enqueue_for(
         if recipient is None:
             logger.info("No e-mail for %s; notification skipped", name)
             continue
-        subject, body = build()
         key = f"{dedup_key}:{name}" if dedup_key else None
         enqueued_id = await enqueue_notification(
             db,
-            NotificationMessage(
-                channel="email",
-                recipient=recipient,
-                subject=subject,
-                body=body,
-                context={**(context or {}), "member": name},
-            ),
+            _message(recipient, build(), {**(context or {}), "member": name}),
             dedup_key=key,
         )
         if enqueued_id is not None:
@@ -94,7 +109,7 @@ async def notify_swap_requested(
             service_date=service_date,
             role=role,
             requester_name=requester_name,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         context={"event": "swap_requested", "service_date": service_date.isoformat()},
     )
@@ -118,7 +133,7 @@ async def notify_swap_accepted(
             service_date=service_date,
             role=role,
             replacement_name=replacement_name,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         context={"event": "swap_accepted", "service_date": service_date.isoformat()},
     )
@@ -131,29 +146,22 @@ async def notify_swap_accepted(
             )
         )
     ).all()
-    subject, body = templates.swap_accepted(
+    pending = templates.swap_pending_coordinator(
         service_date=service_date,
         role=role,
+        requester_name=requester_name,
         replacement_name=replacement_name,
-        app_url=settings.public_base_url,
+        app=_brand(settings),
     )
     for coordinator in coordinators:
         if coordinator.display_name in (requester_name, replacement_name):
             continue
         await enqueue_notification(
             db,
-            NotificationMessage(
-                channel="email",
-                recipient=coordinator.email or "",
-                subject=f"Do zatwierdzenia: {subject}",
-                body=(
-                    f"{requester_name} i {replacement_name} uzgodnili zamianę. "
-                    "Otwórz zakładkę Zamiany, aby podjąć decyzję.\n\n" + body
-                ),
-                context={
-                    "event": "swap_pending_coordinator",
-                    "service_date": service_date.isoformat(),
-                },
+            _message(
+                coordinator.email or "",
+                pending,
+                {"event": "swap_pending_coordinator", "service_date": service_date.isoformat()},
             ),
             dedup_key=(f"swap-pending:{service_date.isoformat()}:{role.value}:{coordinator.id}"),
         )
@@ -183,7 +191,7 @@ async def notify_swap_rejected(
             replacement_name=replacement_name,
             reason=reason,
             by_coordinator=by_coordinator,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         context={"event": "swap_rejected", "service_date": service_date.isoformat()},
     )
@@ -209,7 +217,7 @@ async def notify_swap_cancelled(
             role=role,
             requester_name=requester_name,
             reason=reason,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         context={"event": "swap_cancelled", "service_date": service_date.isoformat()},
     )
@@ -237,7 +245,7 @@ async def notify_swap_cancelled_by_publication(
             role=role,
             requester_name=requester_name,
             reason="Grafik zastąpiony nową publikacją",
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         dedup_key=f"swap-publication-cancelled:{swap_id}",
         context={
@@ -266,7 +274,7 @@ async def notify_swap_approved(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         context={"event": "swap_approved", "service_date": service_date.isoformat()},
     )
@@ -317,7 +325,7 @@ async def notify_schedule_published(
                 starts_on=starts_on,
                 ends_on=ends_on,
                 duties=own,
-                app_url=settings.public_base_url,
+                app=_brand(settings),
             ),
             context={"event": "schedule_published", "starts_on": starts_on.isoformat()},
         )
@@ -339,21 +347,19 @@ async def notify_availability_duty_conflict(
             )
         )
     ).all()
-    subject, body = templates.availability_duty_conflict(
+    conflict = templates.availability_duty_conflict(
         member_name=member_name,
         duties=duties,
-        app_url=settings.public_base_url,
+        app=_brand(settings),
     )
     first_day = min(day for day, _ in duties)
     for coordinator in coordinators:
         await enqueue_notification(
             db,
-            NotificationMessage(
-                channel="email",
-                recipient=coordinator.email or "",
-                subject=subject,
-                body=body,
-                context={
+            _message(
+                coordinator.email or "",
+                conflict,
+                {
                     "event": "availability_duty_conflict",
                     "member": member_name,
                     "starts_on": first_day.isoformat(),
@@ -386,7 +392,7 @@ async def notify_availability_created_on_behalf(
             starts_on=starts_on,
             ends_on=ends_on,
             note=note,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         context={
             "event": "availability_created_on_behalf",
@@ -414,7 +420,7 @@ async def notify_assignment_overridden(
             role=role,
             previous_name=previous_name,
             new_name=new_name,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         context={"event": "assignment_overridden", "service_date": service_date.isoformat()},
     )
@@ -441,7 +447,7 @@ async def notify_assignments_changed_by_publication(
         names=names,
         build=lambda: templates.assignments_changed_by_publication(
             changes=changes,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         dedup_key=f"publication-assignments:{schedule_id}",
         context={
@@ -478,7 +484,7 @@ async def enqueue_handover_reminders(
         build=lambda: templates.handover_outgoing(
             service_date=service_date,
             incoming_name=incoming_name,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         dedup_key=f"{dedup_base}:outgoing",
         context={"event": "number_handover", "service_date": service_date.isoformat()},
@@ -490,7 +496,7 @@ async def enqueue_handover_reminders(
         build=lambda: templates.handover_incoming(
             service_date=service_date,
             outgoing_name=outgoing_name,
-            app_url=settings.public_base_url,
+            app=_brand(settings),
         ),
         dedup_key=f"{dedup_base}:incoming",
         context={"event": "number_handover", "service_date": service_date.isoformat()},

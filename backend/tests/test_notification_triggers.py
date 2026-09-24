@@ -6,6 +6,7 @@ from oncall.domain.clock import business_today
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
+from oncall.notifications.templates import format_day
 from oncall.notifications.triggers import notify_schedule_published
 from tests.conftest import (
     create_member,
@@ -215,15 +216,24 @@ async def test_publish_notification_lists_only_the_recipients_own_duties(db) -> 
 
     moje = "Moje dyżury: http://localhost:8080/moje\n"
     assert bodies["anna@example.com"].endswith(moje)
+    # Days read as the screens print them: weekday, then DD-MM-RRRR.
     assert (
-        f"Twoje dyżury w tym grafiku:\n- {today} · SECONDARY\n- {tomorrow} · PRIMARY\n\n"
+        "Twoje dyżury w tym grafiku:\n"
+        f"- {format_day(today)} · SECONDARY\n- {format_day(tomorrow)} · PRIMARY\n\n"
         in bodies["anna@example.com"]
     )
     assert (
-        f"Twoje dyżury w tym grafiku:\n- {today} · PRIMARY\n- {tomorrow} · SECONDARY\n\n"
+        "Twoje dyżury w tym grafiku:\n"
+        f"- {format_day(today)} · PRIMARY\n- {format_day(tomorrow)} · SECONDARY\n\n"
         in bodies["marek@example.com"]
     )
     assert "Anna" not in bodies["marek@example.com"]
+    # The HTML twin lists the same duties, and nobody else's.
+    htmls = {row.recipient: row.html_body for row in await _outbox_rows(db)}
+    assert htmls["anna@example.com"].count(">SECONDARY<") == 1
+    assert htmls["anna@example.com"].count(">PRIMARY<") == 1
+    assert "Anna" not in htmls["marek@example.com"]
+    assert 'href="http://localhost:8080/moje"' in htmls["ola@example.com"]
     # Somebody with nothing in the range still gets the mail and the link.
     assert "W tym grafiku nie masz żadnych dyżurów." in bodies["ola@example.com"]
     assert "Twoje dyżury w tym grafiku" not in bodies["ola@example.com"]
@@ -258,4 +268,4 @@ async def test_unavailability_over_existing_duty_warns_member_and_coordinator(cl
     rows = await _outbox_rows(db)
     assert [row.recipient for row in rows] == ["koord@example.com"]
     assert "Anna Kowalska" in rows[0].subject
-    assert f"{today} · PRIMARY" in rows[0].body
+    assert f"{format_day(today)} · PRIMARY" in rows[0].body
