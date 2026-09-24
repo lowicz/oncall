@@ -200,6 +200,11 @@ async def test_a_batch_rewrites_every_slot_as_one_version(world) -> None:
         OverrideMove(DAY, AssignmentRole.primary, "Anna"),
         OverrideMove(DAY, AssignmentRole.late_shift, "Bartek"),
     ]
+    # The journal also learns who took each slot, so it can tell both sides.
+    assert world.journal.events[0][1]["changes"] == [
+        (DAY, AssignmentRole.primary, "Anna", "Ewa"),
+        (DAY, AssignmentRole.late_shift, "Bartek", "Anna"),
+    ]
 
 
 async def test_a_batch_that_breaks_rules_is_refused_without_acknowledgement(world) -> None:

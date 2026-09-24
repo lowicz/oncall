@@ -6,6 +6,7 @@ from oncall.domain.clock import business_today
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
+from oncall.notifications.templates import format_day
 from oncall.notifications.triggers import notify_schedule_published
 from tests.conftest import (
     create_member,
@@ -215,19 +216,87 @@ async def test_publish_notification_lists_only_the_recipients_own_duties(db) -> 
 
     moje = "Moje dyżury: http://localhost:8080/moje\n"
     assert bodies["anna@example.com"].endswith(moje)
+    # Days read as the screens print them: weekday, then DD-MM-RRRR.
     assert (
-        f"Twoje dyżury w tym grafiku:\n- {today} · SECONDARY\n- {tomorrow} · PRIMARY\n\n"
+        "Twoje dyżury w tym grafiku:\n"
+        f"- {format_day(today)} · SECONDARY\n- {format_day(tomorrow)} · PRIMARY\n\n"
         in bodies["anna@example.com"]
     )
     assert (
-        f"Twoje dyżury w tym grafiku:\n- {today} · PRIMARY\n- {tomorrow} · SECONDARY\n\n"
+        "Twoje dyżury w tym grafiku:\n"
+        f"- {format_day(today)} · PRIMARY\n- {format_day(tomorrow)} · SECONDARY\n\n"
         in bodies["marek@example.com"]
     )
     assert "Anna" not in bodies["marek@example.com"]
+    # The HTML twin lists the same duties, and nobody else's.
+    htmls = {row.recipient: row.html_body for row in await _outbox_rows(db)}
+    assert htmls["anna@example.com"].count(">SECONDARY<") == 1
+    assert htmls["anna@example.com"].count(">PRIMARY<") == 1
+    assert "Anna" not in htmls["marek@example.com"]
+    assert 'href="http://localhost:8080/moje"' in htmls["ola@example.com"]
     # Somebody with nothing in the range still gets the mail and the link.
     assert "W tym grafiku nie masz żadnych dyżurów." in bodies["ola@example.com"]
     assert "Twoje dyżury w tym grafiku" not in bodies["ola@example.com"]
     assert bodies["ola@example.com"].endswith(moje)
+
+
+async def test_batch_override_notifies_everyone_who_gave_up_or_took_a_slot(client, db) -> None:
+    """A batch correction (offboarding, for instance) tells each person about
+    the slots they lost or gained - only those - the way a single correction
+    tells both of its sides."""
+    today, members = await _seed_team(db)
+    tomorrow = today + timedelta(days=1)
+    await create_user(db, "koord", role=UserRole.coordinator, email="koord@example.com")
+    schedule = await create_published_schedule(
+        db,
+        starts_on=today,
+        days=2,
+        primary=["Anna Kowalska", "Anna Kowalska"],
+        secondary=["Ola Wiśniewska", "Ola Wiśniewska"],
+    )
+    await login(client, "koord")
+
+    response = await client.post(
+        "/api/v1/calendar/override/batch",
+        json={
+            "schedule_id": str(schedule.id),
+            "expected_version": schedule.version,
+            "reason": "Anna odchodzi z zespołu",
+            "assignments": [
+                {
+                    "service_date": today.isoformat(),
+                    "role": "primary",
+                    "replacement_member_id": str(members["Marek Nowak"].id),
+                },
+                {
+                    "service_date": tomorrow.isoformat(),
+                    "role": "primary",
+                    "replacement_member_id": str(members["Ola Wiśniewska"].id),
+                },
+            ],
+            "acknowledge_rule_violations": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    rows = {row.recipient: row for row in await _outbox_rows(db)}
+    assert set(rows) == {"anna@example.com", "marek@example.com", "ola@example.com"}
+    assert all(row.subject.startswith("Zmiana przydziałów") for row in rows.values())
+    assert all(row.html_body for row in rows.values())
+    # Anna gave up both slots; Marek and Ola each took one.
+    anna, marek, ola = (rows[f"{who}@example.com"] for who in ("anna", "marek", "ola"))
+    assert anna.subject.endswith("(2)")
+    assert "Marek Nowak (poprzednio: Anna Kowalska)" in anna.body
+    assert "Ola Wiśniewska (poprzednio: Anna Kowalska)" in anna.body
+    assert "Anna odchodzi z zespołu" in anna.body
+    assert marek.subject.endswith("(1)")
+    assert f"{format_day(today)} · PRIMARY: Marek Nowak" in marek.body
+    assert "Ola Wiśniewska" not in marek.body
+    assert ola.subject.endswith("(1)")
+    assert f"{format_day(tomorrow)} · PRIMARY: Ola Wiśniewska" in ola.body
+    assert "Marek Nowak" not in ola.body
+    assert marek.context["event"] == "assignments_overridden_in_batch"
+    assert len(marek.context["changes"]) == 1
 
 
 async def test_unavailability_over_existing_duty_warns_member_and_coordinator(client, db) -> None:
@@ -258,4 +327,4 @@ async def test_unavailability_over_existing_duty_warns_member_and_coordinator(cl
     rows = await _outbox_rows(db)
     assert [row.recipient for row in rows] == ["koord@example.com"]
     assert "Anna Kowalska" in rows[0].subject
-    assert f"{today} · PRIMARY" in rows[0].body
+    assert f"{format_day(today)} · PRIMARY" in rows[0].body

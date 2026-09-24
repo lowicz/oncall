@@ -135,6 +135,34 @@ async def test_os_error_is_temporary(monkeypatch) -> None:
         await provider.send(message())
 
 
+def test_an_html_body_goes_out_as_an_alternative_to_the_text() -> None:
+    """One `multipart/alternative` mail: the plain text first, for a client
+    that renders no HTML, and the HTML for one that does. Either part reads
+    on its own."""
+    provider = SmtpEmailProvider(settings_with())
+    html = "<html><body><p>Treść <b>wiadomości</b></p></body></html>"
+
+    built = provider.build_message(replace(message(), html_body=html))
+
+    assert built.get_content_type() == "multipart/alternative"
+    parts = {part.get_content_type(): part.get_content() for part in built.iter_parts()}
+    assert list(parts) == ["text/plain", "text/html"]
+    assert parts["text/plain"].strip() == "Treść wiadomości"
+    assert parts["text/html"].strip() == html
+    assert built.get_body(("html",)).get_content().strip() == html
+
+
+def test_a_message_without_html_stays_plain_text() -> None:
+    """A row enqueued before the HTML rendering existed still goes out as it
+    was composed."""
+    provider = SmtpEmailProvider(settings_with())
+
+    built = provider.build_message(message())
+
+    assert built.get_content_type() == "text/plain"
+    assert built.get_content().strip() == "Treść wiadomości"
+
+
 def test_a_retry_carries_the_message_id_of_the_original() -> None:
     """Delivery is at-least-once (decision D-03), so the same outbox row can
     reach the server twice. A `Message-ID` derived from the row rather than

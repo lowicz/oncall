@@ -32,6 +32,12 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   plan-phase identifiers (`QA-REPORT`, `QA7`, `round 4`, `phase 5`) under
   `src/oncall`, `scripts/` and `migrations/env.py`; historical migrations and
   tests are outside its scope.
+- Notification e-mails: `backend/src/oncall/notifications/templates.py`
+  chooses the words (subject, plain text, HTML) and `layout.py` next to it owns
+  the one Outlook-safe HTML layout (tables, inline styles, light-theme hex
+  tokens). `tests/test_email_templates.py` lints every template against the
+  constructs Outlook drops and pins one rendering in `tests/snapshots/`;
+  regenerate it with `UPDATE_EMAIL_SNAPSHOTS=1 pytest tests/test_email_templates.py`.
 - `frontend/scripts/build-docs.mjs` renders `docs/` into
   `frontend/public/docs/` (gitignored). It runs as `prebuild`, so `npm run
   build` always refreshes it, and it fails the build on an unlisted page, a

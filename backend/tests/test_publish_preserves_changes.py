@@ -20,6 +20,7 @@ from oncall.infrastructure.sqlalchemy.notification_models import NotificationOut
 from oncall.infrastructure.sqlalchemy.scheduling import publication_ports, schedule_query_ports
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
+from oncall.notifications.templates import format_day
 from oncall.presentation.scheduling import ScheduleTransitionRequest
 from oncall.routes.scheduling import publication_preview, publish_schedule
 from oncall.workdays import is_working_day, polish_holidays
@@ -314,5 +315,5 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
         if row.context and row.context["event"] == "schedule_published"
     }
     # Each mail lists the slots as published: the carried SECONDARY is Ola's.
-    assert f"- {start} · SECONDARY" in published_mails["ola@example.com"]
-    assert f"- {start} · SECONDARY" not in published_mails["marek@example.com"]
+    assert f"- {format_day(start)} · SECONDARY" in published_mails["ola@example.com"]
+    assert f"- {format_day(start)} · SECONDARY" not in published_mails["marek@example.com"]

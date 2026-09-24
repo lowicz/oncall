@@ -84,6 +84,7 @@ async def enqueue_notification(
         recipient=message.recipient,
         subject=message.subject[:200],
         body=message.body,
+        html_body=message.html_body,
         context=message.context or None,
         dedup_key=dedup_key,
     )
@@ -214,6 +215,7 @@ async def _claim_batch(
                 recipient=row.recipient,
                 subject=row.subject,
                 body=row.body,
+                html_body=row.html_body,
                 context=row.context or {},
                 idempotency_key=str(row.id),
             ),
