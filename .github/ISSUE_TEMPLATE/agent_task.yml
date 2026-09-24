@@ -24,7 +24,7 @@ body:
     id: area
     attributes:
       label: Area
-      description: Routes the issue to the right part of the code; together with Kind it drives the labels the issue-triage workflow adds.
+      description: Routes the issue to the right part of the code; together with Kind and Severity it drives the labels the issue-triage workflow adds.
       options:
         - Frontend
         - Backend / API
@@ -34,6 +34,19 @@ body:
         - CI / security / dependencies
         - Documentation
         - Not sure / several areas
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How much the problem affects use of the application. Drives the severity label the issue-triage workflow adds.
+      options:
+        - Informational
+        - Low
+        - Medium
+        - High
     validations:
       required: true
 

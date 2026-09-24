@@ -1,7 +1,9 @@
 # Issue triage: an issue opened or edited through the task form
-# (.github/ISSUE_TEMPLATE/agent_task.yml) gets the labels its `Kind` and
-# `Area` answers map to. The form renders every answer under a `### <label>`
-# heading, so only those two headings are read, never the free text.
+# (.github/ISSUE_TEMPLATE/agent_task.yml) gets the labels its `Kind`, `Area`
+# and `Severity` answers map to. The form renders every answer under a
+# `### <label>` heading, so only those three headings are read, never the
+# free text. They are the first three fields of the form, before any free
+# text, which is why the first occurrence of a heading is the one that counts.
 #
 # Labels are only ever added, and only from the mapping below; nothing a
 # person set by hand is removed, and an answer without a row (Tech debt /
@@ -40,6 +42,12 @@ jobs:
               },
               Area: {
                 'CI / security / dependencies': 'security',
+              },
+              Severity: {
+                'Informational': 'severity:informational',
+                'Low': 'severity:low',
+                'Medium': 'severity:medium',
+                'High': 'severity:high',
               },
             };
 
