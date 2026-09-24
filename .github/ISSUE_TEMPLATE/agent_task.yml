@@ -1,0 +1,117 @@
+name: Zadanie lub błąd dla agenta
+description: Ustrukturyzowane zgłoszenie czytelne dla człowieka i łatwe do przejęcia przez agenta AI.
+title: "[task]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dzięki za zgłoszenie.
+        Wypełnij tyle pól, ile wiesz.
+        Pola są ułożone tak, żeby człowiek mógł szybko opisać problem, a agent AI mógł bez zgadywania odtworzyć kontekst, zakres i kryteria zakończenia.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Rodzaj zgłoszenia
+      description: Wybierz najbliższy typ.
+      options:
+        - Błąd
+        - Usprawnienie
+        - Dokumentacja
+        - Operacje / wdrożenie
+        - Dług techniczny / refaktor
+        - Zależności
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Obszar
+      description: Pomaga skierować zgłoszenie do właściwego kodu i później może zasilać automatyczne etykietowanie.
+      options:
+        - Frontend
+        - Backend / API
+        - Generator grafiku
+        - Powiadomienia / e-mail
+        - Wdrożenie / Docker / systemd
+        - CI / bezpieczeństwo / zależności
+        - Dokumentacja
+        - Nie wiem / wiele obszarów
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Co trzeba zrobić?
+      description: Jedno lub kilka zdań o oczekiwanym wyniku.
+      placeholder: "Np. Na widoku miesięcznym pokaż ostrzeżenie, gdy dyżur wypada poza aktywnym zakresem członka zespołu."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Kontekst i obecne zachowanie
+      description: Opisz, co dzieje się teraz, gdzie to widać, i dlaczego jest to problem.
+      placeholder: "Linki, ekrany, role użytkownika, środowisko, dane testowe, fragment logu albo numer powiązanego zgłoszenia."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Kroki odtworzenia lub przykład
+      description: Dla błędu podaj kroki. Dla zadania podaj przykład scenariusza lub danych, na których agent ma się oprzeć.
+      placeholder: |
+        1. Zaloguj się jako ...
+        2. Przejdź do ...
+        3. Wykonaj ...
+        4. Oczekiwane ... / Obecne ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Kryteria akceptacji
+      description: Lista warunków, po których można uznać zadanie za skończone.
+      placeholder: |
+        - Użytkownik widzi ...
+        - API zwraca ...
+        - Test regresyjny obejmuje ...
+        - Dokumentacja mówi ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Ograniczenia i rzeczy poza zakresem
+      description: Wpisz, czego nie ruszać, jakie zachowania zachować, albo co ma być osobnym zadaniem.
+      placeholder: "Np. Bez zmiany modelu uprawnień. Bez migracji danych. Nie przebudowywać całego widoku."
+    validations:
+      required: false
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Materiały pomocnicze
+      description: Linki, zrzuty ekranu, logi, nazwy plików, PR-y, rozmowy, wcześniejsze decyzje.
+      placeholder: "Wklej linki lub szczegóły, które agent powinien przeczytać przed zmianami."
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Pilność
+      description: Nie zastępuje triage, ale pomaga ustalić kolejność.
+      options:
+        - Normalna
+        - Niska
+        - Wysoka
+        - Pilne, blokuje użycie lub wydanie
+    validations:
+      required: true
