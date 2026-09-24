@@ -24,7 +24,7 @@ dependencies = [
   "ortools==9.15.6755",
   "pydantic-settings==2.15.0",
   "python-multipart==0.0.32",
-  "sqlalchemy[asyncio]==2.0.54",
+  "sqlalchemy[asyncio]==2.1.0",
   "uvicorn[standard]==0.53.0",
 ]
 
@@ -36,7 +36,7 @@ dev = [
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
-  "ruff==0.16.8",
+  "ruff==0.16.9",
 ]
 
 [tool.hatch.build.targets.wheel]
