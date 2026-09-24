@@ -160,14 +160,9 @@ services:
       ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-On-call <oncall@example.com>}
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
+      # ONCALL_SOLVER_WORKERS remains available in .env as an explicit override.
       ONCALL_SOLVER_LOG: ${ONCALL_SOLVER_LOG:-false}
       ONCALL_GENERATION_CONCURRENCY: ${ONCALL_GENERATION_CONCURRENCY:-1}
-    # The default CP-SAT worker count is derived from this cgroup CPU quota.
-    # ONCALL_SOLVER_WORKERS remains available as an explicit deployment override.
-    # ONCALL_GENERATION_CONCURRENCY runs more than one solve in parallel; keep it
-    # at 1 unless the worker has cores to spare (two solves on two cores are
-    # slower than two in sequence).
-    cpus: 2.0
     depends_on:
       db:
         condition: service_healthy
