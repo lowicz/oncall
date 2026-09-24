@@ -132,3 +132,4 @@ Do not repeat what the codebase already shows; point to the authoritative file o
 Prefer rewriting or pruning existing entries over appending new ones.
 Never add machine-local tool versions, session-specific QA notes, or temporary observations.
 When updating this file, preserve this bar for all agents and keep entries concise.
+
