@@ -11,7 +11,7 @@ version = "0.1.0"
 # version promised: it fails the moment one dependency has no wheel for a
 # version nobody runs (ortools had none for 3.15). Renovate's dashboard-gated
 # "Python" group moves this bound with the runtime.
-requires-python = ">=3.14,<3.15"
+requires-python = "==3.14.7"
 dependencies = [
   "aiosmtplib>=5.1,<6",
   "alembic>=1.14,<2",
