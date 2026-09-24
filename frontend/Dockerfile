@@ -20,7 +20,7 @@ RUN npm run build
 # listens on 8080 (HTTP) and 8443 (HTTPS), since binding below 1024 needs a
 # capability the container does not have. Compose runs it with a read-only root
 # filesystem; /tmp and /etc/nginx/conf.d are its only writable paths there.
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.29-alpine
 # Set by the release workflow to the version tag; `dev` for local builds.
 ARG ONCALL_VERSION=dev
 ENV ONCALL_VERSION=${ONCALL_VERSION}
