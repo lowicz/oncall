@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, api } from '../api'
+import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, SchedulingPolicy, api } from '../api'
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { pluralFormPl, pluralPl } from '../lib/plural'
 import { formatPoints } from '../lib/numbers'
@@ -84,7 +84,28 @@ type Settings = {
   continuity_weight: number
   preference_weight: number
   solve_seconds: number
+  coordinator_swap_approval_required: boolean
 }
+
+const SETTINGS_KEYS = [
+  'rotation_mode',
+  'late_shift_anchor',
+  'fairness_weight',
+  'continuity_weight',
+  'preference_weight',
+  'solve_seconds',
+  'coordinator_swap_approval_required',
+] as const satisfies readonly (keyof Settings)[]
+
+const settingsOf = (policy: SchedulingPolicy): Settings => ({
+  rotation_mode: policy.rotation_mode,
+  late_shift_anchor: policy.late_shift_anchor,
+  fairness_weight: policy.fairness_weight,
+  continuity_weight: policy.continuity_weight,
+  preference_weight: policy.preference_weight,
+  solve_seconds: policy.solve_seconds,
+  coordinator_swap_approval_required: policy.coordinator_swap_approval_required,
+})
 
 /**
  * The generator. Without an open draft it is the range form and the list
@@ -179,8 +200,9 @@ export function GeneratorPanel() {
       invalidateDrafts()
     },
   })
-  // Rotation mode and the 11–19 anchor are stored policy, not request
-  // parameters; they are written only on an explicit save, never on change.
+  // Rotation mode, the 11–19 anchor and the swap approval are stored policy,
+  // not request parameters; they are written only on an explicit save, never
+  // on change.
   const [settings, setSettings] = useState<Settings>({
     rotation_mode: 'hybrid',
     late_shift_anchor: 'secondary',
@@ -188,39 +210,17 @@ export function GeneratorPanel() {
     continuity_weight: 1,
     preference_weight: 2,
     solve_seconds: 15,
+    coordinator_swap_approval_required: true,
   })
-  const storedSettings = (): Settings | null => (policy.data ? {
-    rotation_mode: policy.data.rotation_mode,
-    late_shift_anchor: policy.data.late_shift_anchor,
-    fairness_weight: policy.data.fairness_weight,
-    continuity_weight: policy.data.continuity_weight,
-    preference_weight: policy.data.preference_weight,
-    solve_seconds: policy.data.solve_seconds,
-  } : null)
+  const storedSettings = (): Settings | null => (policy.data ? settingsOf(policy.data) : null)
   useEffect(() => {
-    if (policy.data) {
-      setSettings({
-        rotation_mode: policy.data.rotation_mode,
-        late_shift_anchor: policy.data.late_shift_anchor,
-        fairness_weight: policy.data.fairness_weight,
-        continuity_weight: policy.data.continuity_weight,
-        preference_weight: policy.data.preference_weight,
-        solve_seconds: policy.data.solve_seconds,
-      })
-    }
+    if (policy.data) setSettings(settingsOf(policy.data))
   }, [policy.data])
   const savePolicy = useMutation({
     mutationFn: (input: Settings) => api.updateSchedulingPolicy(input),
     onSuccess: (value) => queryClient.setQueryData(['scheduling-policy'], value),
   })
-  const settingsDirty = Boolean(policy.data && (
-    settings.rotation_mode !== policy.data.rotation_mode
-    || settings.late_shift_anchor !== policy.data.late_shift_anchor
-    || settings.fairness_weight !== policy.data.fairness_weight
-    || settings.continuity_weight !== policy.data.continuity_weight
-    || settings.preference_weight !== policy.data.preference_weight
-    || settings.solve_seconds !== policy.data.solve_seconds
-  ))
+  const settingsDirty = Boolean(policy.data && SETTINGS_KEYS.some((key) => settings[key] !== policy.data[key]))
   const onGenerated = (value: DraftSchedule) => {
     setRunProgress(null)
     setResult(value)
@@ -613,6 +613,14 @@ export function GeneratorPanel() {
               Inaczej tydzień u jednej osoby byłby nie do obsadzenia. Zmierzone skutki: serie 12-dniowe i 31 okien z ponad 3 dyżurami.
             </Box>
           )}
+          <Checkbox
+            name="coordinator_swap_approval_required"
+            label="Zamiana dyżuru wymaga zatwierdzenia koordynatora"
+            hint="Wyłączone: zamiana trafia do grafiku od razu po akceptacji zastępcy, a koordynatorzy dostają tylko powiadomienie."
+            checked={settings.coordinator_swap_approval_required}
+            disabled={policy.isLoading}
+            onChange={(event) => setSettings({ ...settings, coordinator_swap_approval_required: event.target.checked })}
+          />
           <div className="frow">
             {numberField('fairness_weight', 'Równy udział', 'Najwyższy domyślny priorytet: wyrównuje cały rozkład i mocniej karze wartości odstające. Podniesienie odbierze dyżur osobie, która ma ich najwięcej, nawet jeśli wolałaby go wziąć.', 0, 100, 0.5)}
             {numberField('preference_weight', 'Preferencje zespołu', 'Środkowy priorytet: respektuje „wolę nie” i „chętnie wezmę”. Podniesienie częściej obsadzi weekend osobą, która się o niego zgłosiła, kosztem równego udziału.', 0, 100, 0.5)}

@@ -108,8 +108,16 @@ class SwapRequestView:
 
 
 @dataclass(frozen=True)
+class SwapPolicy:
+    """What the swap screens need to know about the policy: whether a request
+    the replacement accepts still waits for a coordinator."""
+
+    coordinator_approval_required: bool
+
+
+@dataclass(frozen=True)
 class SwapAutoCancelled:
-    """The approval found a slot no longer held by the requester, so the
+    """The hand-over found a slot no longer held by the requester, so the
     request was cancelled instead. The cancellation is a stored outcome, not a
     failed operation."""
 

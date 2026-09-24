@@ -91,6 +91,40 @@ async def _enqueue_for(
     return sent
 
 
+async def _active_coordinators(db: AsyncSession) -> list[User]:
+    """Every coordinator or admin who can be written to."""
+    return list(
+        (
+            await db.scalars(
+                select(User).where(
+                    User.role.in_((UserRole.coordinator, UserRole.admin)),
+                    User.is_active.is_(True),
+                    User.email.is_not(None),
+                )
+            )
+        ).all()
+    )
+
+
+async def _enqueue_for_coordinators(
+    db: AsyncSession,
+    rendered: RenderedEmail,
+    *,
+    except_names: tuple[str, str],
+    dedup_prefix: str,
+    context: dict,
+) -> None:
+    """One copy per coordinator who is not one of the two parties."""
+    for coordinator in await _active_coordinators(db):
+        if coordinator.display_name in except_names:
+            continue
+        await enqueue_notification(
+            db,
+            _message(coordinator.email or "", rendered, context),
+            dedup_key=f"{dedup_prefix}:{coordinator.id}",
+        )
+
+
 async def notify_swap_requested(
     db: AsyncSession,
     *,
@@ -137,34 +171,19 @@ async def notify_swap_accepted(
         ),
         context={"event": "swap_accepted", "service_date": service_date.isoformat()},
     )
-    coordinators = (
-        await db.scalars(
-            select(User).where(
-                User.role.in_((UserRole.coordinator, UserRole.admin)),
-                User.is_active.is_(True),
-                User.email.is_not(None),
-            )
-        )
-    ).all()
-    pending = templates.swap_pending_coordinator(
-        service_date=service_date,
-        role=role,
-        requester_name=requester_name,
-        replacement_name=replacement_name,
-        app=_brand(settings),
+    await _enqueue_for_coordinators(
+        db,
+        templates.swap_pending_coordinator(
+            service_date=service_date,
+            role=role,
+            requester_name=requester_name,
+            replacement_name=replacement_name,
+            app=_brand(settings),
+        ),
+        except_names=(requester_name, replacement_name),
+        dedup_prefix=f"swap-pending:{service_date.isoformat()}:{role.value}",
+        context={"event": "swap_pending_coordinator", "service_date": service_date.isoformat()},
     )
-    for coordinator in coordinators:
-        if coordinator.display_name in (requester_name, replacement_name):
-            continue
-        await enqueue_notification(
-            db,
-            _message(
-                coordinator.email or "",
-                pending,
-                {"event": "swap_pending_coordinator", "service_date": service_date.isoformat()},
-            ),
-            dedup_key=(f"swap-pending:{service_date.isoformat()}:{role.value}:{coordinator.id}"),
-        )
 
 
 async def notify_swap_rejected(
@@ -277,6 +296,50 @@ async def notify_swap_approved(
             app=_brand(settings),
         ),
         context={"event": "swap_approved", "service_date": service_date.isoformat()},
+    )
+
+
+async def notify_swap_recorded(
+    db: AsyncSession,
+    *,
+    service_date: date,
+    role: AssignmentRole,
+    requester_name: str,
+    replacement_name: str,
+    swap_id: uuid.UUID,
+) -> None:
+    """A swap the replacement's acceptance wrote into the schedule: both
+    parties learn it is in force, and every coordinator is told, with
+    nothing to decide."""
+    settings = get_settings()
+    names = [requester_name, replacement_name]
+    emails = await _emails_for_names(db, names)
+    await _enqueue_for(
+        db,
+        emails,
+        names=names,
+        build=lambda: templates.swap_recorded(
+            service_date=service_date,
+            role=role,
+            requester_name=requester_name,
+            replacement_name=replacement_name,
+            app=_brand(settings),
+        ),
+        dedup_key=f"swap-recorded:{swap_id}",
+        context={"event": "swap_recorded", "service_date": service_date.isoformat()},
+    )
+    await _enqueue_for_coordinators(
+        db,
+        templates.swap_recorded_for_coordinator(
+            service_date=service_date,
+            role=role,
+            requester_name=requester_name,
+            replacement_name=replacement_name,
+            app=_brand(settings),
+        ),
+        except_names=(requester_name, replacement_name),
+        dedup_prefix=f"swap-recorded-fyi:{swap_id}",
+        context={"event": "swap_recorded_fyi", "service_date": service_date.isoformat()},
     )
 
 

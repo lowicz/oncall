@@ -47,7 +47,13 @@ class SqlAlchemySchedulingJournal:
                 f"Polityka generatora: tryb {policy.rotation_mode.value}, wagi "
                 f"sprawiedliwość {policy.fairness_weight:g}, ciągłość "
                 f"{policy.continuity_weight:g}, preferencje {policy.preference_weight:g}, "
-                f"11–19: {policy.late_shift_anchor.value}, budżet {policy.solve_seconds:g} s"
+                f"11–19: {policy.late_shift_anchor.value}, budżet {policy.solve_seconds:g} s, "
+                "zamiany "
+                + (
+                    "zatwierdza koordynator"
+                    if policy.coordinator_swap_approval_required
+                    else "bez zatwierdzenia koordynatora"
+                )
             ),
             details={
                 "rotation_mode": policy.rotation_mode.value,
@@ -56,6 +62,7 @@ class SqlAlchemySchedulingJournal:
                 "preference_weight": policy.preference_weight,
                 "late_shift_anchor": policy.late_shift_anchor.value,
                 "solve_seconds": policy.solve_seconds,
+                "coordinator_swap_approval_required": policy.coordinator_swap_approval_required,
             },
         )
 

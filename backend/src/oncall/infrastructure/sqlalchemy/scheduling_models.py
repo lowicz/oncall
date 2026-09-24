@@ -145,6 +145,9 @@ class SchedulingPolicy(Base):
     #: tells the coordinator to raise it „w ustawieniach generowania".
     #: Must equal `scheduler.SOLVE_SECONDS`; a test holds the two together.
     solve_seconds: Mapped[float] = mapped_column(Float, default=DEFAULT_SOLVE_SECONDS)
+    #: Whether a swap the replacement accepted still waits for a coordinator's
+    #: approval. Off, the acceptance alone writes the swap into the schedule.
+    coordinator_swap_approval_required: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )

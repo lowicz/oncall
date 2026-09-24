@@ -168,15 +168,20 @@ class FakePolicy:
         self,
         anchor: LateShiftAnchor = LateShiftAnchor.secondary,
         mode: RotationMode = RotationMode.hybrid,
+        coordinator_approval: bool = True,
     ) -> None:
         self.anchor = anchor
         self.mode = mode
+        self.coordinator_approval = coordinator_approval
 
     async def late_shift_anchor(self):
         return self.anchor
 
     async def rotation_mode(self):
         return self.mode
+
+    async def coordinator_swap_approval_required(self):
+        return self.coordinator_approval
 
 
 class FakeFairness:

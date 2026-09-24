@@ -202,6 +202,7 @@ async def update_policy(
                 preference_weight=payload.preference_weight,
                 late_shift_anchor=payload.late_shift_anchor,
                 solve_seconds=payload.solve_seconds,
+                coordinator_swap_approval_required=payload.coordinator_swap_approval_required,
             ),
             ports,
         )

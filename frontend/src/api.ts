@@ -192,7 +192,14 @@ export interface SchedulingPolicy {
   solve_seconds: number
   /** Hard wall-clock ceiling for a whole generation (several passes). */
   time_budget_seconds: number
+  /** Whether a swap the replacement accepted still waits for a coordinator. */
+  coordinator_swap_approval_required: boolean
   updated_at: string
+}
+
+/** How far a swap request travels once the replacement agrees; every member may read it. */
+export interface SwapPolicy {
+  coordinator_approval_required: boolean
 }
 
 export interface DraftSchedule {
@@ -869,6 +876,7 @@ export const api = {
     preference_weight?: number
     late_shift_anchor?: LateShiftAnchor
     solve_seconds?: number
+    coordinator_swap_approval_required?: boolean
   }) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
     return request<SchedulingPolicy>('/api/v1/scheduling/policy', {
@@ -983,6 +991,7 @@ export const api = {
     const query = search.toString()
     return request<SwapRequest[]>(`/api/v1/swaps${query ? `?${query}` : ''}`)
   },
+  swapPolicy: () => request<SwapPolicy>('/api/v1/swaps/policy'),
   swapImpact: (serviceDate: string, role: AssignmentRole, replacementMemberId: string) =>
     request<SwapImpact>(
       `/api/v1/swaps/impact?service_date=${encodeURIComponent(serviceDate)}`

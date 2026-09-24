@@ -77,17 +77,24 @@ function slotSummary(slots: { service_date: string; role: AssignmentRole }[]): s
   return slots.map((slot) => `${formatDayShort(slot.service_date)} · ${roleLabels[slot.role]}`).join(' + ')
 }
 
-/** Where a request stands: filed, replacement, coordinator, in the schedule. */
-function SwapSteps({ status }: { status: SwapStatus }) {
+/**
+ * Where a request stands: filed, replacement, coordinator, in the schedule.
+ * The coordinator's stage exists only while the policy asks for it; a request
+ * already with a coordinator keeps the stage after the switch is turned off.
+ */
+function SwapSteps({ status, approvalRequired }: { status: SwapStatus; approvalRequired: boolean }) {
   const done = status === 'approved'
   const stopped = status === 'rejected' || status === 'cancelled'
+  const coordinatorStage = approvalRequired || status === 'pending_coordinator'
   return (
     <Steps
       label="Etap wniosku"
       steps={[
         { label: 'złożona', state: 'done' },
         { label: 'zastępca', state: status === 'pending_replacement' ? 'on' : stopped ? 'todo' : 'done' },
-        { label: 'koordynator', state: status === 'pending_coordinator' ? 'on' : done ? 'done' : 'todo' },
+        ...(coordinatorStage
+          ? [{ label: 'koordynator', state: status === 'pending_coordinator' ? 'on' : done ? 'done' : 'todo' } as const]
+          : []),
         { label: stopped ? swapStatusLabels[status].toLowerCase() : 'w grafiku', state: done ? 'done' : 'todo' },
       ]}
     />
@@ -141,9 +148,10 @@ function decisionOf(item: SwapRequest, viewer: SwapViewer) {
  * withdrawal, typed here and visible to both sides. The buttons sit in the
  * panel footer, rendered by the screen.
  */
-function SwapSheet({ item, viewer, error, reason, onReason }: {
+function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason }: {
   item: SwapRequest
   viewer: SwapViewer
+  approvalRequired: boolean
   error: Error | null
   reason: string
   onReason: (value: string) => void
@@ -152,7 +160,7 @@ function SwapSheet({ item, viewer, error, reason, onReason }: {
   const reasonLabel = mustDecide ? 'Powód odrzucenia · widoczny dla obu stron' : 'Powód wycofania'
   return (
     <>
-      <SwapSteps status={item.status} />
+      <SwapSteps status={item.status} approvalRequired={approvalRequired} />
       <div className="roles">
         <div className="role-row">
           <span className="role-r role-r-p">Oddaje</span>
@@ -176,6 +184,11 @@ function SwapSheet({ item, viewer, error, reason, onReason }: {
         <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} />
       )}
       {expired && pending && <Box tone="warn" title="Termin dyżuru minął." />}
+      {!approvalRequired && mustDecide && item.status === 'pending_replacement' && (
+        <Box tone="sig" title="Po Twojej akceptacji zamiana trafi do grafiku od razu.">
+          Koordynator nie zatwierdza zamian; dostanie tylko powiadomienie.
+        </Box>
+      )}
       {(mustDecide || withdrawable) && (
         <Field label={reasonLabel} id={`swap-reason-${item.id}`} hint={mustDecide ? 'Wymagany tylko przy odrzuceniu.' : 'Wymagany przy wycofaniu.'}>
           {({ id, describedBy }) => (
@@ -198,6 +211,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const [searchParams, setSearchParams] = useSearchParams()
   const viewer = { displayName, role }
   const coordinator = canCoordinate(role)
+  const swapPolicy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy })
+  // Until the policy is read, the screen words things the way the default
+  // policy has them.
+  const approvalRequired = swapPolicy.data?.coordinator_approval_required ?? true
+  // A coordinator has requests to approve only while the policy sends them any.
+  const approver = coordinator && approvalRequired
   const linkedSlot = (() => {
     const serviceDate = searchParams.get('date') ?? searchParams.get('data') ?? searchParams.get('dzien')
     const assignmentRole = searchParams.get('role') ?? searchParams.get('rola')
@@ -291,7 +310,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       toast.success(message)
     },
   })
-  const accept = useMutation({ mutationFn: api.acceptSwap, ...settle('Przyjęto dyżur') })
+  const accept = useMutation({ mutationFn: api.acceptSwap, ...settle(approvalRequired ? 'Przyjęto dyżur' : 'Zamiana wpisana do grafiku') })
   const approve = useMutation({ mutationFn: api.approveSwap, ...settle('Zamiana wpisana do grafiku') })
   const reject = useMutation({ mutationFn: api.rejectSwap, ...settle('Odrzucono zamianę') })
   const cancel = useMutation({ mutationFn: api.cancelSwap, ...settle('Wycofano zamianę') })
@@ -314,7 +333,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // A coordinator's "Do zatwierdzenia" lists every open request of others, but
   // its badge counts only those waiting for approval, as the header does.
   const awaitingApproval = items.filter((item) => inboxOf(item, displayName) === 'w-toku' && needsMyDecision(item, viewer)).length
-  const badges: Record<Inbox, number> = { ...counts, 'w-toku': coordinator ? awaitingApproval : counts['w-toku'] }
+  const badges: Record<Inbox, number> = { ...counts, 'w-toku': approver ? awaitingApproval : counts['w-toku'] }
   const actionable = items.filter((item) => needsMyDecision(item, viewer)).length
   const otherOpen = items.filter((item) => isOpen(item) && !needsMyDecision(item, viewer)).length
   // The address names the inbox; without one, open where something waits.
@@ -346,7 +365,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const inboxLabels: Record<Inbox, string> = {
     'do-mnie': 'Do mnie',
     moje: 'Moje',
-    'w-toku': coordinator ? 'Do zatwierdzenia' : 'W toku',
+    'w-toku': approver ? 'Do zatwierdzenia' : 'W toku',
     zamkniete: 'Zamknięte',
   }
   const openItem = openId ? items.find((entry) => entry.id === openId) : undefined
@@ -386,7 +405,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               >
                 {inboxLabels[value]}
                 {value !== 'zamkniete' && (
-                  <Tag tone={value === 'w-toku' && coordinator && badges[value] > 0 ? 'late' : undefined} className="tab-count">
+                  <Tag tone={value === 'w-toku' && approver && badges[value] > 0 ? 'late' : undefined} className="tab-count">
                     {badges[value]}
                   </Tag>
                 )}
@@ -405,7 +424,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               ) : inbox === 'moje' ? (
                 <EmptyState compact icon="swap" title="Nie masz otwartych próśb" description={hasTeamMember ? 'Nowa zamiana zaczyna się od Twojego dyżuru.' : undefined} />
               ) : inbox === 'w-toku' ? (
-                <EmptyState compact icon="check" title={coordinator ? 'Nic nie czeka na zatwierdzenie' : 'Brak zamian w toku'} />
+                <EmptyState compact icon="check" title={approver ? 'Nic nie czeka na zatwierdzenie' : 'Brak zamian w toku'} />
               ) : (
                 <EmptyState compact icon="swap" title="Brak zamkniętych zamian" />
               )}
@@ -491,7 +510,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         )}
       >
         {openItem && (
-          <SwapSheet item={openItem} viewer={viewer} error={decisionError} reason={reason} onReason={setReason} />
+          <SwapSheet item={openItem} viewer={viewer} approvalRequired={approvalRequired} error={decisionError} reason={reason} onReason={setReason} />
         )}
       </Panel>
 
@@ -600,10 +619,15 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           </div>
           {(selectedOption?.slots?.length ?? 0) > 1 && (
             <Box tone="sig" title="Prośba obejmie oba sloty tego dnia">
-              {slotSummary(selectedOption?.slots ?? [])}. Jedna akceptacja zastępcy, jedno zatwierdzenie koordynatora.
+              {slotSummary(selectedOption?.slots ?? [])}. {approvalRequired ? 'Jedna akceptacja zastępcy, jedno zatwierdzenie koordynatora.' : 'Jedna akceptacja zastępcy załatwia całość.'}
             </Box>
           )}
-          {selectedOption && <ViolationList violations={selectedOption.warning_violations ?? []} title="Wyślesz mimo to - koordynator zobaczy ostrzeżenie" />}
+          {selectedOption && (
+            <ViolationList
+              violations={selectedOption.warning_violations ?? []}
+              title={approvalRequired ? 'Wyślesz mimo to - koordynator zobaczy ostrzeżenie' : 'Wyślesz mimo to - zamiana nie wymaga zatwierdzenia koordynatora'}
+            />
+          )}
           {serviceDate && assignmentRole && replacementId && (
             <SwapImpactPreview serviceDate={serviceDate} role={assignmentRole} replacementId={replacementId} />
           )}

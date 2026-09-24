@@ -98,8 +98,8 @@ taki dzień korektą na macierzy.
 
 **Prośba objęła dwa sloty zamiast jednego**
 Ustawienie „Powiązanie 11–19” sprawia, że tego dnia obie role należą do jednej
-osoby. Ekran zapowiada to przed wysłaniem; jedna akceptacja i jedno
-zatwierdzenie obsługują całość.
+osoby. Ekran zapowiada to przed wysłaniem; jedna akceptacja (oraz, gdy jest
+wymagane, jedno zatwierdzenie) obsługuje całość.
 
 ## Grafik i macierz
 

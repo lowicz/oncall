@@ -265,6 +265,7 @@ def _to_policy(row: PolicyRow) -> SchedulingPolicy:
         preference_weight=row.preference_weight,
         late_shift_anchor=row.late_shift_anchor,
         solve_seconds=row.solve_seconds,
+        coordinator_swap_approval_required=row.coordinator_swap_approval_required,
         updated_at=row.updated_at,
     )
 
@@ -291,6 +292,8 @@ class SqlAlchemyPolicyStore:
             row.late_shift_anchor = change.late_shift_anchor
         if change.solve_seconds is not None:
             row.solve_seconds = change.solve_seconds
+        if change.coordinator_swap_approval_required is not None:
+            row.coordinator_swap_approval_required = change.coordinator_swap_approval_required
         return _to_policy(row)
 
     async def written(self) -> SchedulingPolicy:
