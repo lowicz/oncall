@@ -24,7 +24,7 @@ body:
     id: area
     attributes:
       label: Area
-      description: Routes the issue to the right part of the code and can drive labels later.
+      description: Routes the issue to the right part of the code; together with Kind it drives the labels the issue-triage workflow adds.
       options:
         - Frontend
         - Backend / API

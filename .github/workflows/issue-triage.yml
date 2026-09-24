@@ -1,0 +1,68 @@
+# Issue triage: an issue opened or edited through the task form
+# (.github/ISSUE_TEMPLATE/agent_task.yml) gets the labels its `Kind` and
+# `Area` answers map to. The form renders every answer under a `### <label>`
+# heading, so only those two headings are read, never the free text.
+#
+# Labels are only ever added, and only from the mapping below; nothing a
+# person set by hand is removed, and an answer without a row (Tech debt /
+# refactor, most areas) adds nothing. Every label named here already exists
+# in the repository. An issue written without the form has no headings and
+# is left alone.
+name: issue-triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions: {}
+
+concurrency:
+  group: issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  issue-triage:
+    name: issue-triage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const labelFor = {
+              Kind: {
+                'Bug': 'bug',
+                'Enhancement': 'enhancement',
+                'Documentation': 'documentation',
+                'Operations / deployment': 'runtime',
+              },
+              Area: {
+                'CI / security / dependencies': 'security',
+              },
+            };
+
+            // First occurrence of each heading wins, so a `### ` line pasted
+            // inside a free-text answer cannot override the form's own answer.
+            const answers = {};
+            for (const section of (context.payload.issue.body ?? '').split(/^### /m).slice(1)) {
+              const [heading, ...rest] = section.split('\n');
+              answers[heading.trim()] ??= rest.join('\n').trim();
+            }
+
+            const present = new Set(context.payload.issue.labels.map((label) => label.name));
+            const labels = Object.entries(labelFor)
+              .map(([heading, mapping]) => mapping[answers[heading]])
+              .filter((label) => label && !present.has(label));
+
+            if (labels.length === 0) {
+              core.info('issue-triage: nothing to add');
+              return;
+            }
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.issue.number,
+              labels,
+            });
+            core.info(`issue-triage: added ${labels.join(', ')}`);
