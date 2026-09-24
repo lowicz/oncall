@@ -78,7 +78,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_WEB_HTTP_PORT` | `8080` | port HTTP wystawiony na hosta |
 | `ONCALL_WEB_HTTPS_PORT` | `8443` | port HTTPS wystawiony na hosta |
 | `ONCALL_APP_NAME` | `On-call` | nazwa produktu w interfejsie, e-mailach i nazwach kalendarzy |
-| `ONCALL_APP_SUBTITLE` | puste | drugi wiersz pod nazwą w nawigacji i na ekranie logowania; pusty ukrywa wiersz |
+| `ONCALL_APP_SUBTITLE` | puste | drugi wiersz pod nazwą w nawigacji, na ekranie logowania i w nagłówku e-maili; pusty ukrywa wiersz |
 | `ONCALL_PUBLIC_BASE_URL` | `http://localhost:8080` | adres w e-mailach, kanałach ICS i linkach |
 | `ONCALL_SESSION_COOKIE_SECURE` | `false` | ustaw `true` razem z TLS |
 | `ONCALL_API_WORKERS` | puste | liczba procesów API; puste = z limitu CPU, minimum 2 |
