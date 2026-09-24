@@ -63,6 +63,15 @@ describe('build-docs.mjs', () => {
     expect(home).not.toContain('site-footer')
   })
 
+  it('renders the Polish pages exactly as before', () => {
+    // The whole page, chrome and prose: a change here is a change to what a
+    // Polish reader sees. An intended one updates the file with `vitest -u`.
+    const out = join(scratch, 'baseline')
+    render('--out', out)
+    expect(page(out, 'index.html')).toMatchFileSnapshot('__snapshots__/docs-pl-index.html')
+    expect(page(out, 'uzytkownik/dyzury.html')).toMatchFileSnapshot('__snapshots__/docs-pl-uzytkownik-dyzury.html')
+  })
+
   it('refuses to empty a directory that holds the sources', () => {
     for (const out of ['.', '..', '../docs', 'docs-template']) {
       expect(() => render('--site', '--out', out)).toThrow(/contains the sources/)
