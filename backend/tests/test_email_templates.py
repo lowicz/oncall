@@ -80,6 +80,20 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         replacement_name="Marek Nowak",
         app=APP,
     ),
+    "swap_recorded": lambda: templates.swap_recorded(
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+        app=APP,
+    ),
+    "swap_recorded_for_coordinator": lambda: templates.swap_recorded_for_coordinator(
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+        app=APP,
+    ),
     "schedule_published": lambda: templates.schedule_published(
         name="Październik 2026",
         starts_on=DAY,
@@ -244,6 +258,21 @@ def test_data_is_escaped_in_the_html() -> None:
     assert "On-call &quot;&lt;b&gt;&quot;" in rendered.html
     # The plain text is not markup and is left as the reader wrote it.
     assert hostile in rendered.text
+
+
+def test_the_recorded_swap_asks_nobody_for_a_decision() -> None:
+    """With the approval switched off, the coordinator's copy is for their
+    information: it names the swap as already in force and never as pending."""
+    for rendered in (RENDERINGS["swap_recorded"](), RENDERINGS["swap_recorded_for_coordinator"]()):
+        for body in (rendered.subject, rendered.text, rendered.html):
+            assert "zatwierdzenia" not in body.lower() or "nie wymaga" in body.lower()
+            assert "Oczekuje na koordynatora" not in body
+            assert "Podejmij decyzję" not in body
+            assert "Do zatwierdzenia" not in body
+    fyi = RENDERINGS["swap_recorded_for_coordinator"]()
+    assert fyi.subject.startswith("Do wiadomości:")
+    assert "tylko informacyjna" in fyi.text
+    assert "tylko informacyjna" in fyi.html
 
 
 def test_the_coordinator_copy_wraps_the_accepted_mail() -> None:

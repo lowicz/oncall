@@ -276,24 +276,43 @@ class SqlAlchemySwapJournal:
         *,
         requester_name: str,
         replacement_name: str,
+        by_coordinator: bool,
         self_approved: bool,
     ) -> None:
-        await triggers.notify_swap_approved(
-            self._session,
-            service_date=request.service_date,
-            role=request.role,
-            requester_name=requester_name,
-            replacement_name=replacement_name,
-        )
+        if by_coordinator:
+            await triggers.notify_swap_approved(
+                self._session,
+                service_date=request.service_date,
+                role=request.role,
+                requester_name=requester_name,
+                replacement_name=replacement_name,
+            )
+            summary = (
+                f"Zatwierdzono zamianę {_headline(request)}: "
+                f"dyżuruje {replacement_name} (zamiast {requester_name})"
+            )
+        else:
+            await triggers.notify_swap_recorded(
+                self._session,
+                service_date=request.service_date,
+                role=request.role,
+                requester_name=requester_name,
+                replacement_name=replacement_name,
+                swap_id=request.id,
+            )
+            summary = (
+                f"Zastępca przyjął zamianę {_headline(request)}, wpisana do grafiku "
+                f"bez zatwierdzenia koordynatora: dyżuruje {replacement_name} "
+                f"(zamiast {requester_name})"
+            )
+        # One action for both roads into the schedule: whoever reads the audit
+        # trail for swaps in force must not have to know the policy of the day.
         record_audit(
             self._session,
             actor=self._actor,
             action="swap.approved",
             entity_type="swap",
             entity_id=request.id,
-            summary=(
-                f"Zatwierdzono zamianę {_headline(request)}: "
-                f"dyżuruje {replacement_name} (zamiast {requester_name})"
-            ),
-            details={"self_approved": self_approved},
+            summary=summary,
+            details={"self_approved": self_approved, "by_coordinator": by_coordinator},
         )

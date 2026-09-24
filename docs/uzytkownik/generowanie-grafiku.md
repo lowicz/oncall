@@ -131,6 +131,7 @@ zapisane** cofa niezapisane zmiany.
 | Preferencje zespołu | 0-100 | domyślnie środkowy |
 | Ciągłość rotacji | 0-100 | domyślnie najniższy |
 | Budżet czasu na przebieg solvera | 5-300 s | domyślnie 15 |
+| Zamiana dyżuru wymaga zatwierdzenia koordynatora | włączone / wyłączone | domyślnie włączone; wyłączone wpisuje zamianę do grafiku od razu po akceptacji zastępcy, a koordynatorzy dostają tylko powiadomienie ([Zamiany](zamiany.md#zatwierdzenie-koordynatora)) |
 
 Wagi zmieniają **względny** priorytet reguł miękkich: 6 / 4 / 2 działa tak samo
 jak 3 / 2 / 1. Wartość `0` wyłącza dany człon celu. Wagi **nie mogą** wyłączyć

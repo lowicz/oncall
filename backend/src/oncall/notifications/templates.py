@@ -387,6 +387,102 @@ def swap_approved(
     )
 
 
+def swap_recorded(
+    *,
+    service_date: date,
+    role: AssignmentRole,
+    requester_name: str,
+    replacement_name: str,
+    app: Brand,
+) -> RenderedEmail:
+    """Both parties' copy of a swap the replacement's acceptance alone wrote
+    into the schedule: the same facts as an approval, with nobody's decision
+    in front of it."""
+    day = format_day(service_date)
+    subject = f"Zamiana wpisana do grafiku: {day} · {ROLE_LABELS[role]}"
+    body = (
+        f"{replacement_name} przyjął(ęła) dyżur {ROLE_LABELS[role]} w dniu {day} "
+        f"(zamiast: {requester_name}). Zamiana jest już w grafiku i nie wymaga "
+        "zatwierdzenia koordynatora.\n\n"
+        f"{_SWITCH_NUMBER}\n"
+        f"Aktualny grafik: {app.url}/\n"
+    )
+    return _render(
+        app=app,
+        subject=subject,
+        body=body,
+        eyebrow="Zamiany",
+        title="Zamiana wpisana do grafiku",
+        lead=join(
+            strong(replacement_name),
+            text(" przyjął(ęła) dyżur "),
+            strong(ROLE_LABELS[role]),
+            text(" w dniu "),
+            _day(service_date),
+            text(". Zamiana jest już w grafiku i nie wymaga zatwierdzenia koordynatora."),
+        ),
+        facts=[
+            Fact("Dzień", _day(service_date)),
+            Fact("Rola", _role(role)),
+            Fact("Dyżur przejmuje", strong(replacement_name)),
+            Fact("Zamiast", text(requester_name)),
+            Fact("Status", status_tag("W grafiku", Tone.ok)),
+        ],
+        note=Note(_SWITCH_NUMBER),
+        action=_schedule_action(app),
+    )
+
+
+def swap_recorded_for_coordinator(
+    *,
+    service_date: date,
+    role: AssignmentRole,
+    requester_name: str,
+    replacement_name: str,
+    app: Brand,
+) -> RenderedEmail:
+    """The coordinator's copy of the same swap: for their information only,
+    with nothing to decide."""
+    day = format_day(service_date)
+    subject = f"Do wiadomości: zamiana wpisana do grafiku {day} · {ROLE_LABELS[role]}"
+    body = (
+        f"{requester_name} i {replacement_name} zamienili się dyżurem {ROLE_LABELS[role]} "
+        f"w dniu {day}. Dyżur przejmuje: {replacement_name}.\n\n"
+        "Zamiana jest już w grafiku; zgodnie z ustawieniami nie wymaga Twojego "
+        "zatwierdzenia. Ta wiadomość jest tylko informacyjna.\n\n"
+        f"Aktualny grafik: {app.url}/\n"
+    )
+    return _render(
+        app=app,
+        subject=subject,
+        body=body,
+        eyebrow="Zamiany · do wiadomości",
+        title="Zamiana wpisana do grafiku",
+        lead=join(
+            strong(requester_name),
+            text(" i "),
+            strong(replacement_name),
+            text(" zamienili się dyżurem "),
+            strong(ROLE_LABELS[role]),
+            text(" w dniu "),
+            _day(service_date),
+            text("."),
+        ),
+        facts=[
+            Fact("Dzień", _day(service_date)),
+            Fact("Rola", _role(role)),
+            Fact("Oddaje", text(requester_name)),
+            Fact("Przejmuje", text(replacement_name)),
+            Fact("Status", status_tag("W grafiku", Tone.ok)),
+        ],
+        note=Note(
+            "Zamiana jest już w grafiku; zgodnie z ustawieniami nie wymaga Twojego "
+            "zatwierdzenia. Ta wiadomość jest tylko informacyjna."
+        ),
+        action=_schedule_action(app),
+    )
+
+
 def schedule_published(
     *,
     name: str,

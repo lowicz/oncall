@@ -5,7 +5,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from oncall.domain.swaps.models import ReplacementOption, SwapRequestView
+from oncall.domain.swaps.models import ReplacementOption, SwapPolicy, SwapRequestView
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, SwapStatus
 from oncall.presentation.reports import FairnessMemberResponse
 from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
@@ -70,6 +70,14 @@ class SwapRequestResponse(BaseModel):
     warnings: list[RuleViolationResponse] = []
 
 
+class SwapPolicyResponse(BaseModel):
+    """How far a request travels once the replacement agrees."""
+
+    #: True: the request then waits for a coordinator. False: the acceptance
+    #: writes it into the schedule and coordinators are only told.
+    coordinator_approval_required: bool
+
+
 class SwapImpactMemberResponse(BaseModel):
     """One side of a swap: the balance now and after the duty moves."""
 
@@ -112,6 +120,10 @@ def swap_response(view: SwapRequestView) -> SwapRequestResponse:
     )
 
 
+def swap_policy_response(policy: SwapPolicy) -> SwapPolicyResponse:
+    return SwapPolicyResponse(coordinator_approval_required=policy.coordinator_approval_required)
+
+
 def swap_option_response(option: ReplacementOption) -> SwapOptionResponse:
     return SwapOptionResponse(
         member_id=option.member.id,
@@ -130,9 +142,11 @@ __all__ = [
     "SwapImpactMemberResponse",
     "SwapImpactResponse",
     "SwapOptionResponse",
+    "SwapPolicyResponse",
     "SwapRequestCreate",
     "SwapRequestResponse",
     "SwapSlotResponse",
     "swap_option_response",
+    "swap_policy_response",
     "swap_response",
 ]

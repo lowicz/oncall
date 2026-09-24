@@ -231,6 +231,7 @@ class FakePolicyStore:
             preference_weight=2.0,
             late_shift_anchor=LateShiftAnchor.secondary,
             solve_seconds=15.0,
+            coordinator_swap_approval_required=True,
             updated_at=None,
         )
         self.policy = replace(self.policy, **values)
@@ -246,6 +247,7 @@ class FakePolicyStore:
             "preference_weight",
             "late_shift_anchor",
             "solve_seconds",
+            "coordinator_swap_approval_required",
         ):
             if getattr(change, name) is not None:
                 updates[name] = getattr(change, name)

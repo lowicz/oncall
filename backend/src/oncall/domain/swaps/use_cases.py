@@ -64,6 +64,7 @@ from oncall.domain.swaps.models import (
     SwapImpactQuery,
     SwapImpactSide,
     SwapListQuery,
+    SwapPolicy,
     SwapRequest,
     SwapRequestInput,
     SwapRequestView,
@@ -301,6 +302,14 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
     )
 
 
+async def swap_policy(ports: SwapPorts) -> SwapPolicy:
+    """How far a request travels: to a coordinator, or straight into the
+    schedule once the replacement agrees."""
+    return SwapPolicy(
+        coordinator_approval_required=await ports.policy.coordinator_swap_approval_required()
+    )
+
+
 async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[SwapRequestView]:
     """Newest first. Members see the requests they take part in; coordinators
     see every request."""
@@ -420,8 +429,13 @@ async def request_swap(
 
 async def accept_swap(
     decision: SwapDecisionInput, ports: SwapPorts, *, today: date | None = None
-) -> SwapRequestView:
-    """The named replacement agrees; the request goes to a coordinator."""
+) -> SwapRequestView | SwapAutoCancelled:
+    """The named replacement agrees.
+
+    The request then goes to a coordinator, or, when the policy asks for no
+    coordinator's approval, straight into the schedule: the acceptance is then
+    the hand-over, with the same checks and the same outcomes as an approval.
+    """
     member = await _member_for(decision.actor, ports.team)
     request = await ports.requests.take_for_decision(decision.swap_id)
     if request is None:
@@ -431,13 +445,25 @@ async def accept_swap(
     if request.status != SwapStatus.pending_replacement:
         raise SwapNotAwaitingReplacement()
     _reject_past(request, today or business_today())
-    accepted = replace(request, status=SwapStatus.pending_coordinator)
-    await ports.requests.record_decision(accepted)
-    view = await _view(accepted, ports.team)
-    await ports.journal.accepted(
-        accepted, requester_name=view.requester_name, replacement_name=view.replacement_name
+    if await ports.policy.coordinator_swap_approval_required():
+        accepted = replace(request, status=SwapStatus.pending_coordinator)
+        await ports.requests.record_decision(accepted)
+        view = await _view(accepted, ports.team)
+        await ports.journal.accepted(
+            accepted, requester_name=view.requester_name, replacement_name=view.replacement_name
+        )
+        return view
+    requester = await ports.team.member(request.requester_member_id)
+    if requester is None:
+        raise SwapPartiesGone()
+    return await _hand_over(
+        request,
+        ports,
+        requester=requester,
+        replacement=member,
+        by_coordinator=False,
+        self_approved=False,
     )
-    return view
 
 
 async def reject_swap(decision: SwapDecisionInput, ports: SwapPorts) -> SwapRequestView:
@@ -513,7 +539,33 @@ async def approve_swap(
     self_approved = decision.actor.user_id in (requester.user_id, replacement.user_id)
     if self_approved and await ports.team.another_active_approver_exists(decision.actor.user_id):
         raise SelfApprovalNotAllowed()
+    return await _hand_over(
+        request,
+        ports,
+        requester=requester,
+        replacement=replacement,
+        by_coordinator=True,
+        self_approved=self_approved,
+    )
 
+
+async def _hand_over(
+    request: SwapRequest,
+    ports: SwapPorts,
+    *,
+    requester: Member,
+    replacement: Member,
+    by_coordinator: bool,
+    self_approved: bool,
+) -> SwapRequestView | SwapAutoCancelled:
+    """Write the swap into the schedule: the deciding checks against the
+    roster as it is now, the version step, the hand-over of every slot and
+    the approved transition. Shared by the coordinator's approval and by an
+    acceptance the policy lets stand on its own.
+
+    Returns `SwapAutoCancelled` when a slot changed owner since the request:
+    the request is then cancelled, and that cancellation is meant to be kept.
+    """
     moves = request.moves
     window_start, window_end = rule_window([request.service_date])
     anchor = await ports.policy.late_shift_anchor()
@@ -538,7 +590,7 @@ async def approve_swap(
             raise ReplacementOnCallSinceRequest(move[0])
 
     # Deciding validation (decision D3): the roster may have moved between the
-    # request and the approval, so the hard rules are checked again here.
+    # request and the hand-over, so the hard rules are checked again here.
     violations = await substitution_check(
         ports.roster, ports.policy, moves, requester.display_name, replacement.display_name
     )
@@ -557,6 +609,7 @@ async def approve_swap(
         approved,
         requester_name=view.requester_name,
         replacement_name=view.replacement_name,
+        by_coordinator=by_coordinator,
         self_approved=self_approved,
     )
     return view

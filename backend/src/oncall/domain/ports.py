@@ -90,6 +90,11 @@ class RosterPolicy(Protocol):
         rolling rest rules apply at all - weekly rotation states none."""
         ...
 
+    async def coordinator_swap_approval_required(self) -> bool:
+        """Whether a swap the replacement accepted still waits for a
+        coordinator, or goes into the schedule on that acceptance alone."""
+        ...
+
 
 class FairnessHistory(Protocol):
     async def balance_inputs(

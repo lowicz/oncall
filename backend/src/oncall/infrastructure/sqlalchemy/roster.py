@@ -139,6 +139,9 @@ class SqlAlchemyRosterPolicy:
     async def rotation_mode(self) -> RotationMode:
         return (await load_policy(self._session)).rotation_mode
 
+    async def coordinator_swap_approval_required(self) -> bool:
+        return (await load_policy(self._session)).coordinator_swap_approval_required
+
 
 class SqlAlchemyFairnessHistory:
     def __init__(self, session: AsyncSession) -> None:

@@ -83,8 +83,13 @@ class SwapJournal(Protocol):
         *,
         requester_name: str,
         replacement_name: str,
+        by_coordinator: bool,
         self_approved: bool,
-    ) -> None: ...
+    ) -> None:
+        """The swap is in the schedule: approved by a coordinator, or written
+        on the replacement's acceptance alone when the policy asks for no
+        approval. `self_approved` only means something for a coordinator."""
+        ...
 
 
 @dataclass(frozen=True)

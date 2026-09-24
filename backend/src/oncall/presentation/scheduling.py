@@ -39,6 +39,8 @@ class SchedulingPolicyResponse(BaseModel):
     late_shift_anchor: LateShiftAnchor
     #: Budget of one ``solver.solve`` call.
     solve_seconds: float
+    #: Whether a swap the replacement accepted still waits for a coordinator.
+    coordinator_swap_approval_required: bool
     updated_at: datetime
 
     # mypy cannot type a decorator stacked on @property; Pydantic needs this order.
@@ -60,6 +62,7 @@ class SchedulingPolicyUpdate(BaseModel):
     preference_weight: float | None = Field(default=None, ge=0, le=100)
     late_shift_anchor: LateShiftAnchor | None = None
     solve_seconds: float | None = Field(default=None, ge=MIN_SOLVE_SECONDS, le=MAX_SOLVE_SECONDS)
+    coordinator_swap_approval_required: bool | None = None
 
 
 class GenerateScheduleRequest(BaseModel):

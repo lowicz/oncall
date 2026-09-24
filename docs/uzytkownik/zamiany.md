@@ -12,7 +12,7 @@ mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jes
 | --- | --- |
 | **Do mnie** | wnioski, w których to Ty masz przyjąć albo odrzucić zastępstwo |
 | **Moje** | Twoje własne, jeszcze otwarte prośby |
-| **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie |
+| **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie. Gdy zatwierdzanie zamian jest wyłączone (patrz [Zatwierdzenie koordynatora](#zatwierdzenie-koordynatora)), także koordynator widzi tu zwykłe **W toku** |
 | **Zamknięte** | zatwierdzone, odrzucone i wycofane |
 
 Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres
@@ -27,12 +27,14 @@ sprawy.
 ## Arkusz decyzji
 
 Arkusz pokazuje obie osoby, dyżur, powód wnioskodawcy, pasek etapów
-(złożona → zastępca → koordynator → w grafiku), **Wpływ na bilans** obu osób i
+(złożona → zastępca → koordynator → w grafiku; etap „koordynator” znika, gdy
+zatwierdzanie zamian jest wyłączone), **Wpływ na bilans** obu osób i
 ostrzeżenia. Decyzję podejmujesz w tym samym miejscu:
 
-- **Zastępca** klika „Akceptuję” albo „Odrzuć”.
+- **Zastępca** klika „Akceptuję” albo „Odrzuć”. Przy wyłączonym zatwierdzaniu
+  arkusz zapowiada, że akceptacja od razu wpisze zamianę do grafiku.
 - **Koordynator lub administrator** klika „Zatwierdź i wpisz do grafiku” albo
-  „Odrzuć”.
+  „Odrzuć” - tylko gdy zatwierdzanie zamian jest włączone.
 - **Autor** może „Wycofać” własną prośbę, dopóki nie zapadła decyzja.
 
 Odrzucenie i wycofanie wymagają **podania powodu** w polu widocznym od razu w
@@ -81,7 +83,39 @@ zgłoszenie ──► Oczekuje na zastępcę ──► Oczekuje na koordynatora 
  autor w każdej chwili: Wycofana
 ```
 
+## Zatwierdzenie koordynatora
+
+Czy zamiana po akceptacji zastępcy czeka jeszcze na koordynatora, decyduje
+ustawienie **Zamiana dyżuru wymaga zatwierdzenia koordynatora** w panelu
+[Ustawienia generatora](generowanie-grafiku.md#ustawienia-generatora). Jest
+wspólne dla całego zespołu i domyślnie **włączone** - wtedy wszystko działa jak
+opisano wyżej.
+
+Po jego **wyłączeniu**:
+
+- zamianę załatwia sama akceptacja zastępcy: „Akceptuję” od razu wpisuje ją do
+  grafiku, z tymi samymi sprawdzeniami reguł twardych, jakie wykonuje
+  zatwierdzenie (jeśli w międzyczasie slot zmienił właściciela, prośba jest
+  anulowana),
+- status „Oczekuje na koordynatora” nie występuje, a koordynator nie ma czego
+  zatwierdzać ani odrzucać,
+- **koordynatorzy dostają wiadomość „Do wiadomości: zamiana wpisana do
+  grafiku”** - wyłącznie informacyjną, bez prośby o decyzję; obie strony
+  zamiany otrzymują „Zamiana wpisana do grafiku”,
+- wniosek, który w chwili wyłączenia czekał już na koordynatora, nadal może on
+  zatwierdzić albo odrzucić.
+
+```
+zgłoszenie ──► Oczekuje na zastępcę ──► Zatwierdzona (od razu w grafiku)
+                    │
+                    └── Odrzucona
+ autor w każdej chwili: Wycofana
+```
+
 ## Co robi zatwierdzenie
+
+Zatwierdzenie koordynatora - albo, przy wyłączonym zatwierdzaniu, akceptacja
+zastępcy:
 
 - tworzy korektę (override) wyłącznie na wybranym dniu i wybranej roli,
 - **nie przelicza** pozostałych dni grafiku,

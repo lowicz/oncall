@@ -13,6 +13,7 @@ from oncall.domain.swaps.models import (
     SwapImpactQuery,
     SwapListQuery,
     SwapRequestInput,
+    SwapRequestView,
 )
 from oncall.domain.swaps.use_cases import (
     accept_swap,
@@ -192,6 +193,91 @@ async def test_accepting_hands_the_request_to_a_coordinator(world) -> None:
     )
     assert view.request.status == SwapStatus.pending_coordinator
     assert world.journal.names == ["accepted"]
+
+
+async def test_without_coordinator_approval_the_acceptance_is_the_hand_over(world) -> None:
+    """Policy off: the replacement's acceptance writes the swap into the
+    schedule the way an approval would, and nothing ever waits for a
+    coordinator."""
+    world.policy.coordinator_approval = False
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+
+    view = await accept_swap(
+        SwapDecisionInput(account(world.dawid), request.id), world.swaps, today=TODAY
+    )
+
+    assert isinstance(view, SwapRequestView)
+    assert view.request.status == SwapStatus.approved
+    assert world.requests.by_id[request.id].status == SwapStatus.approved
+    assert world.roster.handed_over == [((DAY, AssignmentRole.primary), world.dawid.id)]
+    assert world.roster.schedule_ref.version == 2
+    assert world.journal.names == ["approved"]
+    assert world.journal.events[0][1]["by_coordinator"] is False
+    assert world.journal.events[0][1]["self_approved"] is False
+
+
+async def test_without_coordinator_approval_the_acceptance_rechecks_the_roster(world) -> None:
+    """The deciding checks of an approval apply to the acceptance too: a
+    slot that changed owner cancels the request, and a replacement who took
+    the opposite on-call role meanwhile is refused."""
+    world.policy.coordinator_approval = False
+    changed = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    world.roster.assign(DAY, AssignmentRole.primary, world.team.add(member("Ewa")))
+
+    outcome = await accept_swap(
+        SwapDecisionInput(account(world.dawid), changed.id), world.swaps, today=TODAY
+    )
+
+    assert outcome == SwapAutoCancelled(changed.id)
+    assert world.roster.handed_over == []
+    assert world.journal.events == []
+
+    world.roster.assign(DAY, AssignmentRole.primary, world.anna)
+    on_call = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    world.roster.assign(DAY, AssignmentRole.secondary, world.dawid)
+    with pytest.raises(errors.ReplacementOnCallSinceRequest):
+        await accept_swap(
+            SwapDecisionInput(account(world.dawid), on_call.id), world.swaps, today=TODAY
+        )
+
+
+async def test_without_coordinator_approval_a_coordinator_accepts_their_own_swap(world) -> None:
+    """The self-approval guard belongs to a coordinator deciding as one; a
+    replacement who happens to coordinate accepts like anybody else."""
+    world.policy.coordinator_approval = False
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    dawid_as_coordinator = account(world.dawid, UserRole.coordinator)
+    world.team.approvers = {dawid_as_coordinator.user_id, member("Other").user_id}
+
+    view = await accept_swap(
+        SwapDecisionInput(dawid_as_coordinator, request.id), world.swaps, today=TODAY
+    )
+
+    assert isinstance(view, SwapRequestView)
+    assert view.request.status == SwapStatus.approved
+
+
+async def test_a_request_a_coordinator_already_holds_is_still_theirs_to_decide(world) -> None:
+    """Switching the approval off does not orphan what already waits for a
+    coordinator: the approval and the rejection paths stay open for it."""
+    request = pending_swap(world, world.anna, world.dawid, DAY)
+    world.policy.coordinator_approval = False
+
+    view = await approve_swap(
+        SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY
+    )
+
+    assert isinstance(view, SwapRequestView)
+    assert view.request.status == SwapStatus.approved
+    assert world.journal.events[-1][1]["by_coordinator"] is True
 
 
 async def test_only_the_named_replacement_accepts(world) -> None:

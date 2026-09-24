@@ -13,6 +13,7 @@ const policy: SchedulingPolicy = {
   late_shift_anchor: 'secondary',
   solve_seconds: 15,
   time_budget_seconds: 60,
+  coordinator_swap_approval_required: true,
   updated_at: '2026-09-01T10:00:00Z',
 }
 
@@ -473,6 +474,29 @@ describe('GeneratorPanel resuming a generation', () => {
       await screen.findByText(/W kolejce: 1 zadanie przed Tobą, szacowany start za około 40 s/),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'W kolejce…' })).toBeDisabled()
+  })
+})
+
+describe('GeneratorPanel swap approval switch', () => {
+  it('saves the coordinator approval of swaps as a policy field, off or on', async () => {
+    stub([])
+    const save = vi.spyOn(api, 'updateSchedulingPolicy')
+      .mockResolvedValue({ ...policy, coordinator_swap_approval_required: false })
+    renderScreen(<GeneratorPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const toggle = await screen.findByRole('checkbox', { name: /Zamiana dyżuru wymaga zatwierdzenia koordynatora/ })
+    expect(toggle).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Zapisz ustawienia generowania' })).toBeDisabled()
+
+    fireEvent.click(toggle)
+    expect(toggle).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz ustawienia generowania' }))
+    await waitFor(() => expect(save).toHaveBeenCalled())
+    expect(save.mock.calls[0][0]).toMatchObject({ coordinator_swap_approval_required: false })
+    // The stored value comes back off, so the form is clean again.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Zapisz ustawienia generowania' })).toBeDisabled())
+    expect(screen.getByRole('checkbox', { name: /Zamiana dyżuru wymaga zatwierdzenia koordynatora/ })).not.toBeChecked()
   })
 })
 

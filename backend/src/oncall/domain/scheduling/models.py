@@ -248,6 +248,10 @@ class SchedulingPolicy:
     preference_weight: float
     late_shift_anchor: LateShiftAnchor
     solve_seconds: float
+    #: Whether a swap the replacement accepted still waits for a coordinator.
+    #: When off, the replacement's acceptance alone writes the swap into the
+    #: schedule and coordinators are only told about it.
+    coordinator_swap_approval_required: bool
     updated_at: datetime | None
 
 
@@ -259,6 +263,7 @@ class PolicyChange:
     preference_weight: float | None = None
     late_shift_anchor: LateShiftAnchor | None = None
     solve_seconds: float | None = None
+    coordinator_swap_approval_required: bool | None = None
 
 
 @dataclass(frozen=True)

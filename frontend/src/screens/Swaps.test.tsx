@@ -3,7 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { SwapPanel } from './Swaps'
 import { api } from '../api'
-import type { SwapImpact, SwapRequest } from '../api'
+import type { SwapImpact, SwapPolicy, SwapRequest } from '../api'
 
 // The suite clock is 2026-09-10 (src/test/setup.ts).
 
@@ -20,8 +20,12 @@ const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   ...over,
 })
 
-function stub(swaps: SwapRequest[]) {
+const APPROVAL_REQUIRED: SwapPolicy = { coordinator_approval_required: true }
+const NO_APPROVAL: SwapPolicy = { coordinator_approval_required: false }
+
+function stub(swaps: SwapRequest[], policy: SwapPolicy = APPROVAL_REQUIRED) {
   vi.spyOn(api, 'swaps').mockResolvedValue(swaps)
+  vi.spyOn(api, 'swapPolicy').mockResolvedValue(policy)
   vi.spyOn(api, 'availability').mockResolvedValue([])
   vi.spyOn(api, 'publishedSchedule').mockResolvedValue({
     generated_at: '2026-09-01T10:00:00Z',
@@ -38,8 +42,59 @@ function stub(swaps: SwapRequest[]) {
 }
 
 const inbox = (name: RegExp) => screen.getByRole('button', { name })
+const stepsOf = (sheet: HTMLElement) =>
+  within(within(sheet).getByRole('list', { name: 'Etap wniosku' })).getAllByRole('listitem').map((item) => item.textContent)
 
 afterEach(() => vi.restoreAllMocks())
+
+describe('SwapPanel without the coordinator approval', () => {
+  it('shows the coordinator stage while the policy asks for the approval', async () => {
+    stub([swap({ id: '1' })])
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
+    expect(stepsOf(sheet)).toEqual(['złożona', 'zastępca', 'koordynator', 'w grafiku'])
+    expect(within(sheet).queryByText('Po Twojej akceptacji zamiana trafi do grafiku od razu.')).not.toBeInTheDocument()
+  })
+
+  it('leaves the coordinator out of the stages and writes the swap in on acceptance', async () => {
+    stub([swap({ id: '1' })], NO_APPROVAL)
+    const accept = vi.spyOn(api, 'acceptSwap').mockResolvedValue(swap({ id: '1', status: 'approved' }))
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
+    await waitFor(() => expect(stepsOf(sheet)).toEqual(['złożona', 'zastępca', 'w grafiku']))
+    expect(within(sheet).getByText('Po Twojej akceptacji zamiana trafi do grafiku od razu.')).toBeInTheDocument()
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
+    await waitFor(() => expect(accept).toHaveBeenCalled())
+    expect(accept.mock.calls[0][0]).toBe('1')
+    expect(await screen.findByText('Zamiana wpisana do grafiku')).toBeInTheDocument()
+  })
+
+  it('keeps the stage for a request a coordinator already holds', async () => {
+    stub([swap({ id: '1', status: 'pending_coordinator' })], NO_APPROVAL)
+    renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
+    await waitFor(() => expect(stepsOf(sheet)).toEqual(['złożona', 'zastępca', 'koordynator', 'w grafiku']))
+    expect(within(sheet).getByRole('button', { name: 'Zatwierdź i wpisz do grafiku' })).toBeEnabled()
+  })
+
+  it('gives a coordinator the members\' "W toku" inbox, since nothing waits for them', async () => {
+    stub([swap({ id: '1' }), swap({ id: '2', service_date: '2026-09-15', status: 'approved' })], NO_APPROVAL)
+    renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
+
+    expect(await screen.findByText('0 czeka na Twoją decyzję · 1 czeka na drugą stronę · 1 zamknięta')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'W toku: 1 sprawa' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /^Do zatwierdzenia/ })).not.toBeInTheDocument()
+    fireEvent.click(inbox(/^W toku/))
+    expect(screen.getByText('czeka na: Piotr Zieliński')).toBeInTheDocument()
+  })
+})
 
 describe('SwapPanel inbox', () => {
   it('opens on "Do mnie" when a request waits for me and decides it in the sheet', async () => {

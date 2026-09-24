@@ -16,6 +16,7 @@ from oncall.domain.swaps.models import (
     SwapImpactQuery,
     SwapListQuery,
     SwapRequestInput,
+    SwapRequestView,
 )
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus, UserRole
 from oncall.fairness_data import member_response
@@ -27,9 +28,11 @@ from oncall.presentation.swaps import (
     SwapImpactMemberResponse,
     SwapImpactResponse,
     SwapOptionResponse,
+    SwapPolicyResponse,
     SwapRequestCreate,
     SwapRequestResponse,
     swap_option_response,
+    swap_policy_response,
     swap_response,
 )
 from oncall.routes.domain_edge import (
@@ -103,6 +106,22 @@ SWAP_ERROR_DETAILS = {errors.SwapBreaksHardRules: _rule_violations_detail}
 
 def _swap_errors_as_http():
     return domain_errors_as_http(SWAP_ERROR_STATUSES, SWAP_ERROR_DETAILS)
+
+
+def _handed_over(outcome: SwapRequestView | SwapAutoCancelled) -> SwapRequestResponse:
+    """A hand-over that found the slot in someone else's hands cancelled the
+    request; that cancellation is kept, so it is reported, not rolled back."""
+    if isinstance(outcome, SwapAutoCancelled):
+        raise RecordedHttpException(status.HTTP_409_CONFLICT, errors.SLOT_CHANGED_OWNER_MESSAGE)
+    return swap_response(outcome)
+
+
+@router.get("/policy", response_model=SwapPolicyResponse)
+async def swap_policy(_: CurrentUser, ports: SwapProvider) -> SwapPolicyResponse:
+    """Whether a request the replacement accepts still waits for a
+    coordinator. Readable by every signed-in member: the swap screens word the
+    next step from it."""
+    return swap_policy_response(await use_cases.swap_policy(ports))
 
 
 @router.get("/options", response_model=list[SwapOptionResponse])
@@ -206,8 +225,8 @@ async def accept_swap(
     swap_id: uuid.UUID, user: CurrentUser, ports: SwapProvider, _: CsrfGuard
 ) -> SwapRequestResponse:
     with _swap_errors_as_http():
-        view = await use_cases.accept_swap(SwapDecisionInput(actor_from(user), swap_id), ports)
-    return swap_response(view)
+        outcome = await use_cases.accept_swap(SwapDecisionInput(actor_from(user), swap_id), ports)
+    return _handed_over(outcome)
 
 
 @router.post("/{swap_id}/reject", response_model=SwapRequestResponse)
@@ -246,6 +265,4 @@ async def approve_swap(
 ) -> SwapRequestResponse:
     with _swap_errors_as_http():
         outcome = await use_cases.approve_swap(SwapDecisionInput(actor_from(user), swap_id), ports)
-    if isinstance(outcome, SwapAutoCancelled):
-        raise RecordedHttpException(status.HTTP_409_CONFLICT, errors.SLOT_CHANGED_OWNER_MESSAGE)
-    return swap_response(outcome)
+    return _handed_over(outcome)
