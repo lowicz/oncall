@@ -72,6 +72,22 @@ def _slot_line(day: date, role: AssignmentRole) -> str:
     return f"- {format_day(day)} · {ROLE_LABELS[role]}"
 
 
+def _change_lines(changes: list[tuple[date, AssignmentRole, str, str]]) -> str:
+    """The plain-text list of slots that changed hands."""
+    return "\n".join(
+        f"{_slot_line(service_date, role)}: {new_name} (poprzednio: {previous_name})"
+        for service_date, role, previous_name, new_name in changes
+    )
+
+
+def _change_slots(changes: list[tuple[date, AssignmentRole, str, str]]) -> list[Slot]:
+    """The same list as slot rows: the new holder in front, the previous one after."""
+    return [
+        _slot(service_date, role, join(strong(new_name), text(f" (poprzednio: {previous_name})")))
+        for service_date, role, previous_name, new_name in changes
+    ]
+
+
 def _role(role: AssignmentRole) -> Html:
     return role_tag(role, ROLE_LABELS[role])
 
@@ -537,13 +553,9 @@ def assignments_changed_by_publication(
     *, changes: list[tuple[date, AssignmentRole, str, str]], app: Brand
 ) -> RenderedEmail:
     subject = f"Zmiany przydziałów po publikacji ({len(changes)})"
-    slots = "\n".join(
-        f"{_slot_line(service_date, role)}: {new_name} (poprzednio: {previous_name})"
-        for service_date, role, previous_name, new_name in changes
-    )
     body = (
         "Publikacja grafiku zmieniła następujące przydziały:\n"
-        f"{slots}\n\n"
+        f"{_change_lines(changes)}\n\n"
         "Pamiętaj o przełączeniu numeru on-call tam, gdzie jest to potrzebne.\n"
         f"Aktualny grafik: {app.url}/\n"
     )
@@ -554,14 +566,35 @@ def assignments_changed_by_publication(
         eyebrow="Grafik",
         title="Zmiany przydziałów po publikacji",
         lead=text("Publikacja grafiku zmieniła następujące przydziały:"),
-        slots=[
-            _slot(
-                service_date,
-                role,
-                join(strong(new_name), text(f" (poprzednio: {previous_name})")),
-            )
-            for service_date, role, previous_name, new_name in changes
-        ],
+        slots=_change_slots(changes),
+        note=Note("Pamiętaj o przełączeniu numeru on-call tam, gdzie jest to potrzebne."),
+        action=_schedule_action(app),
+    )
+
+
+def assignments_overridden_in_batch(
+    *, changes: list[tuple[date, AssignmentRole, str, str]], reason: str, app: Brand
+) -> RenderedEmail:
+    """`changes` are the ones that involve the recipient, as the previous or
+    the new holder; a batch correction of somebody else's slots is not theirs
+    to read."""
+    subject = f"Zmiana przydziałów: korekta koordynatora ({len(changes)})"
+    body = (
+        "Koordynator zmienił następujące przydziały:\n"
+        f"{_change_lines(changes)}\n"
+        f"Powód: {reason}\n\n"
+        "Pamiętaj o przełączeniu numeru on-call tam, gdzie jest to potrzebne.\n"
+        f"Aktualny grafik: {app.url}/\n"
+    )
+    return _render(
+        app=app,
+        subject=subject,
+        body=body,
+        eyebrow="Korekta grafiku",
+        title="Zmiana przydziałów",
+        lead=text("Koordynator zmienił następujące przydziały:"),
+        slots=_change_slots(changes),
+        paragraphs=[join(strong("Powód: "), text(reason))],
         note=Note("Pamiętaj o przełączeniu numeru on-call tam, gdzie jest to potrzebne."),
         action=_schedule_action(app),
     )

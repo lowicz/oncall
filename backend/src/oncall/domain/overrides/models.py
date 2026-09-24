@@ -62,6 +62,11 @@ class OverrideMove:
     previous_assignee_name: str
 
 
+#: One slot as a correction changed hands: day, role, who held it, who has it
+#: now. The shape the notification templates list.
+AssignmentChange = tuple[date, AssignmentRole, str, str]
+
+
 @dataclass(frozen=True)
 class DutyOverridden:
     service_date: date

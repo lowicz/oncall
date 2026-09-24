@@ -117,6 +117,14 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         ],
         app=APP,
     ),
+    "assignments_overridden_in_batch": lambda: templates.assignments_overridden_in_batch(
+        changes=[
+            (DAY, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak"),
+            (NEXT, AssignmentRole.secondary, "Anna Kowalska", "Ola Wiśniewska"),
+        ],
+        reason="Odejście z zespołu",
+        app=APP,
+    ),
     "handover_outgoing": lambda: templates.handover_outgoing(
         service_date=DAY, incoming_name="Marek Nowak", app=APP
     ),
@@ -265,6 +273,20 @@ def test_a_published_schedule_lists_only_the_given_duties() -> None:
     assert "W tym grafiku nie masz żadnych dyżurów." in without.text
     assert "W tym grafiku nie masz żadnych dyżurów." in without.html
     assert "TWOJE DYŻURY" not in without.html
+
+
+def test_a_batch_correction_lists_every_change_with_its_reason() -> None:
+    rendered = RENDERINGS["assignments_overridden_in_batch"]()
+    assert rendered.subject == "Zmiana przydziałów: korekta koordynatora (2)"
+    assert (
+        "Koordynator zmienił następujące przydziały:\n"
+        "- czw 24-09-2026 · PRIMARY: Marek Nowak (poprzednio: Anna Kowalska)\n"
+        "- sob 26-09-2026 · SECONDARY: Ola Wiśniewska (poprzednio: Anna Kowalska)\n"
+        "Powód: Odejście z zespołu\n"
+    ) in rendered.text
+    assert rendered.html.count("(poprzednio: Anna Kowalska)") == 2
+    assert "Odejście z zespołu" in rendered.html
+    assert ">PRIMARY<" in rendered.html and ">SECONDARY<" in rendered.html
 
 
 def test_optional_reasons_appear_only_when_given() -> None:

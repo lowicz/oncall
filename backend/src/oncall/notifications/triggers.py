@@ -465,6 +465,46 @@ async def notify_assignments_changed_by_publication(
     )
 
 
+async def notify_assignments_overridden_in_batch(
+    db: AsyncSession,
+    *,
+    changes: list[tuple[date, AssignmentRole, str, str]],
+    reason: str,
+) -> None:
+    """One mail per person a batch correction touched, listing only the slots
+    they gave up or took over. Like a single correction it is not
+    de-duplicated: two batches on one schedule are two decisions."""
+    settings = get_settings()
+    names = list(
+        dict.fromkeys(
+            name for _, _, previous_name, new_name in changes for name in (previous_name, new_name)
+        )
+    )
+    emails = await _emails_for_names(db, names)
+    for name in names:
+        own = [change for change in changes if name in change[2:]]
+        await _enqueue_for(
+            db,
+            emails,
+            names=[name],
+            build=lambda own=own: templates.assignments_overridden_in_batch(
+                changes=own, reason=reason, app=_brand(settings)
+            ),
+            context={
+                "event": "assignments_overridden_in_batch",
+                "changes": [
+                    {
+                        "service_date": service_date.isoformat(),
+                        "role": role.value,
+                        "previous_name": previous_name,
+                        "new_name": new_name,
+                    }
+                    for service_date, role, previous_name, new_name in own
+                ],
+            },
+        )
+
+
 async def enqueue_handover_reminders(
     db: AsyncSession,
     *,

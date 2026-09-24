@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
-from oncall.domain.overrides.models import OverrideMove
+from oncall.domain.overrides.models import AssignmentChange, OverrideMove
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -92,9 +92,13 @@ class SqlAlchemyOverrideJournal:
         schedule_id: uuid.UUID,
         slots: list[Slot],
         moves: list[OverrideMove],
+        changes: list[AssignmentChange],
         violations: list[RuleViolation],
         reason: str,
     ) -> None:
+        await triggers.notify_assignments_overridden_in_batch(
+            self._session, changes=changes, reason=reason
+        )
         record_audit(
             self._session,
             actor=self._actor,

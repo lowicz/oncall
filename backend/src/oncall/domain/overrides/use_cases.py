@@ -22,6 +22,7 @@ from oncall.domain.overrides.errors import (
 from oncall.domain.overrides.models import (
     MIN_REASON_LENGTH,
     UNSTAFFED,
+    AssignmentChange,
     BatchOverrideInput,
     DutyOverridden,
     OverrideCheck,
@@ -219,6 +220,7 @@ async def override_duties_in_batch(
         raise RepeatedSlotInBatch()
     replacements = await ports.team.members(line.replacement_member_id for line in batch.lines)
     moves: list[OverrideMove] = []
+    changes: list[AssignmentChange] = []
     projected_moves: list[tuple[date, AssignmentRole, str]] = []
     for line in batch.lines:
         replacement = replacements.get(line.replacement_member_id)
@@ -230,6 +232,9 @@ async def override_duties_in_batch(
         if assignment is None:
             raise ScheduleSlotNotFound(line.service_date, line.role)
         moves.append(OverrideMove(line.service_date, line.role, assignment.assignee_name))
+        changes.append(
+            (line.service_date, line.role, assignment.assignee_name, replacement.display_name)
+        )
         projected_moves.append((line.service_date, line.role, replacement.display_name))
     violations = await batch_substitution_check(ports.roster, ports.policy, projected_moves)
     unique_violations = list(
@@ -251,6 +256,7 @@ async def override_duties_in_batch(
         schedule_id=schedule.id,
         slots=slots,
         moves=moves,
+        changes=changes,
         violations=unique_violations,
         reason=batch.reason,
     )

@@ -35,6 +35,11 @@ elementy, bez czcionek webowych, obrazków i przezroczystości. Nazwa i podtytu�
 w nagłówku wiadomości pochodzą z `ONCALL_APP_NAME` i `ONCALL_APP_SUBTITLE`, a
 przyciski prowadzą pod `ONCALL_PUBLIC_BASE_URL`.
 
+Korekta koordynatora - pojedyncza albo wsadowa (np. przy zakończeniu rotacji) -
+powiadamia obie strony każdego przepisanego slotu: osobę zdejmowaną i
+przejmującą. Przy korekcie wsadowej każda osoba dostaje jedną wiadomość z listą
+wyłącznie tych slotów, które oddała albo przejęła, oraz z powodem korekty.
+
 Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
 zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
 tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje** (`/moje`).
