@@ -121,10 +121,12 @@ stawek ani raportów** i nie wpływają na solver.
   niczego nie zmienia. Potwierdzone naruszenie trafia do dziennika audytu jako
   „świadome naruszenie reguł” wraz z identyfikatorami reguł. Tak samo działa
   korekta wsadowa przy zakończeniu rotacji.
-- **Zamiana (swap)** - wniosek członka zespołu, który wymaga zgody zastępcy i
-  zatwierdzenia koordynatora. Może objąć jedną rolę i dzień, obie role dnia,
-  zakres albo cały tydzień. Zatwierdzenie tworzy override i **nie regeneruje
-  pozostałych dni**, a punkty trafiają do osoby faktycznie dyżurującej.
+- **Zamiana (swap)** - wniosek członka zespołu, który wymaga zgody zastępcy, a
+  gdy zespół tego wymaga - także zatwierdzenia koordynatora (przełącznik opisany
+  w [Zamiany](../uzytkownik/zamiany.md#zatwierdzenie-koordynatora)). Może objąć
+  jedną rolę i dzień, obie role dnia, zakres albo cały tydzień. Wpisanie zamiany
+  do grafiku tworzy override i **nie regeneruje pozostałych dni**, a punkty
+  trafiają do osoby faktycznie dyżurującej.
 
 Publikacja nowego grafiku jest serializowana w bazie, sprawdza pełne pokrycie i
 zastępuje tylko te opublikowane grafiki, które w całości mieszczą się w nowym

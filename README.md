@@ -203,11 +203,15 @@ worker count.
 
 A team member can request a replacement for one exact date and role, even when the
 base rotation is weekly. Only eligible, available members who are not already assigned
-to the opposite on-call role are offered. The replacement accepts first and a
-coordinator or administrator approves the override. Before approval, the replacement
-or coordinator may reject the request and its author may withdraw it; both decisions
-require a reason. Approval changes only the selected slot and increments the published
-schedule version.
+to the opposite on-call role are offered. The replacement accepts first and, by
+default, a coordinator or administrator approves the override. A team-wide policy
+(`coordinator_swap_approval_required`) can turn that stage off: the replacement's
+acceptance then writes the swap into the schedule at once and coordinators receive
+an informational notification instead of an approval request. Before approval, the
+replacement or coordinator may reject the request and its author may withdraw it;
+both decisions require a reason. Writing the swap in - by approval, or by the
+acceptance itself when approval is off - changes only the selected slot and
+increments the published schedule version.
 
 ## E-mail notifications
 
