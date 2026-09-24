@@ -152,6 +152,13 @@
       matchUpdateTypes: ['minor', 'patch'],
     },
     {
+      matchManagers: ['pep621'],
+      // uv cannot be told to lock exactly Renovate's selected in-range version;
+      // pin direct app dependencies so pyproject.toml and uv.lock move together
+      // and minimumReleaseAge cannot be bypassed by the resolver.
+      rangeStrategy: 'pin',
+    },
+    {
       matchManagers: ['dockerfile', 'docker-compose'],
       groupName: 'container base images',
       matchUpdateTypes: ['minor', 'patch'],
