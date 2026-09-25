@@ -102,14 +102,17 @@ jedna osoba. Kodowanie UTF-8 z BOM, układ kolumn stabilny i wersjonowalny:
 | `oncall_dni_robocze_razem` | suma on-call w dni robocze |
 | `oncall_weekendy_razem` | suma on-call w weekendy |
 | `oncall_swieta_razem` | suma on-call w święta |
+| `oncall_weekendy_swieta_razem` | dni dyżurowe w weekendy i święta razem (`PRIMARY` + `SECONDARY`) |
+| `oncall_dni_razem` | wszystkie dni dyżurowe (`PRIMARY` + `SECONDARY`, w dni robocze oraz w weekendy i święta) |
 | `zmiany_11_19` | liczba roboczych zmian `11–19` |
 | `primary_punkty` | punkty za `PRIMARY` (X / 2X) |
 | `secondary_punkty` | punkty za `SECONDARY` |
 | `punkty_razem` | suma punktów |
 
-Każdy slot jest liczony z efektywnej wersji grafiku, po override'ach i
-zamianach. Święto przypadające w sobotę lub niedzielę jest liczone raz, jako
-weekend. Ekran ostrzega, gdy opublikowany grafik nie pokrywa całego miesiąca,
+Dzień dyżurowy to jeden dyżur `PRIMARY` lub `SECONDARY`; zmiany `11–19` nie są
+dniami dyżurowymi i mają tylko własną kolumnę. Każdy slot jest liczony z
+efektywnej wersji grafiku, po override'ach i zamianach. Święto przypadające w
+sobotę lub niedzielę jest liczone raz, jako weekend. Ekran ostrzega, gdy opublikowany grafik nie pokrywa całego miesiąca,
 i podaje, ile dni pokrywa.
 
 Przyszłe formaty (XLSX, Word) mają korzystać z tego samego modelu raportowego, a

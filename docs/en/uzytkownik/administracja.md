@@ -145,8 +145,11 @@ generator compute.
 
 ## Monthly report (`/raporty`, coordinator)
 
-1. Pick the report month (`MM-YYYY`).
-2. Look at the preview - one row per person.
+1. Pick the report month (`MM-YYYY`); the screen opens on the current month.
+2. Look at the preview - one row per person. The first, highlighted columns
+   are the duty days (primary and secondary together): on working days, on
+   weekends and holidays, and in total. 11-19 shifts are not duty days and
+   have their own column.
 3. “Download CSV”.
 
 The screen warns if the published schedule does not cover the whole month,

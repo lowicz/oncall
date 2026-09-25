@@ -53,6 +53,8 @@ async def test_monthly_preview_and_csv_agree_and_reject_an_impossible_month(clie
                 "oncall_workdays": 2,
                 "oncall_weekends": 2,
                 "oncall_holidays": 0,
+                "oncall_days_off": 2,
+                "oncall_total": 4,
                 "late_shifts": 2,
                 "primary_points": 3.0,
                 "secondary_points": 3.0,
@@ -69,6 +71,8 @@ async def test_monthly_preview_and_csv_agree_and_reject_an_impossible_month(clie
                 "oncall_workdays": 2,
                 "oncall_weekends": 2,
                 "oncall_holidays": 0,
+                "oncall_days_off": 2,
+                "oncall_total": 4,
                 "late_shifts": 0,
                 "primary_points": 3.0,
                 "secondary_points": 3.0,
@@ -81,8 +85,8 @@ async def test_monthly_preview_and_csv_agree_and_reject_an_impossible_month(clie
     assert exported.headers["content-disposition"] == 'attachment; filename="oncall-2026-08.csv"'
     assert exported.headers["content-type"] == "text/csv; charset=utf-8"
     assert exported.text.splitlines()[1:] == [
-        "2026-08,Anna,1,1,0,1,1,0,2,2,0,2,3.0,3.0,6.0",
-        "2026-08,Bartek,1,1,0,1,1,0,2,2,0,0,3.0,3.0,6.0",
+        "2026-08,Anna,1,1,0,1,1,0,2,2,0,2,4,2,3.0,3.0,6.0",
+        "2026-08,Bartek,1,1,0,1,1,0,2,2,0,2,4,0,3.0,3.0,6.0",
     ]
     assert exported.content.startswith("﻿".encode())
 

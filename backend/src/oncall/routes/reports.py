@@ -26,6 +26,10 @@ class MonthlyReportRow(BaseModel):
     oncall_workdays: int
     oncall_weekends: int
     oncall_holidays: int
+    #: Primary and secondary duty days on weekends and holidays together.
+    oncall_days_off: int
+    #: Every primary and secondary duty day; 11-19 shifts are not duty days.
+    oncall_total: int
     late_shifts: int
     primary_points: float
     secondary_points: float
@@ -54,6 +58,8 @@ HEADERS = (
     "oncall_dni_robocze_razem",
     "oncall_weekendy_razem",
     "oncall_swieta_razem",
+    "oncall_weekendy_swieta_razem",
+    "oncall_dni_razem",
     "zmiany_11_19",
     "primary_punkty",
     "secondary_punkty",
@@ -97,6 +103,8 @@ def _row_values(tally: DutyTally) -> tuple[int | float, ...]:
         tally.oncall_workdays,
         tally.oncall_weekends,
         tally.oncall_holidays,
+        tally.oncall_days_off,
+        tally.oncall_total,
         tally.late_shift,
         tally.primary_points,
         tally.secondary_points,
@@ -146,6 +154,8 @@ async def monthly_report_preview(
                 oncall_workdays=row.tally.oncall_workdays,
                 oncall_weekends=row.tally.oncall_weekends,
                 oncall_holidays=row.tally.oncall_holidays,
+                oncall_days_off=row.tally.oncall_days_off,
+                oncall_total=row.tally.oncall_total,
                 late_shifts=row.tally.late_shift,
                 primary_points=row.tally.primary_points,
                 secondary_points=row.tally.secondary_points,
