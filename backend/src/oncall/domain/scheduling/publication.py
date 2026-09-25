@@ -33,6 +33,7 @@ from oncall.domain.vocabulary import (
 from oncall.fairness import (
     generator_history_window,
 )
+from oncall.i18n import translate
 from oncall.rules import (
     ONCALL_ROLES,
     RuleViolation,
@@ -270,22 +271,22 @@ async def _carry_conflict_reason(
     ports: PublicationPorts,
 ) -> str | None:
     if original_name is None:
-        return "Nie można ustalić pierwotnego wykonawcy zmiany"
+        return translate("scheduling.carry.original_unknown")
     replacement = (
         await ports.team.member(old.member_id)
         if old.member_id is not None
         else await ports.team.member_named(old.assignee_name)
     )
     if replacement is None:
-        return "Zastępca nie jest już członkiem zespołu"
+        return translate("scheduling.carry.replacement_not_member")
     draft = {item.slot: item for item in schedule.assignments}
     if any(draft.get(move) is None or draft[move].assignee_name != original_name for move in moves):
-        return "Nowy szkic ma w tym slocie innego pierwotnego wykonawcę"
+        return translate("scheduling.carry.different_original")
     for service_date, role in moves:
         if not _holds_role_period(replacement, role, service_date) or (
             replacement.is_unavailable(service_date)
         ):
-            return "Zastępca nie ma eligibility albo jest niedostępny"
+            return translate("scheduling.carry.replacement_not_eligible")
     window_start = min(day for day, _role in moves) - timedelta(days=10)
     window_end = max(day for day, _role in moves) + timedelta(days=10)
     resolved = await ports.roster.duties_in_force(window_start, window_end)
@@ -308,7 +309,7 @@ async def _carry_conflict_reason(
         if violation.rule not in {"day_off_block", "oncall_late_shift_overlap"}
     ]
     if hard_violations:
-        return "Przeniesienie narusza reguły grafiku"
+        return translate("scheduling.carry.breaks_rules")
     return None
 
 
@@ -343,13 +344,12 @@ async def _rest_violations(
         for violation in oncall_rest_violations(name, days, exemptions)
         if any(day >= schedule.starts_on for day in violation.days)
     ]
-    grouped: dict[tuple[str, str], tuple[str, set[date]]] = {}
+    grouped: dict[tuple[str, str], set[date]] = {}
     for item in violations:
-        message, days = grouped.setdefault((item.member_name, item.rule), (item.message, set()))
-        days.update(item.days)
+        grouped.setdefault((item.member_name, item.rule), set()).update(item.days)
     return tuple(
-        RuleViolation(rule=rule, message=message, member_name=member_name, days=tuple(sorted(days)))
-        for (member_name, rule), (message, days) in sorted(grouped.items())
+        RuleViolation(rule=rule, member_name=member_name, days=tuple(sorted(days)))
+        for (member_name, rule), days in sorted(grouped.items())
     )
 
 
@@ -537,16 +537,16 @@ async def change_resolution_conflicts(
                 else AssignmentRole.primary
             )
             if final_names.get((change.service_date, opposite)) == name:
-                conflicts[key] = "Ta osoba miałaby już drugi dyżur on-call tego dnia"
+                conflicts[key] = translate("scheduling.carry.second_on_call_same_day")
                 continue
         member = await team.member_named(name)
         if member is None:
-            conflicts[key] = "Zastępca nie jest już członkiem zespołu"
+            conflicts[key] = translate("scheduling.carry.replacement_not_member")
             continue
         if not _holds_role_period(member, change.role, change.service_date) or (
             member.is_unavailable(change.service_date)
         ):
-            conflicts[key] = "Zastępca nie ma eligibility albo jest niedostępny"
+            conflicts[key] = translate("scheduling.carry.replacement_not_eligible")
     return conflicts
 
 

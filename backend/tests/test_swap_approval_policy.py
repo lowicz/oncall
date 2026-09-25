@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.clock import business_today
-from oncall.domain.swaps.errors import SLOT_CHANGED_OWNER_MESSAGE
 from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
@@ -233,7 +232,9 @@ async def test_without_approval_a_slot_that_changed_owner_cancels_the_request(cl
     await login(client, "marek")
     accepted = await client.post(f"/api/v1/swaps/{swap_id}/accept")
     assert accepted.status_code == 409, accepted.text
-    assert accepted.json()["detail"] == SLOT_CHANGED_OWNER_MESSAGE
+    assert accepted.json()["detail"] == (
+        "Slot zmienił właściciela; prośba została automatycznie anulowana"
+    )
     listed = (await client.get("/api/v1/swaps")).json()
     assert listed[0]["status"] == "cancelled"
 

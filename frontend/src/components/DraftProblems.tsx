@@ -1,7 +1,8 @@
 import { DraftSchedule } from '../api'
+import { messages, useMessages } from '../i18n'
 import { roleLabels } from '../lib/labels'
 import { formatDate, formatDayShort } from '../lib/dates'
-import { pluralFormPl, pluralPl } from '../lib/plural'
+import { docsHref } from '../lib/nav'
 import { Button, EmptyState, RoleMark, StatusBadge, StatusTone } from '../ui'
 import { DraftFocus } from './DraftScheduleMatrix'
 
@@ -17,22 +18,15 @@ interface Problem {
   focus?: DraftFocus
 }
 
-const KIND_LABEL: Record<Kind, string> = {
-  conflict: 'Dyżur w dniu „nie mogę”',
-  rule: 'Złamana reguła twarda',
-  solver: 'Ostrzeżenie solvera',
-  gap: 'Luka przed szkicem',
-  stale: 'Szkic nieaktualny',
-}
 const KIND_TONE: Record<Kind, StatusTone> = { conflict: 'bad', rule: 'bad', solver: 'warn', gap: 'warn', stale: 'warn' }
 /** Hard rules block the hand-off; the rest is advice the coordinator accepts. */
 const HARD: Kind[] = ['conflict', 'rule']
-const WHOLE = 'Cały szkic'
 
 export type ProblemGrouping = 'person' | 'rule'
 
 /** Everything the draft still has to answer for, one row per problem. */
 export function draftProblems(result: DraftSchedule): Problem[] {
+  const t = messages().generator.problems
   const problems: Problem[] = []
   for (const item of result.unavailability_conflicts ?? []) {
     problems.push({
@@ -41,7 +35,7 @@ export function draftProblems(result: DraftSchedule): Problem[] {
       person: item.assignee_name,
       date: item.service_date,
       role: item.role,
-      detail: `${roleLabels[item.role]} ${formatDate(item.service_date)}`,
+      detail: t.conflictDetail(roleLabels()[item.role], formatDate(item.service_date)),
       focus: { service_date: item.service_date, assignee_name: item.assignee_name, role: item.role },
     })
   }
@@ -49,7 +43,7 @@ export function draftProblems(result: DraftSchedule): Problem[] {
     problems.push({
       key: `${warning.source}:${warning.message}`,
       kind: warning.source === 'rules' ? 'rule' : 'solver',
-      person: WHOLE,
+      person: t.wholeDraft,
       detail: warning.message,
     })
   }
@@ -57,16 +51,16 @@ export function draftProblems(result: DraftSchedule): Problem[] {
     problems.push({
       key: 'gap',
       kind: 'gap',
-      person: WHOLE,
-      detail: `${pluralPl(result.uncovered_before.length, ['nieobsadzony dzień', 'nieobsadzone dni', 'nieobsadzonych dni'])}: ${result.uncovered_before.map(formatDate).join(', ')}`,
+      person: t.wholeDraft,
+      detail: t.gapDetail(result.uncovered_before.length, result.uncovered_before.map(formatDate).join(', ')),
     })
   }
   if (result.stale_changes_count) {
     problems.push({
       key: 'stale',
       kind: 'stale',
-      person: WHOLE,
-      detail: `od wygenerowania ${pluralFormPl(result.stale_changes_count, ['zmienił', 'zmieniły', 'zmieniło'])} się ${pluralPl(result.stale_changes_count, ['wpis', 'wpisy', 'wpisów'])}`,
+      person: t.wholeDraft,
+      detail: t.staleDetail(result.stale_changes_count),
     })
   }
   return problems
@@ -91,37 +85,38 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
   by: ProblemGrouping
   hardOnly?: boolean
 }) {
+  const t = useMessages().generator.problems
   const all = draftProblems(result)
   const problems = hardOnly ? all.filter((problem) => HARD.includes(problem.kind)) : all
   if (all.length === 0) {
     return (
       <div className="panel">
-        <EmptyState compact icon="check" title="Szkic nie ma otwartych problemów" description="Twarde reguły spełnione, brak kolizji z niedostępnością, nic nie czeka na poprawkę." />
+        <EmptyState compact icon="check" title={t.noneTitle} description={t.noneHint} />
       </div>
     )
   }
   if (problems.length === 0) {
     return (
       <div className="panel">
-        <EmptyState compact icon="check" title="Reguły twarde: 0 naruszeń" description={`Pozostają ${all.length === 1 ? '1 ostrzeżenie miękkie' : `${all.length} ostrzeżenia miękkie`}; wyłącz filtr „Tylko twarde”, żeby je zobaczyć.`} />
+        <EmptyState compact icon="check" title={t.noHardTitle} description={t.noHardHint(all.length)} />
       </div>
     )
   }
   const groups = new Map<string, Problem[]>()
   for (const problem of problems) {
-    const key = by === 'person' ? problem.person : KIND_LABEL[problem.kind]
+    const key = by === 'person' ? problem.person : t.kinds[problem.kind]
     groups.set(key, [...(groups.get(key) ?? []), problem])
   }
   const hard = all.filter((problem) => HARD.includes(problem.kind)).length
   return (
     <div className="panel wide-scroll">
-      <table className="lg" aria-label="Problemy szkicu">
+      <table className="lg" aria-label={t.table}>
         <thead>
           <tr>
-            <th scope="col">{by === 'person' ? 'Osoba' : 'Reguła'}</th>
-            <th scope="col">{by === 'person' ? 'Reguła' : 'Kogo · kiedy'}</th>
-            <th scope="col">Szczegół</th>
-            <th scope="col" className="n">Akcja</th>
+            <th scope="col">{by === 'person' ? t.person : t.rule}</th>
+            <th scope="col">{by === 'person' ? t.rule : t.whoWhen}</th>
+            <th scope="col">{t.detail}</th>
+            <th scope="col" className="n">{t.action}</th>
           </tr>
         </thead>
         <tbody>
@@ -134,20 +129,20 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
               ) : null}
               <td>
                 {by === 'person'
-                  ? <StatusBadge tone={KIND_TONE[problem.kind]}>{KIND_LABEL[problem.kind]}</StatusBadge>
-                  : <><b>{problem.person}</b>{problem.date && <small>{formatDayShort(problem.date)} · {problem.role ? roleLabels[problem.role] : ''}</small>}</>}
+                  ? <StatusBadge tone={KIND_TONE[problem.kind]}>{t.kinds[problem.kind]}</StatusBadge>
+                  : <><b>{problem.person}</b>{problem.date && <small>{formatDayShort(problem.date)} · {problem.role ? roleLabels()[problem.role] : ''}</small>}</>}
               </td>
               <td>
                 <span className="problems-cell">
                   {problem.role && <RoleMark role={problem.role} size="sm" />}
                   {problem.detail}
-                  <small className="muted">{HARD.includes(problem.kind) ? 'twarda · blokuje przekazanie' : 'miękka'}</small>
+                  <small className="muted">{HARD.includes(problem.kind) ? t.hardBlocks : t.soft}</small>
                 </span>
               </td>
               <td className="n">
                 {problem.focus && (
                   <Button size="sm" onClick={() => onFocus(problem.focus!)} disabled={!editable}>
-                    {editable ? 'Popraw' : 'Pokaż dzień'}
+                    {editable ? t.fix : t.showDay}
                   </Button>
                 )}
               </td>
@@ -155,8 +150,8 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
           )))}
           <tr>
             <td colSpan={4} className="muted small problems-foot">
-              Reguły twarde (jedna rola na osobę i dzień, przerwa między dyżurami, kwalifikacje, „nie mogę”): {hard === 0 ? '0 naruszeń' : `${hard} ${hard === 1 ? 'naruszenie' : hard < 5 ? 'naruszenia' : 'naruszeń'}`}.
-              {' '}Pełna lista reguł: <a href="/docs/produkt/generator.html">docs / generator</a>.
+              {t.hardRulesSummary(t.violations(hard))}
+              {' '}{t.fullRules} <a href={`${docsHref()}produkt/generator.html`}>{t.docsLink}</a>.
             </td>
           </tr>
         </tbody>

@@ -4,16 +4,17 @@ import { ApiError, AssignmentRole, CalendarData, CalendarEventColor, CalendarEve
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { formatDate, formatDay, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
-  MEMBER_GROUP_LABELS,
   availabilityDutyConflicts,
   coverageGaps,
   hasDutyInRange,
   memberGroup,
+  memberGroupLabels,
   monthGroups,
   orderMembers,
   staffingCandidates,
   startsWeek,
 } from '../lib/calendar'
+import { locale, messages, useMessages } from '../i18n'
 import { useGridNavigation } from '../hooks/useGridNavigation'
 import { CalendarDayList } from './CalendarDayList'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -49,28 +50,21 @@ const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 /** Clock window of a duty, mirroring backend coverage.py (PLAN.md §3). */
 export function coverageWindowText(day: Pick<Day, 'is_day_off'>, role: AssignmentRole): string {
   if (role === 'late_shift') return '11:00–19:00'
-  return day.is_day_off ? 'całodobowo' : '19:00–09:00'
+  return day.is_day_off ? messages().schedule.allDay : '19:00–09:00'
 }
 
-const CHANGE_LABELS: Record<string, string> = {
-  swap: 'zamiana',
-  manual_override: 'korekta',
-}
+const EVENT_COLOR_VALUES: CalendarEventColor[] = ['blue', 'green', 'amber', 'red', 'violet', 'teal']
 
-export const EVENT_COLORS: Array<{ value: CalendarEventColor; label: string }> = [
-  { value: 'blue', label: 'Niebieski' },
-  { value: 'green', label: 'Zielony' },
-  { value: 'amber', label: 'Bursztynowy' },
-  { value: 'red', label: 'Czerwony' },
-  { value: 'violet', label: 'Fioletowy' },
-  { value: 'teal', label: 'Turkusowy' },
-]
+/** The colours a calendar event can wear, named in the current language, for a colour picker. */
+export const eventColors = (): Array<{ value: CalendarEventColor; label: string }> =>
+  EVENT_COLOR_VALUES.map((value) => ({ value, label: messages().schedule.eventColors[value] }))
 
 /** What a day is worth and why, as the inspector's title tag. */
 function dayTag(day: Day) {
-  if (day.holiday_name) return `2X · ${day.holiday_name}`
-  if (day.is_day_off) return '2X · dzień wolny'
-  return '1X · dzień roboczy'
+  const t = messages().schedule.dayTag
+  if (day.holiday_name) return t.holiday(day.holiday_name)
+  if (day.is_day_off) return t.dayOff
+  return t.workday
 }
 
 /**
@@ -118,6 +112,7 @@ export function CalendarMatrix({
 }) {
   const queryClient = useQueryClient()
   const today = warsawDate()
+  const { schedule: t, common } = useMessages()
   const calendar = useQuery({
     queryKey: ['calendar', range.starts_on, range.ends_on],
     queryFn: () => api.calendar(range.starts_on, range.ends_on),
@@ -286,10 +281,10 @@ export function CalendarMatrix({
       .filter((item) => item.starts_on <= selected.day.service_date && item.ends_on >= selected.day.service_date)
       .map((item) => ({
         ...item,
-        display_name: data.members.find((member) => member.id === item.member_id)?.display_name ?? 'nieznana osoba',
+        display_name: data.members.find((member) => member.id === item.member_id)?.display_name ?? t.unknownPerson,
       }))
-      .sort((a, b) => a.display_name.localeCompare(b.display_name, 'pl'))
-  }, [data, selected])
+      .sort((a, b) => a.display_name.localeCompare(b.display_name, locale()))
+  }, [data, selected, t])
   // Who the coordinator may move into the role the change form currently shows.
   const staffCandidates = useMemo(
     () => (data && selected ? staffingCandidates(data, selected.day.service_date, selectedRole) : []),
@@ -297,11 +292,11 @@ export function CalendarMatrix({
   )
   const chosenCandidate = staffCandidates.find((item) => item.id === staffMemberId)
   const staffBlockReason = !selectedDayPublished
-    ? 'Dzień jest poza opublikowanym grafikiem.'
+    ? t.staffBlock.outsidePublished
     : !staffMemberId
-      ? 'Wybierz osobę, która ma objąć tę rolę.'
+      ? t.staffBlock.pickPerson
       : chosenCandidate?.disabledReason
-        ? `Wybrana osoba ${chosenCandidate.disabledReason}.`
+        ? t.staffBlock.chosenPerson(chosenCandidate.disabledReason)
         : undefined
   const openStaffChange = (nextRole: AssignmentRole) => {
     // The role select drops „11–19" on a day off, so never open the form with
@@ -345,29 +340,29 @@ export function CalendarMatrix({
   return (
     <>
       {(riskChips || extraChips) && (
-        <ChipRow label="Ryzyka w zakresie">
+        <ChipRow label={t.risks.label}>
           {riskChips && (
             <>
           {publishedGaps.length > 0 && (
-            <Chip tone="bad" onClick={jumpToFirstGap} title="Pokaż pierwszy dzień bez pełnej obsady">
-              {publishedGaps.length === 1 ? '1 dzień bez pełnej obsady' : `${publishedGaps.length} dni bez pełnej obsady`}
+            <Chip tone="bad" onClick={jumpToFirstGap} title={t.risks.showFirstGap}>
+              {t.risks.gapDays(publishedGaps.length)}
               {' · '}
               {publishedGaps.slice(0, 3).map((gap) => formatDate(gap.service_date).slice(0, 5)).join(', ')}
               {publishedGaps.length > 3 ? '…' : ''}
             </Chip>
           )}
           {outsideGaps.length > 0 && (
-            <Chip tone="warn" title={canCoordinate ? 'Obsadzenie wymaga wygenerowania i opublikowania nowego grafiku' : 'Koordynator jeszcze nie opublikował tego okresu'}>
-              {outsideGaps.length === 1 ? '1 dzień poza opublikowanym grafikiem' : `${outsideGaps.length} dni poza opublikowanym grafikiem`}
+            <Chip tone="warn" title={canCoordinate ? t.risks.outsideNeedsPublishing : t.risks.outsideNotPublished}>
+              {t.risks.outsideDays(outsideGaps.length)}
             </Chip>
           )}
           {canCoordinate && dutyConflicts.length > 0 && (
-            <Chip tone="bad" onClick={() => jumpToDate(dutyConflicts[0].service_date)} title="Pokaż pierwszy taki dzień">
-              {dutyConflictPeople === 1 ? '1 osoba z dyżurem w dniu niedostępności' : `${dutyConflictPeople} osób z dyżurem w dniu niedostępności`}
+            <Chip tone="bad" onClick={() => jumpToDate(dutyConflicts[0].service_date)} title={t.risks.showFirstConflict}>
+              {t.risks.conflictPeople(dutyConflictPeople)}
             </Chip>
           )}
           {gaps.length === 0 && (!canCoordinate || dutyConflicts.length === 0) && (
-            <Chip tone="ok">Pełna obsada w całym zakresie</Chip>
+            <Chip tone="ok">{t.risks.fullCoverage}</Chip>
           )}
             </>
           )}
@@ -377,7 +372,7 @@ export function CalendarMatrix({
       {typeof heading === 'function' ? heading(summary) : heading}
       {calendar.error && <ErrorState error={calendar.error} onRetry={() => calendar.refetch()} />}
       {(calendar.isLoading || !enabled) && (
-        <div className="panel sk-block" aria-busy="true" aria-label="Wczytywanie grafiku">
+        <div className="panel sk-block" aria-busy="true" aria-label={t.loading}>
           <Skeleton height={22} width="min(340px, 100%)" />
           <Skeleton height={34 * 5} />
         </div>
@@ -386,19 +381,19 @@ export function CalendarMatrix({
         role === 'admin' ? (
           <EmptyState
             icon="people"
-            title="Nikt nie jest jeszcze w rotacji"
-            description="Dodaj osoby na ekranie Osoby."
-            action={<LinkButton to="/osoby" icon="people">Otwórz Osoby</LinkButton>}
+            title={t.empty.nobodyYet}
+            description={t.empty.addPeople}
+            action={<LinkButton to="/osoby" icon="people">{t.empty.openPeople}</LinkButton>}
           />
         ) : (
-          <EmptyState icon="people" title="Brak osób w rotacji" />
+          <EmptyState icon="people" title={t.empty.noPeople} />
         )
       )}
       {noneInRange && (
-        <EmptyState icon="people" title="Nikt nie jest w rotacji w tym zakresie" />
+        <EmptyState icon="people" title={t.empty.nobodyInRange} />
       )}
       {data && !noPeople && hideIdle && members.length === 0 && (
-        <EmptyState compact icon="calendar" title="Nikt nie ma dyżuru w tym zakresie" />
+        <EmptyState compact icon="calendar" title={t.empty.nobodyOnDuty} />
       )}
       {data && !noPeople && view === 'list' && (
         <CalendarDayList
@@ -413,12 +408,9 @@ export function CalendarMatrix({
         />
       )}
       {data && view === 'matrix' && members.length > 0 && (
-        <div className="mx panel" role="region" aria-label="Macierz grafiku" tabIndex={-1}>
+        <div className="mx panel" role="region" aria-label={t.grid.region} tabIndex={-1}>
           <table className="m" data-zoom={zoom}>
-            <caption className="sr-only">
-              Grafik dyżurów od {formatDate(range.starts_on)} do {formatDate(range.ends_on)}.
-              Osoby w wierszach, dni w kolumnach. Strzałkami przechodzisz po siatce, PageUp i PageDown przeskakują o tydzień.
-            </caption>
+            <caption className="sr-only">{t.grid.caption(formatDate(range.starts_on), formatDate(range.ends_on))}</caption>
             <thead>
               <tr className="mrow">
                 <th scope="col" className="who" />
@@ -429,7 +421,7 @@ export function CalendarMatrix({
                 ))}
               </tr>
               <tr className="drow">
-                <th scope="col" className="who">Osoba</th>
+                <th scope="col" className="who">{t.grid.person}</th>
                 {data.days.map((day) => {
                   const isToday = day.service_date === today
                   const gap = gapDates.has(day.service_date) && day.published
@@ -438,12 +430,12 @@ export function CalendarMatrix({
                       scope="col"
                       key={day.service_date}
                       className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', isToday && 'td', gap && 'gap')}
-                      title={[day.holiday_name, ...day.events.map((event) => event.title), gap ? 'brak pełnej obsady' : null]
+                      title={[day.holiday_name, ...day.events.map((event) => event.title), gap ? t.grid.noFullCoverage : null]
                         .filter(Boolean).join(' · ') || undefined}
                     >
                       <span>{formatWeekday(day.service_date)}</span>
                       <b>{day.service_date.slice(8)}</b>
-                      {gap && <span className="sr-only">brak pełnej obsady</span>}
+                      {gap && <span className="sr-only">{t.grid.noFullCoverage}</span>}
                     </th>
                   )
                 })}
@@ -462,18 +454,18 @@ export function CalendarMatrix({
                   <Fragment key={member.id}>
                     {showGroupCaption && (
                       <tr className="grp">
-                        <td className="who" colSpan={data.days.length + 1}>{MEMBER_GROUP_LABELS[group]}</td>
+                        <td className="who" colSpan={data.days.length + 1}>{memberGroupLabels()[group]}</td>
                       </tr>
                     )}
                     <tr ref={(node) => { rowRefs.current.set(member.display_name, node) }}>
                       <th scope="row" className="who">
                         <span className={cx('who-name', you && 'who-you')} title={member.display_name}>{member.display_name}</span>
-                        {you && <span className="who-tag who-you">Ty</span>}
-                        {out && <span className="who-tag who-out">poza rotacją</span>}
+                        {you && <span className="who-tag who-you">{t.grid.you}</span>}
+                        {out && <span className="who-tag who-out">{t.grid.outOfRotation}</span>}
                         <span className="who-load" aria-hidden="true">
                           <i style={{ width: `${(count / load.max) * 100}%` }} />
                         </span>
-                        <span className="sr-only">{count} dyżurów w zakresie</span>
+                        <span className="sr-only">{t.grid.dutiesInRange(count)}</span>
                       </th>
                       {data.days.map((day, colIndex) => {
                         const assignments = data.assignments.filter(
@@ -498,9 +490,8 @@ export function CalendarMatrix({
                                 member.display_name,
                                 day,
                                 assignments.map((assignment) => [
-                                  roleLabels[assignment.role],
-                                  assignment.change_kind === 'swap' ? 'zamiana' : '',
-                                  assignment.change_kind === 'manual_override' ? 'korekta' : '',
+                                  roleLabels()[assignment.role],
+                                  assignment.change_kind ? t.changes[assignment.change_kind] : '',
                                 ].filter(Boolean).join(' ')),
                                 availability?.kind,
                               )}
@@ -529,19 +520,19 @@ export function CalendarMatrix({
         meta={selected && (
           <>
             <Tag tone={selected.day.is_day_off ? 'late' : undefined}>{dayTag(selected.day)}</Tag>
-            {!selectedDayPublished && <Tag>poza publikacją</Tag>}
+            {!selectedDayPublished && <Tag>{t.inspector.outsidePublication}</Tag>}
           </>
         )}
         footer={staffOpen ? (
           <>
-            <Button onClick={() => { setStaffOpen(false); override.reset() }}>Wróć</Button>
+            <Button onClick={() => { setStaffOpen(false); override.reset() }}>{t.inspector.back}</Button>
             <span className="sp" />
             <Button
               variant="primary"
               disabled={override.isPending || Boolean(staffBlockReason)}
               onClick={() => { override.reset(); setViolationsAcknowledged(false); setConfirmOverride(true) }}
             >
-              {selectedAssignment ? 'Zmień obsadę…' : 'Obsadź…'}
+              {selectedAssignment ? t.inspector.changeStaffing : t.inspector.staff}
             </Button>
           </>
         ) : (
@@ -552,14 +543,14 @@ export function CalendarMatrix({
                 onClick={closeInspector}
                 variant="primary"
               >
-                Otwórz generator z tym zakresem
+                {t.inspector.openGenerator}
               </LinkButton>
             )}
             {canCoordinate && selected && selectedDayPublished && (
               <>
-                <Button icon="event" onClick={() => setEventFormOpen((open) => !open)} aria-expanded={eventFormOpen}>Wydarzenie</Button>
+                <Button icon="event" onClick={() => setEventFormOpen((open) => !open)} aria-expanded={eventFormOpen}>{t.inspector.event}</Button>
                 <span className="sp" />
-                <Button variant="primary" onClick={() => openStaffChange(selectedRole)}>Zmień obsadę…</Button>
+                <Button variant="primary" onClick={() => openStaffChange(selectedRole)}>{t.inspector.changeStaffing}</Button>
               </>
             )}
             {!canCoordinate && selected && isOwnDay && role !== 'viewer' && (
@@ -569,7 +560,7 @@ export function CalendarMatrix({
                 variant="primary"
                 icon="swap"
               >
-                Poproś o zamianę
+                {t.inspector.requestSwap}
               </LinkButton>
             )}
           </>
@@ -577,16 +568,13 @@ export function CalendarMatrix({
       >
         {selected && !selectedDayPublished && (
           <Box tone="muted">
-            Ten dzień jest poza opublikowanym zakresem grafiku.
-            {canCoordinate
-              ? ' Żeby go obsadzić, wygeneruj i opublikuj grafik obejmujący tę datę.'
-              : ' Koordynator jeszcze nie opublikował grafiku na ten okres.'}
+            {t.inspector.outsideRange} {canCoordinate ? t.inspector.outsideRangeCoordinator : t.inspector.outsideRangeMember}
           </Box>
         )}
         {staffOpen && selected ? (
           <div className="stack-sm">
-            <b>Zmień obsadę tego dnia</b>
-            <Field label="Rola" id="calendar-override-role">
+            <b>{t.inspector.changeTitle}</b>
+            <Field label={t.inspector.role} id="calendar-override-role">
               {({ id }) => (
                 <Select
                   id={id}
@@ -595,13 +583,13 @@ export function CalendarMatrix({
                   onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null) }}
                 >
                   {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
-                    <option key={item} value={item}>{roleLabels[item]}</option>
+                    <option key={item} value={item}>{roleLabels()[item]}</option>
                   ))}
                 </Select>
               )}
             </Field>
-            <div className="small muted">Obecnie: {selectedAssignment?.assignee_name ?? 'brak opublikowanego przydziału'}</div>
-            <Field label="Osoba" id="calendar-override-member" hint={staffBlockReason}>
+            <div className="small muted">{t.inspector.currently(selectedAssignment?.assignee_name ?? t.inspector.noPublishedAssignment)}</div>
+            <Field label={t.inspector.person} id="calendar-override-member" hint={staffBlockReason}>
               {({ id, describedBy }) => (
                 <Select
                   id={id}
@@ -610,7 +598,7 @@ export function CalendarMatrix({
                   aria-describedby={describedBy}
                   onChange={(event) => setStaffMemberId(event.target.value || null)}
                 >
-                  <option value="">Wybierz osobę</option>
+                  <option value="">{t.inspector.pickPerson}</option>
                   {staffCandidates.map((candidate) => (
                     <option key={candidate.id} value={candidate.id} disabled={Boolean(candidate.disabledReason)}>
                       {candidate.display_name}{candidate.disabledReason ? ` - ${candidate.disabledReason}` : ''}
@@ -626,11 +614,11 @@ export function CalendarMatrix({
         ) : selected && (
           <>
             {selectedGap && selectedDayPublished && (
-              <Box tone="bad" title="Brak pełnej obsady">
-                Nieobsadzone: {selectedGap.missing.map((item) => roleLabels[item]).join(', ')}.
+              <Box tone="bad" title={t.inspector.noFullCoverage}>
+                {t.inspector.unstaffedRoles(selectedGap.missing.map((item) => roleLabels()[item]).join(', '))}
               </Box>
             )}
-            <div className="roles" aria-label="Obsada dnia">
+            <div className="roles" aria-label={t.inspector.dayStaffing}>
               {ROLES.map((item) => {
                 const slot = data?.assignments.find((entry) => entry.service_date === selected.day.service_date && entry.role === item)
                 const notApplicable = item === 'late_shift' && selected.day.is_day_off
@@ -640,16 +628,16 @@ export function CalendarMatrix({
                     <RoleMark role={item} change={slot?.change_kind} />
                     <span className="role-n">
                       {notApplicable
-                        ? <span className="muted">nie dotyczy w dzień wolny</span>
-                        : (slot?.assignee_name ?? <span className={missing ? undefined : 'muted'}>brak obsady</span>)}
-                      {slot?.change_kind && <small>{CHANGE_LABELS[slot.change_kind]}</small>}
+                        ? <span className="muted">{t.inspector.notApplicableDayOff}</span>
+                        : (slot?.assignee_name ?? <span className={missing ? undefined : 'muted'}>{t.inspector.unstaffed}</span>)}
+                      {slot?.change_kind && <small>{t.changes[slot.change_kind]}</small>}
                     </span>
                     {!notApplicable && <span className="role-x mono">{coverageWindowText(selected.day, item)}</span>}
                   </>
                 )
                 const className = cx('role-row', selectedRole === item && 'role-row-sel', missing && 'role-row-gap')
                 return canCoordinate && selectedDayPublished && !notApplicable ? (
-                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={`${roleLabels[item]}: ${slot?.assignee_name ?? 'brak obsady'}. Zmień obsadę`}>
+                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={t.inspector.changeRole(roleLabels()[item], slot?.assignee_name ?? t.inspector.unstaffed)}>
                     {body}
                   </button>
                 ) : (
@@ -659,12 +647,12 @@ export function CalendarMatrix({
             </div>
             {selected.day.events.length > 0 && (
               <div className="stack-sm">
-                <div className="impact-h">Wydarzenia</div>
+                <div className="impact-h">{t.inspector.events}</div>
                 {selected.day.events.map((event) => (
                   <div key={event.id} className="row" style={{ justifyContent: 'space-between' }}>
                     <span><i className="event-swatch" style={{ background: `var(--ev-${event.color})` }} />{event.title}</span>
                     {canCoordinate && (
-                      <Button size="sm" variant="ghost" icon="trash" disabled={deleteEvent.isPending} onClick={() => { deleteEvent.reset(); setEventToDelete(event) }}>Usuń</Button>
+                      <Button size="sm" variant="ghost" icon="trash" disabled={deleteEvent.isPending} onClick={() => { deleteEvent.reset(); setEventToDelete(event) }}>{t.inspector.delete}</Button>
                     )}
                   </div>
                 ))}
@@ -672,19 +660,19 @@ export function CalendarMatrix({
             )}
             {dayAvailability.length > 0 && (
               <div className="avail">
-                <div className="impact-h">Dostępności tego dnia</div>
+                <div className="impact-h">{t.inspector.availabilityToday}</div>
                 {dayAvailability.map((item) => (
                   <div key={`${item.member_id}-${item.starts_on}`} className="avail-row">
                     <AvailabilityMark kind={item.kind} />
-                    <span>{item.display_name}: {availabilityLabels[item.kind]}{item.note ? ` - ${item.note}` : ''}</span>
+                    <span>{item.display_name}: {availabilityLabels()[item.kind]}{item.note ? ` - ${item.note}` : ''}</span>
                   </div>
                 ))}
               </div>
             )}
             {selected.member && (
               <div className="muted small">
-                Z wiersza osoby: {selected.member.display_name}.
-                {!canCoordinate && !isOwnDay && ' Szczegóły opublikowanego grafiku.'}
+                {t.inspector.fromRow(selected.member.display_name)}
+                {!canCoordinate && !isOwnDay && ` ${t.inspector.publishedDetails}`}
               </div>
             )}
             {(createEvent.error || deleteEvent.error) && (
@@ -704,14 +692,14 @@ export function CalendarMatrix({
                   })
                 }}
               >
-                <b>Dodaj wydarzenie tego dnia</b>
-                <Field label="Nazwa" id="calendar-event-title">
+                <b>{t.inspector.addEventTitle}</b>
+                <Field label={t.inspector.name} id="calendar-event-title">
                   {({ id }) => <Input id={id} name={id} value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} autoFocus required />}
                 </Field>
-                <Field label="Kolor" id="calendar-event-color">
+                <Field label={t.inspector.color} id="calendar-event-color">
                   {({ id }) => (
-                    <div className="color-pick" role="radiogroup" aria-label="Kolor" id={id}>
-                      {EVENT_COLORS.map((color) => (
+                    <div className="color-pick" role="radiogroup" aria-label={t.inspector.color} id={id}>
+                      {eventColors().map((color) => (
                         <button
                           type="button"
                           key={color.value}
@@ -728,8 +716,8 @@ export function CalendarMatrix({
                   )}
                 </Field>
                 <div className="row">
-                  <Button type="submit" variant="primary" size="sm" disabled={!eventTitle.trim()} loading={createEvent.isPending}>Dodaj wydarzenie</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEventFormOpen(false)}>Anuluj</Button>
+                  <Button type="submit" variant="primary" size="sm" disabled={!eventTitle.trim()} loading={createEvent.isPending}>{t.inspector.addEvent}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEventFormOpen(false)}>{common.cancel}</Button>
                 </div>
               </form>
             )}
@@ -739,17 +727,17 @@ export function CalendarMatrix({
 
       <ConfirmDialog
         open={confirmOverride && Boolean(selected)}
-        title={selectedAssignment ? 'Potwierdź zmianę obsady' : 'Potwierdź obsadzenie slotu'}
+        title={selectedAssignment ? t.confirm.changeTitle : t.confirm.fillTitle}
         description={selected ? (
           <>
             <div>
-              <span className="mono">{formatDate(selected.day.service_date)}</span> · {roleLabels[selectedRole]}<br />
-              Przypiszesz: <b>{chosenCandidate?.display_name ?? '-'}</b>
-              {selectedAssignment && <> zamiast {selectedAssignment.assignee_name}</>}
+              <span className="mono">{formatDate(selected.day.service_date)}</span> · {roleLabels()[selectedRole]}<br />
+              {t.confirm.assign} <b>{chosenCandidate?.display_name ?? '-'}</b>
+              {selectedAssignment && <> {t.confirm.insteadOf(selectedAssignment.assignee_name)}</>}
             </div>
-            {overrideCheck.isLoading && <div className="muted small">Sprawdzam reguły twarde…</div>}
+            {overrideCheck.isLoading && <div className="muted small">{t.confirm.checkingRules}</div>}
             {(overrideCheck.data?.length ?? 0) > 0 && (
-              <Box tone="warn" title="Ta korekta złamie reguły twarde">
+              <Box tone="warn" title={t.confirm.breaksRules}>
                 <ul className="box-list">
                   {overrideCheck.data!.map((violation, index) => (
                     <li key={index}>
@@ -757,9 +745,9 @@ export function CalendarMatrix({
                     </li>
                   ))}
                 </ul>
-                <div className="box-next">Naruszenie trafi do dziennika audytu.</div>
+                <div className="box-next">{t.confirm.auditNote}</div>
                 <Checkbox
-                  label="Rozumiem i świadomie łamię te reguły"
+                  label={t.confirm.acknowledge}
                   checked={violationsAcknowledged}
                   onChange={(event) => setViolationsAcknowledged(event.target.checked)}
                   disabled={override.isPending}
@@ -778,14 +766,14 @@ export function CalendarMatrix({
               />
             ) : staffMemberId ? (
               <div className="muted small">
-                Slot był pusty - korekta dokłada dyżur tylko osobie {chosenCandidate?.display_name ?? ''}, nie zdejmuje go nikomu.
+                {t.confirm.emptySlot(chosenCandidate?.display_name ?? '')}
               </div>
             ) : null}
           </>
         ) : undefined}
-        confirmLabel={selectedAssignment ? 'Zmień obsadę' : 'Obsadź'}
+        confirmLabel={selectedAssignment ? t.confirm.change : t.confirm.fill}
         reasonLabel={selected?.day.service_date && selected.day.service_date < today
-          ? 'Powód korekty historycznej (minimum 10 znaków)'
+          ? t.confirm.historicalReason
           : undefined}
         reasonMinLength={10}
         confirmDisabled={overrideCheck.isLoading
@@ -809,10 +797,10 @@ export function CalendarMatrix({
         error={deleteEvent.error ? deleteEvent.error.message : null}
         onCancel={() => setEventToDelete(null)}
         onConfirm={() => eventToDelete && deleteEvent.mutate(eventToDelete.id)}
-        title="Usunąć wydarzenie?"
-        confirmLabel="Usuń"
+        title={t.confirm.deleteEventTitle}
+        confirmLabel={t.inspector.delete}
         confirmColor="error"
-        description={eventToDelete && <>„{eventToDelete.title}” zniknie ze wszystkich dni, na które je dodano. Tej operacji nie da się cofnąć.</>}
+        description={eventToDelete && t.confirm.deleteEvent(eventToDelete.title)}
       />
     </>
   )

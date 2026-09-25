@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../../api'
-import { auditActionLabels, humanizeAuditSummary } from '../../lib/labels'
+import { useMessages } from '../../i18n'
+import { auditActionLabel, humanizeAuditSummary } from '../../lib/labels'
 import { formatMoment } from '../../lib/dates'
 import { DateField } from '../../components/DateField'
 import { Button, Checkbox, EmptyState, Field, InlineError, Input, List, ListRow, LoadingBlock, PageHeader, Select, Tag } from '../../ui'
 
-// The map in labels.ts is the single source of truth for known action codes
-// (QA7-L16); the filter offers exactly what it can also render as a label.
-const AUDIT_ACTIONS = Object.keys(auditActionLabels)
 const AUDIT_PAGE_SIZE = 50
 
 export function AuditPanel() {
+  const t = useMessages()
+  // The catalog's `labels.auditActions` is the single source of truth for
+  // known action codes; the filter offers exactly what it can also render as
+  // a label.
+  const auditActions = Object.keys(t.labels.auditActions)
   const [action, setAction] = useState('')
   const [actor, setActor] = useState('')
   const [queryText, setQueryText] = useState('')
@@ -47,7 +50,8 @@ export function AuditPanel() {
 
   const exportCsv = () => {
     const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
-    const rows = [['czas_utc', 'akcja', 'aktor', 'opis', 'szczegoly'], ...events.map((event) => [
+    const columns = t.audit.csv.columns
+    const rows = [[columns.occurredAt, columns.action, columns.actor, columns.summary, columns.details], ...events.map((event) => [
       event.occurred_at, event.action, event.actor_label, event.summary,
       event.details ? JSON.stringify(event.details) : '',
     ])]
@@ -55,7 +59,7 @@ export function AuditPanel() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'audyt.csv'
+    link.download = t.audit.csv.fileName
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -63,12 +67,12 @@ export function AuditPanel() {
   return (
     <div className="page">
       <PageHeader
-        title="Audyt"
-        sub="Istotne operacje zapisane w systemie, najnowsze na górze. Czasy w strefie Europe/Warsaw."
-        actions={<Button icon="download" onClick={exportCsv} disabled={events.length === 0}>Eksportuj CSV</Button>}
+        title={t.audit.title}
+        sub={t.audit.subtitle}
+        actions={<Button icon="download" onClick={exportCsv} disabled={events.length === 0}>{t.audit.exportCsv}</Button>}
       />
-      <form className="toolbar panel" onSubmit={(event) => event.preventDefault()} aria-label="Filtry audytu">
-        <Field label="Akcja" id="audit-action">
+      <form className="toolbar panel" onSubmit={(event) => event.preventDefault()} aria-label={t.audit.filters.title}>
+        <Field label={t.audit.filters.action} id="audit-action">
           {({ id }) => (
             <Select
               id={id}
@@ -80,38 +84,38 @@ export function AuditPanel() {
                 if (next === 'auth.login') setIncludeLogins(true)
               }}
             >
-              <option value="">Wszystkie</option>
-              {AUDIT_ACTIONS.map((item) => <option key={item} value={item}>{auditActionLabels[item] ?? item}</option>)}
+              <option value="">{t.audit.filters.allActions}</option>
+              {auditActions.map((item) => <option key={item} value={item}>{auditActionLabel(item)}</option>)}
             </Select>
           )}
         </Field>
-        <Field label="Osoba" id="audit-actor">
+        <Field label={t.audit.filters.person} id="audit-actor">
           {({ id }) => <Input id={id} value={actor} onChange={(event) => setActor(event.target.value)} />}
         </Field>
-        <Field label="Szukaj" id="audit-q">
+        <Field label={t.audit.filters.search} id="audit-q">
           {({ id }) => <Input id={id} type="search" value={queryText} onChange={(event) => setQueryText(event.target.value)} />}
         </Field>
-        <DateField id="audit-from" label="Od" value={startsOn} onChange={setStartsOn} />
-        <DateField id="audit-to" label="Do" value={endsOn} onChange={setEndsOn} />
-        <Checkbox label="Pokaż zwykłe logowania" checked={includeLogins} onChange={(event) => setIncludeLogins(event.target.checked)} />
+        <DateField id="audit-from" label={t.audit.filters.from} value={startsOn} onChange={setStartsOn} />
+        <DateField id="audit-to" label={t.audit.filters.to} value={endsOn} onChange={setEndsOn} />
+        <Checkbox label={t.audit.filters.showRoutineLogins} checked={includeLogins} onChange={(event) => setIncludeLogins(event.target.checked)} />
       </form>
       {(actor || queryText) && !includeLogins && (
-        <p className="muted small">Rutynowe logowania są w tym widoku ukryte. Włącz „Pokaż zwykłe logowania”, żeby je uwzględnić w wynikach.</p>
+        <p className="muted small">{t.audit.routineLoginsHidden}</p>
       )}
       {load.error && <InlineError error={load.error} />}
       {events.length === 0 && !load.isPending && (
         <EmptyState
           icon="audit"
-          title="Brak zdarzeń dla wybranego filtra"
+          title={t.audit.empty}
           description={action === 'auth.login'
-            ? `W wybranym zakresie nie ma zdarzeń „${auditActionLabels['auth.login']}”. Zmień zakres dat albo pozostałe filtry.`
-            : 'Zmień albo wyczyść filtry, żeby zobaczyć więcej zdarzeń.'}
+            ? t.audit.emptyLogins(auditActionLabel('auth.login'))
+            : t.audit.emptyHint}
         />
       )}
       {events.length > 0 && (
         <List className="panel">
           {events.map((event) => (
-            <ListRow key={event.id} aside={<Tag>{auditActionLabels[event.action] ?? event.action}</Tag>}>
+            <ListRow key={event.id} aside={<Tag>{auditActionLabel(event.action)}</Tag>}>
               <div className="row">
                 <span className="mono muted small">{formatMoment(event.occurred_at)}</span>
                 <b>{humanizeAuditSummary(event.summary)}</b>
@@ -119,7 +123,7 @@ export function AuditPanel() {
               <small>{event.actor_label}</small>
               {event.details && (
                 <details className="audit-details">
-                  <summary>Szczegóły</summary>
+                  <summary>{t.audit.details}</summary>
                   <pre className="mono">{JSON.stringify(event.details, null, 2)}</pre>
                 </details>
               )}
@@ -127,10 +131,10 @@ export function AuditPanel() {
           ))}
         </List>
       )}
-      {load.isPending && <LoadingBlock label="Wczytywanie zdarzeń" rows={3} />}
+      {load.isPending && <LoadingBlock label={t.audit.loading} rows={3} />}
       {hasMore && !load.isPending && (
         <div className="row" style={{ justifyContent: 'center' }}>
-          <Button onClick={() => load.mutate({ nextOffset: offset })}>Załaduj więcej</Button>
+          <Button onClick={() => load.mutate({ nextOffset: offset })}>{t.audit.loadMore}</Button>
         </div>
       )}
     </div>

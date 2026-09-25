@@ -20,6 +20,7 @@ from oncall.domain.swaps.models import (
 )
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus, UserRole
 from oncall.fairness_data import member_response
+from oncall.i18n import translate
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.rules import rule_violation_responses
@@ -112,7 +113,7 @@ def _handed_over(outcome: SwapRequestView | SwapAutoCancelled) -> SwapRequestRes
     """A hand-over that found the slot in someone else's hands cancelled the
     request; that cancellation is kept, so it is reported, not rolled back."""
     if isinstance(outcome, SwapAutoCancelled):
-        raise RecordedHttpException(status.HTTP_409_CONFLICT, errors.SLOT_CHANGED_OWNER_MESSAGE)
+        raise RecordedHttpException(status.HTTP_409_CONFLICT, translate("swaps.slot_changed_owner"))
     return swap_response(outcome)
 
 

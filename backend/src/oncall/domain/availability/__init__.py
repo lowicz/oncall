@@ -1,1 +1,1 @@
-"""Members' „nie mogę" / „wolę nie" / „chętnie wezmę" entries."""
+"""Members' `unavailable` / `prefer_not` / `prefer` entries."""

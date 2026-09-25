@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0e13" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Dokumentacja On-call</title>
+    <script>
+      // Identical to index.html: apply the colour scheme before first paint and
+      // read it from the same storage key, so the choice made in the
+      // application carries over to the documentation and back.
+      (function () {
+        var scheme = 'dark'
+        try {
+          var mode = localStorage.getItem('oncall-theme') || 'dark'
+          scheme =
+            mode === 'system'
+              ? window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+              : mode === 'light'
+                ? 'light'
+                : 'dark'
+        } catch (error) {}
+        document.documentElement.setAttribute('data-theme', scheme)
+      })()
+    </script>
+    <link rel="stylesheet" href="assets/fonts.css" />
+    <link rel="stylesheet" href="assets/docs.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="../"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><path fill="#fff" d="M12 16h20v6H19v7h11v6H19v7h13v6H12z"/><path fill="#fff" d="M44 16h7L42 48h-7z"/></svg><span id="brand-name">On-call</span></a>
+      <span class="topbar-title">Dokumentacja</span>
+      <div class="topbar-actions">
+        <a class="topbar-link" href="en/index.html" lang="en" hreflang="en">English</a>
+        <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Przełącz motyw">
+          Motyw
+        </button>
+        <a class="topbar-link" href="../">Wróć do aplikacji</a>
+      </div>
+    </header>
+
+    <div class="shell">
+      <details class="sidebar" id="sidebar" open>
+        <summary class="sidebar-toggle">Spis treści</summary>
+        <nav class="sidebar-body" aria-label="Spis treści dokumentacji">
+          <ul>
+            <li><a href="index.html" aria-current="page">Dokumentacja On-call</a></li>
+          </ul>
+          <h2>Produkt</h2>
+          <ul>
+            <li><a href="produkt/przeglad.html">Przegląd produktu</a></li>
+            <li><a href="produkt/role-i-dostep.html">Role i dostęp</a></li>
+            <li><a href="produkt/model-grafiku.html">Model grafiku</a></li>
+            <li><a href="produkt/generator.html">Generator grafiku</a></li>
+            <li><a href="produkt/sprawiedliwosc.html">Sprawiedliwość</a></li>
+            <li><a href="produkt/integracje.html">Integracje</a></li>
+          </ul>
+          <h2>Użytkownik</h2>
+          <ul>
+            <li><a href="uzytkownik/pierwsze-kroki.html">Pierwsze kroki</a></li>
+            <li><a href="uzytkownik/dyzury.html">Teraz i Grafik</a></li>
+            <li><a href="uzytkownik/dostepnosc.html">Moje dyżury i dostępność</a></li>
+            <li><a href="uzytkownik/zamiany.html">Zamiany</a></li>
+            <li><a href="uzytkownik/generowanie-grafiku.html">Generowanie grafiku</a></li>
+            <li><a href="uzytkownik/administracja.html">Administracja</a></li>
+            <li><a href="uzytkownik/rozwiazywanie-problemow.html">Rozwiązywanie problemów</a></li>
+          </ul>
+          <h2>Wdrożenie</h2>
+          <ul>
+            <li><a href="wdrozenie/uruchomienie.html">Uruchomienie</a></li>
+            <li><a href="wdrozenie/systemd.html">Systemd (Podman Compose)</a></li>
+            <li><a href="wdrozenie/aktualizacja.html">Aktualizacja wdrożenia</a></li>
+            <li><a href="wdrozenie/wydania.html">Wydania i wersje</a></li>
+            <li><a href="wdrozenie/tls.html">TLS</a></li>
+            <li><a href="wdrozenie/ldap.html">Logowanie z katalogu (LDAP / Active Directory)</a></li>
+          </ul>
+        </nav>
+      </details>
+      <script>
+        // Open in the markup, so a wide screen shows the contents with no
+        // script at all; collapsed here on a narrow one, before first paint,
+        // so a phone opens on the page it was sent to and not on a screenful
+        // of links. The same breakpoint as the stylesheet's.
+        (function () {
+          var sidebar = document.getElementById('sidebar')
+          var wide = window.matchMedia('(min-width: 901px)')
+          var sync = function () {
+            sidebar.open = wide.matches
+          }
+          sync()
+          wide.addEventListener('change', sync)
+        })()
+      </script>
+
+      <div class="column">
+        <main class="content">
+<h1 id="dokumentacja-on-call">Dokumentacja On-call</h1>
+<p>On-call układa i publikuje grafik dyżurów zespołu: kto jest <code>PRIMARY</code>,
+kto <code>SECONDARY</code> i kto obsługuje zmianę <code>11–19</code> każdego dnia. Dokumentacja jest
+po polsku, tak samo jak interfejs aplikacji, żeby nazwy ekranów, przycisków i
+statusów w tekście były dokładnie tymi, które widać na ekranie.</p>
+<p>Dokumentacja dzieli się na trzy części.</p>
+<h2 id="dokumentacja-produktowa">Dokumentacja produktowa</h2>
+<p>Czym aplikacja jest, jakie reguły egzekwuje i dlaczego wynik wygląda tak, jak
+wygląda. Czytaj, zanim zaczniesz z kimś ustalać zasady dyżurów.</p>
+<ul>
+<li><a href="produkt/przeglad.html">Przegląd produktu</a> - zakres, pojęcia i główne przepływy.</li>
+<li><a href="produkt/role-i-dostep.html">Role i dostęp</a> - co widzi i co może każda rola.</li>
+<li><a href="produkt/model-grafiku.html">Model grafiku</a> - dyżury, pokrycie, eligibility,
+dostępność, dni wolne i stawka 2X.</li>
+<li><a href="produkt/generator.html">Generator grafiku</a> - reguły twarde, wagi miękkie,
+tryby rotacji i kryterium odbioru.</li>
+<li><a href="produkt/sprawiedliwosc.html">Sprawiedliwość</a> - jak liczone są punkty i udział.</li>
+<li><a href="produkt/integracje.html">Integracje</a> - powiadomienia e-mail, kanały ICS,
+linki podglądowe i raport miesięczny.</li>
+</ul>
+<h2 id="dokumentacja-użytkownika">Dokumentacja użytkownika</h2>
+<p>Instrukcja ekran po ekranie, zadanie po zadaniu.</p>
+<ul>
+<li><a href="uzytkownik/pierwsze-kroki.html">Pierwsze kroki</a> - logowanie, hasło, motyw,
+nawigacja.</li>
+<li><a href="uzytkownik/dyzury.html">Teraz i Grafik</a> - kto dyżuruje teraz i macierz osób × dni.</li>
+<li><a href="uzytkownik/dostepnosc.html">Moje dyżury i dostępność</a> - zgłaszanie „nie mogę”,
+„wolę nie” i „chętnie wezmę”.</li>
+<li><a href="uzytkownik/zamiany.html">Zamiany</a> - prośba, akceptacja, zatwierdzenie.</li>
+<li><a href="uzytkownik/generowanie-grafiku.html">Generowanie grafiku</a> - dla koordynatora.</li>
+<li><a href="uzytkownik/administracja.html">Administracja</a> - osoby, wydarzenia, import,
+raporty, udostępnienia i audyt.</li>
+<li><a href="uzytkownik/rozwiazywanie-problemow.html">Rozwiązywanie problemów</a> - komunikaty
+i co z nimi zrobić.</li>
+</ul>
+<h2 id="wdrożenie">Wdrożenie</h2>
+<ul>
+<li><a href="wdrozenie/uruchomienie.html">Uruchomienie</a> - Docker Compose i Podman Compose,
+obrazy z rejestru albo budowanie z repozytorium.</li>
+<li><a href="wdrozenie/systemd.html">Systemd (Podman Compose)</a> - jednostka użytkownika,
+linger i start stosu po restarcie maszyny.</li>
+<li><a href="wdrozenie/wydania.html">Wydania i wersje</a> - numer wersji, aktualizacja,
+cofnięcie, weryfikacja pochodzenia obrazów, co sprawdza CI.</li>
+<li><a href="wdrozenie/tls.html">TLS</a> - certyfikat, klucz i CA jako trzy osobne pliki.</li>
+<li><a href="wdrozenie/ldap.html">Logowanie z katalogu</a> - LDAP / Active Directory,
+certyfikat katalogu i diagnostyka logowania z logu API.</li>
+</ul>
+<h2 id="dokumenty-historyczne">Dokumenty historyczne</h2>
+<p>Wcześniejsza zawartość katalogu <code>docs/</code> - plany, raporty QA, zrzuty ekranu i
+skrypty testowe - została zachowana bez zmian w <code>archive/docs/</code>.
+Opisuje stan projektu w chwili powstania i nie jest aktualizowana.</p>
+
+        </main>
+
+        <nav class="pager" aria-label="Sąsiednie strony">
+          
+      <a class="pager-next" href="produkt/przeglad.html"><span>Następna</span>Przegląd produktu</a>
+        </nav>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById('theme-toggle').addEventListener('click', function () {
+        var root = document.documentElement
+        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+        root.setAttribute('data-theme', next)
+        try {
+          localStorage.setItem('oncall-theme', next)
+        } catch (error) {}
+      })
+      fetch('../api/v1/config', { credentials: 'same-origin' })
+        .then(function (response) { return response.ok ? response.json() : null })
+        .then(function (config) {
+          if (config && config.app_name) {
+            document.getElementById('brand-name').textContent = config.app_name
+          }
+        })
+        .catch(function () {})
+    </script>
+  </body>
+</html>

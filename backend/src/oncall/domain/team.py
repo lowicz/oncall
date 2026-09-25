@@ -70,7 +70,7 @@ class Member:
         )
 
     def soft_preference(self, day: date) -> AvailabilityKind | None:
-        """„wolę nie" / „chętnie wezmę" for that day. Hard „nie mogę" is never
+        """`prefer_not` / `prefer` for that day. Hard `unavailable` is never
         returned: nobody unavailable is offered as a replacement at all."""
         return next(
             (

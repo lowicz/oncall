@@ -15,7 +15,6 @@ from oncall.domain.calendar import errors
 from oncall.domain.calendar.models import (
     DASHBOARD_HORIZON_DAYS,
     MAX_RANGE_DAYS,
-    WEEKDAYS,
     Audience,
     AvailabilityNote,
     CalendarDay,
@@ -27,6 +26,7 @@ from oncall.domain.calendar.models import (
     Dashboard,
     MemberAvailability,
     NewCalendarEvent,
+    weekday_name,
 )
 from oncall.domain.calendar.ports import CalendarPorts
 from oncall.domain.roster import Duty
@@ -156,7 +156,7 @@ async def calendar_matrix(
         days=[
             CalendarDay(
                 service_date=day,
-                weekday=WEEKDAYS[day.weekday()],
+                weekday=weekday_name(day),
                 is_day_off=day.weekday() >= 5 or day in holidays,
                 holiday_name=holidays.get(day),
                 published=any(first <= day <= last for first, last in published),

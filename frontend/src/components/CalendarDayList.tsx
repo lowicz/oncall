@@ -1,8 +1,9 @@
 import { Fragment } from 'react'
 import { AssignmentRole, CalendarData } from '../api'
 import { availabilityLabels, roleLabels } from '../lib/labels'
-import { addDays, formatDay, formatRange, formatWeekday, isoWeek, warsawDate } from '../lib/dates'
+import { addDays, formatDay, formatRange, formatWeekday, isMonday, isoWeek, warsawDate } from '../lib/dates'
 import { CoverageGap } from '../lib/calendar'
+import { useMessages } from '../i18n'
 import { AvailabilityMark, RoleMark, Tag, cx } from '../ui'
 
 const ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
@@ -20,24 +21,25 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
   onSelectDay: (day: CalendarData['days'][number], role: AssignmentRole) => void
   selectedDate?: string | null
 }) {
+  const t = useMessages().schedule.dayList
   const today = warsawDate()
   const gapsByDate = new Map(gaps.map((gap) => [gap.service_date, gap.missing]))
   const me = data.members.find((member) => member.display_name === displayName)
   // A week heading before Monday (and before the first day, which may not be
   // one): the ISO week number and the Monday-Sunday span it covers.
   const weekHeading = (day: CalendarData['days'][number], index: number) => {
-    if (index > 0 && day.weekday !== 'pon') return null
+    if (index > 0 && !isMonday(day.service_date)) return null
     const offset = (new Date(`${day.service_date}T12:00:00Z`).getUTCDay() + 6) % 7
     const monday = addDays(day.service_date, -offset)
     return (
       <div className="week-h" role="presentation">
-        Tydzień {isoWeek(day.service_date)} · {formatRange(monday, addDays(monday, 6))}
+        {t.week(isoWeek(day.service_date), formatRange(monday, addDays(monday, 6)))}
       </div>
     )
   }
 
   return (
-    <div className="panel" role="list" aria-label="Grafik dzień po dniu">
+    <div className="panel" role="list" aria-label={t.label}>
       {data.days.map((day, index) => {
         const missing = gapsByDate.get(day.service_date) ?? []
         const mine = me && data.availability.find(
@@ -76,11 +78,11 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
                       key={role}
                       className="dayrow-role"
                       onClick={() => onSelectDay(day, role)}
-                      aria-label={`${roleLabels[role]}, ${formatDay(day.service_date)}, ${assignment?.assignee_name ?? 'brak obsady'}`}
+                      aria-label={`${roleLabels()[role]}, ${formatDay(day.service_date)}, ${assignment?.assignee_name ?? t.unstaffed}`}
                     >
                       <RoleMark role={role} change={assignment?.change_kind} />
                       <span className={cx(you && 'dayrow-you', !assignment && 'muted')}>
-                        {assignment?.assignee_name ?? 'brak obsady'}
+                        {assignment?.assignee_name ?? t.unstaffed}
                       </span>
                     </button>
                   )
@@ -97,10 +99,10 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
               </div>
               <div className="dayrow-aside">
                 {missing.length > 0 && day.published && (
-                  <Tag tone="bad">brak: {missing.map((role) => roleLabels[role]).join(', ')}</Tag>
+                  <Tag tone="bad">{t.missing(missing.map((role) => roleLabels()[role]).join(', '))}</Tag>
                 )}
-                {!day.published && <Tag>poza publikacją</Tag>}
-                {mine && <span className="sr-only">Twoja dostępność: {availabilityLabels[mine.kind]}</span>}
+                {!day.published && <Tag>{t.outsidePublication}</Tag>}
+                {mine && <span className="sr-only">{t.yourAvailability(availabilityLabels()[mine.kind])}</span>}
               </div>
             </div>
           </Fragment>

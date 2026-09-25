@@ -18,6 +18,7 @@ from oncall.domain.clock import as_utc as as_utc
 from oncall.domain.clock import utc_now
 from oncall.domain.sharing.models import link_is_active
 from oncall.domain.vocabulary import UserRole
+from oncall.i18n import translate
 from oncall.infrastructure.sqlalchemy.access_models import Session, User
 from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
 
@@ -75,7 +76,9 @@ async def get_current_session(
     oncall_session: Annotated[str | None, Cookie(alias=get_settings().session_cookie_name)] = None,
 ) -> Session:
     if not oncall_session:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Brak aktywnej sesji")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=translate("access.no_active_session")
+        )
     hashed_token = token_hash(oncall_session)
     query = (
         select(Session)
@@ -87,15 +90,17 @@ async def get_current_session(
     )
     session = await db.scalar(query)
     if session is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sesja wygasła")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=translate("access.session_expired")
+        )
     if session.user is not None and not session.user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Konto jest nieaktywne"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=translate("access.account_inactive")
         )
     if session.share_link is not None and not share_link_active(session.share_link):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Link wygasł lub został odwołany",
+            detail=translate("sharing.link_expired_or_revoked"),
         )
     return session
 
@@ -139,7 +144,7 @@ async def get_current_user(
     if principal.user is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Sesja linku nie jest powiązana z kontem użytkownika",
+            detail=translate("access.share_session_not_an_account"),
         )
     return principal.user
 
@@ -151,7 +156,7 @@ async def verify_csrf(
     if csrf_token is None or not secrets.compare_digest(session.csrf_token, csrf_token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Nieprawidłowy token CSRF",
+            detail=translate("access.invalid_csrf_token"),
         )
 
 

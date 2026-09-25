@@ -1,18 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, FairnessMember, SwapImpactMember, api } from '../api'
+import { useMessages } from '../i18n'
 import { formatDate, formatDay } from '../lib/dates'
+import { lensLabels } from '../lib/labels'
 import { formatDecimal, signed } from '../lib/numbers'
 import { Box, InlineError, LoadingBlock, cx } from '../ui'
 
 type Lens = keyof Pick<FairnessMember, 'primary' | 'secondary' | 'late_shift' | 'weekends' | 'holidays'>
 
-const LENSES: Array<[string, Lens]> = [
-  ['PRIMARY', 'primary'],
-  ['SECONDARY', 'secondary'],
-  ['11–19', 'late_shift'],
-  ['Weekendy', 'weekends'],
-  ['Święta', 'holidays'],
-]
+const LENSES: Lens[] = ['primary', 'secondary', 'late_shift', 'weekends', 'holidays']
 
 function delta(before: number, after: number) {
   const change = Math.round((after - before) * 100) / 100
@@ -20,7 +16,9 @@ function delta(before: number, after: number) {
 }
 
 function Side({ side, direction }: { side: SwapImpactMember; direction: string }) {
-  const rows = LENSES.map(([label, key]) => {
+  const t = useMessages().swaps.impact
+  const lenses = lensLabels()
+  const rows = LENSES.map((key) => {
     const before = side.before[key]
     const after = side.after[key]
     const moved = delta(before.actual, after.actual)
@@ -30,13 +28,13 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
     return (
       <div className="impact-row" key={key}>
         <span>
-          <b>{label}</b>
-          <span className="muted small"> punkty {formatDecimal(before.actual)} → {formatDecimal(after.actual)} ({moved})</span>
+          <b>{lenses[key]}</b>
+          <span className="muted small"> {t.points(formatDecimal(before.actual), formatDecimal(after.actual), moved)}</span>
         </span>
         <span className={cx('impact-d', closer ? 'impact-d-ok' : further ? 'impact-d-warn' : '')}>
           {signed(before.deviation)} → {signed(after.deviation)}
           <br />
-          <small>{closer ? 'bliżej równowagi' : further ? 'dalej od równowagi' : 'bez zmiany'}</small>
+          <small>{closer ? t.closer : further ? t.further : t.unchanged}</small>
         </span>
       </div>
     )
@@ -44,7 +42,7 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
   return (
     <div className="stack-sm">
       <div className="impact-h">{side.display_name} · {direction}</div>
-      {rows.length > 0 ? rows : <span className="muted small">Saldo tej osoby się nie zmienia.</span>}
+      {rows.length > 0 ? rows : <span className="muted small">{t.noChange}</span>}
     </div>
   )
 }
@@ -55,8 +53,8 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
  * the coordinator confirms the override.
  *
  * `mode` only swaps the wording of the two sides: a swap is something the
- * on-call person `oddaje` (chooses to hand over), a coordinator override is
- * something they `tracą` (it is done to them).
+ * on-call person hands over (their own choice), a coordinator override is
+ * something they lose (it is done to them).
  */
 export function SwapImpactPreview({ serviceDate, role, replacementId, mode = 'swap' }: {
   serviceDate: string
@@ -69,23 +67,24 @@ export function SwapImpactPreview({ serviceDate, role, replacementId, mode = 'sw
     queryFn: () => api.swapImpact(serviceDate, role, replacementId),
     enabled: Boolean(serviceDate && role && replacementId),
   })
-  const fromDirection = mode === 'override' ? 'traci dyżur' : 'oddaje dyżur'
+  const t = useMessages().swaps.impact
+  const fromDirection = mode === 'override' ? t.loses : t.handsOver
 
-  if (impact.isLoading) return <LoadingBlock label="Przeliczanie wpływu zamiany" rows={2} />
+  if (impact.isLoading) return <LoadingBlock label={t.loading} rows={2} />
   if (impact.error) return <InlineError error={impact.error} />
   if (!impact.data) return null
 
   return (
-    <div className="impact" aria-label="Wpływ na bilans">
-      <div className="impact-h">Wpływ na bilans</div>
+    <div className="impact" aria-label={t.heading}>
+      <div className="impact-h">{t.heading}</div>
       <div className="small muted">
-        {formatDay(impact.data.service_date)} to {impact.data.points === 2 ? '2 punkty (2X)' : '1 punkt'}.
-        {' '}Okno {formatDate(impact.data.window_start)} – {formatDate(impact.data.window_end)}.
+        {t.dayWorth(formatDay(impact.data.service_date), impact.data.points === 2 ? t.twoPoints : t.onePoint)}
+        {' '}{t.window(formatDate(impact.data.window_start), formatDate(impact.data.window_end))}
       </div>
       <Side side={impact.data.requester} direction={fromDirection} />
-      <Side side={impact.data.replacement} direction="przejmuje dyżur" />
+      <Side side={impact.data.replacement} direction={t.takes} />
       {(impact.data.warnings?.length ?? 0) > 0 && (
-        <Box tone="warn" title="Ostrzeżenia przed decyzją">
+        <Box tone="warn" title={t.warnings}>
           <ul className="plain-list">
             {impact.data.warnings?.map((warning, index) => (
               <li key={`${warning.rule}-${index}`}>{warning.message} ({warning.member_name})</li>

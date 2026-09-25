@@ -40,8 +40,13 @@ def _imports(path: Path) -> list[tuple[int, str]]:
     return found
 
 
+#: The catalogs of what the API says to a person. Pure (standard library
+#: only) and read by the domain's errors, so it sits below the domain.
+LANGUAGE = "oncall.i18n"
+
+
 def _allowed(module: str) -> bool:
-    if module in ROOT_POLICY:
+    if module in ROOT_POLICY or module == LANGUAGE:
         return True
     if module == "oncall.domain" or module.startswith("oncall.domain."):
         return True

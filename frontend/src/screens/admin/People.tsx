@@ -7,8 +7,8 @@ import { DateField } from '../../components/DateField'
 import { OffboardingDialog } from '../../components/OffboardingDialog'
 import { roleLabels as dutyRoleLabels, shortRoleLabels } from '../../lib/labels'
 import { roleLabels as accountRoleLabels } from '../../lib/nav'
-import { pluralPl } from '../../lib/plural'
 import { addDays, formatDate, formatMoment, formatShortDate, warsawDate } from '../../lib/dates'
+import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
 import {
   Avatar,
@@ -34,7 +34,6 @@ import {
   cx,
 } from '../../ui'
 
-const authSourceLabels = { local: 'lokalne', ldap: 'LDAP / AD' } as const
 const roles: UserRole[] = ['viewer', 'member', 'coordinator', 'admin']
 const roleTone: Record<UserRole, StatusTone> = { viewer: 'muted', member: 'draft', coordinator: 'prop', admin: 'prop' }
 const dutyRoles: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
@@ -64,16 +63,17 @@ function heldRoles(member: TeamMember | undefined, day: string): AssignmentRole[
 }
 
 function RotationCell({ member, today }: { member?: TeamMember; today: string }) {
+  const t = useMessages().people.rotation
   const state = rotationState(member, today)
-  if (state === 'outside') return <span className="muted">poza rotacją</span>
+  if (state === 'outside') return <span className="muted">{t.outside}</span>
   const roles = heldRoles(member, today < member!.active_from ? member!.active_from : today)
-  const qualifications = roles.length > 0 ? roles.map((role) => shortRoleLabels[role]).join(' · ') : 'bez kwalifikacji'
-  if (state === 'entering') return <><StatusBadge tone="warn">od {formatShortDate(member!.active_from)}</StatusBadge><small>{qualifications}</small></>
-  if (state === 'ended') return <><StatusBadge tone="muted">zakończona</StatusBadge><small>do {formatDate(member!.active_until!)}</small></>
+  const qualifications = roles.length > 0 ? roles.map((role) => shortRoleLabels()[role]).join(' · ') : t.noQualifications
+  if (state === 'entering') return <><StatusBadge tone="warn">{t.from(formatShortDate(member!.active_from))}</StatusBadge><small>{qualifications}</small></>
+  if (state === 'ended') return <><StatusBadge tone="muted">{t.ended}</StatusBadge><small>{t.until(formatDate(member!.active_until!))}</small></>
   return (
     <>
-      <StatusBadge tone="ok">w rotacji</StatusBadge>
-      <small>od {formatDate(member!.active_from)}{member!.active_until ? ` do ${formatDate(member!.active_until)}` : ''} · {qualifications}</small>
+      <StatusBadge tone="ok">{t.active}</StatusBadge>
+      <small>{t.from(formatDate(member!.active_from))}{member!.active_until ? ` ${t.until(formatDate(member!.active_until))}` : ''} · {qualifications}</small>
     </>
   )
 }
@@ -91,9 +91,10 @@ function activationState(user: AdminUser, now: number): ActivationState | null {
 }
 
 function activationLinkText(user: AdminUser, state: ActivationState) {
+  const t = messages().people.activation
   const expiresAt = user.pending_activation?.link_expires_at
-  if (state === 'waiting') return `link aktywacyjny ważny do ${formatMoment(expiresAt!)}`
-  return expiresAt ? `link aktywacyjny wygasł ${formatMoment(expiresAt)}` : 'brak ważnego linku aktywacyjnego'
+  if (state === 'waiting') return t.linkValidUntil(formatMoment(expiresAt!))
+  return expiresAt ? t.linkExpired(formatMoment(expiresAt)) : t.noValidLink
 }
 
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
@@ -116,53 +117,56 @@ function EligibilityPeriodEditor({ item, value, pending, onChange, onDelete, onD
   onDelete: (id: string) => void
   onDone: () => void
 }) {
+  const t = useMessages().people.period
   return (
     <div className="frow" style={{ alignItems: 'end' }}>
-      <DateField id={`eligibility-${item.id}-from`} label="Od" value={value.starts_on} onChange={(starts_on) => onChange({ ...value, starts_on })} />
-      <DateField id={`eligibility-${item.id}-until`} label="Do (opcjonalnie)" value={value.ends_on} onChange={(ends_on) => onChange({ ...value, ends_on })} />
+      <DateField id={`eligibility-${item.id}-from`} label={t.from} value={value.starts_on} onChange={(starts_on) => onChange({ ...value, starts_on })} />
+      <DateField id={`eligibility-${item.id}-until`} label={t.untilOptional} value={value.ends_on} onChange={(ends_on) => onChange({ ...value, ends_on })} />
       <div className="row">
-        <Button size="sm" onClick={onDone}>Gotowe</Button>
-        <Button size="sm" variant="ghost" icon="trash" disabled={pending} onClick={() => onDelete(item.id)}>Usuń</Button>
+        <Button size="sm" onClick={onDone}>{t.done}</Button>
+        <Button size="sm" variant="ghost" icon="trash" disabled={pending} onClick={() => onDelete(item.id)}>{t.delete}</Button>
       </div>
     </div>
   )
 }
 
 function activationCsv(user: AdminUser, now: number) {
+  const t = messages().people.csv
   const state = activationState(user, now)
   if (!state) return ''
-  return state === 'waiting' ? 'oczekuje' : 'oczekuje, link wygasł'
+  return state === 'waiting' ? t.pending : t.pendingExpired
 }
 
 function csvOf(rows: Row[], today: string, now: number) {
-  const head = ['osoba', 'login', 'numer', 'email', 'telefon', 'rola', 'logowanie', 'aktywne', 'aktywacja', 'rotacja', 'wejscie', 'wyjscie', 'kwalifikacje']
+  const t = messages().people
+  const columns = t.csv.columns
+  const head = [
+    columns.person, columns.username, columns.number, columns.email, columns.phone, columns.role, columns.signIn,
+    columns.active, columns.activation, columns.rotation, columns.entry, columns.exit, columns.qualifications,
+  ]
   const cell = (value: string | null | undefined) => `"${(value ?? '').replace(/"/g, '""')}"`
   const lines = rows.map(({ user, member }) => [
-    user.display_name, user.username, user.personnel_number, user.email, user.phone, accountRoleLabels[user.role],
-    authSourceLabels[user.auth_source], user.is_active ? 'tak' : 'nie',
+    user.display_name, user.username, user.personnel_number, user.email, user.phone, accountRoleLabels()[user.role],
+    t.authSources[user.auth_source], user.is_active ? t.csv.yes : t.csv.no,
     activationCsv(user, now), rotationState(member, today),
-    member?.active_from, member?.active_until, heldRoles(member, today).map((role) => dutyRoleLabels[role]).join(' '),
+    member?.active_from, member?.active_until, heldRoles(member, today).map((role) => dutyRoleLabels()[role]).join(' '),
   ].map(cell).join(';'))
   return [head.join(';'), ...lines].join('\n')
 }
 
 type Filter = 'all' | 'rotation' | 'outside' | 'inactive' | 'pending'
-const FILTERS: Array<{ value: Filter; label: string }> = [
-  { value: 'all', label: 'Wszystkie' },
-  { value: 'rotation', label: 'W rotacji' },
-  { value: 'outside', label: 'Poza rotacją' },
-  { value: 'inactive', label: 'Wyłączone' },
-  { value: 'pending', label: 'Oczekujące' },
-]
+const FILTERS: Filter[] = ['all', 'rotation', 'outside', 'inactive', 'pending']
 type DetailTab = 'account' | 'rotation' | 'access'
 
 /**
  * One table with the columns an administrator reads, a panel with three
- * sections (konto, rotacja, dostęp) and the offboarding as a red sheet
- * confirmed by typing the login. "Eligibility" is "kwalifikacje dyżurowe"
+ * sections (account, rotation, access) and the offboarding as a red sheet
+ * confirmed by typing the username. "Eligibility" is "duty qualifications"
  * here: chips on the rotation tab, with the periods under them.
  */
 export function PeoplePanel() {
+  const m = useMessages()
+  const t = m.people
   const queryClient = useQueryClient()
   const today = warsawDate()
   const now = Date.now()
@@ -199,13 +203,13 @@ export function PeoplePanel() {
     const byUser = new Map((team.data ?? []).map((member) => [member.user_id, member]))
     return (users.data ?? [])
       .map((user) => ({ user, member: byUser.get(user.id) }))
-      .sort((a, b) => a.user.display_name.localeCompare(b.user.display_name, 'pl'))
+      .sort((a, b) => a.user.display_name.localeCompare(b.user.display_name, locale()))
   }, [users.data, team.data])
   const rows = useMemo(() => {
-    const needle = search.trim().toLocaleLowerCase('pl')
+    const needle = search.trim().toLocaleLowerCase(locale())
     return allRows.filter(({ user, member }) => {
       const matchesSearch = !needle || [user.display_name, user.username, user.personnel_number, user.phone]
-        .some((value) => value?.toLocaleLowerCase('pl').includes(needle))
+        .some((value) => value?.toLocaleLowerCase(locale()).includes(needle))
       const state = rotationState(member, today)
       const matchesFilter = filter === 'all'
         || (filter === 'rotation' && (state === 'active' || state === 'entering'))
@@ -267,31 +271,31 @@ export function PeoplePanel() {
     const user = selectedRow.user
     const changes: string[] = []
     if (user.auth_source !== 'ldap') {
-      if ((accountForm.first_name ?? '') !== user.first_name) changes.push('imię')
-      if ((accountForm.last_name ?? '') !== user.last_name) changes.push('nazwisko')
-      if ((accountForm.personnel_number ?? null) !== user.personnel_number) changes.push('numer pracownika')
-      if ((accountForm.email ?? null) !== user.email) changes.push('e-mail')
+      if ((accountForm.first_name ?? '') !== user.first_name) changes.push(t.changes.firstName)
+      if ((accountForm.last_name ?? '') !== user.last_name) changes.push(t.changes.lastName)
+      if ((accountForm.personnel_number ?? null) !== user.personnel_number) changes.push(t.changes.personnelNumber)
+      if ((accountForm.email ?? null) !== user.email) changes.push(t.changes.email)
     }
     // Not managed by LDAP even for a directory account (decision D8).
-    if ((accountForm.phone ?? null) !== user.phone) changes.push('telefon')
+    if ((accountForm.phone ?? null) !== user.phone) changes.push(t.changes.phone)
     if ((accountForm.role ?? user.role) !== user.role) {
-      changes.push(`rola: ${accountRoleLabels[user.role]} → ${accountRoleLabels[accountForm.role ?? user.role]}`)
+      changes.push(t.changes.role(accountRoleLabels()[user.role], accountRoleLabels()[accountForm.role ?? user.role]))
     }
     if ((accountForm.is_active ?? user.is_active) !== user.is_active) {
-      changes.push(accountForm.is_active ? 'włączenie konta' : 'wyłączenie konta')
+      changes.push(accountForm.is_active ? t.changes.enableAccount : t.changes.disableAccount)
     }
     return changes
-  }, [selectedRow, accountForm])
+  }, [selectedRow, accountForm, t])
   const rotationChanges = useMemo(() => {
     const member = selectedRow?.member
     if (!member) return [] as string[]
     const changes: string[] = []
-    if (rotationFrom !== member.active_from) changes.push(`wejście do rotacji: ${formatDate(rotationFrom)}`)
+    if (rotationFrom !== member.active_from) changes.push(t.changes.rotationFrom(formatDate(rotationFrom)))
     if ((rotationUntil || null) !== member.active_until) {
-      changes.push(rotationUntil ? `wyjście z rotacji: ${formatDate(rotationUntil)}` : 'usunięcie daty wyjścia z rotacji')
+      changes.push(rotationUntil ? t.changes.rotationUntil(formatDate(rotationUntil)) : t.changes.removeRotationUntil)
     }
     return changes
-  }, [selectedRow, rotationFrom, rotationUntil])
+  }, [selectedRow, rotationFrom, rotationUntil, t])
   const eligibilityChanges = useMemo(() => {
     const member = selectedRow?.member
     if (!member) return [] as string[]
@@ -299,15 +303,15 @@ export function PeoplePanel() {
       const edit = eligibilityEdits[item.id]
       if (!edit) return []
       const changed = edit.starts_on !== item.starts_on || (edit.ends_on || null) !== item.ends_on
-      return changed ? [`okres ${dutyRoleLabels[item.role]}`] : []
+      return changed ? [t.changes.eligibilityPeriod(dutyRoleLabels()[item.role])] : []
     })
-  }, [selectedRow, eligibilityEdits])
+  }, [selectedRow, eligibilityEdits, t])
   const pendingChanges = [...accountChanges, ...rotationChanges, ...eligibilityChanges]
   const dirty = pendingChanges.length > 0
 
   const saveAll = useMutation({
     mutationFn: async () => {
-      if (!selectedRow) throw new Error('Nie wybrano konta')
+      if (!selectedRow) throw new Error(t.errors.noAccountSelected)
       const tasks: Array<Promise<unknown>> = []
       if (accountChanges.length > 0) {
         // Phone travels even for an LDAP account: unlike name/email it is not
@@ -324,7 +328,7 @@ export function PeoplePanel() {
         const edit = eligibilityEdits[item.id]
         if (!edit) continue
         if (edit.starts_on === item.starts_on && (edit.ends_on || null) === item.ends_on) continue
-        if (!edit.starts_on) throw new Error('Każdy okres kwalifikacji musi mieć datę początku')
+        if (!edit.starts_on) throw new Error(t.errors.periodNeedsStart)
         tasks.push(api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } }))
       }
       await Promise.all(tasks)
@@ -401,75 +405,75 @@ export function PeoplePanel() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `osoby-${today}.csv`
+    link.download = t.csv.fileName(today)
     link.click()
     URL.revokeObjectURL(url)
   }
-  const roleOptions = roles.map((role) => ({ value: role, label: accountRoleLabels[role] }))
+  const roleOptions = roles.map((role) => ({ value: role, label: accountRoleLabels()[role] }))
   const subtitle = users.data && team.data && [
-    pluralPl(counts.accounts, ['konto', 'konta', 'kont']),
-    `${counts.rotation} w rotacji`,
-    counts.entering.length > 0 ? `${counts.entering.length === 1 ? '1 wchodzi' : `${counts.entering.length} wchodzi`} ${formatShortDate(counts.entering[0])}` : null,
-    counts.inactive > 0 ? `${pluralPl(counts.inactive, ['wyłączone', 'wyłączone', 'wyłączonych'])}` : null,
-    counts.pending > 0 ? pluralPl(counts.pending, ['oczekuje na aktywację', 'oczekują na aktywację', 'oczekuje na aktywację']) : null,
+    t.summary.accounts(counts.accounts),
+    t.summary.inRotation(counts.rotation),
+    counts.entering.length > 0 ? t.summary.entering(counts.entering.length, formatShortDate(counts.entering[0])) : null,
+    counts.inactive > 0 ? t.summary.inactive(counts.inactive) : null,
+    counts.pending > 0 ? t.summary.pending(counts.pending) : null,
   ].filter(Boolean).join(' · ')
 
   return (
     <div className="page">
       <PageHeader
-        title="Osoby"
-        sub={subtitle ?? 'Konta, dostęp do systemu i okresy uczestnictwa w rotacji.'}
+        title={t.title}
+        sub={subtitle ?? t.subtitle}
         actions={(
           <>
-            <Button variant="ghost" icon="download" onClick={exportCsv} disabled={rows.length === 0}>Eksport CSV</Button>
-            <Button variant="primary" icon="plus" onClick={openNew}>Nowe konto</Button>
+            <Button variant="ghost" icon="download" onClick={exportCsv} disabled={rows.length === 0}>{t.exportCsv}</Button>
+            <Button variant="primary" icon="plus" onClick={openNew}>{t.newAccount}</Button>
           </>
         )}
       />
       {error && <Box tone="bad" role="alert" title={error.message} />}
       <SectionHeading
-        title="Konta"
+        title={t.accounts}
         controls={(
           <>
             <Input
               type="search"
-              aria-label="Szukaj osoby, loginu lub numeru"
-              placeholder="Szukaj osoby, loginu lub numeru"
+              aria-label={t.searchPlaceholder}
+              placeholder={t.searchPlaceholder}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="sech-search"
             />
             {FILTERS.map((item) => (
               <button
-                key={item.value}
+                key={item}
                 type="button"
-                className={cx('sech-link', filter === item.value && 'on')}
-                aria-pressed={filter === item.value}
-                onClick={() => setFilter(item.value)}
+                className={cx('sech-link', filter === item && 'on')}
+                aria-pressed={filter === item}
+                onClick={() => setFilter(item)}
               >
-                {item.label}
+                {t.filters[item]}
               </button>
             ))}
           </>
         )}
       />
-      {(users.isLoading || team.isLoading) && <LoadingBlock label="Wczytywanie kont" />}
+      {(users.isLoading || team.isLoading) && <LoadingBlock label={t.loadingAccounts} />}
       {users.data && rows.length === 0 && (
-        <div className="panel"><EmptyState compact icon="people" title="Brak kont dla wybranego filtra" /></div>
+        <div className="panel"><EmptyState compact icon="people" title={t.emptyFilter} /></div>
       )}
       {rows.length > 0 && (
         <div className="panel wide-scroll">
-          <table className="lg" aria-label="Konta">
-            <caption className="sr-only">Konta systemu i ich status w rotacji.</caption>
+          <table className="lg" aria-label={t.accounts}>
+            <caption className="sr-only">{t.tableCaption}</caption>
             <thead>
               <tr>
-                <th scope="col">Osoba</th>
-                <th scope="col">Login · numer</th>
-                <th scope="col">Rola konta</th>
-                <th scope="col">Rotacja</th>
-                <th scope="col">Telefon</th>
-                <th scope="col">Logowanie</th>
-                <th scope="col"><span className="sr-only">Akcje</span></th>
+                <th scope="col">{t.columns.person}</th>
+                <th scope="col">{t.columns.usernameNumber}</th>
+                <th scope="col">{t.columns.accountRole}</th>
+                <th scope="col">{t.columns.rotation}</th>
+                <th scope="col">{t.columns.phone}</th>
+                <th scope="col">{t.columns.signIn}</th>
+                <th scope="col"><span className="sr-only">{t.columns.actions}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -482,27 +486,27 @@ export function PeoplePanel() {
                     <th scope="row">
                       <button type="button" className="link-btn" onClick={() => openDetails(row)}>
                         <b>{row.user.display_name}</b>
-                        <small>{row.user.email ?? (row.user.is_active ? 'bez e-maila' : 'konto wyłączone')}</small>
+                        <small>{row.user.email ?? (row.user.is_active ? t.row.noEmail : t.row.accountDisabled)}</small>
                       </button>
                     </th>
                     <td className="mono">
                       {row.user.username}
                       <small>{row.user.personnel_number ?? '–'}</small>
                     </td>
-                    <td><StatusBadge tone={roleTone[row.user.role]}>{accountRoleLabels[row.user.role]}</StatusBadge></td>
-                    <td>{row.user.role === 'viewer' && !row.member ? <span className="muted">nie dotyczy</span> : <RotationCell member={row.member} today={today} />}</td>
+                    <td><StatusBadge tone={roleTone[row.user.role]}>{accountRoleLabels()[row.user.role]}</StatusBadge></td>
+                    <td>{row.user.role === 'viewer' && !row.member ? <span className="muted">{t.row.notApplicable}</span> : <RotationCell member={row.member} today={today} />}</td>
                     <td className={cx('mono', needsPhone && 'who-bad')}>
-                      {row.user.phone ?? (needsPhone ? 'brak' : <span className="muted">–</span>)}
+                      {row.user.phone ?? (needsPhone ? t.row.missing : <span className="muted">–</span>)}
                     </td>
                     <td>
-                      <Tag>{authSourceLabels[row.user.auth_source]}</Tag>
-                      {activation && <> <StatusBadge tone={activation === 'waiting' ? 'warn' : 'bad'}>oczekuje na aktywację</StatusBadge></>}
+                      <Tag>{t.authSources[row.user.auth_source]}</Tag>
+                      {activation && <> <StatusBadge tone={activation === 'waiting' ? 'warn' : 'bad'}>{t.activation.pending}</StatusBadge></>}
                       <small>
-                        {row.user.auth_source === 'ldap' ? `pierwszy login ${formatDate(row.user.created_at)}` : `konto od ${formatDate(row.user.created_at)}`}
+                        {row.user.auth_source === 'ldap' ? t.row.firstSignIn(formatDate(row.user.created_at)) : t.row.accountSince(formatDate(row.user.created_at))}
                         {activation && ` · ${activationLinkText(row.user, activation)}`}
                       </small>
                     </td>
-                    <td className="n"><Button size="sm" variant="ghost" onClick={() => openDetails(row)}>Otwórz</Button></td>
+                    <td className="n"><Button size="sm" variant="ghost" onClick={() => openDetails(row)}>{t.row.open}</Button></td>
                   </tr>
                 )
               })}
@@ -515,14 +519,14 @@ export function PeoplePanel() {
         open={newOpen}
         onOpenChange={setNewOpen}
         wide
-        title="Nowe konto lokalne"
-        meta={<StatusBadge tone={roleTone[newForm.role]}>{accountRoleLabels[newForm.role]}</StatusBadge>}
+        title={t.newAccountPanel.title}
+        meta={<StatusBadge tone={roleTone[newForm.role]}>{accountRoleLabels()[newForm.role]}</StatusBadge>}
         footer={(
           <>
-            <Button onClick={() => setNewOpen(false)}>{activationUrl ? 'Zamknij' : 'Anuluj'}</Button>
+            <Button onClick={() => setNewOpen(false)}>{activationUrl ? m.common.close : m.common.cancel}</Button>
             {!activationUrl && (
               <Button type="submit" form="new-account-form" variant="primary" loading={createAccount.isPending} disabled={!newForm.username.trim() || !newForm.first_name.trim()}>
-                Utwórz konto
+                {t.newAccountPanel.create}
               </Button>
             )}
           </>
@@ -530,39 +534,39 @@ export function PeoplePanel() {
       >
         <form id="new-account-form" className="stack-sm" onSubmit={(event: FormEvent) => { event.preventDefault(); createAccount.mutate(newForm) }}>
           {createAccount.error && <Box tone="bad" role="alert" title={createAccount.error.message} />}
-          {activationUrl && <LinkResult value={activationUrl} label="Link aktywacyjny (ważny 24 godziny)" />}
+          {activationUrl && <LinkResult value={activationUrl} label={t.newAccountPanel.activationLink} />}
           {!activationUrl && (
             <>
               <div className="frow">
-                <Field label="Imię" id="new-first-name" required>
+                <Field label={t.fields.firstName} id="new-first-name" required>
                   {({ id }) => <Input id={id} value={newForm.first_name} onChange={(e) => setNewForm({ ...newForm, first_name: e.target.value })} required />}
                 </Field>
-                <Field label="Nazwisko" id="new-last-name">
+                <Field label={t.fields.lastName} id="new-last-name">
                   {({ id }) => <Input id={id} value={newForm.last_name} onChange={(e) => setNewForm({ ...newForm, last_name: e.target.value })} />}
                 </Field>
               </div>
               <div className="frow">
-                <Field label="Login" id="new-username" required hint={branding.ldapEnabled ? 'Konta AD logują się loginem domenowym.' : undefined}>
+                <Field label={t.fields.username} id="new-username" required hint={branding.ldapEnabled ? t.fields.usernameLdapHint : undefined}>
                   {({ id, describedBy }) => <Input id={id} mono autoComplete="off" value={newForm.username} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, username: e.target.value })} required />}
                 </Field>
-                <Field label="Numer pracownika" id="new-personnel-number" hint={branding.ldapEnabled ? 'Klucz dowiązania z AD: zgodny z employeeNumber.' : undefined}>
+                <Field label={t.fields.personnelNumber} id="new-personnel-number" hint={branding.ldapEnabled ? t.fields.personnelNumberLdapHint : undefined}>
                   {({ id, describedBy }) => <Input id={id} mono inputMode="numeric" pattern="[0-9]*" value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
                 </Field>
               </div>
               <div className="frow">
-                <Field label="E-mail" id="new-email">
+                <Field label={t.fields.email} id="new-email">
                   {({ id }) => <Input id={id} type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
                 </Field>
-                <Field label="Telefon · na pasku „Teraz”" id="new-phone" hint="Wymagany dla osób w rotacji; widzą go zalogowane osoby.">
+                <Field label={t.fields.phone} id="new-phone" hint={t.fields.phoneNewHint}>
                   {({ id, describedBy }) => <Input id={id} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
                 </Field>
               </div>
-              <Field label="Rola konta" id="new-role" hint="Członek zespołu: własne dyżury, dostępność, zamiany. Koordynator: także generator, korekty, raporty. Administrator: także osoby i audyt.">
-                {() => <Segmented<UserRole> label="Rola konta" value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
+              <Field label={t.fields.accountRole} id="new-role" hint={t.fields.accountRoleHint}>
+                {() => <Segmented<UserRole> label={t.fields.accountRole} value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
               </Field>
-              <Box tone="sig" title="Po utworzeniu">
-                Dostaniesz link aktywacyjny ważny 24 godziny do przekazania. Dopóki osoba nie ustawi hasła, nie może się zalogować, a lista kont pokazuje ją jako „oczekuje na aktywację”.
-                {branding.ldapEnabled && ' Przy pierwszym logowaniu LDAP z tym numerem pracownika konto dowiąże się do AD, a hasło lokalne przestanie działać.'}
+              <Box tone="sig" title={t.newAccountPanel.afterCreation}>
+                {t.newAccountPanel.afterCreationText}
+                {branding.ldapEnabled && ` ${t.newAccountPanel.afterCreationLdap}`}
               </Box>
             </>
           )}
@@ -586,20 +590,20 @@ export function PeoplePanel() {
         title={selectedRow ? <span className="row"><Avatar name={selectedRow.user.display_name} size={30} />{selectedRow.user.display_name}</span> : ''}
         meta={selectedRow && (
           <>
-            <StatusBadge tone={roleTone[selectedRow.user.role]}>{accountRoleLabels[selectedRow.user.role]}</StatusBadge>
-            <Tag>{authSourceLabels[selectedRow.user.auth_source]}</Tag>
-            {!selectedRow.user.is_active && <StatusBadge tone="bad">wyłączone</StatusBadge>}
-            {selectedActivation && <StatusBadge tone={selectedActivation === 'waiting' ? 'warn' : 'bad'}>oczekuje na aktywację</StatusBadge>}
+            <StatusBadge tone={roleTone[selectedRow.user.role]}>{accountRoleLabels()[selectedRow.user.role]}</StatusBadge>
+            <Tag>{t.authSources[selectedRow.user.auth_source]}</Tag>
+            {!selectedRow.user.is_active && <StatusBadge tone="bad">{t.details.disabled}</StatusBadge>}
+            {selectedActivation && <StatusBadge tone={selectedActivation === 'waiting' ? 'warn' : 'bad'}>{t.activation.pending}</StatusBadge>}
           </>
         )}
         footer={selectedRow && (
           <>
-            <Button size="sm" variant="ghost" className="btn-bad" onClick={() => { setDeleteTyped(''); setDeleteOpen(true) }}>Usuń konto…</Button>
+            <Button size="sm" variant="ghost" className="btn-bad" onClick={() => { setDeleteTyped(''); setDeleteOpen(true) }}>{t.details.deleteAccount}</Button>
             <span className="sp" />
-            {dirty && <span className="small muted">Niezapisane: {pendingChanges.join(' · ')}</span>}
-            <Button onClick={requestClose}>{dirty ? 'Anuluj' : 'Zamknij'}</Button>
+            {dirty && <span className="small muted">{t.details.unsaved(pendingChanges.join(' · '))}</span>}
+            <Button onClick={requestClose}>{dirty ? m.common.cancel : m.common.close}</Button>
             <Button type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending} loading={saveAll.isPending}>
-              {saveAll.isPending ? 'Zapisuję…' : dirty ? `Zapisz (${pendingChanges.length})` : 'Zapisz'}
+              {saveAll.isPending ? m.common.saving : dirty ? t.details.saveCount(pendingChanges.length) : t.details.save}
             </Button>
           </>
         )}
@@ -608,48 +612,47 @@ export function PeoplePanel() {
           <form id="person-form" onSubmit={submitAll} className="stack-sm">
             {saveAll.error && <Box tone="bad" role="alert" title={saveAll.error.message} />}
             <Tabs<DetailTab>
-              label="Sekcje konta"
+              label={t.details.sections}
               value={tab}
               onChange={setTab}
               items={[
-                { value: 'account', label: 'Konto' },
-                { value: 'rotation', label: 'Rotacja', count: selectedRow.member ? selectedRoles.length : undefined },
-                { value: 'access', label: 'Dostęp' },
+                { value: 'account', label: t.details.tabs.account },
+                { value: 'rotation', label: t.details.tabs.rotation, count: selectedRow.member ? selectedRoles.length : undefined },
+                { value: 'access', label: t.details.tabs.access },
               ]}
             >
               <TabPanel<DetailTab> value="account" className="stack-sm">
-                {ldapFieldsLocked && <Box tone="muted">Dane osobowe pochodzą z AD i są tylko do odczytu; telefon ustawia się tutaj.</Box>}
+                {ldapFieldsLocked && <Box tone="muted">{t.details.ldapReadOnly}</Box>}
                 {branding.ldapEnabled && selectedRow.user.auth_source === 'local' && (
                   <Box tone="muted">
-                    Konto dowiąże się z AD automatycznie przy pierwszym logowaniu LDAP tej osoby, o ile numer pracownika zgadza się z employeeNumber w AD
-                    {selectedRow.user.personnel_number ? ` (obecnie: ${selectedRow.user.personnel_number})` : ' (obecnie brak - bez numeru dowiązanie nie nastąpi)'}. Po dowiązaniu hasło lokalne przestaje działać.
+                    {t.details.ldapLinkNote(selectedRow.user.personnel_number ? t.details.ldapCurrentNumber(selectedRow.user.personnel_number) : t.details.ldapNoNumber)}
                   </Box>
                 )}
                 <div className="frow">
-                  <Field label="Imię" id="acc-first-name" required>
+                  <Field label={t.fields.firstName} id="acc-first-name" required>
                     {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.first_name ?? ''} onChange={(e) => setAccountForm({ ...accountForm, first_name: e.target.value })} required />}
                   </Field>
-                  <Field label="Nazwisko" id="acc-last-name">
+                  <Field label={t.fields.lastName} id="acc-last-name">
                     {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.last_name ?? ''} onChange={(e) => setAccountForm({ ...accountForm, last_name: e.target.value })} />}
                   </Field>
                 </div>
                 <div className="frow">
-                  <Field label="Login" id="acc-username" hint="Loginu nie da się zmienić.">
+                  <Field label={t.fields.username} id="acc-username" hint={t.fields.usernameLocked}>
                     {({ id, describedBy }) => <Input id={id} mono disabled value={selectedRow.user.username} aria-describedby={describedBy} readOnly />}
                   </Field>
-                  <Field label="Numer pracownika" id="acc-personnel-number">
+                  <Field label={t.fields.personnelNumber} id="acc-personnel-number">
                     {({ id }) => <Input id={id} mono disabled={ldapFieldsLocked} inputMode="numeric" pattern="[0-9]*" value={accountForm.personnel_number ?? ''} onChange={(e) => setAccountForm({ ...accountForm, personnel_number: e.target.value || null })} />}
                   </Field>
                 </div>
                 <div className="frow">
-                  <Field label="E-mail" id="acc-email">
+                  <Field label={t.fields.email} id="acc-email">
                     {({ id }) => <Input id={id} type="email" disabled={ldapFieldsLocked} value={accountForm.email ?? ''} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value || null })} />}
                   </Field>
                   <Field
-                    label="Telefon · na pasku „Teraz”"
+                    label={t.fields.phone}
                     id="acc-phone"
-                    hint="Widzą go zalogowane osoby na pasku „Teraz” i na karcie dyżurnego."
-                    error={!accountForm.phone && (selectedState === 'active' || selectedState === 'entering') ? 'Wymagany dla osób w rotacji.' : undefined}
+                    hint={t.fields.phoneHint}
+                    error={!accountForm.phone && (selectedState === 'active' || selectedState === 'entering') ? t.fields.phoneRequired : undefined}
                   >
                     {({ id, describedBy, invalid }) => <Input id={id} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
                   </Field>
@@ -659,33 +662,33 @@ export function PeoplePanel() {
                 {selectedRow.member ? (
                   <>
                     <Box tone={selectedState === 'active' ? 'ok' : selectedState === 'entering' ? 'warn' : 'muted'} title={
-                      selectedState === 'active' ? `W rotacji od ${formatDate(selectedRow.member.active_from)}`
-                        : selectedState === 'entering' ? `Wchodzi do rotacji ${formatDate(selectedRow.member.active_from)}`
-                          : `Rotacja zakończona ${formatDate(selectedRow.member.active_until!)}`
+                      selectedState === 'active' ? t.rotationTab.activeSince(formatDate(selectedRow.member.active_from))
+                        : selectedState === 'entering' ? t.rotationTab.entering(formatDate(selectedRow.member.active_from))
+                          : t.rotationTab.ended(formatDate(selectedRow.member.active_until!))
                     }>
-                      {selectedRow.member.active_until && selectedState !== 'ended' ? `Wyjście do ${formatDate(selectedRow.member.active_until)}. ` : selectedState !== 'ended' ? 'Bez daty wyjścia. ' : ''}
-                      Kwalifikacje: {selectedRoles.length > 0 ? selectedRoles.map((role) => dutyRoleLabels[role]).join(', ') : 'brak - generator nie przydzieli tej osobie żadnej roli'}.
+                      {selectedRow.member.active_until && selectedState !== 'ended' ? `${t.rotationTab.exitUntil(formatDate(selectedRow.member.active_until))} ` : selectedState !== 'ended' ? `${t.rotationTab.noExitDate} ` : ''}
+                      {t.rotationTab.qualifications(selectedRoles.length > 0 ? selectedRoles.map((role) => dutyRoleLabels()[role]).join(', ') : t.rotationTab.noQualifications)}
                     </Box>
-                    <Field label="Kwalifikacje dyżurowe" id="qualifications" hint="Zdejmij chip, żeby wykluczyć rolę od następnej generacji; opublikowany grafik zostaje. Dodaj chip, żeby rola liczyła się od dziś.">
+                    <Field label={t.rotationTab.dutyQualifications} id="qualifications" hint={t.rotationTab.dutyQualificationsHint}>
                       {() => (
-                        <div className="filter-chips" role="group" aria-label="Kwalifikacje dyżurowe">
+                        <div className="filter-chips" role="group" aria-label={t.rotationTab.dutyQualifications}>
                           {dutyRoles.map((role) => {
                             const held = selectedRoles.includes(role)
                             return held ? (
                               <span key={role} className="filter-chip">
-                                {dutyRoleLabels[role]}
-                                <button type="button" aria-label={`Zdejmij kwalifikację ${dutyRoleLabels[role]}`} disabled={dropQualification.isPending} onClick={() => dropQualification.mutate(role)}>×</button>
+                                {dutyRoleLabels()[role]}
+                                <button type="button" aria-label={t.rotationTab.dropQualification(dutyRoleLabels()[role])} disabled={dropQualification.isPending} onClick={() => dropQualification.mutate(role)}>×</button>
                               </span>
                             ) : (
                               <button
                                 key={role}
                                 type="button"
                                 className="chip chip-btn"
-                                aria-label={`Dodaj kwalifikację ${dutyRoleLabels[role]}`}
+                                aria-label={t.rotationTab.addQualification(dutyRoleLabels()[role])}
                                 disabled={addEligibility.isPending}
                                 onClick={() => addEligibility.mutate({ role, starts_on: today, ends_on: null })}
                               >
-                                + {dutyRoleLabels[role]}
+                                + {dutyRoleLabels()[role]}
                               </button>
                             )
                           })}
@@ -693,34 +696,34 @@ export function PeoplePanel() {
                       )}
                     </Field>
                     <div className="frow">
-                      <DateField id="rotation-from" label="Wejście od" value={rotationFrom} onChange={setRotationFrom} />
-                      <DateField id="rotation-until" label="Wyjście do" value={rotationUntil} onChange={setRotationUntil} hint="Puste: bez daty końca." />
+                      <DateField id="rotation-from" label={t.rotationTab.entryFrom} value={rotationFrom} onChange={setRotationFrom} />
+                      <DateField id="rotation-until" label={t.rotationTab.exitUntilLabel} value={rotationUntil} onChange={setRotationUntil} hint={t.rotationTab.exitHint} />
                     </div>
                     <SectionHeading
                       as="h3"
-                      title="Okresy kwalifikacji"
+                      title={t.rotationTab.periods}
                       meta={`${selectedRow.member.eligibility.length}`}
-                      controls={<button type="button" className={cx('sech-link', addingPeriod && 'on')} aria-pressed={addingPeriod} onClick={() => setAddingPeriod((value) => !value)}>Dodaj okres</button>}
+                      controls={<button type="button" className={cx('sech-link', addingPeriod && 'on')} aria-pressed={addingPeriod} onClick={() => setAddingPeriod((value) => !value)}>{t.rotationTab.addPeriod}</button>}
                     />
                     {addingPeriod && (
                       <div className="frow" style={{ alignItems: 'end' }}>
-                        <Field label="Rola dyżurowa" id="new-eligibility-role">
+                        <Field label={t.rotationTab.dutyRole} id="new-eligibility-role">
                           {() => (
                             <Segmented<AssignmentRole>
-                              label="Rola dyżurowa"
+                              label={t.rotationTab.dutyRole}
                               size="sm"
                               value={eligibilityRole}
                               onChange={setEligibilityRole}
-                              options={dutyRoles.map((role) => ({ value: role, label: dutyRoleLabels[role] }))}
+                              options={dutyRoles.map((role) => ({ value: role, label: dutyRoleLabels()[role] }))}
                             />
                           )}
                         </Field>
-                        <DateField id="new-eligibility-from" label="Od" value={eligibilityFrom} onChange={setEligibilityFrom} />
-                        <DateField id="new-eligibility-until" label="Do (opcjonalnie)" value={eligibilityUntil} onChange={setEligibilityUntil} />
-                        <Button onClick={() => addEligibility.mutate({ role: eligibilityRole, starts_on: eligibilityFrom, ends_on: eligibilityUntil || null })} loading={addEligibility.isPending} icon="plus">Dodaj okres</Button>
+                        <DateField id="new-eligibility-from" label={t.period.from} value={eligibilityFrom} onChange={setEligibilityFrom} />
+                        <DateField id="new-eligibility-until" label={t.period.untilOptional} value={eligibilityUntil} onChange={setEligibilityUntil} />
+                        <Button onClick={() => addEligibility.mutate({ role: eligibilityRole, starts_on: eligibilityFrom, ends_on: eligibilityUntil || null })} loading={addEligibility.isPending} icon="plus">{t.rotationTab.addPeriod}</Button>
                       </div>
                     )}
-                    {selectedRow.member.eligibility.length === 0 && <p className="muted small">Brak okresów; generator nie przydzieli tej osobie żadnej roli.</p>}
+                    {selectedRow.member.eligibility.length === 0 && <p className="muted small">{t.rotationTab.noPeriods}</p>}
                     {selectedRow.member.eligibility.length > 0 && (
                       <List className="panel">
                         {[...selectedRow.member.eligibility].sort((a, b) => b.starts_on.localeCompare(a.starts_on)).map((item) => {
@@ -729,7 +732,7 @@ export function PeoplePanel() {
                           return editingPeriod === item.id ? (
                             <div key={item.id} className="list-row">
                               <div className="list-main stack-sm">
-                                <b>{dutyRoleLabels[item.role]}</b>
+                                <b>{dutyRoleLabels()[item.role]}</b>
                                 <EligibilityPeriodEditor
                                   item={item}
                                   value={value}
@@ -750,66 +753,66 @@ export function PeoplePanel() {
                             <ListRow
                               key={item.id}
                               aside={historic
-                                ? <span className="muted small">historia</span>
-                                : <Button size="sm" variant="ghost" onClick={() => setEditingPeriod(item.id)}>Edytuj</Button>}
+                                ? <span className="muted small">{t.rotationTab.historic}</span>
+                                : <Button size="sm" variant="ghost" onClick={() => setEditingPeriod(item.id)}>{t.rotationTab.edit}</Button>}
                             >
                               <b>{formatDate(value.starts_on)} → {value.ends_on ? formatDate(value.ends_on) : '∞'}</b>
-                              <small>{dutyRoleLabels[item.role]}{eligibilityEdits[item.id] ? ' · zmieniony, niezapisany' : ''}</small>
+                              <small>{dutyRoleLabels()[item.role]}{eligibilityEdits[item.id] ? ` · ${t.rotationTab.changedUnsaved}` : ''}</small>
                             </ListRow>
                           )
                         })}
                       </List>
                     )}
                     {rotationUntil && (
-                      <Box tone="warn" title="Skutek dla grafiku">
-                        Dyżury opublikowane po {formatDate(rotationUntil)} zostaną bez obsady i pojawią się w ryzykach, dopóki ich nie przepiszesz.
+                      <Box tone="warn" title={t.rotationTab.scheduleEffect}>
+                        {t.rotationTab.scheduleEffectText(formatDate(rotationUntil))}
                         <div className="row" style={{ marginTop: 6 }}>
-                          <Button size="sm" onClick={() => setOffboardingOpen(true)} icon="people">Przepisz przyszłe dyżury i zakończ rotację…</Button>
+                          <Button size="sm" onClick={() => setOffboardingOpen(true)} icon="people">{t.rotationTab.rewriteAndEnd}</Button>
                         </div>
                       </Box>
                     )}
                   </>
                 ) : (
                   <>
-                    <Box tone="muted" title="Poza rotacją">Rola konta nie dodaje automatycznie do rotacji; osoba w rotacji dostaje dyżury od daty wejścia.</Box>
+                    <Box tone="muted" title={t.rotationTab.outside}>{t.rotationTab.outsideText}</Box>
                     <div className="frow" style={{ alignItems: 'end' }}>
-                      <DateField id="rotation-from" label="Wejście od" value={rotationFrom} onChange={setRotationFrom} />
-                      <Button variant="primary" onClick={() => createRotation.mutate()} loading={createRotation.isPending}>Dodaj do rotacji</Button>
+                      <DateField id="rotation-from" label={t.rotationTab.entryFrom} value={rotationFrom} onChange={setRotationFrom} />
+                      <Button variant="primary" onClick={() => createRotation.mutate()} loading={createRotation.isPending}>{t.rotationTab.addToRotation}</Button>
                     </div>
                   </>
                 )}
               </TabPanel>
               <TabPanel<DetailTab> value="access" className="stack-sm">
-                <Field label="Rola konta" id="acc-role" hint="Członek zespołu: własne dyżury, dostępność, zamiany. Koordynator: także generator, korekty, raporty. Administrator: także osoby i audyt.">
+                <Field label={t.fields.accountRole} id="acc-role" hint={t.fields.accountRoleHint}>
                   {() => (
                     <Segmented<UserRole>
-                      label="Rola konta"
+                      label={t.fields.accountRole}
                       value={accountForm.role ?? selectedRow.user.role}
                       onChange={(role) => setAccountForm({ ...accountForm, role })}
                       options={roleOptions}
                     />
                   )}
                 </Field>
-                <Checkbox label="Konto włączone" hint="Wyłączone konto nie może się zalogować; historia dyżurów zostaje." checked={accountForm.is_active ?? false} onChange={(e) => setAccountForm({ ...accountForm, is_active: e.target.checked })} />
+                <Checkbox label={t.accessTab.accountEnabled} hint={t.accessTab.accountEnabledHint} checked={accountForm.is_active ?? false} onChange={(e) => setAccountForm({ ...accountForm, is_active: e.target.checked })} />
                 {selectedActivation && (
-                  <Box tone={selectedActivation === 'waiting' ? 'warn' : 'bad'} title="Oczekuje na aktywację">
-                    Ta osoba nie ustawiła jeszcze hasła, więc nie może się zalogować.
+                  <Box tone={selectedActivation === 'waiting' ? 'warn' : 'bad'} title={t.activation.pendingTitle}>
+                    {t.accessTab.noPasswordYet}
                     {` ${sentence(activationLinkText(selectedRow.user, selectedActivation))}. `}
-                    Nowy link unieważnia poprzedni.
+                    {t.accessTab.newLinkInvalidates}
                     <div className="row" style={{ marginTop: 6 }}>
-                      <Button size="sm" icon="send" disabled={!selectedRow.user.is_active} onClick={() => setReissueConfirmation(true)}>Wygeneruj nowy link aktywacyjny</Button>
-                      {!selectedRow.user.is_active && <span className="muted small">Konto jest wyłączone; włącz je, żeby wysłać link.</span>}
+                      <Button size="sm" icon="send" disabled={!selectedRow.user.is_active} onClick={() => setReissueConfirmation(true)}>{t.accessTab.reissueActivation}</Button>
+                      {!selectedRow.user.is_active && <span className="muted small">{t.accessTab.disabledNoLink}</span>}
                     </div>
                   </Box>
                 )}
-                {reissuedUrl && <LinkResult value={reissuedUrl} label="Nowy link aktywacyjny (ważny 24 godziny)" />}
+                {reissuedUrl && <LinkResult value={reissuedUrl} label={t.accessTab.newActivationLink} />}
                 {selectedRow.user.auth_source === 'local' && !selectedActivation && (
                   <div className="row">
-                    <Button size="sm" icon="lock" onClick={() => setResetConfirmation(true)}>Wygeneruj reset hasła</Button>
-                    <span className="muted small">Jednorazowy link ważny godzinę; przekaż go bezpiecznym kanałem.</span>
+                    <Button size="sm" icon="lock" onClick={() => setResetConfirmation(true)}>{t.accessTab.issueReset}</Button>
+                    <span className="muted small">{t.accessTab.resetHint}</span>
                   </div>
                 )}
-                {resetUrl && <LinkResult value={resetUrl} label="Link resetu hasła (ważny godzinę)" />}
+                {resetUrl && <LinkResult value={resetUrl} label={t.accessTab.resetLink} />}
               </TabPanel>
             </Tabs>
           </form>
@@ -818,9 +821,9 @@ export function PeoplePanel() {
 
       <ConfirmDialog
         open={confirmation}
-        title="Potwierdź zmianę dostępu"
-        description={<>Zmiana roli lub wyłączenie konta wpływa na dostęp użytkownika do systemu.<br />Do zapisania: {pendingChanges.join(' · ')}</>}
-        confirmLabel="Potwierdź i zapisz"
+        title={t.confirmAccess.title}
+        description={<>{t.confirmAccess.text}<br />{t.confirmAccess.toSave(pendingChanges.join(' · '))}</>}
+        confirmLabel={t.confirmAccess.confirm}
         confirmColor={accountForm.is_active === false ? 'warning' : 'primary'}
         pending={saveAll.isPending}
         error={saveAll.error ? saveAll.error.message : null}
@@ -829,9 +832,9 @@ export function PeoplePanel() {
       />
       <ConfirmDialog
         open={closeConfirmation && dirty}
-        title="Zamknąć bez zapisywania?"
-        description={<>Masz niezapisane zmiany: {pendingChanges.join(' · ')}.<br />Zamknięcie panelu je wyrzuci.</>}
-        confirmLabel="Zamknij bez zapisywania"
+        title={t.confirmClose.title}
+        description={<>{t.confirmClose.unsaved(pendingChanges.join(' · '))}<br />{t.confirmClose.text}</>}
+        confirmLabel={t.confirmClose.confirm}
         confirmColor="warning"
         onCancel={() => setCloseConfirmation(false)}
         onConfirm={() => { setCloseConfirmation(false); setSelectedId(null) }}
@@ -841,17 +844,17 @@ export function PeoplePanel() {
         onOpenChange={(open) => { if (!open) setDeleteOpen(false) }}
         tone="danger"
         dismissible={!deleteAccount.isPending}
-        title={selectedRow ? `Usuwam konto ${selectedRow.user.display_name} i jego dane osobowe` : ''}
+        title={selectedRow ? t.deleteDialog.title(selectedRow.user.display_name) : ''}
         actions={selectedRow && (
           <>
-            <Button onClick={() => setDeleteOpen(false)} disabled={deleteAccount.isPending}>Anuluj</Button>
+            <Button onClick={() => setDeleteOpen(false)} disabled={deleteAccount.isPending}>{m.common.cancel}</Button>
             <Button
               variant="danger"
               disabled={deleteTyped.trim() !== selectedRow.user.username || deleteAccount.isPending}
               loading={deleteAccount.isPending}
               onClick={() => deleteAccount.mutate(selectedRow.user.id)}
             >
-              Usuń konto i dane
+              {t.deleteDialog.confirm}
             </Button>
           </>
         )}
@@ -859,18 +862,18 @@ export function PeoplePanel() {
         {selectedRow && (
           <>
             <ul>
-              <li>Konto zostanie wyłączone natychmiast; sesje wygasną.</li>
-              <li>Imię, nazwisko, e-mail, telefon i numer pracownika zostaną usunięte.</li>
+              <li>{t.deleteDialog.disabledNow}</li>
+              <li>{t.deleteDialog.personalDataRemoved}</li>
               {selectedRow.member && (
-                <li>W grafiku, sprawiedliwości i raportach osoba pojawi się jako „Osoba usunięta #…”. Historia dyżurów i punkty zostają dla sprawiedliwości.</li>
+                <li>{t.deleteDialog.pseudonymised}</li>
               )}
               {selectedRow.member && selectedState !== 'ended' && (
-                <li><b className="who-bad">Opublikowane dyżury tej osoby po dziś</b> pozostaną bez obsady i pojawią się w ryzykach. Zalecane: najpierw ustaw „wyjście do” i przepisz dyżury.</li>
+                <li><b className="who-bad">{t.deleteDialog.publishedDutiesBold}</b> {t.deleteDialog.publishedDutiesRest}</li>
               )}
-              <li>Operacji nie da się cofnąć. Audyt zachowuje imię i nazwisko: we wcześniejszych wpisach i we wpisie „Usunięto konto”, który zapisze też pseudonim.</li>
+              <li>{t.deleteDialog.irreversible}</li>
             </ul>
             {deleteAccount.error && <Box tone="bad" role="alert" title={deleteAccount.error.message} />}
-            <Field label="Wpisz login, żeby potwierdzić" id="delete-confirm">
+            <Field label={t.deleteDialog.typeUsername} id="delete-confirm">
               {({ id }) => <Input id={id} mono autoComplete="off" value={deleteTyped} placeholder={selectedRow.user.username} onChange={(event) => setDeleteTyped(event.target.value)} />}
             </Field>
           </>
@@ -878,9 +881,9 @@ export function PeoplePanel() {
       </Dialog>
       <ConfirmDialog
         open={reissueConfirmation}
-        title="Wygenerować nowy link aktywacyjny?"
-        description="Poprzedni link aktywacyjny tej osoby przestanie działać. Nowy będzie ważny 24 godziny; przekaż go bezpiecznym kanałem."
-        confirmLabel="Wygeneruj link"
+        title={t.confirmReissue.title}
+        description={t.confirmReissue.text}
+        confirmLabel={t.generateLink}
         pending={reissueActivation.isPending}
         error={reissueActivation.error ? reissueActivation.error.message : null}
         onCancel={() => setReissueConfirmation(false)}
@@ -888,9 +891,9 @@ export function PeoplePanel() {
       />
       <ConfirmDialog
         open={resetConfirmation}
-        title="Wygenerować reset hasła?"
-        description="Istniejące sesje użytkownika zostaną unieważnione po ustawieniu nowego hasła."
-        confirmLabel="Wygeneruj link"
+        title={t.confirmReset.title}
+        description={t.confirmReset.text}
+        confirmLabel={t.generateLink}
         pending={resetPassword.isPending}
         error={resetPassword.error ? resetPassword.error.message : null}
         onCancel={() => setResetConfirmation(false)}

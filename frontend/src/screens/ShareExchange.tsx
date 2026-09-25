@@ -4,12 +4,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import { Box, Button, LoadingBlock } from '../ui'
 import { AuthFrame } from '../components/AuthFrame'
+import { useMessages } from '../i18n'
 
 export function ShareExchange() {
   const { token } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const started = useRef(false)
+  const t = useMessages().auth
   const exchange = useMutation({
     mutationFn: (value: string) => api.exchangeShare(value),
     onSuccess: async () => {
@@ -27,17 +29,17 @@ export function ShareExchange() {
 
   if (exchange.error) {
     return (
-      <AuthFrame title="Ten link nie działa" screen="Link podglądowy">
+      <AuthFrame title={t.shareLinkBroken} screen={t.shareLinkScreen}>
         <div className="login-card">
           <Box tone="bad" role="alert" title={exchange.error.message}>
-            Link mógł wygasnąć albo zostać odwołany. Poproś o nowy osobę, która go wysłała.
+            {t.shareLinkExplanation}
           </Box>
           <Button variant="primary" block onClick={() => navigate('/', { replace: true })}>
-            Przejdź do logowania
+            {t.goToLogin}
           </Button>
         </div>
       </AuthFrame>
     )
   }
-  return <div className="center"><LoadingBlock label="Wymiana linku na sesję" rows={2} /></div>
+  return <div className="center"><LoadingBlock label={t.exchangingLink} rows={2} /></div>
 }

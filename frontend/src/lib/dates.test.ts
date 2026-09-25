@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { WEEKDAYS, WEEKDAYS_FROM_MONDAY, formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, formatWeekday, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
+import { weekdays, weekdaysFromMonday, formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, formatWeekday, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
 
 describe('global date formatting', () => {
   it('formats API dates and timestamps as DD-MM-YYYY', () => {
@@ -21,10 +21,10 @@ describe('global date formatting', () => {
   })
 
   it('abbreviates every weekday with one set, the words the API sends', () => {
-    expect(WEEKDAYS).toEqual(['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob'])
-    expect(WEEKDAYS_FROM_MONDAY).toEqual(['pon', 'wt', 'śr', 'czw', 'pt', 'sob', 'niedz'])
+    expect(weekdays()).toEqual(['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob'])
+    expect(weekdaysFromMonday()).toEqual(['pon', 'wt', 'śr', 'czw', 'pt', 'sob', 'niedz'])
     const week = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11']
-    expect(week.map(formatWeekday)).toEqual(WEEKDAYS_FROM_MONDAY)
+    expect(week.map(formatWeekday)).toEqual(weekdaysFromMonday())
     // A day in running text and a day with its full date name the same weekday.
     for (const day of week) {
       expect(formatDayShort(day).split(' ')[0]).toBe(formatDay(day).split(' ')[0])

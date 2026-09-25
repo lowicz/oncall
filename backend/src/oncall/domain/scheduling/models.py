@@ -16,6 +16,7 @@ from oncall.domain.vocabulary import (
     ScheduleStatus,
 )
 from oncall.fairness import MemberBalance
+from oncall.i18n import translate
 from oncall.rules import RuleViolation
 
 #: How a rotation mode is named in a generated draft's name.
@@ -208,7 +209,7 @@ class ScheduleSummary:
 
 @dataclass(frozen=True)
 class UnavailabilityConflict:
-    """An assignment landing on a hard „nie mogę" of the person assigned."""
+    """An assignment landing on a hard `unavailable` entry of the person assigned."""
 
     service_date: date
     role: AssignmentRole
@@ -216,9 +217,11 @@ class UnavailabilityConflict:
 
     @property
     def message(self) -> str:
-        return (
-            f"{self.service_date.isoformat()} · {self.role.value}: "
-            f"{self.assignee_name} ma twardą niedostępność"
+        return translate(
+            "scheduling.unavailability_conflict",
+            service_date=self.service_date.isoformat(),
+            role=self.role.value,
+            name=self.assignee_name,
         )
 
 
@@ -227,7 +230,7 @@ class ScheduleView:
     """The schedule as the generator screen sees it.
 
     Hard-unavailability conflicts ride along with every view, so the draft
-    matrix can show them before „Przekaż do akceptacji" is clicked instead of
+    matrix can show them before the draft is submitted for approval instead of
     the coordinator learning about them from a 409. Solver warnings and rule
     warnings stay apart.
     """

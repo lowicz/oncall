@@ -16,6 +16,7 @@ import { SetPassword } from './screens/SetPassword'
 import { MoreScreen } from './screens/More'
 import { LoadingBlock } from './ui'
 import { SignedIn, meKey } from './session'
+import { useLanguage, useMessages } from './i18n'
 
 // The admin screens and the generator are reached by one role each and not on
 // the landing path, so their code does not need to sit in the main bundle
@@ -43,7 +44,8 @@ const CalendarEventsPanel = lazy(() =>
 )
 
 function RouteFallback() {
-  return <div className="page"><LoadingBlock label="Wczytywanie ekranu" /></div>
+  const t = useMessages()
+  return <div className="page"><LoadingBlock label={t.common.loadingScreen} /></div>
 }
 
 /** Routes the account may not reach fall back to the dashboard rather than
@@ -157,8 +159,9 @@ function Home() {
   // Fetched beside the session check, never before it answers: the dashboard
   // shows initials until the photo arrives, and for good if it never does.
   const avatar = useOwnAvatar(me.data ?? undefined)
+  const t = useMessages()
   if (me.isLoading) {
-    return <div className="center"><LoadingBlock label="Sprawdzanie sesji" rows={2} /></div>
+    return <div className="center"><LoadingBlock label={t.common.checkingSession} rows={2} /></div>
   }
   // Null, not undefined: this tab had a session and it ended.
   if (me.error || !me.data) return <Login expired={me.data === null} />
@@ -173,9 +176,15 @@ function Home() {
   )
 }
 
+/**
+ * The language is the key of the whole route tree: choosing the other one
+ * mounts every screen afresh, so nothing keeps a word, a date or a cached
+ * label in the language that was just left.
+ */
 export function App() {
+  const [language] = useLanguage()
   return (
-    <Routes>
+    <Routes key={language}>
       <Route path="/share/:token" element={<ShareExchange />} />
       <Route path="/activate" element={<SetPassword mode="activate" />} />
       <Route path="/reset" element={<SetPassword mode="reset" />} />

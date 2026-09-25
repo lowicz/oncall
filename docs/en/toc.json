@@ -1,0 +1,40 @@
+{
+  "title": "On-call documentation",
+  "home": "index.md",
+  "sections": [
+    {
+      "title": "Product",
+      "pages": [
+        "produkt/przeglad.md",
+        "produkt/role-i-dostep.md",
+        "produkt/model-grafiku.md",
+        "produkt/generator.md",
+        "produkt/sprawiedliwosc.md",
+        "produkt/integracje.md"
+      ]
+    },
+    {
+      "title": "User",
+      "pages": [
+        "uzytkownik/pierwsze-kroki.md",
+        "uzytkownik/dyzury.md",
+        "uzytkownik/dostepnosc.md",
+        "uzytkownik/zamiany.md",
+        "uzytkownik/generowanie-grafiku.md",
+        "uzytkownik/administracja.md",
+        "uzytkownik/rozwiazywanie-problemow.md"
+      ]
+    },
+    {
+      "title": "Deployment",
+      "pages": [
+        "wdrozenie/uruchomienie.md",
+        "wdrozenie/systemd.md",
+        "wdrozenie/aktualizacja.md",
+        "wdrozenie/wydania.md",
+        "wdrozenie/tls.md",
+        "wdrozenie/ldap.md"
+      ]
+    }
+  ]
+}

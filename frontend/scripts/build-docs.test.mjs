@@ -32,7 +32,7 @@ describe('build-docs.mjs', () => {
     const out = join(scratch, 'site')
     const log = render('--site', '--out', out, '--version', 'test-1', '--repo-url', 'https://example.test/repo')
 
-    expect(log).toMatch(new RegExp(`${pageCount} pages .* \\(site\\)`))
+    expect(log).toMatch(new RegExp(`${pageCount} pages in 2 languages .* \\(site\\)`))
     expect(existsSync(join(out, '.nojekyll'))).toBe(true)
 
     const home = page(out, 'index.html')
@@ -47,6 +47,14 @@ describe('build-docs.mjs', () => {
     expect(home).toContain('<a class="wordmark" href="index.html">')
     expect(nested).toContain('<a class="wordmark" href="../index.html">')
     expect(nested).toContain('href="../assets/docs.css"')
+
+    const english = page(out, 'en/produkt/generator.html')
+    expect(english).not.toMatch(/href="\//)
+    expect(english).toContain('<html lang="en">')
+    expect(english).toContain('<a class="wordmark" href="../../en/index.html">')
+    expect(english).toContain('href="https://example.test/repo">Repository</a>')
+    expect(english).toContain('version test-1')
+    expect(english).toContain('href="../../assets/docs.css"')
   })
 
   it('links the in-app copy back to the application one level above /docs/', () => {
@@ -61,6 +69,50 @@ describe('build-docs.mjs', () => {
     expect(nested).toContain('href="../../">Wróć do aplikacji</a>')
     expect(existsSync(join(out, '.nojekyll'))).toBe(false)
     expect(home).not.toContain('site-footer')
+
+    // The English pages sit one level deeper, under en/.
+    const englishHome = page(out, 'en/index.html')
+    const englishNested = page(out, 'en/uzytkownik/dyzury.html')
+    expect(englishHome).not.toMatch(/href="\//)
+    expect(englishHome).toContain('<a class="wordmark" href="../../">')
+    expect(englishHome).toContain('href="../../">Back to the application</a>')
+    expect(englishNested).toContain('href="../../../">Back to the application</a>')
+  })
+
+  it('renders every page in both languages, each linking to its counterpart', () => {
+    const out = join(scratch, 'app')
+    const polish = page(out, 'uzytkownik/dyzury.html')
+    const english = page(out, 'en/uzytkownik/dyzury.html')
+
+    expect(polish).toContain('<html lang="pl">')
+    expect(polish).toContain('href="../en/uzytkownik/dyzury.html" lang="en" hreflang="en">English</a>')
+    expect(polish).toContain('<span class="topbar-title">Dokumentacja</span>')
+    expect(polish).toContain('<summary class="sidebar-toggle">Spis treści</summary>')
+
+    expect(english).toContain('<html lang="en">')
+    expect(english).toContain('href="../../uzytkownik/dyzury.html" lang="pl" hreflang="pl">Polski</a>')
+    expect(english).toContain('<span class="topbar-title">Documentation</span>')
+    expect(english).toContain('<summary class="sidebar-toggle">Contents</summary>')
+    expect(english).toContain('aria-label="Toggle theme"')
+    expect(english).toContain('<span>Previous</span>')
+    // The English page is a translation, not a copy: its title is its own.
+    expect(english).not.toContain('<h1 id="teraz-i-grafik">')
+    expect(english).toMatch(/<h1 id="[a-z0-9-]+">/)
+
+    for (const path of [toc.home, ...toc.sections.flatMap((section) => section.pages)]) {
+      const html = path.replace(/\.md$/, '.html')
+      expect(existsSync(join(out, html))).toBe(true)
+      expect(existsSync(join(out, 'en', html))).toBe(true)
+    }
+  })
+
+  it('renders the Polish pages exactly as before', () => {
+    // The whole page, chrome and prose: a change here is a change to what a
+    // Polish reader sees. An intended one updates the file with `vitest -u`.
+    const out = join(scratch, 'baseline')
+    render('--out', out)
+    expect(page(out, 'index.html')).toMatchFileSnapshot('__snapshots__/docs-pl-index.html')
+    expect(page(out, 'uzytkownik/dyzury.html')).toMatchFileSnapshot('__snapshots__/docs-pl-uzytkownik-dyzury.html')
   })
 
   it('refuses to empty a directory that holds the sources', () => {

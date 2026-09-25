@@ -6,11 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import CurrentUser
-
-#: One message for one cause, defined with the domain error it names;
-#: member-scoped endpoints outside the domain answer 403 with the same text.
-from oncall.domain.errors import NOT_A_TEAM_MEMBER as NOT_A_TEAM_MEMBER
 from oncall.domain.vocabulary import UserRole
+from oncall.i18n import translate
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
@@ -22,7 +19,7 @@ def require_roles(
         if user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Nie masz uprawnień do tej operacji",
+                detail=translate("access.forbidden"),
             )
         return user
 
@@ -37,10 +34,10 @@ async def team_member_or_none(user: User, db: AsyncSession) -> TeamMember | None
 async def team_member_for_user(user: User, db: AsyncSession) -> TeamMember:
     """The rotation member this account is linked to.
 
-    Raises 403 :data:`NOT_A_TEAM_MEMBER` when there is none - the single
+    Raises 403 with the `NotATeamMember` sentence when there is none - the single
     response every member-scoped endpoint gives for that case.
     """
     member = await team_member_or_none(user, db)
     if member is None:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, NOT_A_TEAM_MEMBER)
+        raise HTTPException(status.HTTP_403_FORBIDDEN, translate("domain.not_a_team_member"))
     return member

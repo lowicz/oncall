@@ -36,8 +36,11 @@ describe('useOwnAvatar', () => {
     vi.stubGlobal('fetch', fetch)
     const { result } = renderAvatar({ username: 'anna', avatar_url: AVATAR_URL })
     await waitFor(() => expect(result.current).toMatch(/^data:image\/png;base64,/))
-    // The person's own photo only, with the session cookie and nothing else.
-    expect(fetch).toHaveBeenCalledWith(AVATAR_URL, { credentials: 'include' })
+    // The person's own photo only, with the session cookie and the interface language.
+    expect(fetch).toHaveBeenCalledWith(AVATAR_URL, {
+      credentials: 'include',
+      headers: { 'Accept-Language': 'pl' },
+    })
   })
 
   it('keeps the initials when the directory holds no photo', async () => {

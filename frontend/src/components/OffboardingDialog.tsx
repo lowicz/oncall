@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, RuleViolation, TeamMember, api } from '../api'
 import { formatDate } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
+import { locale, useMessages } from '../i18n'
 import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select } from '../ui'
 
 /**
@@ -22,6 +23,8 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   onClose: () => void
   onDone: () => void
 }) {
+  const m = useMessages()
+  const t = m.people.offboarding
   const ranges = useMemo(() => {
     const start = new Date(`${activeUntil}T12:00:00`)
     if (Number.isNaN(start.getTime())) return []
@@ -60,7 +63,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     return (calendar.data?.members ?? []).filter((candidate) => candidate.id !== member.id
       && candidate.eligibility?.some((period) => period.role === role && period.starts_on <= day && (!period.ends_on || period.ends_on >= day))
       && !(calendar.data?.availability ?? []).some((entry) => entry.member_id === candidate.id && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
-      .sort((left, right) => (roleLoad.get(left.id) ?? 0) - (roleLoad.get(right.id) ?? 0) || left.display_name.localeCompare(right.display_name, 'pl'))
+      .sort((left, right) => (roleLoad.get(left.id) ?? 0) - (roleLoad.get(right.id) ?? 0) || left.display_name.localeCompare(right.display_name, locale()))
   }
   const submit = useMutation({
     mutationFn: async () => {
@@ -78,7 +81,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
               role: item.role,
               replacement_member_id: replacements[key(item.service_date, item.role)],
             })),
-            reason: `Zakończenie rotacji ${member.display_name}`,
+            reason: t.reason(member.display_name),
             acknowledge_rule_violations: acknowledged.includes(scheduleId),
           })
         } catch (error) {
@@ -111,27 +114,27 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
       onOpenChange={(next) => { if (!next) onClose() }}
       dismissible={!submit.isPending}
       size="lg"
-      title={`Zakończenie rotacji: ${member.display_name}`}
-      description={`Dyżury po ${formatDate(activeUntil)}: ${duties.length}. Każdy dostaje zastępcę, potem uprawnienia tej osoby kończą się z dniem wyjścia.`}
+      title={t.title(member.display_name)}
+      description={t.description(formatDate(activeUntil), duties.length)}
       actions={(
         <>
-          <Button onClick={onClose} disabled={submit.isPending}>Anuluj</Button>
+          <Button onClick={onClose} disabled={submit.isPending}>{m.common.cancel}</Button>
           <Button
             variant={confirming ? 'danger' : 'primary'}
             disabled={calendar.isLoading || !complete || submit.isPending || (refusal !== null && !refusalAcknowledged)}
             loading={submit.isPending}
             onClick={() => (confirming ? submit.mutate() : setConfirming(true))}
           >
-            {confirming ? 'Potwierdź zakończenie rotacji' : 'Przepisz dyżury i zakończ rotację'}
+            {confirming ? t.confirmEnd : t.rewriteAndEnd}
           </Button>
         </>
       )}
     >
-      {calendar.isLoading && <LoadingBlock label="Szukam przyszłych dyżurów" rows={2} />}
+      {calendar.isLoading && <LoadingBlock label={t.searchingDuties} rows={2} />}
       {calendar.error && <Box tone="bad" role="alert" title={calendar.error.message} />}
       {submit.error && !refusal && <Box tone="bad" role="alert" title={submit.error.message} />}
       {refusal && (
-        <Box tone="warn" role="alert" title="Przepisanie złamie reguły twarde">
+        <Box tone="warn" role="alert" title={t.refusalTitle}>
           <ul className="box-list">
             {refusal.violations.map((violation, index) => (
               <li key={index}>
@@ -139,9 +142,9 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
               </li>
             ))}
           </ul>
-          <div className="box-next">Wybierz innych zastępców albo potwierdź świadome naruszenie; trafi ono do dziennika audytu.</div>
+          <div className="box-next">{t.refusalNext}</div>
           <Checkbox
-            label="Rozumiem i świadomie łamię te reguły"
+            label={t.acknowledge}
             checked={refusalAcknowledged}
             disabled={submit.isPending}
             onChange={(event) => {
@@ -154,14 +157,14 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
         </Box>
       )}
       {confirming && (
-        <Box tone="warn" title={`Potwierdź przepisanie ${duties.length} dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem ${formatDate(activeUntil)}.`} />
+        <Box tone="warn" title={t.confirmText(duties.length, formatDate(activeUntil))} />
       )}
-      {calendar.data && duties.length === 0 && <p className="muted">Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.</p>}
+      {calendar.data && duties.length === 0 && <p className="muted">{t.noDuties}</p>}
       {duties.map((item) => (
         <Field
           key={key(item.service_date, item.role)}
           id={`offboarding-${item.service_date}-${item.role}`}
-          label={<span className="row"><RoleMark role={item.role} size="sm" /> {formatDate(item.service_date)} · {roleLabels[item.role]}</span>}
+          label={<span className="row"><RoleMark role={item.role} size="sm" /> {formatDate(item.service_date)} · {roleLabels()[item.role]}</span>}
         >
           {({ id }) => (
             <Select
@@ -175,7 +178,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
                 setAcknowledged([])
               }}
             >
-              <option value="">Wybierz zastępcę</option>
+              <option value="">{t.pickReplacement}</option>
               {candidates(item.service_date, item.role).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.display_name}</option>)}
             </Select>
           )}

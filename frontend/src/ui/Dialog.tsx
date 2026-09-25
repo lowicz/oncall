@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { cx } from './cx'
 import { IconButton } from './Button'
+import { useMessages } from '../i18n/messages'
 
 /**
  * A modal sheet: confirmation of a publication, an offboarding, a rejection
@@ -22,6 +23,7 @@ export function Dialog({ open, onOpenChange, title, description, children, actio
   dismissible?: boolean
   className?: string
 }) {
+  const t = useMessages()
   return (
     <BaseDialog.Root open={open} onOpenChange={(next) => { if (dismissible || next) onOpenChange(next) }} modal>
       <BaseDialog.Portal>
@@ -30,7 +32,7 @@ export function Dialog({ open, onOpenChange, title, description, children, actio
           <div className="dialog-head">
             <BaseDialog.Title className="dialog-title">{title}</BaseDialog.Title>
             {dismissible && (
-              <BaseDialog.Close render={<IconButton label="Zamknij" icon="x" size="sm" />} />
+              <BaseDialog.Close render={<IconButton label={t.common.close} icon="x" size="sm" />} />
             )}
           </div>
           {description && <BaseDialog.Description className="dialog-desc">{description}</BaseDialog.Description>}

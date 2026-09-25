@@ -60,14 +60,14 @@ export function RoleMark({ role, change, className, size }: {
 }) {
   return (
     <span className={cx('rm', `rm-${roleClass[role]}`, change === 'swap' && 'rm-sw', change === 'manual_override' && 'rm-ko', size === 'sm' && 'rm-sm', className)}>
-      {shortRoleLabels[role]}
+      {shortRoleLabels()[role]}
     </span>
   )
 }
 
 /** The role name as a coloured mono label: PRIMARY / SECONDARY / 11–19. */
 export function RoleLabel({ role, className }: { role: AssignmentRole; className?: string }) {
-  return <span className={cx('lbl', `lbl-${roleClass[role]}`, className)}>{roleLabels[role]}</span>
+  return <span className={cx('lbl', `lbl-${roleClass[role]}`, className)}>{roleLabels()[role]}</span>
 }
 
 const availClass: Record<AvailabilityKind, string> = { unavailable: 'na', prefer_not: 'wn', prefer: 'ch' }
@@ -77,11 +77,11 @@ const availCode: Record<AvailabilityKind, string> = { unavailable: 'N', prefer_n
 export function AvailabilityMark({ kind, className, withLabel }: { kind: AvailabilityKind; className?: string; withLabel?: boolean }) {
   return (
     <span className={cx('am-wrap', className)}>
-      <span className={cx('am', `am-${availClass[kind]}`)} aria-hidden={withLabel ? true : undefined} title={withLabel ? undefined : availabilityLabels[kind]}>
+      <span className={cx('am', `am-${availClass[kind]}`)} aria-hidden={withLabel ? true : undefined} title={withLabel ? undefined : availabilityLabels()[kind]}>
         {availCode[kind]}
       </span>
-      {withLabel && <span>{availabilityLabels[kind]}</span>}
-      {!withLabel && <span className="sr-only">{availabilityLabels[kind]}</span>}
+      {withLabel && <span>{availabilityLabels()[kind]}</span>}
+      {!withLabel && <span className="sr-only">{availabilityLabels()[kind]}</span>}
     </span>
   )
 }

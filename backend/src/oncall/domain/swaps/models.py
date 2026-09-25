@@ -10,6 +10,10 @@ from oncall.rules import RuleViolation
 
 ACTIVE_SWAP_STATUSES = (SwapStatus.pending_replacement, SwapStatus.pending_coordinator)
 
+#: Why an approval turned into an automatic cancellation; stored on the request,
+#: so it is written in the recorded language.
+SLOT_CHANGED_OWNER_NOTE = "Slot zmienił właściciela przed zatwierdzeniem"
+
 
 @dataclass(frozen=True)
 class SwapRequestInput:

@@ -47,7 +47,7 @@ async def latest_publish_end(db: AsyncSession) -> date | None:
     `/api/v1/schedules/published` cannot answer this: it caps its window at
     today + 90 days by design, so a publication reaching further than that
     reports a truncated `ends_on`. The fairness screen needs the real date to
-    default "Stan na dzień" to.
+    default "as of" date to.
     """
     return await db.scalar(
         select(Schedule.ends_on)
@@ -138,7 +138,7 @@ class SolverHistory:
     """What the generator has to know about duty already served.
 
     Same window, same per-slot resolution and same lenses as the fairness report,
-    so `#sprawiedliwość` and the generator can never disagree about what somebody
+    so the fairness screen and the generator can never disagree about what somebody
     is owed. Keyed by display name because that is the only handle the solver has
     on a person.
     """

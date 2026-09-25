@@ -20,8 +20,6 @@ from oncall.domain.swaps.coupling import (
     takes_second_oncall,
 )
 from oncall.domain.swaps.errors import (
-    BLOCKED_NEXT_STEP,
-    SLOT_CHANGED_OWNER_NOTE,
     CannotSwapWithYourself,
     DecisionReasonRequired,
     NoBalanceInWindow,
@@ -55,6 +53,7 @@ from oncall.domain.swaps.errors import (
     SwapPartiesGone,
 )
 from oncall.domain.swaps.models import (
+    SLOT_CHANGED_OWNER_NOTE,
     NewSwapRequest,
     ReplacementOption,
     ReplacementOptionsQuery,
@@ -73,6 +72,7 @@ from oncall.domain.swaps.ports import SwapPorts
 from oncall.domain.team import Actor, Member
 from oncall.domain.vocabulary import SwapStatus, UserRole
 from oncall.fairness import MemberBalance, compute_fairness, day_weight, reassign, window
+from oncall.i18n import translate
 from oncall.rules import RuleViolation, substitution_violations
 from oncall.workdays import polish_holidays
 
@@ -180,12 +180,7 @@ async def list_replacement_options(
         # option must say so rather than be offered and then refused.
         if takes_second_oncall(duties, moves, member):
             blocking.append(
-                RuleViolation(
-                    "double_oncall",
-                    "Zastępca ma już drugi dyżur on-call tego dnia.",
-                    member.display_name,
-                    (query.service_date,),
-                )
+                RuleViolation("double_oncall", member.display_name, (query.service_date,))
             )
         options.append(
             ReplacementOption(
@@ -195,7 +190,7 @@ async def list_replacement_options(
                 slots=tuple(moves),
                 blocking_violations=tuple(blocking),
                 warning_violations=tuple(warnings),
-                next_step=BLOCKED_NEXT_STEP if blocking else None,
+                next_step=translate("swaps.blocked_next_step") if blocking else None,
             )
         )
     return options
