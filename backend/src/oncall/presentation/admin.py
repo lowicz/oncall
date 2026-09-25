@@ -6,6 +6,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from oncall.domain.vocabulary import AssignmentRole, AuthSource, UserRole
+from oncall.i18n import translate
 from oncall.presentation.validation import validate_phone
 
 
@@ -72,7 +73,7 @@ class AdminUserCreate(BaseModel):
     def normalize_username(cls, value: str) -> str:
         normalized = value.strip().lower()
         if any(character.isspace() for character in normalized):
-            raise ValueError("Login nie może zawierać spacji")
+            raise ValueError(translate("admin.username_has_spaces"))
         return normalized
 
     @field_validator("phone")
@@ -131,7 +132,7 @@ class TeamMemberUpdate(BaseModel):
     @model_validator(mode="after")
     def validate_dates(self) -> TeamMemberUpdate:
         if self.active_from and self.active_until and self.active_until < self.active_from:
-            raise ValueError("Data końcowa nie może poprzedzać daty wejścia")
+            raise ValueError(translate("admin.membership_end_before_entry"))
         return self
 
 
@@ -145,7 +146,7 @@ class EligibilityCreate(BaseModel):
     @model_validator(mode="after")
     def validate_dates(self) -> EligibilityCreate:
         if self.ends_on and self.ends_on < self.starts_on:
-            raise ValueError("Data końcowa nie może poprzedzać daty początkowej")
+            raise ValueError(translate("admin.eligibility_ends_before_start"))
         return self
 
 

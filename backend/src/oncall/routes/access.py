@@ -31,6 +31,7 @@ from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import utc_now
 from oncall.domain.errors import DomainError
 from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
+from oncall.i18n import translate
 from oncall.infrastructure.sqlalchemy.access import account_from_row
 from oncall.infrastructure.sqlalchemy.access_models import Session
 from oncall.ldap_auth import photos_offered
@@ -86,7 +87,9 @@ def user_response(overview: AccountOverview) -> UserResponse:
 def share_principal_response(principal: Principal) -> UserResponse:
     link = principal.share_link
     if link is None:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Brak linku sesji")
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, translate("access.session_link_missing")
+        )
     return UserResponse(
         username="viewer-link",
         display_name=link.label,
@@ -267,7 +270,7 @@ async def my_avatar(principal: CurrentPrincipal, photos: DirectoryPhotoProvider)
     with domain_errors_as_http(ACCESS_ERROR_STATUSES):
         photo = await use_cases.own_photo(account, photos)
     if photo is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Brak zdjęcia w katalogu")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, translate("access.no_directory_photo"))
     return Response(
         content=photo.data, media_type=photo.media_type, headers={"Cache-Control": "no-store"}
     )

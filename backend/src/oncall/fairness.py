@@ -180,7 +180,7 @@ def _count_eligible_days(
     """Days in the window the member is active and eligible for a role.
 
     This is a membership/tenure figure - "days you belonged to this rotation" -
-    and drives the "nie pełni tej roli" gate on the fairness screen. It does not
+    and drives the "does not hold this role" gate on the fairness screen. It does not
     net out hard-unavailability: decision D3 (variant B) touches the expected
     *share* only, and that lives in ``slot_exposure``. Subtracting absence here
     would make a member who was away read as if they never held the role.

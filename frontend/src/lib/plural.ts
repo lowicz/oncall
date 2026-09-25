@@ -19,3 +19,13 @@ export function pluralFormPl(count: number, forms: [string, string, string]) {
 export function pluralPl(count: number, forms: [string, string, string]) {
   return `${count} ${pluralFormPl(count, forms)}`
 }
+
+/** The English form that agrees with `count`: one, or everything else. */
+export function pluralFormEn(count: number, forms: [string, string]) {
+  return count === 1 ? forms[0] : forms[1]
+}
+
+/** English plural: `pluralEn(4, ['week', 'weeks'])` gives "4 weeks". */
+export function pluralEn(count: number, forms: [string, string]) {
+  return `${count} ${pluralFormEn(count, forms)}`
+}

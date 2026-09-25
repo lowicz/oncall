@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { Box, Button, Dialog, Field, Textarea } from '../ui'
+import { useMessages } from '../i18n'
 
 /**
  * Confirmation for actions that are hard to undo.
@@ -39,6 +40,7 @@ export function ConfirmDialog({
   onCancel: () => void
   onConfirm: (reason: string) => void
 }) {
+  const t = useMessages()
   const [reason, setReason] = useState('')
   useEffect(() => {
     if (open) setReason('')
@@ -57,14 +59,14 @@ export function ConfirmDialog({
       dismissible={!pending}
       actions={(
         <>
-          <Button onClick={onCancel} disabled={pending}>Anuluj</Button>
+          <Button onClick={onCancel} disabled={pending}>{t.common.cancel}</Button>
           <Button
             variant={confirmColor === 'error' ? 'danger' : 'primary'}
             disabled={blocked}
             loading={pending}
             onClick={() => onConfirm(reason.trim())}
           >
-            {pending ? 'Zapisuję…' : confirmLabel}
+            {pending ? t.common.saving : confirmLabel}
           </Button>
         </>
       )}
@@ -72,7 +74,7 @@ export function ConfirmDialog({
       {description && <div className="stack-sm">{description}</div>}
       {error && <Box tone="bad" role="alert" title={error} />}
       {reasonLabel && (
-        <Field label={reasonLabel} required error={tooShort ? `Wpisz co najmniej ${reasonMinLength} znaków` : undefined}>
+        <Field label={reasonLabel} required error={tooShort ? t.common.reasonTooShort(reasonMinLength) : undefined}>
           {({ id, describedBy, invalid }) => (
             <Textarea
               id={id}

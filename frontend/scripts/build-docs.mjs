@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Renders docs/*.md into static HTML pages.
+ * Renders docs/*.md into static HTML pages, in Polish and in English.
  *
  * Two outputs, one renderer, one source:
  *
@@ -15,14 +15,22 @@
  *     site has no application to go back to, so the wordmark leads to the
  *     documentation home and the action link points at the repository.
  *
+ * Two languages, one tree shape: docs/ holds the Polish pages, the default,
+ * rendered at the root of the output exactly where they always were;
+ * docs/en/ holds the English pages under the same relative paths, rendered
+ * under en/. Each page links to its counterpart from the top bar, and the
+ * chrome (top bar, contents, pager) speaks the page's language.
+ *
  * Every link the pages emit is relative to the page (`toRoot`), so the site
  * works under any base path (`/docs/` in the image, `/oncall/` on Pages).
  *
  * It is also the documentation's own check, and fails the build on:
- *   - a .md file missing from docs/toc.json, or listed there but absent,
+ *   - a .md file missing from the language's toc.json, or listed but absent,
  *   - a page with no `# ` title,
  *   - a link that leaves the documentation tree (it would 404 once served),
- *   - a `#anchor` that matches no heading on the target page.
+ *   - a `#anchor` that matches no heading on the target page,
+ *   - an English tree that drifted from the Polish one: a page missing or
+ *     added on one side, or a page whose headings differ in number or level.
  *
  * Options:
  *   --site                standalone site mode (see above)
@@ -44,6 +52,55 @@ import { slugify } from './heading-slug.mjs'
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const docsRoot = resolve(appRoot, '../docs')
 const templateRoot = join(appRoot, 'docs-template')
+
+/**
+ * The languages, the default first. `dir` is where a language's sources sit
+ * under docs/ and where its pages land under the output root; the words are
+ * the page chrome, kept here rather than in the application's catalogs
+ * because the pages are rendered without it. `other` names the language the
+ * top bar offers, in that language's own name, the one label never
+ * translated.
+ */
+const LANGUAGES = [
+  {
+    code: 'pl',
+    dir: '',
+    other: 'English',
+    words: {
+      documentation: 'Dokumentacja',
+      backToApp: 'Wróć do aplikacji',
+      repository: 'Repozytorium',
+      theme: 'Motyw',
+      toggleTheme: 'Przełącz motyw',
+      contents: 'Spis treści',
+      contentsNav: 'Spis treści dokumentacji',
+      adjacentPages: 'Sąsiednie strony',
+      previous: 'Poprzednia',
+      next: 'Następna',
+      version: 'wersja',
+      section: 'sekcja',
+    },
+  },
+  {
+    code: 'en',
+    dir: 'en',
+    other: 'Polski',
+    words: {
+      documentation: 'Documentation',
+      backToApp: 'Back to the application',
+      repository: 'Repository',
+      theme: 'Theme',
+      toggleTheme: 'Toggle theme',
+      contents: 'Contents',
+      contentsNav: 'Documentation contents',
+      adjacentPages: 'Adjacent pages',
+      previous: 'Previous',
+      next: 'Next',
+      version: 'version',
+      section: 'section',
+    },
+  },
+]
 
 const fail = (message) => {
   console.error(`build-docs: ${message}`)
@@ -93,12 +150,16 @@ function outputRoot(out) {
 
 /* --------------------------------------------------------------- sources -- */
 
-async function markdownFiles(dir, prefix = '') {
+/** The .md files under `dir`, skipping the other languages' subtrees. */
+async function markdownFiles(dir, skip, prefix = '') {
   const found = []
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const rel = prefix ? posix.join(prefix, entry.name) : entry.name
-    if (entry.isDirectory()) found.push(...(await markdownFiles(join(dir, entry.name), rel)))
-    else if (entry.name.endsWith('.md')) found.push(rel)
+    if (entry.isDirectory()) {
+      if (!skip.has(rel)) found.push(...(await markdownFiles(join(dir, entry.name), skip, rel)))
+    } else if (entry.name.endsWith('.md')) {
+      found.push(rel)
+    }
   }
   return found.sort()
 }
@@ -117,14 +178,12 @@ const htmlPath = (mdPath) => mdPath.replace(/\.md$/, '.html')
  * One `marked` instance per page: the renderer has to know which page it is
  * rendering to resolve that page's relative links.
  */
-function renderPage({ markdown, mdPath, pages, headings }) {
+function renderPage({ markdown, mdPath, tree }) {
   const pageDir = posix.dirname(mdPath)
   const slugs = new Map()
-  const depth = pageDir === '.' ? 0 : pageDir.split('/').length
-  const toRoot = '../'.repeat(depth)
 
   const uniqueSlug = (text) => {
-    const base = slugify(text) || 'sekcja'
+    const base = slugify(text) || tree.language.words.section
     const seen = slugs.get(base) ?? 0
     slugs.set(base, seen + 1)
     return seen === 0 ? base : `${base}-${seen}`
@@ -134,22 +193,24 @@ function renderPage({ markdown, mdPath, pages, headings }) {
     if (/^(https?:|mailto:|tel:)/.test(href)) return href
     if (href.startsWith('#')) {
       const anchor = decodeURIComponent(href.slice(1))
-      if (!headings.get(mdPath).has(anchor)) {
-        fail(`${mdPath}: link to "${href}" matches no heading on this page`)
+      if (!tree.headings.get(mdPath).has(anchor)) {
+        fail(`${tree.label(mdPath)}: link to "${href}" matches no heading on this page`)
       }
       return href
     }
     const [path, anchor] = href.split('#')
     if (!path.endsWith('.md')) {
       fail(
-        `${mdPath}: link to "${href}" leaves the documentation tree. ` +
+        `${tree.label(mdPath)}: link to "${href}" leaves the documentation tree. ` +
           'Rendered pages are served on their own; reference repository files as code, not as links.',
       )
     }
     const target = posix.normalize(posix.join(pageDir, path))
-    if (!pages.has(target)) fail(`${mdPath}: link to "${href}" points at no documentation page`)
-    if (anchor && !headings.get(target).has(decodeURIComponent(anchor))) {
-      fail(`${mdPath}: link to "${href}" matches no heading in ${target}`)
+    if (!tree.pages.has(target)) {
+      fail(`${tree.label(mdPath)}: link to "${href}" points at no documentation page`)
+    }
+    if (anchor && !tree.headings.get(target).has(decodeURIComponent(anchor))) {
+      fail(`${tree.label(mdPath)}: link to "${href}" matches no heading in ${tree.label(target)}`)
     }
     const relPath = posix.relative(pageDir === '.' ? '' : pageDir, htmlPath(target))
     return anchor ? `${relPath}#${anchor}` : relPath
@@ -176,13 +237,12 @@ function renderPage({ markdown, mdPath, pages, headings }) {
     },
   })
 
-  return { html: instance.parse(markdown), toRoot }
+  return instance.parse(markdown)
 }
 
-/** Headings of a page, collected before rendering so links can be checked. */
-function headingSlugs(markdown) {
-  const slugs = new Set()
-  const counts = new Map()
+/** The headings of a page as (level, plain text), fences skipped. */
+function headingsOf(markdown) {
+  const found = []
   let inFence = false
   for (const line of markdown.split('\n')) {
     if (/^\s*```/.test(line)) inFence = !inFence
@@ -191,7 +251,17 @@ function headingSlugs(markdown) {
     if (!match) continue
     // Inline markup does not reach the slug: `**x**` and `` `x` `` are x.
     const plain = match[2].replace(/[`*_]/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    const base = slugify(plain) || 'sekcja'
+    found.push({ level: match[1].length, text: plain })
+  }
+  return found
+}
+
+/** Heading slugs of a page, collected before rendering so links can be checked. */
+function headingSlugs(headings, fallback) {
+  const slugs = new Set()
+  const counts = new Map()
+  for (const { text } of headings) {
+    const base = slugify(text) || fallback
     const seen = counts.get(base) ?? 0
     counts.set(base, seen + 1)
     slugs.add(seen === 0 ? base : `${base}-${seen}`)
@@ -199,10 +269,81 @@ function headingSlugs(markdown) {
   return slugs
 }
 
-const titleOf = (markdown, mdPath) => {
+const titleOf = (markdown, label) => {
   const match = /^#\s+(.+?)\s*$/m.exec(markdown)
-  if (!match) fail(`${mdPath}: no "# " title on the page`)
+  if (!match) fail(`${label}: no "# " title on the page`)
   return match[1]
+}
+
+/**
+ * One language's sources, read and checked: the pages toc.json lists, in
+ * order, with their titles and headings.
+ */
+async function loadTree(language) {
+  const root = join(docsRoot, language.dir)
+  const label = (path) => posix.join('docs', language.dir, path)
+  const toc = JSON.parse(await readFile(join(root, 'toc.json'), 'utf8'))
+  const listed = [toc.home, ...toc.sections.flatMap((section) => section.pages)]
+  const skip = new Set(LANGUAGES.map((item) => item.dir).filter((dir) => dir && dir !== language.dir))
+  const onDisk = await markdownFiles(root, skip)
+
+  const missing = listed.filter((path) => !onDisk.includes(path))
+  if (missing.length > 0) {
+    fail(`${label('toc.json')} lists pages that do not exist: ${missing.join(', ')}`)
+  }
+  const unlisted = onDisk.filter((path) => !listed.includes(path))
+  if (unlisted.length > 0) {
+    fail(
+      `not listed in ${label('toc.json')}: ${unlisted.join(', ')}. Add them, or they ship unreachable.`,
+    )
+  }
+
+  const tree = {
+    language,
+    label,
+    toc,
+    listed,
+    pages: new Set(listed),
+    sources: new Map(),
+    outline: new Map(),
+    headings: new Map(),
+    pageTitles: new Map(),
+  }
+  for (const path of listed) {
+    const markdown = await readFile(join(root, path), 'utf8')
+    const outline = headingsOf(markdown)
+    tree.sources.set(path, markdown)
+    tree.outline.set(path, outline)
+    tree.headings.set(path, headingSlugs(outline, language.words.section))
+    tree.pageTitles.set(path, titleOf(markdown, label(path)))
+  }
+  return tree
+}
+
+/**
+ * A translation is the same document in other words: the same pages, in the
+ * same order, with the same headings at the same levels. Anything else is a
+ * page that was translated once and edited on one side since.
+ */
+function checkParity(reference, translation) {
+  const pages = (tree) => tree.listed.join(' ')
+  if (pages(reference) !== pages(translation)) {
+    fail(
+      `${translation.label('toc.json')} lists different pages than ${reference.label('toc.json')}: ` +
+        'every page exists in every language, under the same path',
+    )
+  }
+  const shape = (tree, path) => tree.outline.get(path).map((heading) => heading.level).join(',')
+  for (const path of reference.listed) {
+    const expected = shape(reference, path)
+    const actual = shape(translation, path)
+    if (expected !== actual) {
+      fail(
+        `${translation.label(path)}: headings differ from ${reference.label(path)} ` +
+          `(levels ${expected} there, ${actual} here); a translation keeps the same sections`,
+      )
+    }
+  }
 }
 
 /* -------------------------------------------------------------- template -- */
@@ -214,18 +355,31 @@ const titleOf = (markdown, mdPath) => {
  * server. A standalone site has no application: the wordmark goes home and
  * the action link, if any, goes to the repository.
  */
-function topbarLinks({ site, toRoot, repoUrl }) {
+function topbarLinks({ site, toRoot, repoUrl, language }) {
+  const { words } = language
   if (!site) {
     const appRootHref = `${toRoot}../`
     return {
       wordmark: appRootHref,
-      action: `<a class="topbar-link" href="${appRootHref}">Wróć do aplikacji</a>`,
+      action: `<a class="topbar-link" href="${appRootHref}">${words.backToApp}</a>`,
     }
   }
   return {
-    wordmark: `${toRoot}index.html`,
-    action: repoUrl ? `<a class="topbar-link" href="${escapeHtml(repoUrl)}">Repozytorium</a>` : '',
+    wordmark: `${toRoot}${posix.join(language.dir, 'index.html')}`,
+    action: repoUrl
+      ? `<a class="topbar-link" href="${escapeHtml(repoUrl)}">${words.repository}</a>`
+      : '',
   }
+}
+
+/** The same page in the other language, relative to this page. */
+function languageLink({ path, language, toRoot }) {
+  const other = LANGUAGES.find((item) => item !== language)
+  const href = `${toRoot}${posix.join(other.dir, htmlPath(path))}`
+  return (
+    `<a class="topbar-link" href="${href}" lang="${other.code}" hreflang="${other.code}">` +
+    `${language.other}</a>`
+  )
 }
 
 /** The product mark (the same E/ as src/ui/Icon.tsx and public/favicon.svg). */
@@ -251,25 +405,27 @@ function brandScript(site, toRoot) {
         .catch(function () {})`
 }
 
-function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }) {
+function layout({ path, title, siteTitle, bodyHtml, nav, toRoot, prev, next, options, language }) {
+  const { words } = language
+  const pageHref = (target) => `${toRoot}${posix.join(language.dir, htmlPath(target.path))}`
   const pager = [
     prev
-      ? `<a class="pager-prev" href="${toRoot}${htmlPath(prev.path)}">` +
-        `<span>Poprzednia</span>${escapeHtml(prev.title)}</a>`
+      ? `<a class="pager-prev" href="${pageHref(prev)}">` +
+        `<span>${words.previous}</span>${escapeHtml(prev.title)}</a>`
       : '',
     next
-      ? `<a class="pager-next" href="${toRoot}${htmlPath(next.path)}">` +
-        `<span>Następna</span>${escapeHtml(next.title)}</a>`
+      ? `<a class="pager-next" href="${pageHref(next)}">` +
+        `<span>${words.next}</span>${escapeHtml(next.title)}</a>`
       : '',
   ].join('\n      ')
-  const links = topbarLinks({ site: options.site, toRoot, repoUrl: options.repoUrl })
+  const links = topbarLinks({ site: options.site, toRoot, repoUrl: options.repoUrl, language })
   const footer =
     options.site && options.version
-      ? `\n        <p class="site-footer">${escapeHtml(siteTitle)} · wersja ${escapeHtml(options.version)}</p>`
+      ? `\n        <p class="site-footer">${escapeHtml(siteTitle)} · ${words.version} ${escapeHtml(options.version)}</p>`
       : ''
 
   return `<!doctype html>
-<html lang="pl">
+<html lang="${language.code}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -303,10 +459,11 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }
   <body>
     <header class="topbar">
       <a class="wordmark" href="${links.wordmark}">${MARK}<span id="brand-name">On-call</span></a>
-      <span class="topbar-title">Dokumentacja</span>
+      <span class="topbar-title">${words.documentation}</span>
       <div class="topbar-actions">
-        <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Przełącz motyw">
-          Motyw
+        ${languageLink({ path, language, toRoot })}
+        <button class="theme-toggle" type="button" id="theme-toggle" aria-label="${words.toggleTheme}">
+          ${words.theme}
         </button>
         ${links.action}
       </div>
@@ -314,8 +471,8 @@ function layout({ title, siteTitle, bodyHtml, nav, toRoot, prev, next, options }
 
     <div class="shell">
       <details class="sidebar" id="sidebar" open>
-        <summary class="sidebar-toggle">Spis treści</summary>
-        <nav class="sidebar-body" aria-label="Spis treści dokumentacji">
+        <summary class="sidebar-toggle">${words.contents}</summary>
+        <nav class="sidebar-body" aria-label="${words.contentsNav}">
 ${nav}
         </nav>
       </details>
@@ -340,7 +497,7 @@ ${nav}
 ${bodyHtml}
         </main>
 
-        <nav class="pager" aria-label="Sąsiednie strony">
+        <nav class="pager" aria-label="${words.adjacentPages}">
           ${pager}
         </nav>${footer}
       </div>
@@ -361,11 +518,12 @@ ${bodyHtml}
 `
 }
 
-function navigation({ toc, pageTitles, currentPath, toRoot }) {
+function navigation({ tree, currentPath, toRoot }) {
+  const { toc, pageTitles, language } = tree
   const item = (path) => {
     const current = path === currentPath ? ' aria-current="page"' : ''
     return (
-      `            <li><a href="${toRoot}${htmlPath(path)}"${current}>` +
+      `            <li><a href="${toRoot}${posix.join(language.dir, htmlPath(path))}"${current}>` +
       `${escapeHtml(pageTitles.get(path))}</a></li>`
     )
   }
@@ -384,8 +542,9 @@ function navigation({ toc, pageTitles, currentPath, toRoot }) {
 
 /**
  * The @fontsource stylesheets cover every subset the family ships. The
- * documentation is Polish, so only latin and latin-ext are copied; the rest
- * would be a megabyte of woff2 no reader of these pages ever requests.
+ * documentation is Polish and English, so only latin and latin-ext are
+ * copied; the rest would be a megabyte of woff2 no reader of these pages
+ * ever requests.
  */
 const SUBSETS = /-(latin|latin-ext)-/
 
@@ -424,58 +583,45 @@ async function buildFonts(outRoot) {
 
 /* ------------------------------------------------------------------ main -- */
 
-async function main() {
-  const options = parseOptions(process.argv.slice(2))
-  const outRoot = outputRoot(options.out)
-
-  const toc = JSON.parse(await readFile(join(docsRoot, 'toc.json'), 'utf8'))
-  const listed = [toc.home, ...toc.sections.flatMap((section) => section.pages)]
-  const onDisk = await markdownFiles(docsRoot)
-
-  const missing = listed.filter((path) => !onDisk.includes(path))
-  if (missing.length > 0) fail(`toc.json lists pages that do not exist: ${missing.join(', ')}`)
-  const unlisted = onDisk.filter((path) => !listed.includes(path))
-  if (unlisted.length > 0) {
-    fail(`not listed in docs/toc.json: ${unlisted.join(', ')}. Add them, or they ship unreachable.`)
-  }
-
-  const pages = new Set(listed)
-  const sources = new Map()
-  const headings = new Map()
-  const pageTitles = new Map()
-  for (const path of listed) {
-    const markdown = await readFile(join(docsRoot, path), 'utf8')
-    sources.set(path, markdown)
-    headings.set(path, headingSlugs(markdown))
-    pageTitles.set(path, titleOf(markdown, path))
-  }
-
-  await rm(outRoot, { recursive: true, force: true })
-  await mkdir(outRoot, { recursive: true })
-
-  const order = listed.map((path) => ({ path, title: pageTitles.get(path) }))
+async function renderTree(tree, outRoot, options) {
+  const { language, listed } = tree
+  const order = listed.map((path) => ({ path, title: tree.pageTitles.get(path) }))
 
   for (const [index, path] of listed.entries()) {
-    const { html, toRoot } = renderPage({
-      markdown: sources.get(path),
-      mdPath: path,
-      pages,
-      headings,
-    })
+    const pageDir = posix.dirname(path)
+    const depth = (pageDir === '.' ? 0 : pageDir.split('/').length) + (language.dir ? 1 : 0)
+    const toRoot = '../'.repeat(depth)
     const page = layout({
-      title: pageTitles.get(path),
-      siteTitle: toc.title,
-      bodyHtml: html,
-      nav: navigation({ toc, pageTitles, currentPath: path, toRoot }),
+      path,
+      title: tree.pageTitles.get(path),
+      siteTitle: tree.toc.title,
+      bodyHtml: renderPage({ markdown: tree.sources.get(path), mdPath: path, tree }),
+      nav: navigation({ tree, currentPath: path, toRoot }),
       toRoot,
       prev: order[index - 1],
       next: order[index + 1],
       options,
+      language,
     })
-    const outPath = join(outRoot, htmlPath(path))
+    const outPath = join(outRoot, language.dir, htmlPath(path))
     await mkdir(dirname(outPath), { recursive: true })
     await writeFile(outPath, page)
   }
+}
+
+async function main() {
+  const options = parseOptions(process.argv.slice(2))
+  const outRoot = outputRoot(options.out)
+
+  const trees = []
+  for (const language of LANGUAGES) trees.push(await loadTree(language))
+  const [reference, ...translations] = trees
+  for (const translation of translations) checkParity(reference, translation)
+
+  await rm(outRoot, { recursive: true, force: true })
+  await mkdir(outRoot, { recursive: true })
+
+  for (const tree of trees) await renderTree(tree, outRoot, options)
 
   await mkdir(join(outRoot, 'assets'), { recursive: true })
   await copyFile(join(templateRoot, 'docs.css'), join(outRoot, 'assets/docs.css'))
@@ -486,7 +632,7 @@ async function main() {
   if (options.site) await writeFile(join(outRoot, '.nojekyll'), '')
 
   console.log(
-    `build-docs: ${listed.length} pages + ${fontCount} font files -> ` +
+    `build-docs: ${reference.listed.length} pages in ${trees.length} languages + ${fontCount} font files -> ` +
       `${relative(appRoot, outRoot)}${options.site ? ' (site)' : ''}`,
   )
 }

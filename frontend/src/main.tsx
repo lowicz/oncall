@@ -9,11 +9,13 @@ import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { createQueryClient } from './session'
 import { applyPreferences } from './theme'
+import { applyLanguage } from './i18n'
 import { ToastProvider, TooltipProvider } from './ui'
 import './tokens.css'
 import './styles.css'
 
 applyPreferences()
+applyLanguage()
 
 const queryClient = createQueryClient()
 
@@ -23,7 +25,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <TooltipProvider>
         <ToastProvider>
           <BrowserRouter>
-            <ErrorBoundary label="Aplikacja przestała działać">
+            <ErrorBoundary scope="app">
               <App />
             </ErrorBoundary>
           </BrowserRouter>

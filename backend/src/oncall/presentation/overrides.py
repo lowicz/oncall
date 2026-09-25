@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from oncall.domain.clock import business_today
 from oncall.domain.overrides.models import DutyOverridden
 from oncall.domain.vocabulary import AssignmentRole
+from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.rules import rule_violation_responses
 
@@ -28,7 +29,7 @@ class DirectOverrideRequest(BaseModel):
     @model_validator(mode="after")
     def historical_reason_required(self) -> DirectOverrideRequest:
         if self.service_date < business_today() and len((self.reason or "").strip()) < 10:
-            raise ValueError("Korekta historyczna wymaga powodu (minimum 10 znaków)")
+            raise ValueError(translate("overrides.historical_correction_needs_reason"))
         return self
 
 

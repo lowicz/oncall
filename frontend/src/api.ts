@@ -595,6 +595,8 @@ export interface AuditEvent {
 /** An error carrying the structured `detail` a hard-rule rejection returns, so
  *  a screen can list the rule, the person and the days instead of only the
  *  one-line message (BLK6-01). */
+import { messages, readLanguage } from './i18n'
+
 export class ApiError extends Error {
   status: number
   violations: RuleViolation[]
@@ -636,11 +638,11 @@ function parseError(body: unknown, status: number): ApiError {
     const detail = (body as { detail: unknown }).detail
     if (typeof detail === 'string') return new ApiError(detail, status)
     if (Array.isArray(detail)) {
-      return new ApiError(fieldMessages(detail) ?? `Błąd HTTP ${status}`, status)
+      return new ApiError(fieldMessages(detail) ?? messages().common.httpError(status), status)
     }
     if (typeof detail === 'object' && detail !== null) {
       const record = detail as Record<string, unknown>
-      const message = typeof record.message === 'string' ? record.message : `Błąd HTTP ${status}`
+      const message = typeof record.message === 'string' ? record.message : messages().common.httpError(status)
       const violations = Array.isArray(record.violations)
         ? (record.violations as RuleViolation[])
         : []
@@ -648,7 +650,7 @@ function parseError(body: unknown, status: number): ApiError {
       return new ApiError(message, status, violations, nextStep)
     }
   }
-  return new ApiError(`Błąd HTTP ${status}`, status)
+  return new ApiError(messages().common.httpError(status), status)
 }
 
 /** The file's bytes as a `data:` URL, which an `<img>` shows with no object
@@ -657,16 +659,23 @@ function asDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error ?? new Error('Nie udało się odczytać obrazu'))
+    reader.onerror = () => reject(reader.error ?? new Error(messages().common.imageReadFailed))
     reader.readAsDataURL(blob)
   })
 }
+
+/**
+ * The interface language travels with every call as `Accept-Language`, so a
+ * refusal, a validation message or a holiday name comes back in the words the
+ * screen is showing.
+ */
+const languageHeader = () => ({ 'Accept-Language': readLanguage() })
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...languageHeader(), ...init?.headers },
   })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
@@ -686,7 +695,7 @@ async function followRun(
     const current = await request<ScheduleRun>(`/api/v1/scheduling/runs/${runId}`)
     onProgress?.(current)
     if (current.status === 'failed') {
-      throw new Error(current.error ?? 'Generator zakończył się błędem')
+      throw new Error(current.error ?? messages().common.generatorFailed)
     }
     if (current.status === 'completed' && current.schedule_id) {
       return request<DraftSchedule>(`/api/v1/scheduling/${current.schedule_id}`)
@@ -701,7 +710,7 @@ export const api = {
    *  the directory holds none for them. A directory that cannot answer is an
    *  error, so the caller keeps its fallback either way. */
   ownAvatar: async (url: string): Promise<string | null> => {
-    const response = await fetch(url, { credentials: 'include' })
+    const response = await fetch(url, { credentials: 'include', headers: languageHeader() })
     if (response.status === 404) return null
     if (!response.ok) {
       const body = await response.json().catch(() => null)
@@ -720,9 +729,9 @@ export const api = {
     const response = await fetch('/api/v1/auth/logout', {
       method: 'POST',
       credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token },
+      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
     })
-    if (!response.ok) throw new Error(`Nie udało się wylogować (${response.status})`)
+    if (!response.ok) throw new Error(messages().common.logoutFailed(response.status))
   },
   publishedSchedule: () => request<PublishedSchedule>('/api/v1/schedules/published'),
   calendar: (startsOn: string, endsOn: string) =>
@@ -818,9 +827,9 @@ export const api = {
     const response = await fetch(`/api/v1/availability/me/${id}`, {
       method: 'DELETE',
       credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token },
+      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
     })
-    if (!response.ok) throw new Error(`Nie udało się usunąć wpisu (${response.status})`)
+    if (!response.ok) throw new Error(messages().common.entryDeleteFailed(response.status))
   },
   memberAvailability: (memberId: string) =>
     request<AvailabilityEntry[]>(`/api/v1/availability/members/${memberId}`),
@@ -837,9 +846,9 @@ export const api = {
     const response = await fetch(`/api/v1/availability/members/${memberId}/${id}`, {
       method: 'DELETE',
       credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token },
+      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
     })
-    if (!response.ok) throw new Error(`Nie udało się usunąć wpisu (${response.status})`)
+    if (!response.ok) throw new Error(messages().common.entryDeleteFailed(response.status))
   },
   previewHistory: async (file: File) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
@@ -848,7 +857,7 @@ export const api = {
     const response = await fetch('/api/v1/history/preview', {
       method: 'POST',
       credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token },
+      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
       body: form,
     })
     if (!response.ok) {
@@ -912,7 +921,7 @@ export const api = {
     const response = await fetch(`/api/v1/scheduling/${id}`, {
       method: 'DELETE',
       credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token },
+      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
     })
     if (!response.ok) {
       const body = await response.json().catch(() => null)
@@ -1064,9 +1073,9 @@ export const api = {
     const response = await fetch(`/api/v1/admin/share-links/${id}`, {
       method: 'DELETE',
       credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token },
+      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
     })
-    if (!response.ok) throw new Error(`Nie udało się odwołać linku (${response.status})`)
+    if (!response.ok) throw new Error(messages().common.linkRevokeFailed(response.status))
   },
   createShareLinkFeed: async (linkId: string) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
@@ -1094,9 +1103,9 @@ export const api = {
     const response = await fetch(`/api/v1/calendar/feeds/${id}`, {
       method: 'DELETE',
       credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token },
+      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
     })
-    if (!response.ok) throw new Error(`Nie udało się odwołać subskrypcji (${response.status})`)
+    if (!response.ok) throw new Error(messages().common.feedRevokeFailed(response.status))
   },
   fairness: (asOf?: string) =>
     request<FairnessReport>(`/api/v1/fairness${asOf ? `?as_of=${asOf}` : ''}`),
@@ -1107,7 +1116,7 @@ export const api = {
   monthlyReport: async (month: string) => {
     const response = await fetch(
       `/api/v1/reports/monthly.csv?month=${encodeURIComponent(month)}`,
-      { credentials: 'include' },
+      { credentials: 'include', headers: languageHeader() },
     )
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null)

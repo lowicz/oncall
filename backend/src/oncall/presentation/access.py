@@ -7,6 +7,7 @@ from importlib import resources
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from oncall.domain.vocabulary import UserRole
+from oncall.i18n import translate
 from oncall.presentation.validation import validate_phone
 
 
@@ -79,7 +80,7 @@ class SetPasswordRequest(BaseModel):
     @classmethod
     def reject_weak_password(cls, value: str) -> str:
         if value.lower() in _common_passwords() or len(set(value)) == 1:
-            raise ValueError("Hasło jest zbyt łatwe do odgadnięcia")
+            raise ValueError(translate("access.password_too_easy"))
         return value
 
 

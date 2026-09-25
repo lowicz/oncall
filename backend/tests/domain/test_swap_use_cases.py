@@ -7,6 +7,7 @@ import pytest
 from oncall.domain.errors import NotATeamMember
 from oncall.domain.swaps import errors
 from oncall.domain.swaps.models import (
+    SLOT_CHANGED_OWNER_NOTE,
     ReplacementOptionsQuery,
     SwapAutoCancelled,
     SwapDecisionInput,
@@ -38,6 +39,8 @@ from tests.domain.fakes import World, member, pending_swap
 #: A Wednesday with no Polish holiday near it; `TODAY` is a week earlier.
 DAY = date(2030, 3, 13)
 TODAY = DAY - timedelta(days=7)
+
+BLOCKED_NEXT_STEP = "Wybierz inny dzień albo poproś koordynatora o korektę grafiku."
 
 
 def account(person, role: UserRole = UserRole.member) -> Actor:
@@ -151,7 +154,7 @@ async def test_a_request_breaking_hard_rules_is_refused_with_the_violations(worl
 
     assert {item.rule for item in refused.value.violations} >= {"max_consecutive"}
     assert all(item.member_name == "Dawid" for item in refused.value.violations)
-    assert refused.value.next_step == errors.BLOCKED_NEXT_STEP
+    assert refused.value.next_step == BLOCKED_NEXT_STEP
     assert world.journal.events == []
 
 
@@ -360,7 +363,7 @@ async def test_approval_of_a_slot_that_changed_owner_cancels_the_request(world) 
     assert outcome == SwapAutoCancelled(request.id)
     stored = world.requests.by_id[request.id]
     assert stored.status == SwapStatus.cancelled
-    assert stored.decision_note == errors.SLOT_CHANGED_OWNER_NOTE
+    assert stored.decision_note == SLOT_CHANGED_OWNER_NOTE
     assert world.roster.handed_over == []
     assert world.journal.events == []
 
@@ -485,7 +488,7 @@ async def test_options_block_a_candidate_a_coupled_swap_would_double_book(world)
     )
     dawid = next(option for option in options if option.member.id == world.dawid.id)
     assert "double_oncall" in {item.rule for item in dawid.blocking_violations}
-    assert dawid.next_step == errors.BLOCKED_NEXT_STEP
+    assert dawid.next_step == BLOCKED_NEXT_STEP
 
 
 async def test_impact_is_hidden_from_viewers(world) -> None:

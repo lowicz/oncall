@@ -337,7 +337,7 @@ async def test_a_finished_run_reports_the_wait_and_the_work_apart(
 @pytest.mark.parametrize(
     ("failure", "outcome"),
     [
-        (GenerationFailed("Nie da się", "brak obsady", ()), RunOutcome.infeasible),
+        (GenerationFailed("brak obsady", ()), RunOutcome.infeasible),
         (ValueError("dzielenie przez zero"), RunOutcome.error),
     ],
 )

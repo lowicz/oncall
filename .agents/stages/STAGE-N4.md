@@ -1,56 +1,56 @@
-# Etap N4 - Domknięcie defektów średnich i bezpieczeństwa
+# Stage N4 - Closing the medium and security defects
 
 Status: **done** (2026-09-06)
 
-## Stan
+## State
 
-- [x] MED-01 - etykieta opublikowanego grafiku z danych (`schedule.id`);
-  przy braku publikacji nagłówek i panel statusu nie twierdzą już, że grafik
-  jest opublikowany.
-- [x] MED-02 - sugestia zaczyna się najwcześniej jutro, uwzględnia pokrycie
-  opublikowane oraz import historii; dialog publikacji ostrzega, gdy ręcznie
-  wybrany zakres obejmuje dziś albo przeszłość.
-- [x] MED-03 - po ręcznej korekcie API zwraca ostrzeżenia o czterech kolejnych
-  dniach, ponad trzech dyżurach w siedmiu dniach i braku dwóch dni odpoczynku;
-  generator pokazuje ostrzeżenia nad wynikiem.
-- [x] MED-04 - okno korekty pokazuje dostępność/notatkę, bieżącego właściciela
-  slotu oraz prognozę zmiany salda wybranej osoby przed zapisem (z wagą 2X dla
-  dnia wolnego); korzysta ze współdzielonego cache prognozy sprawiedliwości.
-- [x] MED-05 - API odrzuca politykę, w której wszystkie trzy wagi wynoszą zero.
-- [x] MED-06 - API zachowuje kompatybilną listę wyników i zawsze zwraca nagłówek
-  `X-Oncall-Logins-Excluded: true|false`; wyszukiwanie nie zwraca już pustej
-  listy bez sygnału, że pasujące logowania mogły zostać odfiltrowane.
-- [x] SEC-01 - router zamian ma jawny strażnik ról; router dostępności już używał
-  `MemberUser` z tym samym zestawem dozwolonych ról.
+- [x] MED-01 - the published schedule label comes from data (`schedule.id`);
+  with no publication, the header and the status panel no longer claim the schedule
+  is published.
+- [x] MED-02 - the suggestion starts no earlier than tomorrow, takes published
+  coverage and the history import into account; the publication dialog warns when a manually
+  chosen range covers today or the past.
+- [x] MED-03 - after a manual correction the API returns warnings about four consecutive
+  days, more than three duties in seven days and a missing two days of rest;
+  the generator shows the warnings above the result.
+- [x] MED-04 - the correction window shows availability/note, the current owner of the
+  slot and the forecast balance change of the chosen person before saving (with weight 2X for
+  a day off); it uses the shared fairness forecast cache.
+- [x] MED-05 - the API rejects a policy in which all three weights are zero.
+- [x] MED-06 - the API keeps the compatible result list and always returns the header
+  `X-Oncall-Logins-Excluded: true|false`; a search no longer returns an empty
+  list without a signal that matching logins may have been filtered out.
+- [x] SEC-01 - the swaps router has an explicit role guard; the availability router already used
+  `MemberUser` with the same set of allowed roles.
 
-## Zmiany i testy
+## Changes and tests
 
 - `routes/swaps.py`: router-level `require_roles(member, coordinator, admin)`,
-  dzięki czemu viewer dostaje 403 także dla niepoprawnego body, przed 422.
-- `routes/scheduling.py`: kontrola wynikowych (również częściowo aktualizowanych)
-  wag przed zapisem i audytem; trzy zera -> 422 z polskim komunikatem.
-- `tests/test_rbac_regressions.py`: regresje viewer dla swaps i availability.
-- `tests/test_audit.py`: regresja trzech wag równych zero.
+  so a viewer gets 403 also for an invalid body, before the 422.
+- `routes/scheduling.py`: a check of the resulting (also partially updated)
+  weights before saving and auditing; three zeros -> 422 with a Polish message.
+- `tests/test_rbac_regressions.py`: viewer regressions for swaps and availability.
+- `tests/test_audit.py`: regression for three weights equal to zero.
 
-## Weryfikacja
+## Verification
 
 - Backend RBAC/policy: `11 passed`; Ruff: `All checks passed`.
-- Frontend: `npm run build` -> sukces (ostrzeżenie Vite o istniejącym dużym
-  chunku 894 kB); `npm run lint` -> sukces.
+- Frontend: `npm run build` -> success (Vite warning about the existing large
+  894 kB chunk); `npm run lint` -> success.
 - MED-02: `tests/test_suggested_range.py` -> **7 passed**, Ruff/build/lint OK.
 - MED-03: `tests/test_draft_override.py` -> **3 passed**, build/lint OK.
 - MED-06: `tests/test_audit.py` -> **10 passed**, Ruff OK.
-- Pełny backend bez solvera, pierwsza próba: **179 passed, 1 failed**. Regresja
-  trwałości ostrzeżeń MED-03 (`test_manual_correction_survives_a_reload`):
-  odpowiedź po korekcie miała ostrzeżenia, reload nie. Poprawiono przez
-  deterministyczne przeliczanie ostrzeżeń z zapisanych assignmentów przy każdym
-  `_schedule_response`; ponowna weryfikacja poniżej.
-- Test regresji trwałości + override: **4 passed**, Ruff OK.
-- Pełny backend bez kosztownego `tests/test_scheduler.py`, po poprawce:
-  **180 passed** w 25.00 s.
-- Generator frontend: **14 passed**, build i lint OK.
+- Full backend without the solver, first attempt: **179 passed, 1 failed**. A regression
+  in the persistence of the MED-03 warnings (`test_manual_correction_survives_a_reload`):
+  the response after the correction had warnings, the reload did not. Fixed by
+  deterministically recomputing the warnings from the stored assignments on every
+  `_schedule_response`; re-verification below.
+- Persistence regression test + override: **4 passed**, Ruff OK.
+- Full backend without the expensive `tests/test_scheduler.py`, after the fix:
+  **180 passed** in 25.00 s.
+- Generator frontend: **14 passed**, build and lint OK.
 
-## Kryterium wyjścia
+## Exit criterion
 
-Wszystkie punkty 13-19 raportu (MED-01..MED-06 i SEC-01) są wdrożone oraz
-zweryfikowane. Etap można bezpiecznie uznać za zakończony.
+All items 13-19 of the report (MED-01..MED-06 and SEC-01) are implemented and
+verified. The stage can safely be considered finished.

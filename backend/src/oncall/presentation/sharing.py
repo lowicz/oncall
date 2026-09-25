@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from oncall.domain.sharing.models import FeedIssued, ShareLink
 from oncall.domain.vocabulary import UserRole
+from oncall.i18n import translate
 
 
 class ShareLinkCreate(BaseModel):
@@ -20,9 +21,9 @@ class ShareLinkCreate(BaseModel):
     @model_validator(mode="after")
     def validate_dates(self) -> ShareLinkCreate:
         if self.ends_on < self.starts_on:
-            raise ValueError("Data końcowa nie może poprzedzać początkowej")
+            raise ValueError(translate("sharing.range_reversed"))
         if (self.ends_on - self.starts_on).days > 366:
-            raise ValueError("Zakres linku może obejmować maksymalnie 366 dni")
+            raise ValueError(translate("sharing.range_too_long"))
         return self
 
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ScheduleSummary, api } from '../api'
+import { useMessages } from '../i18n'
 import { rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { formatDate } from '../lib/dates'
 import { Button, EmptyState, ErrorState, IconButton, List, ListRow, LoadingBlock, StatusBadge, StatusTone } from '../ui'
@@ -26,6 +27,7 @@ export function DraftList({ activeId, onOpen, onDelete, deleting }: {
   onDelete: (item: ScheduleSummary) => void
   deleting?: boolean
 }) {
+  const t = useMessages().generator.drafts
   const drafts = useQuery({ queryKey: ['draft-schedules'], queryFn: api.draftSchedules })
   const [showAll, setShowAll] = useState(false)
   const all = drafts.data ?? []
@@ -33,10 +35,10 @@ export function DraftList({ activeId, onOpen, onDelete, deleting }: {
 
   return (
     <>
-      {drafts.isLoading && <LoadingBlock label="Wczytywanie szkiców" rows={2} />}
+      {drafts.isLoading && <LoadingBlock label={t.loading} rows={2} />}
       {drafts.error && <ErrorState error={drafts.error} onRetry={() => drafts.refetch()} />}
       {drafts.data?.length === 0 && (
-        <EmptyState compact icon="wand" title="Brak szkiców" description="Utwórz nowy, wybierając zakres dat powyżej." />
+        <EmptyState compact icon="wand" title={t.empty} description={t.emptyHint} />
       )}
       {all.length > 0 && (
         <List className="panel">
@@ -46,14 +48,14 @@ export function DraftList({ activeId, onOpen, onDelete, deleting }: {
               highlight={item.id === activeId}
               aside={(
                 <>
-                  <StatusBadge tone={statusTone[item.status]}>{scheduleStatusLabels[item.status]}</StatusBadge>
+                  <StatusBadge tone={statusTone[item.status]}>{scheduleStatusLabels()[item.status]}</StatusBadge>
                   <Button size="sm" variant={item.id === activeId ? 'primary' : 'default'} onClick={() => onOpen(item.id)} aria-pressed={item.id === activeId}>
-                    {item.id === activeId ? 'Otwarty' : 'Otwórz'}
+                    {item.id === activeId ? t.opened : t.open}
                   </Button>
                   <IconButton
                     size="sm"
                     icon="trash"
-                    label={`Usuń szkic ${formatDate(item.starts_on)} - ${formatDate(item.ends_on)}`}
+                    label={t.delete(formatDate(item.starts_on), formatDate(item.ends_on))}
                     disabled={deleting}
                     onClick={() => onDelete(item)}
                   />
@@ -62,15 +64,15 @@ export function DraftList({ activeId, onOpen, onDelete, deleting }: {
             >
               <b>{item.name}</b>
               <small>
-                {formatDate(item.starts_on)} – {formatDate(item.ends_on)} · {rotationLabels[item.rotation_mode]} · v{item.version}
-                {' · '}{item.assignment_count} przydziałów{item.created_at ? ` · utworzony ${formatDate(item.created_at)}` : ''}
+                {t.summary(formatDate(item.starts_on), formatDate(item.ends_on), rotationLabels()[item.rotation_mode], item.version, item.assignment_count)}
+                {item.created_at ? t.createdOn(formatDate(item.created_at)) : ''}
               </small>
             </ListRow>
           ))}
           {all.length > VISIBLE_DRAFTS && (
             <div className="list-row" style={{ justifyContent: 'center' }}>
               <Button size="sm" variant="ghost" onClick={() => setShowAll(!showAll)}>
-                {showAll ? 'Pokaż mniej' : `Pokaż wszystkie (${all.length})`}
+                {showAll ? t.showFewer : t.showAll(all.length)}
               </Button>
             </div>
           )}

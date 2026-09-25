@@ -3,6 +3,7 @@ import { cx } from './cx'
 import { Icon, IconName } from './Icon'
 import { Button } from './Button'
 import { ApiError } from '../api'
+import { useMessages } from '../i18n/messages'
 
 /** A list with nothing in it says why and what to do next. */
 export function EmptyState({ icon = 'info', title, description, action, className, compact }: {
@@ -24,20 +25,21 @@ export function EmptyState({ icon = 'info', title, description, action, classNam
 }
 
 /** What the API said, with the retry and the status code for a ticket. */
-export function ErrorState({ error, title = 'Nie udało się pobrać danych', onRetry, className }: {
+export function ErrorState({ error, title, onRetry, className }: {
   error: unknown
   title?: ReactNode
   onRetry?: () => void
   className?: string
 }) {
+  const t = useMessages()
   const message = error instanceof Error ? error.message : String(error)
   const status = error instanceof ApiError ? error.status : null
   return (
     <div className={cx('empty', 'empty-error', className)} role="alert">
       <Icon name="alert" size={28} />
-      <p className="empty-title">{title}</p>
+      <p className="empty-title">{title ?? t.common.fetchFailed}</p>
       <p className="empty-desc">{message}</p>
-      {onRetry && <div className="empty-action"><Button variant="primary" size="sm" icon="refresh" onClick={onRetry}>Spróbuj ponownie</Button></div>}
+      {onRetry && <div className="empty-action"><Button variant="primary" size="sm" icon="refresh" onClick={onRetry}>{t.common.retry}</Button></div>}
       {status !== null && <p className="empty-code">HTTP {status}</p>}
     </div>
   )
@@ -75,9 +77,10 @@ export function Skeleton({ width, height = 14, className, inline }: { width?: nu
 }
 
 /** A screen-sized loading state announced once to assistive technology. */
-export function LoadingBlock({ label = 'Wczytywanie', rows = 4, className }: { label?: string; rows?: number; className?: string }) {
+export function LoadingBlock({ label, rows = 4, className }: { label?: string; rows?: number; className?: string }) {
+  const t = useMessages()
   return (
-    <div className={cx('sk-block', className)} role="status" aria-label={label}>
+    <div className={cx('sk-block', className)} role="status" aria-label={label ?? t.common.loading}>
       <Skeleton width="40%" height={22} />
       {Array.from({ length: rows }, (_, index) => (
         <Skeleton key={index} width={`${85 - index * 9}%`} />

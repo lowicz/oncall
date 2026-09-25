@@ -1,12 +1,12 @@
-# --- Sekrety i konfiguracja lokalna ---
+# --- Secrets and local configuration ---
 .env
 .env.local
 .env.*.local
 !.env.example
-# Kopie zapasowe deploy/update.sh w katalogu wdrożenia (także .env z sekretami)
+# Backups made by deploy/update.sh in the deployment directory (including .env with secrets)
 /.backup/
 
-# Certyfikaty generowane lokalnie (docs/wdrozenie/tls.md opisuje jak je odtworzyc)
+# Locally generated certificates (docs/wdrozenie/tls.md describes how to recreate them)
 tls/
 *.pem
 *.key
@@ -31,8 +31,8 @@ htmlcov/
 # --- Node / frontend ---
 node_modules/
 dist/
-# Dokumentacja renderowana z docs/*.md przez frontend/scripts/build-docs.mjs:
-# kopia w obrazie (public/docs) i samodzielna strona (site/, GitHub Pages).
+# Documentation rendered from docs/*.md by frontend/scripts/build-docs.mjs:
+# the copy in the image (public/docs) and the standalone site (site/, GitHub Pages).
 frontend/public/docs/
 site/
 .vite/
@@ -41,14 +41,14 @@ frontend/coverage/
 npm-debug.log*
 yarn-error.log*
 
-# --- Dane i stan runtime ---
+# --- Data and runtime state ---
 *.db
 *.sqlite
 *.sqlite3
 state_*.json
 
-# --- Narzedzia agentowe: generowane powierzchnie i konfiguracja osobista ---
-# .lavish/ to generowane HTML-e i zrzuty do przegladu - zostaja lokalnie.
+# --- Agent tooling: generated surfaces and personal configuration ---
+# .lavish/ holds generated HTML pages and screenshots for review - they stay local.
 .lavish/
 .codex/
 .claude/settings.local.json

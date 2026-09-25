@@ -166,13 +166,6 @@ async def generation_status(
     return await view_run(run, solve_seconds, ports.queue, lanes=lanes)
 
 
-_FAILURE_MESSAGES = {
-    "PRECHECK": "Nie można zbudować kompletnego modelu grafiku",
-    "INFEASIBLE": "Reguły twarde nie pozwalają utworzyć kompletnego grafiku",
-    "UNKNOWN": "Solver wyczerpał budżet czasu bez kompletnego grafiku",
-}
-
-
 def _solver_member(member: Member) -> SolverMember:
     return SolverMember(
         name=member.display_name,
@@ -224,13 +217,7 @@ async def generate_draft(
         progress,
     )
     if result.conflicts:
-        raise errors.GenerationFailed(
-            _FAILURE_MESSAGES.get(
-                result.failure_reason or "", "Nie można utworzyć kompletnego grafiku"
-            ),
-            result.failure_reason,
-            result.conflicts,
-        )
+        raise errors.GenerationFailed(result.failure_reason, result.conflicts)
     member_ids = {name: member_id for member_id, name in member_names.items()}
     draft = NewDraft(
         name=(

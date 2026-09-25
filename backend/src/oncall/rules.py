@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
+from oncall.i18n import translate
 from oncall.workdays import is_working_day
 
 #: Imported back by the solver, so the constant also lives in exactly one place.
@@ -29,9 +30,13 @@ Slots = dict[tuple[date, AssignmentRole], str]
 @dataclass(frozen=True)
 class RuleViolation:
     rule: str  #: Stable identifier, e.g. "three_in_seven"; goes to the audit log.
-    message: str  #: One Polish sentence per rule, defined once here.
     member_name: str
     days: tuple[date, ...]
+
+    @property
+    def message(self) -> str:
+        """One sentence per rule, in the language of the request being served."""
+        return translate(f"rules.{self.rule}")
 
 
 #: Days listed in a warning before it switches to a count. Six covers a full
@@ -42,7 +47,7 @@ LISTED_DAYS = 6
 def _day_list(days: list[date]) -> str:
     shown = ", ".join(day.strftime("%d-%m-%Y") for day in days[:LISTED_DAYS])
     rest = len(days) - LISTED_DAYS
-    return f"{shown} i {rest} więcej" if rest > 0 else shown
+    return translate("rules.more_days", shown=shown, rest=rest) if rest > 0 else shown
 
 
 def describe(violation: RuleViolation) -> str:
@@ -53,7 +58,12 @@ def describe(violation: RuleViolation) -> str:
     no such key: without the name and the days it tells the coordinator that
     something is wrong somewhere.
     """
-    return f"{violation.member_name}: {violation.message} Dni: {_day_list(list(violation.days))}."
+    return translate(
+        "rules.described",
+        member=violation.member_name,
+        message=violation.message,
+        days=_day_list(list(violation.days)),
+    )
 
 
 def summarise(violations: list[RuleViolation]) -> list[str]:
@@ -64,14 +74,12 @@ def summarise(violations: list[RuleViolation]) -> list[str]:
     right for a check, which counts breaches, and unreadable as a warning
     list, which is read by a person.
     """
-    grouped: dict[tuple[str, str], tuple[str, set[date]]] = {}
+    grouped: dict[tuple[str, str], set[date]] = {}
     for violation in violations:
-        key = (violation.member_name, violation.rule)
-        message, days = grouped.setdefault(key, (violation.message, set()))
-        days.update(violation.days)
+        grouped.setdefault((violation.member_name, violation.rule), set()).update(violation.days)
     return [
-        describe(RuleViolation(rule, message, name, tuple(sorted(days))))
-        for (name, rule), (message, days) in sorted(grouped.items())
+        describe(RuleViolation(rule, name, tuple(sorted(days))))
+        for (name, rule), days in sorted(grouped.items())
     ]
 
 
@@ -144,26 +152,12 @@ def oncall_rest_violations(
     for start in served:
         window = tuple(start + timedelta(days=offset) for offset in range(4))
         if all(day in oncall_days and day not in exempt for day in window):
-            violations.append(
-                RuleViolation(
-                    "max_consecutive",
-                    "Więcej niż 3 kolejne dni dyżuru on-call.",
-                    name,
-                    window,
-                )
-            )
+            violations.append(RuleViolation("max_consecutive", name, window))
         counted = tuple(
             day for day in served if start <= day <= start + timedelta(days=6) and day not in exempt
         )
         if start not in exempt and len(counted) > 3:
-            violations.append(
-                RuleViolation(
-                    "three_in_seven",
-                    "Więcej niż 3 dyżury on-call w okresie 7 dni.",
-                    name,
-                    counted,
-                )
-            )
+            violations.append(RuleViolation("three_in_seven", name, counted))
 
     for first in served:
         second = first + timedelta(days=1)
@@ -173,14 +167,7 @@ def oncall_rest_violations(
             continue
         if any(day in exempt for day in (first, second, rest, after)):
             continue
-        violations.append(
-            RuleViolation(
-                "rest_after_run",
-                "Mniej niż 2 dni przerwy po serii dyżurów on-call.",
-                name,
-                (first, second, after),
-            )
-        )
+        violations.append(RuleViolation("rest_after_run", name, (first, second, after)))
     return violations
 
 
@@ -205,14 +192,7 @@ def anchor_violations(
         late_holder = slots.get((day, AssignmentRole.late_shift))
         if anchor_holder == late_holder or name not in (anchor_holder, late_holder):
             continue
-        violations.append(
-            RuleViolation(
-                "late_shift_anchor",
-                "Zmiana 11–19 i rola kotwicząca są u różnych osób.",
-                name,
-                (day,),
-            )
-        )
+        violations.append(RuleViolation("late_shift_anchor", name, (day,)))
     return violations
 
 
@@ -228,26 +208,14 @@ def day_off_block_violations(slots: Slots, holidays: set[date]) -> list[RuleViol
             if len(holders) < 2:
                 continue
             for holder in sorted(holders):
-                violations.append(
-                    RuleViolation(
-                        "day_off_block",
-                        "Blok dni wolnych jest podzielony między osoby.",
-                        holder,
-                        block,
-                    )
-                )
+                violations.append(RuleViolation("day_off_block", holder, block))
     return violations
 
 
 def late_shift_on_day_off(slots: Slots, holidays: set[date]) -> list[RuleViolation]:
     """The 11-19 shift exists on working days only."""
     return [
-        RuleViolation(
-            "late_shift_on_day_off",
-            "Zmiana 11–19 przypada na dzień wolny od pracy.",
-            holder,
-            (day,),
-        )
+        RuleViolation("late_shift_on_day_off", holder, (day,))
         for (day, role), holder in sorted(slots.items(), key=lambda item: item[0][0])
         if role == AssignmentRole.late_shift and not is_working_day(day, holidays)
     ]
@@ -272,14 +240,7 @@ def oncall_late_shift_overlap(slots: Slots, anchor: LateShiftAnchor) -> list[Rul
         if late_holder is None:
             continue
         if late_holder in {slots.get((day, role)) for role in watched_roles}:
-            result.append(
-                RuleViolation(
-                    "oncall_late_shift_overlap",
-                    "Ta sama osoba ma dyżur on-call i zmianę 11–19 tego dnia.",
-                    late_holder,
-                    (day,),
-                )
-            )
+            result.append(RuleViolation("oncall_late_shift_overlap", late_holder, (day,)))
     return result
 
 
@@ -301,14 +262,7 @@ def _state_violations(
         violations += oncall_rest_violations(name, oncall_days, exempt, mode=mode)
         for day in days:
             if all(slots.get((day, role)) == name for role in ONCALL_ROLES):
-                violations.append(
-                    RuleViolation(
-                        "same_day_oncall",
-                        "Ta sama osoba ma oba dyżury on-call tego dnia.",
-                        name,
-                        (day,),
-                    )
-                )
+                violations.append(RuleViolation("same_day_oncall", name, (day,)))
         violations += anchor_violations(name, slots, anchor, holidays)
     violations += [
         violation

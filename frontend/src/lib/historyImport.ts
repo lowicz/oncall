@@ -1,4 +1,5 @@
 import { HistoryImportError } from '../api'
+import { locale } from '../i18n/messages'
 
 const COLUMN_ORDER = ['service_date', 'role', 'assignee_name']
 
@@ -13,8 +14,9 @@ export function inFileOrder(errors: HistoryImportError[]): HistoryImportError[] 
     const index = COLUMN_ORDER.indexOf(field)
     return index < 0 ? COLUMN_ORDER.length : index
   }
+  const language = locale()
   return [...errors].sort((a, b) =>
     (a.row_number ?? 0) - (b.row_number ?? 0)
     || column(a.field) - column(b.field)
-    || a.message.localeCompare(b.message, 'pl'))
+    || a.message.localeCompare(b.message, language))
 }

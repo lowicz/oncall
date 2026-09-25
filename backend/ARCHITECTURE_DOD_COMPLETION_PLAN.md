@@ -1,83 +1,83 @@
-# Plan wykonawczy domknięcia Architecture Definition of Done
+# Execution plan for closing the Architecture Definition of Done
 
-Status: complete; Agent 5 potwierdził wszystkie dziewięć DoD na finalnym SHA `2b6fcf6` (2026-09-21), dowody w sekcji 15  
+Status: complete; Agent 5 confirmed all nine DoD items on the final SHA `2b6fcf6` (2026-09-21), evidence in section 15  
 Prepared: 2026-09-20  
 Source: independent audit of `ARCHITECTURE_ACTION_PLAN.md` and the current tree  
 Scope: `backend/src/oncall`, backend tests, architecture documentation and contract gates  
 Primary constraint: preserve public behavior and persisted data unless the owner separately approves a reproduced defect fix
 
-## 1. Cel
+## 1. Goal
 
-Ten plan domyka rzeczywiste, a nie deklaratywne Definition of Done z
-`ARCHITECTURE_ACTION_PLAN.md`. Kończy cztery luki znalezione w audycie:
+This plan closes the real, not the declared, Definition of Done from
+`ARCHITECTURE_ACTION_PLAN.md`. It finishes the four gaps found in the audit:
 
-1. centralny `oncall/models.py` nadal jest wymagany przez zwykłą pracę nad
-   feature'ami;
-2. najważniejsze use case'y nadal otrzymują szerokie port bundles i szerokie
-   protokoły;
-3. HTTP ma jawny Unit of Work, lecz granice transakcji workera, outboxa i
-   helpera polityki są rozproszone;
-4. data biznesowa jest wstrzykiwalna, ale część odczytów czasu runtime omija
-   wspólny `Clock`.
+1. the central `oncall/models.py` is still required by ordinary feature
+   work;
+2. the most important use cases still receive broad port bundles and broad
+   protocols;
+3. HTTP has an explicit Unit of Work, but the transaction boundaries of the worker,
+   the outbox and the policy helper are scattered;
+4. the business date is injectable, but some runtime time reads bypass
+   the shared `Clock`.
 
-Plan nie powtarza pięciu już spełnionych punktów DoD. Zamiast tego utrzymuje je
-jako obowiązkowe bramki regresji: kontrakty, zależności domeny, cross-check
-solver/reguły, recovery workera na PostgreSQL i komentarze opisujące bieżący
-zamiar.
+The plan does not repeat the five DoD items already met. Instead it keeps them
+as mandatory regression gates: contracts, domain dependencies, the
+solver/rules cross-check, worker recovery on PostgreSQL and comments describing the
+current intent.
 
-## 2. Decyzje obowiązujące wszystkich agentów
+## 2. Decisions binding on all agents
 
-Te decyzje są rozstrzygnięte. Agent nie powinien otwierać ich ponownie podczas
-implementacji.
+These decisions are settled. An agent should not reopen them during
+implementation.
 
-- `oncall/models.py` zostaje usunięty, a nie zamieniony na kolejny plik
-  re-exportujący wszystkie modele.
-- Modele ORM będą należeć do modułów infrastruktury właściwych feature'ów.
-  Jeden moduł może jedynie rejestrować mappery na potrzeby Alembica i testowego
-  `create_all`; nie może re-exportować klas.
-- Wszystkie odczyty czasu ściennego w runtime idą przez `domain.clock`.
-  `time.monotonic()` dla pomiaru trwania operacji pozostaje osobnym, właściwym
-  mechanizmem.
-- Commit i rollback wykonuje granica Unit of Work. Adaptery i use case'y tylko
-  stage'ują lub flushują zmiany. Skrypty seedujące pozostają samodzielnymi entry
-  pointami i mogą jawnie zamykać własne transakcje.
-- Worker może potrzebować kilku krótkich transakcji na jedno zadanie: claim,
-  zapis draftu, heartbeat i finalizacja. Każda ma jednego nazwanego właściciela;
-  provider sieciowy i solver nie działają pod lockiem bazy.
-- Port jest definiowany przez konsumenta. Adapter może strukturalnie
-  implementować kilka małych protokołów; nie tworzymy wrappera, który tylko
-  przekazuje wywołania dalej.
-- Nie dodajemy migracji bazy. Nazwy tabel, kolumn, indeksów, constraintów,
-  enumów i wartości zapisanych w bazie muszą pozostać identyczne.
-- Nie zmieniamy ścieżek HTTP, payloadów, statusów, cookies, CSV, iCalendar,
-  komunikatów, kolejności ani wyniku solvera. Znaleziona sprzeczność zatrzymuje
-  dany PR i wraca do właściciela jako osobny defect note.
-- `ARCHITECTURE_ACTION_PLAN.md` nie może ponownie dostać statusu „complete” na
-  podstawie opisu zmian. Status zamyka dopiero niezależny Agent 5 po przejściu
-  wszystkich bramek końcowych.
+- `oncall/models.py` is deleted, not replaced with another file
+  re-exporting all the models.
+- ORM models will belong to the infrastructure modules of their features.
+  One module may only register the mappers for Alembic and the test
+  `create_all`; it must not re-export classes.
+- All wall-clock reads at runtime go through `domain.clock`.
+  `time.monotonic()` for measuring the duration of an operation remains a separate,
+  proper mechanism.
+- Commit and rollback are performed by the Unit of Work boundary. Adapters and use
+  cases only stage or flush changes. Seed scripts remain standalone entry
+  points and may explicitly close their own transactions.
+- The worker may need several short transactions per task: claim,
+  draft save, heartbeat and finalisation. Each has one named owner;
+  the network provider and the solver do not run under a database lock.
+- A port is defined by its consumer. An adapter may structurally
+  implement several small protocols; we do not create a wrapper that only
+  forwards calls.
+- We add no database migrations. The names of tables, columns, indexes, constraints,
+  enums and the values stored in the database must remain identical.
+- We do not change HTTP paths, payloads, statuses, cookies, CSV, iCalendar,
+  messages, ordering or the solver's result. A contradiction found stops
+  the given PR and goes back to the owner as a separate defect note.
+- `ARCHITECTURE_ACTION_PLAN.md` may not be given the status "complete" again on
+  the basis of a description of changes. Only the independent Agent 5 closes the
+  status, after all the final gates pass.
 
-## 3. Docelowe, mierzalne DoD
+## 3. Target, measurable DoD
 
-| ID | Warunek końcowy | Dowód maszynowy |
+| ID | Final condition | Machine evidence |
 |---|---|---|
-| DOD-1 | Kontrakty zewnętrzne bez niezatwierdzonej zmiany | OpenAPI snapshot, pełny pytest, testy HTTP/cookie/CSV/iCal/notification/solver |
-| DOD-2 | Domena ma zależności skierowane do wewnątrz i nie importuje frameworków/ORM | allowlist test w `tests/architecture/test_dependencies.py` |
-| DOD-3 | Każdy request i każdy atomowy krok workera ma jednego właściciela transakcji | source guard dla `commit`/`rollback`, test request UoW, testy worker UoW i crash points |
-| DOD-4 | Wszystkie daty i instants runtime są spójne i wstrzykiwalne | source guard zabraniający `date.today`, `datetime.now` i `utcnow` poza `domain/clock.py` |
-| DOD-5 | Solver i evaluator reguł pozostają mechanicznie zgodne | `test_generated_schedule_obeys_rules.py` i fixed-seed fixtures |
-| DOD-6 | Brak centralnego registry modeli/schematów w zwykłej pracy feature'owej | brak `src/oncall/models.py`, brak importów `oncall.models`, Alembic metadata bez diffu |
-| DOD-7 | Stany, recovery i współbieżność workera są jawne i sprawdzone na PostgreSQL | cały `test_concurrency_postgres.py`, crash-point i abandoned-run tests |
-| DOD-8 | Komentarze opisują obecne invariants, nie historię QA | source guard na identyfikatory rund/defektów oraz przegląd człowieka |
-| DOD-9 | Nawigacja jest prostsza: brak szerokich bundles i shimów bez zachowania | test struktury portów, brak nazw legacy, dwa ręczne trace'y HTTP → use case → adapter → tabela |
+| DOD-1 | External contracts without an unapproved change | OpenAPI snapshot, full pytest, HTTP/cookie/CSV/iCal/notification/solver tests |
+| DOD-2 | The domain has inward-pointing dependencies and does not import frameworks/ORM | allowlist test in `tests/architecture/test_dependencies.py` |
+| DOD-3 | Every request and every atomic worker step has one transaction owner | source guard for `commit`/`rollback`, request UoW test, worker UoW and crash point tests |
+| DOD-4 | All runtime dates and instants are consistent and injectable | source guard forbidding `date.today`, `datetime.now` and `utcnow` outside `domain/clock.py` |
+| DOD-5 | The solver and the rules evaluator remain mechanically consistent | `test_generated_schedule_obeys_rules.py` and fixed-seed fixtures |
+| DOD-6 | No central model/schema registry in ordinary feature work | no `src/oncall/models.py`, no `oncall.models` imports, Alembic metadata without a diff |
+| DOD-7 | Worker states, recovery and concurrency are explicit and checked on PostgreSQL | the whole of `test_concurrency_postgres.py`, crash-point and abandoned-run tests |
+| DOD-8 | Comments describe the current invariants, not QA history | source guard for round/defect identifiers plus human review |
+| DOD-9 | Navigation is simpler: no broad bundles and no behaviour-free shims | port structure test, no legacy names, two manual traces HTTP → use case → adapter → table |
 
-DOD jest binarne. `xfail`, pominięty PostgreSQL, częściowy mypy, zielony test
-bez mutacji wykrywającej regresję albo opis „zrobione” w dokumencie nie zamykają
-warunku.
+The DoD is binary. An `xfail`, a skipped PostgreSQL, a partial mypy, a green test
+without a regression-detecting mutation, or a "done" description in a document do not
+close a condition.
 
-## 4. Model pracy agentów
+## 4. Agent working model
 
-Prace są podzielone na sześć PR-ów. PR-y są merge'owane w podanej kolejności.
-Agent zaczyna ze świeżego brancha utworzonego po merge'u poprzednika.
+The work is split into six PRs. The PRs are merged in the given order.
+An agent starts from a fresh branch created after the predecessor's merge.
 
 ```text
 Agent 0: executable DoD gates
@@ -93,72 +93,72 @@ Agent 4: centralize worker transactions
 Agent 5: independent final audit and closure
 ```
 
-Sekwencja jest celowa. Są to zmiany przekrojowe z nakładającymi się importami;
-równoległe PR-y kosztowałyby więcej konfliktów i mogłyby ukryć regresję podczas
-merge'u. Różni agenci zapewniają świeży przegląd kolejnych warstw, ale nie
-edytują jednocześnie tego samego drzewa.
+The sequence is deliberate. These are cross-cutting changes with overlapping imports;
+parallel PRs would cost more conflicts and could hide a regression during
+the merge. Different agents provide a fresh review of successive layers, but do not
+edit the same tree at the same time.
 
-Każdy agent przed rozpoczęciem:
+Before starting, every agent:
 
-1. czyta ten dokument, odpowiednią sekcję pierwotnego planu, ADR-001 i glossary;
-2. sprawdza czysty worktree oraz SHA, na którym pracuje;
-3. uruchamia testy ukierunkowane na swoją warstwę;
-4. identyfikuje test charakterystyczny przed pierwszą zmianą produkcyjną;
-5. zachowuje zmiany użytkownika i zmiany z wcześniejszych PR-ów.
+1. reads this document, the relevant section of the original plan, ADR-001 and the glossary;
+2. checks for a clean worktree and the SHA it is working on;
+3. runs the tests targeted at its layer;
+4. identifies the characterisation test before the first production change;
+5. preserves the user's changes and the changes from earlier PRs.
 
-## 5. Agent 0 — DoD Gatekeeper
+## 5. Agent 0 - DoD Gatekeeper
 
-### Misja
+### Mission
 
-Zamienić cztery brakujące kryteria z prose na wykonywalne guardy, zanim kod
-produkcyjny zacznie się zmieniać.
+Turn the four missing criteria from prose into executable guards before production
+code starts to change.
 
-### Własność plików
+### File ownership
 
 - `backend/tests/architecture/`
-- nowy `backend/tests/architecture/test_completion_dod.py`
-- ewentualne helpery wyłącznie pod `backend/tests/architecture/`
-- `backend/contracts/README.md` tylko dla opisania nowych komend
+- new `backend/tests/architecture/test_completion_dod.py`
+- any helpers exclusively under `backend/tests/architecture/`
+- `backend/contracts/README.md` only to describe the new commands
 
-Nie edytuje `src/` ani snapshotu OpenAPI.
+Does not edit `src/` or the OpenAPI snapshot.
 
-### Zadania
+### Tasks
 
-1. Dodać cztery niezależne testy źródłowe:
-   - `DOD-3`: niedozwolony `commit`/`rollback` poza ustaloną listą granic;
-   - `DOD-4`: bezpośredni czas ścienny poza `domain/clock.py`;
-   - `DOD-6`: plik/import `oncall.models`;
-   - `DOD-9`: szerokie typy legacy i compatibility aliases.
-2. Zakodować obecne braki jako `xfail(strict=True)` z ID DoD. Każdy kolejny
-   agent usuwa tylko marker odpowiadający jego naprawie w tym samym PR, w którym
-   guard zaczyna przechodzić.
-3. Dla DOD-3 dopuścić jawnie `database.py` i entry pointy seedujące. Nie
-   dopuszczać workerów, usług notyfikacji, use case'ów ani adapterów.
-4. Dla DOD-4 wyłączyć wyłącznie `time.monotonic()` i migracje historyczne.
-   SQLAlchemy column defaults w aktualnym runtime również mają korzystać z
+1. Add four independent source tests:
+   - `DOD-3`: a disallowed `commit`/`rollback` outside the agreed list of boundaries;
+   - `DOD-4`: direct wall-clock time outside `domain/clock.py`;
+   - `DOD-6`: the `oncall.models` file/import;
+   - `DOD-9`: broad legacy types and compatibility aliases.
+2. Encode the current gaps as `xfail(strict=True)` with the DoD ID. Each subsequent
+   agent removes only the marker corresponding to its fix, in the same PR in which
+   the guard starts to pass.
+3. For DOD-3 explicitly allow `database.py` and the seed entry points. Do not
+   allow workers, notification services, use cases or adapters.
+4. For DOD-4 exclude only `time.monotonic()` and historical migrations.
+   SQLAlchemy column defaults in the current runtime are also to use
    `domain.clock.utc_now`.
-5. Dla DOD-9 zabronić co najmniej nazw `SchedulingPorts`, `AdminPorts`,
-   `AccessPorts`, `SharingPorts`, `AvailabilityPorts`, `Schedules` i
-   `RotationBook`. Dodać limit maksymalnie 8 metod na jeden `Protocol` i 8 pól
-   na bundle; mniejsze limity są mile widziane, jeśli wynikają z konsumenta.
-6. Udowodnić czułość guardów przez chwilowe mutacje w plikach testowych lub
-   produkcyjnych i odwrócić je przed commitem.
+5. For DOD-9 forbid at least the names `SchedulingPorts`, `AdminPorts`,
+   `AccessPorts`, `SharingPorts`, `AvailabilityPorts`, `Schedules` and
+   `RotationBook`. Add a limit of at most 8 methods per `Protocol` and 8 fields
+   per bundle; smaller limits are welcome if they follow from the consumer.
+6. Prove the guards' sensitivity through temporary mutations in the test or
+   production files and revert them before the commit.
 
-### Akceptacja PR-0
+### PR-0 acceptance
 
-- pełny suite pozostaje zielony z dokładnie czterema oczekiwanymi `xfail` DoD;
-- każde usunięcie `xfail` na obecnym kodzie powoduje czytelną porażkę;
-- Ruff, format, mypy i OpenAPI snapshot przechodzą;
-- brak zmian produkcyjnych.
+- the full suite stays green with exactly four expected DoD `xfail`s;
+- every removal of an `xfail` on the current code causes a readable failure;
+- Ruff, format, mypy and the OpenAPI snapshot pass;
+- no production changes.
 
-## 6. Agent 1 — Clock Completer
+## 6. Agent 1 - Clock Completer
 
-### Misja
+### Mission
 
-Domknąć DOD-4 bez zmiany semantyki: Warsaw dla business day, UTC dla instants,
-monotonic clock dla duration.
+Close DOD-4 without changing semantics: Warsaw for the business day, UTC for instants,
+the monotonic clock for durations.
 
-### Własność plików
+### File ownership
 
 - `src/oncall/domain/clock.py`
 - `src/oncall/auth.py`
@@ -166,265 +166,265 @@ monotonic clock dla duration.
 - `src/oncall/ical.py`
 - `src/oncall/notifications/service.py`
 - `src/oncall/infrastructure/sqlalchemy/access.py`
-- `src/oncall/models.py` tylko w zakresie defaultów czasu; plik usunie Agent 2
+- `src/oncall/models.py` only as far as the time defaults go; Agent 2 will delete the file
 - `src/oncall/seed_admin.py`, `src/oncall/seed_demo.py`
-- testy odpowiadające tym ścieżkom
+- the tests corresponding to these paths
 
-### Zadania
+### Tasks
 
-1. Zastąpić wszystkie runtime `datetime.now(UTC)`, `date.today()` i
-   `datetime.utcnow()` wywołaniami `utc_now()` albo `business_today()`.
-2. Zachować opcjonalny argument `now` wszędzie, gdzie use case już go przyjmuje;
-   fallback ma korzystać z Clock, nie ze standardowej biblioteki.
-3. Wstrzyknąć `FrozenClock` w testach auth, cookie max-age, token expiry,
-   iCalendar DTSTAMP, outbox lease/retry i audit timestamps.
-4. Dodać przypadek graniczny 23:30 UTC / 01:30 Europe/Warsaw, tak aby business
-   day i instant nie mogły ponownie zostać pomylone.
-5. Usunąć `xfail` tylko z guardu DOD-4.
+1. Replace all runtime `datetime.now(UTC)`, `date.today()` and
+   `datetime.utcnow()` with calls to `utc_now()` or `business_today()`.
+2. Keep the optional `now` argument wherever a use case already accepts it;
+   the fallback is to use the Clock, not the standard library.
+3. Inject `FrozenClock` in the auth, cookie max-age, token expiry,
+   iCalendar DTSTAMP, outbox lease/retry and audit timestamp tests.
+4. Add the 23:30 UTC / 01:30 Europe/Warsaw edge case, so that the business
+   day and the instant cannot be confused again.
+5. Remove the `xfail` only from the DOD-4 guard.
 
-### Akceptacja PR-1
+### PR-1 acceptance
 
-- guard DOD-4 przechodzi bez wyjątków dla kodu runtime;
-- testy czasu nie używają realnego zegara;
-- `time.monotonic()` w solverze/workerze pozostaje;
-- serialized iCalendar, cookies i OpenAPI są niezmienione;
-- pełny suite i PostgreSQL suite przechodzą.
+- the DOD-4 guard passes with no exceptions for runtime code;
+- the time tests do not use the real clock;
+- `time.monotonic()` in the solver/worker remains;
+- serialized iCalendar, cookies and OpenAPI are unchanged;
+- the full suite and the PostgreSQL suite pass.
 
-## 7. Agent 2 — Persistence Topology
+## 7. Agent 2 - Persistence Topology
 
-### Misja
+### Mission
 
-Usunąć centralny ORM registry i przypisać każdy mapped row do feature'a, bez
-zmiany schematu SQL ani pozostawienia re-export shimów.
+Remove the central ORM registry and assign every mapped row to a feature, without
+changing the SQL schema or leaving re-export shims behind.
 
-### Docelowa mapa
+### Target map
 
-| Moduł | Klasy |
+| Module | Classes |
 |---|---|
 | `infrastructure/sqlalchemy/access_models.py` | `User`, `AccountToken`, `Session` |
 | `infrastructure/sqlalchemy/team_models.py` | `TeamMember`, `Eligibility` |
 | `infrastructure/sqlalchemy/scheduling_models.py` | `Schedule`, `ScheduleRun`, `Assignment`, `SchedulingPolicy` |
 | `infrastructure/sqlalchemy/notification_models.py` | `NotificationOutbox`, `NotificationChannel`, `NotificationStatus` |
 | `infrastructure/sqlalchemy/audit_model.py` | `AuditEvent` |
-| istniejące feature modules | `Availability`, `CalendarEvent`, `ShareLink`, `CalendarFeedToken`, `SwapRequest`, `SwapRequestSlot` |
+| existing feature modules | `Availability`, `CalendarEvent`, `ShareLink`, `CalendarFeedToken`, `SwapRequest`, `SwapRequestSlot` |
 
-`infrastructure/sqlalchemy/model_registry.py` może importować moduły wyłącznie
-dla side effectu rejestracji mapperów. Nie eksportuje klas i jest używany tylko
-przez Alembic, test bootstrap i ewentualny app bootstrap wymagający pełnego
+`infrastructure/sqlalchemy/model_registry.py` may import modules solely
+for the side effect of registering the mappers. It exports no classes and is used only
+by Alembic, the test bootstrap and any app bootstrap that requires the full
 metadata.
 
-### Własność plików
+### File ownership
 
 - `src/oncall/models.py`
 - `src/oncall/infrastructure/sqlalchemy/*model*.py`
-- wszystkie import sites `oncall.models` w `src/`, `tests/` i `migrations/`
+- all `oncall.models` import sites in `src/`, `tests/` and `migrations/`
 - `migrations/env.py`
-- testy mapperów, metadata i persistence
+- mapper, metadata and persistence tests
 
-Nie zmienia portów ani granic transakcji.
+Does not change ports or transaction boundaries.
 
-### Zadania
+### Tasks
 
-1. Przenieść klasy, nie kopiować ich. Każda tabela ma jedną mapped class.
-2. Importować enumy bezpośrednio z `domain.vocabulary`; enumy outboxa należą do
-   modułu notyfikacji.
-3. Rozwiązać relacje między modułami typami forward i nazwami mapperów bez
-   import cycle. Rejestr mapperów ładuje wszystkie moduły przed `create_all` i
-   autogenerate Alembica.
-4. Przepisać wszystkie około 130 import sites, w tym testy. Testy importują
-   model feature'a albo vocabulary, nigdy registry.
-5. Usunąć `src/oncall/models.py`. Nie zostawiać compatibility module.
-6. Na czystej bazie PostgreSQL wykonać `alembic upgrade head`, następnie
-   `alembic check`; wynik nie może proponować żadnej migracji.
-7. Porównać przed/po: nazwy tabel, kolumny z typami/nullability/defaultami,
-   PK/FK, unique/check constraints i indeksy.
-8. Usunąć `xfail` tylko z guardu DOD-6.
+1. Move the classes, do not copy them. Every table has one mapped class.
+2. Import enums directly from `domain.vocabulary`; the outbox enums belong to
+   the notification module.
+3. Resolve relationships between modules with forward types and mapper names without
+   an import cycle. The mapper registry loads all modules before `create_all` and
+   Alembic autogenerate.
+4. Rewrite all roughly 130 import sites, including tests. Tests import
+   the feature's model or the vocabulary, never the registry.
+5. Delete `src/oncall/models.py`. Leave no compatibility module.
+6. On a clean PostgreSQL database run `alembic upgrade head`, then
+   `alembic check`; the result must not propose any migration.
+7. Compare before/after: table names, columns with types/nullability/defaults,
+   PK/FK, unique/check constraints and indexes.
+8. Remove the `xfail` only from the DOD-6 guard.
 
-### Akceptacja PR-2
+### PR-2 acceptance
 
-- `rg 'oncall\.models' src tests migrations` zwraca zero;
-- `src/oncall/models.py` nie istnieje;
-- `alembic check` na PostgreSQL mówi, że nie ma nowych operacji;
-- pełny suite, 22+ testy PostgreSQL, Ruff, format, mypy i OpenAPI przechodzą;
-- `git diff migrations/versions` jest pusty.
+- `rg 'oncall\.models' src tests migrations` returns zero;
+- `src/oncall/models.py` does not exist;
+- `alembic check` on PostgreSQL says there are no new operations;
+- the full suite, the 22+ PostgreSQL tests, Ruff, format, mypy and OpenAPI pass;
+- `git diff migrations/versions` is empty.
 
-## 8. Agent 3 — Consumer-owned Ports
+## 8. Agent 3 - Consumer-owned Ports
 
-### Misja
+### Mission
 
-Domknąć DOD-9: use case widzi wyłącznie capabilities, których używa, a nazwa
-portu mówi, dla jakiego konsumenta istnieje.
+Close DOD-9: a use case sees only the capabilities it uses, and the name of
+a port says which consumer it exists for.
 
-### Własność plików
+### File ownership
 
 - `src/oncall/domain/**/ports.py`
-- use case modules pod `src/oncall/domain/`
+- use case modules under `src/oncall/domain/`
 - `src/oncall/bootstrap/providers.py`
-- composition functions w `src/oncall/infrastructure/sqlalchemy/`
-- fakes pod `tests/domain/`
-- architecture tests portów
+- composition functions in `src/oncall/infrastructure/sqlalchemy/`
+- fakes under `tests/domain/`
+- port architecture tests
 
-Nie zmienia modeli ORM, schematu ani polityki transakcji.
+Does not change ORM models, the schema or the transaction policy.
 
-### Zadania
+### Tasks
 
-1. Rozbić scheduling według pięciu konsumentów: policy, generation, drafts,
-   publication i queries. Nie przekazywać globalnego `SchedulingPorts`.
-2. Rozbić `Schedules` na protokoły odpowiadające odczytom draftów, zapisowi
-   generacji, korektom/transitions i publikacji.
-3. Rozbić `SchedulingJournal` na zdarzenia generacji, draftów i publikacji.
-4. Rozbić admin na account administration, membership administration,
-   eligibility administration i audit queries; usunąć globalne `AdminPorts` i
-   szeroki `RotationBook`.
-5. Rozbić access co najmniej na sign-in, account-link/password i own-profile;
-   usunąć globalne `AccessPorts`.
-6. Usunąć `SharingPorts` oraz alias `AvailabilityPorts`. Istniejące małe porty
-   sharing/availability pozostają, jeśli mają produkcyjnego konsumenta.
-7. Jeśli use case potrzebuje jednego protokołu, przekazać protokół bez
-   jednoelementowego dataclass wrappera.
-8. Adaptery implementują protokoły strukturalnie; nie dodawać forwarding
-   classes tylko po to, aby każda nazwa miała klasę.
-9. Dodać test architektury, że żaden bundle nie przekracza 8 pól, żaden
-   `Protocol` 8 metod, a zabronione nazwy nie wróciły.
-10. Usunąć `xfail` tylko z guardu DOD-9.
+1. Split scheduling by its five consumers: policy, generation, drafts,
+   publication and queries. Do not pass a global `SchedulingPorts`.
+2. Split `Schedules` into protocols corresponding to draft reads, generation
+   writes, corrections/transitions and publication.
+3. Split `SchedulingJournal` into generation, draft and publication events.
+4. Split admin into account administration, membership administration,
+   eligibility administration and audit queries; remove the global `AdminPorts` and
+   the broad `RotationBook`.
+5. Split access at least into sign-in, account-link/password and own-profile;
+   remove the global `AccessPorts`.
+6. Remove `SharingPorts` and the `AvailabilityPorts` alias. The existing small
+   sharing/availability ports remain if they have a production consumer.
+7. If a use case needs one protocol, pass the protocol without
+   a single-element dataclass wrapper.
+8. Adapters implement the protocols structurally; do not add forwarding
+   classes just so that every name has a class.
+9. Add an architecture test that no bundle exceeds 8 fields, no
+   `Protocol` 8 methods, and the forbidden names have not returned.
+10. Remove the `xfail` only from the DOD-9 guard.
 
-### Akceptacja PR-3
+### PR-3 acceptance
 
-- wszystkie zabronione szerokie nazwy z PR-0 zniknęły;
-- każdy use-case module otrzymuje własny port albo małe bezpośrednie protokoły;
-- fakes mają mniejszy zakres i nie implementują metod nieużywanych przez dany
+- all the forbidden broad names from PR-0 are gone;
+- every use-case module receives its own port or small direct protocols;
+- fakes have a smaller scope and do not implement methods unused by the given
   test cluster;
-- nie powstał żaden nowy adapter, który tylko przekazuje 1:1 do starego;
-- pełny suite, PostgreSQL suite i wszystkie contract/static gates przechodzą.
+- no new adapter was created that only forwards 1:1 to the old one;
+- the full suite, the PostgreSQL suite and all contract/static gates pass.
 
-## 9. Agent 4 — Transaction and Worker Boundary
+## 9. Agent 4 - Transaction and Worker Boundary
 
-### Misja
+### Mission
 
-Domknąć DOD-3 i ostatni otwarty fragment workera: jeden jawny właściciel każdej
-transakcji, brak commitów w adapterach/usługach, jawne state transitions w queue
+Close DOD-3 and the last open fragment of the worker: one explicit owner of every
+transaction, no commits in adapters/services, explicit state transitions in the queue
 repository.
 
-### Własność plików
+### File ownership
 
 - `src/oncall/database.py`
 - `src/oncall/worker.py`
 - `src/oncall/notifications/service.py`
 - `src/oncall/policy.py`
-- scheduling generation queue adapter i odpowiadające wąskie porty z PR-3
-- testy Unit of Work, crash points, queue/recovery i PostgreSQL concurrency
+- the scheduling generation queue adapter and the corresponding narrow ports from PR-3
+- Unit of Work, crash point, queue/recovery and PostgreSQL concurrency tests
 
-Nie zmienia publicznych modeli ani kontraktów HTTP.
+Does not change public models or HTTP contracts.
 
-### Zadania
+### Tasks
 
-1. Zapewnić jeden reusable boundary helper oparty o
-   `SqlAlchemyUnitOfWork(factory)`. Tylko on wykonuje commit/rollback.
-2. Zmienić `load_policy`: create-if-missing używa `flush`, nie `commit`.
-3. Zastąpić rollback po konflikcie enqueue savepointem (`begin_nested`) albo
-   równoważną techniką, która nie kasuje całej transakcji requestu.
-4. Przenieść raw ORM `_claim_run` i warunkową finalizację z `worker.py` do
-   wąskiego queue/claim adaptera. Zachować `FOR UPDATE SKIP LOCKED` i compare-
-   and-set na stanie `running`.
-5. Nazwać atomowe kroki generacji: recover, claim, load/solve-and-store,
-   heartbeat i finish. Każdy otwiera dokładnie jeden UoW; żaden helper poniżej
-   granicy nie wykonuje commitu.
-6. Zachować osobną sesję progress reportera i brak równoczesnego użycia jednej
-   `AsyncSession` przez dwa taski.
-7. Rozdzielić outbox na: transakcyjny claim, provider call bez transakcji oraz
-   transakcyjny record outcome. `notifications/service.py` nie wykonuje
-   commitu.
-8. Udowodnić testami, że lock nie jest trzymany podczas solvera ani provider
-   I/O, crash po send nadal może powtórzyć najwyżej jedną wiadomość, a lease i
-   stable idempotency key pozostają bez zmian.
-9. Dodać mutation checks dla: usuniętego commit boundary, braku `SKIP LOCKED`,
-   finalizacji bez status guard i provider call wewnątrz transakcji.
-10. Usunąć `xfail` tylko z guardu DOD-3.
+1. Provide one reusable boundary helper based on
+   `SqlAlchemyUnitOfWork(factory)`. Only it performs commit/rollback.
+2. Change `load_policy`: create-if-missing uses `flush`, not `commit`.
+3. Replace the rollback after an enqueue conflict with a savepoint (`begin_nested`) or
+   an equivalent technique that does not wipe the whole request transaction.
+4. Move the raw ORM `_claim_run` and the conditional finalisation from `worker.py` to
+   a narrow queue/claim adapter. Keep `FOR UPDATE SKIP LOCKED` and the compare-
+   and-set on the `running` state.
+5. Name the atomic generation steps: recover, claim, load/solve-and-store,
+   heartbeat and finish. Each opens exactly one UoW; no helper below
+   the boundary performs a commit.
+6. Keep the progress reporter's separate session and no concurrent use of one
+   `AsyncSession` by two tasks.
+7. Split the outbox into: a transactional claim, a provider call outside a transaction and
+   a transactional record outcome. `notifications/service.py` performs no
+   commit.
+8. Prove with tests that the lock is not held during the solver or provider
+   I/O, that a crash after send can still repeat at most one message, and that the lease and
+   the stable idempotency key remain unchanged.
+9. Add mutation checks for: a removed commit boundary, missing `SKIP LOCKED`,
+   finalisation without the status guard and a provider call inside a transaction.
+10. Remove the `xfail` only from the DOD-3 guard.
 
-### Akceptacja PR-4
+### PR-4 acceptance
 
-- w runtime `.commit()`/`.rollback()` występują wyłącznie w Unit of Work;
-  seed entry pointy są jedynym jawnym wyjątkiem;
-- worker nie importuje `SessionFactory` do ręcznego zarządzania transakcją;
-- `worker.py` nie buduje zapytań SQL do `ScheduleRun`;
-- test request UoW i worker session-isolation przechodzą;
-- wszystkie crash-point i PostgreSQL concurrency tests przechodzą;
-- zewnętrzne polling/auth/notification behavior jest niezmienione.
+- at runtime `.commit()`/`.rollback()` occur exclusively in the Unit of Work;
+  the seed entry points are the only explicit exception;
+- the worker does not import `SessionFactory` for manual transaction management;
+- `worker.py` builds no SQL queries against `ScheduleRun`;
+- the request UoW test and the worker session-isolation test pass;
+- all crash-point and PostgreSQL concurrency tests pass;
+- the external polling/auth/notification behavior is unchanged.
 
-## 10. Agent 5 — Independent Closure Auditor
+## 10. Agent 5 - Independent Closure Auditor
 
-### Misja
+### Mission
 
-Niezależnie potwierdzić całość. Ten agent nie może być autorem PR-1–PR-4 i nie
-zaczyna od deklaracji postępu w dokumentach; zaczyna od kodu i testów.
+Independently confirm the whole. This agent may not be the author of PR-1 to PR-4 and does
+not start from the progress declarations in the documents; it starts from the code and the tests.
 
-### Własność plików
+### File ownership
 
-- testy/guardy wyłącznie, jeśli wykryją brak dowodu;
-- `ARCHITECTURE_ACTION_PLAN.md` i ten dokument dopiero po pozytywnym audycie;
-- glossary/ADR tylko dla korekty faktycznie nieaktualnego opisu.
+- tests/guards only if they detect missing evidence;
+- `ARCHITECTURE_ACTION_PLAN.md` and this document only after a positive audit;
+- glossary/ADR only to correct a description that is actually outdated.
 
-Nie naprawia większej luki „przy okazji”. Jeśli znajdzie niespełnione DoD,
-zwraca konkretny PR do odpowiedniego agenta.
+Does not fix a larger gap "while at it". If it finds an unmet DoD,
+it returns the specific PR to the appropriate agent.
 
-### Audyt
+### Audit
 
-1. Uruchomić wszystkie komendy z sekcji 12 na finalnym merge commit.
-2. Potwierdzić zero `xfail` związanych z DoD i zero nieoczekiwanych skipów poza
-   jawnie środowiskowymi testami; PostgreSQL suite uruchomić osobno, nie uznać
-   skipów za wynik.
-3. Wykonać dwa trace'y bez globalnego search:
+1. Run all the commands from section 12 on the final merge commit.
+2. Confirm zero DoD-related `xfail`s and zero unexpected skips beyond
+   explicitly environmental tests; run the PostgreSQL suite separately, and do not accept
+   skips as a result.
+3. Perform two traces without a global search:
    - command: HTTP create/modify → presentation → use case → consumer port →
-     adapter → tabela/outbox → UoW;
+     adapter → table/outbox → UoW;
    - query: HTTP read → presentation → query use case/read port → adapter →
      response mapper.
-4. Przejrzeć wszystkie protokoły i bundles ponad ustalony limit; wyjątek wymaga
-   uzasadnienia w ADR, nie komentarza „tymczasowo”.
-5. Sprawdzić, że mapper registry nie stał się nowym `models.py`: nie ma
-   re-exportów i ordinary feature imports go nie używają.
-6. Przeszukać bezpośrednie źródła czasu, commity/rollbacki, framework imports w
-   domain, legacy nazwy i komentarze historyczne.
-7. Porównać OpenAPI JSON strukturalnie z zatwierdzonym snapshotem.
-8. W PostgreSQL wykonać migracje od zera oraz `alembic check`.
-9. Przejrzeć diff całej serii pod kątem nowych factories/strategies/managers,
-   które mają tylko jednego callera i niczego nie izolują. Usunąć je lub
-   zwrócić PR autorowi.
-10. Dopiero po wszystkim zmienić status dokumentów na complete i dopisać
-    końcową tabelę dowodów z SHA oraz wynikami komend.
+4. Review all protocols and bundles above the agreed limit; an exception requires
+   a justification in an ADR, not a "temporary" comment.
+5. Check that the mapper registry has not become a new `models.py`: there are no
+   re-exports and ordinary feature imports do not use it.
+6. Search for direct time sources, commits/rollbacks, framework imports in
+   the domain, legacy names and historical comments.
+7. Compare the OpenAPI JSON structurally with the approved snapshot.
+8. In PostgreSQL run the migrations from scratch and `alembic check`.
+9. Review the diff of the whole series for new factories/strategies/managers
+   that have only one caller and isolate nothing. Remove them or
+   return the PR to its author.
+10. Only after all of that change the status of the documents to complete and append
+    the final evidence table with the SHA and the command results.
 
-### Akceptacja PR-5
+### PR-5 acceptance
 
-- dziewięć wierszy DoD ma status PASS i dowód z finalnego SHA;
-- nie ma markerów `xfail` DoD;
-- nie ma otwartych „leftover”, „compatibility”, „temporary” ani „next slice” w
-  kodzie dotyczącym tego planu;
-- dokument nie przeczy kodowi;
-- worktree po audycie jest czysty.
+- the nine DoD rows have the status PASS and evidence from the final SHA;
+- there are no DoD `xfail` markers;
+- there are no open "leftover", "compatibility", "temporary" or "next slice" items in
+  the code covered by this plan;
+- the document does not contradict the code;
+- the worktree after the audit is clean.
 
-## 11. Zasady handoff i review
+## 11. Handoff and review rules
 
-Każdy PR kończy się krótkim plikiem/opisem handoff zawierającym:
+Every PR ends with a short handoff file/description containing:
 
-- SHA bazowy i końcowy;
-- listę zmienionych invariants;
-- test charakterystyczny uruchomiony przed zmianą;
-- mutation lub negatywną próbę potwierdzającą czułość nowego testu;
-- wynik bramek ukierunkowanych i pełnych;
-- jawne stwierdzenie „OpenAPI changed: no” oraz „DB schema changed: no”;
-- pozostałe ryzyka, bez ogłaszania kolejnej fazy jako zakończonej.
+- the base and final SHA;
+- the list of changed invariants;
+- the characterisation test run before the change;
+- the mutation or negative attempt confirming the sensitivity of the new test;
+- the result of the targeted and full gates;
+- an explicit statement "OpenAPI changed: no" and "DB schema changed: no";
+- the remaining risks, without announcing the next phase as finished.
 
-Reviewer nie akceptuje PR, jeżeli:
+The reviewer does not accept a PR if:
 
-- test został osłabiony, aby zaakceptować nową strukturę;
-- nowy compatibility re-export ukrywa niedokończoną migrację;
-- adapter wykonuje commit, bo „tak było łatwiej”;
-- test PostgreSQL został zastąpiony SQLite;
-- snapshot OpenAPI został zaktualizowany bez osobnej zgody właściciela;
-- mechaniczny move jest zmieszany z niezatwierdzoną zmianą zachowania.
+- a test was weakened to accept the new structure;
+- a new compatibility re-export hides an unfinished migration;
+- an adapter performs a commit because "it was easier that way";
+- a PostgreSQL test was replaced with SQLite;
+- the OpenAPI snapshot was updated without the owner's separate consent;
+- a mechanical move is mixed with an unapproved behaviour change.
 
-## 12. Obowiązkowe komendy końcowe
+## 12. Mandatory final commands
 
-Uruchamiane z `backend/`, chyba że zaznaczono inaczej:
+Run from `backend/` unless stated otherwise:
 
 ```bash
 ./.venv/bin/pytest -q
@@ -434,10 +434,10 @@ Uruchamiane z `backend/`, chyba że zaznaczono inaczej:
 ./.venv/bin/python scripts/openapi_snapshot.py
 ```
 
-PostgreSQL contract database, uruchamiane osobno. Jest to wyłącznie disposable
-container z `tmpfs`; należy go odtworzyć, aby migracje zaczynały na pustej
-bazie. Najpierw sprawdzamy Alembic, dopiero potem suite współbieżności, którego
-fixture tworzy tabele bez Alembica:
+The PostgreSQL contract database, run separately. It is exclusively a disposable
+container with `tmpfs`; it has to be recreated so that the migrations start on an empty
+database. We check Alembic first, and only then the concurrency suite, whose
+fixture creates the tables without Alembic:
 
 ```bash
 docker compose -f ../docker-compose.contract.yml down
@@ -450,7 +450,7 @@ ONCALL_TEST_POSTGRES_URL='postgresql+asyncpg://oncall_contract:oncall_contract@1
   ./.venv/bin/pytest -q tests/test_concurrency_postgres.py
 ```
 
-Kontrole źródłowe, których dokładna logika ma być utrwalona przez Agent 0:
+Source checks whose exact logic is to be pinned down by Agent 0:
 
 ```bash
 rg 'from oncall\.models|import oncall\.models' src tests migrations
@@ -459,138 +459,138 @@ rg 'date\.today|datetime\.now|datetime\.utcnow' src/oncall
 rg 'SchedulingPorts|AdminPorts|AccessPorts|SharingPorts|AvailabilityPorts|class Schedules|class RotationBook' src tests
 ```
 
-Oczekiwany wynik końcowy ostatnich czterech kontroli to zero, poza precyzyjnie
-udokumentowanymi wyjątkami: implementacja `SystemClock`, Unit of Work oraz
-samodzielne entry pointy seedujące.
+The expected final result of the last four checks is zero, apart from precisely
+documented exceptions: the `SystemClock` implementation, the Unit of Work and
+the standalone seed entry points.
 
-## 13. Ryzyka i reakcje
+## 13. Risks and responses
 
-| Ryzyko | Sygnał | Reakcja |
+| Risk | Signal | Response |
 |---|---|---|
-| Niezaładowany mapper po podziale modeli | błąd `failed to locate a name`, brak tabeli w metadata | jeden registry side-effect dla bootstrap/Alembic; test konfiguracji wszystkich mapperów |
-| Przypadkowa zmiana schematu | `alembic check` proponuje operacje | zatrzymać PR, porównać metadata; bez nowej migracji |
-| Utrata atomiczności po usunięciu commitu | audit/outbox zapisany bez business change lub odwrotnie | rollback/recorded-refusal tests przed refaktorem i po nim |
-| Lock trzymany przez solver/provider | drugi worker czeka zamiast użyć `SKIP LOCKED` | test dwóch workerów z kontrolowanym overlapem na PostgreSQL |
-| Nadmierne rozdrobnienie portów | wiele wrapperów 1:1 i konstruktorów bez alternatyw | przekazywać pojedynczy Protocol bez wrappera; usuwać indirection-only classes |
-| Clock zmienia serializowany czas | różny cookie max-age/DTSTAMP/retry boundary | FrozenClock i golden output dla dokładnego instant |
-| Testy przechodzą, bo nie dotykają zmienionej gałęzi | mutacja nie powoduje porażki | obowiązkowy negatywny test lub mutation check w handoff |
+| A mapper not loaded after the model split | `failed to locate a name` error, a table missing from the metadata | one registry side effect for bootstrap/Alembic; a test of the configuration of all mappers |
+| An accidental schema change | `alembic check` proposes operations | stop the PR, compare the metadata; no new migration |
+| Loss of atomicity after removing a commit | audit/outbox written without the business change or the other way round | rollback/recorded-refusal tests before and after the refactor |
+| A lock held through the solver/provider | the second worker waits instead of using `SKIP LOCKED` | a two-worker test with a controlled overlap on PostgreSQL |
+| Excessive fragmentation of ports | many 1:1 wrappers and constructors without alternatives | pass a single Protocol without a wrapper; remove indirection-only classes |
+| The Clock changes serialized time | a different cookie max-age/DTSTAMP/retry boundary | FrozenClock and golden output for the exact instant |
+| Tests pass because they do not touch the changed branch | a mutation causes no failure | a mandatory negative test or mutation check in the handoff |
 
-## 14. Warunek zamknięcia
+## 14. Closure condition
 
-Plan jest wykonany dopiero wtedy, gdy Agent 5 na jednym finalnym SHA potwierdzi
-wszystkie dziewięć DOD, PostgreSQL suite nie jest pominięty, OpenAPI i schema
-są niezmienione, a cztery guardy dodane przez Agenta 0 przechodzą bez `xfail` i
-bez wyjątków tymczasowych. Sam merge wszystkich PR-ów nie jest dowodem
-ukończenia.
+The plan is done only when Agent 5, on one final SHA, confirms
+all nine DOD items, the PostgreSQL suite is not skipped, OpenAPI and the schema
+are unchanged, and the four guards added by Agent 0 pass without `xfail` and
+without temporary exceptions. The mere merge of all the PRs is not evidence
+of completion.
 
-## 15. Końcowe dowody zamknięcia (Agent 5)
+## 15. Final closure evidence (Agent 5)
 
-Audyt serii, oba trace'y i przegląd strukturalny wykonano 2026-09-21 na
-`04c172481e0d0dba58602552b9a96edc7858a4c1` (`main` po merge'u PR #19).
-Agent 5 nie był autorem żadnego z PR-ów serii. Zamykający commit
-`2b6fcf64ca3fd2979a063c15dcf0d3e1ad15f7a3` dodaje guard DOD-8 w
-`tests/architecture/test_completion_dod.py` (patrz niżej) i zmienia poza tym
-wyłącznie ten dokument, `ARCHITECTURE_ACTION_PLAN.md` i `AGENTS.md`; nie
-dotyka `src/`, migracji ani snapshotu. Dlatego `src/`, `migrations/` i
-`contracts/openapi.json` są bajtowo identyczne między `04c1724` a `2b6fcf6`.
-Komendy z sekcji 12 dla SQLite (pytest, ruff check, ruff format --check, mypy,
-snapshot OpenAPI) oraz guard DOD-8 zmierzono ponownie na finalnym SHA
-`2b6fcf6`; przepływ PostgreSQL (migracje od zera, `alembic check`,
-`test_concurrency_postgres.py`) i cztery kontrole źródłowe zmierzono na
-`04c1724` i - wobec bajtowej identyczności `src/`, `migrations/` i snapshotu -
-przenoszą się na `2b6fcf6` bez zmian.
+The audit of the series, both traces and the structural review were performed on 2026-09-21 on
+`04c172481e0d0dba58602552b9a96edc7858a4c1` (`main` after the merge of PR #19).
+Agent 5 was not the author of any PR in the series. The closing commit
+`2b6fcf64ca3fd2979a063c15dcf0d3e1ad15f7a3` adds the DOD-8 guard in
+`tests/architecture/test_completion_dod.py` (see below) and otherwise changes
+only this document, `ARCHITECTURE_ACTION_PLAN.md` and `AGENTS.md`; it does not
+touch `src/`, the migrations or the snapshot. Therefore `src/`, `migrations/` and
+`contracts/openapi.json` are byte-identical between `04c1724` and `2b6fcf6`.
+The section 12 commands for SQLite (pytest, ruff check, ruff format --check, mypy,
+the OpenAPI snapshot) and the DOD-8 guard were measured again on the final SHA
+`2b6fcf6`; the PostgreSQL flow (migrations from scratch, `alembic check`,
+`test_concurrency_postgres.py`) and the four source checks were measured on
+`04c1724` and - given the byte identity of `src/`, `migrations/` and the snapshot -
+carry over to `2b6fcf6` unchanged.
 
-Seria PR-ów: Agent 0 - #5, Agent 1 - #6, Agent 2 - #15, Agent 3 - #17,
-Agent 4 - #19. Pomiędzy nimi weszły PR-y spoza planu (#7-#10, #16, #18).
+PR series: Agent 0 - #5, Agent 1 - #6, Agent 2 - #15, Agent 3 - #17,
+Agent 4 - #19. PRs outside the plan (#7-#10, #16, #18) landed in between.
 
-### Komendy z sekcji 12
+### Section 12 commands
 
-| Komenda | Wynik |
+| Command | Result |
 |---|---|
-| `pytest -q` (SQLite, `2b6fcf6`) | 664 passed, 26 skipped; wszystkie 26 to `ONCALL_TEST_POSTGRES_URL is not set`; 0 xfail, 0 xpass; dwa testy więcej niż 662 na `04c1724` to dwa nowe testy guardu DOD-8 |
+| `pytest -q` (SQLite, `2b6fcf6`) | 664 passed, 26 skipped; all 26 are `ONCALL_TEST_POSTGRES_URL is not set`; 0 xfail, 0 xpass; the two tests more than the 662 on `04c1724` are the two new DOD-8 guard tests |
 | `ruff check src tests scripts` | All checks passed |
 | `ruff format --check src tests scripts` | 291 files already formatted |
 | `mypy` | Success: no issues found in 111 source files |
 | `python scripts/openapi_snapshot.py` | OpenAPI contract matches the snapshot |
-| `alembic upgrade head` (pusty PostgreSQL 17, `tmpfs`) | 32 migracje, head `0032_normalize_user_identity` |
+| `alembic upgrade head` (empty PostgreSQL 17, `tmpfs`) | 32 migrations, head `0032_normalize_user_identity` |
 | `alembic check` | No new upgrade operations detected |
-| `pytest tests/test_concurrency_postgres.py` (PostgreSQL) | 26 passed w 24.8 s; tyle samo, ile SQLite pominął |
-| `rg 'from oncall\.models\|import oncall\.models' src tests migrations` | 0 trafień; `src/oncall/models.py` nie istnieje |
-| `rg '\.(commit\|rollback)\(' src/oncall` | wyłącznie `database.py` (UoW), `seed_admin.py`, `seed_demo.py` |
-| `rg 'date\.today\|datetime\.now\|datetime\.utcnow' src/oncall` | wyłącznie `domain/clock.py` (`SystemClock`) |
-| `rg 'SchedulingPorts\|AdminPorts\|...' src tests` | wyłącznie literały w guardzie DOD-9 |
+| `pytest tests/test_concurrency_postgres.py` (PostgreSQL) | 26 passed in 24.8 s; as many as SQLite skipped |
+| `rg 'from oncall\.models\|import oncall\.models' src tests migrations` | 0 hits; `src/oncall/models.py` does not exist |
+| `rg '\.(commit\|rollback)\(' src/oncall` | only `database.py` (UoW), `seed_admin.py`, `seed_demo.py` |
+| `rg 'date\.today\|datetime\.now\|datetime\.utcnow' src/oncall` | only `domain/clock.py` (`SystemClock`) |
+| `rg 'SchedulingPorts\|AdminPorts\|...' src tests` | only the literals in the DOD-9 guard |
 
-### Dziewięć wierszy DoD
+### The nine DoD rows
 
-| ID | Status | Dowód na finalnym SHA `2b6fcf6` (dowody strukturalne i PostgreSQL zmierzone na bajtowo identycznym `04c1724`) |
+| ID | Status | Evidence on the final SHA `2b6fcf6` (structural and PostgreSQL evidence measured on the byte-identical `04c1724`) |
 |---|---|---|
-| DOD-1 | PASS | snapshot OpenAPI strukturalnie równy `app.openapi()` (63 ścieżki, 77 operacji, 95 schematów); PR-y planu nie dotknęły `contracts/openapi.json`; jedyna zmiana w oknie serii to #9 (pola `app_name`/`app_subtitle` w `/api/v1/config`, osobno zatwierdzona zmiana produktowa spoza planu); `tests/contract/test_http_contract.py`, `test_access_contract.py`, `test_admin_contract.py`, `test_ical.py`, `test_notifications.py`, `test_scheduler.py` zielone |
-| DOD-2 | PASS | `tests/architecture/test_dependencies.py` (allowlist importów domeny) i `tests/test_domain_boundaries.py` (świeży interpreter, brak FastAPI/SQLAlchemy/adapterów) zielone |
-| DOD-3 | PASS | guard DOD-3 zielony bez `xfail`; `test_unit_of_work_per_request.py`, `test_unit_of_work.py`, `test_unit_of_work_in_the_worker.py` (6), `test_outbox_crash_points.py` (6), `test_worker_progress.py` (10) zielone; worker ma pięć nazwanych kroków, każdy na własnym `SqlAlchemyUnitOfWork`; `notifications/service.py` i `policy.py` tylko flushują |
-| DOD-4 | PASS | guard DOD-4 zielony; `tests/domain/test_clock.py`, `test_clock_boundary.py` (23:30 UTC / 01:30 Warsaw) zielone; `time.monotonic()` pozostaje w workerze i solverze |
-| DOD-5 | PASS | `test_generated_schedule_obeys_rules.py` (8) i `test_scheduler.py` (29, fixed-seed) zielone |
-| DOD-6 | PASS | guard DOD-6 zielony; `model_registry.py` zawiera wyłącznie 9 importów modułów modeli, nie nazywa żadnej klasy; `test_model_registry.py` (8) pina: rejestr mapuje dokładnie to, co pakiet definiuje, import nie konfiguruje mapperów, importują go tylko `bootstrap/http.py`, `worker.py`, oba seedy, `migrations/env.py` i `tests/conftest.py`; `alembic check` bez operacji |
-| DOD-7 | PASS | pełny `test_concurrency_postgres.py` 26/26 na PostgreSQL 17; `test_abandoned_generation_runs.py`, crash points zielone; claim `FOR UPDATE SKIP LOCKED` i compare-and-set na `running` żyją w `SqlAlchemyRunClaims`, nie w `worker.py` |
-| DOD-8 | PASS | guard DOD-8 (poniżej) dodany w commicie `2b6fcf6` i tam uruchomiony zielony na `src/oncall`, `scripts/` i `migrations/env.py`; przegląd człowieka: brak identyfikatorów rund QA i defektów w komentarzach runtime; pozostałości opisane w „Ryzyka resztkowe" |
-| DOD-9 | PASS | guard DOD-9 zielony; inwentarz: 70 protokołów, największy 7 metod (`SignInAccounts`, `AccountBook`, `TeamDirectory`, `PublishedRoster`, `SchedulePublication`, `ShareLinks`); 26 bundles, największy 8 pól (`PublicationPorts`, dokładnie na limicie); nazwy legacy występują tylko jako literały guardu; dwa trace'y poniżej |
+| DOD-1 | PASS | the OpenAPI snapshot structurally equal to `app.openapi()` (63 paths, 77 operations, 95 schemas); the plan's PRs did not touch `contracts/openapi.json`; the only change in the series window is #9 (the `app_name`/`app_subtitle` fields in `/api/v1/config`, a separately approved product change outside the plan); `tests/contract/test_http_contract.py`, `test_access_contract.py`, `test_admin_contract.py`, `test_ical.py`, `test_notifications.py`, `test_scheduler.py` green |
+| DOD-2 | PASS | `tests/architecture/test_dependencies.py` (domain import allowlist) and `tests/test_domain_boundaries.py` (fresh interpreter, no FastAPI/SQLAlchemy/adapters) green |
+| DOD-3 | PASS | the DOD-3 guard green without `xfail`; `test_unit_of_work_per_request.py`, `test_unit_of_work.py`, `test_unit_of_work_in_the_worker.py` (6), `test_outbox_crash_points.py` (6), `test_worker_progress.py` (10) green; the worker has five named steps, each on its own `SqlAlchemyUnitOfWork`; `notifications/service.py` and `policy.py` only flush |
+| DOD-4 | PASS | the DOD-4 guard green; `tests/domain/test_clock.py`, `test_clock_boundary.py` (23:30 UTC / 01:30 Warsaw) green; `time.monotonic()` remains in the worker and the solver |
+| DOD-5 | PASS | `test_generated_schedule_obeys_rules.py` (8) and `test_scheduler.py` (29, fixed-seed) green |
+| DOD-6 | PASS | the DOD-6 guard green; `model_registry.py` contains only 9 imports of model modules and names no class; `test_model_registry.py` (8) pins: the registry maps exactly what the package defines, importing it configures no mappers, only `bootstrap/http.py`, `worker.py`, both seeds, `migrations/env.py` and `tests/conftest.py` import it; `alembic check` with no operations |
+| DOD-7 | PASS | the full `test_concurrency_postgres.py` 26/26 on PostgreSQL 17; `test_abandoned_generation_runs.py`, crash points green; the `FOR UPDATE SKIP LOCKED` claim and the compare-and-set on `running` live in `SqlAlchemyRunClaims`, not in `worker.py` |
+| DOD-8 | PASS | the DOD-8 guard (below) added in commit `2b6fcf6` and run green there on `src/oncall`, `scripts/` and `migrations/env.py`; human review: no QA round or defect identifiers in runtime comments; leftovers described in "Residual risks" |
+| DOD-9 | PASS | the DOD-9 guard green; inventory: 70 protocols, the largest with 7 methods (`SignInAccounts`, `AccountBook`, `TeamDirectory`, `PublishedRoster`, `SchedulePublication`, `ShareLinks`); 26 bundles, the largest with 8 fields (`PublicationPorts`, exactly at the limit); the legacy names occur only as guard literals; the two traces below |
 
-### Dwa ręczne trace'y
+### The two manual traces
 
 Command, `POST /api/v1/swaps`: `routes/swaps.py::create_swap` →
 `presentation/swaps.py::SwapRequestCreate` → `domain/swaps/use_cases.py::request_swap(SwapRequestInput, SwapPorts)`
 → `SwapRequestStore.add` → `infrastructure/sqlalchemy/swaps.py::SqlAlchemySwapRequests.add`
-(wiersze `swap_requests` i `swap_request_slots`, tylko `flush`) → `SwapJournal.requested`
+(`swap_requests` and `swap_request_slots` rows, `flush` only) → `SwapJournal.requested`
 → `SqlAlchemySwapJournal.requested` → `notifications/triggers.py::notify_swap_requested`
-→ `enqueue_notification` (wiersz `notification_outbox`, `flush`) oraz `audit.record_audit`
-(wiersz `audit_events`) → `swap_response` → commit w `database.py::get_db`
-(`SqlAlchemyUnitOfWork`, zależność o zasięgu funkcji z `bootstrap/providers.py::DbSession`).
-Odmowa `RecordedRefusal` przechodzi tą samą granicą przez `commit_transaction`.
+→ `enqueue_notification` (a `notification_outbox` row, `flush`) and `audit.record_audit`
+(an `audit_events` row) → `swap_response` → commit in `database.py::get_db`
+(`SqlAlchemyUnitOfWork`, a function-scoped dependency from `bootstrap/providers.py::DbSession`).
+A `RecordedRefusal` refusal crosses the same boundary through `commit_transaction`.
 
 Query, `GET /api/v1/schedules/published`: `routes/published.py::published_schedule`
 → `bootstrap/providers.py::calendar_reader` (`CalendarPorts`) →
 `domain/calendar/use_cases.py::dashboard(audience, ..., today=business_today())`
 → `PublishedRoster.duties_in_force` → `infrastructure/sqlalchemy/roster.py::SqlAlchemyPublishedRoster`
-(`assignments`, `schedules`) i `CalendarRoster` → `SqlAlchemyCalendarRoster`
-(`team_members`, `users`, `swap_requests`) → mapper w route do
-`presentation/published.py::PublishedScheduleResponse` → ta sama granica UoW.
+(`assignments`, `schedules`) and `CalendarRoster` → `SqlAlchemyCalendarRoster`
+(`team_members`, `users`, `swap_requests`) → the mapper in the route to
+`presentation/published.py::PublishedScheduleResponse` → the same UoW boundary.
 
-### Przegląd strukturalny serii
+### Structural review of the series
 
-- Schemat bazy: wszystkie 32 pliki `migrations/versions` są identyczne
-  z `485310c~1` na poziomie AST (różnice to wyłącznie `ruff format` z #8);
-  `migrations/env.py` zmienia jedynie import rejestru (#15). Nie doszła
-  żadna migracja.
-- Nowe klasy serii to protokoły, bundles, modele feature'owe, adaptery
-  i trzy wartości workera (`_Claimed`, `_Ending`, `_RequesterMissing`).
-  Żadna nazwa `*Factory`/`*Strategy`/`*Manager` nie doszła. `Argon2Passwords`,
-  `DirectoryAuthentication` i `CpSatSolver` tłumaczą (wątek, wyjątki
-  katalogu, mapowanie problemu), nie przekazują 1:1.
-- `worker.py` importuje `SessionFactory` tylko jako korzeń wstrzyknięcia w
-  `__main__`; każdy krok otwiera UoW na przekazanej fabryce.
+- Database schema: all 32 `migrations/versions` files are identical
+  to `485310c~1` at the AST level (the differences are exclusively `ruff format` from #8);
+  `migrations/env.py` changes only the registry import (#15). No
+  migration was added.
+- The new classes of the series are protocols, bundles, feature models, adapters
+  and three worker values (`_Claimed`, `_Ending`, `_RequesterMissing`).
+  No `*Factory`/`*Strategy`/`*Manager` name was added. `Argon2Passwords`,
+  `DirectoryAuthentication` and `CpSatSolver` translate (thread, directory
+  exceptions, problem mapping), they do not forward 1:1.
+- `worker.py` imports `SessionFactory` only as the injection root in
+  `__main__`; each step opens a UoW on the factory passed in.
 
-### Luka dowodowa domknięta przez Agenta 5
+### Evidence gap closed by Agent 5
 
-Tabela DoD obiecywała dla DOD-8 „source guard na identyfikatory
-rund/defektów", a Agent 0 dostał w zadaniu cztery guardy. Guard DOD-8 został
-dodany w `tests/architecture/test_completion_dod.py`: czyta komentarze
-(tokenizer) i docstringi (AST) w `src/oncall`, `scripts/` i
-`migrations/env.py`, odrzuca `QA-REPORT`, `QA<n>`, `round <n>` i
-`phase <n>`; historyczne migracje i testy są poza zakresem (finding A14
-dotyczy komentarzy produkcyjnych; migracja `0032` cytuje QA7 i pozostaje
-zamrożona). Czułość: projekt tymczasowy w teście oraz mutacja
-`src/oncall/policy.py` z komentarzem `QA7 par. 8`, wykryta jako
-`policy.py:34 cites QA history: 'QA7'` i cofnięta.
+The DoD table promised a "source guard for round/defect identifiers" for DOD-8,
+while Agent 0's task listed four guards. The DOD-8 guard was
+added in `tests/architecture/test_completion_dod.py`: it reads comments
+(tokenizer) and docstrings (AST) in `src/oncall`, `scripts/` and
+`migrations/env.py`, and rejects `QA-REPORT`, `QA<n>`, `round <n>` and
+`phase <n>`; historical migrations and tests are out of scope (finding A14
+concerns production comments; migration `0032` cites QA7 and stays
+frozen). Sensitivity: a temporary project in the test plus a mutation of
+`src/oncall/policy.py` with a `QA7 par. 8` comment, detected as
+`policy.py:34 cites QA history: 'QA7'` and reverted.
 
-### Ryzyka resztkowe (nieblokujące)
+### Residual risks (non-blocking)
 
-- `routes/domain_edge.py::refusals_as_http` przyjmuje `db`, którego ciało
-  już nie używa; pozostałość po commitach w route'ach sprzed fazy 2a.
-- Trzy pomocniki „compatibility" sprzed planu, używane wyłącznie przez
-  testy: `worker._generation_error`, `scheduler.py:1087` (wejście do budowy
-  modelu) i sformułowanie docstringu settera `User.display_name`
-  (`access_models.py:85`, sam setter jest w użyciu przez oba seedy).
-- Docstringi testów cytują rundy QA jako pochodzenie regresji; poza
-  zakresem DOD-8 (A14) i celowo nieobjęte guardem. Komentarz
-  `filterwarnings` w `pyproject.toml` cytuje QA7-L17.
-- `PublicationPorts` ma dokładnie 8 pól; następny konsument publikacji
-  wymusza podział, nie podniesienie limitu.
+- `routes/domain_edge.py::refusals_as_http` accepts a `db` that its body
+  no longer uses; a leftover of the commits in routes from before phase 2a.
+- Three "compatibility" helpers from before the plan, used exclusively by
+  tests: `worker._generation_error`, `scheduler.py:1087` (the entry to model
+  building) and the wording of the `User.display_name` setter docstring
+  (`access_models.py:85`, the setter itself is in use by both seeds).
+- Test docstrings cite QA rounds as the origin of regressions; outside
+  the scope of DOD-8 (A14) and deliberately not covered by the guard. The
+  `filterwarnings` comment in `pyproject.toml` cites QA7-L17.
+- `PublicationPorts` has exactly 8 fields; the next publication consumer
+  forces a split, not a raise of the limit.

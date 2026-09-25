@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CurrentDuty, api } from '../api'
 import { roleLabels } from '../lib/labels'
-import { WEEKDAYS } from '../lib/dates'
+import { weekdays } from '../lib/dates'
+import { locale, messages, useMessages } from '../i18n'
 import { RoleLabel, Skeleton, cx } from '../ui'
 
 const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
@@ -27,13 +28,14 @@ export function coverageEnd(duty: CurrentDuty): Date | null {
 /** "do wt 09:00 · 14 h 12 min", or only the end when it is already past. */
 export function formatUntil(end: Date | null, now: Date): string {
   if (!end) return ''
-  const when = `${WEEKDAYS[end.getDay()]} ${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`
+  const t = messages().duty.nowStrip
+  const when = `${weekdays()[end.getDay()]} ${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`
   const minutes = Math.round((end.getTime() - now.getTime()) / 60_000)
-  if (minutes <= 0) return `do ${when}`
+  if (minutes <= 0) return t.until(when)
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
-  const left = hours > 0 ? `${hours} h ${rest} min` : `${rest} min`
-  return `do ${when} · ${left}`
+  const left = hours > 0 ? t.hoursMinutes(hours, rest) : t.minutes(rest)
+  return t.untilWithLeft(when, left)
 }
 
 function useMinuteTick() {
@@ -53,6 +55,7 @@ function useMinuteTick() {
  */
 export function NowStrip({ children }: { children?: React.ReactNode }) {
   const schedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
+  const t = useMessages().duty.nowStrip
   const now = useMinuteTick()
   const current = schedule.data?.current ?? []
   const stale = schedule.isError && schedule.data !== undefined
@@ -61,7 +64,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
   const holiday = schedule.data?.today_holiday_name ?? null
 
   return (
-    <div className="now" role="region" aria-label="Dyżur teraz">
+    <div className="now" role="region" aria-label={t.region}>
       {ROLES.map((role) => {
         const duty = current.find((item) => item.role === role)
         const notApplicable = !duty && role === 'late_shift' && dayOff
@@ -81,21 +84,21 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
                     {duty.contact_phone}
                   </a>
                 )}
-                <span className={cx('now-until', stale && 'now-stale')} title={stale && updated ? `Stan z ${updated.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}` : undefined}>
+                <span className={cx('now-until', stale && 'now-stale')} title={stale && updated ? t.asOf(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })) : undefined}>
                   {stale && updated
-                    ? `stan z ${updated.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`
+                    ? t.asOfInline(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }))
                     : formatUntil(coverageEnd(duty), now)}
                 </span>
               </>
             ) : (
               <>
-                <span className="now-who now-who-none">{notApplicable ? 'nie dotyczy' : 'brak obsady'}</span>
+                <span className="now-who now-who-none">{notApplicable ? t.notApplicable : t.unstaffed}</span>
                 <span className="now-until">
-                  {notApplicable ? (holiday ? `święto · ${holiday}` : 'dzień wolny · 2X') : schedule.isError ? 'brak połączenia' : ''}
+                  {notApplicable ? (holiday ? t.holiday(holiday) : t.dayOff) : schedule.isError ? t.offline : ''}
                 </span>
               </>
             )}
-            <span className="sr-only">{roleLabels[role]}</span>
+            <span className="sr-only">{roleLabels()[role]}</span>
           </div>
         )
       })}

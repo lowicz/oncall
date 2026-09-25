@@ -4,10 +4,13 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## Layout
 
-- `docs/` is only for maintained product and user documentation in Polish (the
-  UI is Polish), rendered to static HTML and served at `/docs/`. Never put QA
-  reports, plans, test scripts or screenshots there. Every page must be listed
-  in `docs/toc.json`.
+- `docs/` is only for maintained product and user documentation: Polish at the
+  root (the default language), its English translation under `docs/en/` with
+  the same file names, both rendered to static HTML and served at `/docs/` and
+  `/docs/en/`. Never put QA reports, plans, test scripts or screenshots there.
+  Every page must be listed in `docs/toc.json` and `docs/en/toc.json`, and a
+  page changed in one language is changed in the other: the renderer fails on
+  a page missing on one side or on headings that differ in number or level.
 - `archive/docs/` - the former `docs/` tree: plans, QA reports, screenshots and
   test scripts. Historical, not maintained; see `archive/README.md`. Source
   comments that cite `archive/docs/PLAN.md` or `archive/docs/SOLVER.md` point
@@ -39,10 +42,42 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   tokens). `tests/test_email_templates.py` lints every template against the
   constructs Outlook drops and pins one rendering in `tests/snapshots/`;
   regenerate it with `UPDATE_EMAIL_SNAPSHOTS=1 pytest tests/test_email_templates.py`.
-- `frontend/scripts/build-docs.mjs` renders `docs/` into
-  `frontend/public/docs/` (gitignored). It runs as `prebuild`, so `npm run
-  build` always refreshes it, and it fails the build on an unlisted page, a
-  link leaving the documentation tree, or an anchor matching no heading.
+- `frontend/scripts/build-docs.mjs` renders `docs/` and `docs/en/` into
+  `frontend/public/docs/` (gitignored), the English pages under `en/`. It runs
+  as `prebuild`, so `npm run build` always refreshes it, and it fails the build
+  on an unlisted page, a link leaving the documentation tree, an anchor
+  matching no heading, or an English tree whose pages or heading levels differ
+  from the Polish one. The page chrome's words live in the script's `LANGUAGES`.
+
+## Languages
+
+- Polish is the default everywhere; English is the second language. A new
+  visitor sees Polish whatever the browser prefers. The Polish interface and
+  the rendered Polish documentation are locked by file snapshots
+  (`frontend/src/test/polish-baseline.test.tsx`, `__snapshots__/polish/`, and
+  `frontend/scripts/__snapshots__/docs-pl-*.html`): a diff there is a change a
+  Polish reader sees, updated with `vitest -u` only when it is intended.
+- Frontend: every word a screen shows comes from `src/i18n/pl/<area>.ts` (the
+  source of truth and the type) and `src/i18n/en/<area>.ts` (typed against it,
+  so a missing or extra key fails `tsc`); components read `useMessages()`,
+  helpers outside React `messages()`. Values are strings or arrow functions;
+  plurals go through `src/lib/plural.ts`. The language store is
+  `src/i18n/language.ts` (`localStorage` key `oncall-language`, `<html lang>`),
+  `<Routes key={language}>` remounts the screens on a switch and
+  `components/LanguageControl.tsx` invalidates every query, because the API
+  answers in the language of the request. `src/test/polish-only-in-catalog.test.ts`
+  fails on a Polish letter anywhere else in `src/` (comments excepted).
+- Backend: `oncall.i18n` holds one catalog per language (`pl.py`, `en.py`,
+  English keys, the same keys and placeholders in both, checked by
+  `tests/test_i18n.py`). The middleware in `oncall.i18n.middleware` reads
+  `Accept-Language` into a context variable per request and answers with
+  `Content-Language`; `translate(key, **params)` reads it. `DomainError(key,
+  **params)` renders `str(error)` in the request's language (Polish outside a
+  request, so the worker records Polish); `RuleViolation.message` is derived
+  from `rule` the same way, and `polish_holiday_names` follows the language.
+  Text that is recorded or sent rather than answered (audit summaries, decision
+  notes, run diagnostics, draft names, e-mails, ICS, the operator's log) stays
+  Polish, module by module in `tests/architecture/test_language.py`.
 
 ## CI and releases
 
@@ -107,9 +142,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   in and out); selects are native `<select>`. Tests drive them with
   `fireEvent.change`, not with option clicks.
 - Every number, date, weekday and month a screen prints goes through
-  `src/lib/numbers.ts` (decimal comma) and `src/lib/dates.ts` (DD-MM-RRRR, one
-  weekday set equal to the API's `weekday`); screens call no `toLocaleString`
-  and keep no name arrays of their own.
+  `src/lib/numbers.ts` (decimal comma in Polish, `locale()` for `Intl`) and
+  `src/lib/dates.ts` (DD-MM-RRRR, weekday and month names from the `dates`
+  catalog, the weekday set equal to the API's `weekday` in each language);
+  screens call no `toLocaleString` and keep no name arrays of their own.
 - The product name and subtitle come from `/api/v1/config`
   (`ONCALL_APP_NAME`, `ONCALL_APP_SUBTITLE`) through `useBranding()`; the
   source tree carries no organisation name.

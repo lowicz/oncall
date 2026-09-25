@@ -3693,7 +3693,7 @@
         "type": "object"
       },
       "UnavailabilityConflictResponse": {
-        "description": "One assignment that lands on a hard „nie mogę\" of the person assigned.\n\nStructured, not prerendered, because the draft matrix counts people and the\n409 detail renders sentences from the same list.",
+        "description": "One assignment that lands on a hard `unavailable` entry of the person assigned.\n\nStructured, not prerendered, because the draft matrix counts people and the\n409 detail renders sentences from the same list.",
         "properties": {
           "assignee_name": {
             "title": "Assignee Name",

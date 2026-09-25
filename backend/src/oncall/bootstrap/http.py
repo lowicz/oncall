@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 
 import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.config import Settings, get_settings
+from oncall.i18n import translate
+from oncall.i18n.middleware import RequestLanguageMiddleware
 from oncall.routes.access import router as access_router
 from oncall.routes.admin import router as admin_router
 from oncall.routes.availability import router as availability_router
@@ -23,19 +25,16 @@ from oncall.routes.swaps import router as swaps_router
 from oncall.routes.system import router as system_router
 from oncall.routes.team import router as team_router
 
-_VALIDATION_MESSAGES = {
-    "missing": "To pole jest wymagane.",
-    "string_too_short": "Wartość jest za krótka (minimum {min_length} znaków).",
-    "string_too_long": "Wartość jest za długa (maksimum {max_length} znaków).",
-    "enum": "Nieprawidłowa wartość. Dozwolone: {expected}.",
-    "string_pattern_mismatch": "Wartość ma nieprawidłowy format.",
-}
+#: Pydantic error types with a sentence of their own in the catalogs
+#: (`validation.<type>`); every other type keeps Pydantic's English wording.
+_TRANSLATED_VALIDATION_TYPES = frozenset(
+    {"missing", "string_too_short", "string_too_long", "enum", "string_pattern_mismatch"}
+)
 
 
-def _translate_validation_error(error: dict) -> str:
-    template = _VALIDATION_MESSAGES.get(error["type"])
-    if template is not None:
-        return template.format(**error.get("ctx", {}))
+def _validation_message(error: dict) -> str:
+    if error["type"] in _TRANSLATED_VALIDATION_TYPES:
+        return translate(f"validation.{error['type']}", **error.get("ctx", {}))
     if error["type"] == "value_error":
         return str(error.get("ctx", {}).get("error", error["msg"])).removeprefix("Value error, ")
     return error["msg"]
@@ -48,7 +47,7 @@ async def translated_validation_error(_: Request, exc: RequestValidationError) -
             "detail": [
                 {
                     "loc": error["loc"],
-                    "msg": _translate_validation_error(error),
+                    "msg": _validation_message(error),
                     "type": error["type"],
                 }
                 for error in exc.errors()
@@ -88,6 +87,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "X-CSRF-Token"],
         expose_headers=["X-CSRF-Token"],
     )
+    application.add_middleware(RequestLanguageMiddleware)
     application.add_exception_handler(RequestValidationError, translated_validation_error)
     for router in (
         team_router,
