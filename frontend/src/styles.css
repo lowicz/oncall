@@ -197,7 +197,6 @@ button:disabled { cursor: default; }
    app already renders its own toggle next to the field, hide the native one
    so only one reveal control shows. Unsupported elsewhere, so harmless. */
 .in-pw-toggled::-ms-reveal { display: none; }
-.in-pw-toggled::-ms-clear { display: none; }
 .sel-wrap { position: relative; display: block; }
 .sel-wrap::after { content: ''; position: absolute; right: 10px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
 .in-sel { appearance: none; padding-right: 26px; }
