@@ -9,12 +9,33 @@ calendar feeds is a deployment setting (`ONCALL_APP_NAME`, with an optional
 [![ci](https://github.com/lowicz/oncall/actions/workflows/ci.yml/badge.svg)](https://github.com/lowicz/oncall/actions/workflows/ci.yml)
 [![release](https://github.com/lowicz/oncall/actions/workflows/release.yml/badge.svg)](https://github.com/lowicz/oncall/actions/workflows/release.yml)
 
-Product and user documentation lives in [`docs/`](docs/index.md) and is rendered
-into static HTML served by the application itself at `/docs/`, reachable from
-the "Dokumentacja" link in the top bar. The same pages are published at
+Product and user documentation lives in [`docs/`](docs/index.md) (Polish) and
+[`docs/en/`](docs/en/index.md) (English) and is rendered into static HTML served
+by the application itself at `/docs/` and `/docs/en/`, reachable from the
+documentation link in the top bar. The same pages are published at
 <https://lowicz.github.io/oncall/> from the same source. The earlier contents
 of `docs/` - plans, QA reports, screenshots and test scripts - are preserved
 unchanged in [`archive/docs/`](archive/README.md).
+
+## Languages
+
+The interface, the API's answers and the documentation come in Polish (the
+default: a new visitor sees Polish whatever the browser prefers) and English.
+The choice is made in the account menu, on the "More" screen or under the
+sign-in form, is kept in the browser (`localStorage`, key `oncall-language`)
+and is sent to the API as `Accept-Language`, which picks the language of
+refusals, validation messages, rule warnings and holiday names per request and
+answers with `Content-Language`. What the application records or sends rather
+than answers - audit summaries, decision notes, generator diagnostics, e-mails,
+calendar feeds, the operator's log - stays Polish.
+
+Where the words live: `frontend/src/i18n/pl/` (the source of truth and the
+type) and `frontend/src/i18n/en/` for the interface, `backend/src/oncall/i18n/`
+for the API, `docs/` and `docs/en/` for the documentation. The Polish
+interface and documentation are locked by snapshot tests
+(`frontend/src/test/polish-baseline.test.tsx`,
+`frontend/scripts/build-docs.test.mjs`): a diff there is a change a Polish
+reader would see.
 
 ## Running
 

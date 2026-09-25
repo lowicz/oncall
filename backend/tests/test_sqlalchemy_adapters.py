@@ -194,7 +194,7 @@ async def test_swap_journal_writes_the_audit_entry_in_the_actors_name(db, people
         stored,
         requester_name="Bartek",
         replacement_name="Anna",
-        warnings=[RuleViolation("day_off_block", "m", "Anna", (DAY,))],
+        warnings=[RuleViolation("day_off_block", "Anna", (DAY,))],
     )
     await db.commit()
 
@@ -256,8 +256,8 @@ async def test_availability_audit_names_the_entry_before_the_session_flushes(db,
 async def test_override_journal_records_moves_and_rule_ids(db, people) -> None:
     journal = SqlAlchemyOverrideJournal(db, people["coordinator"])
     violations = [
-        RuleViolation("three_in_seven", "m", "Anna", (DAY,)),
-        RuleViolation("max_consecutive", "m", "Anna", (DAY,)),
+        RuleViolation("three_in_seven", "Anna", (DAY,)),
+        RuleViolation("max_consecutive", "Anna", (DAY,)),
     ]
     await journal.duty_overridden(
         schedule_id=people["schedule"].id,

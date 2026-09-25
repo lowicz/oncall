@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from oncall.domain.availability.models import AvailabilityEntry
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import AvailabilityKind
+from oncall.i18n import translate
 
 
 class AvailabilityCreate(BaseModel):
@@ -21,9 +22,9 @@ class AvailabilityCreate(BaseModel):
     @model_validator(mode="after")
     def validate_dates(self) -> AvailabilityCreate:
         if self.ends_on < self.starts_on:
-            raise ValueError("Data końcowa nie może poprzedzać początkowej")
+            raise ValueError(translate("availability.range_reversed"))
         if (self.ends_on - self.starts_on).days > 366:
-            raise ValueError("Jeden wpis dostępności może obejmować maksymalnie 366 dni")
+            raise ValueError(translate("availability.range_too_long"))
         return self
 
 

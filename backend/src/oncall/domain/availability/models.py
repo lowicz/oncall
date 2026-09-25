@@ -93,7 +93,7 @@ class AvailabilityDeclared:
     entry: AvailabilityEntry
     member: Member
     on_behalf: bool
-    #: Duties the member holds inside a hard „nie mogę"; the entry does not
+    #: Duties the member holds inside a hard `unavailable` entry; it does not
     #: remove them.
     duty_conflicts: tuple[Duty, ...]
     warning: str | None

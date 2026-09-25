@@ -1,56 +1,56 @@
-# Etap N1 - Odblokowanie solvera (BLK-01, HGH-01)
+# Stage N1 - Unblocking the solver (BLK-01, HGH-01)
 
 Status: **done** (2026-09-06)
 
-## Punkt blokujący użytkownika (w tym etapie NO-OP)
+## The user's blocking item (a NO-OP in this stage)
 
-Użytkownik dodał osobny problem blokujący o twardej niedostępności.
-Został przejęty przez `STAGE-BLOCKING.md`. Tu NIE jest poruszany.
+The user added a separate blocking problem about hard unavailability.
+It was taken over by `STAGE-BLOCKING.md`. It is NOT covered here.
 
-## Wykonane
+## Done
 
-1. **BLK-01** Zastąpiono mechanizm `add_assumption(spacing_enabled)` + `only_enforce_if`
-   budowaniem dwóch niezależnych modeli przez nowy helper `_build_model(*, spacing: bool)`
+1. **BLK-01** The `add_assumption(spacing_enabled)` + `only_enforce_if` mechanism was replaced
+   with building two independent models through the new helper `_build_model(*, spacing: bool)`
    (`backend/src/oncall/scheduler.py`).
-   - `spacing=True` kompiluje reguły rozrzedzania jako twarde ograniczenia,
-   - po `INFEASIBLE` przy `spacing=True` budowany jest drugi model z `spacing=False`
-     i ponawiany solve; sukces dołącza ostrzeżenie „Reguły rozrzedzania musiały
-     zostać zawieszone..." (kompletny szkic z ostrzeżeniem, nigdy 409).
-2. **BLK-01** Parametr solvera: `solver.parameters.num_search_workers` (przestarzały
-   w OR-Tools 9.15) zamieniony na `solver.parameters.num_workers`. Nie ustawiamy obu.
-3. **HGH-01** Domyślny budżet `ONCALL_SOLVER_SECONDS` podniesiony z 30 do 90 s:
+   - `spacing=True` compiles the spacing rules as hard constraints,
+   - after `INFEASIBLE` with `spacing=True`, a second model is built with `spacing=False`
+     and the solve is retried; success attaches the warning „Reguły rozrzedzania musiały
+     zostać zawieszone..." (a complete draft with a warning, never a 409).
+2. **BLK-01** Solver parameter: `solver.parameters.num_search_workers` (deprecated
+   in OR-Tools 9.15) replaced with `solver.parameters.num_workers`. We do not set both.
+3. **HGH-01** The default `ONCALL_SOLVER_SECONDS` budget raised from 30 to 90 s:
    - `config.py` (`Field(default=90.0, ...)`),
-   - `docker-compose.yml` (api i worker),
+   - `docker-compose.yml` (api and worker),
    - `.env.example`, `README.md`, `archive/docs/SOLVER.md`,
-   - `SOLVE_SECONDS = 90.0` w `scheduler.py`.
-4. `archive/docs/SOLVER.md`: opis twardych reguł rozrzedzania przepisany z „warunkowane
-   założeniem CP-SAT" na „kompilowane do twardych ograniczeń + drugi przebieg".
+   - `SOLVE_SECONDS = 90.0` in `scheduler.py`.
+4. `archive/docs/SOLVER.md`: the description of the hard spacing rules rewritten from "conditioned
+   on a CP-SAT assumption" to "compiled into hard constraints + a second pass".
 
-## Testy (dodane/utrzymane w `tests/test_scheduler.py`)
+## Tests (added/kept in `tests/test_scheduler.py`)
 
-- `test_spacing_rules_are_never_assumption_gated` - monkeypatch `add_assumption`,
-  które rzuca, gdyby ktoś je przywrócił (regresja na blokadę BLK-01).
-- `test_solver_uses_num_workers_instead_of_deprecated_field` - rejestruje parametry
-  `num_workers=4` i `num_search_workers=0`.
-- `test_spacing_fallback_returns_complete_draft_with_warning` - ścieżka zapasowa
-  daje kompletny szkic + ostrzeżenie, nie pusty failure (odpowiednik „nie 409").
-- Istniejące `test_infeasible_spacing_is_retried_with_an_explicit_warning` nadal przechodzi.
+- `test_spacing_rules_are_never_assumption_gated` - monkeypatches `add_assumption`
+  so that it raises should anyone bring it back (regression for the BLK-01 blocker).
+- `test_solver_uses_num_workers_instead_of_deprecated_field` - records the parameters
+  `num_workers=4` and `num_search_workers=0`.
+- `test_spacing_fallback_returns_complete_draft_with_warning` - the fallback path
+  yields a complete draft + a warning, not an empty failure (the equivalent of "not a 409").
+- The existing `test_infeasible_spacing_is_retried_with_an_explicit_warning` still passes.
 
-## Weryfikacja
+## Verification
 
 - `uv run --extra dev python -m pytest tests/test_scheduler.py -q` -> **28 passed**.
-- Pełny backend poza solverem: `uv run --extra dev python -m pytest -q --ignore=tests/test_scheduler.py`
+- Full backend except the solver: `uv run --extra dev python -m pytest -q --ignore=tests/test_scheduler.py`
   -> **164 passed**.
-- Czas paczki testów solvera spadł z ~134 s do ~40 s (efekt równoległości).
+- The solver test suite time dropped from ~134 s to ~40 s (effect of parallelism).
 
-## Kryterium wyjścia z planu (rozszerzone)
+## Plan exit criterion (extended)
 
-- 91 dni na 2 rdzeniach kończy się kompletnym grafikiem w każdym z dziesięciu
-  kolejnych uruchomień. **Do zweryfikowania na docelowym sprzęcie/docker**
-  (tutaj: ograniczenie do `cpus: 2` kontenera worker nie było odtwarzane w sesji).
-  Sugerowany skrypt weryfikacyjny: uruchomić 10x `POST /api/v1/scheduling/runs`
-  na zakres 2027-01-04..2027-04-04 i sprawdzić `completed` + `schedule_id`.
+- 91 days on 2 cores finishes with a complete schedule in each of ten
+  consecutive runs. **To be verified on the target hardware/docker**
+  (here: the `cpus: 2` limit of the worker container was not reproduced in the session).
+  Suggested verification script: run `POST /api/v1/scheduling/runs` 10x
+  for the range 2027-01-04..2027-04-04 and check `completed` + `schedule_id`.
 
-## Jak kontynuować
+## How to continue
 
-- Następny etap N2 (`STAGE-N2.md`) - HGH-03/HGH-04/HGH-02, czeka na start.
+- Next stage N2 (`STAGE-N2.md`) - HGH-03/HGH-04/HGH-02, waiting to start.

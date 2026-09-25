@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import func, select
 
@@ -6,6 +6,7 @@ from oncall.audit import record_audit
 from oncall.domain.clock import as_utc, business_today
 from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.workdays import is_working_day, polish_holidays
 from tests.conftest import (
     create_member,
     create_published_schedule,
@@ -66,8 +67,24 @@ async def test_login_success_and_failure_are_audited(client, db, frozen_clock) -
     assert as_utc(success.occurred_at) == frozen_clock.instant
 
 
+def _working_day_followed_by_one(after: date) -> date:
+    """A working day whose next day is also one.
+
+    The schedule below starts the day before it and the override lands on it,
+    so the correction splits no day-off block and leaves the original holder
+    a run that breaks no rest rule, whatever weekday the suite runs on.
+    """
+    holidays = polish_holidays(after, after + timedelta(days=14))
+    return next(
+        day
+        for day in (after + timedelta(days=offset) for offset in range(1, 7))
+        if is_working_day(day, holidays) and is_working_day(day + timedelta(days=1), holidays)
+    )
+
+
 async def test_override_and_share_link_flow_are_audited(client, db) -> None:
     today = business_today()
+    override_day = _working_day_followed_by_one(today)
     anna = await create_user(db, "anna", email="a@x.com", display_name="Anna Kowalska")
     marek = await create_user(db, "marek", email="m@x.com", display_name="Marek Nowak")
     ola = await create_user(db, "ola", email="o@x.com", display_name="Ola Wiśniewska")
@@ -76,7 +93,7 @@ async def test_override_and_share_link_flow_are_audited(client, db) -> None:
     ola_member = await create_member(db, ola, display_name="Ola Wiśniewska")
     schedule = await create_published_schedule(
         db,
-        starts_on=today,
+        starts_on=override_day - timedelta(days=1),
         days=7,
         primary=["Anna Kowalska"],
         secondary=["Marek Nowak"],
@@ -89,7 +106,7 @@ async def test_override_and_share_link_flow_are_audited(client, db) -> None:
         json={
             "schedule_id": str(schedule.id),
             "expected_version": schedule.version,
-            "service_date": str(today + timedelta(days=1)),
+            "service_date": str(override_day),
             "role": "primary",
             "replacement_member_id": str(ola_member.id),
         },

@@ -1,5 +1,6 @@
 import { AssignmentRole, AvailabilityKind, CalendarData } from '../api'
-import { MONTHS_SHORT, formatMonth } from './dates'
+import { formatMonth, isMonday, monthsShort } from './dates'
+import { messages } from '../i18n/messages'
 
 /** Roles that must be staffed every single day. The 11-19 shift is working-days
  *  only (archive/docs/PLAN.md §3), so a missing one is not a coverage gap. */
@@ -100,10 +101,7 @@ export function memberGroup(
   return hasDutyInRange(member, assignments) ? 'on_duty' : 'rest'
 }
 
-export const MEMBER_GROUP_LABELS: Record<Exclude<MemberGroup, 'you'>, string> = {
-  on_duty: 'Z dyżurem w zakresie',
-  rest: 'Pozostali',
-}
+export const memberGroupLabels = (): Record<Exclude<MemberGroup, 'you'>, string> => messages().calendar.memberGroups
 
 export function isCurrentAssignee(
   member: CalendarData['members'][number],
@@ -166,10 +164,11 @@ export function staffingCandidates(
           && (!item.ends_on || item.ends_on >= serviceDate),
       ) ?? true
       let disabledReason: string | undefined
-      if (isCurrent) disabledReason = 'już pełni tę rolę tego dnia'
-      else if (!eligible) disabledReason = 'nie ma uprawnień do roli'
-      else if (unavailable) disabledReason = 'niedostępna tego dnia'
-      else if (oppositeClash) disabledReason = 'ma już drugi on-call tego dnia'
+      const reasons = messages().calendar.disabledReasons
+      if (isCurrent) disabledReason = reasons.alreadyHoldsRole
+      else if (!eligible) disabledReason = reasons.notEligible
+      else if (unavailable) disabledReason = reasons.unavailable
+      else if (oppositeClash) disabledReason = reasons.otherOnCall
       return { id: member.id, display_name: member.display_name, isCurrent, disabledReason }
     })
     .sort((a, b) => {
@@ -202,7 +201,7 @@ export function monthGroups(days: CalendarData['days']): MonthGroup[] {
     groups.push({
       key,
       label: formatMonth(key),
-      shortLabel: `${MONTHS_SHORT[Number(month) - 1]} ${year}`,
+      shortLabel: `${monthsShort()[Number(month) - 1]} ${year}`,
       span: 1,
     })
   }
@@ -210,7 +209,7 @@ export function monthGroups(days: CalendarData['days']): MonthGroup[] {
 }
 
 /** Monday starts a new week block; used to draw the week separators. */
-export const startsWeek = (day: CalendarData['days'][number]) => day.weekday === 'pon'
+export const startsWeek = (day: CalendarData['days'][number]) => isMonday(day.service_date)
 
 /** Single letters keep a 44px column readable. The legend above the matrix and
  *  the cell's accessible name both spell them out. */

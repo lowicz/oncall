@@ -3,11 +3,7 @@ from oncall.worker import _generation_error, _generation_failure
 
 
 def test_generation_error_preserves_reason_and_named_conflicts() -> None:
-    exc = GenerationFailed(
-        "Reguły twarde nie pozwalają utworzyć kompletnego grafiku",
-        "INFEASIBLE",
-        ("Brak eligible osoby", "Limit kolejnych dyżurów"),
-    )
+    exc = GenerationFailed("INFEASIBLE", ("Brak eligible osoby", "Limit kolejnych dyżurów"))
 
     message = _generation_error(exc)
 

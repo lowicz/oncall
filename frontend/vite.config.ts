@@ -1,6 +1,13 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
+// The product runs on Europe/Warsaw time: every date is formatted in that zone
+// (`warsawDate()`), and the "until" countdown in the now-strip is built from
+// local-time Dates. Pin the test runner to the same zone so the snapshots and
+// the time maths are deterministic on any machine, not just a Warsaw laptop
+// (CI runs in UTC, which shifted the countdown by the CEST offset).
+process.env.TZ = 'Europe/Warsaw'
+
 export default defineConfig({
   plugins: [react()],
   server: {

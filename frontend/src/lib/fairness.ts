@@ -1,4 +1,5 @@
 import { FairnessCategory, FairnessDuty, FairnessMember } from '../api'
+import { messages } from '../i18n/messages'
 import { formatDecimal } from './numbers'
 
 /** Widest deviation a bar renders at full length; beyond it the bar pins. */
@@ -7,8 +8,9 @@ export const DEVIATION_SCALE = 3
 export const roundPoints = (value: number) => Math.round(value * 100) / 100
 
 export function deviationWords(value: number) {
-  if (Math.abs(value) < 0.01) return 'zgodnie z udziałem'
-  return value > 0 ? `${formatDecimal(value)} ponad udział` : `${formatDecimal(Math.abs(value))} poniżej udziału`
+  const t = messages().fairness.deviation
+  if (Math.abs(value) < 0.01) return t.onShare
+  return value > 0 ? t.aboveShare(formatDecimal(value)) : t.belowShare(formatDecimal(Math.abs(value)))
 }
 
 /**

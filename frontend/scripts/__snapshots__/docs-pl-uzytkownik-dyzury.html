@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0e13" />
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Teraz i Grafik · Dokumentacja On-call</title>
+    <script>
+      // Identical to index.html: apply the colour scheme before first paint and
+      // read it from the same storage key, so the choice made in the
+      // application carries over to the documentation and back.
+      (function () {
+        var scheme = 'dark'
+        try {
+          var mode = localStorage.getItem('oncall-theme') || 'dark'
+          scheme =
+            mode === 'system'
+              ? window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+              : mode === 'light'
+                ? 'light'
+                : 'dark'
+        } catch (error) {}
+        document.documentElement.setAttribute('data-theme', scheme)
+      })()
+    </script>
+    <link rel="stylesheet" href="../assets/fonts.css" />
+    <link rel="stylesheet" href="../assets/docs.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="../../"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><path fill="#fff" d="M12 16h20v6H19v7h11v6H19v7h13v6H12z"/><path fill="#fff" d="M44 16h7L42 48h-7z"/></svg><span id="brand-name">On-call</span></a>
+      <span class="topbar-title">Dokumentacja</span>
+      <div class="topbar-actions">
+        <a class="topbar-link" href="../en/uzytkownik/dyzury.html" lang="en" hreflang="en">English</a>
+        <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Przełącz motyw">
+          Motyw
+        </button>
+        <a class="topbar-link" href="../../">Wróć do aplikacji</a>
+      </div>
+    </header>
+
+    <div class="shell">
+      <details class="sidebar" id="sidebar" open>
+        <summary class="sidebar-toggle">Spis treści</summary>
+        <nav class="sidebar-body" aria-label="Spis treści dokumentacji">
+          <ul>
+            <li><a href="../index.html">Dokumentacja On-call</a></li>
+          </ul>
+          <h2>Produkt</h2>
+          <ul>
+            <li><a href="../produkt/przeglad.html">Przegląd produktu</a></li>
+            <li><a href="../produkt/role-i-dostep.html">Role i dostęp</a></li>
+            <li><a href="../produkt/model-grafiku.html">Model grafiku</a></li>
+            <li><a href="../produkt/generator.html">Generator grafiku</a></li>
+            <li><a href="../produkt/sprawiedliwosc.html">Sprawiedliwość</a></li>
+            <li><a href="../produkt/integracje.html">Integracje</a></li>
+          </ul>
+          <h2>Użytkownik</h2>
+          <ul>
+            <li><a href="../uzytkownik/pierwsze-kroki.html">Pierwsze kroki</a></li>
+            <li><a href="../uzytkownik/dyzury.html" aria-current="page">Teraz i Grafik</a></li>
+            <li><a href="../uzytkownik/dostepnosc.html">Moje dyżury i dostępność</a></li>
+            <li><a href="../uzytkownik/zamiany.html">Zamiany</a></li>
+            <li><a href="../uzytkownik/generowanie-grafiku.html">Generowanie grafiku</a></li>
+            <li><a href="../uzytkownik/administracja.html">Administracja</a></li>
+            <li><a href="../uzytkownik/rozwiazywanie-problemow.html">Rozwiązywanie problemów</a></li>
+          </ul>
+          <h2>Wdrożenie</h2>
+          <ul>
+            <li><a href="../wdrozenie/uruchomienie.html">Uruchomienie</a></li>
+            <li><a href="../wdrozenie/systemd.html">Systemd (Podman Compose)</a></li>
+            <li><a href="../wdrozenie/aktualizacja.html">Aktualizacja wdrożenia</a></li>
+            <li><a href="../wdrozenie/wydania.html">Wydania i wersje</a></li>
+            <li><a href="../wdrozenie/tls.html">TLS</a></li>
+            <li><a href="../wdrozenie/ldap.html">Logowanie z katalogu (LDAP / Active Directory)</a></li>
+          </ul>
+        </nav>
+      </details>
+      <script>
+        // Open in the markup, so a wide screen shows the contents with no
+        // script at all; collapsed here on a narrow one, before first paint,
+        // so a phone opens on the page it was sent to and not on a screenful
+        // of links. The same breakpoint as the stylesheet's.
+        (function () {
+          var sidebar = document.getElementById('sidebar')
+          var wide = window.matchMedia('(min-width: 901px)')
+          var sync = function () {
+            sidebar.open = wide.matches
+          }
+          sync()
+          wide.addEventListener('change', sync)
+        })()
+      </script>
+
+      <div class="column">
+        <main class="content">
+<h1 id="teraz-i-grafik">Teraz i Grafik</h1>
+<p>Codzienna praca z grafikiem dzieje się na dwóch ekranach: <strong>Teraz</strong> (<code>/</code>)
+odpowiada na pytanie „kto ma dyżur?”, a <strong>Grafik</strong> (<code>/grafik</code>) pokazuje
+macierz osób × dni na wybrany zakres.</p>
+<h2 id="teraz">Teraz</h2>
+<p>Tytułem ekranu jest dzisiejsza data, a pod nią stan opublikowanego grafiku:
+do kiedy sięga i która to wersja. W dzień wolny lub święto podtytuł dodaje,
+że obowiązuje stawka 2X (<code>PRIMARY</code> i <code>SECONDARY</code> trwają wtedy całą dobę).
+Kto ma dyżur w tej chwili, do kiedy i pod jakim telefonem, pokazuje stale
+pasek „Dyżur teraz” nad każdym ekranem, więc sam ekran nie powtarza obsady.</p>
+<p>Akcje po prawej zależą od roli: członek zespołu ma <strong>Eksport ICS</strong> i <strong>Zgłoś
+dostępność</strong> (oba prowadzą do ekranu Moje), koordynator i administrator mają
+<strong>Generuj kolejny zakres</strong>, który otwiera Generator z zakresem zaczynającym
+się dzień po końcu opublikowanego grafiku.</p>
+<p>Pod nagłówkiem jest rząd znaczników ryzyka: dni bez pełnej obsady i dni poza
+opublikowanym zakresem (jak na Grafiku), liczba zamian czekających na Twoją
+decyzję (prowadzi do Zamian) oraz, dla koordynatora, wynik kryterium
+sprawiedliwości (prowadzi do raportu).</p>
+<p>Niżej jest sekcja <strong>Najbliższe 4 tygodnie</strong> z tą samą macierzą co na ekranie
+Grafik i tymi samymi kontrolkami w nagłówku sekcji: długość 2 / 4 / 8
+tygodni, tydzień wstecz i do przodu, powrót do dziś, <strong>Tylko z dyżurem</strong>,
+<strong>Legenda</strong> i <strong>Lista dni</strong>. Gdy nikt nie jest jeszcze w rotacji, sekcja
+zamiast pustej macierzy mówi to wprost i nie pokazuje kontrolek;
+administrator dostaje w niej przycisk <strong>Otwórz Osoby</strong>, żeby dodać zespół.
+Gdy zespół ma osoby, ale żadna nie jest w rotacji w widocznym zakresie,
+sekcja też mówi to wprost, lecz zostawia kontrolki, żeby przejść do zakresu
+z dyżurami.</p>
+<p>Na telefonie ekran zamienia pasek „Dyżur teraz” na trzy karty - <code>PRIMARY</code>,
+<code>SECONDARY</code> i <code>11–19</code> - z nazwiskiem, oknem pokrycia, przyciskami <strong>Zadzwoń</strong>,
+<strong>SMS</strong> i <strong>E-mail</strong> (gdy dane kontaktowe są uzupełnione) oraz informacją, kto
+obejmuje rolę jako następny. Karta <code>11–19</code> w sobotę, niedzielę lub święto
+pokazuje, że ta zmiana <strong>nie występuje</strong> - to nie jest luka w obsadzie. Pod
+kartami członek zespołu widzi swój najbliższy dyżur, a grafik jest listą dni.</p>
+<h2 id="grafik-macierz-osób-dni">Grafik: macierz osób × dni</h2>
+<p>Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
+koordynatorowi także propozycję czekającą na publikację; przycisk <strong>Otwórz
+propozycję</strong> prowadzi prosto do niej w Generatorze. Członek zespołu ma tu
+<strong>Eksport ICS</strong>.</p>
+<p>Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli
+opublikowany grafik kończy się wcześniej). Nagłówek sekcji nad macierzą
+nazywa zakres, jego długość i liczbę osób w rotacji. Osoby są na osi
+pionowej, kolejne dni na poziomej. Kolumna z osobami i nagłówki dat zostają
+widoczne podczas przewijania.</p>
+<p>Nagłówek każdej kolumny podaje dzień miesiąca, skrót dnia tygodnia oraz
+oznaczenie weekendu, polskiego święta i stawki <strong>2X</strong>. Wydarzenia kalendarza są
+zaznaczone paskiem w kolorze wydarzenia.</p>
+<p>Przy nazwie osoby jest pasek obciążenia w zakresie oraz oznaczenie <strong>Ty</strong> przy
+Twoim wierszu albo <strong>poza rotacją</strong>, gdy osoba nie ma w tym zakresie uprawnień
+do żadnej roli.</p>
+<p>Komórka łączy dwie informacje:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Co</th>
+<th>Jak wygląda</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>dyżur</td>
+<td><code>P</code> (<code>PRIMARY</code>), <code>S</code> (<code>SECONDARY</code>), <code>11–19</code></td>
+</tr>
+<tr>
+<td>dostępność</td>
+<td>„nie mogę”, „wolę nie”, „chętnie wezmę”</td>
+</tr>
+<tr>
+<td>korekta lub zamiana</td>
+<td>osobny status, nie tylko inny kolor</td>
+</tr>
+</tbody></table>
+</div>
+<p>Kolor nigdy nie jest jedynym nośnikiem informacji - każdy stan ma też etykietę
+tekstową, czytaną również przez czytnik ekranu. Link <strong>Legenda</strong> w nagłówku
+sekcji rozwija spis symboli; <code>Esc</code> go zamyka.</p>
+<h3 id="ryzyka-w-zakresie">Ryzyka w zakresie</h3>
+<p>Na ekranie Teraz nad macierzą jest rząd znaczników: dni opublikowanego
+grafiku bez pełnej obsady (kliknięcie przeskakuje do pierwszego takiego dnia),
+dni poza opublikowanym zakresem, dyżury kolidujące ze zgłoszonym „nie mogę”
+albo <strong>Pełna obsada</strong>, gdy wszystko gra. Zawężenie widoku nie może ukryć
+aktywnego konfliktu bez tego komunikatu. Grafik pokazuje tę samą macierz bez
+rzędu ryzyk; dni bez obsady są w nim zaznaczone na czerwono w nagłówku
+kolumny i w panelu dnia.</p>
+<h3 id="szczegóły-dnia">Szczegóły dnia</h3>
+<p>Kliknięcie komórki (albo <code>Enter</code> na zaznaczonej komórce) otwiera panel dnia:
+obsada każdej roli, wydarzenia kalendarza i zgłoszona dostępność. Po siatce
+poruszasz się strzałkami, <code>Home</code> i <code>End</code> skaczą na początek i koniec wiersza,
+a <code>PageUp</code> i <code>PageDown</code> przeskakują o tydzień.</p>
+<p>Z tego panelu:</p>
+<ul>
+<li><strong>członek zespołu</strong> może rozpocząć prośbę o zamianę własnego slotu,</li>
+<li><strong>koordynator i administrator</strong> mogą zmienić dowolny przydział bezpośrednio,
+bez zgody zastępcy i bez kroku akceptacji. Zmiana pokazuje wpływ na bilans
+punktów obu osób, zapisuje korektę i dotyczy wyłącznie wybranego dnia i roli.
+Korekta dnia, który już minął, wymaga podania powodu. Jeśli zmiana złamie
+regułę twardą, potwierdzenie wymienia naruszenia pod nagłówkiem „Ta korekta
+złamie reguły twarde”, a przycisk zapisu działa dopiero po zaznaczeniu, że
+łamiesz je świadomie; takie naruszenie trafia do dziennika audytu,</li>
+<li><strong>koordynator i administrator</strong> mogą z tego samego panelu dodać wydarzenie
+kalendarza na ten dzień.</li>
+</ul>
+<p>Powody niedostępności pozostają prywatne: koordynator widzi je w szczegółach,
+członek zespołu tylko przy własnych wpisach, a konto podglądowe nie dostaje
+danych o dostępności w ogóle.</p>
+<h2 id="sterowanie-widokiem">Sterowanie widokiem</h2>
+<p>Kontrolki są w nagłówku sekcji nad macierzą, na Teraz i na Grafiku tak samo:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Kontrolka</th>
+<th>Co robi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>2 tyg.</strong> / <strong>4 tyg.</strong> / <strong>8 tyg.</strong></td>
+<td>ustawia długość zakresu; dłuższy zakres ma mniejsze komórki</td>
+</tr>
+<tr>
+<td><strong>‹</strong> / <strong>›</strong></td>
+<td>przesuwa cały zakres o siedem dni</td>
+</tr>
+<tr>
+<td><strong>dziś</strong></td>
+<td>wraca do zakresu zaczynającego się dziś</td>
+</tr>
+<tr>
+<td><strong>Tylko z dyżurem</strong></td>
+<td>ukrywa osoby bez przydziału w zakresie</td>
+</tr>
+<tr>
+<td><strong>Legenda</strong></td>
+<td>rozwija spis symboli</td>
+</tr>
+<tr>
+<td><strong>Lista dni</strong></td>
+<td>przełącza między macierzą a listą dni</td>
+</tr>
+</tbody></table>
+</div>
+<p>Na Grafiku początek zakresu i długość są częścią adresu strony
+(<code>/grafik?od=2026-09-14&amp;zoom=8</code>), więc link do konkretnego widoku można
+przekazać dalej; starsze linki z <code>od</code> i <code>do</code> nadal działają. Paleta poleceń
+otwiera grafik z podświetloną osobą albo z panelem wskazanego dnia;
+podświetlenie osoby wyłącza znacznik obok nagłówka.</p>
+<h2 id="małe-ekrany">Małe ekrany</h2>
+<p>Widok <strong>Lista dni</strong> zamienia macierz w listę: jeden wiersz na dzień, z obsadą
+wszystkich ról. To ten sam komplet informacji, ułożony pionowo; dotknięcie roli
+otwiera szczegóły. Na telefonie panel dnia otwiera się jako nakładka nad
+listą.</p>
+<h2 id="widok-tylko-do-odczytu">Widok tylko do odczytu</h2>
+<p>Konto podglądowe i sesja z linku podglądowego widzą macierz w trybie tylko do
+odczytu, bez danych o dostępności i bez akcji. Pasek „Dyżur teraz” i karty na
+telefonie pokazują im telefon dyżurnego (z <strong>Zadzwoń</strong> i <strong>SMS</strong>), ale nie
+adres e-mail. Sesja z linku dodatkowo pokazuje pasek z nazwą linku, jego
+zakresem dat i datą ważności.</p>
+<p>Sekcja z macierzą na ekranie Teraz pokazuje w sesji z linku tylko dni z jego
+zakresu. Link obejmujący najwyżej 8 tygodni widać w całości, z nagłówkiem
+„zakres linku” i bez przełącznika długości oraz strzałek. W dłuższym linku
+strzałki przesuwają widok tylko w jego granicach.</p>
+
+        </main>
+
+        <nav class="pager" aria-label="Sąsiednie strony">
+          <a class="pager-prev" href="../uzytkownik/pierwsze-kroki.html"><span>Poprzednia</span>Pierwsze kroki</a>
+      <a class="pager-next" href="../uzytkownik/dostepnosc.html"><span>Następna</span>Moje dyżury i dostępność</a>
+        </nav>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById('theme-toggle').addEventListener('click', function () {
+        var root = document.documentElement
+        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+        root.setAttribute('data-theme', next)
+        try {
+          localStorage.setItem('oncall-theme', next)
+        } catch (error) {}
+      })
+      fetch('../../api/v1/config', { credentials: 'same-origin' })
+        .then(function (response) { return response.ok ? response.json() : null })
+        .then(function (config) {
+          if (config && config.app_name) {
+            document.getElementById('brand-name').textContent = config.app_name
+          }
+        })
+        .catch(function () {})
+    </script>
+  </body>
+</html>

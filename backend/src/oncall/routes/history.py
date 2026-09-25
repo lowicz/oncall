@@ -11,6 +11,7 @@ from oncall.domain.history.errors import HistoryRejected
 from oncall.domain.history.models import HistoryImportError, HistoryUpload, ParsedHistoryRow
 from oncall.domain.vocabulary import UserRole
 from oncall.history_import import parse_history_csv
+from oncall.i18n import translate
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.history import (
@@ -74,7 +75,7 @@ async def preview_history(
 ) -> HistoryImportPreviewResponse:
     content = await file.read(MAX_FILE_BYTES + 1)
     if len(content) > MAX_FILE_BYTES:
-        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Plik przekracza 1 MB")
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, translate("history.file_too_large"))
     rows, errors = parse_history_csv(content)
     errors.extend(await use_cases.check_history(rows, ports))
     return HistoryImportPreviewResponse(

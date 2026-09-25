@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { UserRole, api } from '../api'
 import { addDays, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
-import { pluralPl } from '../lib/plural'
+import { useMessages } from '../i18n'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
 import { useNarrow } from '../hooks/useMediaQuery'
@@ -38,6 +38,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
 }) {
   const today = warsawDate()
   const narrow = useNarrow()
+  const t = useMessages()
   const canCoordinate = role === 'coordinator' || role === 'admin'
   const [searchParams, setSearchParams] = useSearchParams()
   const [hideIdle, setHideIdle] = useState(false)
@@ -99,13 +100,15 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   return (
     <div className="page">
       <PageHeader
-        title="Grafik"
+        title={t.nav.screens.schedule}
         sub={published.data && (
           <span>
             {publication && publication.starts_on && publication.ends_on
-              ? `Opublikowany ${formatRange(publication.starts_on, publication.ends_on)}${publication.version ? ` (wersja ${publication.version})` : ''}`
-              : 'Brak opublikowanego grafiku'}
-            {pending && ` · ${pending.status === 'proposed' ? 'propozycja' : 'szkic'} ${formatRange(pending.starts_on, pending.ends_on)} czeka na ${pending.status === 'proposed' ? 'publikację' : 'akceptację'}`}
+              ? t.schedule.published(formatRange(publication.starts_on, publication.ends_on), publication.version)
+              : t.schedule.noPublished}
+            {pending && ` · ${pending.status === 'proposed'
+              ? t.schedule.proposalWaiting(formatRange(pending.starts_on, pending.ends_on))
+              : t.schedule.draftWaiting(formatRange(pending.starts_on, pending.ends_on))}`}
           </span>
         )}
         actions={(
@@ -113,17 +116,17 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
             {focusPerson && (
               <span className="filter-chip">
                 {focusPerson}
-                <button type="button" aria-label={`Wyłącz podświetlenie: ${focusPerson}`} onClick={() => setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('osoba'); return next }, { replace: true })}>×</button>
+                <button type="button" aria-label={t.schedule.clearHighlight(focusPerson)} onClick={() => setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('osoba'); return next }, { replace: true })}>×</button>
               </span>
             )}
-            {hasTeamMember && <LinkButton to="/moje#ics" variant="ghost" icon="download">Eksport ICS</LinkButton>}
+            {hasTeamMember && <LinkButton to="/moje#ics" variant="ghost" icon="download">{t.schedule.actions.exportIcs}</LinkButton>}
             {canCoordinate && (pending
-              ? <LinkButton to={`/generator?szkic=${pending.id}`} variant="primary" icon="wand">Otwórz propozycję</LinkButton>
-              : <LinkButton to={generatorHref} variant="primary" icon="wand">Generuj kolejny zakres</LinkButton>)}
+              ? <LinkButton to={`/generator?szkic=${pending.id}`} variant="primary" icon="wand">{t.schedule.actions.openProposal}</LinkButton>
+              : <LinkButton to={generatorHref} variant="primary" icon="wand">{t.schedule.actions.generateNext}</LinkButton>)}
           </>
         )}
       />
-      {!rangeValid && <p className="muted">Data „do” jest wcześniejsza niż „od”.</p>}
+      {!rangeValid && <p className="muted">{t.schedule.rangeInvalid}</p>}
       {rangeValid && (
         <CalendarMatrix
           role={role}
@@ -139,7 +142,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
           heading={(summary) => (
             <SectionHeading
               title={formatRange(range.starts_on, range.ends_on)}
-              meta={`${weeksWord(weeks)}${summary.people > 0 ? ` · ${pluralPl(summary.people, ['osoba', 'osoby', 'osób'])} w rotacji` : ''}`}
+              meta={`${weeksWord(weeks)}${summary.people > 0 ? ` · ${t.schedule.peopleInRotation(summary.people)}` : ''}`}
               controls={(
                 <MatrixControls
                   zoom={zoom}

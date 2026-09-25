@@ -44,7 +44,6 @@ from oncall.routes.domain_edge import (
 
 router = APIRouter(prefix="/api/v1/calendar", tags=["calendar"])
 Coordinator = Annotated[User, Depends(require_roles(UserRole.coordinator, UserRole.admin))]
-WEEKDAYS = ("pon", "wt", "śr", "czw", "pt", "sob", "niedz")
 
 
 CALENDAR_ERROR_STATUSES = {

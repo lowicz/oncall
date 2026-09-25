@@ -2,8 +2,6 @@ from typing import Literal
 
 from oncall.domain.errors import DomainError, RecordedRefusal
 
-IDENTITY_TAKEN = "Login lub numer pracownika jest już przypisany do innego konta"
-
 #: Why a sign-in was rejected, for the operator's log only: the person gets
 #: the same answer for both.
 RejectionCause = Literal["credentials_rejected", "account_inactive"]
@@ -18,7 +16,7 @@ IdentityConflictCause = Literal["personnel_number_mismatch", "login_taken", "aut
 
 class LoginThrottled(RecordedRefusal):
     def __init__(self, label: str, retry_after: int) -> None:
-        super().__init__("Zbyt wiele prób logowania")
+        super().__init__("access.login_throttled")
         self.label = label
         self.retry_after = retry_after
 
@@ -29,7 +27,7 @@ class LoginRejected(RecordedRefusal):
     tells them apart in the server's log."""
 
     def __init__(self, cause: RejectionCause) -> None:
-        super().__init__("Nieprawidłowy login lub hasło")
+        super().__init__("access.login_rejected")
         self.cause: RejectionCause = cause
 
 
@@ -37,13 +35,13 @@ class DirectoryFailure(DomainError):
     """The directory could not safely complete authentication."""
 
     def __init__(self, reason: str) -> None:
-        super().__init__(reason)
+        super().__init__("access.directory_failure", reason=reason)
         self.reason = reason
 
 
 class DirectoryLoginUnavailable(RecordedRefusal):
     def __init__(self, reason: str) -> None:
-        super().__init__("Logowanie katalogowe jest chwilowo niedostępne")
+        super().__init__("access.directory_login_unavailable")
         self.reason = reason
 
 
@@ -51,7 +49,7 @@ class DirectoryUnavailable(DomainError):
     """The directory could not answer for the signed-in person's own data."""
 
     def __init__(self, reason: str) -> None:
-        super().__init__("Katalog jest chwilowo niedostępny")
+        super().__init__("access.directory_unavailable")
         self.reason = reason
 
 
@@ -60,38 +58,38 @@ class DirectoryIdentityTaken(DomainError):
     another account here."""
 
     def __init__(self, cause: IdentityConflictCause) -> None:
-        super().__init__(IDENTITY_TAKEN)
+        super().__init__("access.identity_taken")
         self.cause: IdentityConflictCause = cause
 
 
 class DirectoryIdentityConflict(RecordedRefusal):
     def __init__(self, cause: IdentityConflictCause) -> None:
-        super().__init__(IDENTITY_TAKEN)
+        super().__init__("access.identity_taken")
         self.cause: IdentityConflictCause = cause
 
 
 class AccountLinkInvalid(DomainError):
     def __init__(self) -> None:
-        super().__init__("Link jest nieprawidłowy lub wygasł")
+        super().__init__("access.account_link_invalid")
 
 
 class AccountAlreadyActivated(DomainError):
     def __init__(self) -> None:
-        super().__init__("Konto zostało już aktywowane")
+        super().__init__("access.account_already_activated")
 
 
 class PasswordSameAsLogin(DomainError):
     def __init__(self) -> None:
-        super().__init__("Hasło nie może być takie jak login")
+        super().__init__("access.password_same_as_login")
 
 
 class ShareSessionHasNoAccount(DomainError):
     def __init__(self) -> None:
-        super().__init__("Sesja linku nie ma konta do edycji")
+        super().__init__("access.share_session_has_no_account")
 
 
 class AccountGone(DomainError):
     """The signed-in account no longer exists; an administrator deleted it."""
 
     def __init__(self) -> None:
-        super().__init__("Konto nie istnieje")
+        super().__init__("access.account_gone")

@@ -1,0 +1,93 @@
+import type { Messages } from '../pl'
+import { pluralEn } from '../../lib/plural'
+
+export const fairness: Messages['fairness'] = {
+  deviation: {
+    onShare: 'on share',
+    aboveShare: (value: string) => `${value} above share`,
+    belowShare: (value: string) => `${value} below share`,
+  },
+  title: 'Fairness',
+  subtitle: 'A rolling 12 months of duties against the fair share.',
+  summary: (windowEnd: string, people: string, criterionPoints: string) =>
+    `12 months to ${windowEnd} · ${people} · criterion: nobody beyond ±${criterionPoints} pts from share`,
+  people: (count: number) => pluralEn(count, ['person', 'people']),
+  criterionMet: 'met',
+  criterionNotMet: 'not met',
+  includesPlanned: 'Also counts duties already scheduled up to that day.',
+  rollingActual: 'A rolling 12 months of duties actually served.',
+  asOf: 'As of',
+  today: 'Today',
+  exportCsv: 'Export CSV',
+  loadingReport: 'Loading report',
+  total: 'Total',
+  lensCriteria: 'Acceptance criterion per lens',
+  criterionChip: (points: string) => `criterion ${points} pts`,
+  outliers: (highestName: string, highestDeviation: string, lowestName: string, lowestDeviation: string) =>
+    `highest: ${highestName} (${highestDeviation}), lowest: ${lowestName} (${lowestDeviation})`,
+  spreadChip: (lens: string, spread: string, verdict: string) => `${lens}: spread ${spread} · ${verdict}`,
+  meets: 'meets',
+  fails: 'fails',
+  averageChip: (points: string) => `Average ${points} pts / person`,
+  weekendsChip: (duties: number, people: number, perPerson: string) => `Weekends: ${duties} / ${people} people = ${perPerson}`,
+  team: 'Team',
+  tableLabel: 'Duty balance',
+  caption: (windowStart: string, windowEnd: string, lens: string) =>
+    `Window ${windowStart} – ${windowEnd}; the deviation column shows the ${lens} lens.`,
+  columns: {
+    person: 'Person',
+    deviation: (lens: string) => `Deviation · ${lens}`,
+    unitShare: (unit: string) => `${unit} / share`,
+    details: 'Details',
+  },
+  units: {
+    points: 'pts',
+    shifts: 'shifts',
+    days: 'days',
+  },
+  formerMembers: 'Outside the rotation',
+  notHoldingRole: 'does not hold this role',
+  expandRow: (name: string) => `Expand: ${name}`,
+  collapseRow: (name: string) => `Collapse: ${name}`,
+  note: {
+    inRotationSince: (date: string) => `in the rotation since ${date}`,
+    noLateShifts: 'no 11–19 shifts',
+  },
+  drilldown: {
+    monthByMonth: (name: string, average: string) => `${name} · month by month (pts / average ${average})`,
+    loadingMonths: 'Loading months',
+    barsLabel: (values: string) => `Points month by month: ${values}`,
+    barTitle: (month: string, points: number) => `${month}: ${points} pts`,
+    points: (value: string) => `${value} pts`,
+    noDuties: 'No duties in this window.',
+    whyHeading: 'Where this result comes from',
+    pointsInWindow: 'Points in the window',
+    deviation: 'Deviation',
+    inRotationSince: 'In the rotation since',
+    generatorPlan: 'What the generator will do',
+    plan: {
+      onShare: (name: string) => `${name} is on share; the generator has nothing to even out.`,
+      moreDuties: (name: string, points: string) => `In the next range ${name} will get more duties, ${points} pts to even out.`,
+      fewerDuties: (name: string, points: string) => `In the next range ${name} will get fewer duties, ${points} pts to even out.`,
+    },
+  },
+  definitions: {
+    points: (lateShift: string) => `Definitions: pts = duties × multiplier (1X weekday, 2X weekend and holiday); ${lateShift} counted as shifts.`,
+    share: 'The share counts only the days on which the person belonged to the given rotation; a holiday on a weekend counts once, in the “Weekends” lens.',
+    anchored: (lateShift: string, count: number) =>
+      `With anchoring the ${lateShift} shift belongs to the person holding the on-call role, so its points are already in the PRIMARY and SECONDARY columns; total ${lateShift} shifts in the window: ${count}.`,
+    fullDescription: 'Full description:',
+    docsLink: 'docs / fairness',
+  },
+  csv: {
+    fileName: (asOf: string) => `fairness-${asOf}.csv`,
+    person: 'person',
+    inRotationSince: 'in_rotation_since',
+    totalPoints: 'total_points',
+    totalShare: 'total_share',
+    totalDeviation: 'total_deviation',
+    lensPoints: (lens: string) => `${lens}_points`,
+    lensShare: (lens: string) => `${lens}_share`,
+    lensDeviation: (lens: string) => `${lens}_deviation`,
+  },
+}

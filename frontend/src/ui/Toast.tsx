@@ -2,6 +2,7 @@ import { ReactNode, useCallback, useMemo } from 'react'
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { cx } from './cx'
 import { Icon } from './Icon'
+import { useMessages } from '../i18n/messages'
 
 type Tone = 'ok' | 'warn' | 'bad' | 'info'
 
@@ -12,11 +13,12 @@ type Tone = 'ok' | 'warn' | 'bad' | 'info'
  * region so a screen reader reads it after the current utterance.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const t = useMessages()
   return (
     <BaseToast.Provider timeout={6000} limit={3}>
       {children}
       <BaseToast.Portal>
-        <BaseToast.Viewport className="toasts" aria-label="Powiadomienia">
+        <BaseToast.Viewport className="toasts" aria-label={t.common.notifications}>
           <ToastList />
         </BaseToast.Viewport>
       </BaseToast.Portal>
@@ -25,6 +27,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastList() {
+  const t = useMessages()
   const { toasts } = BaseToast.useToastManager()
   return (
     <>
@@ -36,7 +39,7 @@ function ToastList() {
             <BaseToast.Description className="toast-desc" />
           </BaseToast.Content>
           {toast.actionProps && <BaseToast.Action className="btn btn-ghost btn-sm" />}
-          <BaseToast.Close className="ib ib-sm" aria-label="Zamknij powiadomienie"><Icon name="x" /></BaseToast.Close>
+          <BaseToast.Close className="ib ib-sm" aria-label={t.common.closeNotification}><Icon name="x" /></BaseToast.Close>
         </BaseToast.Root>
       ))}
     </>

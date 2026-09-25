@@ -24,6 +24,7 @@ from oncall.domain.history.ports import HistoryPorts
 from oncall.domain.roster import Slot
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import ROLE_LABELS, AssignmentRole
+from oncall.i18n import translate
 from oncall.workdays import is_working_day, polish_holidays
 
 
@@ -71,7 +72,9 @@ def _people_may_hold_these_duties(
         member = names.get(row.assignee_name.casefold())
         if member is None:
             problems.append(
-                HistoryImportError(row.row_number, "assignee_name", "Osoby nie ma w zespole")
+                HistoryImportError(
+                    row.row_number, "assignee_name", translate("history.not_in_team")
+                )
             )
         elif not (
             member.active_from <= row.service_date
@@ -79,9 +82,7 @@ def _people_may_hold_these_duties(
         ):
             problems.append(
                 HistoryImportError(
-                    row.row_number,
-                    "service_date",
-                    "Data dyżuru jest poza okresem członkostwa tej osoby w rotacji",
+                    row.row_number, "service_date", translate("history.outside_membership")
                 )
             )
         elif not any(
@@ -97,7 +98,7 @@ def _people_may_hold_these_duties(
                 HistoryImportError(
                     row.row_number,
                     "role",
-                    f"Osoba nie ma eligibility do roli {ROLE_LABELS[row.role]} w tym dniu",
+                    translate("history.not_eligible", role=ROLE_LABELS[row.role]),
                 )
             )
     return problems
@@ -110,7 +111,7 @@ def _late_shifts_fall_on_working_days(
     holidays = polish_holidays(starts_on, ends_on)
     return [
         HistoryImportError(
-            row.row_number, "role", "Zmiana 11–19 jest dozwolona tylko w dni robocze"
+            row.row_number, "role", translate("history.late_shift_allowed_working_days_only")
         )
         for row in rows
         if row.role == AssignmentRole.late_shift and not is_working_day(row.service_date, holidays)
@@ -123,7 +124,7 @@ def _days_are_free_of_publications(
     """History never overwrites a slot a real publication already holds."""
     return [
         HistoryImportError(
-            row.row_number, "service_date", "Data dyżuru jest objęta grafikiem opublikowanym"
+            row.row_number, "service_date", translate("history.covered_by_publication")
         )
         for row in rows
         if (row.service_date, row.role) in published
@@ -146,9 +147,7 @@ def _nobody_holds_both_oncall_roles(rows: list[ParsedHistoryRow]) -> list[Histor
         if previous is not None and previous.role != row.role:
             problems.append(
                 HistoryImportError(
-                    row.row_number,
-                    "assignee_name",
-                    "Ta sama osoba nie może być primary i secondary jednego dnia",
+                    row.row_number, "assignee_name", translate("history.same_person_both_roles")
                 )
             )
         day[row.assignee_name.casefold()] = row

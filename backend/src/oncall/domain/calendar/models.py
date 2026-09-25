@@ -11,8 +11,18 @@ from oncall.domain.vocabulary import (
     ScheduleStatus,
     UserRole,
 )
+from oncall.i18n import translate
 
-WEEKDAYS = ("pon", "wt", "śr", "czw", "pt", "sob", "niedz")
+#: The weekday abbreviations in the recorded language, Monday first; the
+#: e-mails use them. A calendar day served over HTTP asks `weekday_name`.
+WEEKDAYS = tuple(translate(f"weekday.{index}", "pl") for index in range(7))
+
+
+def weekday_name(day: date) -> str:
+    """The day's weekday abbreviation in the language of the request."""
+    return translate(f"weekday.{day.weekday()}")
+
+
 #: The longest range one calendar or events request may read.
 MAX_RANGE_DAYS = 90
 #: How far ahead the dashboard reads the published schedule.

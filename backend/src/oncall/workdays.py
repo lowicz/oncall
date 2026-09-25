@@ -11,18 +11,31 @@ from functools import lru_cache
 
 import holidays as country_holidays
 
+from oncall.i18n import Language, request_language
 
-@lru_cache(maxsize=32)
-def _polish_holiday_years(first_year: int, last_year: int) -> tuple[tuple[date, str], ...]:
-    """Build the immutable statutory calendar once for a year span."""
+#: The `holidays` locale that names Polish holidays in each interface language.
+_HOLIDAY_LOCALES: dict[Language, str] = {"pl": "pl", "en": "en_US"}
+
+
+@lru_cache(maxsize=64)
+def _polish_holiday_years(
+    first_year: int, last_year: int, language: Language
+) -> tuple[tuple[date, str], ...]:
+    """Build the immutable statutory calendar once for a year span and language."""
     return tuple(
-        country_holidays.country_holidays("PL", years=range(first_year, last_year + 1)).items()
+        country_holidays.country_holidays(
+            "PL", years=range(first_year, last_year + 1), language=_HOLIDAY_LOCALES[language]
+        ).items()
     )
 
 
 def polish_holiday_names(starts_on: date, ends_on: date) -> dict[date, str]:
-    """Named Polish statutory holidays clipped to the requested range."""
-    names = _polish_holiday_years(starts_on.year, ends_on.year)
+    """Named Polish statutory holidays clipped to the requested range.
+
+    The names follow the language of the request being served; the dates do
+    not depend on it.
+    """
+    names = _polish_holiday_years(starts_on.year, ends_on.year, request_language())
     return {day: name for day, name in names if starts_on <= day <= ends_on}
 
 

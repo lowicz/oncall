@@ -19,6 +19,7 @@ from oncall.domain.scheduling.models import (
 )
 from oncall.domain.scheduling.solver import total_time_budget
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
+from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.rules import RuleViolationResponse
 from oncall.rules import RuleViolation
@@ -75,9 +76,9 @@ class GenerateScheduleRequest(BaseModel):
     def validate_range(self) -> GenerateScheduleRequest:
         duration = (self.ends_on - self.starts_on).days
         if duration < 0:
-            raise ValueError("Data końcowa nie może poprzedzać początkowej")
+            raise ValueError(translate("scheduling.run_range_reversed"))
         if duration > 34:
-            raise ValueError("Jedno uruchomienie może obejmować maksymalnie 35 dni")
+            raise ValueError(translate("scheduling.run_range_too_long"))
         return self
 
 
@@ -96,7 +97,7 @@ class ScheduleWarningResponse(BaseModel):
 
 
 class UnavailabilityConflictResponse(BaseModel):
-    """One assignment that lands on a hard „nie mogę" of the person assigned.
+    """One assignment that lands on a hard `unavailable` entry of the person assigned.
 
     Structured, not prerendered, because the draft matrix counts people and the
     409 detail renders sentences from the same list.

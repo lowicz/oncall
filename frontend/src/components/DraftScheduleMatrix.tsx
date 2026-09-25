@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
+import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { monthGroups, startsWeek } from '../lib/calendar'
 import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
@@ -25,6 +26,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   onChange: (value: DraftSchedule) => void
   focus?: DraftFocus | null
 }) {
+  const { generator: { matrix: t }, common } = useMessages()
   const today = warsawDate()
   const [selected, setSelected] = useState<{ member: Member; day: Day } | null>(null)
   const [selectedRole, setSelectedRole] = useState<AssignmentRole>('primary')
@@ -78,12 +80,12 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
 
   return (
     <div className="stack-sm">
-      {metadata.isLoading && <LoadingBlock label="Wczytywanie macierzy szkicu" rows={4} />}
+      {metadata.isLoading && <LoadingBlock label={t.loading} rows={4} />}
       {metadata.error && <ErrorState error={metadata.error} onRetry={() => metadata.refetch()} />}
       {metadata.data && (
-        <div className="mx panel" role="region" aria-label="Macierz szkicu">
+        <div className="mx panel" role="region" aria-label={t.region}>
           <table className="m" data-zoom={days.length > 28 ? '8' : days.length > 14 ? '4' : '2'}>
-            <caption className="sr-only">Szkic grafiku. Osoby w wierszach, dni w kolumnach. Kliknij komórkę, aby skorygować przydział.</caption>
+            <caption className="sr-only">{t.caption}</caption>
             <thead>
               <tr className="mrow">
                 <th scope="col" className="who" />
@@ -94,7 +96,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                 ))}
               </tr>
               <tr className="drow">
-                <th scope="col" className="who">Osoba</th>
+                <th scope="col" className="who">{t.person}</th>
                 {days.map((day) => (
                   <th
                     key={day.service_date}
@@ -130,7 +132,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                           aria-label={cellLabel(
                             member.display_name,
                             day,
-                            assignments.map((assignment) => [roleLabels[assignment.role], assignment.is_override ? 'korekta' : '', conflict ? 'kolizja z niedostępnością' : ''].filter(Boolean).join(' ')),
+                            assignments.map((assignment) => [roleLabels()[assignment.role], assignment.is_override ? t.correction : '', conflict ? t.clash : ''].filter(Boolean).join(' ')),
                             availability?.kind,
                           )}
                         >
@@ -152,10 +154,10 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
         open={Boolean(selected)}
         onOpenChange={(open) => { if (!open) setSelected(null) }}
         title={selected ? `${selected.member.display_name} · ${formatDate(selected.day.service_date)}` : ''}
-        meta={selected?.day.is_day_off && <Tag tone="late">2X · {selected.day.holiday_name ?? 'dzień wolny'}</Tag>}
+        meta={selected?.day.is_day_off && <Tag tone="late">{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
         footer={selected && (
           <>
-            <Button onClick={() => setSelected(null)}>Anuluj</Button>
+            <Button onClick={() => setSelected(null)}>{common.cancel}</Button>
             <span className="sp" />
             <Button
               variant="primary"
@@ -169,38 +171,37 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                 replacement_member_id: selected.member.id,
               })}
             >
-              {override.isPending ? 'Zapisuję…' : 'Przypisz w szkicu'}
+              {override.isPending ? common.saving : t.assign}
             </Button>
           </>
         )}
       >
         {selected && (
           <>
-            {selected.day.is_day_off && <Box tone="muted">Dzień wolny / 2X - zmiana 11–19 nie występuje.</Box>}
+            {selected.day.is_day_off && <Box tone="muted">{t.noLateShift}</Box>}
             {selectedAvailability && (
-              <Box tone={selectedAvailability.kind === 'unavailable' ? 'bad' : 'muted'} title={`${selected.member.display_name}: ${availabilityLabels[selectedAvailability.kind]}`}>
-                {selectedAvailability.kind === 'unavailable' && 'Przydział zostanie odrzucony. '}
-                {selectedAvailability.note ? `„${selectedAvailability.note}”` : ''}
+              <Box tone={selectedAvailability.kind === 'unavailable' ? 'bad' : 'muted'} title={t.availabilityTitle(selected.member.display_name, availabilityLabels()[selectedAvailability.kind])}>
+                {selectedAvailability.kind === 'unavailable' && <>{t.willBeRejected}{' '}</>}
+                {selectedAvailability.note ? t.quotedNote(selectedAvailability.note) : ''}
               </Box>
             )}
-            <Field label="Rola do zmiany" id="draft-override-role">
+            <Field label={t.roleToChange} id="draft-override-role">
               {({ id }) => (
                 <Select id={id} value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as AssignmentRole)}>
                   {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
-                    <option key={item} value={item}>{roleLabels[item]}</option>
+                    <option key={item} value={item}>{roleLabels()[item]}</option>
                   ))}
                 </Select>
               )}
             </Field>
             <div className="kv">
-              <div className="kv-row"><dt>Obecnie</dt><dd>{selectedAssignment?.assignee_name ?? 'brak przydziału'}</dd></div>
-              <div className="kv-row"><dt>Po korekcie</dt><dd>{selectedAssignment ? selected.member.display_name : '-'}</dd></div>
+              <div className="kv-row"><dt>{t.currently}</dt><dd>{selectedAssignment?.assignee_name ?? t.noAssignment}</dd></div>
+              <div className="kv-row"><dt>{t.afterCorrection}</dt><dd>{selectedAssignment ? selected.member.display_name : t.none}</dd></div>
             </div>
-            {!selectedAssignment && <p className="muted small">W tej roli nikt nie ma przydziału tego dnia; korekta zmienia istniejący przydział.</p>}
+            {!selectedAssignment && <p className="muted small">{t.nobodyHoldsRole}</p>}
             {selectedBalance && selectedCategory && selectedAssignment && selectedAssignment.assignee_name !== selected.member.display_name && (
-              <Box tone="sig" title={`Bilans ${roleLabels[selectedRole]}: ${selectedBalance.display_name}`}>
-                {signed(selectedCategory.deviation)} → {signed(roundPoints(selectedCategory.deviation + correctionPoints))}
-                {' '}({correctionPoints > 1 ? '+2 punkty za dzień 2X' : '+1 punkt'})
+              <Box tone="sig" title={t.balanceTitle(roleLabels()[selectedRole], selectedBalance.display_name)}>
+                {t.balanceChange(signed(selectedCategory.deviation), signed(roundPoints(selectedCategory.deviation + correctionPoints)), correctionPoints > 1 ? t.twoPoints : t.onePoint)}
               </Box>
             )}
             {override.error && <Box tone="bad" role="alert" title={override.error.message} />}

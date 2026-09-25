@@ -1,4 +1,5 @@
-import { pluralPl } from './plural'
+import { LANGUAGES } from '../i18n/language'
+import { messages } from '../i18n/messages'
 
 export function warsawDate() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -60,13 +61,20 @@ export function formatMoment(value: string) {
 }
 
 /**
- * Polish weekday abbreviations, Sunday first like `Date.getDay()`. The one set
- * every screen prints, and the same words the API sends as a day's `weekday`.
+ * Weekday abbreviations in the current language, Sunday first like
+ * `Date.getDay()`. The one set every screen prints; in Polish they are the
+ * same words the API sends as a day's `weekday`.
  */
-export const WEEKDAYS = ['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob'] as const
+export const weekdays = () => messages().dates.weekdaysShort
 
 /** The same abbreviations Monday first, for the heads of a calendar grid. */
-export const WEEKDAYS_FROM_MONDAY = [...WEEKDAYS.slice(1), WEEKDAYS[0]]
+export const weekdaysFromMonday = () => {
+  const names = weekdays()
+  return [...names.slice(1), names[0]]
+}
+
+/** Whether a calendar date is a Monday, which is where every grid starts a week. */
+export const isMonday = (value: string) => parse(value).getUTCDay() === 1
 
 /** Parsed at midday UTC so a timezone shift can never move the calendar day. */
 function parse(value: string) {
@@ -75,7 +83,7 @@ function parse(value: string) {
 
 /** "czw" - the weekday of a calendar date. */
 export function formatWeekday(value: string) {
-  return WEEKDAYS[parse(value).getUTCDay()]
+  return weekdays()[parse(value).getUTCDay()]
 }
 
 /** "czw 14-09-2026" - a weekday plus the globally consistent date format. */
@@ -88,22 +96,39 @@ export function relativeDay(value: string, from = warsawDate()) {
   const days = Math.round(
     (parse(value).getTime() - parse(from).getTime()) / 86_400_000,
   )
-  if (days === 0) return 'dziś'
-  if (days === 1) return 'jutro'
-  if (days === -1) return 'wczoraj'
-  if (days > 1) return `za ${days} dni`
-  return `${Math.abs(days)} dni temu`
+  const t = messages().dates
+  if (days === 0) return t.today
+  if (days === 1) return t.tomorrow
+  if (days === -1) return t.yesterday
+  if (days > 1) return t.inDays(days)
+  return t.daysAgo(Math.abs(days))
 }
 
-const MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień']
-export const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
-const MONTHS_GENITIVE = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca', 'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia']
-const WEEKDAYS_LONG = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']
+/** Month abbreviations in the current language, January first. */
+export const monthsShort = () => messages().dates.monthsShort
+
+/**
+ * The month (1-12) a typed-in name means, in any language the interface
+ * speaks: "wrz", "września", "sep" and "september" all give 9, because the
+ * first three letters name a month in every one of them. Null when they do
+ * not.
+ */
+export function monthFromName(name: string): number | null {
+  const typed = name.toLowerCase()
+  for (const language of LANGUAGES) {
+    const t = messages(language).dates
+    for (const set of [t.monthsShort, t.months, t.monthsInDate]) {
+      const index = set.findIndex((month) => month.toLowerCase().slice(0, 3) === typed.slice(0, 3))
+      if (index >= 0) return index + 1
+    }
+  }
+  return null
+}
 
 /** "3 paź" - a date in running text, the way the screens name days. */
 export function formatShortDate(value: string) {
   const date = parse(value)
-  return `${date.getUTCDate()} ${MONTHS_SHORT[date.getUTCMonth()]}`
+  return `${date.getUTCDate()} ${monthsShort()[date.getUTCMonth()]}`
 }
 
 /** "czw 24 wrz" - a day in running text: weekday, day, month. */
@@ -114,13 +139,15 @@ export function formatDayShort(value: string) {
 /** "wrzesień 2026", or "wrzesień" - a month given as "2026-09". */
 export function formatMonth(month: string, withYear = true) {
   const [year, index] = month.split('-').map(Number)
-  return withYear ? `${MONTHS[index - 1]} ${year}` : MONTHS[index - 1]
+  const name = messages().dates.months[index - 1]
+  return withYear ? `${name} ${year}` : name
 }
 
 /** "Niedziela, 20 września" - the title of the dashboard. */
 export function formatDateLong(value: string) {
   const date = parse(value)
-  return `${WEEKDAYS_LONG[date.getUTCDay()]}, ${date.getUTCDate()} ${MONTHS_GENITIVE[date.getUTCMonth()]}`
+  const t = messages().dates
+  return `${t.weekdaysLong[date.getUTCDay()]}, ${date.getUTCDate()} ${t.monthsInDate[date.getUTCMonth()]}`
 }
 
 /**
@@ -134,7 +161,7 @@ export function formatRange(startsOn: string, endsOn: string) {
     return `${formatShortDate(startsOn)} ${start.getUTCFullYear()} – ${formatShortDate(endsOn)} ${end.getUTCFullYear()}`
   }
   if (start.getUTCMonth() === end.getUTCMonth()) {
-    return `${start.getUTCDate()} – ${end.getUTCDate()} ${MONTHS_SHORT[end.getUTCMonth()]}`
+    return `${start.getUTCDate()} – ${end.getUTCDate()} ${monthsShort()[end.getUTCMonth()]}`
   }
   return `${formatShortDate(startsOn)} – ${formatShortDate(endsOn)}`
 }
@@ -150,7 +177,7 @@ export function weeksBetween(startsOn: string, endsOn: string) {
 }
 
 /** "4 tygodnie", "8 tygodni", "1 tydzień". */
-export const weeksWord = (count: number) => pluralPl(count, ['tydzień', 'tygodnie', 'tygodni'])
+export const weeksWord = (count: number) => messages().dates.weeks(count)
 
 /** ISO-8601 week number of a calendar date (weeks start on Monday). */
 export function isoWeek(value: string) {

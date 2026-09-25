@@ -1,5 +1,5 @@
-# QA6: odwzorowanie docelowych zasobow sprzetowych (2-4 rdzenie, 8 GB RAM).
-# Uzywane wylacznie do pomiarow wydajnosciowych, nie do produkcji.
+# QA6: mirrors the target hardware resources (2-4 cores, 8 GB RAM).
+# Used only for performance measurements, never for production.
 services:
   api:
     cpus: 2.0

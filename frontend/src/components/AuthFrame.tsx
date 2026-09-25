@@ -1,10 +1,13 @@
 import { ReactNode } from 'react'
 import { useBranding, useDocumentTitle } from '../hooks/useBranding'
+import { useLanguage, useMessages } from '../i18n'
 import { Mark } from '../ui'
 import { docsHref } from '../lib/nav'
+import { LanguageSegmented } from './LanguageControl'
 
 /** The frame around the screens shown before a session exists: the mark, a
- *  headline, a card, and the small print. */
+ *  headline, a card, and the small print with the documentation link and the
+ *  language, the one preference a visitor can set before signing in. */
 export function AuthFrame({ title, sub, children, screen }: {
   title: ReactNode
   sub?: ReactNode
@@ -12,6 +15,8 @@ export function AuthFrame({ title, sub, children, screen }: {
   screen: string
 }) {
   const branding = useBranding()
+  const t = useMessages()
+  const [language] = useLanguage()
   useDocumentTitle(screen, branding.name)
   return (
     <div className="login">
@@ -27,7 +32,8 @@ export function AuthFrame({ title, sub, children, screen }: {
         </div>
         {children}
         <div className="login-foot">
-          <a href={docsHref}>Dokumentacja</a>
+          <a href={docsHref(language)}>{t.shell.documentation}</a>
+          <LanguageSegmented />
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from oncall.domain.calendar.models import CalendarMatrix
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, CalendarEventColor
+from oncall.i18n import translate
 
 
 class CalendarEventRef(BaseModel):
@@ -43,7 +44,7 @@ class CalendarEventCreate(BaseModel):
     @model_validator(mode="after")
     def validate_range(self) -> CalendarEventCreate:
         if self.ends_on < self.starts_on:
-            raise ValueError("Data końcowa nie może poprzedzać początkowej")
+            raise ValueError(translate("calendar.range_ends_before_start"))
         return self
 
 

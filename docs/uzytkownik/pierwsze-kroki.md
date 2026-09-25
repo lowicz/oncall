@@ -42,13 +42,13 @@ Nad treścią każdego ekranu biegnie pasek **Dyżur teraz**: kto ma dziś
 `PRIMARY`, `SECONDARY` i `11–19`, z telefonem i czasem do końca dyżuru, pole
 **Szukaj…** otwierające paletę poleceń oraz Twój awatar: zdjęcie z katalogu
 firmowego, jeśli Twoje konto je ma, albo inicjały. Kliknięcie awatara
-otwiera menu konta: nazwa i rola, motyw, gęstość macierzy, link do
+otwiera menu konta: nazwa i rola, motyw, gęstość macierzy, język, link do
 dokumentacji, paleta poleceń, **Wyloguj** i na samym dole numer wersji
 aplikacji, która właśnie działa (ten sam, co u dołu listwy).
 
 Na telefonie listwa znika, a u dołu ekranu są zakładki **Teraz**, **Grafik**,
 **Moje**, **Zamiany** i **Więcej**. Pod „Więcej” są pozostałe ekrany Twojej
-roli, motyw, gęstość, dokumentacja, wylogowanie i numer wersji.
+roli, motyw, gęstość, język, dokumentacja, wylogowanie i numer wersji.
 
 ## Paleta poleceń
 
@@ -62,13 +62,20 @@ paletę. Wpisz:
 
 Strzałki wybierają pozycję, `Enter` ją uruchamia, `Esc` zamyka paletę.
 
-## Motyw i gęstość
+## Motyw, gęstość i język
 
 W menu konta (na telefonie na ekranie „Więcej”) wybierasz motyw: **Ciemny**
 (domyślny), **Jasny** albo **Systemowy**, który podąża za ustawieniem systemu
 operacyjnego. **Gęstość macierzy** zmniejsza komórki grafiku, żeby dłuższy
 zakres mieścił się bez przewijania. Oba wybory zostają zapamiętane w
 przeglądarce i obowiązują także w tej dokumentacji.
+
+W tym samym miejscu wybierasz **Język** interfejsu: **Polski** (domyślny)
+albo **English**. Ten sam przełącznik jest pod formularzem logowania. Wybór
+zostaje zapamiętany w przeglądarce, obejmuje także komunikaty z serwera
+(odmowy, błędy walidacji, nazwy świąt) i prowadzi do dokumentacji w wybranym
+języku; nowy użytkownik zawsze zaczyna po polsku, niezależnie od ustawień
+przeglądarki.
 
 ## Format dat
 

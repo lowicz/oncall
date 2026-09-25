@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { DraftFairnessImpact, DraftSchedule, FairnessMember, api } from '../api'
+import { locale, messages, useMessages } from '../i18n'
 import { lensLabels } from '../lib/labels'
 import { DEVIATION_SCALE, deviationWords, totalBalance } from '../lib/fairness'
 import { formatDecimal, formatPoints, signedPoints } from '../lib/numbers'
@@ -7,12 +8,13 @@ import { formatDate } from '../lib/dates'
 import { Box, Chip, ChipRow, DeviationBar, ErrorState, LoadingBlock, StatusBadge } from '../ui'
 
 export function impactLabel(before: number, after: number) {
+  const t = messages().generator.fairness.impact
   const change = Math.round((Math.abs(before) - Math.abs(after)) * 100) / 100
-  if (Math.abs(change) < 0.05) return 'bez istotnej zmiany'
-  if (change > 0) return `bliżej równowagi o ${formatPoints(change)}`
-  if (change < 0) return `dalej od równowagi o ${formatPoints(Math.abs(change))}`
-  if (before === after) return 'saldo bez zmiany'
-  return 'ta sama odległość, druga strona bilansu'
+  if (Math.abs(change) < 0.05) return t.noChange
+  if (change > 0) return t.closer(formatPoints(change))
+  if (change < 0) return t.further(formatPoints(Math.abs(change)))
+  if (before === after) return t.sameBalance
+  return t.otherSide
 }
 
 /** The widest lens spread: the number the acceptance criterion judges. */
@@ -41,6 +43,7 @@ export function shortfallCause(impact: DraftFairnessImpact): 'met' | 'inherited'
  * projected deviation and the points, and the verdict.
  */
 export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
+  const t = useMessages().generator.fairness
   const impact = useQuery<DraftFairnessImpact>({
     queryKey: ['draft-fairness-impact', result.id, result.version],
     queryFn: () => api.draftFairnessImpact(result.id, result.version),
@@ -50,13 +53,13 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
   const lateShiftBalanced = impact.data?.late_shift_balanced !== false
   const projected = [...(impact.data?.projected_members ?? [])].sort((a, b) =>
     Math.abs(totalBalance(b, lateShiftBalanced).deviation) - Math.abs(totalBalance(a, lateShiftBalanced).deviation)
-    || a.display_name.localeCompare(b.display_name, 'pl'))
+    || a.display_name.localeCompare(b.display_name, locale()))
   const criterionMembers = projected.filter((item) => item.in_criterion !== false)
   const formerMembers = projected.filter((item) => item.in_criterion === false)
   const spread = impact.data ? worstSpread(impact.data) : null
   const cause = impact.data ? shortfallCause(impact.data) : null
   const verdict = spread
-    ? spread.after < spread.before - 0.05 ? 'lepiej' : spread.after > spread.before + 0.05 ? 'gorzej' : 'bez zmian'
+    ? spread.after < spread.before - 0.05 ? 'better' : spread.after > spread.before + 0.05 ? 'worse' : 'same'
     : null
   const memberRows = (members: FairnessMember[]) => members.map((after) => {
     const before = impact.data?.baseline_members.find((item) => item.member_id === after.member_id) ?? after
@@ -67,7 +70,7 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
       <tr key={after.member_id}>
         <th scope="row">
           {after.display_name}
-          <small>{joined ? `od ${formatDate(after.active_from)}` : `${signedPoints(beforeTotal.deviation)} → ${signedPoints(afterTotal.deviation)} · ${impactLabel(beforeTotal.deviation, afterTotal.deviation)}`}</small>
+          <small>{joined ? t.since(formatDate(after.active_from)) : t.memberChange(signedPoints(beforeTotal.deviation), signedPoints(afterTotal.deviation), impactLabel(beforeTotal.deviation, afterTotal.deviation))}</small>
         </th>
         <td><DeviationBar value={afterTotal.deviation} max={DEVIATION_SCALE} label={deviationWords(afterTotal.deviation)} /></td>
         <td className="n">{formatDecimal(afterTotal.actual)}</td>
@@ -76,62 +79,62 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
   })
   return (
     <div className="panel panel-padded stack-sm">
-      {impact.isLoading && <LoadingBlock label="Przeliczanie sprawiedliwości" rows={2} />}
+      {impact.isLoading && <LoadingBlock label={t.loading} rows={2} />}
       {impact.error && <ErrorState error={impact.error} onRetry={() => impact.refetch()} />}
       {impact.data && spread && (
         <>
           <div className="big-number">
             <span className="big">{formatPoints(spread.after)}</span>
-            <span className="muted small">rozrzut punktów (było {formatPoints(spread.before)})</span>
-            {verdict && <StatusBadge tone={verdict === 'lepiej' ? 'ok' : verdict === 'gorzej' ? 'warn' : 'muted'} className="ml-auto">{verdict}</StatusBadge>}
+            <span className="muted small">{t.spread(formatPoints(spread.before))}</span>
+            {verdict && <StatusBadge tone={verdict === 'better' ? 'ok' : verdict === 'worse' ? 'warn' : 'muted'} className="ml-auto">{t.verdict[verdict]}</StatusBadge>}
           </div>
-          <ChipRow label="Kryterium odbioru">
-            <span className="tag">rozpiętość ≤ {formatDecimal(impact.data.criterion_points)} pkt na soczewce</span>
+          <ChipRow label={t.criterion}>
+            <span className="tag">{t.criterionTag(formatDecimal(impact.data.criterion_points))}</span>
             {impact.data.spreads.map((item) => (
               <Chip key={item.lens} tone={item.meets_criterion ? 'ok' : 'warn'}>
-                {lensLabels[item.lens] ?? item.lens}: {formatDecimal(item.before)} → {formatDecimal(item.after)} · {item.meets_criterion ? 'spełnia' : 'nie spełnia'}
+                {t.lensChip(lensLabels()[item.lens] ?? item.lens, formatDecimal(item.before), formatDecimal(item.after), item.meets_criterion)}
               </Chip>
             ))}
           </ChipRow>
           {projected.length > 0 && (
-            <table className="lg" aria-label="Wpływ szkicu na bilans">
+            <table className="lg" aria-label={t.table}>
               <thead>
                 <tr>
-                  <th scope="col">Osoba</th>
-                  <th scope="col" className="fairness-dev">Odchylenie</th>
-                  <th scope="col" className="n">Pkt</th>
+                  <th scope="col">{t.person}</th>
+                  <th scope="col" className="fairness-dev">{t.deviation}</th>
+                  <th scope="col" className="n">{t.points}</th>
                 </tr>
               </thead>
               <tbody>
                 {memberRows(criterionMembers)}
                 {formerMembers.length > 0 && (
-                  <tr><th scope="rowgroup" colSpan={3} className="list-h">Poza rotacją</th></tr>
+                  <tr><th scope="rowgroup" colSpan={3} className="list-h">{t.outsideRotation}</th></tr>
                 )}
                 {memberRows(formerMembers)}
               </tbody>
             </table>
           )}
           {cause === 'met' && (
-            <Box tone="ok" title="Kryterium spełnione">
-              Po publikacji nikt nie przekracza ±{formatPoints(impact.data.criterion_points)} pkt na żadnej soczewce.
+            <Box tone="ok" title={t.metTitle}>
+              {t.metBody(formatPoints(impact.data.criterion_points))}
             </Box>
           )}
           {cause === 'inherited' && (
-            <Box tone="warn" title={`Kryterium ${formatDecimal(impact.data.criterion_points)} pkt niespełnione przez zastany dług historyczny.`}>
-              Soczewki poza kryterium były poza nim już przed tym szkicem: to zastana nierówność, nie wada szkicu.
+            <Box tone="warn" title={t.inheritedTitle(formatDecimal(impact.data.criterion_points))}>
+              {t.inheritedBody}
               {' '}
               {spread.after < spread.before - 0.05
-                ? `Szkic zmniejsza rozrzut z ${formatDecimal(spread.before)} do ${formatDecimal(spread.after)} pkt.`
-                : `Szkic nie zmniejsza rozrzutu (${formatDecimal(spread.before)} → ${formatDecimal(spread.after)} pkt); jeśli wprowadzono ręczne korekty, sprawdź je.`}
+                ? t.spreadReduced(formatDecimal(spread.before), formatDecimal(spread.after))
+                : t.spreadNotReduced(formatDecimal(spread.before), formatDecimal(spread.after))}
               {' '}
-              Generator spłaca dług stopniowo - w jednym zakresie koryguje udział osoby o najwyżej połowę jej udziału, żeby nikt nie został bez dyżurów - więc wyrównanie dokończą kolejne zakresy; ponowne generowanie tego nie zmieni.
-              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${formatDecimal(impact.data.acceptance_floor)} pkt.`}
+              {t.repaidGradually}
+              {impact.data.acceptance_floor != null && t.floor(formatDecimal(impact.data.acceptance_floor))}
             </Box>
           )}
           {cause === 'draft' && (
-            <Box tone="warn" title="Kryterium niespełnione">
-              Co najmniej jedna soczewka, która przed szkicem mieściła się w {formatDecimal(impact.data.criterion_points)} pkt, po publikacji przekracza tę rozpiętość; popraw komórki w macierzy albo wygeneruj ponownie.
-              {impact.data.acceptance_floor != null && ` Najniższa rozpiętość osiągalna w tym zakresie to ${formatDecimal(impact.data.acceptance_floor)} pkt.`}
+            <Box tone="warn" title={t.missedTitle}>
+              {t.missedBody(formatDecimal(impact.data.criterion_points))}
+              {impact.data.acceptance_floor != null && t.floor(formatDecimal(impact.data.acceptance_floor))}
             </Box>
           )}
         </>

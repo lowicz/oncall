@@ -2,8 +2,8 @@ import { Fragment, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapRequest, SwapStatus, UserRole, api } from '../api'
+import { locale, messages, useMessages } from '../i18n'
 import { roleLabels, swapStatusLabels } from '../lib/labels'
-import { pluralPl } from '../lib/plural'
 import { formatDecimal, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
 import { SwapViewer, canCoordinate, canWithdraw, isOpen, needsMyDecision } from '../lib/swaps'
@@ -74,8 +74,11 @@ function ViolationList({ violations, title, tone = 'warn' }: {
 }
 
 function slotSummary(slots: { service_date: string; role: AssignmentRole }[]): string {
-  return slots.map((slot) => `${formatDayShort(slot.service_date)} · ${roleLabels[slot.role]}`).join(' + ')
+  return slots.map((slot) => `${formatDayShort(slot.service_date)} · ${roleLabels()[slot.role]}`).join(' + ')
 }
+
+/** "pon 14 wrz PRIMARY" - the day and role that name a request in a title. */
+const dayRole = (slot: { service_date: string; role: AssignmentRole }) => `${formatDayShort(slot.service_date)} ${roleLabels()[slot.role]}`
 
 /**
  * Where a request stands: filed, replacement, coordinator, in the schedule.
@@ -83,19 +86,20 @@ function slotSummary(slots: { service_date: string; role: AssignmentRole }[]): s
  * already with a coordinator keeps the stage after the switch is turned off.
  */
 function SwapSteps({ status, approvalRequired }: { status: SwapStatus; approvalRequired: boolean }) {
+  const t = useMessages().swaps.steps
   const done = status === 'approved'
   const stopped = status === 'rejected' || status === 'cancelled'
   const coordinatorStage = approvalRequired || status === 'pending_coordinator'
   return (
     <Steps
-      label="Etap wniosku"
+      label={t.label}
       steps={[
-        { label: 'złożona', state: 'done' },
-        { label: 'zastępca', state: status === 'pending_replacement' ? 'on' : stopped ? 'todo' : 'done' },
+        { label: t.filed, state: 'done' },
+        { label: t.replacement, state: status === 'pending_replacement' ? 'on' : stopped ? 'todo' : 'done' },
         ...(coordinatorStage
-          ? [{ label: 'koordynator', state: status === 'pending_coordinator' ? 'on' : done ? 'done' : 'todo' } as const]
+          ? [{ label: t.coordinator, state: status === 'pending_coordinator' ? 'on' : done ? 'done' : 'todo' } as const]
           : []),
-        { label: stopped ? swapStatusLabels[status].toLowerCase() : 'w grafiku', state: done ? 'done' : 'todo' },
+        { label: stopped ? swapStatusLabels()[status].toLowerCase() : t.inSchedule, state: done ? 'done' : 'todo' },
       ]}
     />
   )
@@ -105,17 +109,20 @@ const firstName = (name: string) => name.split(' ')[0]
 
 /** Who acts next, under the status in the inbox table. */
 function stageDetail(item: SwapRequest, viewer: SwapViewer): string {
+  const t = messages().swaps.stage
   const me = (name: string) => name === viewer.displayName
-  if (item.status === 'pending_replacement') return me(item.replacement_name) ? 'czeka na Ciebie' : `czeka na: ${item.replacement_name}`
+  if (item.status === 'pending_replacement') return me(item.replacement_name) ? t.waitingForYou : t.waitingFor(item.replacement_name)
   if (item.status === 'pending_coordinator') {
-    return `${firstName(item.replacement_name)} zgodził(a) się · czeka na ${canCoordinate(viewer.role) ? 'Ciebie' : 'koordynatora'}`
+    return canCoordinate(viewer.role)
+      ? t.acceptedWaitingForYou(firstName(item.replacement_name))
+      : t.acceptedWaitingForCoordinator(firstName(item.replacement_name))
   }
-  if (item.status === 'approved') return 'wpisana do grafiku'
-  return item.decision_note ? `powód: „${item.decision_note}”` : ''
+  if (item.status === 'approved') return t.inSchedule
+  return item.decision_note ? t.reason(item.decision_note) : ''
 }
 
 /**
- * The "skutek" column: who gains the points once the swap is in the schedule.
+ * The "effect" column: who gains the points once the swap is in the schedule.
  * Read from the same impact endpoint the decision sheet uses, only for open
  * rows; a settled request no longer has a projection to show.
  */
@@ -138,7 +145,6 @@ function decisionOf(item: SwapRequest, viewer: SwapViewer) {
     pending,
     mustDecide: needsMyDecision(item, viewer) && !expired,
     withdrawable: canWithdraw(item, viewer),
-    acceptLabel: item.status === 'pending_replacement' ? 'Akceptuję' : 'Zatwierdź i wpisz do grafiku',
   }
 }
 
@@ -156,41 +162,42 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason }: 
   reason: string
   onReason: (value: string) => void
 }) {
+  const t = useMessages().swaps.sheet
   const { expired, pending, mustDecide, withdrawable } = decisionOf(item, viewer)
-  const reasonLabel = mustDecide ? 'Powód odrzucenia · widoczny dla obu stron' : 'Powód wycofania'
+  const reasonLabel = mustDecide ? t.rejectionReason : t.withdrawalReason
   return (
     <>
       <SwapSteps status={item.status} approvalRequired={approvalRequired} />
       <div className="roles">
         <div className="role-row">
-          <span className="role-r role-r-p">Oddaje</span>
+          <span className="role-r role-r-p">{t.gives}</span>
           <span className="role-n">{item.requester_name}</span>
-          <span className="role-x">{item.requester_name === viewer.displayName ? 'to Ty' : ''}</span>
+          <span className="role-x">{item.requester_name === viewer.displayName ? t.thatIsYou : ''}</span>
         </div>
         <div className={cx('role-row', item.status === 'pending_coordinator' && 'role-row-sel')}>
-          <span className="role-r role-r-s">Przejmuje</span>
+          <span className="role-r role-r-s">{t.takes}</span>
           <span className="role-n">{item.replacement_name}</span>
-          <span className="role-x">{item.status === 'pending_coordinator' ? 'zgodził(a) się' : item.replacement_name === viewer.displayName ? 'to Ty' : ''}</span>
+          <span className="role-x">{item.status === 'pending_coordinator' ? t.agreed : item.replacement_name === viewer.displayName ? t.thatIsYou : ''}</span>
         </div>
       </div>
       <dl className="kv">
-        <div className="kv-row"><dt>Dyżur</dt><dd>{slotSummary(slotsOf(item))}</dd></div>
-        <div className="kv-row"><dt>Złożona</dt><dd className="mono">{formatDayShort(item.created_at.slice(0, 10))}</dd></div>
+        <div className="kv-row"><dt>{t.duty}</dt><dd>{slotSummary(slotsOf(item))}</dd></div>
+        <div className="kv-row"><dt>{t.filed}</dt><dd className="mono">{formatDayShort(item.created_at.slice(0, 10))}</dd></div>
       </dl>
-      {item.note && <Box title={`Powód od: ${item.requester_name}`}>„{item.note}”</Box>}
-      {item.decision_note && <Box tone={item.status === 'rejected' ? 'bad' : 'muted'} title="Powód decyzji">„{item.decision_note}”</Box>}
-      <ViolationList violations={item.warnings ?? []} title="Ostrzeżenia" />
+      {item.note && <Box title={t.reasonFrom(item.requester_name)}>{t.quoted(item.note)}</Box>}
+      {item.decision_note && <Box tone={item.status === 'rejected' ? 'bad' : 'muted'} title={t.decisionReason}>{t.quoted(item.decision_note)}</Box>}
+      <ViolationList violations={item.warnings ?? []} title={t.warnings} />
       {item.replacement_member_id && pending && (
         <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} />
       )}
-      {expired && pending && <Box tone="warn" title="Termin dyżuru minął." />}
+      {expired && pending && <Box tone="warn" title={t.expired} />}
       {!approvalRequired && mustDecide && item.status === 'pending_replacement' && (
-        <Box tone="sig" title="Po Twojej akceptacji zamiana trafi do grafiku od razu.">
-          Koordynator nie zatwierdza zamian; dostanie tylko powiadomienie.
+        <Box tone="sig" title={t.immediateTitle}>
+          {t.immediateBody}
         </Box>
       )}
       {(mustDecide || withdrawable) && (
-        <Field label={reasonLabel} id={`swap-reason-${item.id}`} hint={mustDecide ? 'Wymagany tylko przy odrzuceniu.' : 'Wymagany przy wycofaniu.'}>
+        <Field label={reasonLabel} id={`swap-reason-${item.id}`} hint={mustDecide ? t.rejectionReasonHint : t.withdrawalReasonHint}>
           {({ id, describedBy }) => (
             <Textarea id={id} rows={2} value={reason} aria-describedby={describedBy} onChange={(event) => onReason(event.target.value)} />
           )}
@@ -206,6 +213,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   role: UserRole
   hasTeamMember: boolean
 }) {
+  const t = useMessages()
+  const roles = roleLabels()
+  const statuses = swapStatusLabels()
   const queryClient = useQueryClient()
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -271,10 +281,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     if (blockedDelta !== 0) return blockedDelta
     const leftBenefit = optionBenefit(left.member_id)
     const rightBenefit = optionBenefit(right.member_id)
-    if (leftBenefit === null && rightBenefit === null) return left.display_name.localeCompare(right.display_name, 'pl')
+    if (leftBenefit === null && rightBenefit === null) return left.display_name.localeCompare(right.display_name, locale())
     if (leftBenefit === null) return 1
     if (rightBenefit === null) return -1
-    return rightBenefit - leftBenefit || left.display_name.localeCompare(right.display_name, 'pl')
+    return rightBenefit - leftBenefit || left.display_name.localeCompare(right.display_name, locale())
   })
   const selectedOption = options.data?.find((option) => option.member_id === replacementId)
   const refresh = () => {
@@ -300,7 +310,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       setComposing(false)
       setInbox('moje')
       refresh()
-      toast.success(name ? `Wysłano do: ${name}` : 'Wysłano prośbę o zamianę')
+      toast.success(name ? t.swaps.toasts.sentTo(name) : t.swaps.toasts.sent)
     },
   })
   const settle = (message: string) => ({
@@ -310,10 +320,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       toast.success(message)
     },
   })
-  const accept = useMutation({ mutationFn: api.acceptSwap, ...settle(approvalRequired ? 'Przyjęto dyżur' : 'Zamiana wpisana do grafiku') })
-  const approve = useMutation({ mutationFn: api.approveSwap, ...settle('Zamiana wpisana do grafiku') })
-  const reject = useMutation({ mutationFn: api.rejectSwap, ...settle('Odrzucono zamianę') })
-  const cancel = useMutation({ mutationFn: api.cancelSwap, ...settle('Wycofano zamianę') })
+  const accept = useMutation({ mutationFn: api.acceptSwap, ...settle(approvalRequired ? t.swaps.toasts.dutyTaken : t.swaps.toasts.inSchedule) })
+  const approve = useMutation({ mutationFn: api.approveSwap, ...settle(t.swaps.toasts.inSchedule) })
+  const reject = useMutation({ mutationFn: api.rejectSwap, ...settle(t.swaps.toasts.rejected) })
+  const cancel = useMutation({ mutationFn: api.cancelSwap, ...settle(t.swaps.toasts.withdrawn) })
   const busy = accept.isPending || approve.isPending || reject.isPending || cancel.isPending
   const decisionError = [accept.error, approve.error, reject.error, cancel.error].find(Boolean) ?? null
 
@@ -330,8 +340,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const items = swaps.data ?? []
   const counts: Record<Inbox, number> = { 'do-mnie': 0, moje: 0, 'w-toku': 0, zamkniete: 0 }
   for (const item of items) counts[inboxOf(item, displayName)] += 1
-  // A coordinator's "Do zatwierdzenia" lists every open request of others, but
-  // its badge counts only those waiting for approval, as the header does.
+  // A coordinator's "for approval" inbox lists every open request of others,
+  // but its badge counts only those waiting for approval, as the header does.
   const awaitingApproval = items.filter((item) => inboxOf(item, displayName) === 'w-toku' && needsMyDecision(item, viewer)).length
   const badges: Record<Inbox, number> = { ...counts, 'w-toku': approver ? awaitingApproval : counts['w-toku'] }
   const actionable = items.filter((item) => needsMyDecision(item, viewer)).length
@@ -350,7 +360,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const visible = items
     .filter((item) => inboxOf(item, displayName) === inbox)
     .sort((left, right) => (inbox === 'zamkniete' ? right.created_at.localeCompare(left.created_at) : left.service_date.localeCompare(right.service_date)))
-  // One projection per open row, for the "skutek" column.
+  // One projection per open row, for the "effect" column.
   const projected = visible.filter((item) => isOpen(item) && item.replacement_member_id && !isExpired(item))
   const rowImpacts = useQueries({
     queries: projected.map((item) => ({
@@ -363,36 +373,36 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     return index >= 0 ? rowImpacts[index]?.data : undefined
   }
   const inboxLabels: Record<Inbox, string> = {
-    'do-mnie': 'Do mnie',
-    moje: 'Moje',
-    'w-toku': approver ? 'Do zatwierdzenia' : 'W toku',
-    zamkniete: 'Zamknięte',
+    'do-mnie': t.swaps.inbox.toMe,
+    moje: t.swaps.inbox.mine,
+    'w-toku': approver ? t.swaps.inbox.forApproval : t.swaps.inbox.inProgress,
+    zamkniete: t.swaps.inbox.closed,
   }
   const openItem = openId ? items.find((entry) => entry.id === openId) : undefined
   const decision = openItem ? decisionOf(openItem, viewer) : null
   const submitDisabled = create.isPending || !schedule?.id || !serviceDate || !replacementId
     || (selectedOption?.blocking_violations?.length ?? 0) > 0
   const subtitle = swaps.data && [
-    `${pluralPl(actionable, ['czeka', 'czekają', 'czeka'])} na Twoją decyzję`,
-    `${pluralPl(otherOpen, ['czeka', 'czekają', 'czeka'])} na drugą stronę`,
-    pluralPl(counts.zamkniete, ['zamknięta', 'zamknięte', 'zamkniętych']),
+    t.swaps.summary.awaitingMe(actionable),
+    t.swaps.summary.awaitingOthers(otherOpen),
+    t.swaps.summary.closed(counts.zamkniete),
   ].join(' · ')
 
   return (
     <div className="page">
       <PageHeader
-        title="Zamiany"
+        title={t.swaps.title}
         sub={subtitle}
         actions={hasTeamMember && (
-          <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>Nowa zamiana</Button>
+          <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>{t.swaps.newSwap}</Button>
         )}
       />
       {swaps.error && <ErrorState error={swaps.error} onRetry={() => swaps.refetch()} />}
-      {swaps.isLoading && <LoadingBlock label="Wczytywanie zamian" />}
+      {swaps.isLoading && <LoadingBlock label={t.swaps.loading} />}
       {swaps.data && (
         <>
           <SectionHeading
-            title="Skrzynka"
+            title={t.swaps.inbox.heading}
             controls={INBOXES.map((value) => (
               <button
                 key={value}
@@ -400,7 +410,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 className={cx('sech-link', inbox === value && 'on')}
                 aria-pressed={inbox === value}
                 // The badge would otherwise run into the label ("Do mnie0").
-                aria-label={value === 'zamkniete' ? undefined : `${inboxLabels[value]}: ${pluralPl(badges[value], ['sprawa', 'sprawy', 'spraw'])}`}
+                aria-label={value === 'zamkniete' ? undefined : t.swaps.inbox.count(inboxLabels[value], badges[value])}
                 onClick={() => setInbox(value)}
               >
                 {inboxLabels[value]}
@@ -417,16 +427,16 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               {inbox === 'do-mnie' ? (
                 <EmptyState
                   icon="swap"
-                  title="Nikt Cię o nic nie prosi"
-                  description="Gdy ktoś zaproponuje Ci zamianę, zobaczysz ją tutaj i w liczniku w szynie. Własną zaczniesz przyciskiem „Nowa zamiana” albo z ekranu Moje."
-                  action={hasTeamMember && <LinkButton to="/moje" size="sm">Moje dyżury</LinkButton>}
+                  title={t.swaps.inbox.emptyToMeTitle}
+                  description={t.swaps.inbox.emptyToMeDescription}
+                  action={hasTeamMember && <LinkButton to="/moje" size="sm">{t.swaps.inbox.myDuties}</LinkButton>}
                 />
               ) : inbox === 'moje' ? (
-                <EmptyState compact icon="swap" title="Nie masz otwartych próśb" description={hasTeamMember ? 'Nowa zamiana zaczyna się od Twojego dyżuru.' : undefined} />
+                <EmptyState compact icon="swap" title={t.swaps.inbox.emptyMineTitle} description={hasTeamMember ? t.swaps.inbox.emptyMineDescription : undefined} />
               ) : inbox === 'w-toku' ? (
-                <EmptyState compact icon="check" title={approver ? 'Nic nie czeka na zatwierdzenie' : 'Brak zamian w toku'} />
+                <EmptyState compact icon="check" title={approver ? t.swaps.inbox.nothingToApprove : t.swaps.inbox.noneInProgress} />
               ) : (
-                <EmptyState compact icon="swap" title="Brak zamkniętych zamian" />
+                <EmptyState compact icon="swap" title={t.swaps.inbox.noneClosed} />
               )}
             </div>
           ) : (
@@ -434,12 +444,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               <table className="lg">
                 <thead>
                   <tr>
-                    <th scope="col">Dzień · rola</th>
-                    <th scope="col">Oddaje</th>
-                    <th scope="col">Przejmuje</th>
-                    <th scope="col">Skutek pkt</th>
-                    <th scope="col">Etap</th>
-                    <th scope="col"><span className="sr-only">Akcje</span></th>
+                    <th scope="col">{t.swaps.table.dayRole}</th>
+                    <th scope="col">{t.swaps.table.gives}</th>
+                    <th scope="col">{t.swaps.table.takes}</th>
+                    <th scope="col">{t.swaps.table.effect}</th>
+                    <th scope="col">{t.swaps.table.stage}</th>
+                    <th scope="col"><span className="sr-only">{t.swaps.table.actions}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -447,26 +457,27 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                     const expired = isExpired(item)
                     const pending = item.status.startsWith('pending_')
                     const decide = needsMyDecision(item, viewer) && !expired
+                    const verb = decide ? t.swaps.table.decide : t.swaps.table.preview
                     return (
                       <tr key={item.id} className={openId === item.id ? 'on' : undefined}>
                         <th scope="row">
-                          <b>{formatDayShort(item.service_date)}</b> {roleLabels[item.role]}
+                          <b>{formatDayShort(item.service_date)}</b> {roles[item.role]}
                           <small>
                             {relativeDay(item.service_date)}
-                            {(item.slots?.length ?? 0) > 1 && ' · 2 sloty'}
-                            {expired && pending && ' · termin minął'}
+                            {(item.slots?.length ?? 0) > 1 && ` · ${t.swaps.table.twoSlots}`}
+                            {expired && pending && ` · ${t.swaps.table.expired}`}
                           </small>
                         </th>
                         <td>{item.requester_name}</td>
                         <td>{item.replacement_name}</td>
                         <td><Effect impact={impactOfRow(item)} /></td>
                         <td>
-                          <StatusBadge tone={statusTone[item.status]}>{swapStatusLabels[item.status]}</StatusBadge>
+                          <StatusBadge tone={statusTone[item.status]}>{statuses[item.status]}</StatusBadge>
                           {stageDetail(item, viewer) && <small>{stageDetail(item, viewer)}</small>}
                         </td>
                         <td className="td-actions">
-                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={`${decide ? 'Zdecyduj' : 'Podgląd'}: ${formatDayShort(item.service_date)} ${roleLabels[item.role]}`}>
-                            {decide ? 'Zdecyduj' : 'Podgląd'}
+                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, dayRole(item))}>
+                            {verb}
                           </Button>
                         </td>
                       </tr>
@@ -476,25 +487,25 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               </table>
             </div>
           )}
-          <p className="muted small">Etap zamiany zawsze mówi, kto jest następny; kolumna „skutek” pokazuje osobę, która zyskuje punkty. Zatwierdzenie wpisuje zamianę do grafiku i do audytu w jednym kroku.</p>
+          <p className="muted small">{t.swaps.table.footnote}</p>
         </>
       )}
 
       <Panel
         open={Boolean(openItem)}
         onOpenChange={(open) => { if (!open) openSheet(null) }}
-        title={openItem ? `Zamiana · ${formatDayShort(openItem.service_date)} ${roleLabels[openItem.role]}` : ''}
-        meta={openItem && <StatusBadge tone={statusTone[openItem.status]}>{swapStatusLabels[openItem.status]}</StatusBadge>}
+        title={openItem ? t.swaps.sheet.title(dayRole(openItem)) : ''}
+        meta={openItem && <StatusBadge tone={statusTone[openItem.status]}>{statuses[openItem.status]}</StatusBadge>}
         footer={openItem && decision && (
           <>
-            <Button size="sm" variant="ghost" onClick={() => openSheet(null)}>Zamknij</Button>
+            <Button size="sm" variant="ghost" onClick={() => openSheet(null)}>{t.common.close}</Button>
             <span className="sp" />
             {decision.withdrawable && !decision.mustDecide && (
-              <Button size="sm" disabled={busy || !reason.trim()} loading={busy} onClick={() => cancel.mutate({ id: openItem.id, reason: reason.trim() })}>Wycofaj</Button>
+              <Button size="sm" disabled={busy || !reason.trim()} loading={busy} onClick={() => cancel.mutate({ id: openItem.id, reason: reason.trim() })}>{t.swaps.sheet.withdraw}</Button>
             )}
             {decision.mustDecide && (
               <>
-                <Button size="sm" variant="danger" disabled={busy || !reason.trim()} onClick={() => reject.mutate({ id: openItem.id, reason: reason.trim() })}>Odrzuć</Button>
+                <Button size="sm" variant="danger" disabled={busy || !reason.trim()} onClick={() => reject.mutate({ id: openItem.id, reason: reason.trim() })}>{t.swaps.sheet.reject}</Button>
                 <Button
                   size="sm"
                   variant="primary"
@@ -502,7 +513,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                   loading={busy}
                   onClick={() => (openItem.status === 'pending_replacement' ? accept.mutate(openItem.id) : approve.mutate(openItem.id))}
                 >
-                  {decision.acceptLabel}
+                  {openItem.status === 'pending_replacement' ? t.swaps.sheet.accept : t.swaps.sheet.approve}
                 </Button>
               </>
             )}
@@ -517,20 +528,20 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       <Panel
         open={composing}
         onOpenChange={(open) => { if (!open) setComposing(false) }}
-        title="Nowa zamiana"
+        title={t.swaps.compose.title}
         wide
         footer={(
           <>
-            <Button variant="ghost" onClick={() => setComposing(false)}>Anuluj</Button>
+            <Button variant="ghost" onClick={() => setComposing(false)}>{t.common.cancel}</Button>
             <span className="sp" />
-            <Button type="submit" form="new-swap" variant="primary" icon="send" disabled={submitDisabled} loading={create.isPending}>Wyślij prośbę</Button>
+            <Button type="submit" form="new-swap" variant="primary" icon="send" disabled={submitDisabled} loading={create.isPending}>{t.swaps.compose.send}</Button>
           </>
         )}
       >
         <form
           id="new-swap"
           className="stack-sm"
-          aria-label="Nowa prośba o zamianę"
+          aria-label={t.swaps.compose.form}
           onSubmit={(event) => {
             event.preventDefault()
             if (schedule?.id && serviceDate && assignmentRole && replacementId) {
@@ -539,23 +550,23 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           }}
         >
           <Steps
-            label="Krok"
+            label={t.swaps.compose.step}
             steps={[
-              { label: '1 dyżur', state: slot ? 'done' : 'on' },
-              { label: '2 kandydat', state: replacementId ? 'done' : slot ? 'on' : 'todo' },
-              { label: '3 powód i wysłanie', state: replacementId ? 'on' : 'todo' },
+              { label: t.swaps.compose.stepDuty, state: slot ? 'done' : 'on' },
+              { label: t.swaps.compose.stepCandidate, state: replacementId ? 'done' : slot ? 'on' : 'todo' },
+              { label: t.swaps.compose.stepReason, state: replacementId ? 'on' : 'todo' },
             ]}
           />
           {serviceDate && assignmentRole && (
-            <p className="muted small">Oddajesz: {formatDayShort(serviceDate)} · {roleLabels[assignmentRole]}</p>
+            <p className="muted small">{t.swaps.compose.giving(slotSummary([{ service_date: serviceDate, role: assignmentRole }]))}</p>
           )}
-          <Field label="Mój dyżur" id="swap-slot" required hint="Dzień i rola z opublikowanego grafiku.">
+          <Field label={t.swaps.compose.myDuty} id="swap-slot" required hint={t.swaps.compose.myDutyHint}>
             {({ id }) => (
               <Select id={id} name="slot" value={slot} onChange={(event) => { setSlot(event.target.value); setReplacementId('') }} required>
-                <option value="" disabled>{ownAssignments.length === 0 ? 'Brak nadchodzących dyżurów' : 'Wybierz dyżur'}</option>
+                <option value="" disabled>{ownAssignments.length === 0 ? t.swaps.compose.noUpcomingDuties : t.swaps.compose.pickDuty}</option>
                 {ownAssignments.map((item) => (
                   <option key={`${item.service_date}-${item.role}`} value={`${item.service_date}|${item.role}`}>
-                    {formatDayShort(item.service_date)} · {roleLabels[item.role]} ({relativeDay(item.service_date)}){isUnavailable(item.service_date) ? ' · kolizja: nie mogę' : ''}
+                    {formatDayShort(item.service_date)} · {roles[item.role]} ({relativeDay(item.service_date)}){isUnavailable(item.service_date) ? ` · ${t.swaps.compose.unavailableCollision}` : ''}
                   </option>
                 ))}
               </Select>
@@ -564,12 +575,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           {/* Availability, current balance and a duty marker travel with the
               name, so comparing two candidates no longer means selecting each
               one and reading the impact preview twice (MED5-09). */}
-          <div className="stack-sm" role="radiogroup" aria-label="Zastępca">
-            <SectionHeading as="h3" title="Kandydaci" meta="posortowani wg dopasowania" />
-            {!slot && <div className="muted small">Najpierw wybierz swój dyżur.</div>}
-            {slot && options.isLoading && <LoadingBlock label="Szukam dostępnych osób" rows={2} />}
+          <div className="stack-sm" role="radiogroup" aria-label={t.swaps.compose.replacement}>
+            <SectionHeading as="h3" title={t.swaps.compose.candidates} meta={t.swaps.compose.candidatesMeta} />
+            {!slot && <div className="muted small">{t.swaps.compose.pickDutyFirst}</div>}
+            {slot && options.isLoading && <LoadingBlock label={t.swaps.compose.searching} rows={2} />}
             {slot && options.error && <ErrorState error={options.error} onRetry={() => options.refetch()} />}
-            {slot && options.data && options.data.length === 0 && <EmptyState compact icon="people" title="Brak dostępnych zastępców" />}
+            {slot && options.data && options.data.length === 0 && <EmptyState compact icon="people" title={t.swaps.compose.noCandidates} />}
             {slot && orderedOptions.length > 0 && (
               <div className="rank">
                 {orderedOptions.map((option, index) => {
@@ -593,23 +604,25 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                         <small>
                           {[
                             option.availability && <AvailabilityMark key="av" kind={option.availability} withLabel />,
-                            option.on_duty_that_day && 'ma już dyżur tego dnia',
-                            (option.slots?.length ?? 0) > 1 && 'obejmie oba sloty dnia',
-                            !blocked && (option.warning_violations?.length ?? 0) > 0 && 'dzieli blok dni wolnych',
+                            option.on_duty_that_day && t.swaps.compose.onDutyThatDay,
+                            (option.slots?.length ?? 0) > 1 && t.swaps.compose.takesBothSlots,
+                            !blocked && (option.warning_violations?.length ?? 0) > 0 && t.swaps.compose.splitsDaysOff,
                           ].filter(Boolean).map((fact, index) => (
                             <Fragment key={index}>{index > 0 && ' · '}{fact}</Fragment>
                           ))}
-                          {blocked && <span className="who-out"> nie można: {option.blocking_violations?.[0]?.message}</span>}
+                          {blocked && <span className="who-out"> {t.swaps.compose.blocked(option.blocking_violations?.[0]?.message ?? '')}</span>}
                         </small>
                       </span>
                       <span className="rank-facts">
                         {deviation !== null && (
                           <span className={cx(deviation > 0 ? 'rank-fact-warn' : 'rank-fact-ok')}>
-                            {formatDecimal(Math.abs(deviation))} pkt {deviation > 0 ? 'powyżej' : 'poniżej'} udziału
+                            {deviation > 0
+                              ? t.swaps.compose.aboveShare(formatDecimal(Math.abs(deviation)))
+                              : t.swaps.compose.belowShare(formatDecimal(Math.abs(deviation)))}
                           </span>
                         )}
-                        {!blocked && (benefit ?? 0) > 0 && <span className="rank-fact-ok">poprawia bilans</span>}
-                        {blocked && <span className="rank-fact-bad">reguła twarda</span>}
+                        {!blocked && (benefit ?? 0) > 0 && <span className="rank-fact-ok">{t.swaps.compose.improvesBalance}</span>}
+                        {blocked && <span className="rank-fact-bad">{t.swaps.compose.hardRule}</span>}
                       </span>
                     </button>
                   )
@@ -618,20 +631,20 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             )}
           </div>
           {(selectedOption?.slots?.length ?? 0) > 1 && (
-            <Box tone="sig" title="Prośba obejmie oba sloty tego dnia">
-              {slotSummary(selectedOption?.slots ?? [])}. {approvalRequired ? 'Jedna akceptacja zastępcy, jedno zatwierdzenie koordynatora.' : 'Jedna akceptacja zastępcy załatwia całość.'}
+            <Box tone="sig" title={t.swaps.compose.bothSlotsTitle}>
+              {slotSummary(selectedOption?.slots ?? [])}. {approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval}
             </Box>
           )}
           {selectedOption && (
             <ViolationList
               violations={selectedOption.warning_violations ?? []}
-              title={approvalRequired ? 'Wyślesz mimo to - koordynator zobaczy ostrzeżenie' : 'Wyślesz mimo to - zamiana nie wymaga zatwierdzenia koordynatora'}
+              title={approvalRequired ? t.swaps.compose.warningsWithApproval : t.swaps.compose.warningsWithoutApproval}
             />
           )}
           {serviceDate && assignmentRole && replacementId && (
             <SwapImpactPreview serviceDate={serviceDate} role={assignmentRole} replacementId={replacementId} />
           )}
-          <Field label="Powód" id="swap-note" hint="Zobaczą zastępca i koordynator.">
+          <Field label={t.swaps.compose.note} id="swap-note" hint={t.swaps.compose.noteHint}>
             {({ id }) => <Textarea id={id} name="note" rows={2} value={note} onChange={(event) => setNote(event.target.value)} />}
           </Field>
           {create.error instanceof ApiError && create.error.violations.length > 0 ? (

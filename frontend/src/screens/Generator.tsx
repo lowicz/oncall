@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, SchedulingPolicy, api } from '../api'
+import { locale, messages, useMessages } from '../i18n'
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
-import { pluralFormPl, pluralPl } from '../lib/plural'
 import { formatPoints } from '../lib/numbers'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
@@ -42,40 +42,25 @@ import {
 /** CP-SAT statuses that mean the model was actually solved. */
 const SOLVER_OK = ['OPTIMAL', 'FEASIBLE']
 
-/** Why „Przekaż do akceptacji" is off: the API would answer 409 anyway. */
-const PROPOSE_BLOCKED = 'Najpierw usuń dyżury w dniach zgłoszonej niedostępności'
-
 /** Mirrors `scheduler.GENERATION_BUDGET_PASSES`; only for the live preview
  *  while the coordinator is still typing an unsaved budget. */
 const GENERATION_BUDGET_PASSES = 4
 
-/** Polish count of generations ahead in the queue. */
+/** Count of generations ahead in the queue, in the current language. */
 export function jobsAhead(count: number): string {
-  if (count === 1) return '1 zadanie przed Tobą'
-  const rest = count % 10
-  const tens = count % 100
-  const few = rest >= 2 && rest <= 4 && (tens < 10 || tens >= 20)
-  return `${count} ${few ? 'zadania' : 'zadań'} przed Tobą`
+  return messages().generator.jobsAhead(count)
 }
 
 /** The sentence under the progress bar while a generation waits its turn. */
 function queueSentence(run: ScheduleRun): string {
-  if (!run.queue_position) return 'Zadanie oczekuje na wolny proces generatora.'
+  const t = messages().generator.queue
+  if (!run.queue_position) return t.waitingForWorker
   const start = run.estimated_start_seconds
-  const eta = start && start > 0 ? `, szacowany start za około ${start} s` : ''
-  return `W kolejce: ${jobsAhead(run.queue_position)}${eta}.`
+  return start && start > 0 ? t.positionWithEta(jobsAhead(run.queue_position), start) : t.position(jobsAhead(run.queue_position))
 }
 
 const STAGES: Array<DraftSchedule['status']> = ['draft', 'proposed', 'published']
-const STAGE_ACTORS: Record<DraftSchedule['status'], string> = {
-  draft: 'koordynator poprawia',
-  proposed: 'koordynator akceptuje',
-  published: 'widoczny dla zespołu',
-  superseded: 'zastąpiony',
-}
 const statusTone: Record<DraftSchedule['status'], StatusTone> = { draft: 'draft', proposed: 'prop', published: 'pub', superseded: 'muted' }
-/** The word before the range in the title: "Szkic 4 – 31 paź", "Propozycja 4 – 31 paź". */
-const TITLE_WORD: Record<DraftSchedule['status'], string> = { draft: 'Szkic', proposed: 'Propozycja', published: 'Grafik', superseded: 'Zastąpiony' }
 
 type Settings = {
   rotation_mode: RotationMode
@@ -115,6 +100,7 @@ const settingsOf = (policy: SchedulingPolicy): Settings => ({
  * live in a drawer, the publication in a sheet that lists its consequences.
  */
 export function GeneratorPanel() {
+  const { generator: t, common, nav } = useMessages()
   const queryClient = useQueryClient()
   const today = warsawDate()
   const policy = useQuery({ queryKey: ['scheduling-policy'], queryFn: api.schedulingPolicy })
@@ -306,68 +292,68 @@ export function GeneratorPanel() {
   const progress = generating && (
     <div className="panel panel-padded stack-sm" aria-live="polite">
       <Steps
-        label="Etap generowania"
+        label={t.progress.stage}
         steps={[
-          { label: 'dane', state: runProgress?.status === 'queued' ? 'on' : 'done' },
+          { label: t.progress.steps.data, state: runProgress?.status === 'queued' ? 'on' : 'done' },
           {
-            label: runProgress?.status === 'running' && runProgress.solve_seconds !== undefined ? `solver ${elapsed} s / ${Math.round(runProgress.solve_seconds)} s` : 'solver',
+            label: runProgress?.status === 'running' && runProgress.solve_seconds !== undefined ? t.progress.steps.solverTimed(elapsed, Math.round(runProgress.solve_seconds)) : t.progress.steps.solver,
             state: runProgress?.status === 'running' ? 'on' : runProgress?.status === 'completed' ? 'done' : 'todo',
           },
-          { label: 'sprawiedliwość', state: runProgress?.status === 'completed' ? 'on' : 'todo' },
-          { label: 'propozycja', state: 'todo' },
+          { label: t.progress.steps.fairness, state: runProgress?.status === 'completed' ? 'on' : 'todo' },
+          { label: t.progress.steps.proposal, state: 'todo' },
         ]}
       />
-      <div className="progress" role="progressbar" aria-valuenow={runProgress?.progress ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label="Postęp generowania">
+      <div className="progress" role="progressbar" aria-valuenow={runProgress?.progress ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label={t.progress.bar}>
         <i style={{ width: `${runProgress?.progress ?? 0}%` }} />
       </div>
       {Boolean(runProgress?.uncovered_before?.length) && (
         <Box tone="warn">
-          Przed początkiem szkicu pozostaje {runProgress!.uncovered_before!.length} nieobsadzonych dni: {runProgress!.uncovered_before!.map(formatDate).join(', ')}.
+          {t.progress.uncoveredBefore(runProgress!.uncovered_before!.length, runProgress!.uncovered_before!.map(formatDate).join(', '))}
         </Box>
       )}
       <div className="small muted">
-        {runProgress?.status === 'queued' ? queueSentence(runProgress) : 'Solver pracuje poza procesem API. Możesz zamknąć tę stronę; szkic pojawi się na liście.'}
+        {runProgress?.status === 'queued' ? queueSentence(runProgress) : t.progress.outOfProcess}
       </div>
       {/* The budget is per solver pass, and a hard model is solved several
           times over, so the counter can pass the budget without a defect.
           Outside the live region: it changes every second. */}
       {runProgress?.solve_seconds !== undefined && (
         <div className="small muted mono" aria-live="off">
-          {elapsed} s · budżet {Math.round(runProgress.solve_seconds)} s na jeden przebieg solvera, trudny grafik wymaga kilku
-          {policy.data?.time_budget_seconds !== undefined && `, łącznie do ${Math.round(policy.data.time_budget_seconds)} s`}.
+          {t.progress.budgetLine(elapsed, Math.round(runProgress.solve_seconds))}
+          {policy.data?.time_budget_seconds !== undefined && t.progress.budgetTotal(Math.round(policy.data.time_budget_seconds))}.
         </div>
       )}
-      {resume.isPending && <div className="small muted">Wznowiono podgląd generowania rozpoczętego wcześniej - nie uruchamiaj go drugi raz.</div>}
+      {resume.isPending && <div className="small muted">{t.progress.resumed}</div>}
     </div>
   )
 
   const settingsButton = (
     <Button variant="ghost" icon="settings" onClick={() => setSettingsOpen(true)}>
-      Ustawienia generatora{settingsDirty ? ' · niezapisane' : ''}
+      {t.settingsButton}{settingsDirty ? t.settingsButtonUnsaved : ''}
     </Button>
   )
 
   const rangeForm = (
     <section className="stack-sm">
-      <SectionHeading title="Nowy szkic" meta="maks. 35 dni na jedno generowanie" />
-      <form className="panel panel-padded stack-sm" onSubmit={(event) => { event.preventDefault(); generate.mutate(range) }} aria-label="Nowy szkic">
+      <SectionHeading title={t.form.newDraft} meta={t.form.maxDays} />
+      <form className="panel panel-padded stack-sm" onSubmit={(event) => { event.preventDefault(); generate.mutate(range) }} aria-label={t.form.newDraft}>
         <div className="frow">
-          <DateField id="generator-from" label="Od" value={range.starts_on} onChange={(value) => setRange({ ...range, starts_on: value })} required />
-          <DateField id="generator-to" label="Do" value={range.ends_on} onChange={(value) => setRange({ ...range, ends_on: value })} required />
+          <DateField id="generator-from" label={t.form.from} value={range.starts_on} onChange={(value) => setRange({ ...range, starts_on: value })} required />
+          <DateField id="generator-to" label={t.form.to} value={range.ends_on} onChange={(value) => setRange({ ...range, ends_on: value })} required />
           <div className="self-end">
             <Button type="submit" variant="primary" icon="wand" disabled={generating} loading={generating}>
-              {generating ? (runProgress?.status === 'queued' ? 'W kolejce…' : 'Generuję…') : 'Utwórz szkic'}
+              {generating ? (runProgress?.status === 'queued' ? t.form.queued : t.form.generating) : t.form.create}
             </Button>
           </div>
         </div>
         <div className="small muted">
-          Zapisane ustawienia: {rotationLabels[policy.data?.rotation_mode ?? 'hybrid']} · 11–19: {lateShiftAnchorLabels[policy.data?.late_shift_anchor ?? 'secondary']}
-          {settingsDirty && <b> · masz niezapisane zmiany w ustawieniach</b>}
-          . Dłuższy okres podziel na kolejne, zachodzące po sobie szkice.
+          {t.form.savedSettings(rotationLabels()[policy.data?.rotation_mode ?? 'hybrid'], lateShiftAnchorLabels()[policy.data?.late_shift_anchor ?? 'secondary'])}
+          {settingsDirty && <b>{t.form.unsavedNote}</b>}
+          {t.form.splitLonger}
         </div>
         {range.starts_on === range.ends_on && range.starts_on !== '' && (
-          <Box tone="warn" title="Zakres obejmuje jeden dzień.">
-            Bilansowanie na jednym dniu nie ma sensu: solver tylko obsadzi ten dzień, nie wyrówna niczyjego udziału.
+          <Box tone="warn" title={t.form.singleDayTitle}>
+            {t.form.singleDayBody}
           </Box>
         )}
       </form>
@@ -376,10 +362,10 @@ export function GeneratorPanel() {
 
   const draftsSection = (
     <section className="stack-sm">
-      <SectionHeading title="Szkice" meta={drafts.data ? `${drafts.data.length}` : undefined} />
+      <SectionHeading title={t.drafts.heading} meta={drafts.data ? `${drafts.data.length}` : undefined} />
       <DraftList activeId={result?.id} onOpen={setOpenId} onDelete={setToDelete} deleting={remove.isPending} />
       {(drafts.data?.some((item) => item.rotation_mode === 'daily') && drafts.data.some((item) => item.rotation_mode === 'weekly')) && (
-        <Disclosure title="Porównaj wariant dzienny i tygodniowy">
+        <Disclosure title={t.drafts.compareVariants}>
           <ScheduleComparison drafts={drafts.data ?? []} />
         </Disclosure>
       )}
@@ -390,25 +376,24 @@ export function GeneratorPanel() {
     <div className="page">
       {result ? (
         <PageHeader
-          title={generating && generatingRange ? `Generuję ${formatRange(generatingRange.starts_on, generatingRange.ends_on)}` : `${TITLE_WORD[result.status]} ${formatRange(result.starts_on, result.ends_on)}`}
+          title={generating && generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : `${t.titleWord[result.status]} ${formatRange(result.starts_on, result.ends_on)}`}
           sub={(
             <>
-              <StatusBadge tone={statusTone[result.status]}>{scheduleStatusLabels[result.status]}</StatusBadge>
+              <StatusBadge tone={statusTone[result.status]}>{scheduleStatusLabels()[result.status]}</StatusBadge>
               <span>
-                wersja {result.version} · {pluralPl(result.assignments.length, ['przydział', 'przydziały', 'przydziałów'])} w {pluralPl(days, ['dniu', 'dniach', 'dniach'])}
-                {' · '}{rotationLabels[result.rotation_mode]}
+                {t.header.versionLine(result.version, result.assignments.length, days, rotationLabels()[result.rotation_mode])}
               </span>
-              <Tag tone={result.solver_status === 'OPTIMAL' ? 'sig' : SOLVER_OK.includes(result.solver_status) ? undefined : 'bad'}>CP-SAT: {result.solver_status}</Tag>
+              <Tag tone={result.solver_status === 'OPTIMAL' ? 'sig' : SOLVER_OK.includes(result.solver_status) ? undefined : 'bad'}>{t.header.solverStatus(result.solver_status)}</Tag>
             </>
           )}
           actions={(
             <>
               {settingsButton}
               <Button icon="wand" disabled={generating} loading={generating} onClick={() => generate.mutate({ starts_on: result.starts_on, ends_on: result.ends_on })}>
-                Generuj ponownie
+                {t.header.regenerate}
               </Button>
               {result.status === 'draft' && (
-                <Tooltip text={conflictCount > 0 ? PROPOSE_BLOCKED : 'Szkic trafi do akceptacji; nadal można go cofnąć'}>
+                <Tooltip text={conflictCount > 0 ? t.proposeBlocked : t.header.proposeHint}>
                   <Button
                     variant="primary"
                     icon="send"
@@ -416,26 +401,26 @@ export function GeneratorPanel() {
                     loading={propose.isPending}
                     onClick={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
                   >
-                    Przekaż do akceptacji
+                    {t.header.propose}
                   </Button>
                 </Tooltip>
               )}
               {result.status === 'proposed' && (
                 <>
-                  <Button disabled={withdraw.isPending} loading={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>Wróć do szkicu</Button>
-                  <Button variant="primary" icon="send" disabled={publish.isPending || generating} onClick={() => setPublishConfirmOpen(true)}>Publikuj…</Button>
+                  <Button disabled={withdraw.isPending} loading={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>{t.header.backToDraft}</Button>
+                  <Button variant="primary" icon="send" disabled={publish.isPending || generating} onClick={() => setPublishConfirmOpen(true)}>{t.header.publish}</Button>
                 </>
               )}
-              {result.status === 'published' && <StatusBadge tone="pub">grafik opublikowany</StatusBadge>}
+              {result.status === 'published' && <StatusBadge tone="pub">{t.header.published}</StatusBadge>}
             </>
           )}
         />
       ) : (
         <PageHeader
-          title={generating && generatingRange ? `Generuję ${formatRange(generatingRange.starts_on, generatingRange.ends_on)}` : 'Generator'}
+          title={generating && generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : nav.screens.generator}
           sub={generating
-            ? (runProgress?.status === 'queued' ? 'Zadanie w kolejce workera.' : 'Solver pracuje poza procesem API.')
-            : 'Wynik jest szkicem. Nie zastępuje opublikowanego grafiku, dopóki go nie opublikujesz.'}
+            ? (runProgress?.status === 'queued' ? t.header.queuedSub : t.header.solverSub)
+            : t.header.draftSub}
           actions={settingsButton}
         />
       )}
@@ -447,78 +432,79 @@ export function GeneratorPanel() {
         </Box>
       )}
       {progress}
-      {opened.isLoading && <p className="muted">Otwieranie szkicu…</p>}
+      {opened.isLoading && <p className="muted">{t.draft.opening}</p>}
       {opened.error && <ErrorState error={opened.error} onRetry={() => opened.refetch()} />}
       {!result && rangeForm}
       {result && (
         <section className="stack" aria-label={result.name}>
           <Steps
-            label="Etap szkicu"
+            label={t.draft.stage}
             steps={STAGES.map((stage) => ({
-              label: <><b>{scheduleStatusLabels[stage]}</b> <small>{STAGE_ACTORS[stage]}</small></>,
+              label: <><b>{scheduleStatusLabels()[stage]}</b> <small>{t.stageActors[stage]}</small></>,
               state: STAGES.indexOf(stage) < STAGES.indexOf(result.status) ? 'done' : stage === result.status ? 'on' : 'todo',
             }))}
           />
-          {result.status === 'draft' && conflictCount > 0 && <span className="small who-bad">{PROPOSE_BLOCKED}</span>}
-          <ChipRow label="Stan szkicu">
+          {result.status === 'draft' && conflictCount > 0 && <span className="small who-bad">{t.proposeBlocked}</span>}
+          <ChipRow label={t.draft.state}>
             <Chip tone={SOLVER_OK.includes(result.solver_status) ? 'ok' : 'bad'}>
-              Obsada: {pluralPl(days, ['dzień', 'dni', 'dni'])}, {pluralPl(result.assignments.length, ['przydział', 'przydziały', 'przydziałów'])}
+              {t.draft.staffing(days, result.assignments.length)}
             </Chip>
-            <Chip tone={counts.hard === 0 ? 'ok' : 'bad'} onClick={() => showProblems(true)} title="Pokaż w tabeli problemów">
-              Reguły twarde: {pluralPl(counts.hard, ['naruszenie', 'naruszenia', 'naruszeń'])}
+            <Chip tone={counts.hard === 0 ? 'ok' : 'bad'} onClick={() => showProblems(true)} title={t.draft.showInProblems}>
+              {t.draft.hardRules(counts.hard)}
             </Chip>
             {counts.soft > 0 && (
-              <Chip tone="warn" onClick={() => showProblems(false)} title="Pokaż w tabeli problemów">
-                {pluralPl(counts.soft, ['ostrzeżenie miękkie', 'ostrzeżenia miękkie', 'ostrzeżeń miękkich'])}
+              <Chip tone="warn" onClick={() => showProblems(false)} title={t.draft.showInProblems}>
+                {t.draft.softWarnings(counts.soft)}
               </Chip>
             )}
             {spread && (
-              <Chip tone="sig">Rozrzut punktów po publikacji: {formatPoints(spread.after)}</Chip>
+              <Chip tone="sig">{t.draft.spreadAfter(formatPoints(spread.after))}</Chip>
             )}
           </ChipRow>
           {result.solver_status === 'FEASIBLE' && conflictCount === 0 && (
             <Box tone="muted">
-              Sprawiedliwość: {result.fairness_proven ? 'optymalna (udowodniona)' : 'najlepsza znaleziona'}. Jakość całego rozwiązania: {result.continuity_gap == null
-                ? 'bez oszacowania luki'
-                : `luka ${new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 }).format(result.continuity_gap * 100)}%`}. Stan kryterium pokazuje panel obok.
+              {t.draft.quality(
+                result.fairness_proven ? t.draft.fairnessProven : t.draft.fairnessBestFound,
+                result.continuity_gap == null
+                  ? t.draft.noGapEstimate
+                  : t.draft.gap(new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(result.continuity_gap * 100)),
+              )}
             </Box>
           )}
           {conflictCount > 0 && (
-            <Box tone="bad" role="alert" title={`${conflictPeople === 1 ? '1 osoba ma dyżur' : `${conflictPeople} osób ma dyżur`} w dniu zgłoszonej niedostępności.`}>
-              {result.status === 'draft'
-                ? 'Popraw te komórki w macierzy poniżej albo wygeneruj szkic ponownie; tabela problemów prowadzi do każdej z nich.'
-                : 'Szkic nie jest już edytowalny; wygeneruj go ponownie.'}
+            <Box tone="bad" role="alert" title={t.draft.conflictTitle(conflictPeople)}>
+              {result.status === 'draft' ? t.draft.conflictEditable : t.draft.conflictLocked}
             </Box>
           )}
           {!SOLVER_OK.includes(result.solver_status) && (
-            <Box tone="warn" title={`Solver nie znalazł pełnego rozwiązania (status ${result.solver_status}).`}>
-              Najczęstsze przyczyny to zbyt mało osób z kwalifikacjami do danej roli, nakładające się niedostępności albo zbyt krótki zakres. Sprawdź luki w macierzy i popraw je ręcznie albo zawęź zakres.
+            <Box tone="warn" title={t.draft.solverIncompleteTitle(result.solver_status)}>
+              {t.draft.solverIncompleteBody}
             </Box>
           )}
           <div className="split split-wide">
             <div className="stack">
               <SectionHeading
                 as="h3"
-                title="Proponowana obsada"
-                meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? ' · kliknij komórkę, aby skorygować' : ''}`}
-                controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">Legenda</button>} />}
+                title={t.draft.proposedStaffing}
+                meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? t.draft.clickToCorrect : ''}`}
+                controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">{t.draft.legend}</button>} />}
               />
               <DraftScheduleMatrix result={result} onChange={setResult} focus={focus} />
               <div ref={problemsRef}>
                 <SectionHeading
                   as="h3"
-                  title="Problemy"
-                  meta={counts.total === 0 ? 'brak' : `${counts.soft} ${counts.soft === 1 ? 'miękkie' : 'miękkich'} · ${counts.hard} ${counts.hard === 1 ? 'twarde' : 'twardych'}`}
+                  title={t.draft.problems}
+                  meta={counts.total === 0 ? t.draft.problemsNone : t.draft.problemsMeta(counts.soft, counts.hard)}
                   controls={counts.total > 0 && (
                     <>
                       <Segmented<ProblemGrouping>
                         size="sm"
-                        label="Grupowanie problemów"
+                        label={t.draft.problemGrouping}
                         value={problemsBy}
                         onChange={setProblemsBy}
-                        options={[{ value: 'person', label: 'Wg osoby' }, { value: 'rule', label: 'Wg reguły' }]}
+                        options={[{ value: 'person', label: t.draft.byPerson }, { value: 'rule', label: t.draft.byRule }]}
                       />
-                      <button type="button" className={cx('sech-link', hardOnly && 'on')} aria-pressed={hardOnly} onClick={() => setHardOnly((value) => !value)}>Tylko twarde</button>
+                      <button type="button" className={cx('sech-link', hardOnly && 'on')} aria-pressed={hardOnly} onClick={() => setHardOnly((value) => !value)}>{t.draft.hardOnly}</button>
                     </>
                   )}
                 />
@@ -526,24 +512,24 @@ export function GeneratorPanel() {
               <DraftProblems result={result} onFocus={setFocus} editable={result.status === 'draft'} by={problemsBy} hardOnly={hardOnly} />
             </div>
             <div className="stack">
-              <SectionHeading as="h3" title="Sprawiedliwość po publikacji" meta="12 mies. do końca zakresu" />
+              <SectionHeading as="h3" title={t.draft.fairnessAfter} meta={t.draft.fairnessWindow} />
               <DraftFairnessPanel result={result} />
-              <SectionHeading as="h3" title="Ustawienia tej propozycji" />
+              <SectionHeading as="h3" title={t.draft.proposalSettings} />
               <div className="panel panel-padded stack-sm">
                 <KeyValue
                   items={[
-                    { key: 'Zakres', value: `${formatDate(result.starts_on)} – ${formatDate(result.ends_on)}`, mono: true },
-                    { key: 'Wersja', value: `v${result.version}`, mono: true },
-                    { key: 'Tryb rotacji', value: rotationLabels[result.rotation_mode] },
-                    { key: `Powiązanie ${roleLabels.late_shift}`, value: lateShiftAnchorLabels[policy.data?.late_shift_anchor ?? 'secondary'] },
-                    { key: 'Waga „równy udział”', value: policy.data?.fairness_weight ?? '–', mono: true },
-                    { key: 'Waga „preferencje”', value: policy.data?.preference_weight ?? '–', mono: true },
-                    { key: 'Waga „ciągłość”', value: policy.data?.continuity_weight ?? '–', mono: true },
-                    { key: 'Budżet solvera', value: policy.data ? `${policy.data.solve_seconds} s / przebieg` : '–', mono: true },
+                    { key: t.draft.range, value: t.draft.rangeValue(formatDate(result.starts_on), formatDate(result.ends_on)), mono: true },
+                    { key: t.draft.version, value: t.draft.versionValue(result.version), mono: true },
+                    { key: t.draft.rotationMode, value: rotationLabels()[result.rotation_mode] },
+                    { key: t.draft.lateShiftAnchor(roleLabels().late_shift), value: lateShiftAnchorLabels()[policy.data?.late_shift_anchor ?? 'secondary'] },
+                    { key: t.draft.fairnessWeight, value: policy.data?.fairness_weight ?? t.draft.unknown, mono: true },
+                    { key: t.draft.preferenceWeight, value: policy.data?.preference_weight ?? t.draft.unknown, mono: true },
+                    { key: t.draft.continuityWeight, value: policy.data?.continuity_weight ?? t.draft.unknown, mono: true },
+                    { key: t.draft.solverBudget, value: policy.data ? t.draft.solverBudgetValue(policy.data.solve_seconds) : t.draft.unknown, mono: true },
                   ]}
                 />
-                <p className="muted small">Wagi i budżet to obecne ustawienia zespołu; szkic zapamiętuje tylko zakres i tryb rotacji.</p>
-                <Button size="sm" variant="ghost" className="self-start" onClick={() => setSettingsOpen(true)}>Zmień i generuj ponownie</Button>
+                <p className="muted small">{t.draft.weightsNote}</p>
+                <Button size="sm" variant="ghost" className="self-start" onClick={() => setSettingsOpen(true)}>{t.draft.changeAndRegenerate}</Button>
               </div>
             </div>
           </div>
@@ -555,23 +541,23 @@ export function GeneratorPanel() {
         pending={remove.isPending}
         onCancel={() => setToDelete(null)}
         onConfirm={() => toDelete && remove.mutate(toDelete.id)}
-        title="Usunąć szkic?"
-        confirmLabel="Usuń"
+        title={t.deleteDialog.title}
+        confirmLabel={t.deleteDialog.confirm}
         confirmColor="error"
-        description={toDelete && <>{toDelete.name} ({formatDate(toDelete.starts_on)} - {formatDate(toDelete.ends_on)}). Tej operacji nie da się cofnąć.</>}
+        description={toDelete && t.deleteDialog.description(toDelete.name, formatDate(toDelete.starts_on), formatDate(toDelete.ends_on))}
       />
       <Panel
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         wide
-        title="Ustawienia generatora"
-        meta={settingsDirty && <StatusBadge tone="warn">niezapisane</StatusBadge>}
+        title={t.settings.title}
+        meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}
         footer={(
           <>
-            <Button size="sm" variant="ghost" disabled={!settingsDirty} onClick={() => { const stored = storedSettings(); if (stored) setSettings(stored) }}>Przywróć zapisane</Button>
+            <Button size="sm" variant="ghost" disabled={!settingsDirty} onClick={() => { const stored = storedSettings(); if (stored) setSettings(stored) }}>{t.settings.restore}</Button>
             <span className="sp" />
             <Button type="submit" form="generator-settings" variant={settingsDirty ? 'primary' : 'default'} disabled={savePolicy.isPending || policy.isLoading || !settingsDirty} loading={savePolicy.isPending}>
-              {savePolicy.isPending ? 'Zapisuję…' : 'Zapisz ustawienia generowania'}
+              {savePolicy.isPending ? common.saving : t.settings.save}
             </Button>
             <Button
               variant="primary"
@@ -579,60 +565,60 @@ export function GeneratorPanel() {
               disabled={generating || settingsDirty}
               onClick={() => { setSettingsOpen(false); generate.mutate(result ? { starts_on: result.starts_on, ends_on: result.ends_on } : range) }}
             >
-              Generuj
+              {t.settings.generate}
             </Button>
           </>
         )}
       >
-        <form id="generator-settings" className="stack-sm" onSubmit={(event) => { event.preventDefault(); savePolicy.mutate(settings) }} aria-label="Ustawienia generowania">
+        <form id="generator-settings" className="stack-sm" onSubmit={(event) => { event.preventDefault(); savePolicy.mutate(settings) }} aria-label={t.settings.form}>
           <div className="frow">
-            <DateField id="settings-from" label="Od" value={result?.starts_on ?? range.starts_on} onChange={(value) => setRange({ ...range, starts_on: value })} disabled={Boolean(result)} />
-            <DateField id="settings-to" label="Do" value={result?.ends_on ?? range.ends_on} onChange={(value) => setRange({ ...range, ends_on: value })} disabled={Boolean(result)} hint={result ? 'Zakres otwartego szkicu; nowy zakres zaczniesz z listy szkiców.' : 'Maks. 35 dni na jedno generowanie.'} />
+            <DateField id="settings-from" label={t.form.from} value={result?.starts_on ?? range.starts_on} onChange={(value) => setRange({ ...range, starts_on: value })} disabled={Boolean(result)} />
+            <DateField id="settings-to" label={t.form.to} value={result?.ends_on ?? range.ends_on} onChange={(value) => setRange({ ...range, ends_on: value })} disabled={Boolean(result)} hint={result ? t.settings.rangeOfOpenDraft : t.settings.maxDays} />
           </div>
           <Box tone="muted">
-            Ustawienia są zapisywane globalnie dla całego zespołu i obowiązują od następnego generowania. Wagi zmieniają względny priorytet reguł miękkich; nie mogą wyłączyć kwalifikacji, niedostępności ani wymaganego pokrycia. Znaczenie ma wyłącznie relacja między wagami: 6 / 4 / 2 działa tak samo jak 3 / 2 / 1. Wartość 0 wyłącza wskazany człon celu w całości.
+            {t.settings.globalNote}
           </Box>
           <div className="frow">
-            <Field label="Tryb rotacji" id="policy-rotation-mode" hint="Bazowy blok rotacji. Każda doba i tak pozostaje osobnym przydziałem.">
+            <Field label={t.settings.rotationMode} id="policy-rotation-mode" hint={t.settings.rotationModeHint}>
               {({ id, describedBy }) => (
                 <Select id={id} name="rotation_mode" value={settings.rotation_mode} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, rotation_mode: event.target.value as RotationMode })}>
-                  {Object.entries(rotationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  {Object.entries(rotationLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </Select>
               )}
             </Field>
-            <Field label="Powiązanie 11–19" id="policy-late-shift-anchor" hint="Reguła twarda dla osób z kwalifikacjami do obu ról; pozostałe wyjątki są raportowane.">
+            <Field label={t.settings.lateShiftAnchor} id="policy-late-shift-anchor" hint={t.settings.lateShiftAnchorHint}>
               {({ id, describedBy }) => (
                 <Select id={id} name="late_shift_anchor" value={settings.late_shift_anchor} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, late_shift_anchor: event.target.value as LateShiftAnchor })}>
-                  {Object.entries(lateShiftAnchorLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  {Object.entries(lateShiftAnchorLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </Select>
               )}
             </Field>
           </div>
           {settings.rotation_mode === 'weekly' && (
-            <Box tone="warn" title="Tryb tygodniowy wyłącza limit 3 dyżurów w 7 dniach i dwudniowy odpoczynek po serii.">
-              Inaczej tydzień u jednej osoby byłby nie do obsadzenia. Zmierzone skutki: serie 12-dniowe i 31 okien z ponad 3 dyżurami.
+            <Box tone="warn" title={t.settings.weeklyTitle}>
+              {t.settings.weeklyBody}
             </Box>
           )}
           <Checkbox
             name="coordinator_swap_approval_required"
-            label="Zamiana dyżuru wymaga zatwierdzenia koordynatora"
-            hint="Wyłączone: zamiana trafia do grafiku od razu po akceptacji zastępcy, a koordynatorzy dostają tylko powiadomienie."
+            label={t.settings.swapApproval}
+            hint={t.settings.swapApprovalHint}
             checked={settings.coordinator_swap_approval_required}
             disabled={policy.isLoading}
             onChange={(event) => setSettings({ ...settings, coordinator_swap_approval_required: event.target.checked })}
           />
           <div className="frow">
-            {numberField('fairness_weight', 'Równy udział', 'Najwyższy domyślny priorytet: wyrównuje cały rozkład i mocniej karze wartości odstające. Podniesienie odbierze dyżur osobie, która ma ich najwięcej, nawet jeśli wolałaby go wziąć.', 0, 100, 0.5)}
-            {numberField('preference_weight', 'Preferencje zespołu', 'Środkowy priorytet: respektuje „wolę nie” i „chętnie wezmę”. Podniesienie częściej obsadzi weekend osobą, która się o niego zgłosiła, kosztem równego udziału.', 0, 100, 0.5)}
+            {numberField('fairness_weight', t.settings.fairnessWeight, t.settings.fairnessWeightHint, 0, 100, 0.5)}
+            {numberField('preference_weight', t.settings.preferenceWeight, t.settings.preferenceWeightHint, 0, 100, 0.5)}
           </div>
           <div className="frow">
-            {numberField('continuity_weight', 'Ciągłość rotacji', 'Najniższy priorytet: ogranicza przekazania w obrębie tygodnia. Podniesienie wydłuży serie u jednej osoby zamiast rozdzielać tydzień.', 0, 100, 0.5)}
-            {numberField('solve_seconds', 'Budżet czasu na przebieg solvera (s)', `Jedno generowanie wykonuje kilka przebiegów, więc górny limit całego generowania to około ${Math.round((settings.solve_seconds || 0) * GENERATION_BUDGET_PASSES)} s. Dłuższy budżet nie poprawia rozpiętości powyżej wartości domyślnej - podnoś go dla dłuższych zakresów.`, 5, 300, 5)}
+            {numberField('continuity_weight', t.settings.continuityWeight, t.settings.continuityWeightHint, 0, 100, 0.5)}
+            {numberField('solve_seconds', t.settings.solveSeconds, t.settings.solveSecondsHint(Math.round((settings.solve_seconds || 0) * GENERATION_BUDGET_PASSES)), 5, 300, 5)}
           </div>
-          <Box tone="sig" title="Punkty startowe">
-            Solver wyrównuje wobec 12 miesięcy historii, także zaimportowanej. Weekendy i bloki świąteczne są regułą twardą: cały blok trafia do jednej osoby w danej roli; podział bloku jest możliwy tylko korektą albo zamianą po publikacji.
+          <Box tone="sig" title={t.settings.startingPointsTitle}>
+            {t.settings.startingPointsBody}
           </Box>
-          {savePolicy.isSuccess && !settingsDirty && <span className="small muted">Zapisano.</span>}
+          {savePolicy.isSuccess && !settingsDirty && <span className="small muted">{t.settings.saved}</span>}
         </form>
       </Panel>
       {result && (
@@ -641,10 +627,10 @@ export function GeneratorPanel() {
           onOpenChange={setPublishConfirmOpen}
           dismissible={!publish.isPending}
           size="lg"
-          title={`Publikuję ${TITLE_WORD[result.status].toLowerCase() === 'propozycja' ? 'propozycję' : 'szkic'} v${result.version} · ${formatRange(result.starts_on, result.ends_on)}`}
+          title={t.publish.title(result.status === 'proposed', result.version, formatRange(result.starts_on, result.ends_on))}
           actions={(
             <>
-              <Button onClick={() => setPublishConfirmOpen(false)} disabled={publish.isPending}>Wróć do propozycji</Button>
+              <Button onClick={() => setPublishConfirmOpen(false)} disabled={publish.isPending}>{t.publish.back}</Button>
               <Button
                 variant="primary"
                 loading={publish.isPending}
@@ -660,40 +646,40 @@ export function GeneratorPanel() {
                   changeResolutions,
                 })}
               >
-                {publish.isPending ? 'Publikuję…' : `Publikuj v${result.version}`}
+                {publish.isPending ? t.publish.publishing : t.publish.publishVersion(result.version)}
               </Button>
             </>
           )}
         >
           <ul>
-            <li><b>{pluralPl(result.assignments.length, ['przydział', 'przydziały', 'przydziałów'])}</b> w {pluralPl(days, ['dniu', 'dniach', 'dniach'])} {pluralFormPl(result.assignments.length, ['stanie', 'staną', 'stanie'])} się opublikowanym grafikiem widocznym dla zespołu, kont podglądowych i linków.</li>
-            <li>Wcześniejszy grafik zachowuje ważność poza tym zakresem; grafiki w całości pokryte nowym zakresem zostaną oznaczone jako zastąpione.</li>
-            {counts.soft > 0 && <li><b>{pluralPl(counts.soft, ['ostrzeżenie miękkie', 'ostrzeżenia miękkie', 'ostrzeżeń miękkich'])}</b> {pluralFormPl(counts.soft, ['zostanie zapisane', 'zostaną zapisane', 'zostanie zapisanych'])} w audycie jako zaakceptowane przez Ciebie.</li>}
-            {publishPreview.data?.pending_swaps.length ? <li><b>{pluralPl(publishPreview.data.pending_swaps.length, ['oczekująca zamiana', 'oczekujące zamiany', 'oczekujących zamian'])}</b> w tym zakresie {pluralFormPl(publishPreview.data.pending_swaps.length, ['zostanie anulowana', 'zostaną anulowane', 'zostanie anulowanych'])}.</li> : null}
+            <li><b>{t.publish.assignments(result.assignments.length)}</b> {t.publish.becomePublished(result.assignments.length, days)}</li>
+            <li>{t.publish.earlierSchedule}</li>
+            {counts.soft > 0 && <li><b>{t.draft.softWarnings(counts.soft)}</b> {t.publish.softWarningsAudited(counts.soft)}</li>}
+            {publishPreview.data?.pending_swaps.length ? <li><b>{t.publish.pendingSwaps(publishPreview.data.pending_swaps.length)}</b> {t.publish.pendingSwapsCancelled(publishPreview.data.pending_swaps.length)}</li> : null}
           </ul>
           {result.starts_on <= today && (
-            <Box tone="warn" title="Ten zakres obejmuje dzisiejszy albo wcześniejszy dzień.">Publikacja może natychmiast zmienić dyżur, który już trwa.</Box>
+            <Box tone="warn" title={t.publish.todayTitle}>{t.publish.todayBody}</Box>
           )}
-          {publishPreview.isLoading && <p className="muted">Sprawdzam zmiany i oczekujące zamiany…</p>}
-          {publishPreview.error && <Box tone="bad" role="alert" title="Nie udało się sprawdzić skutków publikacji. Zamknij okno i spróbuj ponownie." />}
+          {publishPreview.isLoading && <p className="muted">{t.publish.checking}</p>}
+          {publishPreview.error && <Box tone="bad" role="alert" title={t.publish.checkFailed} />}
           {publishPreview.data?.lost_changes.length ? (
-            <Box tone="warn" title="Rozstrzygnij konflikty ze zmianami">
+            <Box tone="warn" title={t.publish.resolveConflicts}>
               <div className="stack-sm" style={{ marginTop: 6 }}>
                 {publishPreview.data.lost_changes.map((change) => (
                   <div key={`${change.service_date}-${change.role}`} className="stack-sm">
                     <div>
-                      <span className="mono">{formatDayShort(change.service_date)}</span> · {roleLabels[change.role]}: zmiana {change.previous_assignee_name}, szkic {change.new_assignee_name}. {change.reason}
+                      <span className="mono">{formatDayShort(change.service_date)}</span> · {t.publish.lostChange(roleLabels()[change.role], change.previous_assignee_name, change.new_assignee_name, change.reason ?? '')}
                     </div>
-                    <Field label="Decyzja" id={`resolution-${change.service_date}-${change.role}`}>
+                    <Field label={t.publish.decision} id={`resolution-${change.service_date}-${change.role}`}>
                       {({ id }) => (
                         <Select
                           id={id}
                           value={changeResolutions[`${change.service_date}:${change.role}`] ?? ''}
                           onChange={(event) => setChangeResolutions((current) => ({ ...current, [`${change.service_date}:${change.role}`]: event.target.value as 'draft' | 'change' }))}
                         >
-                          <option value="">Wybierz</option>
-                          <option value="draft">Zachowaj przydział ze szkicu</option>
-                          <option value="change">Zachowaj wcześniejszą zmianę</option>
+                          <option value="">{t.publish.choose}</option>
+                          <option value="draft">{t.publish.keepDraft}</option>
+                          <option value="change">{t.publish.keepChange}</option>
                         </Select>
                       )}
                     </Field>
@@ -703,46 +689,46 @@ export function GeneratorPanel() {
             </Box>
           ) : null}
           {publishPreview.data?.carried_changes.length ? (
-            <Box tone="ok" title="Zmiany zostaną przeniesione">
+            <Box tone="ok" title={t.publish.carried}>
               <ul className="box-list">
                 {publishPreview.data.carried_changes.map((change) => (
-                  <li key={`${change.service_date}-${change.role}`}>{formatDayShort(change.service_date)} · {roleLabels[change.role]}: {change.previous_assignee_name}</li>
+                  <li key={`${change.service_date}-${change.role}`}>{t.publish.carriedItem(formatDayShort(change.service_date), roleLabels()[change.role], change.previous_assignee_name)}</li>
                 ))}
               </ul>
             </Box>
           ) : null}
           {publishPreview.data?.pending_swaps.length ? (
-            <Box tone="sig" title="Te oczekujące zamiany zostaną anulowane">
+            <Box tone="sig" title={t.publish.cancelledSwaps}>
               <ul className="box-list">
                 {publishPreview.data.pending_swaps.map((swap) => (
-                  <li key={swap.id}>{formatDayShort(swap.service_date)} · {roleLabels[swap.role]}: {swap.requester_name} → {swap.replacement_name}</li>
+                  <li key={swap.id}>{t.publish.cancelledSwap(formatDayShort(swap.service_date), roleLabels()[swap.role], swap.requester_name, swap.replacement_name)}</li>
                 ))}
               </ul>
             </Box>
           ) : null}
           {publishPreview.data?.uncovered_before.length ? (
-            <Box tone="warn" title="Przed grafikiem pozostanie luka">Nieobsadzone dni: {publishPreview.data.uncovered_before.map(formatDate).join(', ')}.</Box>
+            <Box tone="warn" title={t.publish.gapTitle}>{t.publish.gapBody(publishPreview.data.uncovered_before.map(formatDate).join(', '))}</Box>
           ) : null}
           {publishPreview.data?.stale_changes_count ? (
-            <Box tone="warn" title={`Szkic nieaktualny: od wygenerowania ${pluralFormPl(publishPreview.data.stale_changes_count, ['zmienił', 'zmieniły', 'zmieniło'])} się ${pluralPl(publishPreview.data.stale_changes_count, ['wpis', 'wpisy', 'wpisów'])}.`} />
+            <Box tone="warn" title={t.publish.staleTitle(publishPreview.data.stale_changes_count)} />
           ) : null}
           {publishPreview.data?.rest_violations.length ? (
-            <Box tone="bad" title="Publikacja naruszy reguły odpoczynku">
+            <Box tone="bad" title={t.publish.restTitle}>
               <ul className="box-list">
                 {publishPreview.data.rest_violations.map((violation) => (
-                  <li key={`${violation.member_name}-${violation.rule}`}>{violation.member_name}: {violation.message} {violation.days.map(formatDate).join(', ')}</li>
+                  <li key={`${violation.member_name}-${violation.rule}`}>{t.publish.restItem(violation.member_name, violation.message, violation.days.map(formatDate).join(', '))}</li>
                 ))}
               </ul>
             </Box>
           ) : null}
           {result.starts_on <= today && (
             <Checkbox
-              label="Rozumiem, że zmieniam dzień, który już trwa lub minął, i że zespół zobaczy zmianę od razu."
+              label={t.publish.acknowledge}
               checked={publishAcknowledged}
               onChange={(event) => setPublishAcknowledged(event.target.checked)}
             />
           )}
-          <p className="muted small">Publikację można cofnąć tylko nową publikacją. Operacja trafia do audytu jako „Opublikowano grafik”.</p>
+          <p className="muted small">{t.publish.undoNote}</p>
         </Dialog>
       )}
     </div>

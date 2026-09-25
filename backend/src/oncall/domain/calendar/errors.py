@@ -9,30 +9,30 @@ class CalendarRangeError(DomainError):
 
 class RangeEndsBeforeStart(CalendarRangeError):
     def __init__(self) -> None:
-        super().__init__("Data końcowa nie może poprzedzać początkowej")
+        super().__init__("calendar.range_ends_before_start")
 
 
 class EventRangeTooLong(CalendarRangeError):
     def __init__(self) -> None:
-        super().__init__("Zakres wydarzeń musi obejmować od 1 do 90 dni")
+        super().__init__("calendar.event_range_too_long")
 
 
 class CalendarRangeInvalid(CalendarRangeError):
     def __init__(self) -> None:
-        super().__init__("Zakres kalendarza musi obejmować od 1 do 90 dni")
+        super().__init__("calendar.range_invalid")
 
 
 class OutsideShareRange(CalendarRangeError):
     def __init__(self) -> None:
-        super().__init__("Żądany zakres jest poza zakresem dat linku")
+        super().__init__("calendar.outside_share_range")
 
 
 class DashboardRangeReversed(CalendarRangeError):
     def __init__(self) -> None:
-        super().__init__("Data ends_on nie może być wcześniejsza niż starts_on")
+        super().__init__("calendar.dashboard_range_reversed")
 
 
 class CalendarEventNotFound(DomainError):
     def __init__(self, event_id: uuid.UUID) -> None:
-        super().__init__("Nie znaleziono wydarzenia")
+        super().__init__("calendar.event_not_found")
         self.event_id = event_id

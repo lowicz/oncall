@@ -3,10 +3,11 @@ import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
-import { MONTHS_SHORT } from '../lib/dates'
-import { Access, docsHref, visibleFor, allNav } from '../lib/nav'
+import { monthFromName } from '../lib/dates'
+import { Access, docsHref, navLabel, visibleFor, allNav } from '../lib/nav'
+import { locale, useLanguage, useMessages } from '../i18n'
 import { Icon, IconName, cx } from '../ui'
-import { ThemeMode, themeModeLabels, useThemeMode } from '../theme'
+import { ThemeMode, useThemeMode } from '../theme'
 
 interface Item {
   id: string
@@ -24,7 +25,7 @@ function isoDay(year: number, month: number, day: number): string | null {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
-/** "2026-09-24", "24-09-2026", "24 wrz" or "24.09" as an ISO date, or null. */
+/** "2026-09-24", "24-09-2026", "24 wrz", "24 Sep" or "24.09" as an ISO date, or null. */
 export function parseDayQuery(query: string, today = new Date()): string | null {
   const text = query.trim().toLowerCase()
   let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
@@ -34,12 +35,12 @@ export function parseDayQuery(query: string, today = new Date()): string | null 
     const year = match[3] ? Number(match[3]) : today.getFullYear()
     return isoDay(year, Number(match[2]), Number(match[1]))
   }
-  match = /^(\d{1,2})\s+([a-ząćęłńóśźż]{3})[a-ząćęłńóśźż]*(?:\s+(\d{4}))?$/.exec(text)
+  match = /^(\d{1,2})\s+([a-ząćęłńóśźż]{3,})(?:\s+(\d{4}))?$/.exec(text)
   if (match) {
-    const month = MONTHS_SHORT.indexOf(match[2])
-    if (month < 0) return null
+    const month = monthFromName(match[2])
+    if (month === null) return null
     const year = match[3] ? Number(match[3]) : today.getFullYear()
-    return isoDay(year, month + 1, Number(match[1]))
+    return isoDay(year, month, Number(match[1]))
   }
   return null
 }
@@ -60,6 +61,8 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const [, setThemeMode] = useThemeMode()
+  const t = useMessages()
+  const [language] = useLanguage()
   const schedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule, enabled: open })
 
   useEffect(() => {
@@ -72,39 +75,40 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
   const people = useMemo(() => {
     const names = new Set<string>()
     for (const assignment of schedule.data?.assignments ?? []) names.add(assignment.assignee_name)
-    return Array.from(names).sort((a, b) => a.localeCompare(b, 'pl'))
-  }, [schedule.data])
+    return Array.from(names).sort((a, b) => a.localeCompare(b, locale(language)))
+  }, [schedule.data, language])
 
   const items = useMemo<Item[]>(() => {
     const close = () => onOpenChange(false)
     const list: Item[] = []
     const day = parseDayQuery(query)
     if (day) {
-      list.push({ id: `day-${day}`, group: 'Dzień', label: `Otwórz ${day}`, hint: 'grafik, inspektor dnia', icon: 'calendar', run: () => { close(); navigate(`/grafik?dzien=${day}`) } })
+      list.push({ id: `day-${day}`, group: t.shell.paletteGroups.day, label: t.shell.openDay(day), hint: t.shell.openDayHint, icon: 'calendar', run: () => { close(); navigate(`/grafik?dzien=${day}`) } })
     }
     const q = query.trim().toLowerCase()
     for (const item of visibleFor(allNav, access)) {
-      if (!q || item.label.toLowerCase().includes(q)) {
-        list.push({ id: `nav-${item.path}`, group: 'Ekrany', label: item.label, icon: item.icon, run: () => { close(); navigate(item.path) } })
+      const label = navLabel(item)
+      if (!q || label.toLowerCase().includes(q)) {
+        list.push({ id: `nav-${item.path}`, group: t.shell.paletteGroups.screens, label, icon: item.icon, run: () => { close(); navigate(item.path) } })
       }
     }
     for (const name of people) {
       if (q && name.toLowerCase().includes(q)) {
-        list.push({ id: `person-${name}`, group: 'Osoby', label: name, hint: 'pokaż w grafiku', icon: 'user', run: () => { close(); navigate(`/grafik?osoba=${encodeURIComponent(name)}`) } })
+        list.push({ id: `person-${name}`, group: t.shell.paletteGroups.people, label: name, hint: t.shell.showInSchedule, icon: 'user', run: () => { close(); navigate(`/grafik?osoba=${encodeURIComponent(name)}`) } })
       }
     }
     const actions: Item[] = [
       ...(['dark', 'light', 'system'] as ThemeMode[]).map((mode) => ({
-        id: `theme-${mode}`, group: 'Akcje', label: `Motyw: ${themeModeLabels[mode].toLowerCase()}`, icon: (mode === 'dark' ? 'moon' : mode === 'light' ? 'sun' : 'monitor') as IconName, run: () => { setThemeMode(mode); close() },
+        id: `theme-${mode}`, group: t.shell.paletteGroups.actions, label: t.shell.themeAction(t.theme.modes[mode]), icon: (mode === 'dark' ? 'moon' : mode === 'light' ? 'sun' : 'monitor') as IconName, run: () => { setThemeMode(mode); close() },
       })),
-      { id: 'docs', group: 'Akcje', label: 'Dokumentacja', icon: 'doc', run: () => { close(); window.location.assign(docsHref) } },
-      { id: 'logout', group: 'Akcje', label: 'Wyloguj', icon: 'logout', run: () => { close(); onLogout() } },
+      { id: 'docs', group: t.shell.paletteGroups.actions, label: t.shell.documentation, icon: 'doc', run: () => { close(); window.location.assign(docsHref(language)) } },
+      { id: 'logout', group: t.shell.paletteGroups.actions, label: t.shell.logout, icon: 'logout', run: () => { close(); onLogout() } },
     ]
     for (const action of actions) {
       if (!q || action.label.toLowerCase().includes(q) || q.startsWith('>')) list.push(action)
     }
     return list
-  }, [query, access, people, navigate, onOpenChange, setThemeMode, onLogout])
+  }, [query, access, people, navigate, onOpenChange, setThemeMode, onLogout, t, language])
 
   const clamped = Math.min(active, Math.max(0, items.length - 1))
 
@@ -119,7 +123,7 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
     <BaseDialog.Root open={open} onOpenChange={onOpenChange} modal>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className="dialog-backdrop" />
-        <BaseDialog.Popup className="pal-popup" aria-label="Paleta poleceń" initialFocus={inputRef}>
+        <BaseDialog.Popup className="pal-popup" aria-label={t.shell.commandPalette} initialFocus={inputRef}>
           <div className="pal-in">
             <Icon name="search" />
             <input
@@ -127,8 +131,8 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
               value={query}
               onChange={(event) => { setQuery(event.target.value); setActive(0) }}
               onKeyDown={onKeyDown}
-              placeholder="Osoba, dzień (24 wrz, 2026-09-24), ekran, akcja…"
-              aria-label="Szukaj"
+              placeholder={t.shell.palettePlaceholder}
+              aria-label={t.shell.paletteSearch}
               role="combobox"
               aria-expanded="true"
               aria-controls="pal-list"
@@ -137,8 +141,8 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
             />
             <span className="kbd">Esc</span>
           </div>
-          <ul className="pal-list" id="pal-list" role="listbox" aria-label="Wyniki">
-            {items.length === 0 && <li className="pal-empty">Nic nie pasuje. Wpisz nazwisko, datę albo nazwę ekranu.</li>}
+          <ul className="pal-list" id="pal-list" role="listbox" aria-label={t.shell.paletteResults}>
+            {items.length === 0 && <li className="pal-empty">{t.shell.paletteEmpty}</li>}
             {items.map((item, index) => {
               const showGroup = item.group !== lastGroup
               lastGroup = item.group
@@ -162,9 +166,9 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
             })}
           </ul>
           <div className="pal-foot">
-            <span><span className="kbd">↑↓</span> wybór</span>
-            <span><span className="kbd">↵</span> otwórz</span>
-            <span><span className="kbd">Esc</span> zamknij</span>
+            <span><span className="kbd">↑↓</span> {t.shell.paletteSelect}</span>
+            <span><span className="kbd">↵</span> {t.shell.paletteOpen}</span>
+            <span><span className="kbd">Esc</span> {t.shell.paletteClose}</span>
           </div>
         </BaseDialog.Popup>
       </BaseDialog.Portal>

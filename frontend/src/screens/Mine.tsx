@@ -13,13 +13,13 @@ import {
   UserRole,
   api,
 } from '../api'
+import { useMessages } from '../i18n'
 import { availabilityLabels, roleLabels, shortRoleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
 import { formatPoints } from '../lib/numbers'
-import { pluralPl } from '../lib/plural'
 import { isOpen, needsMyDecision } from '../lib/swaps'
-import { WEEKDAYS_FROM_MONDAY, addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, warsawDate } from '../lib/dates'
+import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, warsawDate, weekdaysFromMonday } from '../lib/dates'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
@@ -51,7 +51,6 @@ import {
 } from '../ui'
 
 const toneOf: Record<AvailabilityKind, 'na' | 'wn' | 'ch'> = { unavailable: 'na', prefer_not: 'wn', prefer: 'ch' }
-const markOf: Record<AvailabilityKind, string> = { unavailable: 'N', prefer_not: 'W', prefer: 'C' }
 const roleDot: Record<AssignmentRole, string> = { primary: 'dot-p', secondary: 'dot-s', late_shift: 'dot-l' }
 const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 
@@ -91,6 +90,7 @@ interface DutyDay {
 
 function dutyDays(calendar: CalendarData | undefined, displayName: string, from: string, to: string): DutyDay[] {
   if (!calendar) return []
+  const shortRoles = shortRoleLabels()
   const byDate = new Map<string, Day>(calendar.days.map((day) => [day.service_date, day]))
   const own = calendar.assignments.filter((item) => item.assignee_name === displayName && item.service_date >= from && item.service_date <= to)
   const dates = [...new Set(own.map((item) => item.service_date))].sort()
@@ -104,7 +104,7 @@ function dutyDays(calendar: CalendarData | undefined, displayName: string, from:
       changed: mine.some((item) => item.change_kind || item.is_override),
       partners: others
         .sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
-        .map((item) => `${shortRoleLabels[item.role]} ${firstName(item.assignee_name)}`)
+        .map((item) => `${shortRoles[item.role]} ${firstName(item.assignee_name)}`)
         .join(', '),
     }
   })
@@ -113,18 +113,20 @@ function dutyDays(calendar: CalendarData | undefined, displayName: string, from:
 /**
  * The upcoming duties as a list: day and roles, then the coverage window,
  * the multiplier and who else is on that day. Today's row is highlighted the
- * way "today" is in the matrix; a day that collides with a "nie mogę" entry
- * gets the warning rule on the left.
+ * way "today" is in the matrix; a day that collides with an "unavailable"
+ * entry gets the warning rule on the left.
  */
 function DutyList({ duties, today, collides }: {
   duties: DutyDay[]
   today: string
   collides: (serviceDate: string) => boolean
 }) {
+  const t = useMessages()
+  const roles = roleLabels()
   if (duties.length === 0) {
     return (
       <div className="panel">
-        <EmptyState compact icon="calendar" title="Brak nadchodzących dyżurów" description="W najbliższych 60 dniach nie masz przydzielonego dyżuru." />
+        <EmptyState compact icon="calendar" title={t.mine.duties.emptyTitle} description={t.mine.duties.emptyDescription} />
       </div>
     )
   }
@@ -142,18 +144,18 @@ function DutyList({ duties, today, collides }: {
             highlight={isToday}
             tone={conflict ? 'warn' : undefined}
             aside={isToday
-              ? <LinkButton size="sm" to={`/grafik?dzien=${duty.service_date}`}>Szczegóły</LinkButton>
-              : <LinkButton size="sm" variant="ghost" icon="swap" to={`/zamiany?data=${duty.service_date}&rola=${swapRole}`}>Zamień</LinkButton>}
+              ? <LinkButton size="sm" to={`/grafik?dzien=${duty.service_date}`}>{t.mine.duties.details}</LinkButton>
+              : <LinkButton size="sm" variant="ghost" icon="swap" to={`/zamiany?data=${duty.service_date}&rola=${swapRole}`}>{t.mine.duties.swap}</LinkButton>}
           >
             <b className={cx(isToday && 'who-you')}>
-              {isToday ? 'dziś, ' : ''}{formatDayShort(duty.service_date)} · {duty.roles.map((role) => roleLabels[role]).join(' + ')}
+              {isToday ? `${t.dates.today}, ` : ''}{formatDayShort(duty.service_date)} · {duty.roles.map((role) => roles[role]).join(' + ')}
             </b>
             <small>
-              {isToday ? 'trwa · ' : ''}{windows} · {duty.day?.is_day_off ? '2X' : '1X'}
+              {isToday ? `${t.mine.duties.ongoing} · ` : ''}{windows} · {duty.day?.is_day_off ? '2X' : '1X'}
               {duty.partners && ` · ${duty.partners}`}
               {duty.day?.holiday_name && ` · ${duty.day.holiday_name}`}
-              {duty.changed && <> · <span className="who-you">po korekcie</span></>}
-              {conflict && <> · <span className="who-out">koliduje z Twoją niedostępnością</span></>}
+              {duty.changed && <> · <span className="who-you">{t.mine.duties.afterCorrection}</span></>}
+              {conflict && <> · <span className="who-out">{t.mine.duties.collidesWithUnavailability}</span></>}
             </small>
           </ListRow>
         )
@@ -178,6 +180,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   disabled: boolean
   onPaint: (startsOn: string, endsOn: string) => void
 }) {
+  const t = useMessages().mine.calendar
+  const kinds = availabilityLabels()
+  const roleNames = roleLabels()
   const days = monthDays(month)
   const lead = weekdayIndex(days[0])
   const [anchor, setAnchor] = useState<string | null>(null)
@@ -221,9 +226,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   return (
     <div className="avail-wrap">
       <div className="avail-cal-head" aria-hidden="true">
-        {WEEKDAYS_FROM_MONDAY.map((label, index) => <span key={label} className={cx(index >= 5 && 'we')}>{label}</span>)}
+        {weekdaysFromMonday().map((label, index) => <span key={label} className={cx(index >= 5 && 'we')}>{label}</span>)}
       </div>
-      <div className="avail-cal" role="grid" aria-label={`Kalendarz dostępności, ${formatMonth(month)}`}>
+      <div className="avail-cal" role="grid" aria-label={t.label(formatMonth(month))}>
         {Array.from({ length: lead }, (_, index) => <span key={`lead-${index}`} aria-hidden="true" />)}
         {days.map((date) => {
           const entry = entryFor(date)
@@ -234,11 +239,11 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
           const conflict = roles.length > 0 && (entry?.kind === 'unavailable' || (preview && brush === 'unavailable'))
           const label = [
             formatDay(date),
-            entry ? availabilityLabels[entry.kind] : null,
-            entry?.note ? `powód: ${entry.note}` : null,
-            entry?.created_by_name ? `wpis: ${entry.created_by_name}` : null,
-            roles.length ? `dyżur: ${roles.map((role) => roleLabels[role]).join(', ')}` : null,
-            conflict ? 'kolizja z dyżurem' : null,
+            entry ? kinds[entry.kind] : null,
+            entry?.note ? t.reason(entry.note) : null,
+            entry?.created_by_name ? t.filedBy(entry.created_by_name) : null,
+            roles.length ? t.duty(roles.map((role) => roleNames[role]).join(', ')) : null,
+            conflict ? t.dutyCollision : null,
           ].filter(Boolean).join(', ')
           return (
             <button
@@ -246,7 +251,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
               key={date}
               role="gridcell"
               aria-label={label}
-              title={entry?.note ? `${availabilityLabels[entry.kind]}: ${entry.note}` : undefined}
+              title={entry?.note ? t.entryTitle(kinds[entry.kind], entry.note) : undefined}
               className={cx(
                 'avail-day',
                 weekend && 'avail-day-we',
@@ -274,8 +279,8 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
               {roles.map((role) => <i key={role} className={cx('dot', roleDot[role])} aria-hidden="true" />)}
               <span>
                 {date.slice(8)}
-                {entry && !preview && <small>{markOf[entry.kind]}</small>}
-                {preview && brush !== 'clear' && <small>{markOf[brush]}</small>}
+                {entry && !preview && <small>{t.marks[entry.kind]}</small>}
+                {preview && brush !== 'clear' && <small>{t.marks[brush]}</small>}
               </span>
             </button>
           )
@@ -298,16 +303,17 @@ function splitAround(entries: AvailabilityEntry[], startsOn: string, endsOn: str
 }
 
 /**
- * Availability as a calendar with a brush. The three kinds and "wyczyść" are
+ * Availability as a calendar with a brush. The three kinds and "clear" are
  * the brush; a painted range replaces whatever it covers (an entry it cuts
  * into is re-created around it) and is saved immediately. A coordinator can
- * paint another person's calendar from the "Osoba" picker.
+ * paint another person's calendar from the person picker.
  */
 function AvailabilitySection({ role, hasTeamMember, displayName }: {
   role: UserRole
   hasTeamMember: boolean
   displayName: string
 }) {
+  const t = useMessages().mine.availability
   const queryClient = useQueryClient()
   const toast = useToast()
   const today = warsawDate()
@@ -364,7 +370,9 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
       invalidate()
       setWarning(result.warning)
       const range = rangeText(result.startsOn, result.endsOn)
-      toast.success(result.brush === 'clear' ? `Wyczyszczono: ${range}` : `Zapisano: ${range} „${availabilityLabels[result.brush].toLowerCase()}”`)
+      toast.success(result.brush === 'clear'
+        ? t.cleared(range)
+        : t.saved(range, availabilityLabels()[result.brush].toLowerCase()))
     },
     onError: (error) => {
       invalidate()
@@ -372,7 +380,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
     },
   })
 
-  const heading = onBehalf ? `Dostępność: ${targetMember?.display_name ?? ''}` : 'Moja dostępność'
+  const heading = onBehalf ? t.headingFor(targetMember?.display_name ?? '') : t.heading
   return (
     <section className="stack-sm" aria-labelledby="dostepnosc" id="dostepnosc">
       <SectionHeading
@@ -383,12 +391,12 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
           <>
             {canActOnBehalf && (
               <Select
-                aria-label="Osoba"
+                aria-label={t.person}
                 value={target}
                 onChange={(event) => setTarget(event.target.value)}
                 className="sech-select"
               >
-                <option value="">{ownMember ? `Ja (${displayName})` : 'Wskaż osobę'}</option>
+                <option value="">{ownMember ? t.myself(displayName) : t.pickPerson}</option>
                 {team.data?.filter((member) => member.id !== ownMember?.id).map((member) => (
                   <option key={member.id} value={member.id}>{member.display_name}</option>
                 ))}
@@ -396,26 +404,26 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
             )}
             <Segmented<Brush>
               size="sm"
-              label="Pędzel"
+              label={t.brush}
               value={brush}
               onChange={setBrush}
               options={[
-                { value: 'unavailable', label: 'nie mogę', tone: 'na' },
-                { value: 'prefer_not', label: 'wolę nie', tone: 'wn' },
-                { value: 'prefer', label: 'chętnie', tone: 'ch' },
-                { value: 'clear', label: 'wyczyść' },
+                { value: 'unavailable', label: t.brushes.unavailable, tone: 'na' },
+                { value: 'prefer_not', label: t.brushes.prefer_not, tone: 'wn' },
+                { value: 'prefer', label: t.brushes.prefer, tone: 'ch' },
+                { value: 'clear', label: t.brushes.clear },
               ]}
             />
             <span className="pager">
-              <IconButton size="sm" label="Poprzedni miesiąc" icon="chevron-left" onClick={() => setMonth(shiftMonth(month, -1))} />
-              <IconButton size="sm" label="Następny miesiąc" icon="chevron-right" onClick={() => setMonth(shiftMonth(month, 1))} />
+              <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => setMonth(shiftMonth(month, -1))} />
+              <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => setMonth(shiftMonth(month, 1))} />
             </span>
           </>
         )}
       />
       {needsPick ? (
         <div className="panel">
-          <EmptyState icon="user" title="Wybierz osobę" description="Twoje konto nie jest w rotacji. Wskaż osobę, w imieniu której chcesz zgłosić dostępność." />
+          <EmptyState icon="user" title={t.pickTitle} description={t.pickDescription} />
         </div>
       ) : (
         <div className="panel panel-padded stack-sm">
@@ -431,17 +439,17 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
           />
           <div className="avail-foot">
             <span className="muted small">
-              Klikasz albo przeciągasz po dniach (Shift+klik domyka zakres); zapis automatyczny. Kropka to dyżur, bursztynowa obwódka to kolizja „nie mogę” z dyżurem.
+              {t.howTo}
             </span>
-            <Field label="Powód" id="availability-note" hint="Opcjonalny, do kolejnych wpisów; widzą koordynatorzy i administratorzy." className="avail-note">
+            <Field label={t.note} id="availability-note" hint={t.noteHint} className="avail-note">
               {({ id, describedBy }) => <Input id={id} name={id} value={note} onChange={(event) => setNote(event.target.value)} aria-describedby={describedBy} />}
             </Field>
           </div>
           {onBehalf && targetMember && (
-            <div className="small muted">Wpisujesz w imieniu: <b>{targetMember.display_name}</b> · dostanie o tym powiadomienie i może wpis usunąć.</div>
+            <div className="small muted">{t.onBehalfBefore} <b>{targetMember.display_name}</b> · {t.onBehalfAfter}</div>
           )}
           {canActOnBehalf && !onBehalf && !ownMember && team.data && (
-            <div className="small muted">Twoje konto nie jest w rotacji - wskaż osobę, w imieniu której wpisujesz.</div>
+            <div className="small muted">{t.notInRotation}</div>
           )}
           {warning && <Box tone="warn" role="status" title={warning} />}
         </div>
@@ -461,6 +469,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
   compact?: boolean
   onAvailability?: () => void
 }) {
+  const t = useMessages().mine.points
   const fairness = useQuery({ queryKey: ['fairness', undefined], queryFn: () => api.fairness() })
   const me = fairness.data?.members.find((member) => member.display_name === displayName)
   const duties = useQuery({
@@ -481,43 +490,47 @@ function PointsSection({ displayName, compact, onAvailability }: {
     <section className="stack-sm" aria-labelledby="moje-punkty">
       <SectionHeading
         id="moje-punkty"
-        title={compact ? 'Punkty' : 'Moje punkty'}
+        title={compact ? t.headingCompact : t.heading}
         controls={!compact && (
           <>
-            <button type="button" className={cx('sech-link', period === '12m' && 'on')} aria-pressed={period === '12m'} onClick={() => setPeriod('12m')}>12 mies.</button>
-            <button type="button" className={cx('sech-link', period === 'month' && 'on')} aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>Ten miesiąc</button>
+            <button type="button" className={cx('sech-link', period === '12m' && 'on')} aria-pressed={period === '12m'} onClick={() => setPeriod('12m')}>{t.twelveMonths}</button>
+            <button type="button" className={cx('sech-link', period === 'month' && 'on')} aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>{t.thisMonth}</button>
           </>
         )}
       />
       <div className="panel panel-padded stack-sm">
-        {fairness.isLoading && <LoadingBlock label="Wczytywanie punktów" rows={2} />}
+        {fairness.isLoading && <LoadingBlock label={t.loading} rows={2} />}
         {fairness.error && <ErrorState error={fairness.error} onRetry={() => fairness.refetch()} />}
         {fairness.data && !me && (
-          <EmptyState compact icon="chart" title="Brak punktów" description="Twoje konto nie ma jeszcze dyżurów w oknie 12 miesięcy." />
+          <EmptyState compact icon="chart" title={t.emptyTitle} description={t.emptyDescription} />
         )}
         {balance && bigNumber && (
           <>
             <div className="big-number">
               <span className="big">{bigNumber}</span>
-              <span className="muted small">{compact ? `${within ? 'w normie' : 'poza normą'} (±${formatPoints(threshold)})` : 'względem sprawiedliwego udziału'}</span>
+              <span className="muted small">
+                {compact
+                  ? (within ? t.withinCompact(formatPoints(threshold)) : t.outsideCompact(formatPoints(threshold)))
+                  : t.againstFairShare}
+              </span>
             </div>
             <DeviationBar value={balance.deviation} max={DEVIATION_SCALE} label={deviationWords(balance.deviation)} />
             {!compact && (
-              <Box tone={within ? 'ok' : 'warn'} title={within ? 'W normie' : 'Poza normą'}>
-                Próg ostrzeżenia to ±{formatPoints(threshold)} pkt.
+              <Box tone={within ? 'ok' : 'warn'} title={within ? t.within : t.outside}>
+                {t.threshold(formatPoints(threshold))}
                 {' '}{within
-                  ? 'Generator wyrówna to w kolejnym zakresie.'
-                  : `Generator da Ci ${balance.deviation > 0 ? 'mniej' : 'więcej'} dyżurów w kolejnym zakresie.`}
+                  ? t.generatorEvensOut
+                  : balance.deviation > 0 ? t.generatorFewer : t.generatorMore}
               </Box>
             )}
-            {!compact && duties.isLoading && <LoadingBlock label="Wczytywanie miesięcy" rows={2} />}
+            {!compact && duties.isLoading && <LoadingBlock label={t.loadingMonths} rows={2} />}
             {!compact && duties.data && (
-              <table className="lg" aria-label="Punkty miesiąc po miesiącu">
+              <table className="lg" aria-label={t.table}>
                 <thead>
-                  <tr><th scope="col">Miesiąc</th><th scope="col" className="n">Pkt</th><th scope="col" className="n">Dyż.</th><th scope="col" className="n">Week.</th></tr>
+                  <tr><th scope="col">{t.month}</th><th scope="col" className="n">{t.pts}</th><th scope="col" className="n">{t.dutiesShort}</th><th scope="col" className="n">{t.weekendsShort}</th></tr>
                 </thead>
                 <tbody>
-                  {rows.length === 0 && <tr><td colSpan={4} className="muted">Brak dyżurów w tym okresie.</td></tr>}
+                  {rows.length === 0 && <tr><td colSpan={4} className="muted">{t.noDutiesInPeriod}</td></tr>}
                   {rows.map((row) => (
                     <tr key={row.month}>
                       <td>{formatMonth(row.month, row.month.slice(0, 4) !== thisMonth.slice(0, 4))}</td>
@@ -530,8 +543,8 @@ function PointsSection({ displayName, compact, onAvailability }: {
               </table>
             )}
             {compact
-              ? <Button variant="primary" block icon="calendar" onClick={onAvailability}>Zgłoś dostępność</Button>
-              : <LinkButton to="/sprawiedliwosc" size="sm" variant="ghost" className="self-start">Pełny raport sprawiedliwości</LinkButton>}
+              ? <Button variant="primary" block icon="calendar" onClick={onAvailability}>{t.fileAvailability}</Button>
+              : <LinkButton to="/sprawiedliwosc" size="sm" variant="ghost" className="self-start">{t.fullReport}</LinkButton>}
           </>
         )}
       </div>
@@ -546,16 +559,12 @@ const swapTone: Record<SwapRequest['status'], StatusTone> = {
   rejected: 'bad',
   cancelled: 'muted',
 }
-const swapShort: Record<SwapRequest['status'], string> = {
-  pending_replacement: 'oczekuje',
-  pending_coordinator: 'oczekuje',
-  approved: 'wpisana',
-  rejected: 'odrzucona',
-  cancelled: 'wycofana',
-}
 
-/** The swaps this person is part of, decided with one click; the rest is on Zamiany. */
+/** The swaps this person is part of, decided with one click; the rest is on the swaps screen. */
 function SwapsSection({ displayName, role }: { displayName: string; role: UserRole }) {
+  const t = useMessages().mine.swaps
+  const roles = roleLabels()
+  const statuses = swapStatusLabels()
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps() })
   const viewer = { displayName, role }
   const mine = (swaps.data ?? []).filter((item) => item.requester_name === displayName || item.replacement_name === displayName)
@@ -566,25 +575,25 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
   const stage = (item: SwapRequest) => {
     if (item.status === 'pending_replacement') {
       return item.replacement_name === displayName
-        ? 'prośba do Ciebie · odpowiedz'
-        : `czeka na: ${firstName(item.replacement_name)} · ${relativeDay(item.created_at.slice(0, 10))}`
+        ? t.askedYou
+        : t.waitingFor(firstName(item.replacement_name), relativeDay(item.created_at.slice(0, 10)))
     }
-    if (item.status === 'pending_coordinator') return needsMyDecision(item, viewer) ? 'czeka na Twoje zatwierdzenie' : 'czeka na koordynatora'
-    if (item.status === 'approved') return 'wpisana do grafiku'
-    return item.decision_note ? `${swapStatusLabels[item.status].toLowerCase()} · „${item.decision_note}”` : swapStatusLabels[item.status].toLowerCase()
+    if (item.status === 'pending_coordinator') return needsMyDecision(item, viewer) ? t.waitingForYourApproval : t.waitingForCoordinator
+    if (item.status === 'approved') return t.inSchedule
+    return item.decision_note ? t.settledWithNote(statuses[item.status].toLowerCase(), item.decision_note) : statuses[item.status].toLowerCase()
   }
   return (
     <section className="stack-sm" aria-labelledby="moje-zamiany">
       <SectionHeading
         id="moje-zamiany"
-        title="Zamiany"
-        controls={<LinkButton to="/zamiany" size="sm" variant="ghost">Wszystkie</LinkButton>}
+        title={t.heading}
+        controls={<LinkButton to="/zamiany" size="sm" variant="ghost">{t.all}</LinkButton>}
       />
       <div className="panel">
-        {swaps.isLoading && <LoadingBlock label="Wczytywanie zamian" rows={2} />}
+        {swaps.isLoading && <LoadingBlock label={t.loading} rows={2} />}
         {swaps.error && <ErrorState error={swaps.error} onRetry={() => swaps.refetch()} />}
         {swaps.data && visible.length === 0 && (
-          <EmptyState compact icon="swap" title="Brak zamian z Twoim udziałem" description="Zamianę zaczniesz od dyżuru na liście powyżej." />
+          <EmptyState compact icon="swap" title={t.emptyTitle} description={t.emptyDescription} />
         )}
         {visible.length > 0 && (
           <List>
@@ -592,12 +601,12 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
               <ListRow
                 key={item.id}
                 aside={needsMyDecision(item, viewer)
-                  ? <LinkButton size="sm" variant="primary" to="/zamiany?skrzynka=do-mnie">Zdecyduj</LinkButton>
-                  : <StatusBadge tone={swapTone[item.status]}>{swapShort[item.status]}</StatusBadge>}
+                  ? <LinkButton size="sm" variant="primary" to="/zamiany?skrzynka=do-mnie">{t.decide}</LinkButton>
+                  : <StatusBadge tone={swapTone[item.status]}>{t.short[item.status]}</StatusBadge>}
               >
                 <b>
-                  {item.requester_name === displayName ? `Ty → ${firstName(item.replacement_name)}` : `${firstName(item.requester_name)} → Ty`}
-                  {' · '}{formatDayShort(item.service_date)} {roleLabels[item.role]}
+                  {item.requester_name === displayName ? t.youTo(firstName(item.replacement_name)) : t.toYou(firstName(item.requester_name))}
+                  {' · '}{formatDayShort(item.service_date)} {roles[item.role]}
                 </b>
                 <small>{stage(item)}</small>
               </ListRow>
@@ -609,8 +618,9 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
   )
 }
 
-/** The ICS subscriptions, in a side panel behind "Eksport ICS". */
+/** The ICS subscriptions, in a side panel behind the ICS export action. */
 function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const t = useMessages().mine.feeds
   const queryClient = useQueryClient()
   const feeds = useQuery({ queryKey: ['feeds'], queryFn: api.feeds, enabled: open })
   const [label, setLabel] = useState('')
@@ -633,32 +643,32 @@ function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open
   const visible = feeds.data?.filter((feed) => showRevoked || !feed.revoked_at) ?? []
   return (
     <>
-      <Panel open={open} onOpenChange={onOpenChange} title="Subskrypcja kalendarza (ICS)" meta={<Tag>tylko Twoje dyżury</Tag>}>
-        <p className="muted small">Adres ICS pokazuje wyłącznie Twoje dyżury i aktualizuje się po zamianach. Dodaj go w swojej aplikacji kalendarza.</p>
+      <Panel open={open} onOpenChange={onOpenChange} title={t.title} meta={<Tag>{t.onlyYourDuties}</Tag>}>
+        <p className="muted small">{t.explanation}</p>
         <form
           className="stack-sm"
-          aria-label="Nowa subskrypcja"
+          aria-label={t.newSubscription}
           onSubmit={(event) => {
             event.preventDefault()
-            create.mutate(label.trim() || 'Mój kalendarz')
+            create.mutate(label.trim() || t.defaultLabel)
           }}
         >
-          <Field label="Nazwa subskrypcji" id="feed-label">
-            {({ id }) => <Input id={id} name={id} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="np. telefon" />}
+          <Field label={t.labelField} id="feed-label">
+            {({ id }) => <Input id={id} name={id} value={label} onChange={(event) => setLabel(event.target.value)} placeholder={t.labelPlaceholder} />}
           </Field>
           <div className="row">
-            <Button type="submit" variant="primary" loading={create.isPending} icon="plus">Utwórz adres ICS</Button>
+            <Button type="submit" variant="primary" loading={create.isPending} icon="plus">{t.create}</Button>
           </div>
         </form>
         {(create.error || revoke.error) && <Box tone="bad" role="alert" title={create.error?.message ?? revoke.error?.message} />}
         {created && (
-          <Box tone="ok" role="status" title="Nowy adres ICS. Zapisz go teraz, nie pokażemy go ponownie.">
+          <Box tone="ok" role="status" title={t.createdOnce}>
             <div className="token-once"><code>{created.url}</code><CopyButton value={created.url} /></div>
           </Box>
         )}
-        {feeds.isLoading && <LoadingBlock label="Wczytywanie subskrypcji" rows={2} />}
+        {feeds.isLoading && <LoadingBlock label={t.loading} rows={2} />}
         {feeds.data && visible.length === 0 && (
-          <EmptyState compact icon="link" title="Nie masz jeszcze subskrypcji" description="Pierwszy adres utworzysz powyżej." />
+          <EmptyState compact icon="link" title={t.emptyTitle} description={t.emptyDescription} />
         )}
         {visible.length > 0 && (
           <List className="panel">
@@ -666,17 +676,17 @@ function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open
               <ListRow
                 key={feed.id}
                 aside={feed.revoked_at
-                  ? <StatusBadge tone="bad">odwołana</StatusBadge>
-                  : <Button size="sm" variant="ghost" disabled={revoke.isPending} onClick={() => { revoke.reset(); setToRevoke(feed) }}>Odwołaj</Button>}
+                  ? <StatusBadge tone="bad">{t.revoked}</StatusBadge>
+                  : <Button size="sm" variant="ghost" disabled={revoke.isPending} onClick={() => { revoke.reset(); setToRevoke(feed) }}>{t.revoke}</Button>}
               >
                 <b>{feed.label}</b>
-                <small>utworzono {formatDate(feed.created_at)}{feed.last_used_at ? ` · ostatnie użycie ${formatDate(feed.last_used_at)}` : ' · jeszcze nieużyta'}</small>
+                <small>{t.createdOn(formatDate(feed.created_at))}{feed.last_used_at ? ` · ${t.lastUsed(formatDate(feed.last_used_at))}` : ` · ${t.neverUsed}`}</small>
               </ListRow>
             ))}
           </List>
         )}
         {feeds.data?.some((feed) => feed.revoked_at) && (
-          <Checkbox label="Pokaż odwołane" checked={showRevoked} onChange={(event) => setShowRevoked(event.target.checked)} />
+          <Checkbox label={t.showRevoked} checked={showRevoked} onChange={(event) => setShowRevoked(event.target.checked)} />
         )}
       </Panel>
       <ConfirmDialog
@@ -685,10 +695,10 @@ function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open
         error={revoke.error ? revoke.error.message : null}
         onCancel={() => setToRevoke(null)}
         onConfirm={() => toRevoke && revoke.mutate(toRevoke.id)}
-        title="Odwołać subskrypcję ICS?"
-        confirmLabel="Odwołaj subskrypcję"
+        title={t.revokeTitle}
+        confirmLabel={t.revokeConfirm}
         confirmColor="error"
-        description={toRevoke && <>Adres „{toRevoke.label}” przestanie działać w aplikacjach kalendarza, które go używają. Odwołanego adresu nie da się przywrócić - trzeba będzie utworzyć nowy.</>}
+        description={toRevoke && t.revokeDescription(toRevoke.label)}
       />
     </>
   )
@@ -705,6 +715,8 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
   hasTeamMember?: boolean
   displayName?: string
 } = {}) {
+  const t = useMessages().mine
+  const roles = roleLabels()
   const inRotation = hasTeamMember !== false
   const narrow = useNarrow()
   const location = useLocation()
@@ -740,19 +752,19 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
 
   const subtitle = [
     displayName,
-    accountRoleLabels[role].toLowerCase(),
-    inRotation ? (history.data ? `${pluralPl(past.length, ['dyżur', 'dyżury', 'dyżurów'])} w ostatnich 90 dniach` : null) : 'poza rotacją',
+    accountRoleLabels()[role].toLowerCase(),
+    inRotation ? (history.data ? t.dutiesInLast90Days(past.length) : null) : t.outsideRotation,
   ].filter(Boolean).join(' · ')
 
   const duties = (
     <section className="stack-sm" aria-labelledby="moje-dyzury">
       <SectionHeading
         id="moje-dyzury"
-        title="Najbliższe dyżury"
-        meta={calendar.data ? `najbliższe 60 dni · ${upcoming.length}` : undefined}
-        controls={<LinkButton to={`/grafik?osoba=${encodeURIComponent(displayName)}`} size="sm" variant="ghost">Grafik</LinkButton>}
+        title={t.duties.heading}
+        meta={calendar.data ? t.duties.meta(upcoming.length) : undefined}
+        controls={<LinkButton to={`/grafik?osoba=${encodeURIComponent(displayName)}`} size="sm" variant="ghost">{t.duties.schedule}</LinkButton>}
       />
-      {calendar.isLoading && <LoadingBlock label="Wczytywanie dyżurów" rows={3} />}
+      {calendar.isLoading && <LoadingBlock label={t.duties.loading} rows={3} />}
       {calendar.error && <ErrorState error={calendar.error} onRetry={() => calendar.refetch()} />}
       {calendar.data && <DutyList duties={upcoming} today={today} collides={collides} />}
     </section>
@@ -762,22 +774,22 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
   return (
     <div className="page">
       <PageHeader
-        title="Moje dyżury"
+        title={t.title}
         sub={(
           <span>
             {subtitle}
             {inRotation && calendar.data && (
               <>
-                {' · następny: '}
-                <b className="fg">{next ? `${relativeDay(next.service_date)}, ${next.roles.map((item) => roleLabels[item]).join(' + ')}` : 'brak w najbliższych 60 dniach'}</b>
+                {` · ${t.next} `}
+                <b className="fg">{next ? `${relativeDay(next.service_date)}, ${next.roles.map((item) => roles[item]).join(' + ')}` : t.noDutyIn60Days}</b>
               </>
             )}
           </span>
         )}
         actions={inRotation && (
           <>
-            <Button variant="ghost" icon="download" onClick={() => setIcsOpen(true)}>Eksport ICS (tylko moje)</Button>
-            <LinkButton icon="swap" to={next ? `/zamiany?data=${next.service_date}&rola=${next.roles[0]}` : '/zamiany'}>Zaproponuj zamianę</LinkButton>
+            <Button variant="ghost" icon="download" onClick={() => setIcsOpen(true)}>{t.exportIcs}</Button>
+            <LinkButton icon="swap" to={next ? `/zamiany?data=${next.service_date}&rola=${next.roles[0]}` : '/zamiany'}>{t.proposeSwap}</LinkButton>
           </>
         )}
       />

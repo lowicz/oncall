@@ -3,6 +3,7 @@ import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { cx } from './cx'
 import { IconButton } from './Button'
 import { useNarrow } from '../hooks/useMediaQuery'
+import { useMessages } from '../i18n/messages'
 
 /**
  * The side panel: the day inspector, a swap decision, a person's account.
@@ -23,6 +24,7 @@ export function Panel({ open, onOpenChange, title, meta, children, footer, class
   wide?: boolean
 }) {
   const narrow = useNarrow()
+  const t = useMessages()
   return (
     <BaseDialog.Root
       open={open}
@@ -36,7 +38,7 @@ export function Panel({ open, onOpenChange, title, meta, children, footer, class
           <div className="panel-head">
             <BaseDialog.Title className="panel-title">{title}</BaseDialog.Title>
             {meta && <div className="panel-meta">{meta}</div>}
-            <BaseDialog.Close render={<IconButton label="Zamknij panel" icon="x" size="sm" className="panel-close" />} />
+            <BaseDialog.Close render={<IconButton label={t.common.closePanel} icon="x" size="sm" className="panel-close" />} />
           </div>
           <div className="panel-body">{children}</div>
           {footer && <div className="panel-foot">{footer}</div>}

@@ -103,9 +103,3 @@ export function useDensity(): [Density, (density: Density) => void] {
   const set = useCallback((next: Density) => setDensity(next), [])
   return [density, set]
 }
-
-export const themeModeLabels: Record<ThemeMode, string> = {
-  dark: 'Ciemny',
-  light: 'Jasny',
-  system: 'Systemowy',
-}

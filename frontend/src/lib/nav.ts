@@ -1,4 +1,6 @@
 import { UserRole } from '../api'
+import { Language, readLanguage } from '../i18n/language'
+import { Messages, messages } from '../i18n'
 import { IconName } from '../ui/Icon'
 
 export interface Access {
@@ -6,9 +8,12 @@ export interface Access {
   hasTeamMember: boolean
 }
 
+export type ScreenKey = keyof Messages['nav']['screens']
+
 export interface NavItem {
   path: string
-  label: string
+  /** The screen's name in the catalog; `navLabel` reads it in the current language. */
+  label: ScreenKey
   icon: IconName
   visible: (access: Access) => boolean
 }
@@ -19,50 +24,49 @@ const inRotation = (access: Access) => access.hasTeamMember || isCoordinator(acc
 
 /** Everyday work: the four screens everyone in the rotation uses. */
 export const primaryNav: NavItem[] = [
-  { path: '/', label: 'Teraz', icon: 'clock', visible: () => true },
-  { path: '/grafik', label: 'Grafik', icon: 'calendar', visible: () => true },
+  { path: '/', label: 'now', icon: 'clock', visible: () => true },
+  { path: '/grafik', label: 'schedule', icon: 'calendar', visible: () => true },
   // Coordinators and admins reach this screen too: it is where they file
   // availability on behalf of someone who cannot.
-  { path: '/moje', label: 'Moje', icon: 'user', visible: inRotation },
-  { path: '/zamiany', label: 'Zamiany', icon: 'swap', visible: inRotation },
+  { path: '/moje', label: 'mine', icon: 'user', visible: inRotation },
+  { path: '/zamiany', label: 'swaps', icon: 'swap', visible: inRotation },
 ]
 
 /** Coordination: generating, fairness, reports, history. */
 export const coordinationNav: NavItem[] = [
-  { path: '/generator', label: 'Generator', icon: 'wand', visible: isCoordinator },
-  { path: '/sprawiedliwosc', label: 'Sprawiedliwość', icon: 'chart', visible: inRotation },
-  { path: '/raporty', label: 'Raport miesięczny', icon: 'report', visible: isCoordinator },
-  { path: '/import', label: 'Import historii', icon: 'upload', visible: isCoordinator },
+  { path: '/generator', label: 'generator', icon: 'wand', visible: isCoordinator },
+  { path: '/sprawiedliwosc', label: 'fairness', icon: 'chart', visible: inRotation },
+  { path: '/raporty', label: 'reports', icon: 'report', visible: isCoordinator },
+  { path: '/import', label: 'historyImport', icon: 'upload', visible: isCoordinator },
 ]
 
 /** Administration: accounts, events, links, audit. */
 export const adminNav: NavItem[] = [
-  { path: '/osoby', label: 'Osoby', icon: 'people', visible: isAdmin },
-  { path: '/wydarzenia', label: 'Wydarzenia', icon: 'event', visible: isAdmin },
-  { path: '/udostepnienia', label: 'Udostępnienia', icon: 'link', visible: isAdmin },
-  { path: '/audyt', label: 'Audyt', icon: 'audit', visible: isAdmin },
+  { path: '/osoby', label: 'people', icon: 'people', visible: isAdmin },
+  { path: '/wydarzenia', label: 'events', icon: 'event', visible: isAdmin },
+  { path: '/udostepnienia', label: 'shareLinks', icon: 'link', visible: isAdmin },
+  { path: '/audyt', label: 'audit', icon: 'audit', visible: isAdmin },
 ]
 
 export const allNav = [...primaryNav, ...coordinationNav, ...adminNav]
+
+/** The name of a screen in the current language. */
+export const navLabel = (item: NavItem) => messages().nav.screens[item.label]
 
 /**
  * The rendered documentation (docs/*.md -> /docs/) is served by the same nginx
  * as this application but is not part of it: plain static pages, outside the
  * router. So the shell links to it with a real anchor - a NavLink would have
  * the router swallow the click, find no matching route and bounce back to the
- * dashboard.
+ * dashboard. The English pages sit under /docs/en/, so the link follows the
+ * interface language.
  */
-export const docsHref = '/docs/'
+export const docsHref = (language: Language = readLanguage()) => (language === 'en' ? '/docs/en/' : '/docs/')
 
 export const visibleFor = (items: NavItem[], access: Access) =>
   items.filter((item) => item.visible(access))
 
-export const roleLabels: Record<UserRole, string> = {
-  viewer: 'Podgląd',
-  member: 'Członek zespołu',
-  coordinator: 'Koordynator',
-  admin: 'Administrator',
-}
+export const roleLabels = (): Record<UserRole, string> => messages().nav.roles
 
 /** The nav item for a path, so a screen can name itself in the tab title. */
 export const navFor = (pathname: string) => allNav.find((item) => item.path === pathname) ?? null

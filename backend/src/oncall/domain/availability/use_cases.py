@@ -26,6 +26,7 @@ from oncall.domain.errors import NotATeamMember
 from oncall.domain.ports import TeamDirectory
 from oncall.domain.team import Actor, Member
 from oncall.domain.vocabulary import AvailabilityKind
+from oncall.i18n import translate
 
 
 async def _resolve(ref: MemberRef, actor: Actor, team: TeamDirectory) -> Member:
@@ -99,11 +100,9 @@ async def declare_availability(
     warning: str | None = None
     if duty_conflicts:
         warning = (
-            f"{member.display_name} ma w tym czasie dyżur. Zgłoszenie go nie zdejmuje, "
-            "trzeba je przekazać zamianą albo korektą koordynatora."
+            translate("availability.on_duty_warning_on_behalf", name=member.display_name)
             if on_behalf
-            else "Masz w tym czasie dyżur. Zgłoszenie go nie zdejmuje, poproś o zamianę "
-            "albo skontaktuj się z koordynatorem."
+            else translate("availability.on_duty_warning")
         )
     return AvailabilityDeclared(
         entry=await ports.ledger.recorded_entry(),
