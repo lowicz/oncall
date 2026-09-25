@@ -38,6 +38,16 @@ class DutyTally:
         return self.primary_holiday + self.secondary_holiday
 
     @property
+    def oncall_days_off(self) -> int:
+        """Duty days on weekends and statutory holidays together (the 2X days)."""
+        return self.oncall_weekends + self.oncall_holidays
+
+    @property
+    def oncall_total(self) -> int:
+        """Every primary and secondary duty day; the 11-19 shift is not one."""
+        return self.oncall_workdays + self.oncall_days_off
+
+    @property
     def total_points(self) -> float:
         return self.primary_points + self.secondary_points
 

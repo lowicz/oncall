@@ -55,6 +55,72 @@ async def test_monthly_csv_splits_workdays_weekends_and_holidays(client, db) -> 
     assert response.headers["content-disposition"] == 'attachment; filename="oncall-2026-08.csv"'
 
 
+async def test_duty_days_count_both_on_call_roles_and_skip_the_late_shift(client, db) -> None:
+    """Duty days are primary and secondary together, split into working days and
+    a single weekend-plus-holiday bucket; the 11-19 shift is not a duty day."""
+    anna_user = await create_user(db, "anna-days", display_name="Anna")
+    await create_member(db, anna_user, display_name="Anna")
+    # 2026-11-10 is a Tuesday, 11-11 (Independence Day) a Wednesday holiday,
+    # 11-14 a Saturday and 11-15 a Sunday.
+    schedule = Schedule(
+        name="Listopad",
+        starts_on=date(2026, 11, 10),
+        ends_on=date(2026, 11, 15),
+        status=ScheduleStatus.published,
+        published_at=datetime.now(UTC),
+    )
+    schedule.assignments.extend(
+        [
+            Assignment(
+                service_date=date(2026, 11, 10), role=AssignmentRole.primary, assignee_name="Anna"
+            ),
+            Assignment(
+                service_date=date(2026, 11, 10),
+                role=AssignmentRole.late_shift,
+                assignee_name="Anna",
+            ),
+            Assignment(
+                service_date=date(2026, 11, 11), role=AssignmentRole.primary, assignee_name="Anna"
+            ),
+            Assignment(
+                service_date=date(2026, 11, 14), role=AssignmentRole.secondary, assignee_name="Anna"
+            ),
+            Assignment(
+                service_date=date(2026, 11, 15), role=AssignmentRole.secondary, assignee_name="Anna"
+            ),
+        ]
+    )
+    db.add(schedule)
+    await db.commit()
+    await create_user(db, "coord-days", role=UserRole.coordinator)
+    await login(client, "coord-days")
+
+    preview = await client.get("/api/v1/reports/monthly", params={"month": "2026-11"})
+    assert preview.status_code == 200, preview.text
+    row = next(r for r in preview.json()["rows"] if r["name"] == "Anna")
+    assert (row["oncall_workdays"], row["oncall_days_off"], row["oncall_total"]) == (1, 3, 4)
+    assert row["oncall_total"] == row["oncall_workdays"] + row["oncall_days_off"]
+    assert row["oncall_days_off"] == row["oncall_weekends"] + row["oncall_holidays"] == 2 + 1
+    assert row["late_shifts"] == 1
+
+    exported = await client.get("/api/v1/reports/monthly.csv", params={"month": "2026-11"})
+    assert exported.status_code == 200, exported.text
+    rows = list(csv.DictReader(io.StringIO(exported.text.lstrip("\ufeff"))))
+    anna = next(r for r in rows if r["osoba"] == "Anna")
+    assert anna["oncall_dni_robocze_razem"] == "1"
+    assert anna["oncall_weekendy_swieta_razem"] == "3"
+    assert anna["oncall_dni_razem"] == "4"
+    header = exported.text.lstrip("\ufeff").splitlines()[0].split(",")
+    assert header[8:14] == [
+        "oncall_dni_robocze_razem",
+        "oncall_weekendy_razem",
+        "oncall_swieta_razem",
+        "oncall_weekendy_swieta_razem",
+        "oncall_dni_razem",
+        "zmiany_11_19",
+    ]
+
+
 async def test_monthly_csv_requires_coordinator(client, db) -> None:
     await create_user(db, "viewer-report", role=UserRole.viewer)
     await login(client, "viewer-report")

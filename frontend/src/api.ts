@@ -437,6 +437,10 @@ export interface MonthlyReportPreview {
     oncall_workdays: number
     oncall_weekends: number
     oncall_holidays: number
+    /** Primary and secondary duty days on weekends and holidays together. */
+    oncall_days_off: number
+    /** Every primary and secondary duty day; 11-19 shifts are not duty days. */
+    oncall_total: number
     late_shifts: number
     primary_points: number
     secondary_points: number

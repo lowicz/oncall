@@ -2294,8 +2294,16 @@
             "title": "Name",
             "type": "string"
           },
+          "oncall_days_off": {
+            "title": "Oncall Days Off",
+            "type": "integer"
+          },
           "oncall_holidays": {
             "title": "Oncall Holidays",
+            "type": "integer"
+          },
+          "oncall_total": {
+            "title": "Oncall Total",
             "type": "integer"
           },
           "oncall_weekends": {
@@ -2354,6 +2362,8 @@
           "oncall_workdays",
           "oncall_weekends",
           "oncall_holidays",
+          "oncall_days_off",
+          "oncall_total",
           "late_shifts",
           "primary_points",
           "secondary_points",

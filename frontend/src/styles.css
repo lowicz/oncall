@@ -566,6 +566,10 @@ button.rank-c:hover:not(:disabled) { background: var(--s2); }
 table.report-table thead th { white-space: nowrap; }
 table.report-table th.n, table.report-table td.n { padding-left: 6px; padding-right: 6px; }
 table.report-table .person { position: sticky; left: 0; z-index: 1; min-width: 9em; background: var(--s1); }
+/* The headline duty-day columns keep their tint under the row hover, so the group reads as one block. */
+table.report-table .key, table.report-table tbody tr:hover td.key { background: var(--sig-soft); }
+table.report-table thead th.key { color: var(--fg); }
+table.report-table td.key { font-weight: 600; }
 .scroll-area-start table.report-table .person { box-shadow: inset -1px 0 0 var(--line2), 8px 0 10px -8px rgba(0, 0, 0, 0.45); }
 .scroll-area { overflow: hidden; }
 .scroll-area-hint { margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }

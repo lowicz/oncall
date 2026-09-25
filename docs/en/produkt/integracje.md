@@ -104,14 +104,17 @@ layout:
 | `oncall_dni_robocze_razem` | total on-call on working days |
 | `oncall_weekendy_razem` | total on-call on weekends |
 | `oncall_swieta_razem` | total on-call on holidays |
+| `oncall_weekendy_swieta_razem` | duty days on weekends and holidays together (`PRIMARY` + `SECONDARY`) |
+| `oncall_dni_razem` | all duty days (`PRIMARY` + `SECONDARY`, on working days plus weekends and holidays) |
 | `zmiany_11_19` | number of working-day `11–19` shifts |
 | `primary_punkty` | points for `PRIMARY` (X / 2X) |
 | `secondary_punkty` | points for `SECONDARY` |
 | `punkty_razem` | total points |
 
-Every slot is counted from the effective version of the schedule, after
-overrides and swaps. A holiday falling on a Saturday or Sunday is counted once,
-as a weekend. The screen warns when the published schedule does not cover the
+A duty day is one `PRIMARY` or `SECONDARY` duty; `11–19` shifts are not duty
+days and only have their own column. Every slot is counted from the effective
+version of the schedule, after overrides and swaps. A holiday falling on a
+Saturday or Sunday is counted once, as a weekend. The screen warns when the published schedule does not cover the
 whole month, and says how many days it covers.
 
 Future formats (XLSX, Word) are to use the same reporting model, not separate

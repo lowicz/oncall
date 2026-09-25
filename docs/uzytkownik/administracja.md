@@ -131,8 +131,11 @@ Import zasila historię, z której liczą raport sprawiedliwości i generator.
 
 ## Raport miesięczny (`/raporty`, koordynator)
 
-1. Wybierz miesiąc rozliczenia (`MM-RRRR`).
-2. Obejrzyj podgląd - jeden wiersz na osobę.
+1. Wybierz miesiąc rozliczenia (`MM-RRRR`); ekran otwiera się na bieżącym
+   miesiącu.
+2. Obejrzyj podgląd - jeden wiersz na osobę. Pierwsze, wyróżnione kolumny to
+   dni dyżurowe (primary i secondary razem): w dni robocze, w weekendy i święta
+   oraz łącznie. Zmiany 11-19 nie są dniami dyżurowymi i mają własną kolumnę.
 3. „Pobierz CSV”.
 
 Ekran ostrzega, jeśli opublikowany grafik nie pokrywa całego miesiąca, i podaje,
