@@ -58,7 +58,7 @@ export function Login({ expired = false }: { expired?: boolean }) {
         <Field label={t.auth.password}>
           {({ id }) => (
             <div className="row" style={{ flexWrap: 'nowrap' }}>
-              <Input id={id} name="password" autoComplete="current-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input id={id} name="password" autoComplete="current-password" type={showPassword ? 'text' : 'password'} className="in-pw-toggled" value={password} onChange={(e) => setPassword(e.target.value)} required />
               <IconButton
                 label={showPassword ? t.auth.hidePassword : t.auth.showPassword}
                 icon="eye"

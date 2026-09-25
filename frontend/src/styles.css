@@ -193,6 +193,10 @@ button:disabled { cursor: default; }
 .in:disabled { opacity: 0.6; }
 .in[type='date'], .in[type='month'], .in[type='time'] { font-family: var(--mono); font-size: 12px; }
 :root:not([data-theme='light']) .in::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+/* Edge/IE draw their own password reveal button inside the field; where the
+   app already renders its own toggle next to the field, hide the native one
+   so only one reveal control shows. Unsupported elsewhere, so harmless. */
+.in-pw-toggled::-ms-reveal { display: none; }
 .sel-wrap { position: relative; display: block; }
 .sel-wrap::after { content: ''; position: absolute; right: 10px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
 .in-sel { appearance: none; padding-right: 26px; }
