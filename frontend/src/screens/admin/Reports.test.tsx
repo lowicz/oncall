@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../../test/render'
@@ -102,5 +104,29 @@ describe('MonthlyReportsPanel', () => {
     const region = await screen.findByRole('region', { name: 'Raport za wrzesień 2026' })
     expect(screen.getByText(/przewiń ją w bok, aby zobaczyć wszystkie kolumny, w tym punkty/)).toBeInTheDocument()
     expect(region).toHaveAttribute('tabindex', '0')
+  })
+
+  it('keeps the "11–19" header on the header type scale, not the body\'s numeric one', async () => {
+    // The real stylesheet, so this exercises actual cascade/specificity rather
+    // than asserting a class name: table.lg gives numeric cells (.n) a larger
+    // font-size for body readability, and that rule used to also catch this
+    // header cell, so its rowspan-2 box centered on a taller line than
+    // "Osoba"'s (jsdom can't resolve the `font` shorthand's var(--mono) that
+    // "Osoba" relies on, so it is compared against the 9.5px literal instead).
+    const style = document.createElement('style')
+    style.textContent = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8')
+    document.head.appendChild(style)
+
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
+    renderScreen(<MonthlyReportsPanel />)
+
+    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    const lateShift = within(table).getByRole('columnheader', { name: '11–19' })
+    const [dataCell] = within(table).getAllByRole('cell', { name: '5' })
+
+    expect(getComputedStyle(lateShift).fontSize).toBe('9.5px')
+    expect(getComputedStyle(dataCell).fontSize).toBe('11.5px')
+
+    document.head.removeChild(style)
   })
 })
