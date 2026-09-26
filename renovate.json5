@@ -235,5 +235,11 @@
       matchPackageNames: ['vitest', '/^@vitest\\//'],
       groupName: 'frontend (vitest)',
     },
+    // ---- @vitejs/plugin-react peers on one vite major; one PR --------------
+    {
+      matchManagers: ['npm'],
+      matchPackageNames: ['vite', '@vitejs/plugin-react'],
+      groupName: 'frontend (vite)',
+    },
   ],
 }
