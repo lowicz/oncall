@@ -216,9 +216,9 @@ samym PR-ze:
 
 | Grupa | Pliki | Źródło wersji |
 | --- | --- | --- |
-| Node.js | `NODE_VERSION` w `ci.yml`, `node-version` w `pages.yml`, `frontend/Dockerfile` | wydania Node.js |
-| Python | `requires-python` w `backend/pyproject.toml`, `PYTHON_VERSION` w `ci.yml`, `backend/Dockerfile` | wydania python.org |
-| PostgreSQL | `docker-compose.yml`, `docker-compose.contract.yml`, usługa bazy w `ci.yml` | Docker Hub, wszędzie ten sam tag |
+| Node.js | `NODE_VERSION` w `ci.yml`, `node-version` w `pages.yml`, `frontend/Dockerfile`, badge w `README.md` | wydania Node.js |
+| Python | `requires-python` w `backend/pyproject.toml`, `PYTHON_VERSION` w `ci.yml`, `backend/Dockerfile`, badge w `README.md` | wydania python.org |
+| PostgreSQL | `docker-compose.yml`, `docker-compose.contract.yml`, usługa bazy w `ci.yml`, badge w `README.md` | Docker Hub, wszędzie ten sam tag |
 | uv | `required-version` w `backend/pyproject.toml`, `UV_VERSION` w `ci.yml`, `backend/Dockerfile` | wydania uv na GitHubie |
 
 Gdyby obraz Node albo Pythona był osobną zależnością z Docker Hub, miałby inną

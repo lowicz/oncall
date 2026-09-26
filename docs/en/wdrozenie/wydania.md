@@ -224,9 +224,9 @@ same PR:
 
 | Group | Files | Version source |
 | --- | --- | --- |
-| Node.js | `NODE_VERSION` in `ci.yml`, `node-version` in `pages.yml`, `frontend/Dockerfile` | Node.js releases |
-| Python | `requires-python` in `backend/pyproject.toml`, `PYTHON_VERSION` in `ci.yml`, `backend/Dockerfile` | python.org releases |
-| PostgreSQL | `docker-compose.yml`, `docker-compose.contract.yml`, the database service in `ci.yml` | Docker Hub, the same tag everywhere |
+| Node.js | `NODE_VERSION` in `ci.yml`, `node-version` in `pages.yml`, `frontend/Dockerfile`, the badge in `README.md` | Node.js releases |
+| Python | `requires-python` in `backend/pyproject.toml`, `PYTHON_VERSION` in `ci.yml`, `backend/Dockerfile`, the badge in `README.md` | python.org releases |
+| PostgreSQL | `docker-compose.yml`, `docker-compose.contract.yml`, the database service in `ci.yml`, the badge in `README.md` | Docker Hub, the same tag everywhere |
 | uv | `required-version` in `backend/pyproject.toml`, `UV_VERSION` in `ci.yml`, `backend/Dockerfile` | uv releases on GitHub |
 
 If the Node or Python image were a separate dependency from Docker Hub, it

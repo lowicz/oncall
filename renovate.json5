@@ -107,11 +107,18 @@
       // major while CI moved on. Docker Hub publishes `<major>-alpine` for
       // every Node major; the image-build job fails a pull request if not.
       customType: 'regex',
-      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/', '/^frontend/Dockerfile$/'],
+      managerFilePatterns: [
+        '/^\\.github/workflows/.+\\.ya?ml$/',
+        '/^frontend/Dockerfile$/',
+        '/^README\\.md$/',
+      ],
       matchStrings: [
         'NODE_VERSION: "(?<currentValue>[0-9]+)"',
         'node-version: "(?<currentValue>[0-9]+)"',
         'FROM node:(?<currentValue>[0-9]+)-alpine',
+        // The version badge in README.md, so the badge and the runtime move in
+        // the same pull request.
+        'shields\\.io/badge/Node\\.js-(?<currentValue>[0-9]+)-',
       ],
       depNameTemplate: 'node',
       datasourceTemplate: 'node-version',
@@ -125,13 +132,32 @@
       // minor. ruff and mypy take the version from requires-python and the
       // interpreter (backend/pyproject.toml), so they need no entry here.
       customType: 'regex',
-      managerFilePatterns: ['/^\\.github/workflows/.+\\.ya?ml$/', '/^backend/Dockerfile$/'],
+      managerFilePatterns: [
+        '/^\\.github/workflows/.+\\.ya?ml$/',
+        '/^backend/Dockerfile$/',
+        '/^README\\.md$/',
+      ],
       matchStrings: [
         'PYTHON_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+)"',
         'python:(?<currentValue>[0-9]+\\.[0-9]+)-slim',
+        // The version badge in README.md.
+        'shields\\.io/badge/Python-(?<currentValue>[0-9]+\\.[0-9]+)-',
       ],
       depNameTemplate: 'python',
       datasourceTemplate: 'python-version',
+    },
+    {
+      // The PostgreSQL version badge in README.md: the same Docker Hub
+      // `postgres` image the Compose files and ci.yml run, read as the bare
+      // major so the "PostgreSQL" group moves it with them. Docker Hub dates
+      // `18` and `18-alpine` separately, so the badge can follow the images a
+      // day or two later in a second pull request of the same group.
+      customType: 'regex',
+      managerFilePatterns: ['/^README\\.md$/'],
+      matchStrings: ['shields\\.io/badge/PostgreSQL-(?<currentValue>[0-9]+)-'],
+      depNameTemplate: 'postgres',
+      datasourceTemplate: 'docker',
+      versioningTemplate: 'docker',
     },
   ],
   packageRules: [
