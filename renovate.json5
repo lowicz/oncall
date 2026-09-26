@@ -241,5 +241,20 @@
       matchPackageNames: ['vite', '@vitejs/plugin-react'],
       groupName: 'frontend (vite)',
     },
+    // ---- the ESLint plugins peer on one eslint major; one PR ---------------
+    // A new eslint major resolves only together with the plugin releases that
+    // accept it (eslint 10 needed eslint-plugin-react-hooks 7), and the
+    // react-hooks plugin would otherwise ride in the React monorepo group.
+    {
+      matchManagers: ['npm'],
+      matchPackageNames: [
+        'eslint',
+        '@eslint/js',
+        'eslint-plugin-react-hooks',
+        'eslint-plugin-react-refresh',
+        'typescript-eslint',
+      ],
+      groupName: 'frontend (eslint)',
+    },
   ],
 }
