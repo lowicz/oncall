@@ -568,6 +568,9 @@ button.rank-c:hover:not(:disabled) { background: var(--s2); }
 .toolbar .field-grow { flex: 1 1 220px; }
 .toolbar .check { align-self: center; }
 table.report-table thead th { white-space: nowrap; }
+/* Numeric columns render larger in the body (.n); headers keep the table's base size so a
+   rowspan-2 header like "Osoba" lines up with one like "11-19" instead of centering on a taller line. */
+table.report-table thead th.n { font-size: 9.5px; }
 table.report-table th.n, table.report-table td.n { padding-left: 6px; padding-right: 6px; }
 table.report-table .person { position: sticky; left: 0; z-index: 1; min-width: 9em; background: var(--s1); }
 /* The headline duty-day columns keep their tint under the row hover, so the group reads as one block. */
