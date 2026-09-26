@@ -106,13 +106,13 @@ describe('build-docs.mjs', () => {
     }
   })
 
-  it('renders the Polish pages exactly as before', () => {
+  it('renders the Polish pages exactly as before', async () => {
     // The whole page, chrome and prose: a change here is a change to what a
     // Polish reader sees. An intended one updates the file with `vitest -u`.
     const out = join(scratch, 'baseline')
     render('--out', out)
-    expect(page(out, 'index.html')).toMatchFileSnapshot('__snapshots__/docs-pl-index.html')
-    expect(page(out, 'uzytkownik/dyzury.html')).toMatchFileSnapshot('__snapshots__/docs-pl-uzytkownik-dyzury.html')
+    await expect(page(out, 'index.html')).toMatchFileSnapshot('__snapshots__/docs-pl-index.html')
+    await expect(page(out, 'uzytkownik/dyzury.html')).toMatchFileSnapshot('__snapshots__/docs-pl-uzytkownik-dyzury.html')
   })
 
   it('refuses to empty a directory that holds the sources', () => {

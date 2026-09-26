@@ -393,25 +393,25 @@ describe('the Polish interface', () => {
   it('login', async () => {
     renderScreen(<Login />)
     await screen.findByText(/Masz konto firmowe/)
-    snapshotOf('login')
+    await snapshotOf('login')
   })
 
   it('login after the session ended', async () => {
     renderScreen(<Login expired />)
     await screen.findByText(/Masz konto firmowe/)
-    snapshotOf('login-expired')
+    await snapshotOf('login-expired')
   })
 
   it('account activation', async () => {
     renderScreen(<SetPassword mode="activate" />, { route: '/activate?token=one-time-token-value' })
     await screen.findByText(/Ustawiasz hasło dla/)
-    snapshotOf('set-password-activate')
+    await snapshotOf('set-password-activate')
   })
 
   it('password reset', async () => {
     renderScreen(<SetPassword mode="reset" />, { route: '/reset?token=one-time-token-value' })
     await screen.findByText(/Ustawiasz hasło dla/)
-    snapshotOf('set-password-reset')
+    await snapshotOf('set-password-reset')
   })
 
   it('a share link that no longer works', async () => {
@@ -420,7 +420,7 @@ describe('the Polish interface', () => {
       { route: '/share/expired-token' },
     )
     await screen.findByText(/Link mógł wygasnąć/)
-    snapshotOf('share-exchange-failed')
+    await snapshotOf('share-exchange-failed')
   })
 
   it('shell of an administrator with the account menu open', async () => {
@@ -429,7 +429,7 @@ describe('the Polish interface', () => {
     await screen.findByText('Anna Kowalska', { exact: false })
     fireEvent.click(screen.getByRole('button', { name: 'Konto: Ewa Maj' }))
     await screen.findByRole('menu')
-    snapshotOf('shell-admin-account-menu')
+    await snapshotOf('shell-admin-account-menu')
   })
 
   it('shell of a coordinator with the command palette open', async () => {
@@ -437,27 +437,27 @@ describe('the Polish interface', () => {
     await screen.findByText('Wersja 1.4.0')
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
     await screen.findByRole('dialog')
-    snapshotOf('shell-coordinator-command-palette')
+    await snapshotOf('shell-coordinator-command-palette')
   })
 
   it('shell of a member on a phone', async () => {
     pretendNarrow()
     shell({ role: 'member', hasTeamMember: true })
     await screen.findByText('Więcej')
-    snapshotOf('shell-member-phone')
+    await snapshotOf('shell-member-phone')
   })
 
   it('shell of a share-link session', async () => {
     shell({ role: 'viewer', hasTeamMember: false }, { label: 'dyspozytornia', starts_on: '2026-09-14', ends_on: '2026-09-27', expires_at: '2026-12-31T00:00:00Z' })
     await screen.findByText('Podgląd')
-    snapshotOf('shell-share-session')
+    await snapshotOf('shell-share-session')
   })
 
   it('dashboard of a viewer', async () => {
     renderScreen(<DutyScreen role="viewer" displayName="Service Desk" hasTeamMember={false} />)
     await screen.findByRole('heading', { level: 1, name: 'Czwartek, 10 września' })
     await screen.findByText('Anna Kowalska', { exact: false })
-    snapshotOf('duty-viewer')
+    await snapshotOf('duty-viewer')
   })
 
   it('dashboard of a coordinator on a day off', async () => {
@@ -466,7 +466,7 @@ describe('the Polish interface', () => {
     await screen.findByRole('heading', { level: 1, name: 'Czwartek, 10 września' })
     await screen.findByText('Anna Kowalska', { exact: false })
     await waitFor(() => expect(api.fairness).toHaveBeenCalled())
-    snapshotOf('duty-coordinator-day-off')
+    await snapshotOf('duty-coordinator-day-off')
   })
 
   it('schedule of a coordinator', async () => {
@@ -476,7 +476,7 @@ describe('the Polish interface', () => {
     )
     await screen.findByText('Ola Wiśniewska', { exact: false })
     await waitFor(() => expect(api.draftSchedules).toHaveBeenCalled())
-    snapshotOf('schedule-coordinator')
+    await snapshotOf('schedule-coordinator')
   })
 
   it('schedule of a member as a list', async () => {
@@ -486,7 +486,7 @@ describe('the Polish interface', () => {
       { route: '/grafik' },
     )
     await screen.findAllByText('Ola Wiśniewska', { exact: false })
-    snapshotOf('schedule-member-phone')
+    await snapshotOf('schedule-member-phone')
   })
 
   it('my duties and availability of a member', async () => {
@@ -495,7 +495,7 @@ describe('the Polish interface', () => {
     for (const call of [api.availability, api.fairnessDuties, api.calendar, api.swaps]) {
       await waitFor(() => expect(call).toHaveBeenCalled())
     }
-    snapshotOf('mine-member')
+    await snapshotOf('mine-member')
   })
 
   it('availability filed by a coordinator on behalf of someone', async () => {
@@ -504,21 +504,21 @@ describe('the Polish interface', () => {
     for (const call of [api.team, api.availability, api.calendar, api.swaps]) {
       await waitFor(() => expect(call).toHaveBeenCalled())
     }
-    snapshotOf('mine-coordinator')
+    await snapshotOf('mine-coordinator')
   })
 
   it('swaps of a member', async () => {
     renderScreen(<SwapPanel displayName="Marek Nowak" role="member" hasTeamMember />)
     await screen.findAllByText(/Anna Kowalska/)
     await waitFor(() => expect(api.swapPolicy).toHaveBeenCalled())
-    snapshotOf('swaps-member')
+    await snapshotOf('swaps-member')
   })
 
   it('swaps of a coordinator', async () => {
     renderScreen(<SwapPanel displayName="Ewa Maj" role="coordinator" hasTeamMember />)
     await screen.findAllByText(/Anna Kowalska/)
     await waitFor(() => expect(api.swapPolicy).toHaveBeenCalled())
-    snapshotOf('swaps-coordinator')
+    await snapshotOf('swaps-coordinator')
   })
 
   it('fairness', async () => {
@@ -528,14 +528,14 @@ describe('the Polish interface', () => {
     await waitFor(() => expect(api.fairness).toHaveBeenCalledWith('2026-10-03'))
     await screen.findByText('niespełnione')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Eksport CSV' })).toBeEnabled())
-    snapshotOf('fairness')
+    await snapshotOf('fairness')
   })
 
   it('generator with the list of drafts', async () => {
     renderScreen(<GeneratorPanel />)
     await screen.findByText('Propozycja 2026-11-01', { exact: false })
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-10-04'))
-    snapshotOf('generator-list')
+    await snapshotOf('generator-list')
   })
 
   it('generator with no drafts', async () => {
@@ -543,7 +543,7 @@ describe('the Polish interface', () => {
     renderScreen(<GeneratorPanel />)
     await screen.findByText(/Brak szkiców/)
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-10-04'))
-    snapshotOf('generator-empty')
+    await snapshotOf('generator-empty')
   })
 
   it('generator with an open draft', async () => {
@@ -551,31 +551,31 @@ describe('the Polish interface', () => {
     await screen.findByText('CP-SAT: OPTIMAL')
     await screen.findAllByText('Ola Wiśniewska', { exact: false })
     await waitFor(() => expect(api.draftFairnessImpact).toHaveBeenCalled())
-    snapshotOf('generator-draft')
+    await snapshotOf('generator-draft')
   })
 
   it('people', async () => {
     renderScreen(<PeoplePanel />)
     await screen.findByText('dyspozytornia', { selector: 'td' })
-    snapshotOf('people')
+    await snapshotOf('people')
   })
 
   it('monthly report', async () => {
     renderScreen(<MonthlyReportsPanel />)
     await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
-    snapshotOf('reports')
+    await snapshotOf('reports')
   })
 
   it('share links', async () => {
     renderScreen(<ShareLinksPanel />)
     await screen.findByText('dyspozytornia', { exact: false })
-    snapshotOf('share-links')
+    await snapshotOf('share-links')
   })
 
   it('calendar events', async () => {
     renderScreen(<CalendarEventsPanel />)
     await screen.findByText('Przegląd serwerowni', { exact: false })
-    snapshotOf('calendar-events')
+    await snapshotOf('calendar-events')
   })
 
   it('history import with a rejected file', async () => {
@@ -584,27 +584,27 @@ describe('the Polish interface', () => {
     const input = container.querySelector('input[type="file"]') as HTMLInputElement
     fireEvent.change(input, { target: { files: [new File(['service_date,role,assignee_name'], 'historia.csv', { type: 'text/csv' })] } })
     await screen.findByText(/popraw plik i wgraj go ponownie/)
-    snapshotOf('history-import')
+    await snapshotOf('history-import')
   })
 
   it('audit', async () => {
     renderScreen(<AuditPanel />)
     await screen.findByText('Ograniczono liczbę prób logowania', { exact: false })
-    snapshotOf('audit')
+    await snapshotOf('audit')
   })
 
   it('more, on a phone', async () => {
     renderScreen(<MoreScreen displayName="Ewa Maj" access={{ role: 'admin', hasTeamMember: true }} />)
     await screen.findByText('1.4.0')
-    snapshotOf('more-admin')
+    await snapshotOf('more-admin')
   })
 
-  it('a screen that crashed', () => {
+  it('a screen that crashed', async () => {
     const Broken = () => {
       throw new Error('boom')
     }
     vi.spyOn(console, 'error').mockImplementation(() => {})
     renderScreen(<ErrorBoundary><Broken /></ErrorBoundary>)
-    snapshotOf('error-boundary')
+    await snapshotOf('error-boundary')
   })
 })
