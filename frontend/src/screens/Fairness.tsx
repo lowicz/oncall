@@ -142,7 +142,7 @@ function csvOf(report: FairnessReport, lateShiftBalanced: boolean) {
       ...lenses.flatMap((lens) => [member[lens].actual, member[lens].expected, member[lens].deviation]),
     ]
   })
-  const cell = (value: string | number) => (typeof value === 'number' ? String(value) : `"${value.replace(/"/g, '""')}"`)
+  const cell = (value: string | number) => (typeof value === 'number' ? String(value) : `"${value.replaceAll('"', '""')}"`)
   return [head, ...rows].map((row) => row.map(cell).join(';')).join('\n')
 }
 

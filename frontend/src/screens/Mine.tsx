@@ -93,17 +93,17 @@ function dutyDays(calendar: CalendarData | undefined, displayName: string, from:
   const shortRoles = shortRoleLabels()
   const byDate = new Map<string, Day>(calendar.days.map((day) => [day.service_date, day]))
   const own = calendar.assignments.filter((item) => item.assignee_name === displayName && item.service_date >= from && item.service_date <= to)
-  const dates = [...new Set(own.map((item) => item.service_date))].sort()
+  const dates = [...new Set(own.map((item) => item.service_date))].sort((a, b) => a.localeCompare(b))
   return dates.map((date) => {
     const mine = own.filter((item) => item.service_date === date)
     const others = calendar.assignments.filter((item) => item.service_date === date && item.assignee_name !== displayName)
+    others.sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
     return {
       service_date: date,
       day: byDate.get(date),
       roles: ROLE_ORDER.filter((role) => mine.some((item) => item.role === role)),
       changed: mine.some((item) => item.change_kind || item.is_override),
       partners: others
-        .sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
         .map((item) => `${shortRoles[item.role]} ${firstName(item.assignee_name)}`)
         .join(', '),
     }
@@ -220,7 +220,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
     // change of the drag so the commit always sees the current range.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anchor, hover])
-  const previewRange = anchor && hover ? [anchor, hover].sort() : null
+  const previewRange = anchor && hover
+    ? [anchor, hover].sort((a, b) => a.localeCompare(b))
+    : null
   const inPreview = (date: string) => Boolean(previewRange && previewRange[0] <= date && date <= previewRange[1])
   const previewTone = brush === 'clear' ? null : toneOf[brush]
   return (

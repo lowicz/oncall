@@ -40,7 +40,7 @@ import {
 } from '../ui'
 
 /** CP-SAT statuses that mean the model was actually solved. */
-const SOLVER_OK = ['OPTIMAL', 'FEASIBLE']
+const SOLVER_OK = new Set(['OPTIMAL', 'FEASIBLE'])
 
 /** Mirrors `scheduler.GENERATION_BUDGET_PASSES`; only for the live preview
  *  while the coordinator is still typing an unsaved budget. */
@@ -383,7 +383,7 @@ export function GeneratorPanel() {
               <span>
                 {t.header.versionLine(result.version, result.assignments.length, days, rotationLabels()[result.rotation_mode])}
               </span>
-              <Tag tone={result.solver_status === 'OPTIMAL' ? 'sig' : SOLVER_OK.includes(result.solver_status) ? undefined : 'bad'}>{t.header.solverStatus(result.solver_status)}</Tag>
+              <Tag tone={result.solver_status === 'OPTIMAL' ? 'sig' : SOLVER_OK.has(result.solver_status) ? undefined : 'bad'}>{t.header.solverStatus(result.solver_status)}</Tag>
             </>
           )}
           actions={(
@@ -446,7 +446,7 @@ export function GeneratorPanel() {
           />
           {result.status === 'draft' && conflictCount > 0 && <span className="small who-bad">{t.proposeBlocked}</span>}
           <ChipRow label={t.draft.state}>
-            <Chip tone={SOLVER_OK.includes(result.solver_status) ? 'ok' : 'bad'}>
+            <Chip tone={SOLVER_OK.has(result.solver_status) ? 'ok' : 'bad'}>
               {t.draft.staffing(days, result.assignments.length)}
             </Chip>
             <Chip tone={counts.hard === 0 ? 'ok' : 'bad'} onClick={() => showProblems(true)} title={t.draft.showInProblems}>
@@ -476,7 +476,7 @@ export function GeneratorPanel() {
               {result.status === 'draft' ? t.draft.conflictEditable : t.draft.conflictLocked}
             </Box>
           )}
-          {!SOLVER_OK.includes(result.solver_status) && (
+          {!SOLVER_OK.has(result.solver_status) && (
             <Box tone="warn" title={t.draft.solverIncompleteTitle(result.solver_status)}>
               {t.draft.solverIncompleteBody}
             </Box>

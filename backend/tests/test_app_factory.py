@@ -1,4 +1,7 @@
+from fastapi.middleware.cors import CORSMiddleware
+
 from oncall.config import Settings
+from oncall.i18n.middleware import RequestLanguageMiddleware
 from oncall.main import create_app
 
 
@@ -17,3 +20,7 @@ def test_app_factory_uses_explicit_settings() -> None:
         if middleware.cls.__name__ == "CORSMiddleware"
     )
     assert cors.kwargs["allow_origins"] == ["https://calendar.example"]
+    assert [middleware.cls for middleware in app.user_middleware[:2]] == [
+        CORSMiddleware,
+        RequestLanguageMiddleware,
+    ]

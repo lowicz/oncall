@@ -312,9 +312,8 @@ table.lg th button[aria-sort] { color: var(--fg); }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 14px; align-items: start; }
 
 /* ---------- 4 overlays ---------- */
-.dialog-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 40; }
+.dialog-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 40; transition: opacity 0.15s; }
 .dialog-backdrop[data-starting-style], .dialog-backdrop[data-ending-style] { opacity: 0; }
-.dialog-backdrop { transition: opacity 0.15s; }
 .dialog-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(540px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-lg); padding: 16px; display: grid; gap: 12px; box-shadow: var(--shadow); z-index: 41; outline: none; }
 .dialog-sm { width: min(420px, calc(100vw - 32px)); }
 .dialog-lg { width: min(760px, calc(100vw - 32px)); }
@@ -568,11 +567,10 @@ button.rank-c:hover:not(:disabled) { background: var(--s2); }
 .toolbar .field { flex: 0 1 auto; min-width: 120px; }
 .toolbar .field-grow { flex: 1 1 220px; }
 .toolbar .check { align-self: center; }
-table.report-table thead th { white-space: nowrap; }
+table.report-table thead th { white-space: nowrap; vertical-align: bottom; }
 /* Two-row header: the group row and the leaf row are its only two text lines. A rowspan-2
    header ("Osoba", "11-19") sits on the leaf line, a group label is centred over its columns
    with a short bracket beneath it, and the header's own divider closes the whole width. */
-table.report-table thead th { vertical-align: bottom; }
 table.report-table thead th[colspan] { text-align: center; vertical-align: top; position: relative; border-bottom: 0; }
 table.report-table thead th[colspan]::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: 0; height: 1px; background: var(--line2); }
 /* Numeric columns render larger in the body (.n); headers keep the table's base size so a
@@ -626,7 +624,6 @@ table.report-table td.key { font-weight: 600; }
   .app { grid-template-columns: 56px minmax(0, 1fr); }
   .rail { padding: 12px 6px; }
   .brand-text, .nav-link span, .nav-sec, .rail-foot { display: none; }
-  .nav-link { justify-content: center; padding: 8px; }
+  .nav-link { justify-content: center; padding: 8px; position: relative; }
   .nav-cnt { position: absolute; margin: 0; transform: translate(14px, -10px); }
-  .nav-link { position: relative; }
 }

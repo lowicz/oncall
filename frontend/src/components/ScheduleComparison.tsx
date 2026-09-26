@@ -23,13 +23,13 @@ export function ScheduleComparison({ drafts }: { drafts: ScheduleSummary[] }) {
   const t = useMessages().generator.comparison
   const daily = drafts.filter((item) => item.rotation_mode === 'daily')
   const weekly = drafts.filter((item) => item.rotation_mode === 'weekly')
-  const [leftChoice, setLeftId] = useState<string | null>(null)
-  const [rightChoice, setRightId] = useState<string | null>(null)
+  const [leftChoice, setLeftChoice] = useState<string | null>(null)
+  const [rightChoice, setRightChoice] = useState<string | null>(null)
   const leftId = picked(daily, leftChoice)
   const rightId = picked(weekly, rightChoice)
-  const [asked, setRequested] = useState<[string, string] | null>(null)
+  const [requestedPair, setRequestedPair] = useState<[string, string] | null>(null)
   const onlyPair = daily.length === 1 && weekly.length === 1
-  const requested = asked ?? (onlyPair ? [leftId, rightId] : null)
+  const requested = requestedPair ?? (onlyPair ? [leftId, rightId] : null)
   const comparison = useQuery({
     queryKey: ['schedule-comparison', requested],
     queryFn: () => api.compareSchedules(requested![0], requested![1]),
@@ -41,7 +41,7 @@ export function ScheduleComparison({ drafts }: { drafts: ScheduleSummary[] }) {
       <div className="frow">
         <Field label={t.daily} id="compare-daily">
           {({ id }) => (
-            <Select id={id} value={leftId} onChange={(event) => setLeftId(event.target.value)}>
+            <Select id={id} value={leftId} onChange={(event) => setLeftChoice(event.target.value)}>
               <option value="">{t.choose}</option>
               {daily.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </Select>
@@ -49,13 +49,13 @@ export function ScheduleComparison({ drafts }: { drafts: ScheduleSummary[] }) {
         </Field>
         <Field label={t.weekly} id="compare-weekly">
           {({ id }) => (
-            <Select id={id} value={rightId} onChange={(event) => setRightId(event.target.value)}>
+            <Select id={id} value={rightId} onChange={(event) => setRightChoice(event.target.value)}>
               <option value="">{t.choose}</option>
               {weekly.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </Select>
           )}
         </Field>
-        <Button disabled={!leftId || !rightId} onClick={() => setRequested([leftId, rightId])} loading={comparison.isLoading} style={{ alignSelf: 'end' }}>{t.compare}</Button>
+        <Button disabled={!leftId || !rightId} onClick={() => setRequestedPair([leftId, rightId])} loading={comparison.isLoading} style={{ alignSelf: 'end' }}>{t.compare}</Button>
       </div>
       {comparison.error && <InlineError error={comparison.error} />}
       {comparison.data && (
