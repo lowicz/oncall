@@ -83,7 +83,9 @@ A rollback to the previous version looks the same, with the previous tag and
 number. The images of earlier releases stay in the registry. Database
 migrations do not roll back automatically - if the release changed the schema,
 check in its description on GitHub whether the rollback requires additional
-steps.
+steps. On a host with `deploy/update.sh`, the dump the script takes before the
+restart brings back the database as it was before the update - see
+[Database backups](kopie-zapasowe.md#restoring-the-database).
 
 ## Verifying image provenance
 
@@ -142,6 +144,7 @@ Every change (pull request and the `main` branch) goes through `ci.yml`:
 | `backend-postgres` | the concurrency suite on a real PostgreSQL 17 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renders the documentation and checks the table of contents, links and anchors), the standalone site render |
 | `compose-config` | the validity of `docker-compose.yml` with every overlay, that the development overlay changes only the source of the images, that every service runs read-only and without kernel capabilities, and the tests of the `deploy/update.sh` update script |
+| `backup` | the [database backup](kopie-zapasowe.md) scripts (`shellcheck`, the units in `systemd-analyze verify`), the setup against stubbed systemd and Podman, and the dump, restore test, retention, restore, alert and cleanup against real rootless Podman |
 | `workflows` | every action in a workflow is pinned to a full SHA with a version comment, every workflow declares the token permissions, and the repository has no Dependabot update configuration |
 | `image-build` | both Dockerfiles build (without publishing), and no image runs as root |
 | `sonarcloud` | static analysis on SonarCloud (key `lowicz_oncall`) with test coverage from the `backend` and `frontend` jobs, so it starts after them; skipped without the `SONAR_TOKEN` secret |

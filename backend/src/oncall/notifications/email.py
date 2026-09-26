@@ -64,11 +64,13 @@ class SmtpEmailProvider:
                 self.build_message(message),
                 hostname=settings.smtp_host,
                 port=settings.smtp_port,
-                username=settings.smtp_username,
-                password=settings.smtp_password,
-                # aiosmtplib rejects an empty string; the documented default and
-                # how compose passes an unset value both resolve to "", so
-                # normalise it to None and let the library use the system FQDN.
+                # The documented empty defaults and how compose passes an unset
+                # value all resolve to "". aiosmtplib logs in whenever a username
+                # is not None, which a relay without authentication refuses, and
+                # rejects an empty local hostname, so "" goes to it as None (for
+                # the hostname, the library then uses the system FQDN).
+                username=settings.smtp_username or None,
+                password=settings.smtp_password or None,
                 local_hostname=settings.smtp_local_hostname or None,
                 use_tls=settings.smtp_use_tls,
                 start_tls=settings.smtp_starttls,

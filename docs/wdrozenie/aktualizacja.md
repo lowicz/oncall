@@ -63,20 +63,26 @@ Skrypt nie zakłada wdrożenia od zera: pierwszy start opisują
 1. Sprawdza katalog, `.env`, polecenia i zainstalowaną jednostkę.
 2. Pobiera z tagu `vX.Y.Z` trzy pliki Compose (`docker-compose.yml`,
    `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`), `.env.example` i
-   pliki `deploy/systemd/`. Gdy katalog jest checkoutem git, robi zamiast tego
+   pliki `deploy/systemd/` i `deploy/backup/`. Gdy katalog jest checkoutem git, robi zamiast tego
    `git fetch --tags` i `git checkout` tagu.
 3. Buduje nowy `.env` - patrz [niżej](#jak-zmienia-się-env).
 4. Pobiera obrazy `ghcr.io/lowicz/oncall-api` i `ghcr.io/lowicz/oncall-web` w
    tej wersji. Jeśli wydania nie ma, skrypt kończy się tutaj i niczego nie
    zmienia; restart nie czeka też potem na pobieranie.
-5. Robi [kopię zapasową](#kopia-zapasowa-i-cofnięcie) każdego pliku, który
+5. Robi zrzut bazy, sprawdzony odtworzeniem, bo restart uruchomi migracje
+   wydania, a te nie cofają się same - patrz
+   [Kopie zapasowe bazy](kopie-zapasowe.md#przed-aktualizacją). Nieudany zrzut
+   kończy aktualizację bez żadnej zmiany.
+6. Robi [kopię zapasową](#kopia-zapasowa-i-cofnięcie) każdego pliku, który
    zmieni, i zapisuje nowe pliki. Plik identyczny z wydaniem zostaje
    nietknięty.
-6. Restartuje jednostkę - patrz [Restart jednostki](#restart-jednostki).
+7. Restartuje jednostkę - patrz [Restart jednostki](#restart-jednostki).
 
-Katalogu `tls/`, drop-inu jednostki ani wolumenów skrypt nie dotyka. Ponowne
-uruchomienie z tym samym numerem nie zmienia żadnego pliku i tylko restartuje
-jednostkę.
+Katalogu `tls/`, drop-inów jednostek ani wolumenów skrypt nie dotyka, a timera
+kopii nie instaluje (robi to raz `deploy/backup/setup.sh`, o czym skrypt
+przypomina na końcu, dopóki timera nie ma). Ponowne
+uruchomienie z tym samym numerem nie zmienia żadnego pliku, robi zrzut bazy i
+restartuje jednostkę.
 
 ## Jak zmienia się .env
 
@@ -137,7 +143,9 @@ systemctl --user restart oncall
 ```
 
 Migracje bazy nie cofają się same - patrz
-[Aktualizacja i cofnięcie](wydania.md#aktualizacja-i-cofnięcie).
+[Aktualizacja i cofnięcie](wydania.md#aktualizacja-i-cofnięcie). Stan bazy
+sprzed aktualizacji przywraca zrzut `pre-update-<z>-to-<do>` - patrz
+[Odtworzenie bazy](kopie-zapasowe.md#odtworzenie-bazy).
 
 ## Restart jednostki
 
@@ -145,7 +153,8 @@ Jednostka `oncall.service` uruchamia `deploy/systemd/oncall-stack.sh` z
 katalogu wdrożenia, więc nowy skrypt stosu działa od razu po zapisaniu. Plik
 samej jednostki jest kopią w `~/.config/systemd/user/`: jeśli wydanie go
 zmieniło, skrypt nadpisuje tę kopię i wykonuje
-`systemctl --user daemon-reload`.
+`systemctl --user daemon-reload`. Tak samo odświeża zainstalowane jednostki
+kopii zapasowych (`oncall-backup.*`).
 
 Drop-in `oncall.service.d/checkout.conf` (katalog i ewentualne
 `ONCALL_COMPOSE_FILES`) zostaje bez zmian. Dlatego skrypt nie uruchamia
@@ -156,7 +165,9 @@ Na końcu `systemctl --user restart oncall` robi `down`, a potem `up -d` z
 nowymi plikami i nowym `ONCALL_VERSION`. Migracje wykonują się przy starcie
 `api`. Skrypt kończy się listą kontenerów z obrazami; numer wydania pokazuje
 też sama aplikacja (patrz [Wydania i wersje](wydania.md#która-wersja-działa-na-hoście)).
-Gdy restart się nie uda, szczegóły są w `journalctl --user -u oncall`.
+Gdy restart się nie uda, szczegóły są w `journalctl --user -u oncall` (gdy
+użytkownik nie może czytać dziennika, patrz
+[Sprawdzenie](kopie-zapasowe.md#sprawdzenie)).
 
 ## Starsze wydania
 

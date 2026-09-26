@@ -278,6 +278,9 @@ summary:focus-visible {
 
 code {
   font-family: var(--mono);
+  /* Commands and file names are read to be typed: JetBrains Mono's ligatures
+     would draw -< and -> as arrows. */
+  font-variant-ligatures: none;
   font-size: 0.86em;
   background: var(--code-bg);
   padding: 0.12em 0.2em;

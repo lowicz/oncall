@@ -13,7 +13,7 @@ Dates are written the way the screens write them (``frontend/src/lib/dates.ts``)
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 from oncall.domain.calendar.models import WEEKDAYS
 from oncall.domain.vocabulary import AssignmentRole
@@ -758,4 +758,74 @@ def handover_incoming(*, service_date: date, outgoing_name: str, app: Brand) -> 
         ],
         note=Note("Pamiętaj o przełączeniu numeru."),
         action=Action("Grafik", f"{app.url}/"),
+    )
+
+
+#: Where the operator's guide to backups is served, next to the application.
+BACKUP_GUIDE = "/docs/wdrozenie/kopie-zapasowe.html"
+
+#: The steps of `deploy/backup/oncall-backup.sh`, as the alert names them.
+BACKUP_STEPS = {
+    "preflight": "przygotowanie",
+    "dump": "zrzut bazy",
+    "verify": "test odtworzenia",
+    "save": "zapis kopii",
+    "prune": "usuwanie starych kopii",
+    "test": "test powiadomienia",
+}
+
+
+def backup_failed(
+    *,
+    host: str,
+    failed_at: datetime,
+    step: str,
+    details: list[str],
+    app: Brand,
+    test: bool = False,
+) -> RenderedEmail:
+    """The database backup on `host` failed at `step` (or, with `test`, the
+    operator checks that this alert reaches them). `details` are the lines the
+    backup script recorded, shown verbatim."""
+    when = f"{format_date(failed_at.date())} {failed_at:%H:%M}"
+    step_label = BACKUP_STEPS.get(step, step)
+    guide = f"{app.url}{BACKUP_GUIDE}"
+    if test:
+        subject = f"Test powiadomienia o kopii zapasowej: {host}"
+        lead_text = f"To jest próbne powiadomienie z hosta {host} ({when})."
+        note = Note("Nic się nie stało. Tak wygląda alarm, gdy kopia bazy się nie uda.", Tone.ok)
+        title = "Test powiadomienia o kopii zapasowej"
+    else:
+        subject = f"Kopia zapasowa bazy nie powiodła się: {host}"
+        lead_text = f"Kopia zapasowa bazy na hoście {host} nie powiodła się ({when})."
+        note = Note(
+            "Poprzednie kopie pozostały nienaruszone. Sprawdź przyczynę i uruchom kopię "
+            "ponownie, zanim minie kolejna doba.",
+            Tone.bad,
+        )
+        title = "Kopia zapasowa bazy nie powiodła się"
+    detail_text = "".join(f"  {line}\n" for line in details) or "  (brak szczegółów)\n"
+    detail_html = Html("<br>".join(mono(line) for line in details)) if details else None
+    body = (
+        f"{lead_text}\n"
+        f"Krok: {step_label}\n\n"
+        f"Szczegóły:\n{detail_text}\n"
+        f"{note.body}\n"
+        f"Instrukcja: {guide}\n"
+    )
+    return _render(
+        app=app,
+        subject=subject,
+        body=body,
+        eyebrow="Kopia zapasowa",
+        title=title,
+        lead=text(lead_text),
+        facts=[
+            Fact("Host", strong(host)),
+            Fact("Czas", mono(when)),
+            Fact("Krok", strong(step_label)),
+        ],
+        paragraphs=[detail_html or text("(brak szczegółów)")],
+        note=note,
+        action=Action("Instrukcja kopii zapasowych", guide),
     )

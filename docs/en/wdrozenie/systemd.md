@@ -83,6 +83,7 @@ systemctl --user stop oncall
 After the start the unit stays `active (exited)`: the `up` command succeeded; the containers are Podman's business.
 `restart` does a `down` and then an `up` again.
 `stop` calls `oncall-stack.sh down` **without** `-v`, so the volumes (including the database) stay.
+Daily database backups are a separate timer of the same user - see [Database backups](kopie-zapasowe.md).
 
 ## After a reboot
 

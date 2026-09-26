@@ -1,0 +1,15 @@
+# Starts oncall-backup.service once a day. Persistent=true runs a backup the
+# machine missed while it was off as soon as the user's systemd is back.
+# The time is the host's: deploy/backup/setup.sh --backup-time writes it into
+# the drop-in oncall-backup.timer.d/time.conf; 21:00 below is the default.
+
+[Unit]
+Description=Daily On-call database backup
+
+[Timer]
+OnCalendar=*-*-* 21:00:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

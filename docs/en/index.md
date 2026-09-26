@@ -45,6 +45,8 @@ A guide screen by screen, task by task.
   images from the registry or building from the repository.
 - [Systemd (Podman Compose)](wdrozenie/systemd.md) - user unit,
   linger and starting the stack after a machine restart.
+- [Database backups](wdrozenie/kopie-zapasowe.md) - a daily dump proved by a
+  restore, installation, restoring the database and the e-mail alert.
 - [Releases and versions](wdrozenie/wydania.md) - version number, update,
   rollback, verifying image provenance, what CI checks.
 - [TLS](wdrozenie/tls.md) - certificate, key and CA as three separate files.

@@ -128,7 +128,7 @@ interrupted pass breaks nothing.
 default, also after an update from a release that did not have it: the first
 pass after the start begins removing the backlog. To keep older audit
 history, set `ONCALL_RETENTION_AUDIT_DAYS=0` in `.env` **before** updating,
-or take a database backup - deleted entries cannot be recovered. The
+or take a [database backup](kopie-zapasowe.md) - deleted entries cannot be recovered. The
 “Audit” screen shows the administrator the ages in force, and every pass
 leaves an `event=retention` record with the number of deleted rows in the
 worker process's logs, see

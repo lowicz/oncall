@@ -64,19 +64,24 @@ described in [Running the stack](uruchomienie.md) and [Systemd](systemd.md).
 1. Checks the directory, `.env`, the commands and the installed unit.
 2. Fetches from the `vX.Y.Z` tag the three Compose files (`docker-compose.yml`,
    `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`), `.env.example` and
-   the `deploy/systemd/` files. When the directory is a git checkout, it does
+   the `deploy/systemd/` and `deploy/backup/` files. When the directory is a git checkout, it does
    `git fetch --tags` and a `git checkout` of the tag instead.
 3. Builds the new `.env` - see [below](#how-env-changes).
 4. Pulls the `ghcr.io/lowicz/oncall-api` and `ghcr.io/lowicz/oncall-web`
    images in that version. If the release does not exist, the script stops
    here and changes nothing; nor does the restart later wait for the pull.
-5. Makes a [backup](#backup-and-rollback) of every file it will change and
+5. Dumps the database, proved by a restore, because the restart runs the
+   release's migrations and they do not roll back on their own - see
+   [Database backups](kopie-zapasowe.md#before-an-update). A failed dump ends
+   the update without any change.
+6. Makes a [backup](#backup-and-rollback) of every file it will change and
    writes the new files. A file identical to the release's is left untouched.
-6. Restarts the unit - see [Restarting the unit](#restarting-the-unit).
+7. Restarts the unit - see [Restarting the unit](#restarting-the-unit).
 
-The script does not touch the `tls/` directory, the unit's drop-in or the
-volumes. Running it again with the same number changes no file and only
-restarts the unit.
+The script does not touch the `tls/` directory, the units' drop-ins or the
+volumes, and does not install the backup timer (`deploy/backup/setup.sh` does
+that once, and the script reminds you at the end until the timer is there). Running it again with the same number changes no file, dumps the
+database and restarts the unit.
 
 ## How .env changes
 
@@ -139,7 +144,9 @@ systemctl --user restart oncall
 ```
 
 Database migrations do not roll back on their own - see
-[Update and rollback](wydania.md#update-and-rollback).
+[Update and rollback](wydania.md#update-and-rollback). The
+`pre-update-<from>-to-<to>` dump brings back the database as it was before
+the update - see [Restoring the database](kopie-zapasowe.md#restoring-the-database).
 
 ## Restarting the unit
 
@@ -147,7 +154,8 @@ The `oncall.service` unit runs `deploy/systemd/oncall-stack.sh` from the
 deployment directory, so the new stack script is in effect as soon as it is
 written. The unit file itself is a copy in `~/.config/systemd/user/`: if the
 release changed it, the script overwrites that copy and runs
-`systemctl --user daemon-reload`.
+`systemctl --user daemon-reload`. It refreshes the installed backup units
+(`oncall-backup.*`) the same way.
 
 The drop-in `oncall.service.d/checkout.conf` (the directory and any
 `ONCALL_COMPOSE_FILES`) stays unchanged. That is why the script does not run
@@ -158,7 +166,8 @@ At the end `systemctl --user restart oncall` does a `down` and then an `up -d`
 with the new files and the new `ONCALL_VERSION`. Migrations run at the start
 of `api`. The script ends with a list of the containers and their images; the
 release number is also shown by the application itself (see [Releases and versions](wydania.md#which-version-runs-on-the-host)).
-When the restart fails, the details are in `journalctl --user -u oncall`.
+When the restart fails, the details are in `journalctl --user -u oncall` (when
+the user cannot read the journal, see [Verification](kopie-zapasowe.md#verification)).
 
 ## Older releases
 

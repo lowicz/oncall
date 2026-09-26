@@ -77,7 +77,9 @@ Migracje bazy wykonują się przy starcie usługi `api` (patrz
 Cofnięcie do poprzedniej wersji wygląda tak samo, z poprzednim tagiem i
 numerem. Obrazy wcześniejszych wydań pozostają w rejestrze. Migracje bazy nie
 cofają się automatycznie - jeśli wydanie zmieniło schemat, sprawdź w jego
-opisie na GitHubie, czy cofnięcie wymaga dodatkowych kroków.
+opisie na GitHubie, czy cofnięcie wymaga dodatkowych kroków. Na hoście z
+`deploy/update.sh` stan bazy sprzed aktualizacji przywraca zrzut, który skrypt
+robi przed restartem - patrz [Kopie zapasowe bazy](kopie-zapasowe.md#odtworzenie-bazy).
 
 ## Weryfikacja pochodzenia obrazu
 
@@ -134,6 +136,7 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 | `backend-postgres` | zestaw współbieżności na prawdziwym PostgreSQL 17 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
 | `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, to, że każda usługa działa tylko do odczytu i bez uprawnień jądra, oraz testy skryptu aktualizacji `deploy/update.sh` |
+| `backup` | skrypty [kopii zapasowych](kopie-zapasowe.md) (`shellcheck`, jednostki w `systemd-analyze verify`), instalację na stubach systemd i Podmana oraz zrzut, test odtworzenia, retencję, odtworzenie, alarm i sprzątanie na prawdziwym rootless Podmanie |
 | `workflows` | każda akcja w workflow jest przypięta do pełnego SHA z komentarzem wersji, każdy workflow deklaruje uprawnienia tokenu, a w repozytorium nie ma konfiguracji aktualizacji Dependabota |
 | `image-build` | oba Dockerfile budują się (bez publikacji), a żaden obraz nie działa jako root |
 | `sonarcloud` | statyczna analiza na SonarCloud (klucz `lowicz_oncall`) z pokryciem testami z zadań `backend` i `frontend`, więc startuje po nich; pomija się bez sekretu `SONAR_TOKEN` |

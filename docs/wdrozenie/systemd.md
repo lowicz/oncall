@@ -83,6 +83,7 @@ systemctl --user stop oncall
 Po starcie jednostka zostaje `active (exited)`: polecenie `up` się udało; kontenerami zajmuje się Podman.
 `restart` robi `down`, a potem znowu `up`.
 `stop` woła `oncall-stack.sh down` **bez** `-v`, więc wolumeny (w tym baza) zostają.
+Codzienne kopie bazy to osobny timer tego samego użytkownika - patrz [Kopie zapasowe bazy](kopie-zapasowe.md).
 
 ## Po restarcie
 

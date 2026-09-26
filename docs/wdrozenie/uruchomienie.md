@@ -125,7 +125,7 @@ przerwany przebieg niczego nie psuje.
 jest włączona domyślnie, także po aktualizacji z wydania, które jej nie miało:
 pierwszy przebieg po starcie zaczyna usuwać zaległości. Kto chce zachować
 starszy audyt, ustawia `ONCALL_RETENTION_AUDIT_DAYS=0` w `.env` **przed**
-aktualizacją albo robi kopię bazy - usuniętych wpisów nie da się odzyskać.
+aktualizacją albo robi [kopię bazy](kopie-zapasowe.md) - usuniętych wpisów nie da się odzyskać.
 Ekran „Audyt” pokazuje administratorowi obowiązujące czasy, a każdy przebieg
 zostawia w logach procesu roboczego rekord `event=retention` z liczbą
 usuniętych wierszy, patrz

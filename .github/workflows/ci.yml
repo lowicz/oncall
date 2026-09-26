@@ -239,6 +239,29 @@ jobs:
           shellcheck --shell=sh deploy/update.sh deploy/update.test.sh
           sh deploy/update.test.sh
 
+  backup:
+    # oncall-backup.test.sh drives the real script against rootless Podman on
+    # the runner: a hardened postgres:17-alpine stands in for the stack's db,
+    # and every container, volume and file the test or the script creates must
+    # be gone afterwards.
+    name: database backup (setup, dump, restore test, restore, cleanup on Podman)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scripts pass shellcheck
+        run: shellcheck deploy/backup/*.sh
+      - name: Units and timer load in systemd
+        run: systemd-analyze verify deploy/backup/oncall-backup.service deploy/backup/oncall-backup-alert.service deploy/backup/oncall-backup.timer
+      - name: Production setup (stubbed systemd, loginctl and Podman)
+        run: bash deploy/backup/setup.test.sh
+      - name: Dump, restore test, retention, restore, alert and cleanup against rootless Podman
+        run: |
+          podman --version
+          bash deploy/backup/oncall-backup.test.sh
+
   workflows:
     name: workflow files (pinned actions, token permissions, no Dependabot updates)
     runs-on: ubuntu-latest
@@ -360,7 +383,7 @@ jobs:
     # SonarCloud's own quality gate status instead.
     name: ci-ok
     if: always()
-    needs: [backend, backend-postgres, frontend, compose-config, workflows, image-build]
+    needs: [backend, backend-postgres, frontend, compose-config, backup, workflows, image-build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
