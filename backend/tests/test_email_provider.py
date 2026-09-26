@@ -89,6 +89,23 @@ async def test_empty_local_hostname_is_normalized_to_none(monkeypatch) -> None:
     assert captured["local_hostname"] is None
 
 
+async def test_empty_credentials_send_without_logging_in(monkeypatch) -> None:
+    """`.env.example` leaves ONCALL_SMTP_USERNAME and ONCALL_SMTP_PASSWORD empty
+    for a relay without authentication, and compose passes them as "". aiosmtplib
+    logs in whenever a username is not None, which such a relay refuses ("The
+    SMTP AUTH extension is not supported"), so "" must reach it as None."""
+    captured = {}
+
+    async def fake_send(email_message, **kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(aiosmtplib, "send", fake_send)
+    provider = SmtpEmailProvider(settings_with(smtp_username="", smtp_password=""))
+    await provider.send(message())
+    assert captured["username"] is None
+    assert captured["password"] is None
+
+
 async def test_missing_host_disables_provider() -> None:
     provider = SmtpEmailProvider(settings_with(smtp_host=None))
     with pytest.raises(NotificationDisabled):
