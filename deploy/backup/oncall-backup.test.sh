@@ -2,10 +2,15 @@
 # Tests for deploy/backup/oncall-backup.sh against real rootless Podman: a
 # PostgreSQL container started with the db service's Compose hardening and
 # labels, and api/worker stand-ins whose `python` records the alert it was
-# asked to send. Everything lives in a temporary HOME and is removed at exit.
+# asked to send, plus a web stand-in. What the script writes lives in a
+# temporary directory, removed at exit with every container and volume the
+# test made.
 #
 #   bash deploy/backup/oncall-backup.test.sh
 set -u
+# The caller's own settings must not leak into the runs.
+unset ONCALL_BACKUP_CONFIG ONCALL_BACKUP_DIR ONCALL_BACKUP_KEEP ONCALL_BACKUP_OWNER \
+  ONCALL_BACKUP_ALERT_EMAIL ONCALL_BACKUP_WAIT_SECONDS
 
 repo_root=$(cd "$(dirname "$0")/../.." && pwd -P)
 script=$repo_root/deploy/backup/oncall-backup.sh
@@ -106,9 +111,13 @@ psql_db() { # [database] ; SQL on stdin
   podman exec -i "$run_id-db" psql -X -q -At -v ON_ERROR_STOP=1 -U oncall -d "${1:-oncall}"
 }
 
+# The script's files go under $home through the variables it reads. HOME
+# itself stays: rootless Podman 4 finds its storage through it, and the script
+# must see the test's containers.
 run() {
-  HOME=$home XDG_CONFIG_HOME="" XDG_STATE_HOME="" ONCALL_BACKUP_DIR=$backups \
-    ONCALL_BACKUP_WAIT_SECONDS=${WAIT:-0} bash "$script" --dir "$deploy" "$@" >"$work/out" 2>&1
+  ONCALL_BACKUP_CONFIG=$home/.config/oncall/backup.conf XDG_STATE_HOME=$home/.local/state \
+    ONCALL_BACKUP_DIR=$backups ONCALL_BACKUP_WAIT_SECONDS=${WAIT:-0} \
+    bash "$script" --dir "$deploy" "$@" >"$work/out" 2>&1
 }
 
 verify_leftovers() {
