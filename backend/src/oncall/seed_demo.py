@@ -14,7 +14,26 @@ from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Sched
 from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
 from oncall.workdays import is_working_day, polish_holidays
 
+DEMO_LOGINS = ("anna", "marek", "ola", "piotr")
 DEMO_NAMES = ["Anna Kowalska", "Marek Nowak", "Ola Wiśniewska", "Piotr Zieliński"]
+
+
+def demo_names(configured: str | None) -> list[str]:
+    """The four member display names: ``ONCALL_DEMO_NAMES`` or the default set.
+
+    ``configured`` is the variable's value, one name per login in the order of
+    ``DEMO_LOGINS``, comma-separated. Unset or blank keeps ``DEMO_NAMES``; a list
+    of any other length, or an empty name, stops the seed with a message, since
+    every name becomes a team member and an assignee in the demo schedule.
+    """
+    if configured is None or not configured.strip():
+        return list(DEMO_NAMES)
+    names = [name.strip() for name in configured.split(",")]
+    if len(names) != len(DEMO_LOGINS) or not all(names):
+        raise SystemExit(
+            f"ONCALL_DEMO_NAMES must hold exactly {len(DEMO_LOGINS)} comma-separated names."
+        )
+    return names
 
 
 async def get_or_create_user(
@@ -46,19 +65,20 @@ async def seed_demo() -> None:
     if not password or len(password) < 12:
         raise SystemExit("Set ONCALL_DEMO_PASSWORD (minimum 12 characters).")
 
+    names = demo_names(os.environ.get("ONCALL_DEMO_NAMES"))
     admin = await get_or_create_user("admin", "Administrator", UserRole.admin, password)
     member_users = [
         await get_or_create_user(username, name, UserRole.member, password)
-        for username, name in zip(("anna", "marek", "ola", "piotr"), DEMO_NAMES, strict=True)
+        for username, name in zip(DEMO_LOGINS, names, strict=True)
     ]
     await get_or_create_user("viewer", "Service Desk", UserRole.viewer, password)
 
     async with SessionFactory() as db:
         if await db.scalar(select(Schedule).where(Schedule.name == "Demo schedule")):
             members = (
-                await db.scalars(select(TeamMember).where(TeamMember.display_name.in_(DEMO_NAMES)))
+                await db.scalars(select(TeamMember).where(TeamMember.display_name.in_(names)))
             ).all()
-            user_ids = {name: user.id for name, user in zip(DEMO_NAMES, member_users, strict=True)}
+            user_ids = {name: user.id for name, user in zip(names, member_users, strict=True)}
             for member in members:
                 member.user_id = user_ids[member.display_name]
             await db.commit()
@@ -66,7 +86,7 @@ async def seed_demo() -> None:
             return
 
         members: list[TeamMember] = []
-        for index, name in enumerate(DEMO_NAMES):
+        for index, name in enumerate(names):
             member = TeamMember(
                 user_id=member_users[index].id,
                 display_name=name,
@@ -94,12 +114,12 @@ async def seed_demo() -> None:
                 Assignment(
                     service_date=service_date,
                     role=AssignmentRole.primary,
-                    assignee_name=DEMO_NAMES[offset % len(DEMO_NAMES)],
+                    assignee_name=names[offset % len(names)],
                 ),
                 Assignment(
                     service_date=service_date,
                     role=AssignmentRole.secondary,
-                    assignee_name=DEMO_NAMES[(offset + 1) % len(DEMO_NAMES)],
+                    assignee_name=names[(offset + 1) % len(names)],
                 ),
             ]
             polish_days = polish_holidays(service_date, service_date)
@@ -108,7 +128,7 @@ async def seed_demo() -> None:
                     Assignment(
                         service_date=service_date,
                         role=AssignmentRole.late_shift,
-                        assignee_name=DEMO_NAMES[(offset + 1) % len(DEMO_NAMES)],
+                        assignee_name=names[(offset + 1) % len(names)],
                     )
                 )
             schedule.assignments.extend(assignments)
