@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { FairnessPanel } from './Fairness'
 import { api } from '../api'
 import type { FairnessReport } from '../api'
@@ -303,5 +304,27 @@ describe('FairnessPanel roles a person does not hold', () => {
     expect(screen.getByRole('img', { name: '0,5 poniżej udziału' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'PRIMARY' }))
     expect(screen.getAllByText('nie pełni tej roli')).toHaveLength(2)
+  })
+})
+
+describe('FairnessPanel table lines', () => {
+  it('keeps the header divider and drops the line under the last body and footer rows', async () => {
+    // The real stylesheet, so this exercises the table.lg cascade: a "last row
+    // carries no line" rule that also matched the header's only row used to
+    // strip its divider from every large table.
+    loadRealStylesheet()
+
+    vi.spyOn(api, 'fairness').mockResolvedValue(report(true))
+    renderScreen(<FairnessPanel />)
+    await screen.findByText('Anna Kowalska')
+
+    const table = screen.getByRole('table') as HTMLTableElement
+    const bottomLine = (cell: Element) => getComputedStyle(cell).borderBottomWidth
+    const lastCells = (rows: HTMLCollectionOf<HTMLTableRowElement>) => Array.from(rows[rows.length - 1].cells)
+
+    expect(new Set(lastCells(table.tHead!.rows).map(bottomLine))).toEqual(new Set(['1px']))
+    expect(bottomLine(table.tBodies[0].rows[0].cells[0])).toBe('1px')
+    expect(new Set(lastCells(table.tBodies[0].rows).map(bottomLine))).toEqual(new Set(['0px']))
+    expect(new Set(lastCells(table.tFoot!.rows).map(bottomLine))).toEqual(new Set(['0px']))
   })
 })

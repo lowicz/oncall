@@ -254,7 +254,8 @@ table.lg thead th { text-align: left; font: 600 9.5px/1 var(--mono); letter-spac
 table.lg td, table.lg tbody th { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 /* A row header is the person's name, not a column caption: same type as a cell. */
 table.lg tbody th { text-align: left; font: inherit; font-weight: 600; }
-table.lg tr:last-child td, table.lg tr:last-child th { border-bottom: 0; }
+/* The last body or footer row carries no line; a header row always keeps its divider. */
+table.lg tbody tr:last-child td, table.lg tbody tr:last-child th, table.lg tfoot tr:last-child td, table.lg tfoot tr:last-child th { border-bottom: 0; }
 table.lg td.n, table.lg th.n { text-align: right; font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
 table.lg tr.on td, table.lg tr.on th { background: var(--sig-soft); }
 table.lg tbody tr:hover td, table.lg tbody tr:hover th { background: var(--s2); }
@@ -568,6 +569,12 @@ button.rank-c:hover:not(:disabled) { background: var(--s2); }
 .toolbar .field-grow { flex: 1 1 220px; }
 .toolbar .check { align-self: center; }
 table.report-table thead th { white-space: nowrap; }
+/* Two-row header: the group row and the leaf row are its only two text lines. A rowspan-2
+   header ("Osoba", "11-19") sits on the leaf line, a group label is centred over its columns
+   with a short bracket beneath it, and the header's own divider closes the whole width. */
+table.report-table thead th { vertical-align: bottom; }
+table.report-table thead th[colspan] { text-align: center; vertical-align: top; position: relative; border-bottom: 0; }
+table.report-table thead th[colspan]::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: 0; height: 1px; background: var(--line2); }
 /* Numeric columns render larger in the body (.n); headers keep the table's base size so a
    rowspan-2 header like "Osoba" lines up with one like "11-19" instead of centering on a taller line. */
 table.report-table thead th.n { font-size: 9.5px; }

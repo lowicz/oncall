@@ -168,6 +168,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   the query client (`src/session.ts`): screens do not handle session loss.
 - `src/test/setup.ts` pins the clock to a fixed instant. Screens hide actions
   for dates already past, so fixtures written as concrete dates need it.
+  A test asserting a computed style loads the real stylesheet through
+  `loadRealStylesheet()` (`src/test/stylesheet.ts`); jsdom resolves no
+  `var()`, so assert literal values.
 
 ## Maintaining this file
 
