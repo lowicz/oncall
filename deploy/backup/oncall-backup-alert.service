@@ -1,0 +1,10 @@
+# E-mails the last failure of oncall-backup.service through the application's
+# own SMTP settings (oncall-backup.sh alert). Started by that unit's OnFailure=;
+# installed by deploy/backup/setup.sh with the same WorkingDirectory drop-in.
+
+[Unit]
+Description=On-call database backup failure alert
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash ./deploy/backup/oncall-backup.sh alert

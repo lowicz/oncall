@@ -1,0 +1,14 @@
+# Starts oncall-backup.service once a day. Persistent=true runs a backup the
+# machine missed while it was off as soon as the user's systemd is back.
+# Another time: systemctl --user edit oncall-backup.timer (docs/wdrozenie/kopie-zapasowe.md).
+
+[Unit]
+Description=Daily On-call database backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

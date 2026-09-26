@@ -44,6 +44,8 @@ Instrukcja ekran po ekranie, zadanie po zadaniu.
   obrazy z rejestru albo budowanie z repozytorium.
 - [Systemd (Podman Compose)](wdrozenie/systemd.md) - jednostka użytkownika,
   linger i start stosu po restarcie maszyny.
+- [Kopie zapasowe bazy](wdrozenie/kopie-zapasowe.md) - codzienny zrzut
+  sprawdzany odtworzeniem, instalacja, odtworzenie bazy i alarm e-mail.
 - [Wydania i wersje](wdrozenie/wydania.md) - numer wersji, aktualizacja,
   cofnięcie, weryfikacja pochodzenia obrazów, co sprawdza CI.
 - [TLS](wdrozenie/tls.md) - certyfikat, klucz i CA jako trzy osobne pliki.

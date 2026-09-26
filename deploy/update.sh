@@ -17,13 +17,17 @@
 #      ONCALL_VERSION, the only value it ever changes,
 #   4. pulls both application images, so a missing release stops here with
 #      nothing changed and the restart does not wait for a download,
-#   5. backs up every file it is about to replace into DIR/.backup/<time>/,
+#   5. dumps the database (deploy/backup/oncall-backup.sh, docs/wdrozenie/
+#      kopie-zapasowe.md), because the restart runs the release's migrations
+#      and they do not roll back; a failed dump stops here with nothing changed,
+#   6. backs up every file it is about to replace into DIR/.backup/<time>/,
 #      installs the files and the new .env,
-#   6. refreshes the installed unit file if the release changed it, then
+#   7. refreshes the installed unit files if the release changed them, then
 #      restarts oncall.service.
-# It never touches the drop-in (WorkingDirectory, ONCALL_COMPOSE_FILES), tls/
-# or volumes. Run again with the same version, it rewrites no file and only
-# restarts the unit.
+# It never touches the drop-ins (WorkingDirectory, ONCALL_COMPOSE_FILES), tls/
+# or volumes, and does not install the backup timer (deploy/backup/setup.sh
+# does, once). Run again with the same version, it rewrites no file, dumps the
+# database and restarts the unit.
 #
 # Plain POSIX sh so that `curl ... | sh` works on any host shell. Everything
 # runs from main at the last line: a truncated download executes nothing.
@@ -35,9 +39,18 @@ images="ghcr.io/lowicz/oncall-api ghcr.io/lowicz/oncall-web"
 unit=oncall.service
 # The files a deployment directory takes from a release when it is not a git
 # checkout. .env and tls/ are the host's own and are never in this list.
-# Releases before deploy/systemd existed lack unit_files; the host keeps its own.
+# Releases before deploy/systemd or deploy/backup existed lack unit_files;
+# the host keeps its own.
 release_files="docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml .env.example"
-unit_files="deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh"
+unit_files="deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh \
+deploy/backup/oncall-backup.sh deploy/backup/setup.sh deploy/backup/oncall-backup.service \
+deploy/backup/oncall-backup-alert.service deploy/backup/oncall-backup.timer"
+# Installed user units and the release file each one is a copy of.
+installed_units="oncall.service:deploy/systemd/oncall.service
+oncall-backup.service:deploy/backup/oncall-backup.service
+oncall-backup-alert.service:deploy/backup/oncall-backup-alert.service
+oncall-backup.timer:deploy/backup/oncall-backup.timer"
+dump_script=deploy/backup/oncall-backup.sh
 kept_header="# Kept from the previous .env: not in .env.example."
 assignment_re='^[[:space:]]*(export[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*='
 
@@ -385,6 +398,31 @@ main() {
       die "cannot pull $image:$version; nothing was changed"
   done
 
+  # The restart runs the release's migrations, and they do not roll back: the
+  # database is dumped, and the dump proved by a restore, before anything
+  # changes. The deployment's own backup script dumps it when it has one (it
+  # matches the running stack), otherwise the release's.
+  backup_script=""
+  if [ -f "$dir/$dump_script" ]; then
+    backup_script=$dir/$dump_script
+  elif [ "$git_checkout" = true ]; then
+    if git -C "$dir" cat-file -e "$tag:$dump_script" 2>/dev/null; then
+      git -C "$dir" show "$tag:$dump_script" >"$stage/oncall-backup.sh"
+      backup_script=$stage/oncall-backup.sh
+    fi
+  elif [ -f "$stage/$dump_script" ]; then
+    backup_script=$stage/$dump_script
+  fi
+  if [ -n "$backup_script" ]; then
+    need_cmd bash
+    say "Dumping the database before the update"
+    ONCALL_BACKUP_WAIT_SECONDS=${ONCALL_BACKUP_WAIT_SECONDS:-60} \
+      bash "$backup_script" --dir "$dir" dump --label "pre-update-${current:-none}-to-$version" ||
+      die "the database dump before the update failed (see above); nothing was changed. Fix the cause and run this again"
+  else
+    say "Neither $dir nor $tag has $dump_script; the database is not dumped before the update"
+  fi
+
   stamp=$(date +%Y%m%d-%H%M%S)
   backup_dir=$dir/.backup/$stamp
   mkdir -p "$dir/.backup"
@@ -434,13 +472,24 @@ main() {
     done
   fi
 
-  unit_file=$(systemctl --user show -p FragmentPath --value "$unit")
-  if [ -n "$unit_file" ] && ! cmp -s "$dir/deploy/systemd/oncall.service" "$unit_file"; then
+  # A unit this host installed is refreshed when the release changed it; one
+  # it never installed (the backup timer before deploy/backup/setup.sh) is not.
+  reload=false
+  for pair in $installed_units; do
+    name=${pair%%:*}
+    unit_source=$dir/${pair#*:}
+    unit_file=$(systemctl --user show -p FragmentPath --value "$name")
+    if [ -z "$unit_file" ] || [ ! -f "$unit_file" ] || [ ! -f "$unit_source" ] || cmp -s "$unit_source" "$unit_file"; then
+      continue
+    fi
     mkdir -p "$backup_dir/unit"
-    cp -p "$unit_file" "$backup_dir/unit/$unit"
-    replace_file 644 "$dir/deploy/systemd/oncall.service" "$unit_file"
-    systemctl --user daemon-reload
+    cp -p "$unit_file" "$backup_dir/unit/$name"
+    replace_file 644 "$unit_source" "$unit_file"
     say "Updated $unit_file"
+    reload=true
+  done
+  if [ "$reload" = true ]; then
+    systemctl --user daemon-reload
   fi
 
   if rmdir "$backup_dir" 2>/dev/null; then

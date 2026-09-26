@@ -1,0 +1,24 @@
+# Takes one database backup: oncall-backup.sh dump, run from the deployment
+# checkout (WorkingDirectory comes from the drop-in deploy/backup/setup.sh
+# writes). Started by oncall-backup.timer; a failure starts
+# oncall-backup-alert.service, which e-mails it through the application's SMTP.
+#
+# A user unit of the user whose systemd runs oncall.service, like that unit:
+# rootless Podman keeps the containers per user. Linger keeps it running
+# without a login session (docs/wdrozenie/kopie-zapasowe.md).
+
+[Unit]
+Description=On-call database backup
+# At boot the timer catches up at once; the stack is started first.
+After=oncall.service
+OnFailure=oncall-backup-alert.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash ./deploy/backup/oncall-backup.sh dump --label daily
+# Runs even when the dump was killed: removes a restore-test container or an
+# unfinished file its own trap could not.
+ExecStopPost=-/usr/bin/bash ./deploy/backup/oncall-backup.sh cleanup
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

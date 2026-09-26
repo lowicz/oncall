@@ -73,6 +73,12 @@ metadata:
   it merges `.env` into the release's `.env.example` changing no value but
   `ONCALL_VERSION`, so a new deploy-side file or `.env` convention must keep
   `deploy/update.test.sh` (CI job `compose-config`) green under dash and mawk.
+- Database backups are `deploy/backup/` (bash, user units of the stack's
+  user; `docs/wdrozenie/kopie-zapasowe.md`): `oncall-backup.sh` finds `db` by
+  the Compose labels of the deployment directory, restore-tests every dump in
+  a labelled throwaway container and `update.sh` runs it before each update.
+  `deploy/backup/oncall-backup.test.sh` (CI job `backup`) needs rootless
+  Podman and must leave no container, volume or file behind.
 - Browser QA of the frontend against the published images: start the
   compose stack (API on 8080) and run the Vite dev server with its `/api`
   proxy pointed at `http://localhost:8080`; the checked-in

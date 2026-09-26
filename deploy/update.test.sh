@@ -229,7 +229,12 @@ case $1 in
     case $3 in
       LoadState) echo "${TEST_LOAD_STATE:-loaded}" ;;
       WorkingDirectory) echo "$TEST_WORKING_DIRECTORY" ;;
-      FragmentPath) echo "$TEST_UNIT_FILE" ;;
+      FragmentPath)
+        case $5 in
+          oncall.service) echo "$TEST_UNIT_FILE" ;;
+          oncall-backup.service) echo "${TEST_BACKUP_UNIT_FILE:-}" ;;
+        esac
+        ;;
     esac
     ;;
   restart) exit "${TEST_RESTART_FAIL:-0}" ;;
@@ -238,15 +243,25 @@ EOF
 chmod +x "$stubs/curl" "$stubs/podman" "$stubs/systemctl"
 
 # The release the stubs serve: this checkout's files with a new .env.example
-# key and a changed unit.
+# key and changed units, and a backup script that logs how it was called.
 release=$work/release
 for file in docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml .env.example \
-  deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh; do
+  deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh \
+  deploy/backup/setup.sh deploy/backup/oncall-backup.service deploy/backup/oncall-backup-alert.service \
+  deploy/backup/oncall-backup.timer; do
   mkdir -p "$release/$(dirname "$file")"
   cp "$repo_root/$file" "$release/$file"
 done
 printf '# Added in 9.9.9.\nONCALL_ADDED_IN_TEST=yes\n' >>"$release/.env.example"
 printf '# Changed in 9.9.9.\n' >>"$release/deploy/systemd/oncall.service"
+printf '# Changed in 9.9.9.\n' >>"$release/deploy/backup/oncall-backup.service"
+# shellcheck disable=SC2016 # the stub expands these when it runs
+dump_stub() { # name
+  printf '#!/bin/sh\n'
+  printf 'echo "%s $* wait=${ONCALL_BACKUP_WAIT_SECONDS:-}" >>"$TEST_LOG"\n' "$1"
+  printf 'exit "${TEST_DUMP_FAIL:-0}"\n'
+}
+dump_stub release-dump >"$release/deploy/backup/oncall-backup.sh"
 
 # A deployment as install-user-unit.sh leaves it, one release behind.
 new_deployment() {
@@ -258,6 +273,7 @@ new_deployment() {
     cp "$repo_root/$file" "$deploy/$file"
   done
   printf '# local edit\n' >>"$deploy/docker-compose.tls.yml"
+  cp -p "$deploy/docker-compose.tls.yml" "$work/tls-before"
   cp "$repo_root/deploy/systemd/oncall.service" "$work/home/.config/systemd/user/oncall.service"
   echo "certificate" >"$deploy/tls/cert.pem"
   sed -e 's/^ONCALL_VERSION=$/ONCALL_VERSION=1.0.0/' \
@@ -306,6 +322,14 @@ has_line "$work/log" 'systemctl --user restart oncall.service'
   fail "daemon-reload does not come before the restart"
 has_text "$work/out" 'added ONCALL_ADDED_IN_TEST with the release default'
 
+check "update dumps the database with the release's script after the pull and before the restart"
+has_line "$work/log" "release-dump --dir $TEST_WORKING_DIRECTORY dump --label pre-update-1.0.0-to-9.9.9 wait=60"
+[ "$(grep -n 'podman pull' "$work/log" | tail -n 1 | cut -d: -f1)" -lt "$(grep -n 'release-dump' "$work/log" | cut -d: -f1)" ] ||
+  fail "the dump does not come after the pull"
+[ "$(grep -n 'release-dump' "$work/log" | cut -d: -f1)" -lt "$(grep -n 'restart' "$work/log" | cut -d: -f1)" ] ||
+  fail "the dump does not come before the restart"
+same_file "$deploy/deploy/backup/oncall-backup.sh" "$release/deploy/backup/oncall-backup.sh"
+
 check "update backs up .env and every replaced file first"
 [ "$(backups)" = 1 ] || fail "expected one backup directory, found $(backups)"
 backup=$(find "$deploy/.backup" -mindepth 1 -maxdepth 1)
@@ -334,6 +358,35 @@ same_file "$deploy/.env" "$work/env-before"
 same_file "$deploy/docker-compose.yml" "$repo_root/docker-compose.yml"
 [ "$(backups)" = 0 ] || fail "a backup was made"
 lacks_line "$work/log" 'systemctl --user restart oncall.service'
+
+check "a failed database dump stops the update with nothing changed"
+new_deployment dump-fails
+TEST_DUMP_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the dump failed"
+has_text "$work/out" 'the database dump before the update failed (see above); nothing was changed'
+same_file "$deploy/.env" "$work/env-before"
+same_file "$deploy/docker-compose.tls.yml" "$work/tls-before"
+[ ! -e "$deploy/deploy/backup" ] || fail "release files were installed"
+[ "$(backups)" = 0 ] || fail "a backup directory was made"
+lacks_line "$work/log" 'systemctl --user restart oncall.service'
+
+check "the deployment's own backup script dumps when it has one"
+new_deployment own-script
+mkdir -p "$deploy/deploy/backup"
+dump_stub installed-dump >"$deploy/deploy/backup/oncall-backup.sh"
+ONCALL_BACKUP_WAIT_SECONDS=5 run_update --dir "$deploy" 9.9.9 || fail "exited $?: $(cat "$work/out")"
+has_line "$work/log" "installed-dump --dir $TEST_WORKING_DIRECTORY dump --label pre-update-1.0.0-to-9.9.9 wait=5"
+if grep -Fq 'release-dump' "$work/log"; then
+  fail "the release's script dumped although the deployment has its own"
+fi
+
+check "an installed backup unit is refreshed with the release's, one that is not stays uninstalled"
+new_deployment backup-unit
+cp "$repo_root/deploy/backup/oncall-backup.service" "$work/home/.config/systemd/user/oncall-backup.service"
+TEST_BACKUP_UNIT_FILE=$work/home/.config/systemd/user/oncall-backup.service run_update --dir "$deploy" 9.9.9 ||
+  fail "exited $?: $(cat "$work/out")"
+same_file "$work/home/.config/systemd/user/oncall-backup.service" "$release/deploy/backup/oncall-backup.service"
+[ "$(grep -c 'daemon-reload' "$work/log")" = 1 ] || fail "expected one daemon-reload"
+[ ! -e "$work/home/.config/systemd/user/oncall-backup.timer" ] || fail "the timer was installed"
 
 check "a version that is not released changes nothing"
 new_deployment missing
@@ -388,6 +441,7 @@ cp -R "$release" "$old_release"
 rm -r "$old_release/deploy"
 TEST_SRC_OVERRIDE=$old_release run_update --dir "$deploy" 9.9.9 || fail "exited $?: $(cat "$work/out")"
 has_text "$work/out" 'v9.9.9 has no deploy/systemd/oncall-stack.sh; keeping the local one'
+has_text "$work/out" "the database is not dumped before the update"
 same_file "$deploy/deploy/systemd/oncall-stack.sh" "$repo_root/deploy/systemd/oncall-stack.sh"
 same_file "$deploy/docker-compose.tls.yml" "$release/docker-compose.tls.yml"
 has_line "$deploy/.env" 'ONCALL_VERSION=9.9.9'
@@ -416,6 +470,7 @@ cp -p "$work/env-before" "$deploy/.env"
 TEST_WORKING_DIRECTORY=$(cd "$deploy" && pwd -P)
 run_update --dir "$deploy" 9.9.9 || fail "exited $?: $(cat "$work/out")"
 [ "$(git -C "$deploy" rev-parse HEAD)" = "$(git -C "$deploy" rev-parse 'v9.9.9^{commit}')" ] || fail "HEAD is not v9.9.9"
+has_line "$work/log" "release-dump --dir $TEST_WORKING_DIRECTORY dump --label pre-update-1.0.0-to-9.9.9 wait=60"
 has_line "$deploy/.env" 'ONCALL_VERSION=9.9.9'
 has_line "$deploy/.env" 'ONCALL_ADDED_IN_TEST=yes'
 has_line "$deploy/.env" 'POSTGRES_PASSWORD=f00d'

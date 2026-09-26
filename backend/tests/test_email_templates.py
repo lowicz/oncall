@@ -15,7 +15,7 @@ diff like any other change to what a reader sees.
 import os
 import re
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -144,6 +144,21 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
     ),
     "handover_incoming": lambda: templates.handover_incoming(
         service_date=DAY, outgoing_name="Anna Kowalska", app=APP
+    ),
+    "backup_failed": lambda: templates.backup_failed(
+        host="oncall-prod",
+        failed_at=datetime(2026, 9, 24, 2, 30),
+        step="verify",
+        details=["restore test: pg_restore exited 1", "pg_restore: error: <truncated>"],
+        app=APP,
+    ),
+    "backup_alert_test": lambda: templates.backup_failed(
+        host="oncall-prod",
+        failed_at=datetime(2026, 9, 24, 9, 0),
+        step="test",
+        details=[],
+        app=APP,
+        test=True,
     ),
 }
 
