@@ -174,7 +174,7 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Types
-        run: npx tsc -b
+        run: npm run typecheck
       - name: Tests
         run: npm test -- --coverage --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/junit-frontend.xml"
       - name: Build (prebuild renders docs/ and checks its table of contents, links and anchors)

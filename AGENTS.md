@@ -171,6 +171,16 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   A test asserting a computed style loads the real stylesheet through
   `loadRealStylesheet()` (`src/test/stylesheet.ts`); jsdom resolves no
   `var()`, so assert literal values.
+- TypeScript 7 ships no JavaScript API, so `frontend/package.json` runs it
+  side by side with TypeScript 6 as Microsoft documents: the `typecheck`
+  script runs TypeScript 7's compiler by its package path
+  (`node node_modules/@typescript/native/bin/tsc -b`), and `build` and CI's
+  Types step call that script, so the type-check runs under TypeScript 7
+  whatever npm links as `.bin/tsc` (both `@typescript/native` and the
+  `@typescript/typescript6` shim's transitive TypeScript 6 declare a `tsc`
+  bin). `typescript` (`npm:@typescript/typescript6`) is the API
+  typescript-eslint loads. Keep both aliases until typescript-eslint supports
+  TypeScript 7.
 
 ## Maintaining this file
 
