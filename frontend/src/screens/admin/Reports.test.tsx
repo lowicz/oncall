@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../../test/render'
+import { loadRealStylesheet } from '../../test/stylesheet'
 import { MonthlyReportsPanel } from './Reports'
 import { MonthlyReportPreview, api } from '../../api'
 
@@ -113,9 +112,7 @@ describe('MonthlyReportsPanel', () => {
     // header cell, so its rowspan-2 box centered on a taller line than
     // "Osoba"'s (jsdom can't resolve the `font` shorthand's var(--mono) that
     // "Osoba" relies on, so it is compared against the 9.5px literal instead).
-    const style = document.createElement('style')
-    style.textContent = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8')
-    document.head.appendChild(style)
+    loadRealStylesheet()
 
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
@@ -126,7 +123,39 @@ describe('MonthlyReportsPanel', () => {
 
     expect(getComputedStyle(lateShift).fontSize).toBe('9.5px')
     expect(getComputedStyle(dataCell).fontSize).toBe('11.5px')
+  })
 
-    document.head.removeChild(style)
+  it('lines up the rowspan-2 headers on the leaf baseline and closes the header with one divider', async () => {
+    // The real stylesheet, as above. Centred across both header rows,
+    // "Osoba" and "11–19" used to sit on a third text line of their own, and
+    // the generic last-row rule stripped the divider from the leaf row only,
+    // so the header's closing line zig-zagged. jsdom cannot see the group
+    // bracket drawn by ::after; that stays a visual check.
+    loadRealStylesheet()
+
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
+    renderScreen(<MonthlyReportsPanel />)
+
+    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    const person = within(table).getByRole('columnheader', { name: 'Osoba' })
+    const lateShift = within(table).getByRole('columnheader', { name: '11–19' })
+    const [dutyDaysGroup] = within(table).getAllByRole('columnheader', { name: /Dni dyżurowe/ })
+    const [razem] = within(table).getAllByRole('columnheader', { name: 'razem' })
+    const total = within(table).getByRole('row', { name: /^Razem/ })
+    const [lastFooterCell] = within(total).getAllByRole('cell').slice(-1)
+
+    // Rowspan-2 headers sit on the leaf row's baseline, not centered across both rows.
+    expect(getComputedStyle(person).verticalAlign).toBe('bottom')
+    expect(getComputedStyle(lateShift).verticalAlign).toBe('bottom')
+    // Group headers are centered over their columns instead of hugging the last one.
+    expect(getComputedStyle(dutyDaysGroup).textAlign).toBe('center')
+    // The header's own divider closes the full width on the leaf row and the rowspan cells...
+    expect(getComputedStyle(person).borderBottomWidth).toBe('1px')
+    expect(getComputedStyle(lateShift).borderBottomWidth).toBe('1px')
+    expect(getComputedStyle(razem).borderBottomWidth).toBe('1px')
+    // ...but not doubled under the group row, which draws its own inset bracket instead.
+    expect(getComputedStyle(dutyDaysGroup).borderBottomWidth).toBe('0px')
+    // The footer's last row keeps no bottom line.
+    expect(getComputedStyle(lastFooterCell).borderBottomWidth).toBe('0px')
   })
 })
