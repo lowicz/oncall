@@ -289,7 +289,7 @@ const AUDIT: AuditEvent[] = [
   { id: 'a4', occurred_at: '2026-09-07T09:00:00Z', actor_label: 'system', action: 'auth.throttled', entity_type: null, entity_id: null, summary: 'Ograniczono liczbę prób logowania', details: { login: 'anna' } },
 ]
 
-const CONFIG = { ldap_enabled: true, app_name: 'On-call', app_subtitle: 'Zespół infrastruktury', version: '1.4.0' }
+const CONFIG = { ldap_enabled: true, app_name: 'On-call', app_subtitle: 'Zespół infrastruktury', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90 }
 
 /** Every query any screen makes, answered with the fixtures above. */
 function stubApi() {

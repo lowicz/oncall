@@ -86,6 +86,10 @@ The full list with comments is in `.env.example`.
 | `ONCALL_API_WORKERS` | empty | the number of API processes; empty = from the CPU limit, minimum 2 |
 | `ONCALL_SOLVER_WORKERS` | `8` | CP-SAT threads |
 | `ONCALL_GENERATION_CONCURRENCY` | `1` | parallel generations in the worker process |
+| `ONCALL_RETENTION_AUDIT_DAYS` | `365` | after how many days audit entries about operations disappear; `0` = indefinitely, see [Data retention](#data-retention) |
+| `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | the same for routine sign-ins and refused attempts |
+| `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | sent, failed and skipped e-mails |
+| `ONCALL_RETENTION_RUNS_DAYS` | `30` | finished generator runs |
 | `ONCALL_SMTP_HOST` | empty | empty disables e-mail sending |
 | `ONCALL_LDAP_ENABLED` | `false` | directory sign-in - see [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS on nginx - see [TLS](tls.md) |
@@ -96,6 +100,51 @@ PostgreSQL's `max_connections`.
 In Compose the worker process has an allocation of 2 CPUs, and the default
 number of solver threads follows from it. Changing the allocation changes that
 number automatically.
+
+## Data retention
+
+Five tables grow with every use of the application and nothing but retention
+ever deletes from them: the audit log (`audit_events`), the e-mail queue with
+the full text of every message (`notification_outbox`), generator runs
+(`schedule_runs`), sessions (`sessions`) and the one-time activation and
+password reset links (`account_tokens`). The worker process (`worker`) once
+every `ONCALL_RETENTION_INTERVAL_SECONDS` (an hour by default) deletes the
+rows older than the configured age, oldest first, in batches of
+`ONCALL_RETENTION_BATCH_SIZE` (1000 by default) rows, each in a short
+transaction of its own, at most `ONCALL_RETENTION_MAX_BATCHES` (20 by
+default) batches per table in one pass. Whatever is left is simply older on
+the next pass: a database that grew for years is cleaned up gradually, and an
+interrupted pass breaks nothing.
+
+| Data | Default | What retention never touches |
+| --- | --- | --- |
+| audit: operations (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 days | schedule correction entries (`schedule.override`, `schedule.override_batch`, `schedule.draft_override`) - never, because a republish reads them |
+| audit: sign-ins and refused attempts (`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`) | 90 days | the last five minutes, which the sign-in throttle reads |
+| sent, failed and skipped e-mails (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 days | messages waiting or being sent, whatever their age |
+| finished generator runs (`ONCALL_RETENTION_RUNS_DAYS`) | 30 days | queued and running runs |
+| expired sessions and activation or password reset links | a day after expiry, no setting | sessions and links still valid |
+
+`0` in any `*_DAYS` variable switches that category off. Retention is on by
+default, also after an update from a release that did not have it: the first
+pass after the start begins removing the backlog. To keep older audit
+history, set `ONCALL_RETENTION_AUDIT_DAYS=0` in `.env` **before** updating,
+or take a database backup - deleted entries cannot be recovered. The
+“Audit” screen shows the administrator the ages in force, and every pass
+leaves an `event=retention` record with the number of deleted rows in the
+worker process's logs, see
+[Worker process metrics](../produkt/integracje.md#worker-process-metrics).
+
+After rows are deleted PostgreSQL reuses the freed space but does not shrink
+the files on disk: retention stops the growth, it does not reverse it. The
+table sizes are shown by:
+
+```bash
+docker compose exec db psql -U oncall -d oncall -c "select relname, pg_size_pretty(pg_total_relation_size(oid)) from pg_class where relname in ('audit_events', 'notification_outbox', 'schedule_runs', 'sessions', 'account_tokens')"
+```
+
+The space taken by years without retention is given back once, in a
+maintenance window, by `VACUUM FULL audit_events, notification_outbox;` - the
+tables are locked while they are rewritten.
 
 ## Database password
 
@@ -213,6 +262,11 @@ docker compose up -d
 Database migrations run at the start of `api`. Rolling back to the previous
 version is the same sequence with the previous number - details in
 [Releases and versions](wydania.md#update-and-rollback).
+
+From the release with data retention, the first start after an update begins
+removing audit entries about operations older than a year and sign-ins older
+than 90 days. To keep older history, switch it off in `.env` before updating,
+see [Data retention](#data-retention).
 
 ## Building from the repository (development work)
 

@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import pytest
 from sqlalchemy import select
 
 from oncall.domain.clock import business_today
@@ -14,6 +15,16 @@ from tests.conftest import (
     create_user,
     login,
 )
+
+
+@pytest.fixture(autouse=True)
+def _working_day(frozen_clock) -> None:
+    """Every date here is `business_today()`, frozen on a working day.
+
+    Moving a Saturday or Sunday duty splits the weekend's day-off block
+    between two people, which the override refuses as a hard-rule violation;
+    on the live clock this suite failed every weekend.
+    """
 
 
 async def _seed_team(db):

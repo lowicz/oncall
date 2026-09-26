@@ -111,6 +111,7 @@ files = [
   # work named after its step, and the run's state transitions live in the
   # generation queue adapter rather than in the worker.
   "src/oncall/worker.py",
+  "src/oncall/retention.py",
   "src/oncall/notifications/service.py",
   "src/oncall/policy.py",
   "src/oncall/infrastructure/sqlalchemy/scheduling_generation.py",

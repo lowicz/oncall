@@ -5,6 +5,7 @@ request to a coordinator. Off, that acceptance alone writes the swap into the
 schedule, and coordinators are told about it without being asked for anything.
 """
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,16 @@ from tests.conftest import create_member, create_published_schedule, create_user
 
 POLICY = "/api/v1/scheduling/policy"
 SWAP_POLICY = "/api/v1/swaps/policy"
+
+
+@pytest.fixture(autouse=True)
+def _working_day(frozen_clock) -> None:
+    """Every date here is `business_today()`, frozen on a working day.
+
+    Moving a Saturday or Sunday duty splits the weekend's day-off block
+    between two people, which the override refuses as a hard-rule violation;
+    on the live clock this suite failed every weekend.
+    """
 
 
 async def _team(db: AsyncSession) -> dict:

@@ -84,6 +84,10 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_API_WORKERS` | puste | liczba procesów API; puste = z limitu CPU, minimum 2 |
 | `ONCALL_SOLVER_WORKERS` | `8` | wątki CP-SAT |
 | `ONCALL_GENERATION_CONCURRENCY` | `1` | równoległe generowania w procesie roboczym |
+| `ONCALL_RETENTION_AUDIT_DAYS` | `365` | po ilu dniach znikają wpisy audytu o operacjach; `0` = bezterminowo, patrz [Retencja danych](#retencja-danych) |
+| `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | to samo dla zwykłych logowań i nieudanych prób |
+| `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | wysłane, nieudane i pominięte e-maile |
+| `ONCALL_RETENTION_RUNS_DAYS` | `30` | zakończone uruchomienia generatora |
 | `ONCALL_SMTP_HOST` | puste | puste wyłącza wysyłkę e-maili |
 | `ONCALL_LDAP_ENABLED` | `false` | logowanie z katalogu - patrz [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS na nginx - patrz [TLS](tls.md) |
@@ -93,6 +97,51 @@ Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej
 
 Proces roboczy ma w Compose przydział 2 CPU i z niego wynika domyślna liczba
 wątków solvera. Zmiana przydziału zmienia tę liczbę automatycznie.
+
+## Retencja danych
+
+Pięć tabel rośnie z każdym użyciem aplikacji i nic poza retencją z nich nie
+usuwa: dziennik audytu (`audit_events`), kolejka e-maili z pełną treścią
+każdej wiadomości (`notification_outbox`), uruchomienia generatora
+(`schedule_runs`), sesje (`sessions`) i jednorazowe linki aktywacyjne oraz
+resetu hasła (`account_tokens`). Proces roboczy (`worker`) raz na
+`ONCALL_RETENTION_INTERVAL_SECONDS` (domyślnie godzinę) usuwa wiersze starsze
+niż skonfigurowany czas, od najstarszych, w paczkach po
+`ONCALL_RETENTION_BATCH_SIZE` (domyślnie 1000) wierszy, każda w osobnej
+krótkiej transakcji, najwyżej `ONCALL_RETENTION_MAX_BATCHES` (domyślnie 20)
+paczek na tabelę w jednym przebiegu. Co zostało, jest po prostu starsze w
+następnym przebiegu: baza, która rosła latami, jest sprzątana stopniowo, a
+przerwany przebieg niczego nie psuje.
+
+| Dane | Domyślnie | Czego retencja nie rusza |
+| --- | --- | --- |
+| audyt: operacje (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 dni | wpisów o korektach grafiku (`schedule.override`, `schedule.override_batch`, `schedule.draft_override`) - nigdy, bo czyta je ponowna publikacja |
+| audyt: logowania i nieudane próby (`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`) | 90 dni | ostatnich pięciu minut, z których korzysta ogranicznik prób logowania |
+| e-maile wysłane, nieudane i pominięte (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 dni | wiadomości oczekujących i w trakcie wysyłki, niezależnie od wieku |
+| zakończone uruchomienia generatora (`ONCALL_RETENTION_RUNS_DAYS`) | 30 dni | uruchomień w kolejce i w toku |
+| wygasłe sesje oraz linki aktywacyjne i resetu hasła | dzień po wygaśnięciu, bez ustawienia | sesji i linków jeszcze ważnych |
+
+`0` w dowolnej zmiennej `*_DAYS` wyłącza usuwanie tej kategorii. Retencja
+jest włączona domyślnie, także po aktualizacji z wydania, które jej nie miało:
+pierwszy przebieg po starcie zaczyna usuwać zaległości. Kto chce zachować
+starszy audyt, ustawia `ONCALL_RETENTION_AUDIT_DAYS=0` w `.env` **przed**
+aktualizacją albo robi kopię bazy - usuniętych wpisów nie da się odzyskać.
+Ekran „Audyt” pokazuje administratorowi obowiązujące czasy, a każdy przebieg
+zostawia w logach procesu roboczego rekord `event=retention` z liczbą
+usuniętych wierszy, patrz
+[Metryki procesu roboczego](../produkt/integracje.md#metryki-procesu-roboczego).
+
+PostgreSQL po usunięciu wierszy używa zwolnionego miejsca ponownie, ale nie
+zmniejsza plików na dysku: retencja zatrzymuje wzrost, a nie cofa go. Rozmiar
+tabel pokazuje zapytanie:
+
+```bash
+docker compose exec db psql -U oncall -d oncall -c "select relname, pg_size_pretty(pg_total_relation_size(oid)) from pg_class where relname in ('audit_events', 'notification_outbox', 'schedule_runs', 'sessions', 'account_tokens')"
+```
+
+Miejsce zajęte przez lata bez retencji oddaje jednorazowo, w oknie
+serwisowym, `VACUUM FULL audit_events, notification_outbox;` - na czas
+przepisania tabele są zablokowane.
 
 ## Hasło bazy danych
 
@@ -202,6 +251,11 @@ docker compose up -d
 Migracje bazy wykonują się przy starcie `api`. Cofnięcie do poprzedniej wersji
 to ta sama sekwencja z poprzednim numerem - szczegóły w
 [Wydania i wersje](wydania.md#aktualizacja-i-cofnięcie).
+
+Od wydania z retencją danych pierwszy start po aktualizacji zaczyna usuwać
+wpisy audytu o operacjach starsze niż rok i logowania starsze niż 90 dni.
+Kto chce zachować starszą historię, wyłącza to w `.env` przed aktualizacją,
+patrz [Retencja danych](#retencja-danych).
 
 ## Budowanie z repozytorium (praca deweloperska)
 

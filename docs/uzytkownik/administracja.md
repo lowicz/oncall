@@ -99,6 +99,8 @@ nazwie, bo mogą należeć do niego.
 Audyt jest wyjątkiem od usunięcia: wcześniejsze wpisy zachowują imię i nazwisko
 osoby, a wpis **„Usunięto konto”** zapisuje w szczegółach jej dotychczasową
 nazwę i nadany pseudonim. Nowe wpisy o tej osobie używają już tylko pseudonimu.
+Wpisy te podlegają jednak zwykłej retencji dziennika (patrz sekcja „Audyt”
+poniżej).
 
 ## Wydarzenia kalendarza (`/wydarzenia`, administrator)
 
@@ -180,3 +182,9 @@ Zapis audytu powstaje w **tej samej transakcji** co sama zmiana, więc nie ma
 zmian bez śladu. Etykieta aktora jest zapisana wprost, więc wpis przetrwa
 usunięcie konta i opisze także aktora niebędącego użytkownikiem, na przykład
 link podglądowy.
+
+Dziennik ma ograniczony czas przechowywania, który ekran podaje w stopce:
+wpisy o operacjach są usuwane po roku, zwykłe logowania po 90 dniach
+(administrator wdrożenia może zmienić oba czasy albo je wyłączyć). Wpisy o
+korektach grafiku są zachowywane bezterminowo. Wpis usunięty przez retencję
+nie wraca, więc starszą historię zachowuje eksport CSV.

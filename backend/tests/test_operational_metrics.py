@@ -431,7 +431,7 @@ async def test_the_worker_actually_starts_the_loop_that_reports(monkeypatch) -> 
 
         return loop
 
-    for name in ("_notification_loop", "_metrics_loop", "_generation_loop"):
+    for name in ("_notification_loop", "_metrics_loop", "_generation_loop", "_retention_loop"):
         monkeypatch.setattr(f"oncall.worker.{name}", records(name))
     monkeypatch.setattr(get_settings(), "generation_concurrency", 2)
     factory = object()
@@ -440,6 +440,7 @@ async def test_the_worker_actually_starts_the_loop_that_reports(monkeypatch) -> 
 
     assert started.count("_metrics_loop") == 1
     assert started.count("_notification_loop") == 1
+    assert started.count("_retention_loop") == 1
     assert started.count("_generation_loop") == 2, "one lane per configured lane"
     assert factories == {factory}, "every loop works on the factory the process started with"
 

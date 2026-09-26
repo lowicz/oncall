@@ -1179,3 +1179,116 @@ async def test_a_lost_enqueue_race_keeps_the_rest_of_the_request(pg, pg_factory)
     async with pg_factory() as reader:
         assert await reader.get(type(policy), policy.id) is not None, "the request was rolled back"
         assert await reader.scalar(select(func.count()).select_from(ScheduleRun)) == 1
+
+
+# ------------------------------------------------------------------ retention
+
+
+async def test_pruning_while_a_drain_holds_a_message_keeps_the_live_row(pg, pg_factory) -> None:
+    """Retention and the drain touch the outbox at the same time on a real
+    deployment: the drain claims and delivers pending rows while retention
+    deletes the finished ones, oldest first. A claimed row is live work
+    however old it is, so it must come through delivered, and the old
+    finished rows must go, without either statement waiting on the other
+    or failing.
+    """
+    from oncall.retention import RetentionPolicy, prune_expired
+
+    now = datetime.now(UTC)
+    long_ago = now - timedelta(days=400)
+    for status in (NotificationStatus.sent, NotificationStatus.failed):
+        pg.add(
+            NotificationOutbox(
+                channel="email",
+                recipient="old@example.com",
+                subject="Temat",
+                body="Treść",
+                status=status,
+                attempts=1,
+                next_attempt_at=long_ago,
+                created_at=long_ago,
+            )
+        )
+    await enqueue_notification(
+        pg,
+        NotificationMessage(
+            channel="email", recipient="anna@example.com", subject="Temat", body="Treść"
+        ),
+    )
+    await pg.execute(
+        update(NotificationOutbox)
+        .where(NotificationOutbox.status == NotificationStatus.pending)
+        .values(created_at=long_ago, next_attempt_at=long_ago)
+    )
+    await pg.commit()
+    policy = RetentionPolicy(
+        audit_days=365,
+        login_audit_days=90,
+        outbox_days=90,
+        runs_days=30,
+        batch_size=1000,
+        max_batches=20,
+    )
+    reports = []
+
+    class _PruningMidSend(_RecordingProvider):
+        async def send(self, message: NotificationMessage) -> None:
+            # The row is claimed at this point: the drain's claim has
+            # committed and the provider holds the message.
+            reports.append(await asyncio.wait_for(prune_expired(pg_factory, policy, now=now), 5))
+            await super().send(message)
+
+    provider = _PruningMidSend()
+    stats = await drain_outbox(pg_factory, {"email": provider})
+
+    assert stats["sent"] == 1
+    assert [item.recipient for item in provider.sent] == ["anna@example.com"]
+    assert len(reports) == 1 and reports[0].deleted["outbox"] == 2
+    async with pg_factory() as reader:
+        rows = (await reader.scalars(select(NotificationOutbox))).all()
+    assert [(row.recipient, row.status) for row in rows] == [
+        ("anna@example.com", NotificationStatus.sent)
+    ]
+
+
+async def test_two_workers_pruning_at_once_delete_every_row_once(
+    pg, pg_factory, monkeypatch
+) -> None:
+    """Two workers need no coordination: under READ COMMITTED the second
+    DELETE waits on the first one's row locks, re-reads the rows and finds
+    them gone. Every row is deleted exactly once, the counts add up, and
+    neither pass fails.
+
+    The commits are held so both passes select the same batch before either
+    one writes; without that they would simply take turns.
+    """
+    from oncall.retention import RetentionPolicy, prune_expired
+
+    now = datetime.now(UTC)
+    for offset in range(6):
+        pg.add(
+            AuditEvent(
+                occurred_at=now - timedelta(days=100 + offset),
+                actor_label="anna",
+                action="auth.login",
+                summary="x",
+            )
+        )
+    await pg.commit()
+    _hold_commits(monkeypatch)
+    policy = RetentionPolicy(
+        audit_days=365,
+        login_audit_days=90,
+        outbox_days=90,
+        runs_days=30,
+        batch_size=4,
+        max_batches=20,
+    )
+
+    first, second = await asyncio.gather(
+        prune_expired(pg_factory, policy, now=now), prune_expired(pg_factory, policy, now=now)
+    )
+
+    assert first.deleted["logins"] + second.deleted["logins"] == 6
+    async with pg_factory() as reader:
+        assert await reader.scalar(select(func.count()).select_from(AuditEvent)) == 0

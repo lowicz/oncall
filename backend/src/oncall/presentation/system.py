@@ -17,6 +17,13 @@ class PublicConfigResponse(BaseModel):
     #: The release running, as its image was built: `1.2.0`, `1.3.0-rc.1`,
     #: or `dev` for a build from a checkout.
     version: str
+    #: How long the worker keeps audit entries, in days, business events and
+    #: sign-in records separately; 0 means for ever. The Audit screen states
+    #: it so an administrator reading the trail knows where it ends. A
+    #: deployment's retention ages are policy, not a secret, which is why they
+    #: travel with the settings anyone may read.
+    audit_retention_days: int
+    login_audit_retention_days: int
 
 
 __all__ = ["HealthResponse", "PublicConfigResponse"]
