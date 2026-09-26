@@ -163,9 +163,19 @@ insert into audit_events (summary) select 'wpis ' || g from generate_series(1, 5
 SQL
 podman volume ls --quiet | sort >"$work/volumes-before"
 
-check "a missing backup directory is refused with the command that creates it"
+check "before setup.sh has run, a dump (update.sh's) creates the directory, closed"
+run dump --label pre-update-1.0.0-to-2.0.0 || fail "exited $?: $(cat "$work/out")"
+has_text "$work/out" "Created $backups"
+[ "$(mode_of "$backups")" = 700 ] || fail "the created directory is $(mode_of "$backups")"
+[ "$(count)" = 1 ] || fail "expected one backup, found $(count)"
+rm -rf "${backups:?}"
+
+check "once set up, a missing backup directory is refused with the command that creates it"
+mkdir -p "$home/.config/oncall"
+printf '# written by the test: backups are set up\n' >"$home/.config/oncall/backup.conf"
 run dump && fail "succeeded without a backup directory"
 has_text "$work/out" "$backups does not exist"
+[ ! -e "$backups" ] || fail "created the directory although backups are set up"
 mkdir -m 755 "$backups"
 
 check "an open backup directory is refused"

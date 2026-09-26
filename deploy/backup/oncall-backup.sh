@@ -57,6 +57,7 @@ stopped_services=()
 failure_recorded=false
 record_failures=false
 marked_running=false
+configured=false
 
 say() {
   printf '%s\n' "$*"
@@ -173,7 +174,9 @@ load_settings() {
       from_env[$key]=1
     fi
   done
+  configured=false
   if [ -f "$config" ]; then
+    configured=true
     while IFS= read -r line || [ -n "$line" ]; do
       case $line in
         '' | '#'*) continue ;;
@@ -484,6 +487,15 @@ write_last_success() {
 
 do_dump() {
   step=preflight
+  # Before deploy/backup/setup.sh has run there are no settings: the dump
+  # update.sh takes before the first update to a release with backups goes to
+  # the default directory, created here, instead of stopping the update. Once
+  # set up, a missing directory is an error (e.g. a disk that did not mount).
+  if [ "$configured" = false ] && [ ! -e "$backup_dir" ]; then
+    mkdir -p -- "$backup_dir"
+    chmod 700 "$backup_dir"
+    say "Created $backup_dir; deploy/backup/setup.sh sets up the daily backups"
+  fi
   check_backup_dir
   sweep
   enter_step preflight

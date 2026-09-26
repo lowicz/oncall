@@ -11,20 +11,79 @@ same.
 Wszystko działa jako jednostki użytkownika systemd tego samego użytkownika,
 który uruchamia stos (na produkcji `podman`) - patrz [Systemd](systemd.md).
 
-## Instalacja na produkcji
+## Wdrożenie krok po kroku
 
-Na hoście musi już działać stos z jednostką `oncall.service`, a katalog
-wdrożenia musi mieć katalog `deploy/backup/`. Jeśli go nie ma, wdrożenie jest
-starsze: najpierw [zaktualizuj je](aktualizacja.md) do wydania, które go ma.
+Punkt wyjścia to dzisiejsza produkcja: stos działa jako jednostka
+`oncall.service` użytkownika `podman`, a aktualizacje robi `curl ... | sh`.
+Wszystkie kroki wykonuje użytkownik `podman`, zalogowany bezpośrednio
+(`ssh podman@host` albo `machinectl shell podman@`), nie przez `su` ani
+`sudo`.
 
-Jako użytkownik wdrożenia, zalogowany bezpośrednio (nie przez `su` ani
-`sudo`), z katalogu wdrożenia:
+1. **Zaktualizuj wdrożenie tak jak dotąd**, do wydania z kopiami zapasowymi
+   (pierwszego, które ma katalog `deploy/backup/`):
 
-```bash
-ssh podman@host
-cd ~/oncall
-./deploy/backup/setup.sh --owner podman --alert-email admin@example.com
-```
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/lowicz/oncall/main/deploy/update.sh |
+     sh
+   ```
+
+   Bez numeru skrypt bierze najnowsze stabilne wydanie, konkretne to
+   `| sh -s -- X.Y.Z` - patrz [Aktualizacja wdrożenia](aktualizacja.md). Ten
+   krok sam, bez niczego więcej:
+
+   - kopiuje do katalogu wdrożenia pliki `deploy/backup/`,
+   - przed restartem robi zrzut bazy sprawdzony odtworzeniem
+     (`pre-update-<z>-to-<do>`) do `~/oncall-backups`, który wtedy zakłada z
+     prawami `0700`; gdy zrzut się nie uda, aktualizacja kończy się bez żadnej
+     zmiany,
+   - na końcu przypomina o kroku 2.
+
+   Nie włącza natomiast codziennego timera i nie ustala, kto dostaje alarm.
+
+2. **Raz zainstaluj codzienne kopie**, z katalogu wdrożenia:
+
+   ```bash
+   cd ~/oncall
+   ./deploy/backup/setup.sh --owner podman --alert-email admin@example.com
+   ```
+
+   `--alert-email` to adres (albo kilka, po przecinku), na który przyjdzie
+   alarm; bez tej opcji dostają go aktywni administratorzy aplikacji z adresem
+   e-mail. Alarm wychodzi przez serwer SMTP aplikacji (`ONCALL_SMTP_*` w
+   `.env`); jeśli aplikacja już wysyła e-maile, nic tu nie trzeba zmieniać.
+   Reszta ma wartości domyślne - kopia o 21:00, 30 najnowszych, katalog
+   `~/oncall-backups` - a zmienia je [Ustawienia](#ustawienia). Co dokładnie
+   robi skrypt, opisuje [Co robi setup.sh](#co-robi-setupsh).
+
+   Jedyny warunek wstępny to linger użytkownika `podman`, czyli jego menedżer
+   systemd działający bez zalogowania - patrz
+   [Linger i jednostki użytkownika](#linger-i-jednostki-użytkownika). Stos
+   zainstalowany przez `install-user-unit.sh` już go ma, a `setup.sh`
+   sprawdza to jeszcze raz. Gdy linger jest wyłączony i użytkownik nie może
+   go włączyć sam, skrypt zatrzymuje się, zanim cokolwiek zainstaluje, i podaje
+   polecenie dla administratora; po nim uruchom krok 2 jeszcze raz:
+
+   ```bash
+   sudo loginctl enable-linger podman
+   ```
+
+3. **Sprawdź**:
+
+   ```bash
+   systemctl --user list-timers oncall-backup.timer
+   ./deploy/backup/oncall-backup.sh status
+   ./deploy/backup/oncall-backup.sh alert --test
+   ```
+
+   Timer ma następne uruchomienie o 21:00 (do 15 minut później), `status`
+   pokazuje w `Last success` kopię z kroku 2, a odbiorcy dostają e-mail „Test
+   powiadomienia o kopii zapasowej”. Więcej w [Sprawdzenie](#sprawdzenie).
+
+Kolejne aktualizacje wyglądają jak dotąd: `curl ... | sh` robi zrzut bazy przed
+każdym restartem i odświeża zainstalowane jednostki kopii. `setup.sh`
+uruchamia się ponownie tylko po to, żeby zmienić ustawienie.
+
+### Co robi setup.sh
 
 Skrypt jest idempotentny. W kolejności:
 
@@ -51,11 +110,11 @@ bierze z pliku ustawień.
 ### Czy wystarczy update.sh
 
 Nie sam. `deploy/update.sh` dostarcza pliki `deploy/backup/` razem z wydaniem,
-przed każdą aktualizacją robi zrzut bazy (także bez instalacji timera) i
-odświeża już zainstalowane jednostki kopii, gdy wydanie je zmieni. Nie zakłada
-jednak katalogu kopii, nie zapisuje ustawień, nie włącza timera ani nie
-sprawdza lingera: to decyzje i uprawnienia, których nienadzorowane
-`curl ... | sh` nie powinno podejmować za operatora. Dlatego instalacja to
+przed każdą aktualizacją robi zrzut bazy (także bez instalacji timera, wtedy do
+domyślnego `~/oncall-backups`) i odświeża już zainstalowane jednostki kopii,
+gdy wydanie je zmieni. Nie wybiera jednak katalogu kopii, pory ani odbiorców
+alarmu, nie włącza timera ani nie sprawdza lingera: to decyzje i uprawnienia,
+których nienadzorowane `curl ... | sh` nie powinno podejmować za operatora. Dlatego instalacja to
 jednorazowe `setup.sh`, a potem `update.sh` utrzymuje ją w aktualnym stanie.
 
 ### Linger i jednostki użytkownika
@@ -225,6 +284,10 @@ obrazów, a przed zmianą jakiegokolwiek pliku. Używa skryptu kopii z katalogu
 wdrożenia, a gdy go tam nie ma (pierwsza aktualizacja do wydania z kopiami),
 skryptu z nowego wydania. Nieudany zrzut kończy aktualizację bez żadnej
 zmiany. Stos musi wtedy działać: skrypt czeka na bazę najwyżej 60 sekund.
+
+Dopóki `setup.sh` nie zapisał ustawień, zrzut trafia do `~/oncall-backups`,
+który skrypt w razie potrzeby zakłada z prawami `0700`. Po instalacji brak
+katalogu kopii jest błędem, bo może znaczyć np. niezamontowany dysk.
 
 ## Gdy kopia się nie uda
 

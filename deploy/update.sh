@@ -503,6 +503,16 @@ main() {
     die "$unit did not start; see journalctl --user -u $unit. To roll back, run this script with the previous version ($current)"
   say "On-call $version is running:"
   podman ps --format 'table {{.Names}} {{.Image}} {{.Status}}'
+
+  # The release carries the backups; installing their timer is a one-time
+  # decision for this host (docs/wdrozenie/kopie-zapasowe.md).
+  if [ -f "$dir/deploy/backup/setup.sh" ] &&
+    [ -z "$(systemctl --user show -p FragmentPath --value oncall-backup.timer)" ]; then
+    say ""
+    say "Daily database backups are not set up on this host. Set them up once:"
+    say "  cd $dir && ./deploy/backup/setup.sh --owner $(id -un) --alert-email ADDRESS"
+    say "Guide: https://github.com/$repo/blob/main/docs/wdrozenie/kopie-zapasowe.md"
+  fi
 }
 
 main "$@" </dev/null

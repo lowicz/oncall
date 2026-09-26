@@ -11,21 +11,81 @@ migrations do not roll back on their own.
 Everything runs as systemd user units of the same user that runs the stack
 (`podman` in production) - see [Systemd](systemd.md).
 
-## Installing in production
+## Deploying step by step
 
-The host must already run the stack with the `oncall.service` unit, and the
-deployment directory must have the `deploy/backup/` directory. If it does not,
-the deployment is older: first [update it](aktualizacja.md) to a release that
-has it.
+The starting point is today's production: the stack runs as the
+`oncall.service` unit of the `podman` user, and updates are done with
+`curl ... | sh`. Every step is run by the `podman` user, logged in directly
+(`ssh podman@host` or `machinectl shell podman@`), not through `su` or
+`sudo`.
 
-As the deployment user, logged in directly (not through `su` or `sudo`), from
-the deployment directory:
+1. **Update the deployment as before**, to a release with backups (the first
+   one that has the `deploy/backup/` directory):
 
-```bash
-ssh podman@host
-cd ~/oncall
-./deploy/backup/setup.sh --owner podman --alert-email admin@example.com
-```
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/lowicz/oncall/main/deploy/update.sh |
+     sh
+   ```
+
+   Without a number the script takes the latest stable release, a specific
+   one is `| sh -s -- X.Y.Z` - see [Updating a deployment](aktualizacja.md).
+   This step, on its own and with nothing else:
+
+   - copies the `deploy/backup/` files into the deployment directory,
+   - before the restart takes a database dump proved by a restore
+     (`pre-update-<from>-to-<to>`) into `~/oncall-backups`, which it then
+     creates with mode `0700`; when the dump fails, the update ends without
+     any change,
+   - at the end reminds you of step 2.
+
+   It does not, however, enable the daily timer or decide who gets the alert.
+
+2. **Install the daily backups once**, from the deployment directory:
+
+   ```bash
+   cd ~/oncall
+   ./deploy/backup/setup.sh --owner podman --alert-email admin@example.com
+   ```
+
+   `--alert-email` is the address (or several, separated by commas) the alert
+   goes to; without it, the application's active administrators with an
+   e-mail address get it. The alert goes out through the application's SMTP
+   server (`ONCALL_SMTP_*` in `.env`); if the application already sends
+   e-mail, nothing needs to change here. The rest has default values - a
+   backup at 21:00, the 30 newest kept, the `~/oncall-backups` directory - and
+   [Settings](#settings) changes them. What exactly the script does is in
+   [What setup.sh does](#what-setupsh-does).
+
+   The only prerequisite is linger for the `podman` user, that is, its systemd
+   manager running without a login - see
+   [Linger and user units](#linger-and-user-units). A stack installed with
+   `install-user-unit.sh` already has it, and `setup.sh` checks it again. When
+   linger is off and the user cannot turn it on, the script stops before it
+   installs anything and gives the command for an administrator; after it,
+   run step 2 again:
+
+   ```bash
+   sudo loginctl enable-linger podman
+   ```
+
+3. **Verify**:
+
+   ```bash
+   systemctl --user list-timers oncall-backup.timer
+   ./deploy/backup/oncall-backup.sh status
+   ./deploy/backup/oncall-backup.sh alert --test
+   ```
+
+   The timer's next run is at 21:00 (up to 15 minutes later), `status` shows
+   the backup from step 2 under `Last success`, and the recipients get the
+   “Test powiadomienia o kopii zapasowej” e-mail. More in
+   [Verification](#verification).
+
+Later updates look as before: `curl ... | sh` dumps the database before every
+restart and refreshes the installed backup units. `setup.sh` is run again only
+to change a setting.
+
+### What setup.sh does
 
 The script is idempotent. In order, it:
 
@@ -54,10 +114,11 @@ values given; the rest comes from the settings file.
 
 Not by itself. `deploy/update.sh` delivers the `deploy/backup/` files with the
 release, dumps the database before every update (even without the timer
-installed) and refreshes backup units already installed when the release
-changes them. It does not, however, create the backup directory, write the
-settings, enable the timer or check linger: those are decisions and
-permissions an unattended `curl ... | sh` should not take for the operator.
+installed, then into the default `~/oncall-backups`) and refreshes backup
+units already installed when the release changes them. It does not, however,
+choose the backup directory, the time or the alert recipients, enable the
+timer or check linger: those are decisions and permissions an unattended
+`curl ... | sh` should not take for the operator.
 That is why the installation is a one-time `setup.sh`, and `update.sh` then
 keeps it current.
 
@@ -233,6 +294,11 @@ the deployment directory, and when there is none (the first update to a
 release with backups), the new release's script. A failed dump ends the update
 without any change. The stack must be running then: the script waits for the
 database for at most 60 seconds.
+
+Until `setup.sh` has written the settings, the dump goes to `~/oncall-backups`,
+which the script creates with mode `0700` when needed. Once installed, a
+missing backup directory is an error, because it may mean, for example, a
+disk that did not mount.
 
 ## When a backup fails
 

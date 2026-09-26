@@ -80,7 +80,7 @@ described in [Running the stack](uruchomienie.md) and [Systemd](systemd.md).
 
 The script does not touch the `tls/` directory, the units' drop-ins or the
 volumes, and does not install the backup timer (`deploy/backup/setup.sh` does
-that once). Running it again with the same number changes no file, dumps the
+that once, and the script reminds you at the end until the timer is there). Running it again with the same number changes no file, dumps the
 database and restarts the unit.
 
 ## How .env changes

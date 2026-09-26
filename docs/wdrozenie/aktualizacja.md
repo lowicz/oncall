@@ -79,7 +79,8 @@ Skrypt nie zakłada wdrożenia od zera: pierwszy start opisują
 7. Restartuje jednostkę - patrz [Restart jednostki](#restart-jednostki).
 
 Katalogu `tls/`, drop-inów jednostek ani wolumenów skrypt nie dotyka, a timera
-kopii nie instaluje (robi to raz `deploy/backup/setup.sh`). Ponowne
+kopii nie instaluje (robi to raz `deploy/backup/setup.sh`, o czym skrypt
+przypomina na końcu, dopóki timera nie ma). Ponowne
 uruchomienie z tym samym numerem nie zmienia żadnego pliku, robi zrzut bazy i
 restartuje jednostkę.
 

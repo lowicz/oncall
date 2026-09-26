@@ -233,6 +233,7 @@ case $1 in
         case $5 in
           oncall.service) echo "$TEST_UNIT_FILE" ;;
           oncall-backup.service) echo "${TEST_BACKUP_UNIT_FILE:-}" ;;
+          oncall-backup.timer) echo "${TEST_TIMER_UNIT_FILE:-}" ;;
         esac
         ;;
     esac
@@ -321,6 +322,8 @@ has_line "$work/log" 'systemctl --user restart oncall.service'
 [ "$(grep -n 'daemon-reload' "$work/log" | cut -d: -f1)" -lt "$(grep -n 'restart' "$work/log" | cut -d: -f1)" ] ||
   fail "daemon-reload does not come before the restart"
 has_text "$work/out" 'added ONCALL_ADDED_IN_TEST with the release default'
+has_text "$work/out" 'Daily database backups are not set up on this host'
+has_text "$work/out" "cd $TEST_WORKING_DIRECTORY && ./deploy/backup/setup.sh --owner $(id -un) --alert-email ADDRESS"
 
 check "update dumps the database with the release's script after the pull and before the restart"
 has_line "$work/log" "release-dump --dir $TEST_WORKING_DIRECTORY dump --label pre-update-1.0.0-to-9.9.9 wait=60"
@@ -387,6 +390,15 @@ TEST_BACKUP_UNIT_FILE=$work/home/.config/systemd/user/oncall-backup.service run_
 same_file "$work/home/.config/systemd/user/oncall-backup.service" "$release/deploy/backup/oncall-backup.service"
 [ "$(grep -c 'daemon-reload' "$work/log")" = 1 ] || fail "expected one daemon-reload"
 [ ! -e "$work/home/.config/systemd/user/oncall-backup.timer" ] || fail "the timer was installed"
+
+check "a host with the backup timer is not told to set backups up"
+new_deployment backup-timer
+cp "$repo_root/deploy/backup/oncall-backup.timer" "$work/home/.config/systemd/user/oncall-backup.timer"
+TEST_TIMER_UNIT_FILE=$work/home/.config/systemd/user/oncall-backup.timer run_update --dir "$deploy" 9.9.9 ||
+  fail "exited $?: $(cat "$work/out")"
+if grep -Fq 'not set up on this host' "$work/out"; then
+  fail "suggested setting up backups on a host that has them"
+fi
 
 check "a version that is not released changes nothing"
 new_deployment missing
