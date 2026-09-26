@@ -14,6 +14,11 @@ export interface PublicConfig {
   /** The release running, as its image was built: `1.2.0`, `1.3.0-rc.1`, or
    *  `dev` for a build from a checkout. */
   version: string
+  /** How long the worker keeps audit entries, in days: business events and
+   *  routine sign-ins separately; 0 keeps them for ever. The Audit screen
+   *  states it so a reader knows where the trail ends. */
+  audit_retention_days: number
+  login_audit_retention_days: number
 }
 
 export interface ShareSession {

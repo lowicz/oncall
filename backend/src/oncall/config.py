@@ -165,6 +165,28 @@ class Settings(BaseSettings):
     #: has, and a minute of silence is the most an operator has to wait to see
     #: it.
     metrics_interval_seconds: float = Field(default=60.0, ge=5, le=3600)
+    #: Retention: how long the worker keeps rows nobody reads any more before
+    #: it deletes them, in days; 0 keeps that table for ever. Business audit
+    #: events are the history an administrator reads back; sign-in records
+    #: (`auth.login` and the refused attempts) are a security log and the bulk
+    #: of the table; a finished outbox row is kept only for the operator to
+    #: read what went out; a finished generation run is read by the
+    #: coordinator who asked for it, for a day or two. Expired sessions and
+    #: account links have no setting: a missing row answers exactly as an
+    #: expired one. The override records a republish reads are never deleted,
+    #: whatever the audit age (`oncall.retention`).
+    retention_audit_days: int = Field(default=365, ge=0, le=36500)
+    retention_login_audit_days: int = Field(default=90, ge=0, le=36500)
+    retention_outbox_days: int = Field(default=90, ge=0, le=36500)
+    retention_runs_days: int = Field(default=30, ge=0, le=36500)
+    #: The worker's rhythm and the size of one deletion: a pass runs every
+    #: interval, deletes the oldest expired rows in batches of this size, one
+    #: short transaction each, and stops after `max_batches` per table so the
+    #: first pass over a database that grew for years is bounded; what it
+    #: leaves is simply older on the next pass.
+    retention_interval_seconds: float = Field(default=3600.0, ge=60, le=86400)
+    retention_batch_size: int = Field(default=1000, ge=100, le=10000)
+    retention_max_batches: int = Field(default=20, ge=1, le=1000)
 
     @field_validator("version")
     @classmethod

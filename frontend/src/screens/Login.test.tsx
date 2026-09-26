@@ -8,7 +8,7 @@ afterEach(() => vi.restoreAllMocks())
 
 async function signInRefusedWith(error: ApiError) {
   vi.spyOn(api, 'publicConfig').mockResolvedValue({
-    app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0',
+    app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90,
   })
   vi.spyOn(api, 'login').mockRejectedValue(error)
   renderScreen(<Login />)
@@ -45,7 +45,7 @@ describe('Login', () => {
 
   it('shows the configured subtitle with its own casing', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: true, version: '1.4.0',
+      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90,
     })
     renderScreen(<Login />)
     expect(await screen.findByText(/Zespół infrastruktury \(UAT\)/)).toHaveTextContent('On-call · Zespół infrastruktury (UAT)')
@@ -53,7 +53,7 @@ describe('Login', () => {
 
   it('suppresses the browser-native password reveal so its own toggle is the only one shown', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0',
+      app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90,
     })
     renderScreen(<Login />)
     const passwordInput = await screen.findByLabelText('Hasło')

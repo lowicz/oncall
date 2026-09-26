@@ -47,7 +47,7 @@ describe('SetPassword', () => {
 
   it.each(['activate', 'reset'] as const)('shows the configured subtitle with its own casing on %s', async (mode) => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: false, version: '1.4.0',
+      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: false, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90,
     })
     vi.spyOn(api, 'passwordTokenInfo').mockResolvedValue({
       username: 'anna', display_name: 'Anna Kowalska',

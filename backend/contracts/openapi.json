@@ -2423,9 +2423,17 @@
             "title": "App Subtitle",
             "type": "string"
           },
+          "audit_retention_days": {
+            "title": "Audit Retention Days",
+            "type": "integer"
+          },
           "ldap_enabled": {
             "title": "Ldap Enabled",
             "type": "boolean"
+          },
+          "login_audit_retention_days": {
+            "title": "Login Audit Retention Days",
+            "type": "integer"
           },
           "version": {
             "title": "Version",
@@ -2436,7 +2444,9 @@
           "ldap_enabled",
           "app_name",
           "app_subtitle",
-          "version"
+          "version",
+          "audit_retention_days",
+          "login_audit_retention_days"
         ],
         "title": "PublicConfigResponse",
         "type": "object"

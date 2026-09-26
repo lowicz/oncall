@@ -110,7 +110,8 @@ because they may belong to that person.
 The audit is an exception to the deletion: earlier entries keep the person's
 first and last name, and the **“Account deleted”** entry records in its
 details their previous name and the pseudonym assigned. New entries about
-this person use only the pseudonym.
+this person use only the pseudonym. These entries are still subject to the
+log's ordinary retention (see the “Audit” section below).
 
 ## Calendar events (`/wydarzenia`, administrator)
 
@@ -197,3 +198,9 @@ The audit record is created in **the same transaction** as the change itself,
 so there are no changes without a trace. The actor label is stored verbatim,
 so an entry survives the deletion of the account and also describes an actor
 who is not a user, for example a preview link.
+
+The log has a limited retention, which the screen states in its footer:
+entries about operations are removed after a year, routine sign-ins after 90
+days (the deployment's administrator can change both ages or switch them
+off). Schedule correction entries are kept indefinitely. An entry removed by
+retention does not come back, so older history is kept by the CSV export.

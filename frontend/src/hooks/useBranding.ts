@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { api } from '../api'
+import { usePublicConfig } from './usePublicConfig'
 
 export const DEFAULT_APP_NAME = 'On-call'
 
@@ -18,12 +17,7 @@ export const DEFAULT_APP_NAME = 'On-call'
  * version line rather than a wrong one.
  */
 export function useBranding() {
-  const config = useQuery({
-    queryKey: ['public-config'],
-    queryFn: api.publicConfig,
-    staleTime: Infinity,
-    retry: 1,
-  })
+  const config = usePublicConfig()
   const name = config.data?.app_name?.trim() || DEFAULT_APP_NAME
   const subtitle = config.data?.app_subtitle?.trim() || ''
   const version = config.data?.version?.trim() || ''

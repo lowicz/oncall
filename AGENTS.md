@@ -36,6 +36,14 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   plan-phase identifiers (`QA-REPORT`, `QA7`, `round 4`, `phase 5`) under
   `src/oncall`, `scripts/` and `migrations/env.py`; historical migrations and
   tests are outside its scope.
+- Retention: `backend/src/oncall/retention.py` owns which rows the worker
+  deletes and how old they must be (`ONCALL_RETENTION_*` in `config.py`);
+  the worker's hourly loop is the only caller. Audit actions a feature reads
+  back without a time bound must be in `OVERRIDE_ORIGIN_ACTIONS`
+  (`domain/scheduling/publication.py`), which the audit rule imports as its
+  protected set; the sign-in action family is `LOGIN_ACTIONS` there. The API
+  states the two audit ages in `/api/v1/config`, so Compose passes them to
+  `api` as well as `worker`.
 - Notification e-mails: `backend/src/oncall/notifications/templates.py`
   chooses the words (subject, plain text, HTML) and `layout.py` next to it owns
   the one Outlook-safe HTML layout (tables, inline styles, light-theme hex

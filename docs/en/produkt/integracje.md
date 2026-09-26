@@ -133,6 +133,16 @@ account and also describes actors that are not users, for example a share
 link. The administrator browses and filters the log on the “Audit” screen, and
 can export the filter's result to CSV.
 
+The log does not grow without end: the worker process removes entries about
+operations older than `ONCALL_RETENTION_AUDIT_DAYS` (365 days by default) and
+routine sign-ins and refused attempts older than
+`ONCALL_RETENTION_LOGIN_AUDIT_DAYS` (90 days by default). Schedule correction
+entries (`schedule.override`, `schedule.override_batch`,
+`schedule.draft_override`) are never removed, because a republish reads from
+them whom a correction replaced. The “Audit” screen shows the ages in force;
+the other tables and settings are described in
+[Data retention](../wdrozenie/uruchomienie.md#data-retention).
+
 ## Worker process metrics
 
 The worker process reports on its own logger `oncall.metrics`, one logfmt
@@ -146,10 +156,14 @@ worker process's logs, so they are worth collecting.
 | `outbox` | `eligible`, `oldest_eligible_seconds`, `retrying`, `attempts_max`, `waiting`, `dead` |
 | `generation` | `run`, `outcome`, `queued_seconds`, `run_seconds` |
 | `generation_abandoned` | `runs` - how many runs were released after a process that died (a warning) |
+| `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens` - how many rows the pass removed; `capped` - how many tables reached the batch limit and still have a backlog; `seconds` |
 
 `queue` and `outbox` are sampled on a clock (`ONCALL_METRICS_INTERVAL_SECONDS`,
 60 by default) regardless of whether anything is happening - **a gap in them
-means that the worker process itself has stopped**.
+means that the worker process itself has stopped**. `retention` appears every
+`ONCALL_RETENTION_INTERVAL_SECONDS` (3600 by default), also after a pass that
+removed nothing; `dead` in `outbox` counts the failed messages retention has
+not yet removed.
 
 `outcome` takes the values: `completed`, `infeasible` (the staffing and the
 hard rules are contradictory - the input data must change),

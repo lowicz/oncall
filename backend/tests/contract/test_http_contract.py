@@ -28,7 +28,14 @@ async def test_public_response_and_validation_envelopes(client) -> None:
     config = await client.get("/api/v1/config")
     assert (config.status_code, config.json()) == (
         200,
-        {"ldap_enabled": False, "app_name": "On-call", "app_subtitle": "", "version": "dev"},
+        {
+            "ldap_enabled": False,
+            "app_name": "On-call",
+            "app_subtitle": "",
+            "version": "dev",
+            "audit_retention_days": 365,
+            "login_audit_retention_days": 90,
+        },
     )
 
     invalid = await client.post(

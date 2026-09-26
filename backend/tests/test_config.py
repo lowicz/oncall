@@ -76,3 +76,45 @@ def test_blank_or_padded_version_is_normalised() -> None:
     assert Settings(version="").version == "dev"
     assert Settings(version="   ").version == "dev"
     assert Settings(version=" 1.4.0 ").version == "1.4.0"
+
+
+def test_retention_defaults_are_the_accepted_ages() -> None:
+    """A deployment that sets nothing keeps business audit a year, sign-ins
+    and the outbox a quarter, finished runs a month, and prunes hourly."""
+    settings = Settings()
+
+    assert (
+        settings.retention_audit_days,
+        settings.retention_login_audit_days,
+        settings.retention_outbox_days,
+        settings.retention_runs_days,
+    ) == (365, 90, 90, 30)
+    assert settings.retention_interval_seconds == 3600
+    assert (settings.retention_batch_size, settings.retention_max_batches) == (1000, 20)
+
+
+def test_retention_ages_are_days_zero_or_more(monkeypatch) -> None:
+    """0 keeps a table for ever; a negative age has no meaning, and a sub-day
+    sign-in age cannot be expressed, which keeps the five-minute login
+    throttle window safe without a special rule."""
+    monkeypatch.setenv("ONCALL_RETENTION_AUDIT_DAYS", "0")
+    assert Settings().retention_audit_days == 0
+
+    with pytest.raises(ValidationError, match="retention_login_audit_days"):
+        Settings(retention_login_audit_days=-1)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("retention_interval_seconds", 59),
+        ("retention_interval_seconds", 86401),
+        ("retention_batch_size", 99),
+        ("retention_batch_size", 10001),
+        ("retention_max_batches", 0),
+        ("retention_max_batches", 1001),
+    ],
+)
+def test_retention_rhythm_is_bounded(field: str, value: int) -> None:
+    with pytest.raises(ValidationError, match=field):
+        Settings(**{field: value})

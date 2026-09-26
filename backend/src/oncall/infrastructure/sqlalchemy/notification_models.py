@@ -43,7 +43,12 @@ class NotificationStatus(StrEnum):
 
 class NotificationOutbox(Base):
     __tablename__ = "notification_outbox"
-    __table_args__ = (Index("ix_notification_outbox_pending", "status", "next_attempt_at"),)
+    __table_args__ = (
+        Index("ix_notification_outbox_pending", "status", "next_attempt_at"),
+        # Retention deletes the oldest finished rows first, by creation time;
+        # without this the worker would sort the whole table for every batch.
+        Index("ix_notification_outbox_created", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     channel: Mapped[NotificationChannel] = mapped_column(

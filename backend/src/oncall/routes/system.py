@@ -19,4 +19,6 @@ async def public_config() -> PublicConfigResponse:
         app_name=settings.app_name,
         app_subtitle=settings.app_subtitle,
         version=settings.version,
+        audit_retention_days=settings.retention_audit_days,
+        login_audit_retention_days=settings.retention_login_audit_days,
     )

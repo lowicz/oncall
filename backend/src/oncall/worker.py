@@ -11,7 +11,10 @@ independent loops in one event loop:
   ``SELECT ... FOR UPDATE SKIP LOCKED`` and solve them;
 * the **metrics loop** samples how much work is waiting in each and reports it
   through ``oncall.metrics``, which is also where a finished run says what it
-  cost and why it ended.
+  cost and why it ended;
+* the **retention loop** deletes, once an hour and in bounded batches, the
+  rows past their configured age (``oncall.retention``), and reports what it
+  removed through the same channel.
 
 The loops are independent so a generation that takes a minute no longer holds
 back a swap notification behind it. The solve itself runs in
@@ -59,6 +62,7 @@ from oncall.infrastructure.sqlalchemy.scheduling_generation import (
 from oncall.metrics import emit
 from oncall.notifications.email import default_providers
 from oncall.notifications.service import drain_outbox, outbox_health
+from oncall.retention import RetentionPolicy, RetentionReport, prune_expired
 from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS
 
 logger = logging.getLogger(__name__)
@@ -480,6 +484,40 @@ async def _metrics_loop(factory: Sessions) -> None:
         await asyncio.sleep(settings.metrics_interval_seconds)
 
 
+async def retention_cycle(factory: Sessions) -> RetentionReport:
+    """One pass of the retention rules, measured.
+
+    Reported every pass, whether or not anything was deleted: a pass that
+    deletes nothing every hour is the sign that retention is running at all,
+    and `capped` above zero is the sign that a table still has a backlog the
+    next pass will go on with. The pass owns its units of work, one per
+    batch (see `prune_expired`).
+    """
+    started = time.monotonic()
+    report = await prune_expired(
+        factory, RetentionPolicy.from_settings(get_settings()), now=utc_now()
+    )
+    emit("retention", **report.fields(), seconds=time.monotonic() - started)
+    return report
+
+
+async def _retention_loop(factory: Sessions) -> None:
+    """Prune on a timer, starting immediately.
+
+    A loop of its own like the others: a pass over a large backlog must not
+    delay a notification or a metrics sample, and a pass that fails (the
+    database away, a lock timeout) is logged and simply tried again next
+    interval, since it left nothing half-done to repair.
+    """
+    settings = get_settings()
+    while True:
+        try:
+            await retention_cycle(factory)
+        except Exception:
+            logger.exception("Retention cycle failed")
+        await asyncio.sleep(settings.retention_interval_seconds)
+
+
 async def _generation_loop(factory: Sessions) -> None:
     settings = get_settings()
     while True:
@@ -496,13 +534,16 @@ async def _generation_loop(factory: Sessions) -> None:
 async def worker_main(factory: Sessions) -> None:
     settings = get_settings()
     logger.info(
-        "Worker started (notifications every %.1f s, %d generation lane(s))",
+        "Worker started (notifications every %.1f s, %d generation lane(s), "
+        "retention every %.0f s)",
         settings.worker_poll_seconds,
         settings.generation_concurrency,
+        settings.retention_interval_seconds,
     )
     async with asyncio.TaskGroup() as group:
         group.create_task(_notification_loop(factory))
         group.create_task(_metrics_loop(factory))
+        group.create_task(_retention_loop(factory))
         for _ in range(settings.generation_concurrency):
             group.create_task(_generation_loop(factory))
 

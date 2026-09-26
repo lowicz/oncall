@@ -130,6 +130,15 @@ opisze także aktorów niebędących użytkownikami, na przykład link podglądo
 Administrator przegląda i filtruje dziennik na ekranie „Audyt”, a wynik filtra
 może wyeksportować do CSV.
 
+Dziennik nie rośnie bez końca: proces roboczy usuwa wpisy o operacjach
+starsze niż `ONCALL_RETENTION_AUDIT_DAYS` (domyślnie 365 dni) oraz zwykłe
+logowania i nieudane próby starsze niż `ONCALL_RETENTION_LOGIN_AUDIT_DAYS`
+(domyślnie 90 dni). Wpisy o korektach grafiku (`schedule.override`,
+`schedule.override_batch`, `schedule.draft_override`) nie są usuwane nigdy,
+bo ponowna publikacja odczytuje z nich, kogo zastąpiła korekta. Ekran „Audyt”
+pokazuje obowiązujące czasy; pozostałe tabele i ustawienia opisuje
+[Retencja danych](../wdrozenie/uruchomienie.md#retencja-danych).
+
 ## Metryki procesu roboczego
 
 Proces roboczy raportuje na własnym loggerze `oncall.metrics`, jeden rekord
@@ -143,10 +152,14 @@ roboczego, więc warto je zbierać.
 | `outbox` | `eligible`, `oldest_eligible_seconds`, `retrying`, `attempts_max`, `waiting`, `dead` |
 | `generation` | `run`, `outcome`, `queued_seconds`, `run_seconds` |
 | `generation_abandoned` | `runs` - ile uruchomień zwolniono po procesie, który zginął (ostrzeżenie) |
+| `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens` - ile wierszy usunął przebieg; `capped` - ile tabel doszło do limitu paczek i ma jeszcze zaległość; `seconds` |
 
 `queue` i `outbox` są próbkowane na zegarze (`ONCALL_METRICS_INTERVAL_SECONDS`,
 domyślnie 60) niezależnie od tego, czy cokolwiek się dzieje - **luka w nich
-oznacza, że zatrzymał się sam proces roboczy**.
+oznacza, że zatrzymał się sam proces roboczy**. `retention` pojawia się co
+`ONCALL_RETENTION_INTERVAL_SECONDS` (domyślnie 3600), także po przebiegu,
+który nic nie usunął; `dead` w `outbox` liczy nieudane wiadomości, których
+retencja jeszcze nie usunęła.
 
 `outcome` przyjmuje wartości: `completed`, `infeasible` (obsada i reguły twarde
 są sprzeczne - muszą zmienić się dane wejściowe), `requester_missing`, `error`
