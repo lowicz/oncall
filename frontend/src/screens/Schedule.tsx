@@ -103,7 +103,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
         title={t.nav.screens.schedule}
         sub={published.data && (
           <span>
-            {publication && publication.starts_on && publication.ends_on
+            {publication?.starts_on && publication.ends_on
               ? t.schedule.published(formatRange(publication.starts_on, publication.ends_on), publication.version)
               : t.schedule.noPublished}
             {pending && ` · ${pending.status === 'proposed'

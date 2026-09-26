@@ -92,7 +92,6 @@ _AD_BIND_CODES = {
     "775": "account_locked",
 }
 _AD_DATA = re.compile(r"\bdata ([0-9a-f]{3,8})\b", re.IGNORECASE)
-_VERIFY_MESSAGE = re.compile(r"certificate verify failed: ([^(]+?)\s*\(")
 _SSL_REASON = re.compile(r"\[(?:SSL|X509)(?:: ([A-Z0-9_]+))?\]")
 _WORD = re.compile(r"[A-Za-z]+")
 #: Socket failures, as ldap3 words them, from most to least specific.
@@ -570,6 +569,13 @@ def _unavailable(phase: str, exc: LDAPException) -> DirectoryUnavailableError:
     )
 
 
+def _certificate_verify_detail(text: str) -> str | None:
+    _, marker, remainder = text.partition("certificate verify failed:")
+    if not marker:
+        return None
+    return remainder.partition("(")[0].strip() or None
+
+
 def _diagnose(exc: LDAPException) -> tuple[str | None, str, dict[str, object]]:
     """A reason code for an ldap3 failure, plus the phase it belongs to when
     that is not the one it was raised in: an ``ldaps://`` socket negotiates TLS
@@ -584,11 +590,10 @@ def _diagnose(exc: LDAPException) -> tuple[str | None, str, dict[str, object]]:
         return None, exc.description or "result_error", details
     text = str(exc)
     if "certificate verify failed" in text:
-        match = _VERIFY_MESSAGE.search(text)
         return (
             "tls",
             "certificate_verify_failed",
-            {"detail": match.group(1) if match is not None else None},
+            {"detail": _certificate_verify_detail(text)},
         )
     if "doesn't match any name" in text:
         return "tls", "certificate_name_mismatch", {}

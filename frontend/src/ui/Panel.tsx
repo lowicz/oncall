@@ -29,7 +29,7 @@ export function Panel({ open, onOpenChange, title, meta, children, footer, class
     <BaseDialog.Root
       open={open}
       onOpenChange={onOpenChange}
-      modal={narrow ? true : false}
+      modal={narrow}
       disablePointerDismissal={!narrow}
     >
       <BaseDialog.Portal>

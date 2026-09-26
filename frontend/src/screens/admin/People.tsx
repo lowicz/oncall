@@ -144,7 +144,7 @@ function csvOf(rows: Row[], today: string, now: number) {
     columns.person, columns.username, columns.number, columns.email, columns.phone, columns.role, columns.signIn,
     columns.active, columns.activation, columns.rotation, columns.entry, columns.exit, columns.qualifications,
   ]
-  const cell = (value: string | null | undefined) => `"${(value ?? '').replace(/"/g, '""')}"`
+  const cell = (value: string | null | undefined) => `"${(value ?? '').replaceAll('"', '""')}"`
   const lines = rows.map(({ user, member }) => [
     user.display_name, user.username, user.personnel_number, user.email, user.phone, accountRoleLabels()[user.role],
     t.authSources[user.auth_source], user.is_active ? t.csv.yes : t.csv.no,

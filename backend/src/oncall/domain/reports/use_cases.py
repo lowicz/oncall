@@ -52,7 +52,12 @@ async def monthly_report(month: str, ports: ReportPorts) -> MonthlyReport:
         # A statutory holiday that falls on a weekend is a weekend (decision
         # D4), same convention as the scheduler and the fairness report, so a
         # weekend check always wins over a holiday check.
-        category = "weekend" if day.weekday() >= 5 else "holiday" if day in holidays else "workday"
+        if day.weekday() >= 5:
+            category = "weekend"
+        elif day in holidays:
+            category = "holiday"
+        else:
+            category = "workday"
         counter = f"{duty.role.value}_{category}"
         setattr(tally, counter, getattr(tally, counter) + 1)
         points = f"{duty.role.value}_points"

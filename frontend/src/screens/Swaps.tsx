@@ -580,7 +580,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             {!slot && <div className="muted small">{t.swaps.compose.pickDutyFirst}</div>}
             {slot && options.isLoading && <LoadingBlock label={t.swaps.compose.searching} rows={2} />}
             {slot && options.error && <ErrorState error={options.error} onRetry={() => options.refetch()} />}
-            {slot && options.data && options.data.length === 0 && <EmptyState compact icon="people" title={t.swaps.compose.noCandidates} />}
+            {slot && options.data?.length === 0 && <EmptyState compact icon="people" title={t.swaps.compose.noCandidates} />}
             {slot && orderedOptions.length > 0 && (
               <div className="rank">
                 {orderedOptions.map((option, index) => {

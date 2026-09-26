@@ -192,8 +192,8 @@ export function monthGroups(days: CalendarData['days']): MonthGroup[] {
   const groups: MonthGroup[] = []
   for (const day of days) {
     const key = day.service_date.slice(0, 7)
-    const last = groups[groups.length - 1]
-    if (last && last.key === key) {
+    const last = groups.at(-1)
+    if (last?.key === key) {
       last.span += 1
       continue
     }
