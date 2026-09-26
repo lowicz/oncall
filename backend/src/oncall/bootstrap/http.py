@@ -79,6 +79,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
     """Build the HTTP application and wire every feature router once."""
     configured = app_settings or get_settings()
     application = FastAPI(title=configured.app_name, version="0.1.0", lifespan=lifespan)
+    application.add_middleware(RequestLanguageMiddleware)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=configured.cors_origins,
@@ -87,7 +88,6 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "X-CSRF-Token"],
         expose_headers=["X-CSRF-Token"],
     )
-    application.add_middleware(RequestLanguageMiddleware)
     application.add_exception_handler(RequestValidationError, translated_validation_error)
     for router in (
         team_router,

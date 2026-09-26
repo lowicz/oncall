@@ -84,13 +84,12 @@ async def delete_schedule(schedule_id: uuid.UUID, ports: DraftPorts) -> None:
         and not imported_history
     ):
         raise errors.ScheduleNotDeletable(schedule.id)
-    kind = (
-        "zaimportowaną historię"
-        if imported_history
-        else "propozycję"
-        if schedule.status == ScheduleStatus.proposed
-        else "szkic"
-    )
+    if imported_history:
+        kind = "zaimportowaną historię"
+    elif schedule.status == ScheduleStatus.proposed:
+        kind = "propozycję"
+    else:
+        kind = "szkic"
     await ports.journal.schedule_deleted(schedule, kind)
     await ports.schedules.delete(schedule.id)
 

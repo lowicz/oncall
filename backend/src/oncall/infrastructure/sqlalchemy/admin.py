@@ -75,15 +75,14 @@ def _to_administered(
     row: User, member_id: uuid.UUID | None, link_expires_at: datetime | None
 ) -> AdministeredAccount:
     pending = row.auth_source == AuthSource.local and row.password_hash is None
+    pending_activation = None
+    if pending:
+        pending_activation = PendingActivation(
+            link_expires_at=as_utc(link_expires_at) if link_expires_at is not None else None
+        )
     return AdministeredAccount(
         **vars(_to_account(row, member_id)),
-        pending_activation=(
-            PendingActivation(
-                link_expires_at=as_utc(link_expires_at) if link_expires_at is not None else None
-            )
-            if pending
-            else None
-        ),
+        pending_activation=pending_activation,
     )
 
 

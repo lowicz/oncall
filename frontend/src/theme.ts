@@ -59,9 +59,9 @@ export function resolveScheme(mode: ThemeMode): Scheme {
 /** Writes the resolved scheme and density to <html> for the stylesheet. */
 export function applyPreferences(mode: ThemeMode = readThemeMode(), density: Density = readDensity()) {
   const root = document.documentElement
-  root.setAttribute('data-theme', resolveScheme(mode))
-  if (density === 'compact') root.setAttribute('data-density', 'compact')
-  else root.removeAttribute('data-density')
+  root.dataset.theme = resolveScheme(mode)
+  if (density === 'compact') root.dataset.density = 'compact'
+  else delete root.dataset.density
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', resolveScheme(mode) === 'light' ? '#eef1f5' : '#0b0e13')
 }

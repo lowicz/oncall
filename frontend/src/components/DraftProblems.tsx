@@ -20,7 +20,7 @@ interface Problem {
 
 const KIND_TONE: Record<Kind, StatusTone> = { conflict: 'bad', rule: 'bad', solver: 'warn', gap: 'warn', stale: 'warn' }
 /** Hard rules block the hand-off; the rest is advice the coordinator accepts. */
-const HARD: Kind[] = ['conflict', 'rule']
+const HARD = new Set<Kind>(['conflict', 'rule'])
 
 export type ProblemGrouping = 'person' | 'rule'
 
@@ -69,7 +69,7 @@ export function draftProblems(result: DraftSchedule): Problem[] {
 /** How many problems block the hand-off and how many are only advice. */
 export function problemCounts(result: DraftSchedule) {
   const problems = draftProblems(result)
-  const hard = problems.filter((problem) => HARD.includes(problem.kind)).length
+  const hard = problems.filter((problem) => HARD.has(problem.kind)).length
   return { hard, soft: problems.length - hard, total: problems.length }
 }
 
@@ -87,7 +87,7 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
 }) {
   const t = useMessages().generator.problems
   const all = draftProblems(result)
-  const problems = hardOnly ? all.filter((problem) => HARD.includes(problem.kind)) : all
+  const problems = hardOnly ? all.filter((problem) => HARD.has(problem.kind)) : all
   if (all.length === 0) {
     return (
       <div className="panel">
@@ -107,7 +107,7 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
     const key = by === 'person' ? problem.person : t.kinds[problem.kind]
     groups.set(key, [...(groups.get(key) ?? []), problem])
   }
-  const hard = all.filter((problem) => HARD.includes(problem.kind)).length
+  const hard = all.filter((problem) => HARD.has(problem.kind)).length
   return (
     <div className="panel wide-scroll">
       <table className="lg" aria-label={t.table}>
@@ -136,7 +136,7 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
                 <span className="problems-cell">
                   {problem.role && <RoleMark role={problem.role} size="sm" />}
                   {problem.detail}
-                  <small className="muted">{HARD.includes(problem.kind) ? t.hardBlocks : t.soft}</small>
+                  <small className="muted">{HARD.has(problem.kind) ? t.hardBlocks : t.soft}</small>
                 </span>
               </td>
               <td className="n">

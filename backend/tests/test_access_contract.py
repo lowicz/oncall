@@ -45,7 +45,6 @@ async def _actions(db) -> list[tuple[str, str]]:
 @pytest.fixture(autouse=True)
 def no_directory():
     app.dependency_overrides[get_directory_authenticator] = lambda: FakeDirectory()
-    yield
 
 
 async def test_share_link_lifecycle(client, db, frozen_clock) -> None:
