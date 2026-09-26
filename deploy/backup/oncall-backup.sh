@@ -36,12 +36,13 @@ usage: oncall-backup.sh [--dir DEPLOY_DIR] COMMAND
 DEPLOY_DIR is the deployment checkout (compose files and .env); by default
 the checkout this script is in. Settings: ONCALL_BACKUP_DIR,
 ONCALL_BACKUP_KEEP, ONCALL_BACKUP_OWNER, ONCALL_BACKUP_ALERT_EMAIL,
-ONCALL_BACKUP_WAIT_SECONDS (docs/wdrozenie/kopie-zapasowe.md).
+ONCALL_BACKUP_TIME (the timer's, set by setup.sh), ONCALL_BACKUP_WAIT_SECONDS
+(docs/wdrozenie/kopie-zapasowe.md).
 EOF
 }
 
 readonly SETTINGS=(ONCALL_BACKUP_DIR ONCALL_BACKUP_KEEP ONCALL_BACKUP_OWNER
-  ONCALL_BACKUP_ALERT_EMAIL ONCALL_BACKUP_WAIT_SECONDS)
+  ONCALL_BACKUP_ALERT_EMAIL ONCALL_BACKUP_TIME ONCALL_BACKUP_WAIT_SECONDS)
 readonly VERIFY_LABEL=io.github.lowicz.oncall.backup-verify
 readonly NAME_RE='^oncall-[0-9]{8}T[0-9]{6}Z-[A-Za-z0-9._-]+\.dump$'
 
@@ -192,6 +193,7 @@ load_settings() {
   keep=${ONCALL_BACKUP_KEEP:-30}
   owner=${ONCALL_BACKUP_OWNER:-$(id -un)}
   alert_email=${ONCALL_BACKUP_ALERT_EMAIL:-}
+  backup_time=${ONCALL_BACKUP_TIME:-21:00}
   wait_seconds=${ONCALL_BACKUP_WAIT_SECONDS:-600}
   case $backup_dir in
     /*) ;;
@@ -684,6 +686,7 @@ do_status() {
   say "Owner:       $owner"
   say "Directory:   $backup_dir"
   say "Keep:        $keep newest"
+  say "Time:        $backup_time daily, up to 15 minutes later"
   say "Alerts to:   ${alert_email:-(nobody: set ONCALL_BACKUP_ALERT_EMAIL)}"
   say "Timer:       $(timer_summary)"
   say "Backups:     $(backups_oldest_first | wc -l | tr -d ' ')"

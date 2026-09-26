@@ -1,6 +1,6 @@
 # Kopie zapasowe bazy
 
-Raz na dobę timer `oncall-backup.timer` robi logiczny zrzut bazy (`pg_dump`)
+Codziennie o 21:00 timer `oncall-backup.timer` robi logiczny zrzut bazy (`pg_dump`)
 wewnątrz działającego kontenera `db`, odtwarza go na próbę w jednorazowym
 kontenerze i dopiero wtedy go zachowuje. Zostaje 30 najnowszych kopii. Kopie
 leżą na tym samym hoście i nie są szyfrowane. Gdy kopia się nie uda, e-mail
@@ -38,9 +38,10 @@ Skrypt jest idempotentny. W kolejności:
    do właściciela, i go zamyka.
 5. Sprawdza stos: kontener `db`, jego gotowość i serwer SMTP aplikacji.
 6. Instaluje `oncall-backup.service`, `oncall-backup-alert.service` i
-   `oncall-backup.timer` w `~/.config/systemd/user/`, z drop-inem, który
-   wskazuje katalog wdrożenia, i włącza timer.
-7. Robi pierwszą kopię tak, jak zrobi ją timer
+   `oncall-backup.timer` w `~/.config/systemd/user/`, z drop-inami: jeden
+   wskazuje katalog wdrożenia, drugi niesie porę kopii
+   (`oncall-backup.timer.d/time.conf`); włącza timer.
+7. Robi kopię tak, jak zrobi ją timer
    (`systemctl --user start oncall-backup.service`), i pokazuje jej stan.
 
 Bez `--alert-email` alarmy dostają aktywni administratorzy aplikacji, którzy
@@ -87,23 +88,20 @@ Zmienna środowiskowa o tej samej nazwie ma pierwszeństwo przed plikiem.
 | `ONCALL_BACKUP_DIR` | `--backup-dir` | `~/oncall-backups` | Katalog kopii, poza katalogiem wdrożenia |
 | `ONCALL_BACKUP_KEEP` | `--keep` | `30` | Ile najnowszych kopii zostaje |
 | `ONCALL_BACKUP_ALERT_EMAIL` | `--alert-email` | adresy aktywnych administratorów | Odbiorcy alarmu, rozdzieleni przecinkami |
+| `ONCALL_BACKUP_TIME` | `--backup-time` | `21:00` | O której startuje codzienna kopia (`GG:MM`, czas hosta), najwyżej 15 minut później |
 | `ONCALL_BACKUP_WAIT_SECONDS` | - | `600` | Jak długo kopia czeka na bazę, np. gdy timer ruszy przy starcie maszyny przed stosem |
 
 Zmiana ustawienia to ponowne `setup.sh` z nową wartością, np.
 `./deploy/backup/setup.sh --keep 60`. Nowa wartość działa od następnej kopii;
 nadmiarowe stare kopie znikają przy najbliższej udanej kopii.
 
-Pora kopii to 2:30 z losowym opóźnieniem do 15 minut. Inną ustawia drop-in
-timera:
+Pora kopii to `ONCALL_BACKUP_TIME` w strefie czasowej hosta, z losowym
+opóźnieniem do 15 minut. `setup.sh` zapisuje ją w drop-inie
+`~/.config/systemd/user/oncall-backup.timer.d/time.conf`, więc aktualizacja,
+która odświeża sam timer, jej nie zmienia. Inna pora działa od razu:
 
 ```bash
-systemctl --user edit oncall-backup.timer
-```
-
-```ini
-[Timer]
-OnCalendar=
-OnCalendar=*-*-* 23:00:00
+./deploy/backup/setup.sh --backup-time 23:30
 ```
 
 ## Sprawdzenie

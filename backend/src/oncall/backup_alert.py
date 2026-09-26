@@ -6,7 +6,7 @@ the host needs no mail setup of its own:
 
     podman exec -i <api> python -m oncall.backup_alert \\
         --to admin@example.com --host db1 --step dump \\
-        --failed-at 2026-09-26T02:30:00+02:00 < details
+        --failed-at 2026-09-26T21:05:00+02:00 < details
 
 The details are the lines the script recorded, read from standard input. The
 message goes straight to SMTP, not through the outbox: the database may be

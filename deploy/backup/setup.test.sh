@@ -115,6 +115,7 @@ has_line "$config" "ONCALL_BACKUP_OWNER=$me"
 has_line "$config" "ONCALL_BACKUP_DIR=$work/home/oncall-backups"
 has_line "$config" "ONCALL_BACKUP_KEEP=30"
 has_line "$config" "ONCALL_BACKUP_ALERT_EMAIL=admin@example.com,boss@example.com"
+has_line "$config" "ONCALL_BACKUP_TIME=21:00"
 [ "$(stat -c %a "$config")" = 600 ] || fail "settings mode is $(stat -c %a "$config")"
 [ "$(stat -c %a "$work/home/oncall-backups")" = 700 ] || fail "backup directory is not 700"
 for unit in oncall-backup.service oncall-backup-alert.service oncall-backup.timer; do
@@ -122,13 +123,19 @@ for unit in oncall-backup.service oncall-backup-alert.service oncall-backup.time
 done
 has_line "$units/oncall-backup.service.d/checkout.conf" "WorkingDirectory=$checkout"
 has_line "$units/oncall-backup-alert.service.d/checkout.conf" "WorkingDirectory=$checkout"
+has_line "$units/oncall-backup.timer.d/time.conf" "OnCalendar="
+has_line "$units/oncall-backup.timer.d/time.conf" "OnCalendar=*-*-* 21:00:00"
 has_line "$work/log" "systemctl --user daemon-reload"
-has_line "$work/log" "systemctl --user enable --now oncall-backup.timer"
+has_line "$work/log" "systemctl --user enable oncall-backup.timer"
+has_line "$work/log" "systemctl --user restart oncall-backup.timer"
 has_line "$work/log" "systemctl --user start oncall-backup.service"
 has_line "$work/log" "oncall-backup.sh check dir="
 has_line "$work/log" "oncall-backup.sh status dir="
-[ "$(grep -n 'enable --now' "$work/log" | cut -d: -f1)" -lt "$(grep -n 'start oncall-backup.service' "$work/log" | cut -d: -f1)" ] ||
+[ "$(grep -n 'restart oncall-backup.timer' "$work/log" | cut -d: -f1)" -lt "$(grep -n 'start oncall-backup.service' "$work/log" | cut -d: -f1)" ] ||
   fail "the first backup ran before the timer was enabled"
+[ "$(grep -n 'daemon-reload' "$work/log" | cut -d: -f1)" -lt "$(grep -n 'restart oncall-backup.timer' "$work/log" | cut -d: -f1)" ] ||
+  fail "the timer was restarted before systemd read the new time"
+has_text "$work/out" "runs daily at 21:00"
 has_text "$work/out" "Backups belong to $me"
 if grep -Fq "cannot read its own journal" "$work/out"; then
   fail "warned about a readable journal"
@@ -140,6 +147,7 @@ run_setup --keep 14 --no-first-backup || fail "exited $?: $(cat "$work/out")"
 has_line "$config" "ONCALL_BACKUP_KEEP=14"
 has_line "$config" "ONCALL_BACKUP_DIR=$work/home/oncall-backups"
 has_line "$config" "ONCALL_BACKUP_ALERT_EMAIL=admin@example.com,boss@example.com"
+has_line "$config" "ONCALL_BACKUP_TIME=21:00"
 lacks_line "$work/log" "systemctl --user start oncall-backup.service"
 if grep -Fq "oncall-backup.sh admin-emails" "$work/log"; then
   fail "looked the administrators up again"
@@ -157,6 +165,16 @@ has_line "$config" "ONCALL_BACKUP_DIR=$work/elsewhere"
 has_line "$config" "ONCALL_BACKUP_ALERT_EMAIL=ops@example.com,oncall@example.com"
 [ "$(stat -c %a "$work/elsewhere")" = 700 ] || fail "the new directory is not 700"
 
+check "the backup time can be changed, and is kept by later runs"
+run_setup --backup-time 9:05 --no-first-backup || fail "exited $?: $(cat "$work/out")"
+has_line "$config" "ONCALL_BACKUP_TIME=09:05"
+has_line "$units/oncall-backup.timer.d/time.conf" "OnCalendar=*-*-* 09:05:00"
+lacks_line "$units/oncall-backup.timer.d/time.conf" "OnCalendar=*-*-* 21:00:00"
+run_setup --no-first-backup || fail "exited $?: $(cat "$work/out")"
+has_line "$units/oncall-backup.timer.d/time.conf" "OnCalendar=*-*-* 09:05:00"
+cmp -s "$units/oncall-backup.timer" "$repo_root/deploy/backup/oncall-backup.timer" ||
+  fail "the time went into the timer unit, which update.sh replaces, instead of the drop-in"
+
 check "an open existing directory is closed"
 chmod 755 "$work/elsewhere"
 run_setup --no-first-backup || fail "exited $?: $(cat "$work/out")"
@@ -172,6 +190,10 @@ run_setup --backup-dir "$checkout/backups" && fail "accepted a directory inside 
 has_text "$work/out" "inside the deployment checkout"
 run_setup --alert-email "not-an-address" && fail "accepted a bad address"
 has_text "$work/out" "not an e-mail address: not-an-address"
+for bad_time in 24:00 21:60 21 9pm "21:00:00"; do
+  run_setup --backup-time "$bad_time" && fail "accepted --backup-time $bad_time"
+  has_text "$work/out" "--backup-time must be an hour and minute"
+done
 cmp -s "$config" "$work/config-before" || fail "a refused run changed the settings"
 
 check "another owner is refused, by flag and by the settings file"

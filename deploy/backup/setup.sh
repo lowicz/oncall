@@ -5,7 +5,8 @@
 # Idempotent: run it again to change a setting; what is not given stays.
 #
 #   deploy/backup/setup.sh [--owner USER] [--backup-dir DIR] [--keep N]
-#                          [--alert-email ADDRESS[,ADDRESS...]] [--no-first-backup]
+#                          [--alert-email ADDRESS[,ADDRESS...]] [--backup-time HH:MM]
+#                          [--no-first-backup]
 #
 # Run it as the user whose systemd runs oncall.service (production: podman),
 # logged in directly (ssh podman@host or machinectl shell podman@), not root
@@ -17,7 +18,8 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 usage: setup.sh [--owner USER] [--backup-dir DIR] [--keep N]
-                [--alert-email ADDRESS[,ADDRESS...]] [--no-first-backup]
+                [--alert-email ADDRESS[,ADDRESS...]] [--backup-time HH:MM]
+                [--no-first-backup]
 
   --owner USER         assert the user that owns the backups (default: you;
                        it must be the user whose systemd runs oncall.service)
@@ -25,6 +27,8 @@ usage: setup.sh [--owner USER] [--backup-dir DIR] [--keep N]
   --keep N             how many backups to keep (default 30)
   --alert-email LIST   who gets the failure e-mail (default: the active
                        administrators' addresses in the application)
+  --backup-time HH:MM  when the daily backup starts, in the host's time zone,
+                       up to 15 minutes later (default 21:00)
   --no-first-backup    install without taking a backup now
 
 Values not given keep what the last run wrote.
@@ -54,20 +58,21 @@ setting() {
 }
 
 main() {
-  local owner_flag="" dir_flag="" keep_flag="" alert_flag="" first_backup=true
+  local owner_flag="" dir_flag="" keep_flag="" alert_flag="" time_flag="" first_backup=true
   while [ "$#" -gt 0 ]; do
     case $1 in
       -h | --help)
         usage
         return 0
         ;;
-      --owner | --backup-dir | --keep | --alert-email)
+      --owner | --backup-dir | --keep | --alert-email | --backup-time)
         [ "$#" -ge 2 ] || die "$1 needs a value"
         case $1 in
           --owner) owner_flag=$2 ;;
           --backup-dir) dir_flag=$2 ;;
           --keep) keep_flag=$2 ;;
           --alert-email) alert_flag=$2 ;;
+          --backup-time) time_flag=$2 ;;
         esac
         shift 2
         ;;
@@ -133,12 +138,14 @@ main() {
     die "$config says the backups belong to $configured_owner; run this as $configured_owner"
   fi
 
-  local backup_dir keep alert wait
+  local backup_dir keep alert backup_time wait
   backup_dir=${dir_flag:-$(setting ONCALL_BACKUP_DIR)}
   backup_dir=${backup_dir:-$HOME/oncall-backups}
   keep=${keep_flag:-$(setting ONCALL_BACKUP_KEEP)}
   keep=${keep:-30}
   alert=${alert_flag:-$(setting ONCALL_BACKUP_ALERT_EMAIL)}
+  backup_time=${time_flag:-$(setting ONCALL_BACKUP_TIME)}
+  backup_time=${backup_time:-21:00}
   wait=$(setting ONCALL_BACKUP_WAIT_SECONDS)
 
   case $backup_dir in
@@ -155,6 +162,9 @@ main() {
   case $keep in
     '' | *[!0-9]* | 0*) die "--keep must be a whole number of at least 1: $keep" ;;
   esac
+  [[ $backup_time =~ ^([01]?[0-9]|2[0-3]):([0-5][0-9])$ ]] ||
+    die "--backup-time must be an hour and minute, HH:MM between 00:00 and 23:59: $backup_time"
+  backup_time=$(printf '%02d:%s' "$((10#${BASH_REMATCH[1]}))" "${BASH_REMATCH[2]}")
 
   if [ -z "$alert" ]; then
     say "Looking up the administrators' e-mail addresses for failure alerts"
@@ -190,6 +200,7 @@ main() {
       printf 'ONCALL_BACKUP_DIR=%s\n' "$backup_dir"
       printf 'ONCALL_BACKUP_KEEP=%s\n' "$keep"
       printf 'ONCALL_BACKUP_ALERT_EMAIL=%s\n' "$alert"
+      printf 'ONCALL_BACKUP_TIME=%s\n' "$backup_time"
       if [ -n "$wait" ]; then
         printf 'ONCALL_BACKUP_WAIT_SECONDS=%s\n' "$wait"
       fi
@@ -211,9 +222,17 @@ main() {
     printf '[Service]\nWorkingDirectory=%s\n' "$working_directory" >"$unit_dir/$name.d/checkout.conf"
     chmod 644 "$unit_dir/$name.d/checkout.conf"
   done
+  # The time is this host's, so it lives in a drop-in: update.sh refreshes the
+  # timer unit itself from each release and never touches drop-ins.
+  install -d -m 755 "$unit_dir/oncall-backup.timer.d"
+  printf '# Written by deploy/backup/setup.sh from ONCALL_BACKUP_TIME; change it with setup.sh --backup-time.\n[Timer]\nOnCalendar=\nOnCalendar=*-*-* %s:00\n' \
+    "$backup_time" >"$unit_dir/oncall-backup.timer.d/time.conf"
+  chmod 644 "$unit_dir/oncall-backup.timer.d/time.conf"
   systemctl --user daemon-reload
-  systemctl --user enable --now oncall-backup.timer
-  say "Installed the units in $unit_dir and enabled oncall-backup.timer"
+  systemctl --user enable oncall-backup.timer
+  # Restarted so a changed time takes effect now.
+  systemctl --user restart oncall-backup.timer
+  say "Installed the units in $unit_dir; oncall-backup.timer runs daily at $backup_time"
 
   if [ "$first_backup" = true ]; then
     say "Taking a backup the way the timer does (systemctl --user start oncall-backup.service)"
@@ -233,7 +252,7 @@ main() {
   say ""
   bash "$script" status
   say ""
-  say "Backups belong to $user and go to $backup_dir; the newest $keep are kept; failures are e-mailed to $alert."
+  say "Backups belong to $user and go to $backup_dir daily at $backup_time; the newest $keep are kept; failures are e-mailed to $alert."
 }
 
 config=""

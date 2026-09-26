@@ -1,6 +1,6 @@
 # Database backups
 
-Once a day the `oncall-backup.timer` timer takes a logical dump of the
+Every day at 21:00 the `oncall-backup.timer` timer takes a logical dump of the
 database (`pg_dump`) inside the running `db` container, restores it as a test
 in a throwaway container and only then keeps it. The 30 newest backups stay.
 The backups are on the same host and are not encrypted. When a backup fails,
@@ -40,9 +40,10 @@ The script is idempotent. In order, it:
 5. Checks the stack: the `db` container, its readiness and the application's
    SMTP server.
 6. Installs `oncall-backup.service`, `oncall-backup-alert.service` and
-   `oncall-backup.timer` in `~/.config/systemd/user/`, with a drop-in that
-   points at the deployment directory, and enables the timer.
-7. Takes the first backup the way the timer will
+   `oncall-backup.timer` in `~/.config/systemd/user/`, with drop-ins: one
+   points at the deployment directory, the other carries the backup time
+   (`oncall-backup.timer.d/time.conf`); enables the timer.
+7. Takes a backup the way the timer will
    (`systemctl --user start oncall-backup.service`) and shows its state.
 
 Without `--alert-email` the alerts go to the application's active
@@ -90,23 +91,20 @@ environment variable of the same name takes precedence over the file.
 | `ONCALL_BACKUP_DIR` | `--backup-dir` | `~/oncall-backups` | The backup directory, outside the deployment directory |
 | `ONCALL_BACKUP_KEEP` | `--keep` | `30` | How many of the newest backups stay |
 | `ONCALL_BACKUP_ALERT_EMAIL` | `--alert-email` | the active administrators' addresses | Alert recipients, separated by commas |
+| `ONCALL_BACKUP_TIME` | `--backup-time` | `21:00` | When the daily backup starts (`HH:MM`, host time), at most 15 minutes later |
 | `ONCALL_BACKUP_WAIT_SECONDS` | - | `600` | How long a backup waits for the database, e.g. when the timer fires at machine start before the stack is up |
 
 Changing a setting is running `setup.sh` again with the new value, e.g.
 `./deploy/backup/setup.sh --keep 60`. The new value applies from the next
 backup; surplus old backups go at the next successful backup.
 
-The backup runs at 2:30 with a random delay of up to 15 minutes. A timer
-drop-in sets another time:
+The backup time is `ONCALL_BACKUP_TIME` in the host's time zone, with a
+random delay of up to 15 minutes. `setup.sh` writes it into the drop-in
+`~/.config/systemd/user/oncall-backup.timer.d/time.conf`, so an update that
+refreshes the timer itself does not change it. Another time applies at once:
 
 ```bash
-systemctl --user edit oncall-backup.timer
-```
-
-```ini
-[Timer]
-OnCalendar=
-OnCalendar=*-*-* 23:00:00
+./deploy/backup/setup.sh --backup-time 23:30
 ```
 
 ## Verification

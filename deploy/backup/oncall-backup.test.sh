@@ -193,6 +193,7 @@ has_text "$work/out" "$(basename "$file")"
 run status || fail "status exited $?"
 has_text "$work/out" "Keep:        30 newest"
 has_text "$work/out" "Timer:       "
+has_text "$work/out" "Time:        21:00 daily"
 has_text "$work/out" "file=$file"
 
 check "verify restores a kept backup"
