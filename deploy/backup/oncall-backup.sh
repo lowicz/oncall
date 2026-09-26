@@ -74,12 +74,14 @@ die() {
 
 write_failure() { # step label details
   local tmp=$state_dir/.last-failure.$$
-  {
+  if {
     printf 'time=%s\n' "$(date -Iseconds)"
     printf 'step=%s\n' "$1"
     printf 'label=%s\n' "$2"
     printf '\n%s\n' "$3"
-  } >"$tmp" 2>/dev/null && mv -f "$tmp" "$state_dir/last-failure" 2>/dev/null || true
+  } >"$tmp" 2>/dev/null; then
+    mv -f "$tmp" "$state_dir/last-failure" 2>/dev/null || true
+  fi
 }
 
 record_failure() {
