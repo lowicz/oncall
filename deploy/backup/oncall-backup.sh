@@ -660,17 +660,30 @@ data_volume() { # container
   printf '%s\n' "$volumes"
 }
 
+# Whether a volume holds nothing at all, asked of a throwaway container of the
+# image. Compose creates a service's volumes before its container, so a run
+# whose container could not be created left the new volume behind, empty. An
+# entry it cannot list (a data directory owned by postgres) counts as data.
+volume_is_empty() { # volume image
+  local listing
+  listing=$(podman run --rm --pull never --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --user 0 --entrypoint ls \
+    --volume "$1:/volume:ro" "$2" -A /volume 2>/dev/null) || return 1
+  [ -z "$listing" ]
+}
+
 # Moves the database to the newer PostgreSQL major version that COMPOSE_FILE's
 # db service runs. A data directory belongs to the major version that wrote
 # it, so the data travels as a dump: api, worker and web stop first, so the
 # dump holds every change, and the dump is proved by a restore like every
-# backup. Then the db service of COMPOSE_FILE starts on its own new volume, the
-# image initialises it with that file's settings, and the dump is restored into
-# it and analysed. The old volume is only read: it stays as the way back until
-# its owner removes it. A failure removes the new container and the volume
-# this run created and says how to start the stack again; api, worker and web
-# stay stopped either way, since the stack must start from the files that name
-# the database it is to use (update.sh installs the release's next).
+# backup. Then the db service of COMPOSE_FILE starts on its own new volume (or
+# on an empty one a failed run left behind), the image initialises it with
+# that file's settings, and the dump is restored into it and analysed. The old
+# volume is only read: it stays as the way back until its owner removes it. A
+# failure removes the new container and the volume it used and says how to
+# start the stack again; api, worker and web stay stopped either way, since
+# the stack must start from the files that name the database it is to use
+# (update.sh installs the release's next).
 do_upgrade_postgres() {
   local compose=$1 env_file=$2
   [ -f "$compose" ] || die "no such file: $compose"
@@ -725,16 +738,20 @@ do_upgrade_postgres() {
   if [ -n "$env_file" ]; then
     compose_args=(--env-file "$env_file" "${compose_args[@]}")
   fi
-  PODMAN_COMPOSE_WARNING_LOGS=false capture "starting the database of $compose" \
-    podman compose "${compose_args[@]}" up --detach --no-deps db
+  # Created, not started: the volume is looked at before PostgreSQL writes to it.
+  PODMAN_COMPOSE_WARNING_LOGS=false capture "creating the database of $compose" \
+    podman compose "${compose_args[@]}" up --no-start --no-deps db
   local new_id new_volume new_major
-  new_id=$(find_service db) || die "no db container of $deploy_dir after starting the database of $compose"
+  new_id=$(find_service db) || die "no db container of $deploy_dir after creating the database of $compose"
   upgrade_container=$new_id
   new_volume=$(data_volume "$new_id")
   if [[ $'\n'$volumes_before$'\n' == *$'\n'$new_volume$'\n'* ]]; then
-    die "the volume $new_volume of the new database already exists, so it may hold data this run must not replace (from an interrupted or rolled-back upgrade). Check it, remove it if nothing in it is needed (podman volume rm $new_volume) and run this again"
+    volume_is_empty "$new_volume" "$(container_field "$new_id" '{{.ImageID}}')" ||
+      die "the volume $new_volume of the new database already exists, so it may hold data this run must not replace (from an interrupted or rolled-back upgrade). Check it, remove it if nothing in it is needed (podman volume rm $new_volume) and run this again"
+    say "The volume $new_volume already exists and is empty (left by an upgrade that failed before PostgreSQL started); using it"
   fi
   upgrade_volume=$new_volume
+  capture "starting the database of $compose" podman start "$new_id" >/dev/null
   db_id=$new_id
   if [ "$wait_seconds" -lt 120 ]; then
     wait_seconds=120

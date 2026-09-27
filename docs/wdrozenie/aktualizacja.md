@@ -265,11 +265,13 @@ kończy się komunikatem `moving the database to PostgreSQL 18 failed`, a
 przyczyna jest wypisana nad nim. Po jej usunięciu wystarczy uruchomić
 aktualizację ponownie.
 
-Jeśli wolumen nowej bazy już istnieje (po przeniesieniu przerwanym np.
-zabiciem procesu albo po powrocie opisanym niżej), skrypt go nie nadpisuje i
-odmawia, podając jego nazwę. Po sprawdzeniu, że nie ma w nim niczego
-potrzebnego, usuń go (`podman volume rm <nazwa>`) i uruchom aktualizację
-ponownie.
+Pusty wolumen nowej bazy, który zostawiło przeniesienie przerwane przed
+startem PostgreSQL (tak kończyły się 1.7.1 i 1.7.2 pod podman-compose), skrypt
+wykorzystuje. Jeśli ten wolumen już istnieje i coś zawiera (po przeniesieniu
+przerwanym np. zabiciem procesu albo po powrocie opisanym niżej), skrypt go
+nie nadpisuje i odmawia, podając jego nazwę. Po sprawdzeniu, że nie ma w nim
+niczego potrzebnego, usuń go (`podman volume rm <nazwa>`) i uruchom
+aktualizację ponownie.
 
 ### Powrót sprzed aktualizacji PostgreSQL
 

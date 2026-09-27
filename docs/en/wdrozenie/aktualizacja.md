@@ -265,11 +265,13 @@ PostgreSQL 17 on its untouched volume, and no file changes. The script ends
 with `moving the database to PostgreSQL 18 failed`, and the cause is printed
 above it. Once the cause is removed, running the update again is enough.
 
-If the new database's volume already exists (after a move interrupted by, say,
-a killed process, or after going back as described below), the script does
-not overwrite it and refuses, giving its name. After checking that it holds
-nothing you need, remove it (`podman volume rm <name>`) and run the update
-again.
+An empty volume of the new database, left by a move that stopped before
+PostgreSQL started (as 1.7.1 and 1.7.2 did under podman-compose), the script
+uses. If that volume already exists and holds anything (after a move
+interrupted by, say, a killed process, or after going back as described
+below), the script does not overwrite it and refuses, giving its name. After
+checking that it holds nothing you need, remove it (`podman volume rm <name>`)
+and run the update again.
 
 ### Going back after a PostgreSQL upgrade
 
