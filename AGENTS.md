@@ -20,6 +20,14 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `models.py`. A new model module joins `model_registry.py`, which only the
   process entry points, `migrations/env.py` and `tests/conftest.py` import
   (`tests/architecture/test_model_registry.py` holds both rules).
+- A schema rule is declared in the model and created by a migration. Each
+  vocabulary column is `Enum(..., create_constraint=True, name="ck_<table>_<column>")`,
+  so a new enum value needs a migration that replaces that check.
+  PostgreSQL-only DDL (exclusion constraints, `polish_text` names, partial
+  indexes) goes through `ddl_if` or `with_variant`. `alembic check` misses
+  checks, exclusions, collations, server defaults and FK actions;
+  `tests/test_schema_postgres.py` compares them between a migrated database
+  and one built from the models.
 - Ports are consumer-owned: each backend use-case module takes its own small
   `*Ports` bundle, or one protocol directly, from its feature's `ports.py`.
   Adapters satisfy them structurally without subclassing; strict mypy over
