@@ -103,7 +103,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `.github/workflows/ci.yml` is the gate list (backend: `uv lock --check`
   before the install, ruff check + format, mypy, pytest on SQLite, OpenAPI
   snapshot; backend-postgres: migrations from empty plus `alembic check`, then
-  the concurrency suite against postgres:17; frontend: eslint, tsc, vitest,
+  the concurrency and schema suites against postgres:17; frontend: eslint, tsc, vitest,
   `npm run build`, site render; compose-config; workflows; image-build
   without push). `ci-ok` is the one status of ci.yml the ruleset
   `main-protected` requires; pull requests report it as `ci-ok`, never

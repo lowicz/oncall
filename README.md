@@ -82,9 +82,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 Put `COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml` in `.env` to make
 plain `docker compose up --build` do the same. CI (`.github/workflows/ci.yml`)
-runs the backend and frontend gates, the PostgreSQL concurrency suite, both
-image builds and every Compose combination on each pull request, next to
-SonarCloud, CodeQL and Dependency Review; a tag `vX.Y.Z` publishes the images
+runs the backend and frontend gates, the PostgreSQL concurrency and schema
+suites, both image builds and every Compose combination on each pull request,
+next to SonarCloud, CodeQL and Dependency Review; a tag `vX.Y.Z` publishes the images
 (`.github/workflows/release.yml`). Required checks and repository security
 settings: [docs/wdrozenie/wydania.md](docs/wdrozenie/wydania.md).
 
