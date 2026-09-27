@@ -63,7 +63,7 @@ export function applyPreferences(mode: ThemeMode = readThemeMode(), density: Den
   if (density === 'compact') root.dataset.density = 'compact'
   else delete root.dataset.density
   const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', resolveScheme(mode) === 'light' ? '#eef1f5' : '#0b0e13')
+  if (meta) meta.setAttribute('content', resolveScheme(mode) === 'light' ? '#F4F6FA' : '#07152E')
 }
 
 export function setThemeMode(mode: ThemeMode) {

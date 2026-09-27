@@ -37,7 +37,7 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
     >
       <BaseDialog.Portal>
         {narrow && <BaseDialog.Backdrop className="dialog-backdrop" />}
-        <BaseDialog.Popup className={cx('panel-popup', wide && 'panel-wide', className)}>
+        <BaseDialog.Popup className={cx('panel-popup', narrow && 'panel-modal', wide && 'panel-wide', className)}>
           <div className="panel-head">
             <BaseDialog.Title className="panel-title">{title}</BaseDialog.Title>
             {meta && <div className="panel-meta">{meta}</div>}

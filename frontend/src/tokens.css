@@ -1,136 +1,130 @@
-/*
- * Design tokens for the "Control Room" interface.
- *
- * Every colour, font and spacing value the components use is a custom
- * property defined here, once per colour scheme. Dark is the default; the
- * light scheme is selected by `data-theme="light"` on <html>, which the
- * theme module sets from the stored preference or from the system setting
- * (see src/theme.ts and the pre-paint script in index.html).
- *
- * Naming: --sig* is the one signal colour (actions, today, focus, selection,
- * load); role colours (--p, --sec, --late) never collide with it; --na/--wn/
- * --ch are the three availability kinds; --ok/--warn/--bad are statuses.
- */
+/* Shared interface palette. Dark is the default; theme.ts and theme-init.js
+ * select the light scheme before first paint. Signal text and action fills
+ * are separate so both retain contrast. Role fills stay identical in both
+ * schemes; role text outside chips follows the surface underneath it. */
 :root {
   color-scheme: dark;
+  --font: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
+  --read: 'STIX Two Text', Georgia, serif;
+  --label: var(--font);
 
-  --font: 'Inter Tight Variable', 'Inter Tight', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --bg: #07152E;
+  --s1: #0B1F42;
+  --s2: #122A52;
+  --s3: #1B3765;
+  --line: rgba(163, 181, 201, 0.16);
+  --line2: rgba(163, 181, 201, 0.34);
+  --fg: #F4F6FA;
+  --muted: #A3B5C9;
+  --dim: #7591AB;
 
-  --bg: #0b0e13;
-  --s1: #10141b;
-  --s2: #161b24;
-  --s3: #1d2430;
-  --line: rgba(148, 163, 184, 0.14);
-  --line2: rgba(148, 163, 184, 0.3);
-  --fg: #e6ebf2;
-  --muted: #8b97a8;
-  --dim: #5f6b7a;
+  --sig: #65B8FF;
+  --sig-ink: #0B1F42;
+  --sig-soft: rgba(101, 184, 255, 0.16);
+  --sig-line: rgba(101, 184, 255, 0.6);
+  --act: #2870ED;
+  --act-ink: #FFFFFF;
+  --danger: #BC3B51;
 
-  --sig: #6ea8ff;
-  --sig-ink: #06172e;
-  --sig-soft: rgba(110, 168, 255, 0.14);
-  --sig-line: rgba(110, 168, 255, 0.55);
+  --role-ink: #0B1F42;
+  --p-fill: #65CDCF;
+  --sec-fill: #B17EAD;
+  --late-fill: #FFB196;
+  --p: #65CDCF;
+  --p-bg: rgba(101, 205, 207, 0.18);
+  --sec: #B17EAD;
+  --sec-bg: rgba(177, 126, 173, 0.2);
+  --late: #FFB196;
+  --late-bg: rgba(255, 177, 150, 0.18);
 
-  --p: #5eead4;
-  --p-bg: rgba(45, 212, 191, 0.18);
-  --sec: #c4b5fd;
-  --sec-bg: rgba(139, 92, 246, 0.2);
-  --late: #fbbf24;
-  --late-bg: rgba(245, 158, 11, 0.18);
+  --ok: #6CD99D;
+  --ok-bg: rgba(108, 217, 157, 0.14);
+  --ok-dot: #0CB43F;
+  --warn: #FFB196;
+  --warn-bg: rgba(255, 177, 150, 0.14);
+  --warn-dot: #FF6130;
+  --bad: #EB4C79;
+  --bad-bg: rgba(235, 76, 121, 0.16);
+  --bad-dot: #EB4C79;
 
-  --ok: #4ade80;
-  --ok-bg: rgba(34, 197, 94, 0.14);
-  --warn: #fbbf24;
-  --warn-bg: rgba(245, 158, 11, 0.14);
-  --bad: #f87171;
-  --bad-bg: rgba(239, 68, 68, 0.16);
+  --na: #EB4C79;
+  --na-bg: rgba(235, 76, 121, 0.2);
+  --wn: #A3B5C9;
+  --wn-bg: rgba(163, 181, 201, 0.2);
+  --ch: #6CD99D;
+  --ch-bg: rgba(108, 217, 157, 0.16);
+  --today: rgba(101, 184, 255, 0.12);
+  --wknd: rgba(163, 181, 201, 0.07);
+  --focus: #65B8FF;
 
-  --na: #f87171;
-  --na-bg: rgba(239, 68, 68, 0.22);
-  --wn: #e2c9a8;
-  --wn-bg: rgba(216, 163, 64, 0.16);
-  --ch: #4ade80;
-  --ch-bg: rgba(34, 197, 94, 0.16);
-
-  --today: rgba(110, 168, 255, 0.1);
-  --wknd: rgba(148, 163, 184, 0.06);
-  --focus: #6ea8ff;
-
-  --ev-blue: #6ea8ff;
-  --ev-green: #4ade80;
-  --ev-amber: #fbbf24;
-  --ev-red: #f87171;
-  --ev-violet: #c4b5fd;
-  --ev-teal: #5eead4;
-
-  --shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.7);
-  --shadow-sm: 0 10px 30px -12px rgba(0, 0, 0, 0.6);
-
+  --ev-blue: #65B8FF;
+  --ev-green: #6CD99D;
+  --ev-amber: #FFB196;
+  --ev-red: #EB4C79;
+  --ev-violet: #B17EAD;
+  --ev-teal: #65CDCF;
+  --shadow: 0 30px 60px -30px rgba(2, 8, 24, 0.8);
+  --shadow-sm: 0 10px 30px -12px rgba(2, 8, 24, 0.7);
   --r-sm: 4px;
-  --r: 7px;
-  --r-md: 10px;
+  --r: 8px;
+  --r-md: 8px;
   --r-lg: 12px;
-
-  --cell: 34px;
+  --cell: 36px;
   --rail-w: 208px;
   --panel-w: 360px;
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-
-  --bg: #eef1f5;
-  --s1: #ffffff;
-  --s2: #f6f8fa;
-  --s3: #e9edf2;
-  --line: rgba(15, 23, 42, 0.1);
-  --line2: rgba(15, 23, 42, 0.24);
-  --fg: #0f172a;
-  --muted: #55637a;
-  --dim: #8593a6;
-
-  --sig: #1d4ed8;
-  --sig-ink: #ffffff;
-  --sig-soft: rgba(29, 78, 216, 0.1);
-  --sig-line: rgba(29, 78, 216, 0.55);
-
-  --p: #0f766e;
-  --p-bg: #ccf1ea;
-  --sec: #6d28d9;
-  --sec-bg: #ede9fe;
-  --late: #b45309;
-  --late-bg: #fef3c7;
-
-  --ok: #15803d;
-  --ok-bg: #dcfce7;
-  --warn: #b45309;
-  --warn-bg: #fef3c7;
-  --bad: #b91c1c;
-  --bad-bg: #fee2e2;
-
-  --na: #b91c1c;
-  --na-bg: #fee2e2;
-  --wn: #6b5230;
-  --wn-bg: #f3e7d8;
-  --ch: #15803d;
-  --ch-bg: #dcfce7;
-
-  --today: rgba(29, 78, 216, 0.08);
-  --wknd: rgba(15, 23, 42, 0.035);
-  --focus: #1d4ed8;
-
-  --ev-blue: #1d4ed8;
-  --ev-green: #15803d;
-  --ev-amber: #b45309;
-  --ev-red: #b91c1c;
-  --ev-violet: #6d28d9;
-  --ev-teal: #0f766e;
-
-  --shadow: 0 30px 60px -30px rgba(15, 23, 42, 0.35);
-  --shadow-sm: 0 10px 30px -12px rgba(15, 23, 42, 0.25);
+  --bg: #F4F6FA;
+  --s1: #FFFFFF;
+  --s2: #F4F6FA;
+  --s3: #E4EAF0;
+  --line: #E4EAF0;
+  --line2: #A3B5C9;
+  --fg: #303030;
+  --hd: #0B1F42;
+  --muted: #506A97;
+  --dim: #4E6A88;
+  --sig: #064EA1;
+  --sig-ink: #FFFFFF;
+  --sig-soft: rgba(40, 112, 237, 0.1);
+  --sig-line: rgba(40, 112, 237, 0.6);
+  --p: #036A6D;
+  --p-bg: rgba(101, 205, 207, 0.28);
+  --sec: #721C7A;
+  --sec-bg: rgba(177, 126, 173, 0.26);
+  --late: #B84800;
+  --late-bg: rgba(255, 177, 150, 0.36);
+  --ok: #017632;
+  --ok-bg: rgba(108, 217, 157, 0.26);
+  --ok-dot: #017632;
+  --warn: #B84800;
+  --warn-bg: rgba(255, 177, 150, 0.32);
+  --warn-dot: #D25200;
+  --bad: #BC3B51;
+  --bad-bg: rgba(253, 164, 182, 0.3);
+  --bad-dot: #BC3B51;
+  --na: #BC3B51;
+  --na-bg: rgba(253, 164, 182, 0.34);
+  --wn: #245375;
+  --wn-bg: rgba(163, 181, 201, 0.3);
+  --ch: #017632;
+  --ch-bg: rgba(108, 217, 157, 0.3);
+  --today: rgba(40, 112, 237, 0.08);
+  --wknd: rgba(36, 83, 117, 0.05);
+  --focus: #2870ED;
+  --ev-blue: #2870ED;
+  --ev-green: #017632;
+  --ev-amber: #D25200;
+  --ev-red: #BC3B51;
+  --ev-violet: #721C7A;
+  --ev-teal: #036A6D;
+  --shadow: 0 24px 48px -24px rgba(33, 65, 108, 0.35);
+  --shadow-sm: 0 2px 8px rgba(33, 65, 108, 0.08);
 }
 
 :root[data-density='compact'] {
-  --cell: 28px;
+  --cell: 34px;
 }

@@ -25,6 +25,6 @@
   document.documentElement.setAttribute('data-theme', scheme)
   if (scheme === 'light') {
     var meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', '#eef1f5')
+    if (meta) meta.setAttribute('content', '#F4F6FA')
   }
 })()

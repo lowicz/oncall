@@ -43,20 +43,22 @@ from oncall.domain.vocabulary import AssignmentRole
 
 # Light-theme tokens from `frontend/src/tokens.css`. The translucent ones are
 # flattened onto white, because Outlook has no alpha channel.
-BG = "#eef1f5"
-SURFACE = "#ffffff"
-SURFACE_2 = "#f6f8fa"
-SURFACE_3 = "#e9edf2"
-LINE = "#e7e9ec"
-LINE_2 = "#c5c9d0"
-FG = "#0f172a"
-MUTED = "#55637a"
-DIM = "#8593a6"
-SIG = "#1d4ed8"
-SIG_INK = "#ffffff"
+BG = "#F4F6FA"
+SURFACE = "#FFFFFF"
+SURFACE_2 = "#F4F6FA"
+SURFACE_3 = "#E4EAF0"
+LINE = "#E4EAF0"
+LINE_2 = "#A3B5C9"
+FG = "#303030"
+HEADING = "#0B1F42"
+MUTED = "#506A97"
+DIM = "#506A97"
+SIG = "#2870ED"
+SIG_INK = "#FFFFFF"
+LINK = "#064EA1"
 
-FONT = "'Segoe UI', Arial, Helvetica, sans-serif"
-MONO = "Consolas, 'Courier New', monospace"
+FONT = "Inter, 'Segoe UI', Arial, Helvetica, sans-serif"
+MONO = "'Geist Mono', Consolas, 'Courier New', monospace"
 
 #: The width of the card, the width of the interface's side panel plus its
 #: padding, and narrow enough for the Outlook reading pane.
@@ -88,29 +90,29 @@ class Tone(StrEnum):
 
 
 _TONES: dict[Tone, tuple[str, str]] = {
-    Tone.ok: ("#15803d", "#dcfce7"),
-    Tone.warn: ("#b45309", "#fef3c7"),
-    Tone.bad: ("#b91c1c", "#fee2e2"),
-    Tone.sig: (SIG, "#e8eefb"),
+    Tone.ok: ("#017632", "#E6F3EF"),
+    Tone.warn: ("#B84800", "#FFEFEA"),
+    Tone.bad: ("#BC3B51", "#FFEDF0"),
+    Tone.sig: (LINK, "#E5EEFD"),
 }
 
 #: Role colours (`--p`, `--sec`, `--late` and their backgrounds).
 _ROLE_COLOURS: dict[AssignmentRole, tuple[str, str]] = {
-    AssignmentRole.primary: ("#0f766e", "#ccf1ea"),
-    AssignmentRole.secondary: ("#6d28d9", "#ede9fe"),
-    AssignmentRole.late_shift: ("#b45309", "#fef3c7"),
+    AssignmentRole.primary: (HEADING, "#65CDCF"),
+    AssignmentRole.secondary: (HEADING, "#B17EAD"),
+    AssignmentRole.late_shift: (HEADING, "#FFB196"),
 }
 
 
 def _tag(label: str, *, fg: str, bg: str) -> Html:
-    """A `.tag`: mono, small, on a tinted background. A table cell, so the
+    """A `.tag`: small, on a solid background. A table cell, so the
     padding survives Word."""
     return Html(
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
         'style="display:inline-table;"><tr>'
         f'<td bgcolor="{bg}" style="background-color:{bg};color:{fg};'
-        f"font-family:{MONO};font-size:11px;line-height:14px;font-weight:700;"
-        'letter-spacing:1px;padding:3px 6px;border-radius:4px;white-space:nowrap;">'
+        f"font-family:{FONT};font-size:12px;line-height:16px;font-weight:700;"
+        'padding:2px 7px;border-radius:6px;white-space:nowrap;">'
         f"{text(label)}</td></tr></table>"
     )
 
@@ -121,9 +123,16 @@ def role_tag(role: AssignmentRole, label: str) -> Html:
 
 
 def status_tag(label: str, tone: Tone) -> Html:
-    """A `.st` status pill: the interface writes these in upper case."""
-    fg, bg = _TONES[tone]
-    return _tag(label.upper(), fg=fg, bg=bg)
+    """A status with a dot and sentence-case label, laid out for Word."""
+    dot, bg = _TONES[tone]
+    return Html(
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        f'bgcolor="{bg}" style="background-color:{bg};border-radius:999px;display:inline-table;">'
+        f'<tr><td style="padding:1px 0 1px 8px;font-family:{FONT};font-size:12px;'
+        f'line-height:16px;color:{dot};" aria-hidden="true">&#9679;</td>'
+        f'<td style="padding:1px 9px 1px 6px;font-family:{FONT};font-size:12px;'
+        f'line-height:16px;color:{FG};font-weight:600;">{text(label)}</td></tr></table>'
+    )
 
 
 def strong(value: object) -> Html:
@@ -132,7 +141,9 @@ def strong(value: object) -> Html:
 
 def mono(value: object) -> Html:
     """A date or another value the interface prints in the mono face."""
-    return Html(f'<span style="font-family:{MONO};font-size:13px;">{text(value)}</span>')
+    return Html(
+        f'<span style="font-family:{MONO};font-size:12px;line-height:16px;">{text(value)}</span>'
+    )
 
 
 @dataclass(frozen=True)
@@ -184,24 +195,23 @@ _BODY_TEXT = f"font-family:{FONT};font-size:14px;line-height:21px;color:{FG};"
 
 
 def _brand_row(brand: Brand) -> Html:
-    """`.brand`: the mark, the name and the subtitle in mono upper case."""
+    """The name remains readable even when the client blocks the raster mark."""
     subtitle = (
-        f'<span style="display:block;font-family:{MONO};font-size:10px;line-height:12px;'
-        f'letter-spacing:1px;color:{DIM};padding-top:3px;">{text(brand.subtitle.upper())}</span>'
+        f'<span style="display:block;font-family:{FONT};font-size:12px;line-height:16px;'
+        f'color:{DIM};">{text(brand.subtitle)}</span>'
         if brand.subtitle
         else ""
     )
     return Html(
         '<tr><td style="padding:0 4px 12px;">'
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
-        f'<td width="26" height="26" align="center" valign="middle" bgcolor="{SIG}" '
-        f'style="width:26px;height:26px;background-color:{SIG};border-radius:6px;'
-        f"font-family:{MONO};font-size:12px;line-height:26px;font-weight:700;"
-        f'color:{SIG_INK};">E/</td>'
+        '<td width="26" height="26" align="center" valign="middle">'
+        f'<img src="{text(brand.url.rstrip("/"))}/icon.png" width="26" height="26" '
+        'alt="" style="display:block;border:0;"></td>'
         f'<td valign="middle" style="padding-left:9px;font-family:{FONT};">'
         f'<a href="{text(brand.url)}" style="text-decoration:none;color:{FG};">'
-        f'<span style="display:block;font-size:13px;line-height:16px;font-weight:700;'
-        f'color:{FG};">{text(brand.name)}</span>{subtitle}</a></td>'
+        f'<span style="display:block;font-size:14px;line-height:21px;font-weight:700;'
+        f'color:{HEADING};">{text(brand.name)}</span>{subtitle}</a></td>'
         "</tr></table></td></tr>"
     )
 
@@ -209,10 +219,10 @@ def _brand_row(brand: Brand) -> Html:
 def _heading(eyebrow: str, title: str) -> Html:
     return _cell(
         Html(
-            f'<div style="font-family:{MONO};font-size:10px;line-height:12px;font-weight:700;'
-            f'letter-spacing:1px;color:{DIM};">{text(eyebrow.upper())}</div>'
-            f'<h1 style="margin:8px 0 0;font-family:{FONT};font-size:22px;line-height:28px;'
-            f'font-weight:700;color:{FG};">{text(title)}</h1>'
+            f'<div style="font-family:{FONT};font-size:12px;line-height:16px;font-weight:600;'
+            f'color:{DIM};">{text(eyebrow)}</div>'
+            f'<h1 style="margin:8px 0 0;font-family:{FONT};font-size:24px;line-height:28px;'
+            f'font-weight:700;color:{HEADING};">{text(title)}</h1>'
         ),
         style=f"padding:22px 24px 0;font-family:{FONT};",
     )
@@ -226,8 +236,8 @@ def _facts(facts: list[Fact]) -> Html:
     rows = "".join(
         "<tr>"
         f'<td valign="top" width="128" style="width:128px;padding:7px 12px 7px 0;'
-        f"font-family:{MONO};font-size:10px;line-height:20px;font-weight:700;"
-        f'letter-spacing:1px;color:{MUTED};white-space:nowrap;">{text(fact.label.upper())}</td>'
+        f"font-family:{FONT};font-size:12px;line-height:16px;font-weight:600;"
+        f'color:{MUTED};white-space:nowrap;">{text(fact.label)}</td>'
         f'<td valign="top" style="padding:7px 0;{_BODY_TEXT}">{fact.value}</td>'
         "</tr>"
         for fact in facts
@@ -244,8 +254,8 @@ def _facts(facts: list[Fact]) -> Html:
 def _slots(heading: str | None, slots: list[Slot]) -> Html:
     """The interface's `.role-row` list: one bordered row per slot."""
     head = (
-        f'<div style="font-family:{MONO};font-size:10px;line-height:12px;font-weight:700;'
-        f'letter-spacing:1px;color:{MUTED};padding-bottom:8px;">{text(heading.upper())}</div>'
+        f'<div style="font-family:{FONT};font-size:12px;line-height:16px;font-weight:600;'
+        f'color:{MUTED};padding-bottom:8px;">{text(heading)}</div>'
         if heading
         else ""
     )
@@ -253,9 +263,9 @@ def _slots(heading: str | None, slots: list[Slot]) -> Html:
         f'<tr><td style="padding:0 0 6px;">'
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" '
         f'bgcolor="{SURFACE_2}" style="background-color:{SURFACE_2};border:1px solid {LINE};'
-        'border-radius:7px;"><tr>'
+        'border-radius:8px;"><tr>'
         f'<td valign="middle" width="140" style="width:140px;padding:8px 10px;{_BODY_TEXT}'
-        f'font-family:{MONO};font-size:13px;line-height:20px;white-space:nowrap;">{text(slot.day)}</td>'
+        f'font-family:{MONO};font-size:12px;line-height:16px;white-space:nowrap;">{text(slot.day)}</td>'
         f'<td valign="middle" width="96" style="width:96px;padding:6px 10px 6px 0;">'
         f"{role_tag(slot.role, slot.role_label)}</td>"
         f'<td valign="middle" style="padding:8px 10px 8px 0;{_BODY_TEXT}">{slot.detail or ""}</td>'
@@ -278,7 +288,7 @@ def _note(note: Note) -> Html:
         Html(
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'
             f'<tr><td bgcolor="{bg}" style="background-color:{bg};border-left:3px solid {fg};'
-            f'border-radius:4px;padding:10px 12px;{_BODY_TEXT}font-size:13px;line-height:19px;">'
+            f'border-radius:4px;padding:10px 12px;{_BODY_TEXT}">'
             f"{text(note.body)}</td></tr></table>"
         ),
         style="padding:16px 24px 0;",
@@ -292,14 +302,14 @@ def _action(action: Action) -> Html:
     return _cell(
         Html(
             '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
-            f'<td align="center" bgcolor="{SIG}" style="background-color:{SIG};border-radius:7px;">'
+            f'<td align="center" bgcolor="{SIG}" style="background-color:{SIG};border-radius:8px;">'
             f'<a href="{url}" style="display:inline-block;padding:11px 18px;font-family:{FONT};'
-            f"font-size:14px;line-height:18px;font-weight:600;color:{SIG_INK};"
-            f'text-decoration:none;border:1px solid {SIG};border-radius:7px;">'
+            f"font-size:14px;line-height:21px;font-weight:600;color:{SIG_INK};"
+            f'text-decoration:none;border:1px solid {SIG};border-radius:8px;">'
             f"{text(action.label)}</a></td></tr></table>"
-            f'<div style="padding-top:10px;font-family:{FONT};font-size:12px;line-height:17px;'
+            f'<div style="padding-top:10px;font-family:{FONT};font-size:12px;line-height:16px;'
             f'color:{MUTED};word-break:break-all;">'
-            f'<a href="{url}" style="color:{SIG};text-decoration:underline;">{url}</a></div>'
+            f'<a href="{url}" style="color:{LINK};text-decoration:underline;">{url}</a></div>'
         ),
         style="padding:22px 24px 24px;",
     )
@@ -308,7 +318,7 @@ def _action(action: Action) -> Html:
 def _footer(brand: Brand) -> Html:
     return _cell(
         Html(f"Wiadomość wysłana automatycznie przez {text(brand.name)}. Nie odpowiadaj na nią."),
-        style=f"padding:14px 4px 0;font-family:{FONT};font-size:11px;line-height:16px;color:{DIM};",
+        style=f"padding:14px 4px 0;font-family:{FONT};font-size:12px;line-height:16px;color:{DIM};",
     )
 
 
@@ -376,7 +386,7 @@ def render(
         f'border="0" style="max-width:{WIDTH}px;">\n'
         f"{_brand_row(brand)}\n"
         f'<tr><td bgcolor="{SURFACE}" style="background-color:{SURFACE};border:1px solid {LINE};'
-        'border-radius:10px;">\n'
+        'border-radius:8px;">\n'
         '<table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" '
         'border="0">\n'
         f"{card}\n"
