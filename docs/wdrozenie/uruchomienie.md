@@ -170,7 +170,7 @@ jak `@`, `:`, `/`, `#` czy `%` trzeba w adresie zakodować procentowo (`@` to
 `%40`).
 
 **Obraz `postgres` czyta `POSTGRES_PASSWORD` tylko raz**, przy zakładaniu
-pustego wolumenu `oncall-db`. Na istniejącej bazie zmiana w `.env` niczego w
+pustego wolumenu `oncall-postgres-18`. Na istniejącej bazie zmiana w `.env` niczego w
 PostgreSQL nie zmienia, a `api` i `worker` przestają się łączyć. Hasło działającej
 bazy zmienia się najpierw w samej bazie, potem w `.env`:
 
@@ -212,7 +212,7 @@ do swoich montowań `tmpfs` i wolumenów:
 
 | Usługa | Użytkownik | Zapis | Porty w kontenerze |
 | --- | --- | --- | --- |
-| `db` | `postgres` (70) | wolumen `oncall-db`, `/var/run/postgresql`, `/tmp` | 5432 |
+| `db` | `postgres` (70) | wolumen `oncall-postgres-18`, `/var/run/postgresql`, `/tmp` | 5432 |
 | `api` | `10001` | `/tmp` | 8000 |
 | `worker` | `10001` | `/tmp` | - |
 | `web` | `101` (nginx) | `/tmp`, `/etc/nginx/conf.d` | 8080, 8443 |

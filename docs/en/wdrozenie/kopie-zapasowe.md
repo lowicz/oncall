@@ -222,7 +222,9 @@ loginctl show-user podman --property=Linger
 One backup is one file `oncall-<UTC time>-<kind>-<schema revision>.dump` in
 the `pg_dump --format=custom` format, compressed with zstd, e.g.
 `oncall-20260926T023412Z-daily-0035_outbox_created_index.dump`. The kind is
-`daily` (the timer), `pre-update-<from>-to-<to>` (an update), `pre-restore`
+`daily` (the timer), `pre-update-<from>-to-<to>` (an update),
+`pre-postgres-upgrade-from-<version>` (the move to a new PostgreSQL major
+version), `pre-restore`
 (the state before a restore) or `manual`. They all count towards the same
 pool of newest backups.
 
@@ -294,6 +296,12 @@ the deployment directory, and when there is none (the first update to a
 release with backups), the new release's script. A failed dump ends the update
 without any change. The stack must be running then: the script waits for the
 database for at most 60 seconds.
+
+A release that moves the database to a newer PostgreSQL major version runs the
+release script's `upgrade-postgres` instead of this dump: the
+`pre-postgres-upgrade-from-<version>` dump is taken with `api`, `worker` and
+`web` stopped, and it is what carries the data into the new version - see
+[A new PostgreSQL major version](aktualizacja.md#a-new-postgresql-major-version).
 
 Until `setup.sh` has written the settings, the dump goes to `~/oncall-backups`,
 which the script creates with mode `0700` when needed. Once installed, a

@@ -28,6 +28,14 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   checks, exclusions, collations, server defaults and FK actions;
   `tests/test_schema_postgres.py` compares them between a migrated database
   and one built from the models.
+- A PostgreSQL major version in `docker-compose.yml` is a data move, not a tag
+  change: `deploy/update.sh` sees the new `postgres:<major>` image and runs the
+  release's `oncall-backup.sh upgrade-postgres` (dump with the app stopped,
+  restore into a fresh cluster on a new volume, old volume kept). Each major
+  needs its own volume, `oncall-postgres-<major>`, and initdb settings
+  (checksums, Polish ICU collation) only reach a new cluster;
+  `deploy/backup/oncall-backup.test.sh` moves a Compose-started 17 to the
+  current file and checks both.
 - Ports are consumer-owned: each backend use-case module takes its own small
   `*Ports` bundle, or one protocol directly, from its feature's `ports.py`.
   Adapters satisfy them structurally without subclassing; strict mypy over
@@ -103,7 +111,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `.github/workflows/ci.yml` is the gate list (backend: `uv lock --check`
   before the install, ruff check + format, mypy, pytest on SQLite, OpenAPI
   snapshot; backend-postgres: migrations from empty plus `alembic check`, then
-  the concurrency and schema suites against postgres:17; frontend: eslint, tsc, vitest,
+  the concurrency and schema suites against postgres:18; frontend: eslint, tsc, vitest,
   `npm run build`, site render; compose-config; workflows; image-build
   without push). `ci-ok` is the one status of ci.yml the ruleset
   `main-protected` requires; pull requests report it as `ci-ok`, never

@@ -67,19 +67,22 @@ Skrypt nie zakłada wdrożenia od zera: pierwszy start opisują
    `git fetch --tags` i `git checkout` tagu.
 3. Buduje nowy `.env` - patrz [niżej](#jak-zmienia-się-env).
 4. Pobiera obrazy `ghcr.io/lowicz/oncall-api` i `ghcr.io/lowicz/oncall-web` w
-   tej wersji. Jeśli wydania nie ma, skrypt kończy się tutaj i niczego nie
+   tej wersji, a gdy wydanie zmienia wersję główną PostgreSQL, także jego
+   obraz. Jeśli wydania nie ma, skrypt kończy się tutaj i niczego nie
    zmienia; restart nie czeka też potem na pobieranie.
 5. Robi zrzut bazy, sprawdzony odtworzeniem, bo restart uruchomi migracje
    wydania, a te nie cofają się same - patrz
    [Kopie zapasowe bazy](kopie-zapasowe.md#przed-aktualizacją). Nieudany zrzut
-   kończy aktualizację bez żadnej zmiany.
+   kończy aktualizację bez żadnej zmiany. Wydanie z nowszą wersją główną
+   PostgreSQL przenosi w tym kroku bazę - patrz
+   [Nowa wersja główna PostgreSQL](#nowa-wersja-główna-postgresql).
 6. Robi [kopię zapasową](#kopia-zapasowa-i-cofnięcie) każdego pliku, który
    zmieni, i zapisuje nowe pliki. Plik identyczny z wydaniem zostaje
    nietknięty.
 7. Restartuje jednostkę - patrz [Restart jednostki](#restart-jednostki).
 
-Katalogu `tls/`, drop-inów jednostek ani wolumenów skrypt nie dotyka, a timera
-kopii nie instaluje (robi to raz `deploy/backup/setup.sh`, o czym skrypt
+Katalogu `tls/` ani drop-inów jednostek skrypt nie dotyka, żadnego wolumenu nie
+usuwa, a timera kopii nie instaluje (robi to raz `deploy/backup/setup.sh`, o czym skrypt
 przypomina na końcu, dopóki timera nie ma). Ponowne
 uruchomienie z tym samym numerem nie zmienia żadnego pliku, robi zrzut bazy i
 restartuje jednostkę.
@@ -125,8 +128,9 @@ Compose i `deploy/systemd/` z ich ścieżkami, a zainstalowaną jednostkę do
 podkatalogu `unit/`. Przebieg, który niczego nie zmienia, nie zostawia
 katalogu. Kopie zawierają sekrety z `.env` - stare usuwaj ręcznie.
 
-Cofnięcie to ten sam skrypt z poprzednim numerem. Skrypt wypisuje go na
-początku każdego przebiegu (`On-call in ~/oncall: 1.2.3 -> 1.2.4`), a
+Cofnięcie to ten sam skrypt z poprzednim numerem (poza powrotem sprzed
+[nowej wersji PostgreSQL](#powrót-sprzed-aktualizacji-postgresql)). Skrypt
+wypisuje go na początku każdego przebiegu (`On-call in ~/oncall: 1.2.3 -> 1.2.4`), a
 podpowiada też, gdy restart się nie uda:
 
 ```bash
@@ -176,6 +180,119 @@ ostrzeżenie `WARNI [alembic.runtime.migration]` z nazwą reguły i wierszem, kt
 ją łamie, a aplikacja działa i pilnuje reguły jak dotąd. Ostrzeżenia pokazuje
 `podman compose logs api 2>&1 | grep WARNI` w katalogu wdrożenia. Po
 poprawieniu wierszy regułę kończy polecenie SQL podane w ostrzeżeniu.
+
+## Nowa wersja główna PostgreSQL
+
+Katalog danych PostgreSQL należy do wersji głównej, która go zapisała: obraz
+`postgres:18-alpine` odmawia startu na danych wersji 17. Wydanie, które w
+`docker-compose.yml` przenosi usługę `db` na nowszą wersję główną, przenosi
+więc też dane, i robi to `update.sh` bez żadnego dodatkowego polecenia.
+Pierwsze takie wydanie przenosi bazę z PostgreSQL 17 na 18.
+
+Skrypt rozpoznaje je po obrazie `postgres:<wersja>` w `docker-compose.yml`
+wdrożenia i wydania. Zamiast zwykłego zrzutu (krok 5) uruchamia wtedy
+`deploy/backup/oncall-backup.sh upgrade-postgres` z wydania, które:
+
+1. zatrzymuje `api`, `worker` i `web`, żeby zrzut objął każdą zmianę;
+2. robi zrzut `pre-postgres-upgrade-from-17`, sprawdzony odtworzeniem jak
+   każda kopia, i zostawia go w katalogu kopii;
+3. zatrzymuje starą bazę i uruchamia usługę `db` z pliku Compose wydania na
+   nowym wolumenie `oncall-postgres-18` (każda wersja główna ma własny
+   wolumen, nazwany jej numerem);
+4. odtwarza zrzut do nowej bazy, sprawdza, że wróciła każda tabela i ta sama
+   rewizja schematu, i wykonuje `ANALYZE`, żeby planista od razu miał
+   statystyki.
+
+Obraz nowej wersji skrypt pobiera wcześniej, razem z obrazami aplikacji. Pliki
+wydania instaluje dopiero po udanym przeniesieniu, a restart jednostki
+uruchamia `api`, które stosuje migracje wydania już na nowej wersji.
+Aplikacja jest niedostępna od zatrzymania `api` do końca restartu; przy bazie
+tej wielkości to kilkadziesiąt sekund. Stary wolumen `oncall-db` nie jest ani
+zapisywany, ani usuwany.
+
+Nowy klaster jest zakładany z ustawieniami z `docker-compose.yml`
+(`POSTGRES_INITDB_ARGS`):
+
+- **sumy kontrolne stron** (`--data-checksums`): uszkodzona strona na dysku
+  kończy się błędem zamiast cicho zwróconych złych danych, które nocny zrzut
+  przeniósłby do kopii;
+- **polskie sortowanie jako kolacja bazy** (`--locale-provider=icu
+  --icu-locale=pl-PL`): każde `ORDER BY` po tekście układa nazwy tak, jak
+  czyta je polski użytkownik (`Adam, ala, Ewa, Łukasz, Śliwa, Żaneta`), a nie
+  według kodów znaków (`Adam, Ewa, ala, Łukasz, Śliwa, Żaneta`).
+
+Obie rzeczy dotyczą tylko klastra zakładanego od zera: nowego wdrożenia i bazy
+przeniesionej na nową wersję. Sprawdzenie w katalogu wdrożenia (oczekiwane
+`on` oraz `i | pl-PL`):
+
+```bash
+podman compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "show data_checksums" \
+  -c "select datlocprovider, datlocale from pg_database
+      where datname = current_database()"'
+```
+
+Gdy nowa wersja działa dobrze, stary wolumen można usunąć. Skrypt podaje jego
+pełną nazwę, z przedrostkiem projektu Compose, np.:
+
+```bash
+podman volume rm oncall_oncall-db
+```
+
+Zrzut `pre-postgres-upgrade-from-17` zostaje w katalogu kopii, dopóki nie
+wypchną go nowsze kopie.
+
+Kolacja ICU zależy od wersji biblioteki ICU w obrazie. Gdy aktualizacja obrazu
+ją zmieni, PostgreSQL ostrzega w logu `db` o niezgodnej wersji kolacji
+(`collation version mismatch`). Indeksy tekstowe przebudowuje się wtedy w
+chwili małego ruchu, a potem zapisuje nową wersję:
+
+```bash
+podman compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "reindex database" \
+  -c "alter database \"$POSTGRES_DB\" refresh collation version"'
+```
+
+### Gdy przeniesienie się nie uda
+
+Błąd w trakcie przeniesienia usuwa kontener i wolumen, które ono utworzyło, a
+`update.sh` restartuje jednostkę: stos wraca na poprzednie wydanie i
+PostgreSQL 17 na nietkniętym wolumenie, a żaden plik się nie zmienia. Skrypt
+kończy się komunikatem `moving the database to PostgreSQL 18 failed`, a
+przyczyna jest wypisana nad nim. Po jej usunięciu wystarczy uruchomić
+aktualizację ponownie.
+
+Jeśli wolumen nowej bazy już istnieje (po przeniesieniu przerwanym np.
+zabiciem procesu albo po powrocie opisanym niżej), skrypt go nie nadpisuje i
+odmawia, podając jego nazwę. Po sprawdzeniu, że nie ma w nim niczego
+potrzebnego, usuń go (`podman volume rm <nazwa>`) i uruchom aktualizację
+ponownie.
+
+### Powrót sprzed aktualizacji PostgreSQL
+
+`update.sh` nie przenosi bazy na starszą wersję główną: wydanie z PostgreSQL
+17 na wdrożeniu z 18 kończy się komunikatem `does not move a database to an
+older major version` bez żadnej zmiany. Stare wydanie wystartowałoby na starym
+wolumenie z danymi sprzed aktualizacji, bez wszystkiego, co zapisano później.
+
+Gdy mimo to trzeba wrócić, świadomie tracąc zmiany od aktualizacji, a stary
+wolumen jeszcze istnieje:
+
+1. zrób zrzut obecnego stanu, żeby dało się go odzyskać;
+2. przywróć `.env` i pliki Compose poprzedniego wydania z kopii aktualizacji
+   (w checkoutcie git: `git checkout --detach v<poprzednie>` i `.env` z tej
+   samej kopii);
+3. zrestartuj jednostkę - PostgreSQL 17 startuje na swoim starym wolumenie.
+
+```bash
+cd ~/oncall
+./deploy/backup/oncall-backup.sh dump --label before-going-back
+cp -p .backup/<data>-<czas>/.env .backup/<data>-<czas>/docker-compose*.yml .
+systemctl --user restart oncall
+```
+
+Wolumen `oncall-postgres-18` zostaje; przed kolejną aktualizacją trzeba go
+usunąć, jak wyżej.
 
 ## Starsze wydania
 
