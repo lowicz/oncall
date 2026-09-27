@@ -233,8 +233,6 @@ export const generator: Messages['generator'] = {
       noChange: 'no significant change',
       closer: (points: string) => `closer to balance by ${points}`,
       further: (points: string) => `further from balance by ${points}`,
-      sameBalance: 'balance unchanged',
-      otherSide: 'the same distance, the other side of the balance',
     },
     verdict: {
       better: 'better',

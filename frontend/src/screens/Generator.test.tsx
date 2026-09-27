@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { GeneratorPanel } from './Generator'
-import { api } from '../api'
+import { api, ApiError } from '../api'
 import type { DraftSchedule, ScheduleRun, ScheduleSummary, SchedulingPolicy } from '../api'
 
 const policy: SchedulingPolicy = {
@@ -536,5 +536,473 @@ describe('GeneratorPanel solver time budget', () => {
     expect(screen.getByText(/górny limit całego generowania to około 60 s/)).toBeInTheDocument()
     fireEvent.change(field, { target: { value: '30' } })
     expect(screen.getByText(/górny limit całego generowania to około 120 s/)).toBeInTheDocument()
+  })
+})
+
+describe('GeneratorPanel queue and progress', () => {
+  it.each([
+    ['waits for a free worker when the run has no place in the queue yet', 0, 'Zadanie oczekuje na wolny proces generatora.'],
+    ['names the place in the queue without an estimate when none is known', 2, 'W kolejce: 2 zadania przed Tobą.'],
+  ])('%s', async (_, position, sentence) => {
+    const queued = run({ id: 'r1', status: 'queued', progress: 0, queue_position: position, estimated_start_seconds: null })
+    stub([], [queued])
+    vi.spyOn(api, 'followRun').mockImplementation((_id, onProgress) => {
+      onProgress?.(queued)
+      return new Promise(() => {})
+    })
+    renderScreen(<GeneratorPanel />)
+
+    expect(await screen.findByText(sentence)).toBeInTheDocument()
+    expect(screen.getByText('Zadanie w kolejce workera.')).toBeInTheDocument()
+  })
+
+  it('starts with an empty bar before the worker reports anything', async () => {
+    stub([])
+    const generate = vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise(() => {}))
+    renderScreen(<GeneratorPanel />)
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    expect(await screen.findByRole('progressbar', { name: 'Postęp generowania' })).toHaveAttribute('aria-valuenow', '0')
+    expect(screen.getByRole('heading', { level: 1, name: 'Generuję 21 wrz – 18 paź' })).toBeInTheDocument()
+    expect(screen.getByText('Solver pracuje poza procesem API.')).toBeInTheDocument()
+    expect(screen.queryByText(/na jeden przebieg solvera/)).not.toBeInTheDocument()
+    expect(generate).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves to the fairness step once the solver is done and names the gap before the draft', async () => {
+    stub([])
+    vi.spyOn(api, 'generateSchedule').mockImplementation((_input, onProgress) => {
+      onProgress?.(run({ id: 'r1', status: 'completed', progress: 90, uncovered_before: ['2026-09-19', '2026-09-20'] }))
+      return new Promise(() => {})
+    })
+    renderScreen(<GeneratorPanel />)
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    expect(await screen.findByText('Przed początkiem szkicu pozostaje 2 nieobsadzonych dni: 19-09-2026, 20-09-2026.')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Postęp generowania' })).toHaveAttribute('aria-valuenow', '90')
+    const steps = screen.getByRole('list', { name: 'Etap generowania' })
+    expect(within(steps).getByText('sprawiedliwość')).toHaveAttribute('aria-current', 'step')
+    expect(within(steps).getByText('solver')).toHaveClass('step-done')
+  })
+
+  it('lists the reasons a generation failed', async () => {
+    stub([])
+    vi.spyOn(api, 'generateSchedule').mockImplementation(async (_input, onProgress) => {
+      onProgress?.(run({ id: 'r1', status: 'failed', conflicts: ['Anna Kowalska: brak kwalifikacji PRIMARY'] }))
+      throw new ApiError('Nie da się wygenerować grafiku', 409)
+    })
+    renderScreen(<GeneratorPanel />)
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Nie da się wygenerować grafiku')
+    expect(within(alert).getByRole('listitem')).toHaveTextContent('Anna Kowalska: brak kwalifikacji PRIMARY')
+    expect(screen.getByRole('button', { name: 'Utwórz szkic' })).toBeEnabled()
+  })
+
+  it('lists the reasons a resumed generation failed', async () => {
+    stub([], [run({ id: 'r1' })])
+    vi.spyOn(api, 'followRun').mockImplementation(async (_id, onProgress) => {
+      onProgress?.(run({ id: 'r1', status: 'failed', conflicts: ['Brak osób z kwalifikacją SECONDARY'] }))
+      throw new ApiError('Generowanie nie powiodło się', 409)
+    })
+    renderScreen(<GeneratorPanel />)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Generowanie nie powiodło się')
+    expect(within(alert).getByRole('listitem')).toHaveTextContent('Brak osób z kwalifikacją SECONDARY')
+    expect(screen.getByRole('button', { name: 'Utwórz szkic' })).toBeEnabled()
+  })
+
+  it('names a failure without a list when the run reported no conflicts', async () => {
+    stub([])
+    vi.spyOn(api, 'generateSchedule').mockRejectedValue(new ApiError('Worker niedostępny', 503))
+    renderScreen(<GeneratorPanel />)
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Worker niedostępny')
+    expect(within(alert).queryByRole('list')).not.toBeInTheDocument()
+  })
+})
+
+describe('GeneratorPanel range form', () => {
+  it('warns when the range covers a single day', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />)
+    await waitFor(() => expect(document.querySelector('#generator-to')).toHaveValue('2026-10-18'))
+    expect(screen.queryByText('Zakres obejmuje jeden dzień.')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/^Do/), { target: { value: '2026-09-21' } })
+    expect(await screen.findByText('Zakres obejmuje jeden dzień.')).toBeInTheDocument()
+    expect(screen.getByText(/solver tylko obsadzi ten dzień/)).toBeInTheDocument()
+  })
+
+  it('offers to compare a daily and a weekly variant', async () => {
+    stub([summary({ id: 'd1', rotation_mode: 'daily' }), summary({ id: 'd2', rotation_mode: 'weekly' })])
+    renderScreen(<GeneratorPanel />)
+    expect(await screen.findByRole('button', { name: /Porównaj wariant dzienny i tygodniowy/ })).toBeInTheDocument()
+  })
+
+  it('does not offer the comparison without both variants', async () => {
+    stub([summary({ id: 'd1', rotation_mode: 'daily' }), summary({ id: 'd2', rotation_mode: 'hybrid' })])
+    renderScreen(<GeneratorPanel />)
+    expect(await screen.findAllByRole('button', { name: 'Otwórz' })).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: /Porównaj wariant/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('GeneratorPanel open draft details', () => {
+  const staffed = draft({
+    id: 'd1',
+    solver_status: 'FEASIBLE',
+    fairness_proven: true,
+    continuity_gap: 0.025,
+    assignments: [
+      { service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska', is_override: false },
+      { service_date: '2026-09-17', role: 'secondary', assignee_name: 'Marek Nowak', is_override: false },
+      { service_date: '2026-09-18', role: 'primary', assignee_name: 'Marek Nowak', is_override: false },
+    ],
+  })
+
+  it('counts the staffed days and states a proven fairness with the solution gap', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(staffed)
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    expect(await screen.findByText('Obsada: 2 dni, 3 przydziały')).toBeInTheDocument()
+    expect(screen.getByText(/wersja 1 · 3 przydziały w 2 dniach · Hybrydowy/)).toBeInTheDocument()
+    expect(screen.getByText('Sprawiedliwość: optymalna (udowodniona). Jakość całego rozwiązania: luka 2,5%. Stan kryterium pokazuje panel obok.')).toBeInTheDocument()
+  })
+
+  it('says a conflict on a proposal can only be fixed by generating again', async () => {
+    stub([summary({ id: 'd1', status: 'proposed' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({
+      id: 'd1',
+      status: 'proposed',
+      unavailability_conflicts: [{ service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska' }],
+    }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+    expect(await screen.findByText('Szkic nie jest już edytowalny; wygeneruj go ponownie.')).toBeInTheDocument()
+  })
+
+  it('filters the problems from the risk chips and the hard-only switch', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({
+      id: 'd1',
+      warnings: [
+        { source: 'solver', message: 'Reguły rozrzedzania zawieszone.' },
+        { source: 'rules', message: 'Anna Kowalska: więcej niż 3 dni z rzędu.' },
+      ],
+    }))
+    // jsdom has no scrollIntoView; the chips scroll the problems table into view.
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    try {
+      renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+      expect(await screen.findByText('Reguły rozrzedzania zawieszone.')).toBeInTheDocument()
+      const hardOnly = screen.getByRole('button', { name: 'Tylko twarde' })
+      expect(hardOnly).toHaveAttribute('aria-pressed', 'false')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reguły twarde: 1 naruszenie' }))
+      expect(hardOnly).toHaveAttribute('aria-pressed', 'true')
+      expect(hardOnly).toHaveClass('on')
+      expect(screen.queryByText('Reguły rozrzedzania zawieszone.')).not.toBeInTheDocument()
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
+
+      fireEvent.click(screen.getByRole('button', { name: '1 ostrzeżenie miękkie' }))
+      expect(hardOnly).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByText('Reguły rozrzedzania zawieszone.')).toBeInTheDocument()
+
+      fireEvent.click(hardOnly)
+      expect(hardOnly).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByText('Reguły rozrzedzania zawieszone.')).not.toBeInTheDocument()
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView
+    }
+  })
+
+  it('shows unknown settings while the policy has not loaded', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedulingPolicy').mockReturnValue(new Promise(() => {}))
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    const budget = await screen.findByText('Budżet solvera')
+    const settings = budget.closest('dl') as HTMLElement
+    expect(within(settings).getAllByText('–')).toHaveLength(4)
+    expect(within(settings).getByText('Ta sama osoba co SECONDARY')).toBeInTheDocument()
+  })
+
+  it('names the stored settings next to the proposal once the policy is known', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    expect(await screen.findByText('15 s / przebieg')).toBeInTheDocument()
+    const settings = screen.getByText('Budżet solvera').closest('dl') as HTMLElement
+    expect(within(settings).queryByText('–')).not.toBeInTheDocument()
+  })
+
+  it('reports a draft that cannot be opened and opens it on retry', async () => {
+    stub([summary({ id: 'd1' })])
+    const fetchOne = vi.spyOn(api, 'schedule')
+      .mockRejectedValueOnce(new ApiError('Szkic nie istnieje', 404))
+      .mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    expect(screen.getByText('Otwieranie szkicu…')).toBeInTheDocument()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Szkic nie istnieje')
+    fireEvent.click(within(alert).getByRole('button', { name: 'Spróbuj ponownie' }))
+    expect(await screen.findByText('CP-SAT: OPTIMAL')).toBeInTheDocument()
+    expect(fetchOne).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('GeneratorPanel lifecycle actions', () => {
+  it('takes a proposal back to a draft', async () => {
+    stub([summary({ id: 'd1', status: 'proposed', version: 2 })])
+    vi.spyOn(api, 'schedule')
+      .mockResolvedValueOnce(draft({ id: 'd1', status: 'proposed', version: 2 }))
+      .mockResolvedValue(draft({ id: 'd1', status: 'draft', version: 3 }))
+    const withdraw = vi.spyOn(api, 'withdrawSchedule').mockResolvedValue(draft({ id: 'd1', status: 'draft', version: 3 }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Wróć do szkicu' }))
+    await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2 }))
+    expect(await screen.findByRole('button', { name: 'Przekaż do akceptacji' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Publikuj…/ })).not.toBeInTheDocument()
+  })
+
+  it('generates the open draft again over its own range', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    const generate = vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise(() => {}))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generuj ponownie' }))
+    await waitFor(() => expect(generate).toHaveBeenCalledWith({ starts_on: '2026-09-17', ends_on: '2026-09-18' }, expect.anything()))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Generuję 17 – 18 wrz' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Generuj ponownie' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Przekaż do akceptacji' })).toBeDisabled()
+  })
+
+  it('titles a resumed generation with the open draft range', async () => {
+    stub([summary({ id: 'd1' })], [run({ id: 'r1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    vi.spyOn(api, 'followRun').mockImplementation((_id, onProgress) => {
+      onProgress?.(run({ id: 'r1' }))
+      return new Promise(() => {})
+    })
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Generuję 17 – 18 wrz' })).toBeInTheDocument()
+    expect(screen.getByText(/nie uruchamiaj go drugi raz/)).toBeInTheDocument()
+  })
+})
+
+describe('GeneratorPanel settings drawer', () => {
+  it('closes with its close button', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    expect(await screen.findByRole('dialog', { name: 'Ustawienia generatora' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zamknij panel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('opens from the proposal settings with the draft range locked', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    const generate = vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise(() => {}))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Zmień i generuj ponownie' }))
+    const from = await screen.findByLabelText(/^Od/, { selector: '#settings-from' })
+    expect(from).toHaveValue('2026-09-17')
+    expect(from).toBeDisabled()
+    expect(screen.getByText('Zakres otwartego szkicu; nowy zakres zaczniesz z listy szkiców.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj' }))
+    await waitFor(() => expect(generate).toHaveBeenCalledWith({ starts_on: '2026-09-17', ends_on: '2026-09-18' }, expect.anything()))
+  })
+
+  it('edits the range from the drawer and generates it', async () => {
+    stub([])
+    const generate = vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise(() => {}))
+    renderScreen(<GeneratorPanel />)
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Ustawienia generatora/ }))
+    const from = await screen.findByLabelText(/^Od/, { selector: '#settings-from' })
+    expect(screen.getByText('Maks. 35 dni na jedno generowanie.')).toBeInTheDocument()
+    fireEvent.change(from, { target: { value: '2026-09-28' } })
+    fireEvent.change(screen.getByLabelText(/^Do/, { selector: '#settings-to' }), { target: { value: '2026-10-25' } })
+    expect(document.querySelector('#generator-from')).toHaveValue('2026-09-28')
+    expect(document.querySelector('#generator-to')).toHaveValue('2026-10-25')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj' }))
+    await waitFor(() => expect(generate).toHaveBeenCalledWith({ starts_on: '2026-09-28', ends_on: '2026-10-25' }, expect.anything()))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Generuj' })).not.toBeInTheDocument())
+  })
+
+  it('warns about the weekly mode, marks unsaved changes and restores the stored ones', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
+    await waitFor(() => expect(mode).toBeEnabled())
+    expect(screen.getByRole('button', { name: 'Przywróć zapisane' })).toBeDisabled()
+
+    fireEvent.change(mode, { target: { value: 'weekly' } })
+    fireEvent.change(screen.getByRole('combobox', { name: /Powiązanie 11–19/ }), { target: { value: 'independent' } })
+    expect(screen.getByText(/Tryb tygodniowy wyłącza limit 3 dyżurów/)).toBeInTheDocument()
+    expect(screen.getByText('niezapisane')).toBeInTheDocument()
+    expect(screen.getByText(/masz niezapisane zmiany w ustawieniach/)).toBeInTheDocument()
+    // Generating would ignore the unsaved values, so it waits for a save.
+    expect(screen.getByRole('button', { name: 'Generuj' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Przywróć zapisane' }))
+    expect(mode).toHaveValue('hybrid')
+    expect(screen.getByRole('combobox', { name: /Powiązanie 11–19/ })).toHaveValue('secondary')
+    expect(screen.queryByText(/Tryb tygodniowy wyłącza limit/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Generuj' })).toBeEnabled()
+  })
+
+  it('says it is saving while the policy is written and confirms it afterwards', async () => {
+    stub([])
+    let finish: (value: SchedulingPolicy) => void = () => {}
+    const save = vi.spyOn(api, 'updateSchedulingPolicy').mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    renderScreen(<GeneratorPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const weight = await screen.findByRole('spinbutton', { name: /Równy udział/ })
+
+    fireEvent.change(weight, { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz ustawienia generowania' }))
+    expect(await screen.findByRole('button', { name: /Zapisuję…/ })).toBeDisabled()
+    expect(save.mock.calls[0][0]).toMatchObject({ fairness_weight: 5 })
+
+    finish({ ...policy, fairness_weight: 5 })
+    expect(await screen.findByText('Zapisano.')).toBeInTheDocument()
+  })
+
+  it('reads an emptied budget as zero in the whole-run estimate', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const field = await screen.findByRole('spinbutton', { name: /Budżet czasu na przebieg/ })
+    await waitFor(() => expect(field).toHaveValue(15))
+
+    fireEvent.change(field, { target: { value: '' } })
+    expect(screen.getByText(/górny limit całego generowania to około 0 s/)).toBeInTheDocument()
+  })
+})
+
+describe('GeneratorPanel publication sheet', () => {
+  const started = draft({ id: 'd1', status: 'proposed', version: 2, starts_on: '2026-09-08', ends_on: '2026-09-18' })
+  const preview = {
+    lost_changes: [],
+    carried_changes: [],
+    pending_swaps: [],
+    uncovered_before: [],
+    stale_changes_count: 0,
+    rest_violations: [],
+  }
+
+  it('asks to acknowledge a range that has already begun and carries earlier changes over', async () => {
+    stub([summary({ id: 'd1', status: 'proposed', version: 2 })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(started)
+    vi.spyOn(api, 'publishPreview').mockResolvedValue({
+      ...preview,
+      carried_changes: [{
+        service_date: '2026-09-17',
+        role: 'secondary',
+        previous_assignee_name: 'Ola Wiśniewska',
+        new_assignee_name: 'Ola Wiśniewska',
+        source: 'approved_swap',
+        original_assignee_name: 'Marek Nowak',
+        reason: null,
+      }],
+    })
+    let finish: (value: DraftSchedule) => void = () => {}
+    const publish = vi.spyOn(api, 'publishSchedule').mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Ten zakres obejmuje dzisiejszy albo wcześniejszy dzień.')).toBeInTheDocument()
+    expect(await within(dialog).findByText('Zmiany zostaną przeniesione')).toBeInTheDocument()
+    expect(within(dialog).getByText('czw 17 wrz · SECONDARY: Ola Wiśniewska')).toBeInTheDocument()
+    const confirm = within(dialog).getByRole('button', { name: 'Publikuj v2' })
+    expect(confirm).toBeDisabled()
+
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /Rozumiem, że zmieniam dzień/ }))
+    expect(confirm).toBeEnabled()
+    fireEvent.click(confirm)
+    expect(await within(dialog).findByRole('button', { name: /Publikuję…/ })).toBeInTheDocument()
+    expect(publish.mock.calls[0][0]).toMatchObject({ id: 'd1', expectedVersion: 2, acknowledgeLostChanges: false, acknowledgeGap: false })
+
+    finish(draft({ ...started, status: 'published', version: 3 }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByText('grafik opublikowany')).toBeInTheDocument()
+  })
+
+  it('names a lost change without a reason and closes on the way back', async () => {
+    stub([summary({ id: 'd1', status: 'proposed', version: 2 })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    vi.spyOn(api, 'publishPreview').mockResolvedValue({
+      ...preview,
+      lost_changes: [{
+        service_date: '2026-09-17',
+        role: 'primary',
+        previous_assignee_name: 'Anna Kowalska',
+        new_assignee_name: 'Marek Nowak',
+        source: 'override',
+        original_assignee_name: 'Ola Wiśniewska',
+        reason: null,
+      }],
+    })
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(/PRIMARY: zmiana Anna Kowalska, szkic Marek Nowak\.$/)).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Ten zakres obejmuje dzisiejszy/)).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć do propozycji' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('closes the publication check with its close button, publishing nothing', async () => {
+    stub([summary({ id: 'd1', status: 'proposed', version: 2 })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    vi.spyOn(api, 'publishPreview').mockResolvedValue({ lost_changes: [], carried_changes: [], pending_swaps: [], uncovered_before: [], stale_changes_count: 0, rest_violations: [] })
+    const publish = vi.spyOn(api, 'publishSchedule')
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(publish).not.toHaveBeenCalled()
+  })
+
+  it('refuses to publish when the consequences cannot be checked', async () => {
+    stub([summary({ id: 'd1', status: 'proposed', version: 2 })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    vi.spyOn(api, 'publishPreview').mockRejectedValue(new ApiError('Błąd serwera', 500))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Nie udało się sprawdzić skutków publikacji.')
+    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
   })
 })

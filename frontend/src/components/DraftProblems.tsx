@@ -130,7 +130,7 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
               <td>
                 {by === 'person'
                   ? <StatusBadge tone={KIND_TONE[problem.kind]}>{t.kinds[problem.kind]}</StatusBadge>
-                  : <><b>{problem.person}</b>{problem.date && <small>{formatDayShort(problem.date)} · {problem.role ? roleLabels()[problem.role] : ''}</small>}</>}
+                  : <><b>{problem.person}</b>{problem.date && problem.role && <small>{formatDayShort(problem.date)} · {roleLabels()[problem.role]}</small>}</>}
               </td>
               <td>
                 <span className="problems-cell">

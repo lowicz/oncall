@@ -10,9 +10,12 @@ import { useMessages } from '../i18n/messages'
  * title is the dialog's accessible name; `tone="danger"` paints it red for
  * destructive confirmations.
  */
-export function Dialog({ open, onOpenChange, title, description, children, actions, size = 'md', tone = 'default', dismissible = true, className }: {
+export function Dialog({ open, onClose, title, description, children, actions, size = 'md', tone = 'default', dismissible = true, className }: {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  /** The dialog has no trigger: the page opens it through `open`, so the only
+   *  change it ever asks for is to close (Escape, the close button, the
+   *  backdrop). */
+  onClose: () => void
   title: ReactNode
   description?: ReactNode
   children?: ReactNode
@@ -25,7 +28,7 @@ export function Dialog({ open, onOpenChange, title, description, children, actio
 }) {
   const t = useMessages()
   return (
-    <BaseDialog.Root open={open} onOpenChange={(next) => { if (dismissible || next) onOpenChange(next) }} modal>
+    <BaseDialog.Root open={open} onOpenChange={() => { if (dismissible) onClose() }} modal>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className="dialog-backdrop" />
         <BaseDialog.Popup className={cx('dialog-popup', `dialog-${size}`, tone === 'danger' && 'dialog-danger', className)}>

@@ -185,8 +185,8 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   const roleNames = roleLabels()
   const days = monthDays(month)
   const lead = weekdayIndex(days[0])
-  const [anchor, setAnchor] = useState<string | null>(null)
-  const [hover, setHover] = useState<string | null>(null)
+  // A drag in progress: the day it started on and the day under the pointer.
+  const [drag, setDrag] = useState<{ anchor: string; hover: string } | null>(null)
   const lastPainted = useRef<string | null>(null)
   const dutiesByDate = useMemo(() => {
     const map = new Map<string, AssignmentRole[]>()
@@ -200,16 +200,12 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
     onPaint(startsOn, endsOn)
   }
   useEffect(() => {
-    if (!anchor) return
+    if (!drag) return
     const commit = () => {
-      if (anchor && hover) paint(anchor, hover)
-      setAnchor(null)
-      setHover(null)
+      paint(drag.anchor, drag.hover)
+      setDrag(null)
     }
-    const cancel = () => {
-      setAnchor(null)
-      setHover(null)
-    }
+    const cancel = () => setDrag(null)
     window.addEventListener('pointerup', commit)
     window.addEventListener('pointercancel', cancel)
     return () => {
@@ -219,9 +215,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
     // `paint` closes over the latest props; the listeners are re-bound on every
     // change of the drag so the commit always sees the current range.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anchor, hover])
-  const previewRange = anchor && hover
-    ? [anchor, hover].sort((a, b) => a.localeCompare(b))
+  }, [drag])
+  const previewRange = drag
+    ? [drag.anchor, drag.hover].sort((a, b) => a.localeCompare(b))
     : null
   const inPreview = (date: string) => Boolean(previewRange && previewRange[0] <= date && date <= previewRange[1])
   const previewTone = brush === 'clear' ? null : toneOf[brush]
@@ -266,10 +262,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
               disabled={past || disabled}
               onPointerDown={(event) => {
                 if (event.button !== 0) return
-                setAnchor(date)
-                setHover(date)
+                setDrag({ anchor: date, hover: date })
               }}
-              onPointerEnter={() => { if (anchor) setHover(date) }}
+              onPointerEnter={() => { if (drag) setDrag({ anchor: drag.anchor, hover: date }) }}
               onClick={(event) => {
                 // A pointer click was already committed on pointerup; the
                 // keyboard (Enter, Space) arrives here with no pointer at all.
@@ -324,8 +319,11 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   const ownMember = team.data?.find((member) => member.display_name === displayName)
   // '' means "myself"; a member id means "on behalf of that person".
   const [target, setTarget] = useState('')
-  const onBehalf = target !== '' && target !== ownMember?.id
-  const targetMember = team.data?.find((member) => member.id === target)
+  // The person picked, unless it is the user themself or has left the team
+  // since (a reload of the team drops them, and the section returns to the
+  // user's own availability).
+  const targetMember = team.data?.find((member) => member.id === target && member.id !== ownMember?.id)
+  const onBehalf = Boolean(targetMember)
   // An admin who is not in the rotation has no availability of their own to
   // show, so the section only works once a person is picked.
   const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf
@@ -344,7 +342,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
     queryFn: () => api.calendar(calendarStart, calendarEnd),
     enabled: !needsPick,
   })
-  const targetName = onBehalf ? targetMember?.display_name : displayName
+  const targetName = targetMember?.display_name ?? displayName
   const duties = (calendar.data?.assignments ?? []).filter((item) => item.assignee_name === targetName)
   const [brush, setBrush] = useState<Brush>('unavailable')
   const [note, setNote] = useState('')
@@ -382,7 +380,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
     },
   })
 
-  const heading = onBehalf ? t.headingFor(targetMember?.display_name ?? '') : t.heading
+  const heading = targetMember ? t.headingFor(targetMember.display_name) : t.heading
   return (
     <section className="stack-sm" aria-labelledby="dostepnosc" id="dostepnosc">
       <SectionHeading
@@ -447,7 +445,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
               {({ id, describedBy }) => <Input id={id} name={id} value={note} onChange={(event) => setNote(event.target.value)} aria-describedby={describedBy} />}
             </Field>
           </div>
-          {onBehalf && targetMember && (
+          {targetMember && (
             <div className="small muted">{t.onBehalfBefore} <b>{targetMember.display_name}</b> · {t.onBehalfAfter}</div>
           )}
           {canActOnBehalf && !onBehalf && !ownMember && team.data && (
@@ -621,7 +619,7 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
 }
 
 /** The ICS subscriptions, in a side panel behind the ICS export action. */
-function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function FeedsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useMessages().mine.feeds
   const queryClient = useQueryClient()
   const feeds = useQuery({ queryKey: ['feeds'], queryFn: api.feeds, enabled: open })
@@ -645,7 +643,7 @@ function FeedsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (open
   const visible = feeds.data?.filter((feed) => showRevoked || !feed.revoked_at) ?? []
   return (
     <>
-      <Panel open={open} onOpenChange={onOpenChange} title={t.title} meta={<Tag>{t.onlyYourDuties}</Tag>}>
+      <Panel open={open} onClose={onClose} title={t.title} meta={<Tag>{t.onlyYourDuties}</Tag>}>
         <p className="muted small">{t.explanation}</p>
         <form
           className="stack-sm"
@@ -814,7 +812,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
           </div>
         </div>
       )}
-      {inRotation && <FeedsPanel open={icsOpen} onOpenChange={setIcsOpen} />}
+      {inRotation && <FeedsPanel open={icsOpen} onClose={() => setIcsOpen(false)} />}
     </div>
   )
 }

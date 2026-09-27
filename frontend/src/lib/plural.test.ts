@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pluralFormPl, pluralPl } from './plural'
+import { pluralEn, pluralFormEn, pluralFormPl, pluralPl } from './plural'
 
 const entries: [string, string, string] = ['wpis', 'wpisy', 'wpisów']
 
@@ -20,5 +20,20 @@ describe('pluralPl', () => {
     const verb: [string, string, string] = ['zmienił', 'zmieniły', 'zmieniło']
     expect([1, 3, 5, 13, 23].map((count) => pluralFormPl(count, verb)))
       .toEqual(['zmienił', 'zmieniły', 'zmieniło', 'zmieniło', 'zmieniły'])
+  })
+})
+
+describe('pluralEn', () => {
+  it.each([
+    [0, '0 weeks'],
+    [1, '1 week'],
+    [2, '2 weeks'],
+    [21, '21 weeks'],
+  ])('writes %i as "%s"', (count, text) => {
+    expect(pluralEn(count, ['week', 'weeks'])).toBe(text)
+  })
+
+  it('gives the verb that agrees with the same count', () => {
+    expect([1, 2].map((count) => pluralFormEn(count, ['was', 'were']))).toEqual(['was', 'were'])
   })
 })

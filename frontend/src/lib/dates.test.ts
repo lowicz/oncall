@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { weekdays, weekdaysFromMonday, formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, formatWeekday, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
+import { isMonday, isoWeek, monthFromName, relativeDay, warsawDate, weekdays, weekdaysFromMonday, formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, formatWeekday, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
 
 describe('global date formatting', () => {
   it('formats API dates and timestamps as DD-MM-YYYY', () => {
     expect(formatDate('2026-09-03')).toBe('03-09-2026')
     expect(formatDate('2026-09-03T10:15:00Z')).toBe('03-09-2026')
+  })
+
+  it('shows a value that is not a date as it came', () => {
+    expect(formatDate('wkrótce')).toBe('wkrótce')
   })
 
   it('uses the same order in calendar day labels', () => {
@@ -89,5 +93,77 @@ describe('dates in running text', () => {
     expect(weeksWord(8)).toBe('8 tygodni')
     expect(weeksWord(12)).toBe('12 tygodni')
     expect(weeksWord(22)).toBe('22 tygodnie')
+  })
+})
+
+describe('today in Warsaw', () => {
+  it('is the Warsaw calendar day of the pinned clock', () => {
+    // setup.ts pins the clock to 10-09-2026, 09:00 in Warsaw.
+    expect(warsawDate()).toBe('2026-09-10')
+  })
+})
+
+describe('relativeDay', () => {
+  it('names the distance from a given day', () => {
+    expect(relativeDay('2026-09-10', '2026-09-10')).toBe('dziś')
+    expect(relativeDay('2026-09-11', '2026-09-10')).toBe('jutro')
+    expect(relativeDay('2026-09-09', '2026-09-10')).toBe('wczoraj')
+    expect(relativeDay('2026-09-15', '2026-09-10')).toBe('za 5 dni')
+    expect(relativeDay('2026-09-07', '2026-09-10')).toBe('3 dni temu')
+  })
+
+  it('counts from today in Warsaw by default', () => {
+    expect(relativeDay('2026-09-12')).toBe('za 2 dni')
+  })
+})
+
+describe('monthFromName', () => {
+  it('reads a month typed in either language, abbreviated or in full', () => {
+    expect(monthFromName('wrz')).toBe(9)
+    expect(monthFromName('Września')).toBe(9)
+    expect(monthFromName('paź')).toBe(10)
+    expect(monthFromName('sep')).toBe(9)
+    expect(monthFromName('September')).toBe(9)
+    expect(monthFromName('may')).toBe(5)
+  })
+
+  it('reads a month in the case used inside a date', () => {
+    expect(monthFromName('lipca')).toBe(7)
+    expect(monthFromName('stycznia')).toBe(1)
+  })
+
+  it('is null for words that name no month', () => {
+    expect(monthFromName('xyz')).toBeNull()
+    expect(monthFromName('')).toBeNull()
+  })
+})
+
+describe('isoWeek', () => {
+  it('numbers weeks from Monday, the first holding a Thursday', () => {
+    expect(isoWeek('2026-09-10')).toBe(37)
+    // A Sunday belongs to the week that began on the Monday before it.
+    expect(isoWeek('2026-09-13')).toBe(37)
+    expect(isoWeek('2026-09-14')).toBe(38)
+    // 1 January 2027 is a Friday, so it closes week 53 of 2026.
+    expect(isoWeek('2027-01-01')).toBe(53)
+    expect(isoWeek('2025-12-29')).toBe(1)
+  })
+
+  it('counts every week of a year that begins on a Friday', () => {
+    // 2027 opens on a Friday: its Thursdays fall on day 7, 14, ... of the
+    // year, where a count from a midday date overshoots by one week.
+    expect(isoWeek('2027-01-04')).toBe(1)
+    expect(isoWeek('2027-01-10')).toBe(1)
+    expect(isoWeek('2027-03-15')).toBe(11)
+    expect(isoWeek('2027-12-31')).toBe(52)
+    expect(isoWeek('2021-01-04')).toBe(1)
+  })
+})
+
+describe('isMonday', () => {
+  it('is true only for a Monday', () => {
+    expect(isMonday('2026-09-14')).toBe(true)
+    expect(isMonday('2026-09-13')).toBe(false)
+    expect(isMonday('2026-09-15')).toBe(false)
   })
 })

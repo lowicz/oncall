@@ -184,6 +184,9 @@ export function isoWeek(value: string) {
   const date = parse(value)
   const day = date.getUTCDay() || 7
   date.setUTCDate(date.getUTCDate() + 4 - day)
+  // Whole days from 1 January: `parse` gives midday, so the division leaves
+  // half a day that `Math.floor` drops.
   const yearStart = Date.UTC(date.getUTCFullYear(), 0, 1)
-  return Math.ceil(((date.getTime() - yearStart) / 86_400_000 + 1) / 7)
+  const dayOfYear = Math.floor((date.getTime() - yearStart) / 86_400_000)
+  return Math.floor(dayOfYear / 7) + 1
 }

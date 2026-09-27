@@ -1,9 +1,17 @@
-import { FairnessCategory, FairnessDuty, FairnessMember } from '../api'
+import { queryOptions, skipToken } from '@tanstack/react-query'
+import { DraftFairnessImpact, DraftSchedule, FairnessCategory, FairnessDuty, FairnessMember, api } from '../api'
 import { messages } from '../i18n/messages'
 import { formatDecimal } from './numbers'
 
 /** Widest deviation a bar renders at full length; beyond it the bar pins. */
 export const DEVIATION_SCALE = 3
+
+/** The fairness impact of one draft version: one cache entry the generator,
+ *  its matrix and its fairness panel share. Nothing is fetched without a draft. */
+export const draftFairnessImpactQuery = (draft: Pick<DraftSchedule, 'id' | 'version'> | null) => queryOptions<DraftFairnessImpact>({
+  queryKey: ['draft-fairness-impact', draft?.id, draft?.version],
+  queryFn: draft ? () => api.draftFairnessImpact(draft.id, draft.version) : skipToken,
+})
 
 export const roundPoints = (value: number) => Math.round(value * 100) / 100
 

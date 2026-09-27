@@ -241,8 +241,6 @@ export const generator = {
       noChange: 'bez istotnej zmiany',
       closer: (points: string) => `bliżej równowagi o ${points}`,
       further: (points: string) => `dalej od równowagi o ${points}`,
-      sameBalance: 'saldo bez zmiany',
-      otherSide: 'ta sama odległość, druga strona bilansu',
     },
     verdict: {
       better: 'lepiej',

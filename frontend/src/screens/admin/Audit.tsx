@@ -53,7 +53,7 @@ export function AuditPanel() {
   }, [action, actor, queryText, startsOn, endsOn, includeLogins])
 
   const exportCsv = () => {
-    const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+    const escape = (value: string) => `"${value.replaceAll('"', '""')}"`
     const columns = t.audit.csv.columns
     const rows = [[columns.occurredAt, columns.action, columns.actor, columns.summary, columns.details], ...events.map((event) => [
       event.occurred_at, event.action, event.actor_label, event.summary,

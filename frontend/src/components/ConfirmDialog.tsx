@@ -52,7 +52,7 @@ export function ConfirmDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => { if (!next) onCancel() }}
+      onClose={onCancel}
       title={title}
       size="sm"
       tone={confirmColor === 'error' ? 'danger' : 'default'}

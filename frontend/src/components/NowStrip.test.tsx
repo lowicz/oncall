@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { NowStrip, coverageEnd, formatUntil } from './NowStrip'
 import { api } from '../api'
@@ -48,5 +49,64 @@ describe('NowStrip', () => {
     const end = coverageEnd(duty({}))
     expect(formatUntil(end, new Date('2026-09-09T21:00:00'))).toBe('do czw 09:00 · 12 h 0 min')
     expect(formatUntil(coverageEnd(duty({ service_date: '2026-09-12', is_day_off: true })), new Date('2026-09-14T09:00:00'))).toBe('do niedz 00:00')
+  })
+
+  it('counts down the minutes left in a short window every minute', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
+      duty({ role: 'late_shift', service_date: '2026-09-10', coverage_starts_at: '08:00', coverage_ends_at: '09:30' }),
+    ]))
+    renderScreen(<NowStrip><button type="button">Motyw</button></NowStrip>)
+
+    const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
+    expect(await within(strip).findByText('do czw 09:30 · 30 min')).toBeInTheDocument()
+    act(() => { vi.advanceTimersByTime(60_000) })
+    expect(within(strip).getByText('do czw 09:30 · 29 min')).toBeInTheDocument()
+    expect(within(strip).getByRole('button', { name: 'Motyw' })).toBeInTheDocument()
+    // Nobody holds the other roles on a working day.
+    expect(within(strip).getAllByText('brak obsady')).toHaveLength(2)
+  })
+
+  it('marks the day shift as not applicable on a holiday and on a day off', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValueOnce({
+      ...schedule([duty({ service_date: '2026-09-10', coverage_starts_at: '19:00' })]),
+      today_is_day_off: true,
+      today_holiday_name: 'Wniebowzięcie',
+    })
+    renderScreen(<NowStrip />)
+    expect(await screen.findByText('święto · Wniebowzięcie')).toBeInTheDocument()
+    expect(screen.getByText('nie dotyczy')).toBeInTheDocument()
+    expect(screen.getByText('do pt 09:00 · 24 h 0 min')).toBeInTheDocument()
+  })
+
+  it('names a plain day off', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue({ ...schedule([]), today_is_day_off: true })
+    renderScreen(<NowStrip />)
+    expect(await screen.findByText('dzień wolny · 2X')).toBeInTheDocument()
+  })
+
+  it('says the connection is gone when nothing was ever loaded', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockRejectedValue(new Error('offline'))
+    renderScreen(<NowStrip />)
+    expect(await screen.findAllByText('brak połączenia')).toHaveLength(3)
+  })
+
+  it('keeps the last known staffing and its time when a refresh fails', async () => {
+    const published = vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ service_date: '2026-09-10' })]))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><NowStrip /></QueryClientProvider>)
+    expect(await screen.findByText('do pt 09:00 · 24 h 0 min')).toBeInTheDocument()
+
+    published.mockRejectedValue(new Error('offline'))
+    await act(async () => { await queryClient.refetchQueries({ queryKey: ['published-schedule'] }) })
+
+    await waitFor(() => expect(screen.getByText('stan z 09:00')).toHaveClass('now-stale'))
+    expect(screen.getByText('stan z 09:00')).toHaveAttribute('title', 'Stan z 09:00')
+    expect(screen.getByText('Anna Kowalska')).toBeInTheDocument()
+  })
+
+  it('leaves the end out when the window cannot be read', () => {
+    const end = coverageEnd(duty({ coverage_starts_at: '', coverage_ends_at: 'x' }))
+    expect(end).toBeNull()
+    expect(formatUntil(end, new Date())).toBe('')
   })
 })

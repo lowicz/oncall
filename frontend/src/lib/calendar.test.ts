@@ -5,6 +5,8 @@ import {
   coverageGaps,
   hasDutyInRange,
   isCurrentAssignee,
+  memberGroup,
+  memberGroupLabels,
   monthGroups,
   orderMembers,
   staffingCandidates,
@@ -235,5 +237,128 @@ describe('staffingCandidates (MED6-03)', () => {
     expect(
       staffingCandidates(calendar, '2026-09-01', 'primary')[0].disabledReason,
     ).toBe('nie ma uprawnień do roli')
+  })
+})
+
+describe('coverageGaps and the rotation window', () => {
+  const members = [
+    { id: 'm1', display_name: 'Anna', active_from: '2026-09-02' },
+    { id: 'm2', display_name: 'Marek', active_until: '2026-09-01' },
+    { id: 'm3', display_name: 'Ola', active_from: '2026-09-01', active_until: '2026-09-01' },
+  ]
+  const held = (service_date: string, role: 'primary' | 'secondary', member_id: string) =>
+    ({ ...assignment(service_date, role, 'x'), member_id })
+
+  it('counts only a slot held by a known person inside their rotation window', () => {
+    const gaps = coverageGaps(data({
+      members,
+      assignments: [
+        held('2026-09-01', 'primary', 'm1'), // before Anna joined
+        held('2026-09-01', 'secondary', 'm3'), // Ola's only day
+        held('2026-09-02', 'primary', 'm2'), // after Marek left
+        held('2026-09-02', 'secondary', 'gone'), // nobody the calendar knows
+      ],
+    }))
+    expect(gaps).toEqual([
+      { service_date: '2026-09-01', missing: ['primary'] },
+      { service_date: '2026-09-02', missing: ['primary', 'secondary'] },
+    ])
+  })
+
+  it('counts a person with no window at all', () => {
+    const gaps = coverageGaps(data({
+      days: [day('2026-09-01', 'wt')],
+      assignments: [held('2026-09-01', 'primary', 'm1'), held('2026-09-01', 'secondary', 'm1')],
+    }))
+    expect(gaps).toEqual([])
+  })
+})
+
+describe('orderMembers with the signed-in person later in the list', () => {
+  it('still puts them first, and people on duty before the idle', () => {
+    const members = [
+      { id: '1', display_name: 'Anna' },
+      { id: '2', display_name: 'Bartek' },
+      { id: '3', display_name: 'Ola' },
+    ]
+    const ordered = orderMembers(members, [assignment('2026-09-01', 'primary', 'Bartek')], 'Ola')
+    expect(ordered.map((m) => m.display_name)).toEqual(['Ola', 'Bartek', 'Anna'])
+    const reversed = orderMembers([...members].reverse(), [assignment('2026-09-01', 'primary', 'Bartek')], 'Ola')
+    expect(reversed.map((m) => m.display_name)).toEqual(['Ola', 'Bartek', 'Anna'])
+  })
+
+  it('puts a person on duty before an idle one whatever order they arrive in', () => {
+    const duty = [assignment('2026-09-01', 'primary', 'Zofia')]
+    const idleFirst = [{ id: '1', display_name: 'Anna' }, { id: '2', display_name: 'Zofia' }]
+    expect(orderMembers(idleFirst, duty, 'Nikt').map((m) => m.display_name)).toEqual(['Zofia', 'Anna'])
+    expect(orderMembers([...idleFirst].reverse(), duty, 'Nikt').map((m) => m.display_name))
+      .toEqual(['Zofia', 'Anna'])
+  })
+})
+
+describe('memberGroup', () => {
+  it('names the group each row is captioned under', () => {
+    const assignments = [assignment('2026-09-01', 'primary', 'Piotr')]
+    expect(memberGroup({ id: '1', display_name: 'Ola' }, assignments, 'Ola')).toBe('you')
+    expect(memberGroup({ id: '2', display_name: 'Piotr' }, assignments, 'Ola')).toBe('on_duty')
+    expect(memberGroup({ id: '3', display_name: 'Anna' }, assignments, 'Ola')).toBe('rest')
+  })
+
+  it('has a caption for the on-duty and idle groups', () => {
+    const labels = memberGroupLabels()
+    expect(Object.keys(labels).sort()).toEqual(['on_duty', 'rest'])
+    expect(labels.on_duty).not.toBe(labels.rest)
+  })
+})
+
+describe('availabilityDutyConflicts beyond the roster', () => {
+  it('skips a slot whose holder the calendar cannot name', () => {
+    const calendar = data({
+      assignments: [
+        assignment('2026-09-01', 'primary', 'Nieznany'),
+        { ...assignment('2026-09-01', 'secondary', 'Były'), member_id: 'gone' },
+      ],
+      availability: [{
+        member_id: 'gone', kind: 'unavailable', starts_on: '2026-09-01', ends_on: '2026-09-01', note: null,
+      }],
+    })
+    expect(availabilityDutyConflicts(calendar)).toEqual([])
+  })
+
+  it('ignores a soft preference and a day outside the entry', () => {
+    const calendar = data({
+      assignments: [assignment('2026-09-01', 'primary', 'Anna'), assignment('2026-09-02', 'primary', 'Anna')],
+      availability: [
+        { member_id: 'm1', kind: 'prefer_not', starts_on: '2026-09-01', ends_on: '2026-09-01', note: null },
+        { member_id: 'm1', kind: 'unavailable', starts_on: '2026-09-03', ends_on: '2026-09-04', note: null },
+      ],
+    })
+    expect(availabilityDutyConflicts(calendar)).toEqual([])
+  })
+})
+
+describe('staffingCandidates for the secondary role', () => {
+  it('disables whoever holds primary that day and honours eligibility end dates', () => {
+    const calendar = data({
+      members: [
+        { id: 'm1', display_name: 'Anna' },
+        {
+          id: 'm2', display_name: 'Bartek',
+          eligibility: [{ role: 'secondary', starts_on: '2026-01-01', ends_on: '2026-08-31' }],
+        },
+        {
+          id: 'm3', display_name: 'Celina',
+          eligibility: [{ role: 'secondary', starts_on: '2026-01-01', ends_on: '2026-12-31' }],
+        },
+      ],
+      assignments: [{ ...assignment('2026-09-01', 'primary', 'Anna'), member_id: 'm1' }],
+    })
+    const reasons = Object.fromEntries(staffingCandidates(calendar, '2026-09-01', 'secondary')
+      .map((item) => [item.display_name, item.disabledReason]))
+    expect(reasons).toEqual({
+      Anna: 'ma już drugi on-call tego dnia',
+      Bartek: 'nie ma uprawnień do roli',
+      Celina: undefined,
+    })
   })
 })

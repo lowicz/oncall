@@ -5,7 +5,7 @@ import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { monthGroups, startsWeek } from '../lib/calendar'
 import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
-import { roundPoints } from '../lib/fairness'
+import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
 import { signed } from '../lib/numbers'
 import { AvailabilityMark, Box, Button, ErrorState, Field, LoadingBlock, Panel, RoleMark, Select, Tag, cx } from '../ui'
 
@@ -34,10 +34,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
     queryKey: ['draft-matrix-metadata', result.starts_on, result.ends_on],
     queryFn: () => api.calendar(result.starts_on, result.ends_on),
   })
-  const fairness = useQuery({
-    queryKey: ['draft-fairness-impact', result.id, result.version],
-    queryFn: () => api.draftFairnessImpact(result.id, result.version),
-  })
+  const fairness = useQuery(draftFairnessImpactQuery(result))
   const override = useMutation({
     mutationFn: api.overrideDraft,
     onSuccess: (value) => {
@@ -152,7 +149,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
       )}
       <Panel
         open={Boolean(selected)}
-        onOpenChange={(open) => { if (!open) setSelected(null) }}
+        onClose={() => setSelected(null)}
         title={selected ? `${selected.member.display_name} · ${formatDate(selected.day.service_date)}` : ''}
         meta={selected?.day.is_day_off && <Tag tone="late">{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
         footer={selected && (

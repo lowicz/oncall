@@ -29,13 +29,15 @@ function renderShell(
   share: ShareSession | null = null,
   version: string | null = '1.4.0',
   avatar: string | null = null,
+  route = '/',
+  subtitle = '',
 ) {
   // `null`: the configuration never arrives, as in the first moments after
   // the page loads.
   vi.spyOn(api, 'publicConfig').mockImplementation(() => (
     version === null
       ? new Promise(() => {})
-      : Promise.resolve({ ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version, audit_retention_days: 365, login_audit_retention_days: 90 })
+      : Promise.resolve({ ldap_enabled: false, app_name: 'On-call', app_subtitle: subtitle, version, audit_retention_days: 365, login_audit_retention_days: 90 })
   ))
   vi.spyOn(api, 'publishedSchedule').mockResolvedValue({
     generated_at: '2026-09-01T10:00:00Z',
@@ -55,6 +57,7 @@ function renderShell(
         <Route path="*" element={<div>treść</div>} />
       </Route>
     </Routes>,
+    { route },
   )
 }
 
@@ -394,5 +397,116 @@ describe('AppShell error boundary', () => {
     fireEvent.click(screen.getByRole('link', { name: /Teraz/ }))
     expect(await screen.findByText('ekran działa')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('AppShell command palette', () => {
+  const palette = () => screen.findByRole('combobox', { name: 'Szukaj' })
+
+  it('opens and closes on Ctrl K and opens on Cmd K', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true })
+    await screen.findByRole('navigation', { name: 'Główna nawigacja' })
+
+    fireEvent.keyDown(window, { key: 'k' })
+    expect(screen.queryByRole('combobox', { name: 'Szukaj' })).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'K', ctrlKey: true })
+    expect(await palette()).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Szukaj' })).not.toBeInTheDocument())
+    fireEvent.keyDown(window, { key: 'k', metaKey: true })
+    expect(await palette()).toBeInTheDocument()
+  })
+
+  it('opens from the strip, the rail and the account menu', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Szukaj osoby, dnia, ekranu lub akcji' }))
+    fireEvent.keyDown(await palette(), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Szukaj' })).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /^Paleta/ }))
+    fireEvent.keyDown(await palette(), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Szukaj' })).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /^Konto: / }))
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /Paleta poleceń/ }))
+    expect(await palette()).toBeInTheDocument()
+  })
+
+  it('opens from the phone top bar', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true })
+    fireEvent.click(await screen.findByRole('button', { name: 'Szukaj osoby, dnia, ekranu lub akcji' }))
+    expect(await palette()).toBeInTheDocument()
+  })
+
+  it('offers no palette to a share-link session', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'viewer', hasTeamMember: false }, 'Odbiorca', {
+      label: 'Audyt', starts_on: '2026-09-05', ends_on: '2026-10-02', expires_at: '2026-10-03T00:00:00Z',
+    })
+    await screen.findByText(/zakres 05-09-2026/)
+    expect(screen.queryByRole('button', { name: 'Szukaj osoby, dnia, ekranu lub akcji' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Konto: / }))
+    expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: /Paleta poleceń/ })).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    expect(screen.queryByRole('combobox', { name: 'Szukaj' })).not.toBeInTheDocument()
+  })
+})
+
+describe('AppShell titles and state', () => {
+  it('names the brand subtitle in the rail and the screen in the tab title', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true }, 'Piotr Zieliński', null, '1.4.0', null, '/grafik', 'Zespół sieci')
+    expect(await screen.findByText('Zespół sieci')).toHaveClass('brand-sub')
+    await waitFor(() => expect(document.title).toBe('Grafik · On-call'))
+  })
+
+  it('names the „Więcej” screen on a phone and marks its tab', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true }, 'Piotr Zieliński', null, '1.4.0', null, '/wiecej')
+    expect(await screen.findByRole('banner')).toHaveTextContent('Więcej')
+    expect(screen.getByRole('link', { name: /Więcej/ })).toHaveClass('active')
+    await waitFor(() => expect(document.title).toBe('Więcej · On-call'))
+  })
+
+  it('falls back to the product name for a path that names no screen', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true }, 'Piotr Zieliński', null, '1.4.0', null, '/nieznane')
+    expect(await screen.findByRole('banner')).toHaveTextContent('On-call')
+    await waitFor(() => expect(document.title).toBe('On-call'))
+  })
+
+  it('badges the swaps tab on a phone', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'swaps').mockResolvedValue([swap({ id: '1' })])
+    renderShell({ role: 'member', hasTeamMember: true })
+    const tabs = await screen.findByRole('navigation', { name: 'Nawigacja dolna' })
+    const link = within(tabs).getByRole('link', { name: /Zamiany/ })
+    await waitFor(() => expect(link.querySelector('.nav-cnt')?.textContent).toBe('1'))
+  })
+
+  it('announces the logout, then forgets the session and goes to the start page', async () => {
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    let finish: () => void = () => {}
+    vi.spyOn(api, 'logout').mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const assign = vi.fn()
+    const original = window.location
+    Object.defineProperty(window, 'location', { value: { ...original, assign }, configurable: true })
+    try {
+      renderShell({ role: 'member', hasTeamMember: true })
+      fireEvent.click(await screen.findByRole('button', { name: /^Konto: / }))
+      fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /Wyloguj/ }))
+      expect(await screen.findByText('Wylogowuję')).toBeInTheDocument()
+      finish()
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('/'))
+    } finally {
+      Object.defineProperty(window, 'location', { value: original, configurable: true })
+    }
   })
 })

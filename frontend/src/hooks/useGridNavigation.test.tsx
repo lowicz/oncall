@@ -67,6 +67,25 @@ describe('useGridNavigation', () => {
     expect(document.activeElement).toBe(cell(1, 0))
   })
 
+  it('sends Ctrl+Home and Ctrl+End to the corners of the grid', () => {
+    render(<Grid rows={3} cols={12} />)
+    act(() => cell(1, 4).focus())
+    fireEvent.keyDown(cell(1, 4), { key: 'End', ctrlKey: true })
+    expect(document.activeElement).toBe(cell(2, 11))
+    fireEvent.keyDown(cell(2, 11), { key: 'Home', ctrlKey: true })
+    expect(document.activeElement).toBe(cell(0, 0))
+  })
+
+  it('leaves other keys to the cell, so Enter and Space still press it', () => {
+    render(<Grid rows={2} cols={4} />)
+    act(() => cell(1, 2).focus())
+    const handled = fireEvent.keyDown(cell(1, 2), { key: 'Enter' })
+    // Not prevented: the browser's default (pressing the button) still happens.
+    expect(handled).toBe(true)
+    expect(document.activeElement).toBe(cell(1, 2))
+    expect(cell(1, 2).tabIndex).toBe(0)
+  })
+
   it('focusCell moves focus programmatically, for the jump-to-gap action', () => {
     function Harness() {
       const grid = useGridNavigation(2, 8)

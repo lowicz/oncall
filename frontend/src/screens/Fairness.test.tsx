@@ -3,7 +3,7 @@ import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { loadRealStylesheet } from '../test/stylesheet'
 import { FairnessPanel } from './Fairness'
-import { api } from '../api'
+import { api, ApiError } from '../api'
 import type { FairnessReport } from '../api'
 
 const balance = (actual: number, deviation: number) => ({ actual, expected: 1, deviation })
@@ -326,5 +326,175 @@ describe('FairnessPanel table lines', () => {
     expect(bottomLine(table.tBodies[0].rows[0].cells[0])).toBe('1px')
     expect(new Set(lastCells(table.tBodies[0].rows).map(bottomLine))).toEqual(new Set(['0px']))
     expect(new Set(lastCells(table.tFoot!.rows).map(bottomLine))).toEqual(new Set(['0px']))
+  })
+})
+
+describe('FairnessPanel drilldown plans', () => {
+  const behind = {
+    ...member('Jakub Polak'),
+    primary: { actual: 1, expected: 2, deviation: -1 },
+    secondary: { actual: 1, expected: 2, deviation: -1 },
+  }
+  const ahead = {
+    ...member('Ola Wiśniewska'),
+    primary: { actual: 3, expected: 2, deviation: 1 },
+    secondary: { actual: 3, expected: 2, deviation: 1 },
+  }
+
+  it('promises more duties to someone below the share and fewer to someone above it', async () => {
+    vi.spyOn(api, 'fairness').mockResolvedValue({ ...report(false), members: [behind, ahead] })
+    vi.spyOn(api, 'fairnessDuties').mockResolvedValue([])
+    renderScreen(<FairnessPanel />)
+    await screen.findByText('Jakub Polak')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rozwiń: Jakub Polak' }))
+    expect(await screen.findByText('W następnym zakresie Jakub dostanie więcej dyżurów, o 2,0 pkt do wyrównania.')).toBeInTheDocument()
+    expect(await screen.findByText('Brak dyżurów w tym oknie.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rozwiń: Ola Wiśniewska' }))
+    expect(await screen.findByText('W następnym zakresie Ola dostanie mniej dyżurów, o 2,0 pkt do wyrównania.')).toBeInTheDocument()
+    // One row open at a time.
+    expect(screen.queryByText(/Jakub dostanie więcej/)).not.toBeInTheDocument()
+  })
+
+  it('reports a failed month list and loads it again on retry', async () => {
+    vi.spyOn(api, 'fairness').mockResolvedValue(report(false))
+    const duties = vi.spyOn(api, 'fairnessDuties')
+      .mockRejectedValueOnce(new ApiError('Serwer nie odpowiada', 503))
+      .mockResolvedValue([{ service_date: '2026-08-15', role: 'primary', points: 2, is_day_off: true }])
+    renderScreen(<FairnessPanel />)
+    await screen.findByText('Anna Kowalska')
+    fireEvent.click(screen.getByRole('button', { name: 'Rozwiń: Anna Kowalska' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Serwer nie odpowiada')
+    fireEvent.click(within(alert).getByRole('button', { name: 'Spróbuj ponownie' }))
+    expect(await screen.findByText('sob 15 sie')).toBeInTheDocument()
+    expect(duties).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('FairnessPanel report states', () => {
+  it('shows a failed report and fetches it again on retry', async () => {
+    const fairness = vi.spyOn(api, 'fairness')
+      .mockRejectedValueOnce(new ApiError('Brak dostępu do raportu', 500))
+      .mockResolvedValue(report(false))
+    renderScreen(<FairnessPanel />)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Brak dostępu do raportu')
+    expect(screen.getByText('Kroczące 12 miesięcy dyżurów względem sprawiedliwego udziału.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Eksport CSV/ })).toBeDisabled()
+    fireEvent.click(within(alert).getByRole('button', { name: 'Spróbuj ponownie' }))
+    expect(await screen.findByText('Anna Kowalska')).toBeInTheDocument()
+    expect(fairness).toHaveBeenCalledTimes(2)
+  })
+
+  it('moves the report to another day and back to today, ignoring a cleared field', async () => {
+    const fairness = vi.spyOn(api, 'fairness').mockResolvedValue(report(false))
+    renderScreen(<FairnessPanel />)
+    await screen.findByText('Anna Kowalska')
+    expect(fairness).toHaveBeenLastCalledWith(undefined)
+
+    const field = screen.getByLabelText('Stan na dzień')
+    fireEvent.change(field, { target: { value: '2026-06-30' } })
+    await vi.waitFor(() => expect(fairness).toHaveBeenLastCalledWith('2026-06-30'))
+    expect(field).toHaveValue('2026-06-30')
+
+    fireEvent.change(field, { target: { value: '' } })
+    expect(field).toHaveValue('2026-06-30')
+
+    // The field sits in a form only so Enter does not reload the page.
+    expect(fireEvent.submit(field.closest('form')!)).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dziś' }))
+    expect(field).toHaveValue('2026-09-10')
+    await vi.waitFor(() => expect(fairness).toHaveBeenLastCalledWith(undefined))
+  })
+
+  it('falls back to the total lens when the 11-19 shift stops being its own lens', async () => {
+    vi.spyOn(api, 'fairness').mockImplementation(async (asOf) => report(asOf === undefined))
+    renderScreen(<FairnessPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: '11–19' }))
+    expect(screen.getByRole('columnheader', { name: /Odchylenie · 11–19/ })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Stan na dzień'), { target: { value: '2026-06-30' } })
+    expect(await screen.findByRole('columnheader', { name: /Odchylenie · Razem/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '11–19' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Razem' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('switches the lens from a spread chip and names a lens it does not know by its key', async () => {
+    const withUnknown = report(false)
+    withUnknown.spreads = [...withUnknown.spreads, { lens: 'nights', spread: 0.5, meets_criterion: true }]
+    vi.spyOn(api, 'fairness').mockResolvedValue(withUnknown)
+    renderScreen(<FairnessPanel />)
+
+    expect(await screen.findByText('nights: rozpiętość 0,5 · spełnia')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'PRIMARY: rozpiętość 1,5 · spełnia' }))
+    expect(screen.getByRole('columnheader', { name: /Odchylenie · PRIMARY/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'PRIMARY', pressed: true })).toBeInTheDocument()
+  })
+
+  it('treats roles missing from the eligible days as not held', async () => {
+    const unknownDays = { ...member('Rafał Kamiński'), eligible_days: {} }
+    vi.spyOn(api, 'fairness').mockResolvedValue({ ...report(true), members: [member('Anna Kowalska'), unknownDays] })
+    renderScreen(<FairnessPanel />)
+
+    const row = await vi.waitFor(() => rowOf('Rafał Kamiński'))
+    expect(within(row).getByText('bez zmian 11–19')).toBeInTheDocument()
+    // PRIMARY, SECONDARY and 11-19 are not held; weekends and holidays always are.
+    expect(within(row).getAllByText('nie pełni tej roli')).toHaveLength(3)
+  })
+
+  it('counts no hidden 11-19 shifts when the totals leave that count out', async () => {
+    const totals = { ...report(false).totals }
+    delete totals.late_shift_count
+    vi.spyOn(api, 'fairness').mockResolvedValue({ ...report(false), totals })
+    renderScreen(<FairnessPanel />)
+    expect(await screen.findByText(/łączna liczba zmian 11–19 w oknie: 0\./)).toBeInTheDocument()
+  })
+})
+
+describe('FairnessPanel CSV export', () => {
+  async function exportedCsv(data: FairnessReport) {
+    vi.spyOn(api, 'fairness').mockResolvedValue(data)
+    let blob: Blob | undefined
+    const createObjectURL = vi.fn((value: Blob) => { blob = value; return 'blob:fairness' })
+    const revokeObjectURL = vi.fn()
+    Object.assign(URL, { createObjectURL, revokeObjectURL })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe('sprawiedliwosc-2026-09-06.csv')
+      expect(this.href).toBe('blob:fairness')
+    })
+    renderScreen(<FairnessPanel />)
+    await screen.findByText(data.members[0].display_name)
+    fireEvent.click(screen.getByRole('button', { name: /Eksport CSV/ }))
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:fairness')
+    expect(blob!.type).toBe('text/csv;charset=utf-8')
+    // A byte-order mark first, so a spreadsheet reads the Polish letters as UTF-8.
+    expect(Array.from(new Uint8Array(await blob!.arrayBuffer()).slice(0, 3))).toEqual([0xEF, 0xBB, 0xBF])
+    return (await blob!.text()).split('\n')
+  }
+
+  it('writes one quoted row per person with the 11-19 columns when that shift is its own lens', async () => {
+    const quoted = { ...member('Anna "Ania" Kowalska'), member_id: 'anna' }
+    const lines = await exportedCsv({ ...report(true), members: [quoted] })
+    expect(lines[0]).toBe('"osoba";"w_rotacji_od";"razem_pkt";"razem_udzial";"razem_odchylenie";'
+      + '"primary_pkt";"primary_udzial";"primary_odchylenie";"secondary_pkt";"secondary_udzial";"secondary_odchylenie";'
+      + '"late_shift_pkt";"late_shift_udzial";"late_shift_odchylenie";"weekends_pkt";"weekends_udzial";"weekends_odchylenie";'
+      + '"holidays_pkt";"holidays_udzial";"holidays_odchylenie"')
+    expect(lines[1]).toBe('"Anna ""Ania"" Kowalska";"2024-01-01";6;3;0;3;1;0.5;2;1;-0.5;1;1;0;1;1;0;0;1;0')
+    expect(lines).toHaveLength(2)
+  })
+
+  it('leaves the 11-19 columns out when the shift follows the anchor role', async () => {
+    const lines = await exportedCsv(report(false))
+    expect(lines[0]).not.toContain('late_shift')
+    expect(lines.slice(1)).toEqual([
+      '"Anna Kowalska";"2024-01-01";5;2;0;3;1;0.5;2;1;-0.5;1;1;0;0;1;0',
+      '"Marek Nowak";"2024-01-01";5;2;0;3;1;0.5;2;1;-0.5;1;1;0;0;1;0',
+    ])
   })
 })

@@ -95,7 +95,7 @@ export function AvailabilityMark({ kind, className, withLabel }: { kind: Availab
 export function Avatar({ name, size = 26, className, src }: { name: string; size?: number; className?: string; src?: string | null }) {
   // The source the browser refused, so a new one is tried afresh.
   const [broken, setBroken] = useState<string | null>(null)
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('')
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('')
   const photo = src && src !== broken ? src : null
   return (
     <span className={cx('ava', photo && 'ava-photo', className)} style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }} aria-hidden="true">
