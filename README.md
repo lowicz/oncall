@@ -89,7 +89,9 @@ next to SonarCloud, CodeQL and Dependency Review; a tag `vX.Y.Z` publishes the i
 settings: [docs/wdrozenie/wydania.md](docs/wdrozenie/wydania.md).
 
 Test coverage on `main`, as SonarCloud measures it from the reports the two
-test jobs upload:
+test jobs upload. Both test jobs fail below 100% of lines and branches
+(`fail_under` in `backend/pyproject.toml`, `thresholds` in
+`frontend/vite.config.ts`), so new code arrives with its tests:
 
 [![Backend coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fsonarcloud.io%2Fapi%2Fmeasures%2Fcomponent%3Fcomponent%3Dlowicz_oncall%253Abackend%252Fsrc%252Foncall%26metricKeys%3Dcoverage&query=%24.component.measures%5B0%5D.value&label=backend%20coverage&suffix=%25&color=3776AB&logo=python&logoColor=white)](https://sonarcloud.io/component_measures?id=lowicz_oncall&metric=coverage&view=list)
 [![Frontend coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fsonarcloud.io%2Fapi%2Fmeasures%2Fcomponent%3Fcomponent%3Dlowicz_oncall%253Afrontend%252Fsrc%26metricKeys%3Dcoverage&query=%24.component.measures%5B0%5D.value&label=frontend%20coverage&suffix=%25&color=3178C6&logo=typescript&logoColor=white)](https://sonarcloud.io/component_measures?id=lowicz_oncall&metric=coverage&view=list)
@@ -129,7 +131,7 @@ uv must be the release pinned by `required-version` in `backend/pyproject.toml`;
 any other refuses to run and prints the command that installs the right one.
 
 The gates CI runs, in the same order: `uv run ruff check .`, `uv run ruff format --check .`,
-`uv run mypy`, `uv run pytest`, `uv run python scripts/openapi_snapshot.py`. The
+`uv run mypy`, `uv run pytest --cov`, `uv run python scripts/openapi_snapshot.py`. The
 PostgreSQL suites need a disposable server:
 `docker compose -f docker-compose.contract.yml up -d` and
 `ONCALL_TEST_POSTGRES_URL=postgresql+asyncpg://oncall_contract:oncall_contract@127.0.0.1:55432/oncall_contract uv run pytest tests/test_concurrency_postgres.py tests/test_schema_postgres.py`.

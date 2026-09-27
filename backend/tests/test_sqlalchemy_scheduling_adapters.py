@@ -1,8 +1,13 @@
 """The scheduling adapters on their own."""
 
-from datetime import date, timedelta
+import uuid
+from datetime import UTC, date, datetime, timedelta
+from types import SimpleNamespace
+from typing import Any
 
+import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from oncall.domain.scheduling.ports import NewDraft
 from oncall.domain.scheduling.solver import GeneratedAssignment, SolverResult
@@ -13,10 +18,12 @@ from oncall.domain.vocabulary import (
     SwapStatus,
     UserRole,
 )
+from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
 from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
+from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.infrastructure.sqlalchemy.scheduling_publication import SqlAlchemyPublicationSwaps
 from oncall.infrastructure.sqlalchemy.scheduling_schedules import SqlAlchemySchedules
-from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
 from tests.conftest import create_member, create_published_schedule, create_user
 
 DAY = date.today() + timedelta(days=30)
@@ -117,3 +124,103 @@ async def test_swaps_are_cancelled_for_a_publication_with_the_reason_recorded(db
         SwapStatus.cancelled,
         "Grafik zastąpiony nową publikacją",
     )
+
+
+async def test_a_run_that_loses_its_insert_to_an_active_one_gets_the_active_run(db) -> None:
+    """PostgreSQL's partial unique index turns the second of two racing inserts
+    into an IntegrityError. SQLite has no such index, so an unknown requester
+    (a foreign-key violation) stands in for the lost race."""
+    user = await create_user(db, "koord", role=UserRole.coordinator)
+    queue = SqlAlchemyGenerationQueue(db)
+    first = await queue.enqueue(DAY, DAY + timedelta(days=6), user.id)
+    await db.commit()
+
+    again = await queue.enqueue(DAY, DAY + timedelta(days=6), uuid.uuid4())
+    await db.commit()
+
+    assert again.id == first.id
+    runs = (await db.scalars(select(ScheduleRun))).all()
+    assert [run.id for run in runs] == [first.id]
+
+
+async def test_an_insert_that_fails_with_no_active_run_raises_and_keeps_the_session(db) -> None:
+    user = await create_user(db, "koord", role=UserRole.coordinator)
+    queue = SqlAlchemyGenerationQueue(db)
+
+    with pytest.raises(IntegrityError):
+        await queue.enqueue(DAY, DAY + timedelta(days=6), uuid.uuid4())
+
+    # Only the savepoint was undone: the unit of work goes on.
+    kept = await queue.enqueue(DAY, DAY + timedelta(days=6), user.id)
+    await db.commit()
+    assert (await queue.active_run_for(DAY, DAY + timedelta(days=6))).id == kept.id
+
+
+class _RecordingSession:
+    def __init__(self, dialect: str) -> None:
+        self.bind = SimpleNamespace(dialect=SimpleNamespace(name=dialect))
+        self.statements: list[str] = []
+
+    async def execute(self, statement: Any) -> None:
+        self.statements.append(str(statement))
+
+
+async def test_publication_is_serialised_by_an_advisory_lock_on_postgresql_only() -> None:
+    postgres = _RecordingSession("postgresql")
+    sqlite = _RecordingSession("sqlite")
+
+    await SqlAlchemySchedules(postgres).hold_publication()
+    await SqlAlchemySchedules(sqlite).hold_publication()
+
+    (statement,) = postgres.statements
+    assert statement.startswith("SELECT pg_advisory_xact_lock(")
+    assert sqlite.statements == []
+
+
+async def test_publishing_under_the_same_name_keeps_the_name(db) -> None:
+    schedule = await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
+    schedule.status = ScheduleStatus.proposed
+    await db.commit()
+    schedules = SqlAlchemySchedules(db)
+    await schedules.hold_publication()
+    await schedules.schedule_to_publish(schedule.id)
+    moment = datetime(2030, 1, 1, tzinfo=UTC)
+
+    await schedules.mark_published(schedule.id, name=schedule.name, published_at=moment)
+    await db.commit()
+
+    reread = await schedules.schedule(schedule.id)
+    assert (reread.status, reread.version, reread.name) == (
+        ScheduleStatus.published,
+        2,
+        "Test schedule",
+    )
+
+
+async def test_the_days_a_swap_touches_are_read_per_request(db) -> None:
+    schedule = await create_published_schedule(db, starts_on=DAY, days=2, primary=["Anna"])
+    people = []
+    for name in ("Anna", "Bartek"):
+        user = await create_user(db, name.lower(), display_name=name)
+        people.append(await create_member(db, user, display_name=name))
+    swap = SwapRequest(
+        schedule_id=schedule.id,
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_member_id=people[0].id,
+        replacement_member_id=people[1].id,
+        status=SwapStatus.pending_coordinator,
+        schedule_version=1,
+    )
+    swap.slots = [
+        SwapRequestSlot(service_date=DAY, role=AssignmentRole.primary),
+        SwapRequestSlot(service_date=DAY + timedelta(days=1), role=AssignmentRole.primary),
+    ]
+    db.add(swap)
+    await db.commit()
+
+    days = await SqlAlchemyChangeLog(db).swap_slot_days([swap.id, uuid.uuid4()])
+
+    assert {key: sorted(value) for key, value in days.items()} == {
+        swap.id: [DAY, DAY + timedelta(days=1)]
+    }

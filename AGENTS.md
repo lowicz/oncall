@@ -124,8 +124,12 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   requires its quality gate as the separate `SonarCloud Code Analysis`
   status. The gate wants 80% coverage on new code, read from the
   `backend/coverage.xml` (`pytest --cov`) and `frontend/coverage/lcov.info`
-  (`npm test -- --coverage`) reports the test jobs upload, so changed lines
-  need tests. Run the same required commands locally before pushing.
+  (`npm test -- --coverage`) reports the test jobs upload; those two runs
+  themselves fail below 100% of lines and branches (`fail_under` in
+  `backend/pyproject.toml`, `thresholds` in `frontend/vite.config.ts`), so
+  every changed line and branch needs a test. The backend figure is the
+  SQLite suite alone: PostgreSQL-only statements are reached with a fake
+  `postgresql` dialect, and code no test can reach is deleted, not excluded. Run the same required commands locally before pushing.
   Before opening a PR, compare the complete branch diff with the authorized task scope and stop for review if unrelated paths are present.
 - Security scanning: `codeql.yml` (advanced setup; GitHub's default setup
   must stay off) and `dependency-review.yml` (fails on high/critical). The

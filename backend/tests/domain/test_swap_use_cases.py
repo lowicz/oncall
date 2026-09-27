@@ -1,10 +1,13 @@
 """Swap use cases against in-memory ports: no database, no HTTP."""
 
+import uuid
+from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
 
 from oncall.domain.errors import NotATeamMember
+from oncall.domain.roster import ScheduleRef
 from oncall.domain.swaps import errors
 from oncall.domain.swaps.models import (
     SLOT_CHANGED_OWNER_NOTE,
@@ -25,10 +28,12 @@ from oncall.domain.swaps.use_cases import (
     preview_swap_impact,
     reject_swap,
     request_swap,
+    swap_policy,
 )
 from oncall.domain.team import Actor
 from oncall.domain.vocabulary import (
     AssignmentRole,
+    LateShiftAnchor,
     RotationMode,
     ScheduleStatus,
     SwapStatus,
@@ -535,3 +540,277 @@ async def test_members_list_only_the_requests_they_take_part_in(world) -> None:
 
     everything = await list_swap_requests(SwapListQuery(coordinator()), world.swaps)
     assert len(everything) == 2
+
+
+async def test_a_request_whose_duty_is_already_past_cannot_be_accepted(world) -> None:
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    with pytest.raises(errors.SwapInThePast):
+        await accept_swap(
+            SwapDecisionInput(account(world.dawid), request.id),
+            world.swaps,
+            today=DAY + timedelta(days=1),
+        )
+    assert world.requests.decisions == []
+
+
+async def test_a_self_standing_acceptance_needs_the_requester_still_on_the_team(world) -> None:
+    world.policy.coordinator_approval = False
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    del world.team.by_id[world.anna.id]
+
+    with pytest.raises(errors.SwapPartiesGone):
+        await accept_swap(
+            SwapDecisionInput(account(world.dawid), request.id), world.swaps, today=TODAY
+        )
+    assert world.roster.handed_over == []
+
+
+async def test_a_decision_on_a_request_that_does_not_exist_is_refused(world) -> None:
+    missing = pending_swap(world, world.anna, world.dawid, DAY).id
+    del world.requests.by_id[missing]
+
+    with pytest.raises(errors.SwapNotFound):
+        await accept_swap(SwapDecisionInput(account(world.dawid), missing), world.swaps)
+    with pytest.raises(errors.SwapNotFound):
+        await reject_swap(SwapDecisionInput(coordinator(), missing, "powód"), world.swaps)
+    with pytest.raises(errors.SwapNotFound):
+        await cancel_swap(SwapDecisionInput(account(world.anna), missing, "powód"), world.swaps)
+    with pytest.raises(errors.SwapNotFound):
+        await approve_swap(SwapDecisionInput(coordinator(), missing), world.swaps, today=TODAY)
+
+
+async def test_only_the_named_replacement_declines_a_pending_request(world) -> None:
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    with pytest.raises(errors.OnlyNamedReplacementMayReject):
+        await reject_swap(
+            SwapDecisionInput(account(world.bartek), request.id, "Nie pasuje"), world.swaps
+        )
+
+    view = await reject_swap(
+        SwapDecisionInput(account(world.dawid), request.id, "Nie pasuje"), world.swaps
+    )
+    assert view.request.status == SwapStatus.rejected
+    assert world.journal.events[-1][1]["by_coordinator"] is False
+
+
+async def test_a_decided_request_can_no_longer_be_rejected(world) -> None:
+    request = pending_swap(world, world.anna, world.dawid, DAY, status=SwapStatus.approved)
+    with pytest.raises(errors.SwapNoLongerRejectable):
+        await reject_swap(SwapDecisionInput(coordinator(), request.id, "powód"), world.swaps)
+
+
+async def test_the_requester_withdraws_a_pending_request_with_a_reason(world) -> None:
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+
+    view = await cancel_swap(
+        SwapDecisionInput(account(world.anna), request.id, "Jednak mogę"), world.swaps
+    )
+
+    assert view.request.status == SwapStatus.cancelled
+    assert view.request.decision_note == "Jednak mogę"
+    assert world.requests.by_id[request.id].status == SwapStatus.cancelled
+    assert world.journal.names == ["cancelled"]
+    assert world.journal.events[0][1]["reason"] == "Jednak mogę"
+
+
+async def test_approval_needs_both_parties_still_on_the_team(world) -> None:
+    request = pending_swap(world, world.anna, world.dawid, DAY)
+    del world.team.by_id[world.dawid.id]
+
+    with pytest.raises(errors.SwapPartiesGone):
+        await approve_swap(SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY)
+    assert world.roster.handed_over == []
+
+
+async def test_approval_of_a_slot_that_vanished_from_the_schedule_is_refused(world) -> None:
+    request = pending_swap(world, world.anna, world.dawid, DAY)
+    del world.roster.schedule_ref.slots[(DAY, AssignmentRole.primary)]
+
+    with pytest.raises(errors.SwapPartiesGone):
+        await approve_swap(SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY)
+    assert world.roster.schedule_ref.version == 1
+
+
+async def test_a_slot_whose_schedule_is_retired_meanwhile_cannot_be_swapped(world) -> None:
+    """The roster in force and the schedule it came from are two reads; a
+    republication between them leaves the slot without a published owner."""
+
+    async def retired(schedule_id):
+        return ScheduleRef(schedule_id, ScheduleStatus.superseded, 2)
+
+    world.roster.schedule = retired  # type: ignore[method-assign]
+
+    with pytest.raises(errors.SlotNotPublished):
+        await ask(world, world.dawid)
+    assert world.requests.by_id == {}
+
+
+async def test_impact_names_a_replacement_who_does_not_exist(world) -> None:
+    with pytest.raises(errors.ReplacementNotFound):
+        await preview_swap_impact(
+            SwapImpactQuery(coordinator(), DAY, AssignmentRole.primary, uuid.uuid4()),
+            world.swaps,
+        )
+
+
+async def test_impact_of_a_day_without_a_publication_is_refused(world) -> None:
+    world.roster.schedule_ref.status = ScheduleStatus.draft
+    with pytest.raises(errors.NoPublicationForDay):
+        await preview_swap_impact(
+            SwapImpactQuery(coordinator(), DAY, AssignmentRole.primary, world.dawid.id),
+            world.swaps,
+        )
+
+
+async def test_impact_of_an_empty_slot_is_refused(world) -> None:
+    with pytest.raises(errors.SlotHasNoPublishedDuty):
+        await preview_swap_impact(
+            SwapImpactQuery(
+                coordinator(), DAY + timedelta(days=1), AssignmentRole.primary, world.dawid.id
+            ),
+            world.swaps,
+        )
+
+
+async def test_impact_needs_both_people_in_the_balance_window(world) -> None:
+    # Joins the team only after the duty, so the window holds no balance for them.
+    newcomer = world.team.add(replace(member("Nowy"), active_from=DAY + timedelta(days=1)))
+
+    with pytest.raises(errors.NoBalanceInWindow) as refused:
+        await preview_swap_impact(
+            SwapImpactQuery(coordinator(), DAY, AssignmentRole.primary, newcomer.id),
+            world.swaps,
+        )
+    assert refused.value.display_name == "Nowy"
+
+
+async def test_the_anchor_role_alone_moves_to_whoever_already_holds_the_late_shift(
+    world,
+) -> None:
+    world.roster.assign(DAY, AssignmentRole.late_shift, world.dawid)
+
+    view = await ask(world, world.dawid, role=AssignmentRole.secondary, requester=world.bartek)
+
+    assert view.request.slots == ((DAY, AssignmentRole.secondary),)
+    assert view.warnings == ()
+
+
+async def test_a_late_shift_cannot_leave_its_anchor_for_someone_without_that_role(
+    world,
+) -> None:
+    """Only the anchor role may leave 11-19 behind; the late shift alone moving
+    away from its anchor is a split the swap is not allowed to make."""
+    ewa = world.team.add(member("Ewa", roles=(AssignmentRole.late_shift,)))
+
+    with pytest.raises(errors.SwapBreaksHardRules) as refused:
+        await ask(world, ewa, role=AssignmentRole.late_shift, requester=world.bartek)
+
+    assert "late_shift_anchor" in {item.rule for item in refused.value.violations}
+    assert world.requests.by_id == {}
+
+
+async def test_an_anchor_split_is_tolerated_from_the_request_to_the_approval(world) -> None:
+    """A replacement who cannot hold 11-19 takes only the anchor role; the split
+    that leaves is a warning on the request and does not block the approval."""
+    ewa = world.team.add(member("Ewa", roles=(AssignmentRole.primary, AssignmentRole.secondary)))
+
+    view = await ask(world, ewa, role=AssignmentRole.secondary, requester=world.bartek)
+    assert view.request.slots == ((DAY, AssignmentRole.secondary),)
+    assert {item.rule for item in view.warnings} == {"late_shift_anchor"}
+
+    accepted = await accept_swap(
+        SwapDecisionInput(account(ewa), view.request.id), world.swaps, today=TODAY
+    )
+    assert accepted.request.status == SwapStatus.pending_coordinator
+    approved = await approve_swap(
+        SwapDecisionInput(coordinator(), view.request.id), world.swaps, today=TODAY
+    )
+
+    assert isinstance(approved, SwapRequestView)
+    assert approved.request.status == SwapStatus.approved
+    assert world.roster.handed_over == [((DAY, AssignmentRole.secondary), ewa.id)]
+
+
+async def test_approval_under_an_independent_late_shift_moves_only_the_clicked_slot(
+    world,
+) -> None:
+    world.policy.anchor = LateShiftAnchor.independent
+    request = pending_swap(world, world.bartek, world.dawid, DAY, role=AssignmentRole.secondary)
+
+    view = await approve_swap(
+        SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY
+    )
+
+    assert view.request.status == SwapStatus.approved
+    assert world.roster.handed_over == [((DAY, AssignmentRole.secondary), world.dawid.id)]
+
+
+async def test_only_an_accepted_request_is_approved(world) -> None:
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    with pytest.raises(errors.SwapNotAwaitingCoordinator):
+        await approve_swap(SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY)
+    assert world.roster.handed_over == []
+
+
+async def test_approval_rechecks_the_hard_rules_against_the_roster_as_it_is_now(world) -> None:
+    request = pending_swap(world, world.anna, world.dawid, DAY)
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+
+    with pytest.raises(errors.SwapBreaksHardRules) as refused:
+        await approve_swap(SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY)
+
+    assert "max_consecutive" in {item.rule for item in refused.value.violations}
+    assert world.roster.handed_over == []
+    assert world.roster.schedule_ref.version == 1
+
+
+async def test_late_shift_options_have_no_opposite_role_to_leave_out(world) -> None:
+    options = await list_replacement_options(
+        ReplacementOptionsQuery(account(world.bartek), DAY, AssignmentRole.late_shift),
+        world.swaps,
+        today=TODAY,
+    )
+    assert {option.member.display_name for option in options} == {"Anna", "Dawid"}
+
+
+async def test_the_swap_policy_says_whether_a_coordinator_approves(world) -> None:
+    assert (await swap_policy(world.swaps)).coordinator_approval_required is True
+    world.policy.coordinator_approval = False
+    assert (await swap_policy(world.swaps)).coordinator_approval_required is False
+
+
+def test_a_request_stored_without_slots_still_names_its_own_slot(world) -> None:
+    request = replace(pending_swap(world, world.anna, world.dawid, DAY), slots=())
+    view = SwapRequestView(request=request, requester_name="Anna", replacement_name="Dawid")
+    assert view.slots == [(DAY, AssignmentRole.primary)]
+
+
+async def test_under_an_independent_late_shift_the_anchor_role_moves_alone(world) -> None:
+    world.policy.anchor = LateShiftAnchor.independent
+
+    view = await ask(world, world.dawid, role=AssignmentRole.secondary, requester=world.bartek)
+
+    assert view.request.slots == ((DAY, AssignmentRole.secondary),)
+
+
+async def test_options_offer_everyone_when_the_opposite_role_is_unstaffed(world) -> None:
+    del world.roster.schedule_ref.slots[(DAY, AssignmentRole.secondary)]
+
+    options = await list_replacement_options(
+        ReplacementOptionsQuery(account(world.anna), DAY, AssignmentRole.primary),
+        world.swaps,
+        today=TODAY,
+    )
+
+    assert [option.member.display_name for option in options] == ["Bartek", "Dawid"]

@@ -129,6 +129,14 @@ class TeamMemberUpdate(BaseModel):
     active_from: date | None = None
     active_until: date | None = None
 
+    # Left out, the entry date stays; sent as null it would erase it.
+    @field_validator("active_from")
+    @classmethod
+    def entry_kept(cls, value: date | None) -> date:
+        if value is None:
+            raise ValueError(translate("admin.membership_entry_required"))
+        return value
+
     @model_validator(mode="after")
     def validate_dates(self) -> TeamMemberUpdate:
         if self.active_from and self.active_until and self.active_until < self.active_from:
@@ -155,6 +163,14 @@ class EligibilityUpdate(BaseModel):
 
     starts_on: date | None = None
     ends_on: date | None = None
+
+    # Left out, the start stays; sent as null it would erase it.
+    @field_validator("starts_on")
+    @classmethod
+    def start_kept(cls, value: date | None) -> date:
+        if value is None:
+            raise ValueError(translate("admin.eligibility_start_required"))
+        return value
 
 
 class AuditEventResponse(BaseModel):

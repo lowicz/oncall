@@ -1,7 +1,8 @@
 import pytest
 from sqlalchemy import func, select
 
-from oncall.database import SqlAlchemyUnitOfWork
+from oncall import database
+from oncall.database import SqlAlchemyUnitOfWork, get_db
 from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.scheduling_models import SchedulingPolicy
@@ -90,3 +91,24 @@ async def test_a_policy_another_request_created_meanwhile_is_the_one_used(
     assert used.id == winner.id
     async with db_factory() as session:
         assert await session.scalar(select(func.count()).select_from(SchedulingPolicy)) == 1
+
+
+async def test_a_request_s_session_comes_from_the_process_engine_and_ends_with_it() -> None:
+    """`get_db` is the HTTP entry point's unit of work: one session on the
+    engine the process configured, closed when the request is done. Nothing
+    is executed, so no database needs to be listening."""
+    requests = get_db()
+    session = await anext(requests)
+
+    assert session.bind is database.engine
+    closed: list[bool] = []
+    real_close = session.close
+
+    async def close() -> None:
+        closed.append(True)
+        await real_close()
+
+    session.close = close
+    with pytest.raises(StopAsyncIteration):
+        await anext(requests)
+    assert closed == [True]

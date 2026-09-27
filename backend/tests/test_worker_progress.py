@@ -176,3 +176,12 @@ async def test_the_worker_writes_a_moving_bar_between_the_milestones(
     await db.refresh(run)
     assert run.status == "completed"
     assert run.progress == 100
+
+
+def test_a_milestone_the_bar_does_not_know_is_read_past_without_moving_it(monkeypatch) -> None:
+    """The solver may say more than the bar understands (a new milestone added
+    later); such a line must be consumed, not stall every line behind it."""
+    bar = _bar(monkeypatch)
+
+    assert bar.advance(["presolve", MODEL_BUILT]) == MODEL_BUILT_PROGRESS
+    assert bar.read == 2

@@ -489,3 +489,26 @@ async def test_the_audit_trail_leaves_logins_out_unless_asked(world) -> None:
     )
     assert (logins.logins_excluded, len(logins.entries)) == (False, 1)
     assert (everything.logins_excluded, len(everything.entries)) == (False, 2)
+
+
+async def test_a_period_revoked_while_its_member_is_held_is_not_found(world) -> None:
+    """The period is read again under the member's lock: one revoked meanwhile
+    is gone, and nothing is changed or journalled."""
+    member = world.rotation.enrolled(None, START, START + timedelta(days=60))
+    period = world.rotation.granted(member, AssignmentRole.primary, START)
+    reads = [period, None]
+
+    async def read_then_gone(eligibility_id):
+        return reads.pop(0)
+
+    world.rotation.period = read_then_gone
+
+    with pytest.raises(errors.EligibilityNotFound):
+        await use_cases.change_eligibility(
+            EligibilityChange(
+                as_actor(world.admin), period.id, {"ends_on": START + timedelta(days=5)}
+            ),
+            world.eligibility_administration,
+        )
+    assert world.rotation.periods_by_id[period.id] == period
+    assert world.journal.events == []

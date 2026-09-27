@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -8,7 +9,13 @@ from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
 from oncall.notifications.templates import format_day
-from oncall.notifications.triggers import notify_schedule_published
+from oncall.notifications.triggers import (
+    notify_assignments_changed_by_publication,
+    notify_schedule_published,
+    notify_swap_accepted,
+    notify_swap_cancelled,
+    notify_swap_requested,
+)
 from tests.conftest import (
     create_member,
     create_published_schedule,
@@ -339,3 +346,114 @@ async def test_unavailability_over_existing_duty_warns_member_and_coordinator(cl
     assert [row.recipient for row in rows] == ["koord@example.com"]
     assert "Anna Kowalska" in rows[0].subject
     assert f"{format_day(today)} · PRIMARY" in rows[0].body
+
+
+async def test_a_withdrawn_request_tells_the_replacement_why(db) -> None:
+    today, _members = await _seed_team(db)
+
+    await notify_swap_cancelled(
+        db,
+        service_date=today,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+        reason="zmiana planów",
+    )
+    await db.commit()
+
+    (row,) = await _outbox_rows(db)
+    assert row.recipient == "marek@example.com"
+    assert row.subject == f"Zamiana wycofana: {format_day(today)} · PRIMARY"
+    assert "Powód: zmiana planów" in row.body
+    assert row.context["event"] == "swap_cancelled"
+
+
+async def test_a_request_naming_nobody_enqueues_nothing(db) -> None:
+    today, _members = await _seed_team(db)
+
+    await notify_swap_requested(
+        db,
+        service_date=today,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="",
+    )
+    await db.commit()
+
+    assert await _outbox_rows(db) == []
+
+
+async def test_a_coordinator_who_is_a_party_gets_no_coordinator_copy(db) -> None:
+    today, _members = await _seed_team(db)
+    koord = await create_user(
+        db,
+        "koord",
+        role=UserRole.coordinator,
+        email="koord@example.com",
+        display_name="Kasia Koordynator",
+    )
+    await create_member(db, koord, display_name="Kasia Koordynator")
+    await create_user(
+        db,
+        "szef",
+        role=UserRole.admin,
+        email="szef@example.com",
+        display_name="Szef Zespołu",
+    )
+
+    await notify_swap_accepted(
+        db,
+        service_date=today,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Kasia Koordynator",
+    )
+    await db.commit()
+
+    events = sorted((row.recipient, row.context["event"]) for row in await _outbox_rows(db))
+    assert events == [
+        ("anna@example.com", "swap_accepted"),
+        ("szef@example.com", "swap_pending_coordinator"),
+    ]
+
+
+async def test_publish_notification_skips_an_empty_address(db) -> None:
+    today, _members = await _seed_team(db)
+    blank = await create_user(db, "blank", email="", display_name="Pusty Adres")
+    await create_member(db, blank, display_name="Pusty Adres")
+
+    await notify_schedule_published(
+        db, name="Szkic X", starts_on=today, ends_on=today + timedelta(days=13), duties=[]
+    )
+    await db.commit()
+
+    recipients = {row.recipient for row in await _outbox_rows(db)}
+    assert recipients == {"anna@example.com", "marek@example.com", "ola@example.com"}
+
+
+async def test_a_publication_that_changed_no_duty_notifies_nobody(db) -> None:
+    await _seed_team(db)
+
+    await notify_assignments_changed_by_publication(db, changes=[], schedule_id=uuid.uuid4())
+    await db.commit()
+
+    assert await _outbox_rows(db) == []
+
+
+async def test_a_request_withdrawn_without_a_reason_names_none(db) -> None:
+    today, _members = await _seed_team(db)
+
+    await notify_swap_cancelled(
+        db,
+        service_date=today,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+        reason=None,
+    )
+    await db.commit()
+
+    (row,) = await _outbox_rows(db)
+    assert row.recipient == "marek@example.com"
+    assert "Powód" not in row.body
+    assert "Powód" not in row.html_body

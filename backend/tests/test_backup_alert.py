@@ -3,12 +3,13 @@ sends when a database backup fails, straight through the application's SMTP
 settings."""
 
 import io
+import runpy
 import sys
 
 import aiosmtplib
 import pytest
 
-from oncall import backup_alert
+from oncall import backup_alert, config
 from oncall.config import Settings
 
 ARGS = [
@@ -100,3 +101,22 @@ def test_the_test_alert_says_nothing_failed(monkeypatch, sent) -> None:
     text = mail.get_body(("plain",)).get_content()
     assert "Nic się nie stało." in text
     assert "(brak szczegółów)" in text
+
+
+def test_the_script_reads_its_arguments_and_exits_with_the_outcome(
+    monkeypatch, sent, capsys
+) -> None:
+    """How the backup script calls it: arguments on the command line, details
+    on standard input, the result as the exit status."""
+    monkeypatch.setattr(config, "get_settings", lambda: settings())
+    monkeypatch.setattr(sys, "argv", ["oncall.backup_alert", *ARGS])
+    monkeypatch.setattr(sys, "stdin", io.StringIO("pg_dump: connection refused\n"))
+    monkeypatch.delitem(sys.modules, "oncall.backup_alert")
+
+    with pytest.raises(SystemExit) as exited:
+        runpy.run_module("oncall.backup_alert", run_name="__main__")
+
+    assert exited.value.code == 0
+    assert [mail["To"] for mail in sent] == ["admin@example.com", "ops@example.com"]
+    assert "pg_dump: connection refused" in sent[0].get_body(("plain",)).get_content()
+    assert "backup alert sent to admin@example.com, ops@example.com" in capsys.readouterr().out

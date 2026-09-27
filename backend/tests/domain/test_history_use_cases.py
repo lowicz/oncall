@@ -1,6 +1,7 @@
 """History import against in-memory ports."""
 
 import uuid
+from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
@@ -8,8 +9,9 @@ import pytest
 from oncall.domain.history.errors import HistoryRejected
 from oncall.domain.history.models import HistoryUpload, ParsedHistoryRow
 from oncall.domain.history.ports import HistoryPorts
-from oncall.domain.history.use_cases import check_history, import_history
+from oncall.domain.history.use_cases import check_history, import_history, list_history_imports
 from oncall.domain.vocabulary import AssignmentRole, UserRole
+from oncall.i18n import translate
 from tests.domain.fakes import FakeJournal, actor, member
 
 MONDAY = date(2026, 9, 21)
@@ -96,3 +98,45 @@ async def test_an_import_is_stored_under_roster_names_or_refused_whole() -> None
     ]
     assert archive.staged.published_at.date() == MONDAY
     assert journal.names == ["imported"]
+
+
+async def test_an_empty_file_has_no_date_range_to_check() -> None:
+    ports = HistoryPorts(archive=FakeArchive(member("Anna")), journal=FakeJournal())
+
+    assert await check_history([], ports) == []
+    assert await list_history_imports(ports) == []
+
+
+async def test_a_row_outside_the_persons_membership_is_refused() -> None:
+    anna = replace(member("Anna"), active_until=MONDAY - timedelta(days=1))
+    ports = HistoryPorts(archive=FakeArchive(anna), journal=FakeJournal())
+
+    problems = await check_history(
+        [
+            row(2, MONDAY, AssignmentRole.primary, "Anna"),
+            row(3, MONDAY - timedelta(days=3), AssignmentRole.late_shift, "Anna"),
+            row(4, MONDAY - timedelta(days=3), AssignmentRole.primary, "Anna"),
+        ],
+        ports,
+    )
+
+    assert [(item.row_number, item.field, item.message) for item in problems] == [
+        (2, "service_date", translate("history.outside_membership"))
+    ]
+
+
+async def test_the_later_of_two_oncall_roles_on_one_day_is_flagged() -> None:
+    ports = HistoryPorts(archive=FakeArchive(member("Anna")), journal=FakeJournal())
+
+    problems = await check_history(
+        [
+            row(2, MONDAY, AssignmentRole.primary, "Anna"),
+            row(3, MONDAY, AssignmentRole.late_shift, "Anna"),
+            row(4, MONDAY, AssignmentRole.secondary, "anna"),
+        ],
+        ports,
+    )
+
+    assert [(item.row_number, item.field, item.message) for item in problems] == [
+        (4, "assignee_name", translate("history.same_person_both_roles"))
+    ]

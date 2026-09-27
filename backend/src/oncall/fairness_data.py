@@ -34,7 +34,6 @@ from oncall.fairness import history_window as history_window
 from oncall.fairness import project_duties as project_duties
 from oncall.fairness import reassign as reassign
 from oncall.fairness import window as window
-from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
@@ -209,10 +208,6 @@ async def prior_oncall_days(
         name = names_by_id.get(item.member_id) if item.member_id is not None else None
         result[name or item.assignee_name].add(item.service_date)
     return dict(result)
-
-
-async def own_member(db: AsyncSession, user: User) -> TeamMember | None:
-    return await db.scalar(select(TeamMember).where(TeamMember.user_id == user.id))
 
 
 def category_response(balance: CategoryBalance) -> FairnessCategoryResponse:

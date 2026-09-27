@@ -262,6 +262,7 @@ class FakePolicyStore:
 class FakeChangeLog:
     records: list[tuple[datetime, ChangeRecord]] = field(default_factory=list)
     availability: dict = field(default_factory=dict)
+    swap_days: dict = field(default_factory=dict)
 
     def add(self, action, *, entity_id=None, summary="", details=None, at=None) -> None:
         moment = at or datetime(2030, 6, 1, tzinfo=UTC)
@@ -274,6 +275,9 @@ class FakeChangeLog:
 
     async def availability_spans(self, entry_ids):
         return {item: self.availability[item] for item in entry_ids if item in self.availability}
+
+    async def swap_slot_days(self, swap_ids):
+        return {item: self.swap_days[item] for item in swap_ids if item in self.swap_days}
 
 
 class FakePublicationSwaps:

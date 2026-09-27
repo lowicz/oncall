@@ -296,11 +296,5 @@ class SqlAlchemyPolicyStore:
             row.coordinator_swap_approval_required = change.coordinator_swap_approval_required
         return _to_policy(row)
 
-    async def written(self) -> SchedulingPolicy:
-        """The policy as stored, read back after the unit of work is written."""
-        row = await load_policy(self._session)
-        await self._session.refresh(row)
-        return _to_policy(row)
-
 
 __all__ = ["SqlAlchemyGenerationQueue", "SqlAlchemyPolicyStore", "SqlAlchemyRunClaims"]

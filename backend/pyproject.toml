@@ -42,10 +42,15 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/oncall"]
 
-# `pytest --cov` (CI) measures the application package; its coverage.xml
-# feeds the SonarCloud scan.
+# `pytest --cov` (CI) measures the application package, lines and branches;
+# its coverage.xml feeds the SonarCloud scan. Every line and branch is
+# exercised on the SQLite suite, and the run fails if one stops being.
 [tool.coverage.run]
 source_pkgs = ["oncall"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 100
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

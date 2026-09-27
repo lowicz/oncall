@@ -20,7 +20,13 @@ from oncall.domain.overrides.use_cases import (
     override_duty,
 )
 from oncall.domain.team import Actor
-from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode, UserRole
+from oncall.domain.vocabulary import (
+    AssignmentRole,
+    LateShiftAnchor,
+    RotationMode,
+    ScheduleStatus,
+    UserRole,
+)
 from tests.domain.fakes import World, member
 
 DAY = date(2030, 3, 13)
@@ -277,3 +283,85 @@ async def test_the_check_names_a_person_who_does_not_exist(world) -> None:
         await check_override(
             OverrideCheck(DAY, AssignmentRole.primary, uuid.uuid4()), world.overrides
         )
+
+
+async def test_an_override_needs_a_published_schedule(world) -> None:
+    world.roster.schedule_ref.status = ScheduleStatus.draft
+
+    with pytest.raises(errors.PublishedScheduleNotFound) as refused:
+        await override(world, world.ewa)
+
+    assert refused.value.schedule_id is None
+    assert world.roster.handed_over == []
+    assert world.journal.events == []
+
+
+async def test_a_batch_needs_a_published_schedule(world) -> None:
+    world.roster.schedule_ref.status = ScheduleStatus.draft
+
+    with pytest.raises(errors.PublishedScheduleNotFound) as refused:
+        await batch(world, BatchOverrideLine(DAY, AssignmentRole.primary, world.ewa.id))
+
+    assert refused.value.schedule_id == world.roster.schedule_ref.id
+    assert world.roster.schedule_ref.version == 1
+
+
+@pytest.mark.parametrize(
+    ("replacement_kwargs", "error"),
+    [
+        ({"roles": (AssignmentRole.secondary,)}, errors.PersonNotEligible),
+        ({"unavailable": (DAY,)}, errors.PersonUnavailable),
+    ],
+)
+async def test_every_batch_replacement_must_be_able_to_serve(
+    world, replacement_kwargs, error
+) -> None:
+    filip = world.team.add(member("Filip", **replacement_kwargs))
+
+    with pytest.raises(error):
+        await batch(world, BatchOverrideLine(DAY, AssignmentRole.primary, filip.id))
+
+    assert world.roster.handed_over == []
+    assert world.roster.schedule_ref.version == 1
+
+
+async def test_a_batch_refuses_a_replacement_who_does_not_exist(world) -> None:
+    with pytest.raises(errors.PersonNotEligible):
+        await batch(world, BatchOverrideLine(DAY, AssignmentRole.primary, uuid.uuid4()))
+
+
+async def test_the_check_of_a_primary_slot_moves_only_that_slot(world) -> None:
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.ewa)
+
+    violations = await check_override(
+        OverrideCheck(DAY, AssignmentRole.primary, world.ewa.id), world.overrides
+    )
+
+    assert "max_consecutive" in {item.rule for item in violations}
+
+
+async def test_a_late_shift_held_by_someone_else_is_not_coupled(world) -> None:
+    world.roster.assign(DAY, AssignmentRole.late_shift, world.anna)
+
+    violations = await check_override(
+        OverrideCheck(DAY, AssignmentRole.secondary, world.ewa.id), world.overrides
+    )
+    result = await override(
+        world, world.ewa, role=AssignmentRole.secondary, acknowledge_rule_violations=True
+    )
+
+    assert violations == list(result.violations)
+    assert world.roster.handed_over == [((DAY, AssignmentRole.secondary), world.ewa.id)]
+    assert world.journal.events[0][1]["moves"] == [
+        OverrideMove(DAY, AssignmentRole.secondary, "Bartek")
+    ]
+
+
+async def test_a_late_shift_override_has_no_opposite_role_to_collide_with(world) -> None:
+    result = await override(
+        world, world.anna, role=AssignmentRole.late_shift, acknowledge_rule_violations=True
+    )
+
+    assert result.assignee_name == "Anna"
+    assert world.roster.handed_over == [((DAY, AssignmentRole.late_shift), world.anna.id)]
