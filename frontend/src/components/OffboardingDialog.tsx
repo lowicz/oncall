@@ -49,7 +49,8 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     },
     enabled: open && Boolean(activeUntil),
   })
-  const duties = (calendar.data?.assignments ?? []).filter((item) => item.member_id === member.id && item.service_date > activeUntil)
+  const found = calendar.data ?? { assignments: [], members: [], availability: [] }
+  const duties = found.assignments.filter((item) => item.member_id === member.id && item.service_date > activeUntil)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [confirming, setConfirming] = useState(false)
   const [refusal, setRefusal] = useState<{ scheduleId: string; violations: RuleViolation[] } | null>(null)
@@ -57,12 +58,12 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
   const candidates = (day: string, role: AssignmentRole) => {
     const roleLoad = new Map<string, number>()
-    for (const duty of calendar.data?.assignments ?? []) {
+    for (const duty of found.assignments) {
       if (duty.role === role && duty.member_id) roleLoad.set(duty.member_id, (roleLoad.get(duty.member_id) ?? 0) + 1)
     }
-    return (calendar.data?.members ?? []).filter((candidate) => candidate.id !== member.id
+    return found.members.filter((candidate) => candidate.id !== member.id
       && candidate.eligibility?.some((period) => period.role === role && period.starts_on <= day && (!period.ends_on || period.ends_on >= day))
-      && !(calendar.data?.availability ?? []).some((entry) => entry.member_id === candidate.id && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
+      && !found.availability.some((entry) => entry.member_id === candidate.id && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
       .sort((left, right) => (roleLoad.get(left.id) ?? 0) - (roleLoad.get(right.id) ?? 0) || left.display_name.localeCompare(right.display_name, locale()))
   }
   const submit = useMutation({
@@ -111,7 +112,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => { if (!next) onClose() }}
+      onClose={onClose}
       dismissible={!submit.isPending}
       size="lg"
       title={t.title(member.display_name)}

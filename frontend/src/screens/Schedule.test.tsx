@@ -208,3 +208,113 @@ describe('ScheduleScreen range in the URL', () => {
     expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
   })
 })
+
+describe('ScheduleScreen default range and header states', () => {
+  it('stops the default range at four weeks when the publication reaches further', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ ends_on: '2026-11-30' }))
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik')
+
+    expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 7 paź' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-10-07'))
+  })
+
+  it('shows only today when the publication has already ended', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ starts_on: '2026-08-01', ends_on: '2026-08-31' }))
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik')
+
+    expect(await screen.findByRole('heading', { level: 2, name: '10 – 10 wrz' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-09-10'))
+    expect(screen.getByRole('radio', { name: '2 tyg.' })).toBeChecked()
+  })
+
+  it('says nothing is published and names a plain draft without pushing it', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ is_published: false, id: null, version: null, starts_on: null, ends_on: null }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([{ ...proposal, id: 'd9', status: 'draft' }])
+    renderSchedule('/grafik')
+
+    expect(await screen.findByText('Brak opublikowanego grafiku · szkic 4 – 31 paź czeka na akceptację')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Otwórz propozycję/ })).toHaveAttribute('href', '/generator?szkic=d9')
+    expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 7 paź' })).toBeInTheDocument()
+  })
+
+  it('offers the generator without a range when nothing is published', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ is_published: false, id: null, version: null, starts_on: null, ends_on: null }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik')
+
+    expect(await screen.findByRole('link', { name: /Generuj kolejny zakres/ })).toHaveAttribute('href', '/generator')
+  })
+
+  it('picks the two-week zoom for a short range and eight weeks for a long one', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    const { unmount } = renderSchedule('/grafik?od=2026-09-14&do=2026-09-20')
+    expect(await screen.findByRole('heading', { level: 2, name: '14 – 20 wrz' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '2 tyg.' })).toBeChecked()
+    unmount()
+
+    renderSchedule('/grafik?od=2026-09-14&do=2026-10-31')
+    expect(await screen.findByRole('heading', { level: 2, name: '14 wrz – 31 paź' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '8 tyg.' })).toBeChecked()
+  })
+
+  it('explains an end before the start instead of drawing the matrix', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-20&do=2026-09-14')
+
+    expect(await screen.findByText('Data „do” jest wcześniejsza niż „od”.')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Macierz grafiku' })).not.toBeInTheDocument()
+    expect(calendarCall).not.toHaveBeenCalled()
+  })
+
+  it('shows the highlighted person as a chip that clears the highlight', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    // jsdom has no scrollIntoView; the matrix scrolls the highlighted row into view.
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    try {
+      renderSchedule('/grafik?od=2026-09-14&osoba=Marek%20Nowak')
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' }))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Wyłącz podświetlenie: Marek Nowak' }))
+      await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-14'))
+      expect(screen.getByTestId('url')).not.toHaveTextContent('osoba')
+      expect(screen.queryByRole('button', { name: /Wyłącz podświetlenie/ })).not.toBeInTheDocument()
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView
+    }
+  })
+})
+
+describe('ScheduleScreen layout', () => {
+  it('opens as a day list on a narrow screen', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-14')
+
+    expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Macierz grafiku' })).not.toBeInTheDocument()
+  })
+})

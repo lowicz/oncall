@@ -16,6 +16,7 @@ from oncall.domain.scheduling.drafts import (
 )
 from oncall.domain.scheduling.generation import generate_draft, queue_generation
 from oncall.domain.scheduling.models import (
+    ApprovedSwap,
     DraftCorrection,
     GenerationRequest,
     PendingSwap,
@@ -650,3 +651,175 @@ async def test_a_carry_is_not_refused_for_a_rule_the_rotation_does_not_have(worl
     assert [item.reason for item in hybrid.lost_changes] == ["Przeniesienie narusza reguły grafiku"]
     assert weekly.lost_changes == ()
     assert [item.previous_assignee_name for item in weekly.carried_changes] == ["Dawid"]
+
+
+# --- missing schedules and states ---------------------------------------------
+
+
+async def test_every_lifecycle_step_refuses_a_schedule_that_does_not_exist(world) -> None:
+    missing = uuid.uuid4()
+    request = PublicationRequest(COORDINATOR, missing, 1)
+
+    with pytest.raises(errors.ScheduleNotFound):
+        await delete_schedule(missing, world.drafts)
+    with pytest.raises(errors.ScheduleNotFound):
+        await propose(Transition(COORDINATOR, missing, 1), world.drafts)
+    with pytest.raises(errors.ScheduleNotFound):
+        await preview_publication(missing, world.publication, today=MONDAY)
+    with pytest.raises(errors.ScheduleNotFound):
+        await publish(request, world.publication, today=MONDAY, now=NOW)
+    assert world.journal.events == []
+
+
+async def test_only_a_proposal_has_a_publication_preview(world) -> None:
+    draft = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
+
+    with pytest.raises(errors.OnlyProposalPublishable) as refused:
+        await preview_publication(draft.id, world.publication, today=MONDAY)
+
+    assert refused.value.schedule_id == draft.id
+
+
+async def test_a_draft_naming_nobody_on_the_team_is_proposed_without_a_check(world) -> None:
+    """Imported-style rows carry names only; there is nobody to look up."""
+    schedule = complete_schedule(MONDAY, _rotation(world))
+    anonymous = tuple(replace(item, member_id=None) for item in schedule.assignments)
+    schedule = world.schedules.put(replace(schedule, assignments=anonymous))
+
+    await propose(Transition(COORDINATOR, schedule.id, schedule.version), world.drafts)
+
+    assert world.schedules.by_id[schedule.id].status == ScheduleStatus.proposed
+    assert world.journal.names == ["schedule_proposed"]
+
+
+# --- staleness ------------------------------------------------------------------
+
+
+async def test_a_draft_without_a_creation_time_is_never_stale(world) -> None:
+    schedule = replace(complete_schedule(MONDAY, _rotation(world)), created_at=None)
+    world.changes.add("policy.updated")
+
+    assert await stale_changes_count(schedule, world.changes) == 0
+
+
+async def test_only_swaps_touching_the_draft_window_make_it_stale(world) -> None:
+    schedule = complete_schedule(MONDAY, _rotation(world))
+    near, far, gone = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    world.changes.swap_days = {
+        near: [date(2040, 1, 1), MONDAY + timedelta(days=1)],
+        far: [date(2040, 1, 1)],
+    }
+    world.changes.add("swap.created", entity_id=near)
+    world.changes.add("swap.approved", entity_id=far)
+    # A swap whose slots are gone cannot be placed and does not count.
+    world.changes.add("swap.cancelled", entity_id=gone)
+    # An event naming no readable swap counts unconditionally.
+    world.changes.add("swap.rejected", entity_id="not-a-uuid")
+
+    assert await stale_changes_count(schedule, world.changes) == 2
+
+
+async def test_a_batch_of_overrides_counts_once_and_only_inside_the_window(world) -> None:
+    schedule = complete_schedule(MONDAY, _rotation(world))
+    world.changes.add(
+        "schedule.override_batch",
+        details={"slots": ["2040-01-01:primary", f"{MONDAY + timedelta(days=2)}:secondary"]},
+    )
+    world.changes.add("schedule.override_batch", details={"slots": ["2040-01-02:primary"]})
+    world.changes.add("schedule.override_batch")
+
+    assert await stale_changes_count(schedule, world.changes) == 1
+
+
+# --- why a change cannot be carried -------------------------------------------------
+
+
+def _republication(world):
+    """Anna's rotation is in force and proposed again, so every manual change
+    on its slots is replaced by the proposal."""
+    world.publish_roster_from(
+        complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.published)
+    )
+    return world.schedules.put(
+        complete_schedule(MONDAY, _rotation(world), status=ScheduleStatus.proposed)
+    )
+
+
+async def _change_resolved(world, proposal):
+    await publish(
+        _request(
+            proposal,
+            acknowledge_lost_changes=True,
+            acknowledge_rest_violations=True,
+            change_resolutions={f"{MONDAY}:primary": "change"},
+        ),
+        world.publication,
+        today=MONDAY,
+        now=NOW,
+    )
+
+
+async def test_a_change_to_somebody_who_left_the_team_is_lost_and_cannot_be_forced(
+    world,
+) -> None:
+    proposal = _republication(world)
+    world.roster.schedule_ref.slots[(MONDAY, AssignmentRole.primary)] = Duty(
+        MONDAY,
+        AssignmentRole.primary,
+        None,
+        "Zenon",
+        True,
+        world.roster.schedule_ref.id,
+        original=SlotOrigin(world.anna.id, "Anna"),
+    )
+
+    preview = await preview_publication(proposal.id, world.publication, today=MONDAY)
+    with pytest.raises(errors.ChangeResolutionInvalid) as invalid:
+        await _change_resolved(world, proposal)
+
+    assert [(item.previous_assignee_name, item.reason) for item in preview.lost_changes] == [
+        ("Zenon", "Zastępca nie jest już członkiem zespołu")
+    ]
+    assert invalid.value.conflicts == {
+        (MONDAY, AssignmentRole.primary): "Zastępca nie jest już członkiem zespołu"
+    }
+    assert world.schedules.published == []
+
+
+async def test_a_change_to_somebody_now_unavailable_is_lost_and_cannot_be_forced(world) -> None:
+    proposal = _republication(world)
+    away = world.team.add(member("Ela", unavailable=[MONDAY]))
+    _override_in_force(world, MONDAY, AssignmentRole.primary, away, "Anna")
+
+    preview = await preview_publication(proposal.id, world.publication, today=MONDAY)
+    with pytest.raises(errors.ChangeResolutionInvalid) as invalid:
+        await _change_resolved(world, proposal)
+
+    reason = "Zastępca nie ma eligibility albo jest niedostępny"
+    assert [(item.previous_assignee_name, item.reason) for item in preview.lost_changes] == [
+        ("Ela", reason)
+    ]
+    assert invalid.value.conflicts == {(MONDAY, AssignmentRole.primary): reason}
+
+
+async def test_a_swap_whose_requester_is_unknown_cannot_be_carried(world) -> None:
+    proposal = _republication(world)
+    world.roster.assign(MONDAY, AssignmentRole.primary, world.dawid)
+    world.swaps.approved.append(
+        ApprovedSwap(
+            schedule_id=world.roster.schedule_ref.id,
+            requester_member_id=world.anna.id,
+            requester_name=None,
+            replacement_name="Dawid",
+            slots=((MONDAY, AssignmentRole.primary),),
+        )
+    )
+
+    preview = await preview_publication(proposal.id, world.publication, today=MONDAY)
+
+    (lost,) = preview.lost_changes
+    assert (lost.source, lost.original_assignee_name, lost.reason) == (
+        "approved_swap",
+        None,
+        "Nie można ustalić pierwotnego wykonawcy zmiany",
+    )

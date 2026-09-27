@@ -307,26 +307,14 @@ export function CalendarMatrix({
     override.reset()
     setStaffOpen(true)
   }
-  const jumpToDate = (date: string) => {
-    if (!data) return
-    const day = dayByDate.get(date)
-    if (!day) return
-    if (view === 'matrix') {
-      const index = data.days.findIndex((item) => item.service_date === date)
-      if (index >= 0) grid.focusCell(0, index)
-    }
-    openDay(day, undefined, 'primary')
-  }
-  const jumpToFirstGap = () => {
-    // Prefer the staffable kind; jumping to a day nobody can fix was the trap
-    // behind HGH-02.
-    const first = publishedGaps[0] ?? gaps[0]
-    if (first) jumpToDate(first.service_date)
+  // The risk chips jump to a day the calendar itself reported (a gap, a
+  // conflict), so the day is always among the loaded ones.
+  const jumpToDate = (days: CalendarData['days'], date: string) => {
+    const index = days.findIndex((item) => item.service_date === date)
+    if (view === 'matrix') grid.focusCell(0, index)
+    openDay(days[index], undefined, 'primary')
   }
   const selectedGap = selected ? gaps.find((gap) => gap.service_date === selected.day.service_date) : undefined
-  const isOwnDay = Boolean(selected && data?.assignments.some(
-    (item) => item.service_date === selected.day.service_date && item.assignee_name === displayName,
-  ))
   const ownRole = selected
     ? data?.assignments.find((item) => item.service_date === selected.day.service_date && item.assignee_name === displayName)?.role
     : undefined
@@ -343,8 +331,10 @@ export function CalendarMatrix({
         <ChipRow label={t.risks.label}>
           {riskChips && (
             <>
+          {/* Only the staffable kind is a jump target; jumping to a day nobody
+              can fix was the trap behind HGH-02. */}
           {publishedGaps.length > 0 && (
-            <Chip tone="bad" onClick={jumpToFirstGap} title={t.risks.showFirstGap}>
+            <Chip tone="bad" onClick={() => jumpToDate(data.days, publishedGaps[0].service_date)} title={t.risks.showFirstGap}>
               {t.risks.gapDays(publishedGaps.length)}
               {' · '}
               {publishedGaps.slice(0, 3).map((gap) => formatDate(gap.service_date).slice(0, 5)).join(', ')}
@@ -357,7 +347,7 @@ export function CalendarMatrix({
             </Chip>
           )}
           {canCoordinate && dutyConflicts.length > 0 && (
-            <Chip tone="bad" onClick={() => jumpToDate(dutyConflicts[0].service_date)} title={t.risks.showFirstConflict}>
+            <Chip tone="bad" onClick={() => jumpToDate(data.days, dutyConflicts[0].service_date)} title={t.risks.showFirstConflict}>
               {t.risks.conflictPeople(dutyConflictPeople)}
             </Chip>
           )}
@@ -515,7 +505,7 @@ export function CalendarMatrix({
 
       <Panel
         open={Boolean(selected)}
-        onOpenChange={(open) => { if (!open) closeInspector() }}
+        onClose={closeInspector}
         title={selected ? formatDay(selected.day.service_date) : ''}
         meta={selected && (
           <>
@@ -553,9 +543,9 @@ export function CalendarMatrix({
                 <Button variant="primary" onClick={() => openStaffChange(selectedRole)}>{t.inspector.changeStaffing}</Button>
               </>
             )}
-            {!canCoordinate && selected && isOwnDay && role !== 'viewer' && (
+            {!canCoordinate && selected && ownRole && role !== 'viewer' && (
               <LinkButton
-                to={`/zamiany?data=${selected.day.service_date}&rola=${ownRole ?? selectedRole}`}
+                to={`/zamiany?data=${selected.day.service_date}&rola=${ownRole}`}
                 onClick={closeInspector}
                 variant="primary"
                 icon="swap"
@@ -672,7 +662,7 @@ export function CalendarMatrix({
             {selected.member && (
               <div className="muted small">
                 {t.inspector.fromRow(selected.member.display_name)}
-                {!canCoordinate && !isOwnDay && ` ${t.inspector.publishedDetails}`}
+                {!canCoordinate && !ownRole && ` ${t.inspector.publishedDetails}`}
               </div>
             )}
             {(createEvent.error || deleteEvent.error) && (
@@ -764,9 +754,9 @@ export function CalendarMatrix({
                 replacementId={staffMemberId}
                 mode="override"
               />
-            ) : staffMemberId ? (
+            ) : chosenCandidate ? (
               <div className="muted small">
-                {t.confirm.emptySlot(chosenCandidate?.display_name ?? '')}
+                {t.confirm.emptySlot(chosenCandidate.display_name)}
               </div>
             ) : null}
           </>

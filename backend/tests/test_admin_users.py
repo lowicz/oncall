@@ -375,3 +375,38 @@ async def test_only_an_admin_reissues_an_activation_link_and_only_when_it_applie
         )
     )
     assert issued == []
+
+
+async def test_a_period_start_or_a_rotation_entry_cannot_be_erased(client, db) -> None:
+    """Both dates are required: an explicit null is refused as a field error,
+    not accepted and then failed on further in."""
+    await create_user(db, "admin", role=UserRole.admin)
+    user = await create_user(db, "anna", role=UserRole.member, display_name="Anna Nowak")
+    await login(client, "admin")
+    joined = await client.post(
+        "/api/v1/admin/team-members",
+        json={"user_id": str(user.id), "active_from": "2026-01-01"},
+    )
+    member_id = joined.json()["id"]
+    period = await client.post(
+        f"/api/v1/admin/team-members/{member_id}/eligibility",
+        json={"role": "primary", "starts_on": "2026-02-01"},
+    )
+
+    no_start = await client.patch(
+        f"/api/v1/admin/eligibility/{period.json()['id']}", json={"starts_on": None}
+    )
+    assert no_start.status_code == 422, no_start.text
+    assert no_start.json()["detail"][0]["msg"] == "Data początkowa okresu jest wymagana"
+    no_entry = await client.patch(
+        f"/api/v1/admin/team-members/{member_id}", json={"active_from": None}
+    )
+    assert no_entry.status_code == 422, no_entry.text
+    assert no_entry.json()["detail"][0]["msg"] == "Data wejścia do rotacji jest wymagana"
+
+    # Leaving the start out keeps it; only the explicit null is refused.
+    reopened = await client.patch(
+        f"/api/v1/admin/eligibility/{period.json()['id']}", json={"ends_on": None}
+    )
+    assert reopened.status_code == 200, reopened.text
+    assert reopened.json()["starts_on"] == "2026-02-01"

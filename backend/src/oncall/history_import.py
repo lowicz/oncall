@@ -24,7 +24,9 @@ def parse_history_csv(content: bytes) -> tuple[list[ParsedHistoryRow], list[Hist
         return [], [HistoryImportError(None, None, translate("history.file_not_utf8"))]
 
     reader = csv.DictReader(io.StringIO(text))
-    headers = {header.strip() for header in (reader.fieldnames or [])}
+    # Rows are read under the trimmed names, so `service_date ,role` works.
+    reader.fieldnames = [header.strip() for header in (reader.fieldnames or [])]
+    headers = set(reader.fieldnames)
     missing = sorted(REQUIRED_HEADERS - headers)
     if missing:
         return [], [

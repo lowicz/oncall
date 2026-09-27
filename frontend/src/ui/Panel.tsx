@@ -12,9 +12,12 @@ import { useMessages } from '../i18n/messages'
  * matrix without closing it); Escape closes it. On a phone it is a modal
  * bottom sheet with a backdrop.
  */
-export function Panel({ open, onOpenChange, title, meta, children, footer, className, wide }: {
+export function Panel({ open, onClose, title, meta, children, footer, className, wide }: {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  /** The panel has no trigger: the page opens it through `open`, so the only
+   *  change it ever asks for is to close (Escape, the close button, a tap on
+   *  the phone backdrop). */
+  onClose: () => void
   title: ReactNode
   /** Tags next to the title: multiplier, status. */
   meta?: ReactNode
@@ -28,7 +31,7 @@ export function Panel({ open, onOpenChange, title, meta, children, footer, class
   return (
     <BaseDialog.Root
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={() => onClose()}
       modal={narrow}
       disablePointerDismissal={!narrow}
     >

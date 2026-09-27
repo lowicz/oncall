@@ -22,10 +22,14 @@ import pytest
 from ldap3 import MOCK_SYNC, NONE, Connection, Server
 from ldap3.core.exceptions import (
     LDAPInvalidCredentialsResult,
+    LDAPResponseTimeoutError,
+    LDAPSessionTerminatedByServerError,
     LDAPSocketOpenError,
     LDAPStartTLSError,
     LDAPStrongerAuthRequiredResult,
 )
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 from oncall.config import Settings
 from oncall.ldap_auth import (
@@ -35,7 +39,9 @@ from oncall.ldap_auth import (
     DirectoryPhoto,
     DirectoryUnavailableError,
     LdapAuthenticator,
+    _origin,
 )
+from oncall.presentation.validation import validate_phone
 
 BASE_DN = "DC=corp,DC=example,DC=com"
 SERVICE_DN = "CN=Oncall Service,CN=Users,DC=corp,DC=example,DC=com"
@@ -617,3 +623,189 @@ async def test_photos_are_not_read_while_the_directory_or_the_attribute_is_off(
     assert await lab.authenticator(ldap_enabled=False).photo("anna") is None
     assert await lab.authenticator(ldap_attribute_photo="").photo("anna") is None
     assert records(diagnostics) == []
+
+
+@pytest.mark.parametrize(
+    "server_uri", ["ldaps://dc1.corp.example.com:99999", "ldaps://dc1.corp.example.com:port"]
+)
+def test_a_server_uri_with_an_impossible_port_is_a_configuration_fault(
+    lab, diagnostics, server_uri
+) -> None:
+    with pytest.raises(DirectoryUnavailableError) as failure:
+        lab.authenticator(ldap_server_uri=server_uri)._authenticate_sync("anna", ANNA_PASSWORD)
+
+    assert (failure.value.phase, failure.value.reason) == ("config", "server_uri_invalid")
+
+
+def test_a_bind_the_server_declines_without_an_error_is_still_refused(
+    lab, diagnostics, monkeypatch
+) -> None:
+    """ldap3 can answer a bind with False rather than an exception; that is a
+    refused service account, not a signed-in one."""
+    lab.add_anna()
+    monkeypatch.setattr(Connection, "bind", lambda _self, *_args, **_kwargs: False)
+
+    with pytest.raises(DirectoryUnavailableError) as failure:
+        lab.authenticator()._authenticate_sync("anna", ANNA_PASSWORD)
+
+    assert (failure.value.phase, failure.value.reason) == ("service_bind", "bind_refused")
+    assert str(failure.value) == "Konto serwisowe LDAP nie może się zalogować"
+
+
+def test_an_empty_password_is_refused_without_binding(lab, diagnostics) -> None:
+    """Active Directory treats a DN with an empty password as an anonymous
+    bind and answers success, so the password is never sent."""
+    lab.add_anna()
+    lab.fail("bind", AssertionError("the person's DN was bound"), dn=ANNA_DN)
+
+    assert lab.authenticator()._authenticate_sync("anna", "") is None
+
+    [record] = records(diagnostics)
+    assert (record["outcome"], record["phase"], record["reason"]) == (
+        "rejected",
+        "user_bind",
+        "empty_password",
+    )
+
+
+def test_a_connection_lost_during_the_person_s_bind_is_an_outage_not_a_wrong_password(
+    lab, diagnostics
+) -> None:
+    lab.add_anna()
+    lab.fail("bind", LDAPSessionTerminatedByServerError("session terminated"), dn=ANNA_DN)
+
+    with pytest.raises(DirectoryUnavailableError) as failure:
+        lab.authenticator()._authenticate_sync("anna", ANNA_PASSWORD)
+
+    assert (failure.value.phase, failure.value.reason) == ("user_bind", "connection_closed")
+    [record] = records(diagnostics)
+    assert (record["outcome"], record["level"]) == ("unavailable", "WARNING")
+
+
+@pytest.mark.parametrize(
+    ("operation", "error", "phase", "reason", "detail"),
+    [
+        (
+            "start_tls",
+            LDAPStartTLSError("startTLS failed - protocolError"),
+            "tls",
+            "start_tls_refused",
+            "protocolError",
+        ),
+        ("start_tls", LDAPStartTLSError("startTLS failed - "), "tls", "start_tls_refused", None),
+        (
+            "start_tls",
+            LDAPStartTLSError("wrap socket error: [SSL: WRONG_VERSION_NUMBER] (_ssl.c:1000)"),
+            "tls",
+            "tls_failed",
+            "wrong_version_number",
+        ),
+        ("start_tls", LDAPStartTLSError("no answer"), "tls", "tls_failed", None),
+        (
+            "open",
+            LDAPSocketOpenError("socket ssl wrapping error: [X509] PEM lib (_ssl.c:4000)"),
+            "tls",
+            "tls_failed",
+            None,
+        ),
+        (
+            "start_tls",
+            LDAPStartTLSError("certificate verify failed (_ssl.c:1082)"),
+            "tls",
+            "certificate_verify_failed",
+            None,
+        ),
+        ("open", LDAPSocketOpenError("[Errno 110] timed out"), "connect", "timeout", None),
+        ("search", LDAPResponseTimeoutError("no response"), "search", "timeout", None),
+        (
+            "search",
+            LDAPSessionTerminatedByServerError("closed"),
+            "search",
+            "connection_closed",
+            None,
+        ),
+        ("open", LDAPSocketOpenError("something new"), "connect", "LDAPSocketOpenError", None),
+    ],
+)
+def test_every_kind_of_client_failure_is_classified(
+    lab, diagnostics, operation, error, phase, reason, detail
+) -> None:
+    lab.add_anna()
+    lab.fail(operation, error)
+    # StartTLS is only negotiated on a plain `ldap://` connection.
+    scheme = "ldap" if operation == "start_tls" else "ldaps"
+
+    with pytest.raises(DirectoryUnavailableError) as failure:
+        lab.authenticator(ldap_server_uri=f"{scheme}://dc1.corp.example.com")._authenticate_sync(
+            "anna", ANNA_PASSWORD
+        )
+
+    assert (failure.value.phase, failure.value.reason) == (phase, reason)
+    assert failure.value.details.get("detail") == detail
+    [record] = records(diagnostics)
+    assert (record["phase"], record["reason"]) == (phase, reason)
+
+
+class _Entry:
+    def __init__(self, **attributes: object) -> None:
+        self.entry_attributes_as_dict = attributes
+
+
+def test_an_attribute_the_server_sends_as_bytes_is_read_as_utf8_text() -> None:
+    entry = _Entry(givenName=["  Łucja ".encode()], sn="Nowak")
+
+    assert LdapAuthenticator._value(entry, "givenname") == "Łucja"
+    assert LdapAuthenticator._value(entry, "sn") == "Nowak"
+    assert LdapAuthenticator._value(entry, "mail") == ""
+
+
+def test_an_attribute_that_is_not_text_is_named_not_quoted() -> None:
+    entry = _Entry(employeeNumber=[b"\xff\xfe\x00"])
+
+    with pytest.raises(DirectoryIdentityError) as failure:
+        LdapAuthenticator._value(entry, "employeeNumber")
+
+    assert (failure.value.reason, failure.value.attribute) == (
+        "attribute_not_text",
+        "employeeNumber",
+    )
+
+
+def test_an_unexpected_error_inside_a_library_is_located_from_the_package_down(
+    lab, diagnostics
+) -> None:
+    lab.add_anna()
+    try:
+        make_url("not a database url")
+    except ArgumentError as exc:
+        error = exc
+    lab.fail("open", error)
+
+    with pytest.raises(DirectoryUnavailableError):
+        lab.authenticator()._authenticate_sync("anna", ANNA_PASSWORD)
+
+    [record] = records(diagnostics)
+    assert re.fullmatch(r"sqlalchemy/engine/url\.py:\d+", record["at"]), record["at"]
+    assert record["error"] == "sqlalchemy.exc.ArgumentError"
+
+
+def test_an_error_raised_in_the_application_is_located_from_the_package_down(
+    lab, diagnostics, monkeypatch
+) -> None:
+    lab.add_anna()
+
+    def broken_identity(_self, _entry, _username):
+        return validate_phone("not a phone")
+
+    monkeypatch.setattr(LdapAuthenticator, "_identity", broken_identity)
+
+    with pytest.raises(DirectoryUnavailableError) as failure:
+        lab.authenticator()._authenticate_sync("anna", ANNA_PASSWORD)
+
+    assert failure.value.reason == "unexpected_error"
+    [record] = records(diagnostics)
+    assert re.fullmatch(r"oncall/presentation/validation\.py:\d+", record["at"]), record["at"]
+
+
+def test_an_error_never_raised_has_no_origin() -> None:
+    assert _origin(RuntimeError("constructed, not raised")) is None

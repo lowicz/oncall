@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { DutyScreen } from './Duty'
 import { api } from '../api'
@@ -65,6 +66,11 @@ function pretendNarrow(matches: boolean) {
     media: query, onchange: null, addListener: () => {}, removeListener: () => {},
     addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
   }))
+}
+
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="url">{location.pathname}</output>
 }
 
 afterEach(() => vi.restoreAllMocks())
@@ -356,5 +362,68 @@ describe('DutyScreen in a share-link session', () => {
     for (const [startsOn, endsOn] of calendarCall.mock.calls) {
       expect(startsOn >= '2026-09-01' && endsOn <= '2026-10-31').toBe(true)
     }
+  })
+})
+
+describe('DutyScreen states not covered above', () => {
+  it('tells a member the coordinator has not published yet', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ is_published: false, id: null, version: null, ends_on: null, current: [], assignments: [] }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    expect(await screen.findByRole('status')).toHaveTextContent('Koordynator jeszcze nie opublikował grafiku na ten okres.')
+    expect(screen.getByText('Grafik na ten okres nie jest opublikowany')).toBeInTheDocument()
+  })
+
+  it('names today when a publication carries no end date', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ ends_on: null }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
+    renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
+    expect(await screen.findByText('Opublikowany grafik do 10 wrz · wersja 7')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Generuj kolejny zakres/ })).toHaveAttribute('href', '/generator')
+  })
+
+  it('opens the swaps and the fairness report from their chips', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([swap({ id: '1' })])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
+    renderScreen(<><DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} /><LocationProbe /></>)
+
+    fireEvent.click(await screen.findByRole('button', { name: /1 zamiana czeka na Ciebie/ }))
+    expect(screen.getByTestId('url')).toHaveTextContent('/zamiany')
+    fireEvent.click(await screen.findByRole('button', { name: 'Kryterium sprawiedliwości spełnione' }))
+    expect(screen.getByTestId('url')).toHaveTextContent('/sprawiedliwosc')
+  })
+
+  it('marks an override, a day-off duty and a holiday on the phone cards', async () => {
+    pretendNarrow(true)
+    const [primary] = publication().current
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({
+      today_is_day_off: true,
+      today_holiday_name: 'Dzień Niepodległości',
+      current: [
+        { ...primary, is_override: true, is_day_off: true, contact_phone: null, contact_email: null, next_assignee_name: null, next_service_date: null },
+        { ...primary, role: 'secondary', assignee_name: 'Marek Nowak', contact_phone: '+48 600 100 200', contact_email: null, is_day_off: true },
+      ],
+    }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
+
+    expect(await screen.findByText(/dziś święto: Dzień Niepodległości, stawka 2X/)).toBeInTheDocument()
+    const primaryCard = await screen.findByRole('article', { name: 'PRIMARY' })
+    expect(within(primaryCard).getByText('korekta')).toBeInTheDocument()
+    expect(within(primaryCard).getByText('2X')).toBeInTheDocument()
+    expect(within(primaryCard).getByText(/całą dobę/)).toBeInTheDocument()
+    expect(within(primaryCard).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(primaryCard).queryByText(/Następny/)).not.toBeInTheDocument()
+
+    const secondaryCard = screen.getByRole('article', { name: 'SECONDARY' })
+    expect(within(secondaryCard).getByRole('link', { name: /Zadzwoń \+48 600 100 200/ })).toHaveAttribute('href', 'tel:+48600100200')
+    expect(within(secondaryCard).queryByRole('link', { name: 'E-mail' })).not.toBeInTheDocument()
+
+    expect(screen.getByRole('article', { name: '11–19' })).toHaveTextContent('nie dotyczy: święto - Dzień Niepodległości')
   })
 })

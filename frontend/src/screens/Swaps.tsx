@@ -258,10 +258,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   })
   // The balance shown next to a name comes from the impact the screen already
   // fetches for every option, not from a second fairness computation (MED5-09).
-  const impactOf = (memberId: string) => {
-    const index = options.data?.findIndex((option) => option.member_id === memberId) ?? -1
-    return index >= 0 ? optionImpacts[index]?.data : undefined
-  }
+  const impacts = new Map((options.data ?? []).map((option, index) => [option.member_id, optionImpacts[index].data]))
+  const impactOf = (memberId: string) => impacts.get(memberId)
   const optionDeviation = (memberId: string) => {
     const impact = impactOf(memberId)
     if (!impact || !assignmentRole) return null
@@ -287,16 +285,17 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     return rightBenefit - leftBenefit || left.display_name.localeCompare(right.display_name, locale())
   })
   const selectedOption = options.data?.find((option) => option.member_id === replacementId)
+  // The slots a replacement takes when the day couples more than one.
+  const bothSlots = selectedOption?.slots && selectedOption.slots.length > 1 ? selectedOption.slots : null
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['swaps'] })
     queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
     queryClient.invalidateQueries({ queryKey: ['calendar'] })
   }
-  const setInbox = (value: Inbox | null) => {
+  const setInbox = (value: Inbox) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
-      if (value) next.set('skrzynka', value)
-      else next.delete('skrzynka')
+      next.set('skrzynka', value)
       return next
     }, { replace: true })
   }
@@ -493,7 +492,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
 
       <Panel
         open={Boolean(openItem)}
-        onOpenChange={(open) => { if (!open) openSheet(null) }}
+        onClose={() => openSheet(null)}
         title={openItem ? t.swaps.sheet.title(dayRole(openItem)) : ''}
         meta={openItem && <StatusBadge tone={statusTone[openItem.status]}>{statuses[openItem.status]}</StatusBadge>}
         footer={openItem && decision && (
@@ -527,7 +526,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
 
       <Panel
         open={composing}
-        onOpenChange={(open) => { if (!open) setComposing(false) }}
+        onClose={() => setComposing(false)}
         title={t.swaps.compose.title}
         wide
         footer={(
@@ -584,7 +583,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             {slot && orderedOptions.length > 0 && (
               <div className="rank">
                 {orderedOptions.map((option, index) => {
-                  const blocked = (option.blocking_violations?.length ?? 0) > 0
+                  const blockedBy = option.blocking_violations?.[0]
+                  const blocked = Boolean(blockedBy)
                   const deviation = optionDeviation(option.member_id)
                   const benefit = optionBenefit(option.member_id)
                   const best = index === 0 && !blocked && (benefit ?? 0) > 0
@@ -610,7 +610,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                           ].filter(Boolean).map((fact, index) => (
                             <Fragment key={index}>{index > 0 && ' · '}{fact}</Fragment>
                           ))}
-                          {blocked && <span className="who-out"> {t.swaps.compose.blocked(option.blocking_violations?.[0]?.message ?? '')}</span>}
+                          {blockedBy && <span className="who-out"> {t.swaps.compose.blocked(blockedBy.message)}</span>}
                         </small>
                       </span>
                       <span className="rank-facts">
@@ -630,9 +630,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               </div>
             )}
           </div>
-          {(selectedOption?.slots?.length ?? 0) > 1 && (
+          {bothSlots && (
             <Box tone="sig" title={t.swaps.compose.bothSlotsTitle}>
-              {slotSummary(selectedOption?.slots ?? [])}. {approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval}
+              {slotSummary(bothSlots)}. {approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval}
             </Box>
           )}
           {selectedOption && (

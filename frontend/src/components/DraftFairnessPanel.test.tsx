@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { DraftFairnessPanel } from './DraftFairnessPanel'
-import { api } from '../api'
-import type { DraftFairnessImpact, DraftSchedule } from '../api'
+import { ApiError, api } from '../api'
+import type { DraftFairnessImpact, DraftSchedule, FairnessMember } from '../api'
 
 const result = { id: 'd1', version: 2 } as DraftSchedule
 
@@ -28,6 +28,20 @@ const impact = (over: Partial<DraftFairnessImpact> = {}): DraftFairnessImpact =>
 })
 
 afterEach(() => vi.restoreAllMocks())
+
+const cat = (deviation: number, actual = 10) => ({ actual, expected: actual - deviation, deviation })
+
+const person = (member_id: string, display_name: string, primaryDeviation: number, over: Partial<FairnessMember> = {}): FairnessMember => ({
+  member_id, display_name, active_from: '2024-01-01',
+  eligible_days: { primary: 1, secondary: 1, late_shift: 1 },
+  primary: cat(primaryDeviation),
+  secondary: cat(0, 5),
+  late_shift: cat(0, 0),
+  weekends: cat(0, 0),
+  holidays: cat(0, 0),
+  total_points: 15,
+  ...over,
+})
 
 describe('DraftFairnessPanel criterion summary', () => {
   it('shows per-lens spread before -> after with the criterion state in words', async () => {
@@ -140,5 +154,58 @@ describe('DraftFairnessPanel criterion summary', () => {
     renderScreen(<DraftFairnessPanel result={result} />)
     expect(await screen.findByText('Poza rotacją')).toBeInTheDocument()
     expect(screen.getByText('Robert Baran')).toBeInTheDocument()
+  })
+})
+
+describe('DraftFairnessPanel people', () => {
+  it('orders people by distance from balance and says how each one moves', async () => {
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact({
+      baseline_members: [
+        person('a', 'Anna Kowalska', 3),
+        person('b', 'Bartek Zieliński', -1),
+        person('c', 'Celina Wójcik', 1),
+      ],
+      projected_members: [
+        person('c', 'Celina Wójcik', 1),
+        person('a', 'Anna Kowalska', 1),
+        person('b', 'Bartek Zieliński', -2),
+        // Joined after the baseline: no before to compare with.
+        person('n', 'Nowa Osoba', 0, { active_from: '2026-10-10' }),
+      ],
+      spreads: [
+        { lens: 'primary', before: 2, after: 4, meets_criterion: false },
+        { lens: 'standby' as never, before: 4, after: 4, meets_criterion: true },
+      ],
+      criterion_met: false,
+      acceptance_floor: 2.5,
+    }))
+    renderScreen(<DraftFairnessPanel result={result} />)
+
+    const table = await screen.findByRole('table', { name: 'Wpływ szkicu na bilans' })
+    const names = within(table).getAllByRole('rowheader').map((cell) => cell.firstChild?.textContent)
+    // Two people one point off are ordered by name.
+    expect(names).toEqual(['Bartek Zieliński', 'Anna Kowalska', 'Celina Wójcik', 'Nowa Osoba'])
+    expect(within(table).getByRole('rowheader', { name: /Anna Kowalska/ })).toHaveTextContent('bliżej równowagi o 2')
+    expect(within(table).getByRole('rowheader', { name: /Bartek Zieliński/ })).toHaveTextContent('dalej od równowagi o 1')
+    expect(within(table).getByRole('rowheader', { name: /Celina Wójcik/ })).toHaveTextContent('bez istotnej zmiany')
+    expect(within(table).getByRole('rowheader', { name: /Nowa Osoba/ })).toHaveTextContent('od 10-10-2026')
+
+    // An unknown lens is named by its code; an unchanged widest spread is "no change".
+    expect(screen.getByText(/standby: 4 → 4/)).toBeInTheDocument()
+    expect(screen.getByText('bez zmian')).toBeInTheDocument()
+    // The primary lens met the criterion before the draft, so the draft is to blame.
+    expect(screen.getByText('Kryterium niespełnione').closest('.box')).toHaveTextContent('Najniższa rozpiętość osiągalna w tym zakresie to 2,5 pkt.')
+  })
+
+  it('shows progress, then a failed load that can be retried', async () => {
+    const load = vi.spyOn(api, 'draftFairnessImpact').mockRejectedValue(new ApiError('Szkic zmienił wersję', 409))
+    renderScreen(<DraftFairnessPanel result={result} />)
+
+    expect(screen.getByRole('status', { name: 'Przeliczanie sprawiedliwości' })).toBeInTheDocument()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Szkic zmienił wersję')
+    load.mockResolvedValue(impact())
+    fireEvent.click(within(alert).getByRole('button', { name: 'Spróbuj ponownie' }))
+    expect(await screen.findByText('rozpiętość ≤ 3 pkt na soczewce')).toBeInTheDocument()
   })
 })

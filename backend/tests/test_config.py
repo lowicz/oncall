@@ -40,6 +40,53 @@ def test_cpu_count_is_limited_to_eight(tmp_path, monkeypatch) -> None:
     assert available_cpu_count(tmp_path) == 8
 
 
+def test_cpu_count_without_an_affinity_call_falls_back_to_the_cpu_count(
+    tmp_path, monkeypatch
+) -> None:
+    """macOS has no `sched_getaffinity`; a development machine still runs."""
+    monkeypatch.delattr(os, "sched_getaffinity")
+    monkeypatch.setattr(os, "cpu_count", lambda: 4)
+
+    assert available_cpu_count(tmp_path) == 4
+
+
+def test_cpu_count_of_an_unknown_machine_is_one(tmp_path, monkeypatch) -> None:
+    def refused(_pid: int) -> set[int]:
+        raise OSError("not permitted")
+
+    monkeypatch.setattr(os, "sched_getaffinity", refused)
+    monkeypatch.setattr(os, "cpu_count", lambda: None)
+
+    assert available_cpu_count(tmp_path) == 1
+
+
+@pytest.mark.parametrize("cpu_max", ["0 100000\n", "100000 0\n", "lots 100000\n", "max\n"])
+def test_an_unusable_cgroup_v2_quota_falls_through_to_v1(tmp_path, cpu_max) -> None:
+    (tmp_path / "cpu.max").write_text(cpu_max)
+    cpu = tmp_path / "cpu"
+    cpu.mkdir()
+    (cpu / "cpu.cfs_quota_us").write_text("500000\n")
+    (cpu / "cpu.cfs_period_us").write_text("100000\n")
+
+    assert available_cpu_count(tmp_path) == 5
+
+
+@pytest.mark.parametrize(
+    ("quota", "period"), [("-1", "100000"), ("200000", "0"), ("200000", None), ("x", "100000")]
+)
+def test_an_unlimited_or_unreadable_cgroup_v1_quota_uses_the_affinity(
+    tmp_path, monkeypatch, quota, period
+) -> None:
+    cpu = tmp_path / "cpu"
+    cpu.mkdir()
+    (cpu / "cpu.cfs_quota_us").write_text(quota)
+    if period is not None:
+        (cpu / "cpu.cfs_period_us").write_text(period)
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: set(range(3)))
+
+    assert available_cpu_count(tmp_path) == 3
+
+
 def test_https_base_url_requires_a_secure_session_cookie() -> None:
     """#31/#36: an https deployment that forgot the Secure flag must not start,
     or it would keep serving the auth cookie over the pre-redirect cleartext

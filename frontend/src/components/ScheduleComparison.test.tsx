@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { ScheduleComparison } from './ScheduleComparison'
-import { RotationMode, ScheduleComparison as Comparison, ScheduleSummary, api } from '../api'
+import { ApiError, RotationMode, ScheduleComparison as Comparison, ScheduleSummary, api } from '../api'
 
 const summary = (id: string, rotation_mode: RotationMode): ScheduleSummary => ({
   id,
@@ -81,5 +81,19 @@ describe('ScheduleComparison', () => {
     expect(screen.getByLabelText('Wariant tygodniowy')).toHaveValue('')
     expect(screen.getByRole('button', { name: 'Porównaj' })).toBeDisabled()
     expect(compare).toHaveBeenCalledTimes(1)
+  })
+
+  it('lets the weekly side be chosen and shows why a comparison failed', async () => {
+    const compare = vi.spyOn(api, 'compareSchedules').mockRejectedValue(new ApiError('Szkice obejmują różne okresy', 409))
+    renderScreen(<ScheduleComparison drafts={[summary('d1', 'daily'), summary('w1', 'weekly'), summary('w2', 'weekly')]} />)
+
+    const weekly = screen.getByLabelText('Wariant tygodniowy')
+    expect(weekly).toHaveValue('')
+    fireEvent.change(weekly, { target: { value: 'w2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Porównaj' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Szkice obejmują różne okresy')
+    expect(compare).toHaveBeenCalledWith('d1', 'w2')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 })

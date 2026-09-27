@@ -74,6 +74,8 @@ MESSAGES: dict[str, str] = {
     ),
     "admin.username_has_spaces": "The username cannot contain spaces",
     "admin.membership_end_before_entry": "The end date cannot precede the entry date",
+    "admin.membership_entry_required": "The rotation entry date is required",
+    "admin.eligibility_start_required": "The start date of the period is required",
     # --- availability (oncall.domain.availability) ---------------------------
     "availability.team_member_not_found": "Team member not found",
     "availability.range_reversed": "The end date cannot precede the start date",

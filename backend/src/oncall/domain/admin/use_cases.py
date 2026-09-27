@@ -330,15 +330,13 @@ async def _ensure_duties_stay_eligible(
     rotation: EligibilityBook,
     member_id: uuid.UUID,
     role: AssignmentRole,
-    starts_on: date | None,
+    starts_on: date,
     ends_on: date | None,
     *,
     other_than: uuid.UUID,
 ) -> None:
     """Refuse a new span that would leave a published duty in this role with
     no eligibility period covering its day."""
-    if starts_on is None and ends_on is None:
-        return
     duties = await rotation.published_duties(member_id, role=role, before=starts_on, after=ends_on)
     others = [item for item in await rotation.periods(member_id, role) if item.id != other_than]
     uncovered = [slot for slot in duties if not any(period.covers(slot[0]) for period in others)][

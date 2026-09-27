@@ -165,3 +165,23 @@ async def test_each_entry_is_audited_with_its_own_id(client: AsyncClient, db: As
         )
     ).all()
     assert sorted(map(str, audited)) == sorted(created_ids)
+
+
+async def test_coordinator_removes_an_entry_filed_for_a_member(
+    client: AsyncClient, db: AsyncSession
+):
+    _, beata = await _beata(db)
+    await create_user(db, "adam.nowicki", role=UserRole.coordinator, display_name="Adam Nowicki")
+    await login(client, "adam.nowicki")
+    start = date.today() + timedelta(days=7)
+    created = await client.post(
+        f"/api/v1/availability/members/{beata.id}",
+        json={"kind": "unavailable", "starts_on": str(start), "ends_on": str(start)},
+    )
+    assert created.status_code == 201, created.text
+
+    removed = await client.delete(f"/api/v1/availability/members/{beata.id}/{created.json()['id']}")
+
+    assert removed.status_code == 204
+    assert (await db.scalar(select(Availability))) is None
+    assert (await client.get(f"/api/v1/availability/members/{beata.id}")).json() == []

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { DraftFairnessImpact, DraftSchedule, FairnessMember, api } from '../api'
+import { DraftFairnessImpact, DraftSchedule, FairnessMember } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { lensLabels } from '../lib/labels'
-import { DEVIATION_SCALE, deviationWords, totalBalance } from '../lib/fairness'
+import { DEVIATION_SCALE, deviationWords, draftFairnessImpactQuery, totalBalance } from '../lib/fairness'
 import { formatDecimal, formatPoints, signedPoints } from '../lib/numbers'
 import { formatDate } from '../lib/dates'
 import { Box, Chip, ChipRow, DeviationBar, ErrorState, LoadingBlock, StatusBadge } from '../ui'
@@ -11,10 +11,7 @@ export function impactLabel(before: number, after: number) {
   const t = messages().generator.fairness.impact
   const change = Math.round((Math.abs(before) - Math.abs(after)) * 100) / 100
   if (Math.abs(change) < 0.05) return t.noChange
-  if (change > 0) return t.closer(formatPoints(change))
-  if (change < 0) return t.further(formatPoints(Math.abs(change)))
-  if (before === after) return t.sameBalance
-  return t.otherSide
+  return change > 0 ? t.closer(formatPoints(change)) : t.further(formatPoints(-change))
 }
 
 /** The widest lens spread: the number the acceptance criterion judges. */
@@ -44,10 +41,7 @@ export function shortfallCause(impact: DraftFairnessImpact): 'met' | 'inherited'
  */
 export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
   const t = useMessages().generator.fairness
-  const impact = useQuery<DraftFairnessImpact>({
-    queryKey: ['draft-fairness-impact', result.id, result.version],
-    queryFn: () => api.draftFairnessImpact(result.id, result.version),
-  })
+  const impact = useQuery(draftFairnessImpactQuery(result))
   // D1: with an anchor the 11–19 count follows the anchor role and the lens
   // hides; only `independent` shows it as a lens balanced on its own.
   const lateShiftBalanced = impact.data?.late_shift_balanced !== false

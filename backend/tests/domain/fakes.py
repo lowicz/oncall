@@ -212,6 +212,9 @@ class FakeFairness:
                 },
             )
             for item in self.team.by_id.values()
+            # Like the adapter: only members active somewhere in the window.
+            if item.active_from <= window_end
+            and (item.active_until is None or item.active_until >= window_start)
         ]
         duties = [
             FairnessDuty(duty.service_date, duty.role, duty.assignee_name, duty.member_id)

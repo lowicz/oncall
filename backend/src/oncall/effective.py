@@ -163,14 +163,3 @@ def sorted_assignments(
     resolved: dict[tuple[date, AssignmentRole], EffectiveAssignment],
 ) -> list[EffectiveAssignment]:
     return sorted(resolved.values(), key=lambda item: (item.service_date, item.role.value))
-
-
-def matches_member(item: EffectiveAssignment, member_id: uuid.UUID, display_name: str) -> bool:
-    """Whether this duty belongs to the given member.
-
-    Prefers the identity; falls back to the label only for rows that have no id,
-    so a renamed member keeps their history while imported rows still count.
-    """
-    if item.member_id is not None:
-        return item.member_id == member_id
-    return item.assignee_name == display_name

@@ -147,8 +147,7 @@ async def synchronize_directory_account(identity: DirectoryIdentity, ports: Sign
         linked = await ports.accounts.link_to_directory(account.id, login, identity)
         await ports.journal.linked(linked, login=login)
         return linked
-    if account.auth_source != AuthSource.ldap:
-        raise errors.DirectoryIdentityTaken("auth_source_mismatch")
+    # Otherwise the account already signs in through the directory.
     changes = {
         field: value
         for field, value in (

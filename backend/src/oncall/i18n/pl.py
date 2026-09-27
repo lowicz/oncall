@@ -76,6 +76,8 @@ MESSAGES: dict[str, str] = {
     ),
     "admin.username_has_spaces": "Login nie może zawierać spacji",
     "admin.membership_end_before_entry": "Data końcowa nie może poprzedzać daty wejścia",
+    "admin.membership_entry_required": "Data wejścia do rotacji jest wymagana",
+    "admin.eligibility_start_required": "Data początkowa okresu jest wymagana",
     # --- availability (oncall.domain.availability) ---------------------------
     "availability.team_member_not_found": "Nie znaleziono członka zespołu",
     "availability.range_reversed": "Data końcowa nie może poprzedzać początkowej",

@@ -1,5 +1,9 @@
 """The demo seed's member names: the default set or ``ONCALL_DEMO_NAMES``."""
 
+import asyncio
+import runpy
+import sys
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -85,3 +89,86 @@ async def test_seed_demo_relinks_members_when_the_schedule_exists(
         by_name = dict(zip(ENGLISH_NAMES, DEMO_LOGINS, strict=True))
         for member in members:
             assert member.user_id == users[by_name[member.display_name]]
+
+
+@pytest.mark.parametrize("password", [None, "too-short"])
+async def test_the_seed_needs_a_real_demo_password(monkeypatch, password) -> None:
+    if password is None:
+        monkeypatch.delenv("ONCALL_DEMO_PASSWORD", raising=False)
+    else:
+        monkeypatch.setenv("ONCALL_DEMO_PASSWORD", password)
+
+    with pytest.raises(SystemExit, match="ONCALL_DEMO_PASSWORD"):
+        await seed_demo()
+
+
+async def test_a_mail_domain_configured_later_gives_existing_accounts_an_address(
+    db_factory: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock: object,
+) -> None:
+    """A demo seeded before `ONCALL_DEMO_EMAIL_DOMAIN` was set gets addresses
+    on the next run, and an address already there is left alone."""
+    monkeypatch.setattr("oncall.seed_demo.SessionFactory", db_factory)
+    monkeypatch.setenv("ONCALL_DEMO_PASSWORD", "demo-password-123")
+    monkeypatch.delenv("ONCALL_DEMO_NAMES", raising=False)
+    monkeypatch.delenv("ONCALL_DEMO_EMAIL_DOMAIN", raising=False)
+    await seed_demo()
+    async with db_factory() as db:
+        assert set((await db.scalars(select(User.email))).all()) == {None}
+        await db.execute(
+            User.__table__.update().where(User.username == "anna").values(email="anna@own.example")
+        )
+        await db.commit()
+
+    monkeypatch.setenv("ONCALL_DEMO_EMAIL_DOMAIN", "demo.example")
+    await seed_demo()
+
+    async with db_factory() as db:
+        emails = {
+            row.username: row.email for row in await db.execute(select(User.username, User.email))
+        }
+    assert emails == {
+        "admin": "admin@demo.example",
+        "anna": "anna@own.example",
+        "marek": "marek@demo.example",
+        "ola": "ola@demo.example",
+        "piotr": "piotr@demo.example",
+        "viewer": "viewer@demo.example",
+    }
+
+
+async def test_a_fresh_seed_with_a_mail_domain_creates_accounts_with_addresses(
+    db_factory: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_clock: object,
+) -> None:
+    monkeypatch.setattr("oncall.seed_demo.SessionFactory", db_factory)
+    monkeypatch.setenv("ONCALL_DEMO_PASSWORD", "demo-password-123")
+    monkeypatch.delenv("ONCALL_DEMO_NAMES", raising=False)
+    monkeypatch.setenv("ONCALL_DEMO_EMAIL_DOMAIN", "demo.example")
+
+    await seed_demo()
+
+    async with db_factory() as db:
+        members = (await db.scalars(select(TeamMember.display_name))).all()
+        viewer = await db.scalar(select(User).where(User.username == "viewer"))
+    assert sorted(members) == sorted(DEMO_NAMES)
+    assert viewer is not None
+    assert viewer.email == "viewer@demo.example"
+
+
+def test_running_the_module_seeds_the_demo(monkeypatch) -> None:
+    """`python -m oncall.seed_demo` is how an operator fills a demo database."""
+    started: list[str] = []
+
+    def fake_run(coroutine) -> None:
+        started.append(coroutine.cr_code.co_name)
+        coroutine.close()
+
+    monkeypatch.setattr(asyncio, "run", fake_run)
+    monkeypatch.delitem(sys.modules, "oncall.seed_demo")
+
+    runpy.run_module("oncall.seed_demo", run_name="__main__")
+
+    assert started == ["seed_demo"]

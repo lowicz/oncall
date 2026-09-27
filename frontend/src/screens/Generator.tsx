@@ -5,6 +5,7 @@ import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSumm
 import { locale, messages, useMessages } from '../i18n'
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { formatPoints } from '../lib/numbers'
+import { draftFairnessImpactQuery } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
 import { DraftFairnessPanel, worstSpread } from '../components/DraftFairnessPanel'
@@ -162,11 +163,7 @@ export function GeneratorPanel() {
     enabled: publishConfirmOpen && result?.status === 'proposed',
   })
   useEffect(() => { setChangeResolutions({}); setPublishAcknowledged(false) }, [result?.id, result?.version])
-  const impact = useQuery({
-    queryKey: ['draft-fairness-impact', result?.id, result?.version],
-    queryFn: () => api.draftFairnessImpact(result!.id, result!.version),
-    enabled: Boolean(result),
-  })
+  const impact = useQuery(draftFairnessImpactQuery(result))
   const [toDelete, setToDelete] = useState<ScheduleSummary | null>(null)
   const invalidateDrafts = () => {
     queryClient.invalidateQueries({ queryKey: ['active-runs'] })
@@ -198,7 +195,6 @@ export function GeneratorPanel() {
     solve_seconds: 15,
     coordinator_swap_approval_required: true,
   })
-  const storedSettings = (): Settings | null => (policy.data ? settingsOf(policy.data) : null)
   useEffect(() => {
     if (policy.data) setSettings(settingsOf(policy.data))
   }, [policy.data])
@@ -265,7 +261,9 @@ export function GeneratorPanel() {
   const counts = result ? problemCounts(result) : { hard: 0, soft: 0, total: 0 }
   const days = result ? new Set(result.assignments.map((item) => item.service_date)).size : 0
   const spread = impact.data ? worstSpread(impact.data) : null
-  const generatingRange = generating ? (result && !generate.isPending ? result : range) : null
+  // The range being generated: what the running request asked for, else the
+  // draft whose interrupted run is being rejoined.
+  const generatingRange = generating ? (generate.isPending ? generate.variables : result ?? range) : null
   const showProblems = (onlyHard: boolean) => {
     setHardOnly(onlyHard)
     problemsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -366,7 +364,7 @@ export function GeneratorPanel() {
       <DraftList activeId={result?.id} onOpen={setOpenId} onDelete={setToDelete} deleting={remove.isPending} />
       {(drafts.data?.some((item) => item.rotation_mode === 'daily') && drafts.data.some((item) => item.rotation_mode === 'weekly')) && (
         <Disclosure title={t.drafts.compareVariants}>
-          <ScheduleComparison drafts={drafts.data ?? []} />
+          <ScheduleComparison drafts={drafts.data} />
         </Disclosure>
       )}
     </section>
@@ -548,13 +546,13 @@ export function GeneratorPanel() {
       />
       <Panel
         open={settingsOpen}
-        onOpenChange={setSettingsOpen}
+        onClose={() => setSettingsOpen(false)}
         wide
         title={t.settings.title}
         meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}
         footer={(
           <>
-            <Button size="sm" variant="ghost" disabled={!settingsDirty} onClick={() => { const stored = storedSettings(); if (stored) setSettings(stored) }}>{t.settings.restore}</Button>
+            <Button size="sm" variant="ghost" disabled={!settingsDirty} onClick={() => setSettings(settingsOf(policy.data!))}>{t.settings.restore}</Button>
             <span className="sp" />
             <Button type="submit" form="generator-settings" variant={settingsDirty ? 'primary' : 'default'} disabled={savePolicy.isPending || policy.isLoading || !settingsDirty} loading={savePolicy.isPending}>
               {savePolicy.isPending ? common.saving : t.settings.save}
@@ -624,7 +622,7 @@ export function GeneratorPanel() {
       {result && (
         <Dialog
           open={publishConfirmOpen}
-          onOpenChange={setPublishConfirmOpen}
+          onClose={() => setPublishConfirmOpen(false)}
           dismissible={!publish.isPending}
           size="lg"
           title={t.publish.title(result.status === 'proposed', result.version, formatRange(result.starts_on, result.ends_on))}

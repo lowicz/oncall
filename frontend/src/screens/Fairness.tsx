@@ -200,19 +200,18 @@ export function FairnessPanel() {
   const totals = report.data?.totals
   // The spread summary is a team quantity; a member seeing only their own row
   // would read a meaningless 0.0 out of it.
-  const teamView = (report.data?.members.length ?? 0) > 1
+  const teamView = members.length > 1
   const sumOf = (key: Lens, field: 'actual' | 'expected') =>
-    roundPoints((report.data?.members ?? []).reduce((sum, member) => sum + categoryOf(member, key)[field], 0))
+    roundPoints(members.reduce((sum, member) => sum + categoryOf(member, key)[field], 0))
   const averagePoints = report.data && criterionMembers.length > 0
     ? roundPoints(criterionMembers.reduce((sum, member) => sum + totalBalance(member, lateShiftBalanced).actual, 0) / criterionMembers.length)
     : 0
-  const exportCsv = () => {
-    if (!report.data) return
-    const blob = new Blob([`\uFEFF${csvOf(report.data, lateShiftBalanced)}`], { type: 'text/csv;charset=utf-8' })
+  const exportCsv = (data: FairnessReport) => {
+    const blob = new Blob([`\uFEFF${csvOf(data, lateShiftBalanced)}`], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = t.csv.fileName(report.data.as_of)
+    link.download = t.csv.fileName(data.as_of)
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -282,7 +281,7 @@ export function FairnessPanel() {
           <form className="row" onSubmit={(event) => event.preventDefault()}>
             <DateField id="fairness-as-of" label={t.asOf} value={asOf} onChange={(value) => value && setAsOf(value)} />
             <Button onClick={() => setAsOf(today)} className="self-end">{t.today}</Button>
-            <Button icon="download" onClick={exportCsv} disabled={!report.data} className="self-end">{t.exportCsv}</Button>
+            <Button icon="download" onClick={() => exportCsv(report.data!)} disabled={!report.data} className="self-end">{t.exportCsv}</Button>
           </form>
         )}
       />

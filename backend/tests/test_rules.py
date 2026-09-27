@@ -61,6 +61,11 @@ def test_rest_after_run_accepts_two_rest_days() -> None:
     assert oncall_rest_violations("Anna", served) == []
 
 
+def test_rest_after_run_is_not_asked_of_a_run_touching_an_exempt_day() -> None:
+    served = {DAY, DAY + timedelta(days=1), DAY + timedelta(days=3)}
+    assert oncall_rest_violations("Anna", served, {DAY + timedelta(days=1)}) == []
+
+
 def test_long_day_off_block_is_exempt_from_rest_rules() -> None:
     # A four-day Christmas block (Thu 25th and Fri 26th are holidays, then the
     # weekend) is one indivisible decision: the holder serves four consecutive

@@ -173,3 +173,85 @@ describe('MonthlyReportsPanel', () => {
     expect(getComputedStyle(lastFooterCell).borderBottomWidth).toBe('0px')
   })
 })
+
+const idle = (name: string, memberId = name): MonthlyReportPreview['rows'][number] => ({
+  ...row(name, 0, memberId),
+  primary_workdays: 0, primary_weekends: 0, primary_holidays: 0,
+  secondary_workdays: 0, secondary_weekends: 0, secondary_holidays: 0,
+  oncall_workdays: 0, oncall_weekends: 0, oncall_holidays: 0, oncall_days_off: 0, oncall_total: 0,
+  late_shifts: 0, primary_points: 0, secondary_points: 0, total_points: 0,
+})
+
+describe('MonthlyReportsPanel coverage warnings', () => {
+  it('warns when the month has no published duties at all', async () => {
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({ ...preview, staffed_days: 0, rows: [idle('Marek Nowak')] })
+    renderScreen(<MonthlyReportsPanel />)
+
+    expect(await screen.findByText('Wybrany miesiąc nie ma żadnych opublikowanych dyżurów.')).toBeInTheDocument()
+    expect(screen.queryByText(/Opublikowany grafik pokrywa/)).not.toBeInTheDocument()
+  })
+
+  it('warns that only fully staffed days count when the schedule covers part of the month', async () => {
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({ ...preview, staffed_days: 12 })
+    renderScreen(<MonthlyReportsPanel />)
+
+    expect(await screen.findByText('Opublikowany grafik pokrywa 12 z 30 dni tego miesiąca.')).toBeInTheDocument()
+    expect(screen.getByText('Raport uwzględnia tylko dni z pełną obsadą.')).toBeInTheDocument()
+    expect(screen.queryByText('Wybrany miesiąc nie ma żadnych opublikowanych dyżurów.')).not.toBeInTheDocument()
+  })
+
+  it('offers a retry when the preview fails to load', async () => {
+    const spy = vi.spyOn(api, 'monthlyReportPreview')
+      .mockRejectedValueOnce(new Error('Serwer niedostępny'))
+      .mockResolvedValue(preview)
+    renderScreen(<MonthlyReportsPanel />)
+
+    expect(await screen.findByText('Serwer niedostępny')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }))
+
+    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    expect(spy).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('MonthlyReportsPanel download', () => {
+  it('downloads the month as a named CSV file and says so', async () => {
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
+    let resolve: (blob: Blob) => void = () => {}
+    const report = vi.spyOn(api, 'monthlyReport').mockReturnValue(new Promise((done) => { resolve = done }))
+    const blob = new Blob(['csv'], { type: 'text/csv' })
+    const createObjectURL = vi.fn(() => 'blob:report')
+    const revokeObjectURL = vi.fn()
+    Object.assign(URL, { createObjectURL, revokeObjectURL })
+    const clicked: Array<{ download: string; href: string; attached: boolean }> = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push({ download: this.download, href: this.href, attached: document.body.contains(this) })
+    })
+    renderScreen(<MonthlyReportsPanel />)
+    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pobierz CSV' }))
+    const pending = await screen.findByRole('button', { name: /Przygotowuję…/ })
+    expect(pending).toBeDisabled()
+    expect(report).toHaveBeenCalledWith('2026-09')
+    resolve(blob)
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Raport został pobrany.')
+    expect(createObjectURL).toHaveBeenCalledWith(blob)
+    expect(clicked).toEqual([{ download: 'oncall-2026-09.csv', href: 'blob:report', attached: true }])
+    expect(document.querySelector('a[download]')).toBeNull()
+    await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:report'))
+  })
+
+  it('shows why the download failed', async () => {
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
+    vi.spyOn(api, 'monthlyReport').mockRejectedValue(new Error('Brak opublikowanego grafiku'))
+    renderScreen(<MonthlyReportsPanel />)
+    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pobierz CSV' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Brak opublikowanego grafiku')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})

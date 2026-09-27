@@ -10,8 +10,8 @@ RejectionCause = Literal["credentials_rejected", "account_inactive"]
 #: `personnel_number_mismatch`: the login belongs to an account whose
 #: personnel number is another one or none; `login_taken`: the account with
 #: this personnel number exists, but its directory login belongs to another
-#: account; `auth_source_mismatch`: the account signs in some other way.
-IdentityConflictCause = Literal["personnel_number_mismatch", "login_taken", "auth_source_mismatch"]
+#: account.
+IdentityConflictCause = Literal["personnel_number_mismatch", "login_taken"]
 
 
 class LoginThrottled(RecordedRefusal):

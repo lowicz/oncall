@@ -47,6 +47,12 @@ const emptyAccount: AdminUserInput = {
   username: '', personnel_number: null, first_name: '', last_name: '', email: null, phone: null, role: 'member',
 }
 
+/** The account tab's form: every field, filled from the account when it opens. */
+type AccountForm = Required<AdminUserUpdate>
+const emptyAccountForm: AccountForm = {
+  personnel_number: null, first_name: '', last_name: '', email: null, phone: null, role: 'member', is_active: true,
+}
+
 /** Where a person stands in the rotation, as the table and the panel say it. */
 type RotationState = 'active' | 'entering' | 'ended' | 'outside'
 function rotationState(member: TeamMember | undefined, today: string): RotationState {
@@ -175,7 +181,7 @@ export function PeoplePanel() {
   const branding = useBranding()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tab, setTab] = useState<DetailTab>('account')
-  const [accountForm, setAccountForm] = useState<AdminUserUpdate>({})
+  const [accountForm, setAccountForm] = useState<AccountForm>(emptyAccountForm)
   const [newOpen, setNewOpen] = useState(false)
   const [newForm, setNewForm] = useState<AdminUserInput>(emptyAccount)
   const [activationUrl, setActivationUrl] = useState('')
@@ -271,17 +277,17 @@ export function PeoplePanel() {
     const user = selectedRow.user
     const changes: string[] = []
     if (user.auth_source !== 'ldap') {
-      if ((accountForm.first_name ?? '') !== user.first_name) changes.push(t.changes.firstName)
-      if ((accountForm.last_name ?? '') !== user.last_name) changes.push(t.changes.lastName)
-      if ((accountForm.personnel_number ?? null) !== user.personnel_number) changes.push(t.changes.personnelNumber)
-      if ((accountForm.email ?? null) !== user.email) changes.push(t.changes.email)
+      if (accountForm.first_name !== user.first_name) changes.push(t.changes.firstName)
+      if (accountForm.last_name !== user.last_name) changes.push(t.changes.lastName)
+      if (accountForm.personnel_number !== user.personnel_number) changes.push(t.changes.personnelNumber)
+      if (accountForm.email !== user.email) changes.push(t.changes.email)
     }
     // Not managed by LDAP even for a directory account (decision D8).
-    if ((accountForm.phone ?? null) !== user.phone) changes.push(t.changes.phone)
-    if ((accountForm.role ?? user.role) !== user.role) {
-      changes.push(t.changes.role(accountRoleLabels()[user.role], accountRoleLabels()[accountForm.role ?? user.role]))
+    if (accountForm.phone !== user.phone) changes.push(t.changes.phone)
+    if (accountForm.role !== user.role) {
+      changes.push(t.changes.role(accountRoleLabels()[user.role], accountRoleLabels()[accountForm.role]))
     }
-    if ((accountForm.is_active ?? user.is_active) !== user.is_active) {
+    if (accountForm.is_active !== user.is_active) {
       changes.push(accountForm.is_active ? t.changes.enableAccount : t.changes.disableAccount)
     }
     return changes
@@ -383,7 +389,7 @@ export function PeoplePanel() {
 
   // Role change and deactivation get a confirmation; everything else saves at once.
   const dangerous = Boolean(selectedRow)
-    && ((accountForm.role ?? selectedRow!.user.role) !== selectedRow!.user.role
+    && (accountForm.role !== selectedRow!.user.role
       || (selectedRow!.user.is_active && accountForm.is_active === false))
   const submitAll = (event: FormEvent) => {
     event.preventDefault()
@@ -517,7 +523,7 @@ export function PeoplePanel() {
 
       <Panel
         open={newOpen}
-        onOpenChange={setNewOpen}
+        onClose={() => setNewOpen(false)}
         wide
         title={t.newAccountPanel.title}
         meta={<StatusBadge tone={roleTone[newForm.role]}>{accountRoleLabels()[newForm.role]}</StatusBadge>}
@@ -585,7 +591,7 @@ export function PeoplePanel() {
 
       <Panel
         open={Boolean(selectedRow)}
-        onOpenChange={(open) => { if (!open) requestClose() }}
+        onClose={requestClose}
         wide
         title={selectedRow ? <span className="row"><Avatar name={selectedRow.user.display_name} size={30} />{selectedRow.user.display_name}</span> : ''}
         meta={selectedRow && (
@@ -630,10 +636,10 @@ export function PeoplePanel() {
                 )}
                 <div className="frow">
                   <Field label={t.fields.firstName} id="acc-first-name" required>
-                    {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.first_name ?? ''} onChange={(e) => setAccountForm({ ...accountForm, first_name: e.target.value })} required />}
+                    {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.first_name} onChange={(e) => setAccountForm({ ...accountForm, first_name: e.target.value })} required />}
                   </Field>
                   <Field label={t.fields.lastName} id="acc-last-name">
-                    {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.last_name ?? ''} onChange={(e) => setAccountForm({ ...accountForm, last_name: e.target.value })} />}
+                    {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.last_name} onChange={(e) => setAccountForm({ ...accountForm, last_name: e.target.value })} />}
                   </Field>
                 </div>
                 <div className="frow">
@@ -787,13 +793,13 @@ export function PeoplePanel() {
                   {() => (
                     <Segmented<UserRole>
                       label={t.fields.accountRole}
-                      value={accountForm.role ?? selectedRow.user.role}
+                      value={accountForm.role}
                       onChange={(role) => setAccountForm({ ...accountForm, role })}
                       options={roleOptions}
                     />
                   )}
                 </Field>
-                <Checkbox label={t.accessTab.accountEnabled} hint={t.accessTab.accountEnabledHint} checked={accountForm.is_active ?? false} onChange={(e) => setAccountForm({ ...accountForm, is_active: e.target.checked })} />
+                <Checkbox label={t.accessTab.accountEnabled} hint={t.accessTab.accountEnabledHint} checked={accountForm.is_active} onChange={(e) => setAccountForm({ ...accountForm, is_active: e.target.checked })} />
                 {selectedActivation && (
                   <Box tone={selectedActivation === 'waiting' ? 'warn' : 'bad'} title={t.activation.pendingTitle}>
                     {t.accessTab.noPasswordYet}
@@ -841,7 +847,7 @@ export function PeoplePanel() {
       />
       <Dialog
         open={deleteOpen && Boolean(selectedRow)}
-        onOpenChange={(open) => { if (!open) setDeleteOpen(false) }}
+        onClose={() => setDeleteOpen(false)}
         tone="danger"
         dismissible={!deleteAccount.isPending}
         title={selectedRow ? t.deleteDialog.title(selectedRow.user.display_name) : ''}

@@ -91,4 +91,26 @@ describe('ScrollArea', () => {
     act(() => notify())
     expect(screen.getByText(HINT)).toBeInTheDocument()
   })
+
+  it('observes only the region when its content is bare text', () => {
+    const observed: Element[] = []
+    vi.stubGlobal('ResizeObserver', class {
+      observe(element: Element) { observed.push(element) }
+      disconnect() {}
+    })
+    render(<ScrollArea label="Notatka" hint={HINT}>zwykły tekst</ScrollArea>)
+    expect(observed).toEqual([screen.getByRole('region', { name: 'Notatka' })])
+  })
+
+  it('ignores a size report that arrives after it is gone', () => {
+    let notify = () => {}
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { notify = callback }
+      observe() {}
+      disconnect() {}
+    })
+    const view = render(<ScrollArea label="Raport" hint={HINT}><table /></ScrollArea>)
+    view.unmount()
+    expect(() => act(() => notify())).not.toThrow()
+  })
 })
