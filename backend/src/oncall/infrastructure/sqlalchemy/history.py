@@ -48,7 +48,7 @@ class SqlAlchemyHistory:
                 rows=count,
                 created_at=schedule.created_at,
             )
-            for schedule, count in rows.tuples()
+            for schedule, count in rows
         ]
 
     async def members(self) -> list[Member]:
@@ -69,7 +69,7 @@ class SqlAlchemyHistory:
                 Assignment.service_date <= ends_on,
             )
         )
-        return set(rows.tuples())
+        return {(day, role) for day, role in rows}
 
     async def stage(self, history: NewHistoryImport) -> None:
         self._staged = Schedule(

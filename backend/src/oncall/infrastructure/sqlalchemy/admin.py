@@ -117,7 +117,7 @@ class SqlAlchemyAccounts:
             .outerjoin(TeamMember, TeamMember.user_id == User.id)
             .order_by(User.last_name, User.first_name)
         )
-        return [_to_administered(*row) for row in rows.tuples()]
+        return [_to_administered(*row) for row in rows]
 
     async def account(self, account_id: uuid.UUID) -> AdministeredAccount | None:
         row = (
@@ -408,7 +408,7 @@ class SqlAlchemyRotation:
             query = query.where(Assignment.role == role)
         if limit is not None:
             query = query.limit(limit)
-        return list((await self._session.execute(query)).tuples().all())
+        return [(day, role) for day, role in await self._session.execute(query)]
 
     async def _loaded_member(self, member_id: uuid.UUID) -> TeamMember:
         return await self._session.scalar(
