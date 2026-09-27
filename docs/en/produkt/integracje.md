@@ -137,9 +137,8 @@ The log does not grow without end: the worker process removes entries about
 operations older than `ONCALL_RETENTION_AUDIT_DAYS` (365 days by default) and
 routine sign-ins and refused attempts older than
 `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` (90 days by default). Schedule correction
-entries (`schedule.override`, `schedule.override_batch`,
-`schedule.draft_override`) are never removed, because a republish reads from
-them whom a correction replaced. The “Audit” screen shows the ages in force;
+entries follow the same age, because a republish reads whom a correction
+replaced from the duty itself, not from the log. The “Audit” screen shows the ages in force;
 the other tables and settings are described in
 [Data retention](../wdrozenie/uruchomienie.md#data-retention).
 

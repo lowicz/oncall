@@ -133,9 +133,9 @@ może wyeksportować do CSV.
 Dziennik nie rośnie bez końca: proces roboczy usuwa wpisy o operacjach
 starsze niż `ONCALL_RETENTION_AUDIT_DAYS` (domyślnie 365 dni) oraz zwykłe
 logowania i nieudane próby starsze niż `ONCALL_RETENTION_LOGIN_AUDIT_DAYS`
-(domyślnie 90 dni). Wpisy o korektach grafiku (`schedule.override`,
-`schedule.override_batch`, `schedule.draft_override`) nie są usuwane nigdy,
-bo ponowna publikacja odczytuje z nich, kogo zastąpiła korekta. Ekran „Audyt”
+(domyślnie 90 dni). Wpisy o korektach grafiku podlegają temu samemu
+terminowi, bo kogo zastąpiła korekta, ponowna publikacja odczytuje z samego
+dyżuru, a nie z dziennika. Ekran „Audyt”
 pokazuje obowiązujące czasy; pozostałe tabele i ustawienia opisuje
 [Retencja danych](../wdrozenie/uruchomienie.md#retencja-danych).
 

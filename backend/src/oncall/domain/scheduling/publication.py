@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from oncall.domain.ports import PublishedRoster, TeamDirectory
-from oncall.domain.roster import Duty, Slot
+from oncall.domain.roster import Duty, Slot, SlotOrigin
 from oncall.domain.scheduling import drafts, errors
 from oncall.domain.scheduling.generation import uncovered_dates
 from oncall.domain.scheduling.models import (
@@ -192,65 +192,6 @@ async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
 
 # --- publication ------------------------------------------------------------
 
-#: Actions that can tell a republish who a slot's assignee was replacing.
-#: `schedule.override_carried` is deliberately not one of these: it records
-#: the *result* of this same recovery, not a fresh input to it.
-OVERRIDE_ORIGIN_ACTIONS = (
-    "schedule.override",
-    "schedule.override_batch",
-    "schedule.draft_override",
-)
-
-
-async def override_original_assignees(
-    changes: ChangeLog, schedule_ids: set[uuid.UUID]
-) -> dict[tuple[uuid.UUID, date, AssignmentRole], str]:
-    """Who each overridden slot's assignee replaced, so a republish can tell a
-    safe carry from a genuine conflict.
-
-    Reads the structured `details["moves"]` every override and correction
-    writes. Parsing the `summary` text of a `schedule.override` instead, as
-    this once did, recovers only single-slot moves: a batch correction, a
-    draft correction and the 11-19 partner an anchor-role override carries
-    along all fall back to "cannot tell" on republish. Events written before
-    the field existed still take that path.
-    """
-    if not schedule_ids:
-        return {}
-    rows = await changes.schedule_changes(schedule_ids, OVERRIDE_ORIGIN_ACTIONS)
-    result: dict[tuple[uuid.UUID, date, AssignmentRole], str] = {}
-    ids = {str(item): item for item in schedule_ids}
-    for event in rows:
-        details = event.details or {}
-        schedule_id = ids.get(event.entity_id or "")
-        if schedule_id is None:
-            continue
-        moves = details.get("moves")
-        if moves is None:
-            try:
-                key = (
-                    schedule_id,
-                    date.fromisoformat(str(details["service_date"])),
-                    AssignmentRole(str(details["role"])),
-                )
-                original = event.summary.split(": ", 1)[1].split(" → ", 1)[0]
-            except KeyError, ValueError, IndexError:
-                continue
-            result.setdefault(key, original)
-            continue
-        for move in moves:
-            try:
-                key = (
-                    schedule_id,
-                    date.fromisoformat(str(move["service_date"])),
-                    AssignmentRole(str(move["role"])),
-                )
-                original = str(move["previous_assignee_name"])
-            except KeyError, ValueError:
-                continue
-            result.setdefault(key, original)
-    return result
-
 
 def _holds_role_period(member: Member, role: AssignmentRole, day: date) -> bool:
     """An eligibility period for the role covers the day; unlike
@@ -266,11 +207,11 @@ def _holds_role_period(member: Member, role: AssignmentRole, day: date) -> bool:
 async def _carry_conflict_reason(
     schedule: Schedule,
     old: Duty,
-    original_name: str | None,
+    origin: SlotOrigin | None,
     moves: list[Slot],
     ports: PublicationPorts,
 ) -> str | None:
-    if original_name is None:
+    if origin is None:
         return translate("scheduling.carry.original_unknown")
     replacement = (
         await ports.team.member(old.member_id)
@@ -280,8 +221,15 @@ async def _carry_conflict_reason(
     if replacement is None:
         return translate("scheduling.carry.replacement_not_member")
     draft = {item.slot: item for item in schedule.assignments}
-    if any(draft.get(move) is None or draft[move].assignee_name != original_name for move in moves):
+    if any(
+        draft.get(move) is None
+        or not origin.is_holder(draft[move].member_id, draft[move].assignee_name)
+        for move in moves
+    ):
         return translate("scheduling.carry.different_original")
+    # The draft names the original person by today's label, which is the one
+    # every other slot in the rule check below carries.
+    original_name = draft[moves[0]].assignee_name
     for service_date, role in moves:
         if not _holds_role_period(replacement, role, service_date) or (
             replacement.is_unavailable(service_date)
@@ -424,9 +372,6 @@ async def _protected_changes(
         for swap in approved
         for service_date, role in swap.slots
     }
-    override_originals = await override_original_assignees(
-        ports.changes, {item.schedule_id for item, _new in changed}
-    )
     protected = []
     for old, new in changed:
         slot_key = (old.schedule_id, old.service_date, old.role)
@@ -434,9 +379,14 @@ async def _protected_changes(
         if not old.is_override and swap is None:
             continue
         source = "approved_swap" if swap is not None else "override"
-        original = swap.requester_name if swap is not None else override_originals.get(slot_key)
+        if swap is None:
+            origin = old.original
+        elif swap.requester_name is not None:
+            origin = SlotOrigin(swap.requester_member_id, swap.requester_name)
+        else:
+            origin = None
         moves = list(swap.slots) if swap is not None else [old.slot]
-        reason = await _carry_conflict_reason(schedule, old, original, moves, ports)
+        reason = await _carry_conflict_reason(schedule, old, origin, moves, ports)
         protected.append(
             ProtectedChange(
                 service_date=old.service_date,
@@ -444,7 +394,7 @@ async def _protected_changes(
                 previous_assignee_name=old.assignee_name,
                 new_assignee_name=new.assignee_name,
                 source=source,
-                original_assignee_name=original,
+                original_assignee_name=origin.assignee_name if origin is not None else None,
                 reason=reason,
             )
         )

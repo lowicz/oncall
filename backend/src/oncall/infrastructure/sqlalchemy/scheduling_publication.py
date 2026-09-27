@@ -44,6 +44,7 @@ class SqlAlchemyPublicationSwaps:
         return [
             ApprovedSwap(
                 schedule_id=swap.schedule_id,
+                requester_member_id=swap.requester_member_id,
                 requester_name=names.get(swap.requester_member_id),
                 replacement_name=names.get(swap.replacement_member_id),
                 slots=tuple((item.service_date, item.role) for item in (swap.slots or [swap])),

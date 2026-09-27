@@ -7,7 +7,8 @@ from datetime import date
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.domain.roster import Duty, ScheduleRef, Slot
+from oncall.domain.overrides.models import UNSTAFFED
+from oncall.domain.roster import Duty, ScheduleRef, Slot, SlotOrigin
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import LateShiftAnchor, RotationMode, ScheduleStatus
 from oncall.effective import EffectiveAssignment, effective_assignments
@@ -15,6 +16,26 @@ from oncall.fairness import FairnessDuty, FairnessMemberInput
 from oncall.fairness_data import latest_publish_end, load_inputs
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.policy import load_policy
+
+
+def _origin(row: Assignment) -> SlotOrigin | None:
+    if row.original_assignee_name is None:
+        return None
+    return SlotOrigin(row.original_member_id, row.original_assignee_name)
+
+
+def record_origin(row: Assignment) -> None:
+    """Keep who held a slot before its first manual change.
+
+    Called before a correction or hand-over writes the new holder. A slot
+    that already has an origin keeps it, so the person a republish compares
+    against is the one the first change displaced, however many followed. A
+    slot the change creates had nobody, which no draft can match.
+    """
+    if row.original_assignee_name is not None:
+        return
+    row.original_member_id = row.member_id
+    row.original_assignee_name = row.assignee_name if row.assignee_name else UNSTAFFED
 
 
 def _from_assignment(row: Assignment) -> Duty:
@@ -25,6 +46,7 @@ def _from_assignment(row: Assignment) -> Duty:
         assignee_name=row.assignee_name,
         is_override=row.is_override,
         schedule_id=row.schedule_id,
+        original=_origin(row),
     )
 
 
@@ -38,6 +60,7 @@ def _from_effective(item: EffectiveAssignment) -> Duty:
         schedule_id=item.schedule_id,
         schedule_version=item.schedule_version,
         schedule_status=item.schedule_status,
+        original=item.original,
     )
 
 
@@ -123,6 +146,7 @@ class SqlAlchemyPublishedRoster:
                 service_date, role = slot
                 row = Assignment(schedule_id=schedule_id, service_date=service_date, role=role)
                 self._session.add(row)
+            record_origin(row)
             # Identity travels with the slot; the name is only the label.
             row.assignee_name = to.display_name
             row.member_id = to.id

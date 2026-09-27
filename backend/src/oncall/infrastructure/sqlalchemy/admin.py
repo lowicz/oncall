@@ -286,6 +286,11 @@ class SqlAlchemyRotation:
             .where(Assignment.member_id == member_id)
             .values(assignee_name=display_name)
         )
+        await self._session.execute(
+            update(Assignment)
+            .where(Assignment.original_member_id == member_id)
+            .values(original_assignee_name=display_name)
+        )
 
     async def name_taken(self, display_name: str, *, other_than: uuid.UUID) -> bool:
         return bool(
@@ -307,6 +312,14 @@ class SqlAlchemyRotation:
                 update(Assignment)
                 .where(Assignment.member_id.is_(None), Assignment.assignee_name == name)
                 .values(assignee_name=pseudonym)
+            )
+            await self._session.execute(
+                update(Assignment)
+                .where(
+                    Assignment.original_member_id.is_(None),
+                    Assignment.original_assignee_name == name,
+                )
+                .values(original_assignee_name=pseudonym)
             )
 
     async def period(self, eligibility_id: uuid.UUID) -> EligibilityPeriod | None:

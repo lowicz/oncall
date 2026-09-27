@@ -18,10 +18,10 @@ once only find each other's rows already gone.
 
 The audit trail is not one kind of data. Sign-in records are a security log
 with a rhythm of their own and are the bulk of the table; business events
-are the history an administrator reads back, so they keep for longer; and
-the override records a republish reads to tell a safe carry from a conflict
-(`OVERRIDE_ORIGIN_ACTIONS`) are inputs to a live feature, so they are never
-expired at all.
+are the history an administrator reads back, so they keep for longer. No
+feature reads the trail back without a time bound: data a feature needs for
+as long as it exists lives in that feature's own tables, so every business
+event expires at the same age.
 """
 
 import uuid
@@ -36,7 +36,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from oncall.config import Settings
 from oncall.database import SqlAlchemyUnitOfWork
 from oncall.domain.scheduling.models import RunState
-from oncall.domain.scheduling.publication import OVERRIDE_ORIGIN_ACTIONS
 from oncall.infrastructure.sqlalchemy.access_models import AccountToken, Session
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.notification_models import (
@@ -55,11 +54,6 @@ LOGIN_ACTIONS = (
     "auth.throttled",
     "auth.ldap_unavailable",
 )
-
-#: Audit rows a republish still reads, however old: never expired. Imported
-#: rather than copied, so an action added to that reader is protected here
-#: without a second edit.
-PROTECTED_ACTIONS = OVERRIDE_ORIGIN_ACTIONS
 
 #: Outbox rows nobody will deliver again: delivered, given up on, or parked
 #: because the channel is off. A pending or claimed row is live work.
@@ -88,7 +82,7 @@ def _expired_audit(cutoff: datetime) -> IdSelect:
         select(AuditEvent.id)
         .where(
             AuditEvent.occurred_at < cutoff,
-            AuditEvent.action.not_in(LOGIN_ACTIONS + PROTECTED_ACTIONS),
+            AuditEvent.action.not_in(LOGIN_ACTIONS),
         )
         .order_by(AuditEvent.occurred_at)
     )
@@ -248,7 +242,6 @@ __all__ = [
     "FINISHED_OUTBOX",
     "FINISHED_RUNS",
     "LOGIN_ACTIONS",
-    "PROTECTED_ACTIONS",
     "RetentionPolicy",
     "RetentionReport",
     "Rule",

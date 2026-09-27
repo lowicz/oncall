@@ -1,6 +1,6 @@
 """The scheduling adapters on their own."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import select
 
@@ -13,10 +13,7 @@ from oncall.domain.vocabulary import (
     SwapStatus,
     UserRole,
 )
-from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
-from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
 from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGenerationQueue
-from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.scheduling_publication import SqlAlchemyPublicationSwaps
 from oncall.infrastructure.sqlalchemy.scheduling_schedules import SqlAlchemySchedules
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
@@ -119,35 +116,4 @@ async def test_swaps_are_cancelled_for_a_publication_with_the_reason_recorded(db
     assert (stored.status, stored.decision_note) == (
         SwapStatus.cancelled,
         "Grafik zastąpiony nową publikacją",
-    )
-
-
-async def test_schedule_changes_are_read_oldest_first_for_the_asked_actions(db) -> None:
-    schedule = await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
-    now = datetime.now(UTC)
-    for action, minutes in (
-        ("schedule.override", 2),
-        ("schedule.override_carried", 1),
-        ("schedule.draft_override", 0),
-    ):
-        db.add(
-            AuditEvent(
-                actor_label="Koordynator",
-                action=action,
-                entity_type="schedule",
-                entity_id=str(schedule.id),
-                summary=action,
-                occurred_at=now - timedelta(minutes=minutes),
-            )
-        )
-    await db.commit()
-
-    records = await SqlAlchemyChangeLog(db).schedule_changes(
-        {schedule.id}, ("schedule.override", "schedule.draft_override")
-    )
-
-    assert [item.action for item in records] == ["schedule.override", "schedule.draft_override"]
-    assert {item.entity_id for item in records} == {str(schedule.id)}
-    assert await db.scalar(select(Schedule.status).where(Schedule.id == schedule.id)) == (
-        ScheduleStatus.published
     )

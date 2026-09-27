@@ -488,6 +488,7 @@ class ChangeRecord:
 @dataclass(frozen=True)
 class ApprovedSwap:
     schedule_id: uuid.UUID
+    requester_member_id: uuid.UUID
     requester_name: str | None
     replacement_name: str | None
     #: Every slot the swap moved; a coupled 11-19 swap moves two.

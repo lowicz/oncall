@@ -269,14 +269,6 @@ class FakeChangeLog:
     async def changes_since(self, moment, actions):
         return [item for at, item in self.records if at > moment and item.action in actions]
 
-    async def schedule_changes(self, schedule_ids, actions):
-        ids = {str(item) for item in schedule_ids}
-        return [
-            item
-            for _at, item in sorted(self.records, key=lambda pair: pair[0])
-            if item.entity_id in ids and item.action in actions
-        ]
-
     async def availability_spans(self, entry_ids):
         return {item: self.availability[item] for item in entry_ids if item in self.availability}
 

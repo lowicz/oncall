@@ -118,7 +118,7 @@ interrupted pass breaks nothing.
 
 | Data | Default | What retention never touches |
 | --- | --- | --- |
-| audit: operations (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 days | schedule correction entries (`schedule.override`, `schedule.override_batch`, `schedule.draft_override`) - never, because a republish reads them |
+| audit: operations (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 days | nothing; a republish reads whom a schedule correction replaced from the duty itself, not from the log |
 | audit: sign-ins and refused attempts (`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`) | 90 days | the last five minutes, which the sign-in throttle reads |
 | sent, failed and skipped e-mails (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 days | messages waiting or being sent, whatever their age |
 | finished generator runs (`ONCALL_RETENTION_RUNS_DAYS`) | 30 days | queued and running runs |

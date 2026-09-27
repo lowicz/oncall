@@ -99,6 +99,7 @@ class Assignment(Base):
         UniqueConstraint("schedule_id", "service_date", "role", name="uq_assignment_slot"),
         Index("ix_assignment_published_lookup", "service_date", "role"),
         Index("ix_assignment_member", "member_id"),
+        Index("ix_assignment_original_member", "original_member_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -113,6 +114,17 @@ class Assignment(Base):
     )
     assignee_name: Mapped[str] = mapped_column(String(160))
     is_override: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Who held the slot before its first manual change, so a republish can
+    #: tell a safe carry from a conflict. The first correction or hand-over
+    #: sets it and later ones leave it; both stay None on a slot as generated
+    #: and on one a publication carried in. The id is the identity, the name
+    #: follows a rename like `assignee_name` and is the only identity of rows
+    #: that have no id.
+    original_member_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("team_members.id", ondelete="SET NULL", name="fk_assignment_original_member"),
+        nullable=True,
+    )
+    original_assignee_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
     schedule: Mapped[Schedule] = relationship(back_populates="assignments")
 

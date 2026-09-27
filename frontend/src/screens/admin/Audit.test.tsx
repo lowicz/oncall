@@ -21,8 +21,7 @@ describe('AuditPanel retention footer', () => {
     renderScreen(<AuditPanel />)
 
     expect(await screen.findByTestId('audit-retention')).toHaveTextContent(
-      'Wpisy starsze niż 730 dni są usuwane automatycznie, zwykłe logowania są usuwane po 31 dniach. '
-      + 'Korekty grafiku są zachowywane bezterminowo.',
+      'Wpisy starsze niż 730 dni są usuwane automatycznie, zwykłe logowania są usuwane po 31 dniach.',
     )
   })
 
@@ -34,8 +33,7 @@ describe('AuditPanel retention footer', () => {
     renderScreen(<AuditPanel />)
 
     expect(await screen.findByTestId('audit-retention')).toHaveTextContent(
-      'Wpisy są przechowywane bezterminowo, zwykłe logowania są przechowywane bezterminowo. '
-      + 'Korekty grafiku są zachowywane bezterminowo.',
+      'Wpisy są przechowywane bezterminowo, zwykłe logowania są przechowywane bezterminowo.',
     )
   })
 

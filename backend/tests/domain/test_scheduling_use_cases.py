@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from oncall.domain.roster import Duty
+from oncall.domain.roster import Duty, SlotOrigin
 from oncall.domain.scheduling import errors
 from oncall.domain.scheduling.drafts import (
     correct_draft,
@@ -25,7 +25,6 @@ from oncall.domain.scheduling.models import (
 )
 from oncall.domain.scheduling.policy import change_policy
 from oncall.domain.scheduling.publication import (
-    override_original_assignees,
     preview_publication,
     publish,
     stale_changes_count,
@@ -363,54 +362,23 @@ async def test_only_changes_touching_the_draft_window_make_it_stale(world) -> No
     assert await stale_changes_count(schedule, world.changes) == 3
 
 
-async def test_the_original_holder_is_read_from_moves_or_from_an_old_summary(world) -> None:
-    schedule_id = uuid.uuid4()
-    world.changes.add(
-        "schedule.override",
-        entity_id=schedule_id,
-        summary="Override 2030-03-05 · primary: Igor → Tomasz",
-        details={"service_date": "2030-03-05", "role": "primary"},
-    )
-    world.changes.add(
-        "schedule.override_batch",
-        entity_id=schedule_id,
-        details={
-            "moves": [
-                {
-                    "service_date": "2030-03-06",
-                    "role": "secondary",
-                    "previous_assignee_name": "Halina",
-                }
-            ]
-        },
-    )
-
-    assert await override_original_assignees(world.changes, {schedule_id}) == {
-        (schedule_id, date(2030, 3, 5), AssignmentRole.primary): "Igor",
-        (schedule_id, date(2030, 3, 6), AssignmentRole.secondary): "Halina",
-    }
-
-
 # --- publication ------------------------------------------------------------
 
 
 def _override_in_force(world, day, role, holder, original):
-    slot = (day, role)
-    world.roster.schedule_ref.slots[slot] = Duty(
-        day, role, holder.id, holder.display_name, True, world.roster.schedule_ref.id
+    """A manual change in force: `holder` on the slot, over `original`, who is
+    identified by id when they are on the team and by name otherwise."""
+    known = next(
+        (item for item in world.team.by_id.values() if item.display_name == original), None
     )
-    world.changes.add(
-        "schedule.override",
-        entity_id=world.roster.schedule_ref.id,
-        details={
-            "moves": [
-                {
-                    "service_date": day.isoformat(),
-                    "role": role.value,
-                    "previous_assignee_name": original,
-                }
-            ]
-        },
+    world.roster.schedule_ref.slots[(day, role)] = Duty(
+        day,
+        role,
+        holder.id,
+        holder.display_name,
+        True,
+        world.roster.schedule_ref.id,
+        original=SlotOrigin(known.id if known is not None else None, original),
     )
 
 

@@ -202,5 +202,6 @@ who is not a user, for example a preview link.
 The log has a limited retention, which the screen states in its footer:
 entries about operations are removed after a year, routine sign-ins after 90
 days (the deployment's administrator can change both ages or switch them
-off). Schedule correction entries are kept indefinitely. An entry removed by
-retention does not come back, so older history is kept by the CSV export.
+off). That includes the entries about schedule corrections: whom a
+correction replaced, the schedule keeps on the duty itself. An entry removed
+by retention does not come back, so older history is kept by the CSV export.

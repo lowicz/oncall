@@ -2,7 +2,7 @@
 
 Retention is the one place in the application that deletes history, so
 every rule is pinned from both sides: the rows past their age go, and the
-rows that are younger, live, or protected stay. The batching is pinned too,
+rows that are younger or live stay. The batching is pinned too,
 because a first pass over an old database has to be bounded and resumable,
 and the wiring, because a rule nobody runs deletes nothing.
 """
@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import Settings
 from oncall.domain.scheduling.models import RunState
-from oncall.domain.scheduling.publication import OVERRIDE_ORIGIN_ACTIONS
 from oncall.domain.vocabulary import AccountTokenKind, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import AccountToken, Session
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
@@ -26,7 +25,7 @@ from oncall.infrastructure.sqlalchemy.notification_models import (
     NotificationStatus,
 )
 from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
-from oncall.retention import PROTECTED_ACTIONS, RetentionPolicy, prune_expired
+from oncall.retention import RetentionPolicy, prune_expired
 from oncall.worker import retention_cycle
 from tests.conftest import create_user
 
@@ -94,14 +93,7 @@ def test_the_policy_reads_the_accepted_defaults_from_the_settings() -> None:
     assert RetentionPolicy.from_settings(Settings()) == POLICY
 
 
-def test_the_protected_actions_are_the_ones_a_republish_reads() -> None:
-    """Imported, not copied: an action added to the republish reader is
-    protected here without a second edit."""
-    assert PROTECTED_ACTIONS is OVERRIDE_ORIGIN_ACTIONS
-    assert "schedule.override" in PROTECTED_ACTIONS
-
-
-async def test_audit_rows_expire_by_tier_and_protected_actions_never(db, db_factory) -> None:
+async def test_audit_rows_expire_by_tier(db, db_factory) -> None:
     db.add_all(
         [
             _audit("swap.created", 366 * DAY),  # business, past its age: goes
@@ -112,24 +104,25 @@ async def test_audit_rows_expire_by_tier_and_protected_actions_never(db, db_fact
             _audit("auth.login", 89 * DAY),  # sign-in, within: stays
             _audit("auth.login", timedelta(minutes=2)),  # what the throttle reads: stays
             _audit("auth.login", 3000 * DAY),  # a sign-in is never business audit
-            _audit("schedule.override", 3000 * DAY),  # republish input: never
-            _audit("schedule.override_batch", 3000 * DAY),
-            _audit("schedule.draft_override", 3000 * DAY),
-            _audit("schedule.override_carried", 3000 * DAY),  # a result, not an input: goes
+            # Corrections keep their origin on the slot, so their entries
+            # expire like every other business event.
+            _audit("schedule.override", 366 * DAY),
+            _audit("schedule.override_batch", 366 * DAY),
+            _audit("schedule.draft_override", 366 * DAY),
+            _audit("schedule.override_carried", 366 * DAY),
+            _audit("schedule.override", 364 * DAY),  # within its age: stays
         ]
     )
     await db.commit()
 
     report = await prune_expired(db_factory, POLICY, now=NOW)
 
-    assert report.deleted["audit"] == 2
+    assert report.deleted["audit"] == 5
     assert report.deleted["logins"] == 4
     assert await _actions(db) == [
         "auth.login",
         "auth.login",
-        "schedule.draft_override",
         "schedule.override",
-        "schedule.override_batch",
         "swap.accepted",
     ]
 

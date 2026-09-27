@@ -25,6 +25,7 @@ from datetime import UTC, date, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from oncall.domain.roster import SlotOrigin
 from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.workdays import is_working_day, polish_holidays
@@ -52,6 +53,8 @@ class EffectiveAssignment:
     schedule_version: int
     schedule_status: ScheduleStatus
     published_at: datetime | None
+    #: Who held the slot before its first manual change, when recorded.
+    original: SlotOrigin | None = None
 
 
 _CACHE_LIMIT = 64
@@ -147,6 +150,11 @@ async def _load_effective_assignments(
             schedule_version=schedule.version,
             schedule_status=schedule.status,
             published_at=schedule.published_at,
+            original=(
+                SlotOrigin(assignment.original_member_id, assignment.original_assignee_name)
+                if assignment.original_assignee_name is not None
+                else None
+            ),
         )
     return resolved
 

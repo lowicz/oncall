@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 from oncall.domain.availability.models import AvailabilityEntry, NewAvailabilityEntry
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.overrides.ports import OverridePorts
-from oncall.domain.roster import Duty, ScheduleRef, Slot
+from oncall.domain.roster import Duty, ScheduleRef, Slot, SlotOrigin
 from oncall.domain.swaps.models import NewSwapRequest, SwapRequest
 from oncall.domain.swaps.ports import SwapPorts
 from oncall.domain.team import Actor, AvailabilityPeriod, Member, RolePeriod
@@ -159,7 +159,13 @@ class FakeRoster:
     async def hand_over(self, schedule_id, slots, to):
         found = self.schedules[schedule_id]
         for slot in slots:
-            found.slots[slot] = Duty(slot[0], slot[1], to.id, to.display_name, True, schedule_id)
+            held = found.slots.get(slot)
+            original = held.original if held is not None else None
+            if original is None and held is not None:
+                original = SlotOrigin(held.member_id, held.assignee_name)
+            found.slots[slot] = Duty(
+                slot[0], slot[1], to.id, to.display_name, True, schedule_id, original=original
+            )
             self.handed_over.append((slot, to.id))
 
 

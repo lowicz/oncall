@@ -115,7 +115,7 @@ przerwany przebieg niczego nie psuje.
 
 | Dane | Domyślnie | Czego retencja nie rusza |
 | --- | --- | --- |
-| audyt: operacje (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 dni | wpisów o korektach grafiku (`schedule.override`, `schedule.override_batch`, `schedule.draft_override`) - nigdy, bo czyta je ponowna publikacja |
+| audyt: operacje (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 dni | niczego; kogo zastąpiła korekta grafiku, ponowna publikacja odczytuje z samego dyżuru, nie z dziennika |
 | audyt: logowania i nieudane próby (`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`) | 90 dni | ostatnich pięciu minut, z których korzysta ogranicznik prób logowania |
 | e-maile wysłane, nieudane i pominięte (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 dni | wiadomości oczekujących i w trakcie wysyłki, niezależnie od wieku |
 | zakończone uruchomienia generatora (`ONCALL_RETENTION_RUNS_DAYS`) | 30 dni | uruchomień w kolejce i w toku |

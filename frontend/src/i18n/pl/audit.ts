@@ -35,8 +35,7 @@ export const audit = {
   loadMore: 'Załaduj więcej',
   /**
    * Where the trail ends: what the worker deletes and after how many days,
-   * from the deployment's configuration. 0 keeps that kind for ever. The
-   * schedule corrections a republish reads are never deleted.
+   * from the deployment's configuration. 0 keeps that kind for ever.
    */
   retention: (auditDays: number, loginDays: number) => {
     const entries = auditDays > 0
@@ -45,6 +44,6 @@ export const audit = {
     const logins = loginDays > 0
       ? `zwykłe logowania są usuwane po ${pluralPl(loginDays, ['dniu', 'dniach', 'dniach'])}`
       : 'zwykłe logowania są przechowywane bezterminowo'
-    return `${entries}, ${logins}. Korekty grafiku są zachowywane bezterminowo.`
+    return `${entries}, ${logins}.`
   },
 }
