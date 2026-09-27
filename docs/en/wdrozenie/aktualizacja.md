@@ -169,6 +169,14 @@ release number is also shown by the application itself (see [Releases and versio
 When the restart fails, the details are in `journalctl --user -u oncall` (when
 the user cannot read the journal, see [Verification](kopie-zapasowe.md#verification)).
 
+A migration that moves into the database a rule only the application used to
+hold (a date range, say, or no overlapping periods) does not stop the start
+over older rows that break it. It writes a `WARNI [alembic.runtime.migration]`
+warning to the `api` log naming the rule and the row that breaks it, and the
+application runs and holds the rule as before. `podman compose logs api 2>&1 |
+grep WARNI`, run in the deployment directory, shows the warnings. Once the rows
+are corrected, the SQL command the warning gives finishes the rule.
+
 ## Older releases
 
 Releases from before the `deploy/systemd/` directory do not have it. In a

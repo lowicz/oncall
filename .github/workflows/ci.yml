@@ -93,8 +93,9 @@ jobs:
 
   backend-postgres:
     # SQLite serialises writers, so tests/test_concurrency_postgres.py runs
-    # against a real PostgreSQL. It skips itself without the URL below;
-    # backend/contracts/README.md requires it to run in CI.
+    # against a real PostgreSQL, and tests/test_schema_postgres.py checks what
+    # SQLite and `alembic check` cannot see. Both skip themselves without the
+    # URL below; backend/contracts/README.md requires them to run in CI.
     name: backend (PostgreSQL concurrency suite)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -141,7 +142,7 @@ jobs:
           ONCALL_DATABASE_URL: ${{ env.ONCALL_TEST_POSTGRES_URL }}
         run: uv run --frozen alembic check
       - name: Tests (PostgreSQL)
-        run: uv run --frozen pytest -q tests/test_concurrency_postgres.py --junitxml "$RUNNER_TEMP/junit-backend-postgres.xml"
+        run: uv run --frozen pytest -q tests/test_concurrency_postgres.py tests/test_schema_postgres.py --junitxml "$RUNNER_TEMP/junit-backend-postgres.xml"
       - name: Summary
         if: always()
         run: python3 ../.github/scripts/junit-summary.py "Backend (PostgreSQL)" "$RUNNER_TEMP/junit-backend-postgres.xml" >> "$GITHUB_STEP_SUMMARY"

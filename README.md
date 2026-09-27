@@ -130,9 +130,9 @@ any other refuses to run and prints the command that installs the right one.
 
 The gates CI runs, in the same order: `uv run ruff check .`, `uv run ruff format --check .`,
 `uv run mypy`, `uv run pytest`, `uv run python scripts/openapi_snapshot.py`. The
-PostgreSQL concurrency suite needs a disposable database:
+PostgreSQL suites need a disposable server:
 `docker compose -f docker-compose.contract.yml up -d` and
-`ONCALL_TEST_POSTGRES_URL=postgresql+asyncpg://oncall_contract:oncall_contract@127.0.0.1:55432/oncall_contract uv run pytest tests/test_concurrency_postgres.py`.
+`ONCALL_TEST_POSTGRES_URL=postgresql+asyncpg://oncall_contract:oncall_contract@127.0.0.1:55432/oncall_contract uv run pytest tests/test_concurrency_postgres.py tests/test_schema_postgres.py`.
 
 For Docker Compose, put the credentials in `.env`. On every API start the bootstrap
 creates the account or synchronizes its password, display name, admin role and active

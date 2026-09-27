@@ -31,10 +31,9 @@ ROTATION_NAME_LABELS = {
 class RunState(StrEnum):
     """The four states a generation run passes through.
 
-    A `StrEnum` rather than a database enum: the column is plain text, and the
-    client pins these four spellings, so this names what is already there
-    instead of introducing a migration or a fifth state. Every transition
-    between them happens in `oncall.worker`.
+    A `StrEnum` rather than a database enum: the column is plain text that a
+    check constraint limits to these four spellings, which the client pins.
+    Every transition between them happens in `oncall.worker`.
     """
 
     queued = "queued"

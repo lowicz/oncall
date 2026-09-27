@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, String
+from sqlalchemy import CheckConstraint, Date, DateTime, Enum, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from oncall.domain.clock import utc_now
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 class ShareLink(Base):
     __tablename__ = "share_links"
+    __table_args__ = (CheckConstraint("starts_on <= ends_on", name="ck_share_links_range"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
@@ -25,7 +26,9 @@ class ShareLink(Base):
     ends_on: Mapped[date] = mapped_column(Date)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -34,10 +37,25 @@ class ShareLink(Base):
 
 class CalendarFeedToken(Base):
     __tablename__ = "calendar_feed_tokens"
+    __table_args__ = (
+        # A feed belongs to exactly the owner its kind names.
+        CheckConstraint(
+            "(kind = 'member' AND member_id IS NOT NULL AND share_link_id IS NULL)"
+            " OR (kind = 'share_link' AND share_link_id IS NOT NULL AND member_id IS NULL)",
+            name="ck_calendar_feed_tokens_owner",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    kind: Mapped[FeedTokenKind] = mapped_column(Enum(FeedTokenKind, native_enum=False))
+    kind: Mapped[FeedTokenKind] = mapped_column(
+        Enum(
+            FeedTokenKind,
+            native_enum=False,
+            create_constraint=True,
+            name="ck_calendar_feed_tokens_kind",
+        )
+    )
     label: Mapped[str] = mapped_column(String(160))
     member_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("team_members.id", ondelete="CASCADE"), nullable=True
@@ -46,7 +64,9 @@ class CalendarFeedToken(Base):
         ForeignKey("share_links.id", ondelete="CASCADE"), nullable=True
     )
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

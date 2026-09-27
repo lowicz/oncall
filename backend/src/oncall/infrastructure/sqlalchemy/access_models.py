@@ -16,12 +16,13 @@ from sqlalchemy import (
     column,
     func,
     or_,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from oncall.domain.clock import utc_now
 from oncall.domain.vocabulary import AccountTokenKind, AuthSource, UserRole
-from oncall.infrastructure.sqlalchemy.base import Base
+from oncall.infrastructure.sqlalchemy.base import Base, polish_text
 
 if TYPE_CHECKING:
     from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
@@ -39,6 +40,8 @@ class User(Base):
             ),
             name="ck_user_personnel_number_digits",
         ),
+        # Sign-in compares the lower-cased login with the stored one exactly.
+        CheckConstraint("username = lower(username)", name="ck_users_username_lower"),
         # Case-insensitive identity, from migration 0029. Emitted on
         # PostgreSQL only, the database the migrations build, so SQLite test
         # databases keep the schema they have always had.
@@ -56,19 +59,31 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     personnel_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    first_name: Mapped[str] = mapped_column(String(120))
-    last_name: Mapped[str] = mapped_column(String(120), default="")
+    first_name: Mapped[str] = mapped_column(polish_text(120))
+    last_name: Mapped[str] = mapped_column(polish_text(120), default="", server_default="")
     auth_source: Mapped[AuthSource] = mapped_column(
-        Enum(AuthSource, native_enum=False, length=16), default=AuthSource.local
+        Enum(
+            AuthSource,
+            native_enum=False,
+            length=16,
+            create_constraint=True,
+            name="ck_users_auth_source",
+        ),
+        default=AuthSource.local,
+        server_default=AuthSource.local.value,
     )
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole, native_enum=False))
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, native_enum=False, create_constraint=True, name="ck_users_role")
+    )
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     #: Contact number for the "who is on call now" card (decision D8); optional,
     #: not shown in a share-link session.
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )
 
     team_member: Mapped[TeamMember | None] = relationship(back_populates="user")
     account_tokens: Mapped[list[AccountToken]] = relationship(
@@ -104,30 +119,49 @@ class AccountToken(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     kind: Mapped[AccountTokenKind] = mapped_column(
-        Enum(AccountTokenKind, native_enum=False, length=20)
+        Enum(
+            AccountTokenKind,
+            native_enum=False,
+            length=20,
+            create_constraint=True,
+            name="ck_account_tokens_kind",
+        )
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )
 
     user: Mapped[User] = relationship(back_populates="account_tokens")
 
 
 class Session(Base):
     __tablename__ = "sessions"
+    __table_args__ = (
+        # Signed in as an account or opened through a share link, never both.
+        CheckConstraint(
+            "(user_id IS NULL) <> (share_link_id IS NULL)", name="ck_sessions_one_owner"
+        ),
+        # Signing an account out everywhere, and closing it, find its sessions.
+        Index("ix_sessions_user_id", "user_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
     share_link_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("share_links.id", ondelete="CASCADE"), nullable=True
+        ForeignKey("share_links.id", ondelete="CASCADE", name="fk_sessions_share_link_id"),
+        nullable=True,
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     csrf_token: Mapped[str] = mapped_column(String(64))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )
 
     user: Mapped[User | None] = relationship()
     share_link: Mapped[ShareLink | None] = relationship()

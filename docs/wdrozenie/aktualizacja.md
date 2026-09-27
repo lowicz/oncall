@@ -169,6 +169,14 @@ Gdy restart się nie uda, szczegóły są w `journalctl --user -u oncall` (gdy
 użytkownik nie może czytać dziennika, patrz
 [Sprawdzenie](kopie-zapasowe.md#sprawdzenie)).
 
+Migracja, która przenosi do bazy regułę dotąd pilnowaną tylko przez aplikację
+(na przykład zakres dat albo zakaz nakładania okresów), nie zatrzymuje startu z
+powodu starszych wierszy, które tę regułę łamią. Wypisuje wtedy w logu `api`
+ostrzeżenie `WARNI [alembic.runtime.migration]` z nazwą reguły i wierszem, który
+ją łamie, a aplikacja działa i pilnuje reguły jak dotąd. Ostrzeżenia pokazuje
+`podman compose logs api 2>&1 | grep WARNI` w katalogu wdrożenia. Po
+poprawieniu wierszy regułę kończy polecenie SQL podane w ostrzeżeniu.
+
 ## Starsze wydania
 
 Wydania sprzed katalogu `deploy/systemd/` go nie mają. W zwykłym katalogu

@@ -67,3 +67,26 @@ async def test_the_default_policy_belongs_to_the_unit_of_work_that_created_it(
 
     async with db_factory() as session:
         assert await session.scalar(select(SchedulingPolicy.id)) == created.id
+
+
+async def test_a_policy_another_request_created_meanwhile_is_the_one_used(
+    db_factory, monkeypatch
+) -> None:
+    """Two requests find no policy and both create one: the table keeps one
+    row, and the request that lost the race uses the winner's."""
+    async with SqlAlchemyUnitOfWork(db_factory) as session:
+        winner = await load_policy(session)
+
+    async with SqlAlchemyUnitOfWork(db_factory) as session:
+        read = session.scalar
+
+        async def before_the_winner_committed(statement, *args, **kwargs):
+            monkeypatch.setattr(session, "scalar", read)
+            return None
+
+        monkeypatch.setattr(session, "scalar", before_the_winner_committed)
+        used = await load_policy(session)
+
+    assert used.id == winner.id
+    async with db_factory() as session:
+        assert await session.scalar(select(func.count()).select_from(SchedulingPolicy)) == 1
