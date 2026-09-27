@@ -7,6 +7,16 @@ import { NowStrip, coverageEnd, formatUntil } from './NowStrip'
 import { api } from '../api'
 import type { CurrentDuty, PublishedSchedule } from '../api'
 
+/** The freshness-dot rule the loaded stylesheet defines for a stale reading. */
+function staleDotRule(): CSSStyleRule | undefined {
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (rule instanceof CSSStyleRule && rule.selectorText === '.now-stale::before') return rule
+    }
+  }
+  return undefined
+}
+
 const duty = (over: Partial<CurrentDuty>): CurrentDuty => ({
   role: 'primary', service_date: '2026-09-09', assignee_name: 'Anna Kowalska', member_id: 'm1',
   contact_email: null, contact_phone: null,
@@ -127,6 +137,25 @@ describe('NowStrip', () => {
     await waitFor(() => expect(screen.getByText('stan z 09:00')).toHaveClass('now-stale'))
     expect(screen.getByText('stan z 09:00')).toHaveAttribute('title', 'Stan z 09:00')
     expect(screen.getByText('Anna Kowalska')).toBeInTheDocument()
+  })
+
+  it('draws a ringed warn dot before a stale timestamp so it reads on the header band', async () => {
+    // The real stylesheet, so the dot the now-stale class draws is the actual
+    // cascade; jsdom applies no pseudo-element, so the rule is read from the CSSOM.
+    loadRealStylesheet()
+    const published = vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ service_date: '2026-09-10' })]))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><NowStrip /></QueryClientProvider>)
+    expect(await screen.findByText('do pt 09:00 · 24 h 0 min')).toBeInTheDocument()
+
+    published.mockRejectedValue(new Error('offline'))
+    await act(async () => { await queryClient.refetchQueries({ queryKey: ['published-schedule'] }) })
+    await waitFor(() => expect(screen.getByText('stan z 09:00')).toHaveClass('now-stale'))
+
+    const dot = staleDotRule()
+    expect(dot?.style.background).toBe('var(--warn-dot)')
+    expect(dot?.style.boxShadow).toContain('var(--band-ink)')
+    expect(dot?.style.width).toBe('8px')
   })
 
   it('leaves the end out when the window cannot be read', () => {

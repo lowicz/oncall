@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
@@ -47,6 +49,25 @@ describe('theme preference', () => {
     applyPreferences()
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
     expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#061228')
+  })
+})
+
+describe('the matrix density token', () => {
+  it('shrinks the day cell in compact mode so the toggle visibly changes the matrix', () => {
+    const style = document.createElement('style')
+    style.textContent = readFileSync(resolve(process.cwd(), 'src/tokens.css'), 'utf8')
+    document.head.appendChild(style)
+    try {
+      const cell = () => getComputedStyle(document.documentElement).getPropertyValue('--cell').trim()
+      const fromDefault = cell()
+      setDensity('compact')
+      const fromCompact = cell()
+      expect(fromDefault).toBe('35px')
+      expect(fromCompact).toBe('29px')
+      expect(fromCompact).not.toBe(fromDefault)
+    } finally {
+      style.remove()
+    }
   })
 })
 

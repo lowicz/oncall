@@ -146,5 +146,5 @@
 }
 
 :root[data-density='compact'] {
-  --cell: 34px;
+  --cell: 29px;
 }
