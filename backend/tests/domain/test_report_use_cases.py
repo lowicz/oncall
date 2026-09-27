@@ -55,3 +55,21 @@ async def test_duties_are_split_by_day_kind_and_counted_by_identity_first() -> N
         anna_row.tally.total_points,
     ) == (1, 1, 0, 1, 3.0)
     assert (bartek_row.tally.secondary_workday, bartek_row.tally.oncall_workdays) == (1, 1)
+
+
+async def test_two_members_sharing_a_name_keep_their_own_rows() -> None:
+    first, second = member("Jan Nowak"), member("Jan Nowak")
+    roster = FakeRoster()
+    roster.assign(date(2026, 8, 3), AssignmentRole.primary, first)
+    roster.assign(date(2026, 8, 4), AssignmentRole.primary, first)
+    roster.assign(date(2026, 8, 3), AssignmentRole.secondary, second)
+    # Imported under the shared name: it could be either of them.
+    roster.assign(date(2026, 8, 5), AssignmentRole.primary, "Jan Nowak")
+    members = FakeMembers(RosterEntry(first.id, "Jan Nowak"), RosterEntry(second.id, "Jan Nowak"))
+
+    report = await monthly_report("2026-08", ReportPorts(members=members, roster=roster))
+
+    tallies = sorted(
+        (row.tally.primary_workday, row.tally.secondary_workday) for row in report.rows
+    )
+    assert tallies == [(0, 1), (2, 0)]

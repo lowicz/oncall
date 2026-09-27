@@ -47,6 +47,19 @@ describe('MonthlyReportsPanel', () => {
     expect(spy).toHaveBeenCalledWith('2026-09')
   })
 
+  it('lists two members who share a name as two rows', async () => {
+    const errors = vi.spyOn(console, 'error')
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({
+      ...preview,
+      rows: [row('Jan Nowak', 9), row('Jan Nowak', 11)],
+    })
+    renderScreen(<MonthlyReportsPanel />)
+
+    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    expect(within(table).getAllByRole('row', { name: /^Jan Nowak/ })).toHaveLength(2)
+    expect(errors.mock.calls.flat().join(' ')).not.toContain('same key')
+  })
+
   it('follows the month the coordinator picks', async () => {
     const spy = vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({ ...preview, month: '2026-07' })
     renderScreen(<MonthlyReportsPanel />)

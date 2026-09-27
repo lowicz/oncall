@@ -4,6 +4,8 @@ The CSV export and the JSON preview both read this one result, so the two can
 never show different numbers.
 """
 
+import uuid
+from collections import Counter
 from datetime import date, timedelta
 
 from oncall.domain.reports.errors import InvalidMonth
@@ -33,15 +35,17 @@ async def monthly_report(month: str, ports: ReportPorts) -> MonthlyReport:
     # carries the member id so a rename cannot drop somebody from the report.
     in_force = await ports.roster.duties_in_force(starts_on, ends_on)
     holidays = polish_holidays(starts_on, ends_on)
-    # Counted by display name, so two members sharing a name share one row.
-    tallies = {member.display_name: DutyTally() for member in members}
-    names = {member.id: member.display_name for member in members}
+    # One row per member: two people sharing a name keep their own counts.
+    tallies = {member.id: DutyTally() for member in members}
+    # A duty without an id (imported history) is counted by its label, for
+    # the one member who bears it; a label two members share names neither.
+    namesakes = Counter(member.display_name for member in members)
+    by_name: dict[str, uuid.UUID] = {
+        member.display_name: member.id for member in members if namesakes[member.display_name] == 1
+    }
     for duty in in_force.values():
-        # Identity first; the label is the fallback for imported rows.
-        name = names.get(duty.member_id) if duty.member_id else None
-        if name is None:
-            name = duty.assignee_name
-        tally = tallies.get(name)
+        holder = duty.member_id if duty.member_id else by_name.get(duty.assignee_name)
+        tally = tallies.get(holder) if holder is not None else None
         if tally is None:
             continue
         day = duty.service_date
@@ -73,5 +77,5 @@ async def monthly_report(month: str, ports: ReportPorts) -> MonthlyReport:
         starts_on=starts_on,
         ends_on=ends_on,
         staffed_days=staffed_days,
-        rows=[MonthlyRow(member.display_name, tallies[member.display_name]) for member in members],
+        rows=[MonthlyRow(member.display_name, tallies[member.id]) for member in members],
     )
