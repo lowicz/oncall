@@ -9,7 +9,7 @@ Registry, oznaczone numerem wydania:
 | `ghcr.io/lowicz/oncall-web` | `web` | nginx z aplikacją (SPA) i tą dokumentacją pod `/docs/` |
 
 Obrazy są publiczne: `docker compose pull` nie wymaga logowania. Baza `db` to
-niezmieniony obraz `postgres:17-alpine`.
+niezmieniony obraz `postgres:18-alpine`.
 
 ## Numer wersji
 
@@ -133,7 +133,7 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 | Zadanie | Co sprawdza |
 | --- | --- |
 | `backend` | zgodność `uv.lock` z `pyproject.toml` (przed instalacją), `ruff check`, `ruff format`, `mypy`, `pytest` na SQLite, zgodność OpenAPI ze snapshotem |
-| `backend-postgres` | zestaw współbieżności na prawdziwym PostgreSQL 17 |
+| `backend-postgres` | zestawy współbieżności i schematu na prawdziwym PostgreSQL 18 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
 | `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, to, że każda usługa działa tylko do odczytu i bez uprawnień jądra, oraz testy skryptu aktualizacji `deploy/update.sh` |
 | `backup` | skrypty [kopii zapasowych](kopie-zapasowe.md) (`shellcheck`, jednostki w `systemd-analyze verify`), instalację na stubach systemd i Podmana oraz zrzut, test odtworzenia, retencję, odtworzenie, alarm i sprzątanie na prawdziwym rootless Podmanie |
