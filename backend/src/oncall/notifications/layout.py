@@ -38,6 +38,7 @@ already safe to embed, so a caller cannot pass a raw name where markup goes.
 from dataclasses import dataclass
 from enum import StrEnum
 from html import escape
+from typing import NamedTuple
 
 from oncall.domain.vocabulary import AssignmentRole
 
@@ -89,11 +90,20 @@ class Tone(StrEnum):
     sig = "sig"
 
 
-_TONES: dict[Tone, tuple[str, str]] = {
-    Tone.ok: ("#017632", "#E6F3EF"),
-    Tone.warn: ("#B84800", "#FFEFEA"),
-    Tone.bad: ("#BC3B51", "#FFEDF0"),
-    Tone.sig: (LINK, "#E5EEFD"),
+class _ToneColours(NamedTuple):
+    """A tone's light-theme text colour, its status dot (`--*-dot`, `--act` for
+    `sig`) and the tint it sits on."""
+
+    text: str
+    dot: str
+    bg: str
+
+
+_TONES: dict[Tone, _ToneColours] = {
+    Tone.ok: _ToneColours(text="#017632", dot="#017632", bg="#E6F3EF"),
+    Tone.warn: _ToneColours(text="#B84800", dot="#D25200", bg="#FFEFEA"),
+    Tone.bad: _ToneColours(text="#BC3B51", dot="#BC3B51", bg="#FFEDF0"),
+    Tone.sig: _ToneColours(text=LINK, dot=SIG, bg="#E5EEFD"),
 }
 
 #: Role colours (`--p`, `--sec`, `--late` and their backgrounds).
@@ -124,12 +134,13 @@ def role_tag(role: AssignmentRole, label: str) -> Html:
 
 def status_tag(label: str, tone: Tone) -> Html:
     """A status with a dot and sentence-case label, laid out for Word."""
-    dot, bg = _TONES[tone]
+    tones = _TONES[tone]
     return Html(
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        f'bgcolor="{bg}" style="background-color:{bg};border-radius:999px;display:inline-table;">'
+        f'bgcolor="{tones.bg}" style="background-color:{tones.bg};border-radius:999px;'
+        'display:inline-table;">'
         f'<tr><td style="padding:1px 0 1px 8px;font-family:{FONT};font-size:12px;'
-        f'line-height:16px;color:{dot};" aria-hidden="true">&#9679;</td>'
+        f'line-height:16px;color:{tones.dot};" aria-hidden="true">&#9679;</td>'
         f'<td style="padding:1px 9px 1px 6px;font-family:{FONT};font-size:12px;'
         f'line-height:16px;color:{FG};font-weight:600;">{text(label)}</td></tr></table>'
     )
@@ -283,7 +294,7 @@ def _slots(heading: str | None, slots: list[Slot]) -> Html:
 
 
 def _note(note: Note) -> Html:
-    fg, bg = _TONES[note.tone]
+    fg, _dot, bg = _TONES[note.tone]
     return _cell(
         Html(
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">'

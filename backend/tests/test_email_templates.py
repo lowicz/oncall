@@ -22,7 +22,7 @@ import pytest
 
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.notifications import templates
-from oncall.notifications.layout import Brand
+from oncall.notifications.layout import Brand, Tone, status_tag
 from oncall.notifications.templates import RenderedEmail, format_day, format_range
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "email_swap_requested.html"
@@ -335,6 +335,25 @@ def test_a_batch_correction_lists_every_change_with_its_reason() -> None:
     assert rendered.html.count("(poprzednio: Anna Kowalska)") == 2
     assert "Odejście z zespołu" in rendered.html
     assert ">PRIMARY<" in rendered.html and ">SECONDARY<" in rendered.html
+
+
+def test_status_pill_dot_uses_the_light_theme_dot_colour() -> None:
+    """The dot carries the meaning, so it is the light theme's `--*-dot`
+    (`--act` for `sig`), not the pill's text colour: `frontend/src/tokens.css`."""
+    dots = {
+        Tone.ok: "#017632",
+        Tone.warn: "#D25200",
+        Tone.bad: "#BC3B51",
+        Tone.sig: "#2870ED",
+    }
+    for tone, dot in dots.items():
+        html = status_tag("Status", tone)
+        assert f'color:{dot};" aria-hidden="true">&#9679;' in html, tone
+    # The cancelled swap is the reachable warn pill; its dot is not the text
+    # colour (#B84800), which no dot should carry.
+    cancelled = RENDERINGS["swap_cancelled"]().html
+    assert 'color:#D25200;" aria-hidden="true">&#9679;' in cancelled
+    assert 'color:#B84800;" aria-hidden="true">&#9679;' not in cancelled
 
 
 def test_optional_reasons_appear_only_when_given() -> None:
