@@ -249,8 +249,9 @@ jobs:
     # oncall-backup.test.sh drives the real script against rootless Podman on
     # the runner: a hardened postgres:18-alpine stands in for the stack's db,
     # a PostgreSQL 17 db service started by `podman compose` is moved to 18 by
-    # upgrade-postgres, and every container, volume and file the test or the
-    # script creates must be gone afterwards.
+    # upgrade-postgres, under docker-compose and podman-compose, and every
+    # container, volume and file the test or the script creates must be gone
+    # afterwards.
     name: database backup (setup, dump, restore test, restore, PostgreSQL upgrade, cleanup on Podman)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -267,6 +268,16 @@ jobs:
       - name: Dump, restore test, retention, restore, alert, PostgreSQL upgrade and cleanup against rootless Podman
         run: |
           podman --version
+          bash deploy/backup/oncall-backup.test.sh
+      # podman-compose makes each container require the ones its service
+      # depends on, and Podman removes no container another one requires.
+      - name: The same against rootless Podman with podman-compose as the Compose provider
+        env:
+          PODMAN_COMPOSE_PROVIDER: podman-compose
+        run: |
+          sudo apt-get update --quiet
+          sudo apt-get install --yes --no-install-recommends podman-compose
+          podman-compose --version
           bash deploy/backup/oncall-backup.test.sh
 
   workflows:

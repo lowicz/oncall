@@ -4,9 +4,12 @@
 # labels, and api/worker stand-ins whose `python` records the alert it was
 # asked to send, plus a web stand-in. upgrade-postgres is tested last, from a
 # PostgreSQL 17 db service that Compose itself starts from the stack's file as
-# it was, to the one the stack names now. What the script writes lives in a
-# temporary directory, removed at exit with every container, volume and
-# network the test made.
+# it was, to the one the stack names now; there Compose starts the api, worker
+# and web stand-ins too, so they depend on db as the stack's own containers do.
+# `podman compose` runs whichever provider it finds; PODMAN_COMPOSE_PROVIDER
+# picks one (CI runs this with docker-compose and with podman-compose). What
+# the script writes lives in a temporary directory, removed at exit with every
+# container, volume and network the test made.
 #
 #   bash deploy/backup/oncall-backup.test.sh
 set -u
@@ -29,8 +32,10 @@ cleanup() {
   ids=$(podman ps --all --quiet --filter "label=$run_id")
   ids+=" $(podman ps --all --quiet --filter "label=io.github.lowicz.oncall.backup-verify=$deploy")"
   ids+=" $(podman ps --all --quiet --filter "label=com.docker.compose.project=$run_id")"
+  # --depend: Podman removes no container another one requires (podman-compose
+  # makes api, worker and web require db) unless those go with it.
   # shellcheck disable=SC2086 # one ID per word
-  podman rm --force --volumes --time 0 $ids >/dev/null 2>&1
+  podman rm --force --depend --volumes --time 0 $ids >/dev/null 2>&1
   for volume in $(podman volume ls --quiet | grep "^${run_id}[-_]"); do
     podman volume rm --force "$volume" >/dev/null 2>&1
   done
@@ -448,7 +453,37 @@ sed -e 's/image: postgres:[0-9]*-alpine/image: postgres:17-alpine/' \
   -e 's/^  oncall-postgres-[0-9]*:$/  oncall-db:/' -e '/POSTGRES_INITDB_ARGS/d' \
   "$deploy/docker-compose.yml" >"$deploy/compose-17.yml"
 sed -e 's/oncall-db/oncall-other/' "$deploy/compose-17.yml" >"$deploy/compose-17-other.yml"
-printf 'ONCALL_VERSION=0.0.0-test\nPOSTGRES_PASSWORD=test\n' >"$work/stack.env"
+# web publishes its ports on the host, so on ports no other run takes.
+printf 'ONCALL_VERSION=0.0.0-test\nPOSTGRES_PASSWORD=test\nONCALL_WEB_HTTP_PORT=%s\nONCALL_WEB_HTTPS_PORT=%s\n' \
+  $((20000 + $$ % 20000)) $((40000 + $$ % 20000)) >"$work/stack.env"
+# api, worker and web as Compose starts them from the stack's file, on the test
+# image: they sleep, api's health check (`python -c ...`) passes, and the
+# image's data directory is a tmpfs, so Compose creates no volume for them.
+printf '#!/bin/sh\nexit 0\n' >"$work/healthy"
+chmod 755 "$work/healthy"
+cat >"$work/standins.yml" <<EOF
+services:
+  api:
+    image: $image
+    entrypoint: ["sleep"]
+    command: ["infinity"]
+    tmpfs:
+      - $data_path
+    volumes:
+      - $work/healthy:/usr/local/bin/python:ro
+  worker:
+    image: $image
+    entrypoint: ["sleep"]
+    command: ["infinity"]
+    tmpfs:
+      - $data_path
+  web:
+    image: $image
+    entrypoint: ["sleep"]
+    command: ["infinity"]
+    tmpfs:
+      - $data_path
+EOF
 grep -q 'oncall-db:/var/lib/postgresql/data' "$deploy/compose-17.yml" || {
   echo "$deploy/compose-17.yml does not mount oncall-db on the old data path" >&2
   exit 1
@@ -494,12 +529,21 @@ start_stack_db() { # compose file
   done
 }
 
-running() {
-  [ "$(podman inspect --format '{{.State.Running}}' "$run_id-$1")" = true ]
+# What the stack's start does for api, worker and web: podman-compose makes
+# each container require the ones its service depends on.
+start_stack_services() { # compose file
+  stack -f "$1" -f "$work/standins.yml" up --detach api worker web >/dev/null 2>&1 ||
+    fail "Compose did not start api, worker and web from $1"
 }
 
-podman rm --force --time 0 "$run_id-db" >/dev/null
+running() { # service
+  [ -n "$(podman ps --quiet --filter "label=com.docker.compose.project=$run_id" \
+    --filter "label=com.docker.compose.service=$1" --filter status=running)" ]
+}
+
+podman rm --force --time 0 "$run_id-db" "$run_id-api" "$run_id-worker" "$run_id-web" >/dev/null
 start_stack_db "$deploy/compose-17.yml"
+start_stack_services "$deploy/compose-17.yml"
 stack_psql <<'SQL'
 create table alembic_version (version_num varchar(32) primary key);
 insert into alembic_version values ('0035_outbox_created_index');
@@ -512,7 +556,6 @@ SQL
 podman volume ls --quiet | sort >"$work/volumes-before"
 
 check "upgrade-postgres refuses a Compose file whose PostgreSQL is not newer, and removes what it created"
-podman start "$run_id-api" "$run_id-worker" "$run_id-web" >/dev/null
 run upgrade-postgres --env-file "$work/stack.env" "$deploy/compose-17-other.yml" && fail "upgraded to the same major version"
 has_text "$work/out" "runs PostgreSQL 17, which is not newer than 17"
 has_text "$work/out" "PostgreSQL 17's data is unchanged in the volume ${run_id}_oncall-db"
@@ -541,7 +584,10 @@ podman volume ls --quiet | sort >"$work/volumes-before"
 start_stack_db "$deploy/compose-17.yml"
 
 check "upgrade-postgres moves the database to PostgreSQL 18 on a new volume, with checksums and Polish collation"
-podman start "$run_id-api" "$run_id-worker" "$run_id-web" >/dev/null
+start_stack_services "$deploy/compose-17.yml"
+for service in api worker web; do
+  running "$service" || fail "$service does not run before the upgrade"
+done
 stack_psql <<<"insert into audit_events (summary) values ('the last change before the upgrade')"
 backups_before=$(count)
 run upgrade-postgres --env-file "$work/stack.env" "$deploy/docker-compose.yml" || fail "exited $?: $(cat "$work/out")"
@@ -577,6 +623,14 @@ podman volume ls --quiet | sort | grep -v "^$new_volume$" >"$work/volumes-now"
 podman volume ls --quiet | sort >"$work/volumes-before"
 verify_leftovers
 lock_is_free
+
+check "the stack starts again on the file that names PostgreSQL 18"
+start_stack_services "$deploy/docker-compose.yml"
+for service in api worker web; do
+  running "$service" || fail "$service does not run"
+done
+[ "$(stack_psql <<<'show server_version_num' | cut -c1-2)" = 18 ] || fail "the stack's db is not PostgreSQL 18"
+[ "$(stack_psql <<<'select count(*) from audit_events')" = 5001 ] || fail "the stack does not run on the upgraded database"
 
 check "the database upgraded to PostgreSQL 18 is dumped and proved like any other"
 run dump --label after-upgrade || fail "exited $?: $(cat "$work/out")"

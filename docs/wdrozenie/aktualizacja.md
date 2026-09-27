@@ -196,9 +196,12 @@ wdrożenia i wydania. Zamiast zwykłego zrzutu (krok 5) uruchamia wtedy
 1. zatrzymuje `api`, `worker` i `web`, żeby zrzut objął każdą zmianę;
 2. robi zrzut `pre-postgres-upgrade-from-17`, sprawdzony odtworzeniem jak
    każda kopia, i zostawia go w katalogu kopii;
-3. zatrzymuje starą bazę i uruchamia usługę `db` z pliku Compose wydania na
-   nowym wolumenie `oncall-postgres-18` (każda wersja główna ma własny
-   wolumen, nazwany jej numerem);
+3. zatrzymuje starą bazę i usuwa jej kontener, bo kontener nowej bazy
+   dostaje tę samą nazwę; pod podman-compose razem z nim znikają zatrzymane
+   kontenery `api`, `worker` i `web`, które go wymagają (nie trzymają danych,
+   a restart tworzy je na nowo); potem uruchamia usługę `db` z pliku Compose
+   wydania na nowym wolumenie `oncall-postgres-18` (każda wersja główna ma
+   własny wolumen, nazwany jej numerem);
 4. odtwarza zrzut do nowej bazy, sprawdza, że wróciła każda tabela i ta sama
    rewizja schematu, i wykonuje `ANALYZE`, żeby planista od razu miał
    statystyki.
