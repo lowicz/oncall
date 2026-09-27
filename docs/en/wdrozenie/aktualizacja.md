@@ -197,9 +197,12 @@ deployment's and the release's `docker-compose.yml`. Instead of the usual dump
 1. stops `api`, `worker` and `web`, so the dump holds every change;
 2. takes the dump `pre-postgres-upgrade-from-17`, proved by a restore like
    every backup, and leaves it in the backup directory;
-3. stops the old database and starts the `db` service of the release's
-   Compose file on the new `oncall-postgres-18` volume (every major version
-   has a volume of its own, named after it);
+3. stops the old database and removes its container, since the new
+   database's container takes the same name; under podman-compose the stopped
+   `api`, `worker` and `web` containers, which require it, go with it (they
+   hold no data, and the restart creates them again); then starts the `db`
+   service of the release's Compose file on the new `oncall-postgres-18`
+   volume (every major version has a volume of its own, named after it);
 4. restores the dump into the new database, checks that every table and the
    same schema revision came back, and runs `ANALYZE`, so the planner has
    statistics straight away.

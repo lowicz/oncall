@@ -709,6 +709,12 @@ do_upgrade_postgres() {
   stopped_services=()
   upgrade_way_back="PostgreSQL $old_major's data is unchanged in the volume $old_volume. Start the stack again on the files it runs: systemctl --user restart oncall.service"
 
+  # The new db container takes the old one's name, so the old one goes first.
+  # podman-compose makes api, worker and web require db, and Podman removes no
+  # container another one requires: they go with it. None of them holds data,
+  # and Compose creates them again when the stack starts.
+  capture "removing the stopped containers of the stack" podman rm --depend "$old_id" >/dev/null
+
   say "Starting the database of $compose on a new volume"
   # Compose takes the project directory from the first file's, and
   # podman-compose has no --project-directory: a copy of the file in the
