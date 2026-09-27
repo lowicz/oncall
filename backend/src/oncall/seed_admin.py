@@ -39,6 +39,9 @@ async def seed_admin() -> None:
             "choose a real password before bootstrapping the admin account."
         )
 
+    # Sign-in lower-cases the login and compares it exactly, so the account is
+    # stored the same way or nobody could sign in to it.
+    username = username.strip().lower()
     async with SessionFactory() as db:
         user = await db.scalar(select(User).where(User.username == username))
         if user is None:
