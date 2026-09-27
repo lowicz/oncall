@@ -432,6 +432,8 @@ export interface MonthlyReportPreview {
   days_in_month: number
   staffed_days: number
   rows: Array<{
+    /** The row's identity: two members may share a name. */
+    member_id: string
     name: string
     primary_workdays: number
     primary_weekends: number

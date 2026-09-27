@@ -77,5 +77,5 @@ async def monthly_report(month: str, ports: ReportPorts) -> MonthlyReport:
         starts_on=starts_on,
         ends_on=ends_on,
         staffed_days=staffed_days,
-        rows=[MonthlyRow(member.display_name, tallies[member.id]) for member in members],
+        rows=[MonthlyRow(member.id, member.display_name, tallies[member.id]) for member in members],
     )

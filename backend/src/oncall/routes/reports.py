@@ -1,5 +1,6 @@
 import csv
 import io
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -16,6 +17,8 @@ from oncall.routes.domain_edge import domain_errors_as_http
 
 
 class MonthlyReportRow(BaseModel):
+    #: Identifies the row; two members may share a name.
+    member_id: uuid.UUID
     name: str
     primary_workdays: int
     primary_weekends: int
@@ -144,6 +147,7 @@ async def monthly_report_preview(
         staffed_days=report.staffed_days,
         rows=[
             MonthlyReportRow(
+                member_id=row.member_id,
                 name=row.name,
                 primary_workdays=row.tally.primary_workday,
                 primary_weekends=row.tally.primary_weekend,

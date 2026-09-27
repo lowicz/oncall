@@ -8,9 +8,11 @@ from tests.conftest import create_member, create_published_schedule, create_user
 
 
 async def test_monthly_preview_and_csv_agree_and_reject_an_impossible_month(client, db) -> None:
+    ids = {}
     for username, name in (("anna", "Anna"), ("bartek", "Bartek"), ("ex", "Ex")):
         user = await create_user(db, username, display_name=name)
         member = await create_member(db, user, display_name=name, active_from=date(2026, 1, 1))
+        ids[name] = str(member.id)
         if username == "ex":
             member.active_until = date(2026, 7, 31)
     await db.commit()
@@ -43,6 +45,7 @@ async def test_monthly_preview_and_csv_agree_and_reject_an_impossible_month(clie
         "staffed_days": 4,
         "rows": [
             {
+                "member_id": ids["Anna"],
                 "name": "Anna",
                 "primary_workdays": 1,
                 "primary_weekends": 1,
@@ -61,6 +64,7 @@ async def test_monthly_preview_and_csv_agree_and_reject_an_impossible_month(clie
                 "total_points": 6.0,
             },
             {
+                "member_id": ids["Bartek"],
                 "name": "Bartek",
                 "primary_workdays": 1,
                 "primary_weekends": 1,

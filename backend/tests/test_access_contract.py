@@ -238,9 +238,10 @@ async def test_calendar_feeds(client, db, db_factory, frozen_clock) -> None:
     assert_error(await client.get(f"/calendar/feed/{raw}.ics"), 404, "Subskrypcja nie istnieje")
 
     # A member's feed cannot lose its member: the database refuses the row.
+    orphaned = update(CalendarFeedToken).values(revoked_at=None, member_id=None)
     async with db_factory() as other:
         with pytest.raises(IntegrityError, match="ck_calendar_feed_tokens_owner"):
-            await other.execute(update(CalendarFeedToken).values(revoked_at=None, member_id=None))
+            await other.execute(orphaned)
     assert_error(await client.get(f"/calendar/feed/{raw}.ics"), 404, "Subskrypcja nie istnieje")
 
     assert_error(

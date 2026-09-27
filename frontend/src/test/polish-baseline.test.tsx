@@ -343,8 +343,8 @@ function stubApi() {
     days_in_month: 30,
     staffed_days: 30,
     rows: [
-      { name: 'Anna Kowalska', primary_workdays: 5, primary_weekends: 2, primary_holidays: 1, secondary_workdays: 6, secondary_weekends: 2, secondary_holidays: 0, oncall_workdays: 11, oncall_weekends: 4, oncall_holidays: 1, oncall_days_off: 5, oncall_total: 16, late_shifts: 5, primary_points: 9.5, secondary_points: 10, total_points: 19.5 },
-      { name: 'Marek Nowak', primary_workdays: 6, primary_weekends: 2, primary_holidays: 0, secondary_workdays: 5, secondary_weekends: 2, secondary_holidays: 1, oncall_workdays: 11, oncall_weekends: 4, oncall_holidays: 1, oncall_days_off: 5, oncall_total: 16, late_shifts: 4, primary_points: 11, secondary_points: 8.5, total_points: 19.5 },
+      { member_id: 'anna', name: 'Anna Kowalska', primary_workdays: 5, primary_weekends: 2, primary_holidays: 1, secondary_workdays: 6, secondary_weekends: 2, secondary_holidays: 0, oncall_workdays: 11, oncall_weekends: 4, oncall_holidays: 1, oncall_days_off: 5, oncall_total: 16, late_shifts: 5, primary_points: 9.5, secondary_points: 10, total_points: 19.5 },
+      { member_id: 'marek', name: 'Marek Nowak', primary_workdays: 6, primary_weekends: 2, primary_holidays: 0, secondary_workdays: 5, secondary_weekends: 2, secondary_holidays: 1, oncall_workdays: 11, oncall_weekends: 4, oncall_holidays: 1, oncall_days_off: 5, oncall_total: 16, late_shifts: 4, primary_points: 11, secondary_points: 8.5, total_points: 19.5 },
     ],
   })
   vi.spyOn(api, 'shareLinks').mockResolvedValue([

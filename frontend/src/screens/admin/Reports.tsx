@@ -93,10 +93,8 @@ export function MonthlyReportsPanel() {
               </tr>
             </thead>
             <tbody>
-              {/* Two members can share a name, and a row keeps no state of its
-                  own, so its place in the server's list is its identity. */}
-              {rows.map((row, index) => (
-                <tr key={index}>
+              {rows.map((row) => (
+                <tr key={row.member_id}>
                   <th scope="row" className="person">{row.name}</th>
                   {COLUMNS.map((key) => <td key={key} className={cellClass(key)}>{formatDecimal(row[key])}</td>)}
                 </tr>

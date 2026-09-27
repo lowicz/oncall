@@ -79,7 +79,7 @@ class SqlAlchemyTeamDirectory:
         rows = await self._session.execute(
             select(TeamMember.id, TeamMember.display_name).where(TeamMember.id.in_(ids))
         )
-        return {member_id: name for member_id, name in rows}
+        return dict(rows.all())
 
     async def another_active_approver_exists(self, user_id: uuid.UUID) -> bool:
         other = await self._session.scalar(

@@ -231,6 +231,8 @@ async def test_a_persons_periods_cannot_overlap(modelled_db: AsyncSession) -> No
         ),
     ]
     for row in overlapping:
+        attempt = await modelled_db.begin_nested()
+        modelled_db.add(row)
         with pytest.raises(IntegrityError, match="no_overlap"):
-            async with modelled_db.begin_nested():
-                modelled_db.add(row)
+            await modelled_db.flush()
+        await attempt.rollback()
