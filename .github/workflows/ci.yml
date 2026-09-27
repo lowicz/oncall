@@ -103,8 +103,11 @@ jobs:
       run:
         working-directory: backend
     services:
+      # The stack's PostgreSQL version on the image's default initdb: no Polish
+      # database collation, so the Polish order test proves the collation the
+      # name columns carry themselves.
       postgres:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -242,10 +245,11 @@ jobs:
 
   backup:
     # oncall-backup.test.sh drives the real script against rootless Podman on
-    # the runner: a hardened postgres:17-alpine stands in for the stack's db,
-    # and every container, volume and file the test or the script creates must
-    # be gone afterwards.
-    name: database backup (setup, dump, restore test, restore, cleanup on Podman)
+    # the runner: a hardened postgres:18-alpine stands in for the stack's db,
+    # a PostgreSQL 17 db service started by `podman compose` is moved to 18 by
+    # upgrade-postgres, and every container, volume and file the test or the
+    # script creates must be gone afterwards.
+    name: database backup (setup, dump, restore test, restore, PostgreSQL upgrade, cleanup on Podman)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -258,7 +262,7 @@ jobs:
         run: systemd-analyze verify deploy/backup/oncall-backup.service deploy/backup/oncall-backup-alert.service deploy/backup/oncall-backup.timer
       - name: Production setup (stubbed systemd, loginctl and Podman)
         run: bash deploy/backup/setup.test.sh
-      - name: Dump, restore test, retention, restore, alert and cleanup against rootless Podman
+      - name: Dump, restore test, retention, restore, alert, PostgreSQL upgrade and cleanup against rootless Podman
         run: |
           podman --version
           bash deploy/backup/oncall-backup.test.sh

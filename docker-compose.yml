@@ -29,7 +29,11 @@ x-web-image: &web-image ghcr.io/lowicz/oncall-web:${ONCALL_VERSION:?set ONCALL_V
 
 services:
   db:
-    image: postgres:17-alpine
+    # A new major version is not a new tag alone: the data directory belongs to
+    # the major that wrote it. deploy/update.sh moves the data when a release
+    # changes this line (oncall-backup.sh upgrade-postgres,
+    # docs/wdrozenie/aktualizacja.md).
+    image: postgres:18-alpine
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -59,8 +63,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-oncall}
       POSTGRES_USER: ${POSTGRES_USER:-oncall}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oncall}
+      # Read only when the image initialises an empty data directory: page
+      # checksums, so a damaged page is an error rather than wrong data, and
+      # Polish as the database's collation, so every ORDER BY on text sorts
+      # as a Polish reader expects.
+      POSTGRES_INITDB_ARGS: --data-checksums --locale-provider=icu --icu-locale=pl-PL
+    # One volume per major version, named after it: upgrade-postgres fills the
+    # next version's volume from a dump and leaves this one as the way back.
+    # oncall-db, the volume PostgreSQL 17 used, is no longer mounted; it stays
+    # on the host until removed.
     volumes:
-      - oncall-db:/var/lib/postgresql/data
+      - oncall-postgres-18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oncall} -d ${POSTGRES_DB:-oncall}"]
       interval: 5s
@@ -226,4 +239,4 @@ services:
         condition: service_healthy
 
 volumes:
-  oncall-db:
+  oncall-postgres-18:

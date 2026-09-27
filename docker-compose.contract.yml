@@ -1,6 +1,6 @@
 services:
   contract-db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: oncall_contract
       POSTGRES_USER: oncall_contract
@@ -8,7 +8,7 @@ services:
     ports:
       - "55432:5432"
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U oncall_contract -d oncall_contract"]
       interval: 1s
