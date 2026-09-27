@@ -16,7 +16,7 @@ ONCALL_APP_SUBTITLE='Infrastructure team' uv run uvicorn oncall.main:app --port 
 
 In the browser at a 1905 px wide window: set `localStorage` `oncall-language`
 to `en` and `oncall-theme` to `dark`, sign in as `admin`, open `/grafik`, take a
-screenshot and crop the top-left 1440 x 480 px. Afterwards
+screenshot and crop the top-left 1440 x 530 px. Afterwards
 `docker compose -f docker-compose.contract.yml -p oncall-shot down`.
 
 `social-card.png` (1200 x 630) is the repository's social preview. GitHub

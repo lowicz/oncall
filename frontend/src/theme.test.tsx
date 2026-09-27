@@ -9,7 +9,7 @@ import {
 beforeEach(() => {
   document.documentElement.removeAttribute('data-theme')
   document.documentElement.removeAttribute('data-density')
-  document.head.innerHTML = '<meta name="theme-color" content="#07152E" />'
+  document.head.innerHTML = '<meta name="theme-color" content="#061228" />'
 })
 
 describe('theme preference', () => {
@@ -46,7 +46,7 @@ describe('theme preference', () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'system')
     applyPreferences()
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
-    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#07152E')
+    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#061228')
   })
 })
 

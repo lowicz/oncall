@@ -1,7 +1,8 @@
 /* Shared interface palette. Dark is the default; theme.ts and theme-init.js
  * select the light scheme before first paint. Signal text and action fills
  * are separate so both retain contrast. Role fills stay identical in both
- * schemes; role text outside chips follows the surface underneath it. */
+ * schemes; role text outside chips follows the surface underneath it. The
+ * header band and the navigation rail carry the same colours in both schemes. */
 :root {
   color-scheme: dark;
   --font: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -9,7 +10,7 @@
   --read: 'STIX Two Text', Georgia, serif;
   --label: var(--font);
 
-  --bg: #07152E;
+  --bg: #061228;
   --s1: #0B1F42;
   --s2: #122A52;
   --s3: #1B3765;
@@ -64,14 +65,33 @@
   --ev-red: #EB4C79;
   --ev-violet: #B17EAD;
   --ev-teal: #65CDCF;
+
+  --band-ink: #FFFFFF;
+  --band-line: rgba(255, 255, 255, 0.24);
+  --band-field: rgba(255, 255, 255, 0.16);
+  --band-edge: rgba(255, 255, 255, 0.4);
+  --band-kbd: rgba(255, 255, 255, 0.55);
+  --band-chip: #FFFFFF;
+  --band-p: #036A6D;
+  --band-sec: #401A48;
+  --band-late: #B84800;
+  --rail-bg: #0B1F42;
+  --rail-fg: #F4F6FA;
+  --rail-link: #E4EAF0;
+  --rail-muted: #A3B5C9;
+  --rail-hover: rgba(255, 255, 255, 0.08);
+  --rail-active: #FFFFFF;
+  --rail-active-ink: #0B1F42;
+  --rail-kbd-line: rgba(163, 181, 201, 0.4);
+
   --shadow: 0 30px 60px -30px rgba(2, 8, 24, 0.8);
   --shadow-sm: 0 10px 30px -12px rgba(2, 8, 24, 0.7);
   --r-sm: 4px;
   --r: 8px;
   --r-md: 8px;
   --r-lg: 12px;
-  --cell: 36px;
-  --rail-w: 208px;
+  --cell: 35px;
+  --rail-w: 232px;
   --panel-w: 360px;
 }
 
