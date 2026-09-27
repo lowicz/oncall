@@ -74,7 +74,8 @@ async def test_the_notification_loop_logs_a_failed_pass_and_reports_a_busy_one(
     assert calls == [factory] * 4
     assert sleeps == [7.0, 7.0, 7.0]
     failures = [r for r in caplog.records if r.getMessage() == "Notification cycle failed"]
-    assert len(failures) == 1 and failures[0].exc_info is not None
+    assert len(failures) == 1
+    assert failures[0].exc_info is not None
     reports = [r.getMessage() for r in caplog.records if r.name == "oncall.metrics"]
     # A pass that sent nothing says nothing; one that did work says what.
     assert reports == ["event=notifications sent=2"]

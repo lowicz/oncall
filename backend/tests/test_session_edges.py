@@ -59,8 +59,10 @@ def test_a_principal_is_named_after_its_account_or_else_its_link() -> None:
 def test_a_share_session_without_its_link_is_a_server_error_not_a_viewer() -> None:
     """The schema forbids a session with no owner; should one appear, the
     answer must not invent a viewer with no date range."""
+    orphan = Principal(Session())
+
     with pytest.raises(HTTPException) as refused:
-        share_principal_response(Principal(Session()))
+        share_principal_response(orphan)
 
     assert refused.value.status_code == 500
     assert refused.value.detail == translate("access.session_link_missing")

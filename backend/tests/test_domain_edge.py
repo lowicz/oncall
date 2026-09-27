@@ -71,12 +71,14 @@ async def test_the_refusal_edge_lets_an_unmapped_error_through_unchanged() -> No
 
 
 async def test_a_recorded_refusal_is_answered_so_that_what_it_recorded_is_committed() -> None:
+    refusals = refusals_as_http(
+        None,
+        {_Refused: 429},
+        headers={_Refused: lambda _error: {"Retry-After": "60"}},
+    )
+
     with pytest.raises(HTTPException) as raised:
-        async with refusals_as_http(
-            None,
-            {_Refused: 429},
-            headers={_Refused: lambda _error: {"Retry-After": "60"}},
-        ):
+        async with refusals:
             raise _Refused()
 
     assert isinstance(raised.value, RecordedHttpException)
@@ -86,9 +88,12 @@ async def test_a_recorded_refusal_is_answered_so_that_what_it_recorded_is_commit
 
 
 async def test_an_ordinary_refusal_commits_nothing() -> None:
+    refusals = refusals_as_http(None, SHARED_ERROR_STATUSES)
+    refusal = NotATeamMember()
+
     with pytest.raises(HTTPException) as raised:
-        async with refusals_as_http(None, SHARED_ERROR_STATUSES):
-            raise NotATeamMember()
+        async with refusals:
+            raise refusal
 
     assert not isinstance(raised.value, RecordedHttpException)
     assert raised.value.status_code == 403

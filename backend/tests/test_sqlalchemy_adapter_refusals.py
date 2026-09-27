@@ -34,18 +34,19 @@ TODAY = business_today()
 async def test_a_constraint_without_a_domain_answer_surfaces_as_the_database_error(db) -> None:
     """Only a login or personnel number lost to a concurrent request has a
     domain answer; any other constraint is not the adapter's to explain."""
+    accounts = SqlAlchemyAccounts(db)
+    nameless = AccountRecord(
+        username="nowa",
+        personnel_number="7",
+        first_name=None,  # type: ignore[arg-type]
+        last_name="Osoba",
+        email=None,
+        phone=None,
+        role=UserRole.member,
+    )
+
     with pytest.raises(IntegrityError, match="first_name"):
-        await SqlAlchemyAccounts(db).open_account(
-            AccountRecord(
-                username="nowa",
-                personnel_number="7",
-                first_name=None,  # type: ignore[arg-type]
-                last_name="Osoba",
-                email=None,
-                phone=None,
-                role=UserRole.member,
-            )
-        )
+        await accounts.open_account(nameless)
 
 
 async def test_an_account_that_created_a_share_link_cannot_be_closed(db) -> None:
@@ -62,9 +63,10 @@ async def test_an_account_that_created_a_share_link_cannot_be_closed(db) -> None
         )
     )
     await db.commit()
+    accounts = SqlAlchemyAccounts(db)
 
     with pytest.raises(errors.AccountStillReferenced) as refused:
-        await SqlAlchemyAccounts(db).close_account(author_id)
+        await accounts.close_account(author_id)
 
     assert refused.value.account_id == author_id
     await db.rollback()
@@ -76,9 +78,10 @@ async def test_an_account_enrolled_meanwhile_is_reported_as_in_the_rotation(db) 
     await create_member(db, user, display_name="Ola Nowak")
     account = await SqlAlchemyAccounts(db).account(user.id)
     assert account is not None
+    rotation = SqlAlchemyRotation(db)
 
     with pytest.raises(errors.AccountAlreadyInRotation) as refused:
-        await SqlAlchemyRotation(db).enrol(account, TODAY)
+        await rotation.enrol(account, TODAY)
 
     assert refused.value.account_id == account.id
     await db.rollback()
@@ -123,13 +126,16 @@ async def test_availability_entries_are_bounded_by_the_end_of_the_range(db) -> N
 
 async def test_nothing_staged_cannot_be_read_back(db) -> None:
     user = await create_user(db, "koord", role=UserRole.coordinator)
+    availability = SqlAlchemyAvailability(db, user)
+    history = SqlAlchemyHistory(db, user)
+    share_links = SqlAlchemyShareLinks(db, user)
 
     with pytest.raises(LookupError, match="no availability entry was recorded"):
-        await SqlAlchemyAvailability(db, user).recorded_entry()
+        await availability.recorded_entry()
     with pytest.raises(LookupError, match="no history import was staged"):
-        await SqlAlchemyHistory(db, user).staged_import_id()
+        await history.staged_import_id()
     with pytest.raises(LookupError, match="no share link was staged"):
-        await SqlAlchemyShareLinks(db, user).staged_link()
+        await share_links.staged_link()
 
 
 async def test_a_decision_on_a_request_that_is_not_stored_is_refused(db) -> None:
@@ -147,9 +153,11 @@ async def test_a_decision_on_a_request_that_is_not_stored_is_refused(db) -> None
         created_at=datetime.now(UTC),
         slots=((TODAY, AssignmentRole.primary),),
     )
+    swap_requests = SqlAlchemySwapRequests(db)
+    expected = str(missing.id)
 
-    with pytest.raises(LookupError, match=str(missing.id)):
-        await SqlAlchemySwapRequests(db).record_decision(missing)
+    with pytest.raises(LookupError, match=expected):
+        await swap_requests.record_decision(missing)
 
 
 def test_a_blank_display_name_is_refused() -> None:

@@ -154,7 +154,8 @@ async def test_a_fresh_seed_with_a_mail_domain_creates_accounts_with_addresses(
         members = (await db.scalars(select(TeamMember.display_name))).all()
         viewer = await db.scalar(select(User).where(User.username == "viewer"))
     assert sorted(members) == sorted(DEMO_NAMES)
-    assert viewer is not None and viewer.email == "viewer@demo.example"
+    assert viewer is not None
+    assert viewer.email == "viewer@demo.example"
 
 
 def test_running_the_module_seeds_the_demo(monkeypatch) -> None:
