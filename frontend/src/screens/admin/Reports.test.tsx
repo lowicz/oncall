@@ -5,7 +5,8 @@ import { loadRealStylesheet } from '../../test/stylesheet'
 import { MonthlyReportsPanel } from './Reports'
 import { MonthlyReportPreview, api } from '../../api'
 
-const row = (name: string, points: number): MonthlyReportPreview['rows'][number] => ({
+const row = (name: string, points: number, memberId = name): MonthlyReportPreview['rows'][number] => ({
+  member_id: memberId,
   name,
   primary_workdays: 5,
   primary_weekends: 2,
@@ -45,6 +46,19 @@ describe('MonthlyReportsPanel', () => {
     await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
     expect(screen.getByLabelText('Miesiąc rozliczenia')).toHaveValue('2026-09')
     expect(spy).toHaveBeenCalledWith('2026-09')
+  })
+
+  it('lists two members who share a name as two rows', async () => {
+    const errors = vi.spyOn(console, 'error')
+    vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({
+      ...preview,
+      rows: [row('Jan Nowak', 9, 'jan-1'), row('Jan Nowak', 11, 'jan-2')],
+    })
+    renderScreen(<MonthlyReportsPanel />)
+
+    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    expect(within(table).getAllByRole('row', { name: /^Jan Nowak/ })).toHaveLength(2)
+    expect(errors.mock.calls.flat().join(' ')).not.toContain('same key')
   })
 
   it('follows the month the coordinator picks', async () => {

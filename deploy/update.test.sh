@@ -216,7 +216,12 @@ cat >"$stubs/podman" <<'EOF'
 #!/bin/sh
 echo "podman $*" >>"$TEST_LOG"
 case $1 in
-  pull) exit "${TEST_PULL_FAIL:-0}" ;;
+  pull)
+    case $3 in
+      *"${TEST_PULL_FAIL_ON:-no image}"*) exit 1 ;;
+    esac
+    exit "${TEST_PULL_FAIL:-0}"
+    ;;
   ps) echo "NAMES IMAGE STATUS" ;;
 esac
 EOF
@@ -459,6 +464,95 @@ same_file "$deploy/docker-compose.tls.yml" "$release/docker-compose.tls.yml"
 has_line "$deploy/.env" 'ONCALL_VERSION=9.9.9'
 has_line "$work/log" 'systemctl --user restart oncall.service'
 
+# The deployment's Compose file as a release on PostgreSQL 17 had it.
+on_postgres_17() { # compose file
+  sed 's/image: postgres:[0-9]*-alpine/image: postgres:17-alpine/' "$repo_root/docker-compose.yml" >"$1"
+  grep -Fq 'image: postgres:17-alpine' "$1" || fail "$1 does not name postgres:17-alpine"
+}
+
+check "a release on a newer PostgreSQL moves the data with the release's script, then installs and restarts"
+new_deployment postgres-upgrade
+on_postgres_17 "$deploy/docker-compose.yml"
+mkdir -p "$deploy/deploy/backup"
+dump_stub installed-dump >"$deploy/deploy/backup/oncall-backup.sh"
+run_update --dir "$deploy" 9.9.9 || fail "exited $?: $(cat "$work/out")"
+has_text "$work/out" '9.9.9 moves the database from PostgreSQL 17 to 18'
+has_line "$work/log" 'podman pull --quiet docker.io/library/postgres:18-alpine'
+has_text "$work/log" "release-dump --dir $TEST_WORKING_DIRECTORY upgrade-postgres --env-file "
+upgrade_line=$(grep -F 'release-dump' "$work/log")
+# The staged release: its merged .env names 9.9.9, its Compose file 18.
+case $upgrade_line in
+  *"/env "*"/docker-compose.yml wait=60") ;;
+  *) fail "upgrade-postgres did not get the staged .env and Compose file: $upgrade_line" ;;
+esac
+if grep -Fq 'installed-dump' "$work/log"; then
+  fail "the deployment's own script ran, which does not know upgrade-postgres"
+fi
+if grep -Fq ' dump --label' "$work/log"; then
+  fail "a separate dump ran; upgrade-postgres takes its own with the application stopped"
+fi
+[ "$(grep -n 'postgres:18-alpine' "$work/log" | cut -d: -f1)" -lt "$(grep -n 'release-dump' "$work/log" | cut -d: -f1)" ] ||
+  fail "the new PostgreSQL image is not pulled before the move"
+[ "$(grep -n 'release-dump' "$work/log" | cut -d: -f1)" -lt "$(grep -n 'restart' "$work/log" | cut -d: -f1)" ] ||
+  fail "the move does not come before the restart"
+[ "$(grep -c 'systemctl --user restart' "$work/log")" = 1 ] || fail "expected one restart"
+same_file "$deploy/docker-compose.yml" "$release/docker-compose.yml"
+has_line "$deploy/.env" 'ONCALL_VERSION=9.9.9'
+backup=$(find "$deploy/.backup" -mindepth 1 -maxdepth 1)
+grep -Fq 'image: postgres:17-alpine' "$backup/docker-compose.yml" || fail "the PostgreSQL 17 Compose file was not backed up"
+has_text "$work/out" "The database runs on PostgreSQL 18. PostgreSQL 17's data stays in its volume"
+
+check "a failed move starts the stack again as it was and changes no file"
+new_deployment postgres-upgrade-fails
+on_postgres_17 "$deploy/docker-compose.yml"
+cp -p "$deploy/docker-compose.yml" "$work/compose-before"
+TEST_DUMP_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the move failed"
+has_text "$work/out" 'moving the database to PostgreSQL 18 failed (see above); 1.0.0 runs again on its own database, unchanged, and no file was changed'
+has_line "$work/log" 'systemctl --user restart oncall.service'
+same_file "$deploy/docker-compose.yml" "$work/compose-before"
+same_file "$deploy/.env" "$work/env-before"
+[ ! -e "$deploy/deploy/backup" ] || fail "release files were installed"
+[ "$(backups)" = 0 ] || fail "a backup directory was made"
+
+check "a failed move whose restart fails too says so"
+new_deployment postgres-upgrade-restart-fails
+on_postgres_17 "$deploy/docker-compose.yml"
+TEST_DUMP_FAIL=1 TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the move failed"
+has_text "$work/out" 'and oncall.service did not start again; see journalctl --user -u oncall.service. No file was changed'
+
+check "a PostgreSQL image that cannot be pulled stops the move with nothing changed"
+new_deployment postgres-pull-fails
+on_postgres_17 "$deploy/docker-compose.yml"
+TEST_PULL_FAIL_ON=postgres run_update --dir "$deploy" 9.9.9 && fail "succeeded although the pull failed"
+has_text "$work/out" 'cannot pull docker.io/library/postgres:18-alpine; nothing was changed'
+if grep -Fq 'release-dump' "$work/log"; then
+  fail "the move started without the image"
+fi
+lacks_line "$work/log" 'systemctl --user restart oncall.service'
+same_file "$deploy/.env" "$work/env-before"
+
+check "a release on an older PostgreSQL is refused with nothing changed"
+new_deployment postgres-downgrade
+older_release=$work/release-on-postgres-17
+rm -rf "$older_release"
+cp -R "$release" "$older_release"
+on_postgres_17 "$older_release/docker-compose.yml"
+TEST_SRC_OVERRIDE=$older_release run_update --dir "$deploy" 9.9.9 && fail "moved to an older PostgreSQL"
+has_text "$work/out" '9.9.9 runs PostgreSQL 17 and this deployment runs 18; update.sh does not move a database to an older major version, nothing was changed'
+if grep -Eq 'podman pull|release-dump' "$work/log"; then
+  fail "the refused update pulled or dumped: $(cat "$work/log")"
+fi
+lacks_line "$work/log" 'systemctl --user restart oncall.service'
+same_file "$deploy/docker-compose.yml" "$repo_root/docker-compose.yml"
+same_file "$deploy/.env" "$work/env-before"
+[ "$(backups)" = 0 ] || fail "a backup was made"
+
+check "a restart that fails after the move says the way back is not this script"
+new_deployment postgres-upgrade-then-restart-fails
+on_postgres_17 "$deploy/docker-compose.yml"
+TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the restart failed"
+has_text "$work/out" 'The database is in PostgreSQL 18 now, so this script cannot go back to 1.0.0'
+
 check "ONCALL_DIR names the directory"
 new_deployment env-dir
 ONCALL_DIR=$deploy run_update 9.9.9 || fail "exited $?: $(cat "$work/out")"
@@ -495,6 +589,32 @@ git -C "$origin" tag v0.9.0
 run_update --dir "$deploy" 0.9.0 && fail "checked out a release without deploy/systemd"
 has_text "$work/out" 'v0.9.0 has no deploy/systemd'
 [ "$(git -C "$deploy" rev-parse HEAD)" = "$(git -C "$deploy" rev-parse 'v9.9.9^{commit}')" ] || fail "HEAD moved"
+
+check "a git checkout on PostgreSQL 17 moves the data with the tag's script before checking the tag out"
+origin=$work/origin-postgres
+rm -rf "$origin"
+mkdir -p "$origin"
+cp -R "$release/." "$origin/"
+cp "$repo_root/.gitignore" "$origin/.gitignore"
+on_postgres_17 "$origin/docker-compose.yml"
+git -C "$origin" init -q
+git -C "$origin" -c user.name=t -c user.email=t@example.com add -A
+git -C "$origin" -c user.name=t -c user.email=t@example.com commit -qm "on PostgreSQL 17"
+git -C "$origin" tag v9.9.8
+cp "$release/docker-compose.yml" "$origin/docker-compose.yml"
+git -C "$origin" -c user.name=t -c user.email=t@example.com commit -qam "on PostgreSQL 18"
+git -C "$origin" tag v9.9.9
+new_deployment checkout-postgres
+rm -rf "$deploy"
+git clone -q "$origin" "$deploy"
+git -C "$deploy" checkout -q --detach v9.9.8
+cp -p "$work/env-before" "$deploy/.env"
+TEST_WORKING_DIRECTORY=$(cd "$deploy" && pwd -P)
+run_update --dir "$deploy" 9.9.9 || fail "exited $?: $(cat "$work/out")"
+has_text "$work/log" "release-dump --dir $TEST_WORKING_DIRECTORY upgrade-postgres --env-file "
+has_line "$work/log" 'podman pull --quiet docker.io/library/postgres:18-alpine'
+[ "$(git -C "$deploy" rev-parse HEAD)" = "$(git -C "$deploy" rev-parse 'v9.9.9^{commit}')" ] || fail "HEAD is not v9.9.9"
+[ -z "$(git -C "$deploy" status --porcelain)" ] || fail "the checkout is not clean: $(git -C "$deploy" status --porcelain)"
 
 if [ "$failures" -ne 0 ]; then
   printf '%s check(s) failed\n' "$failures" >&2

@@ -20,6 +20,22 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `models.py`. A new model module joins `model_registry.py`, which only the
   process entry points, `migrations/env.py` and `tests/conftest.py` import
   (`tests/architecture/test_model_registry.py` holds both rules).
+- A schema rule is declared in the model and created by a migration. Each
+  vocabulary column is `Enum(..., create_constraint=True, name="ck_<table>_<column>")`,
+  so a new enum value needs a migration that replaces that check.
+  PostgreSQL-only DDL (exclusion constraints, `polish_text` names, partial
+  indexes) goes through `ddl_if` or `with_variant`. `alembic check` misses
+  checks, exclusions, collations, server defaults and FK actions;
+  `tests/test_schema_postgres.py` compares them between a migrated database
+  and one built from the models.
+- A PostgreSQL major version in `docker-compose.yml` is a data move, not a tag
+  change: `deploy/update.sh` sees the new `postgres:<major>` image and runs the
+  release's `oncall-backup.sh upgrade-postgres` (dump with the app stopped,
+  restore into a fresh cluster on a new volume, old volume kept). Each major
+  needs its own volume, `oncall-postgres-<major>`, and initdb settings
+  (checksums, Polish ICU collation) only reach a new cluster;
+  `deploy/backup/oncall-backup.test.sh` moves a Compose-started 17 to the
+  current file and checks both.
 - Ports are consumer-owned: each backend use-case module takes its own small
   `*Ports` bundle, or one protocol directly, from its feature's `ports.py`.
   Adapters satisfy them structurally without subclassing; strict mypy over
@@ -38,12 +54,12 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   tests are outside its scope.
 - Retention: `backend/src/oncall/retention.py` owns which rows the worker
   deletes and how old they must be (`ONCALL_RETENTION_*` in `config.py`);
-  the worker's hourly loop is the only caller. Audit actions a feature reads
-  back without a time bound must be in `OVERRIDE_ORIGIN_ACTIONS`
-  (`domain/scheduling/publication.py`), which the audit rule imports as its
-  protected set; the sign-in action family is `LOGIN_ACTIONS` there. The API
-  states the two audit ages in `/api/v1/config`, so Compose passes them to
-  `api` as well as `worker`.
+  the worker's hourly loop is the only caller. Every audit entry expires, so
+  no feature may read the trail back without a time bound: state it needs
+  for ever lives on its own rows (who a correction displaced is on
+  `assignments.original_*`). The sign-in action family is `LOGIN_ACTIONS`
+  in `retention.py`. The API states the two audit ages in `/api/v1/config`,
+  so Compose passes them to `api` as well as `worker`.
 - Notification e-mails: `backend/src/oncall/notifications/templates.py`
   chooses the words (subject, plain text, HTML) and `layout.py` next to it owns
   the one Outlook-safe HTML layout (tables, inline styles, light-theme hex
@@ -95,7 +111,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `.github/workflows/ci.yml` is the gate list (backend: `uv lock --check`
   before the install, ruff check + format, mypy, pytest on SQLite, OpenAPI
   snapshot; backend-postgres: migrations from empty plus `alembic check`, then
-  the concurrency suite against postgres:17; frontend: eslint, tsc, vitest,
+  the concurrency and schema suites against postgres:18; frontend: eslint, tsc, vitest,
   `npm run build`, site render; compose-config; workflows; image-build
   without push). `ci-ok` is the one status of ci.yml the ruleset
   `main-protected` requires; pull requests report it as `ci-ok`, never

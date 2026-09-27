@@ -54,6 +54,8 @@ class DutyTally:
 
 @dataclass(frozen=True)
 class MonthlyRow:
+    #: The row's identity: two members may share a name.
+    member_id: uuid.UUID
     name: str
     tally: DutyTally
 

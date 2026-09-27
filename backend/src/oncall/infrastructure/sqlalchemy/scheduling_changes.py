@@ -33,20 +33,6 @@ class SqlAlchemyChangeLog:
         )
         return [_to_record(row) for row in rows.all()]
 
-    async def schedule_changes(
-        self, schedule_ids: Iterable[uuid.UUID], actions: Iterable[str]
-    ) -> list[ChangeRecord]:
-        rows = await self._session.scalars(
-            select(AuditEvent)
-            .where(
-                AuditEvent.entity_type == "schedule",
-                AuditEvent.entity_id.in_([str(item) for item in schedule_ids]),
-                AuditEvent.action.in_(list(actions)),
-            )
-            .order_by(AuditEvent.occurred_at)
-        )
-        return [_to_record(row) for row in rows.all()]
-
     async def availability_spans(
         self, entry_ids: Iterable[uuid.UUID]
     ) -> dict[uuid.UUID, tuple[date, date]]:

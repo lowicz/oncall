@@ -2,7 +2,9 @@
 obvious defaults, which are long enough to slip past the length check alone."""
 
 import pytest
+from httpx import AsyncClient
 
+from oncall import seed_admin as seed_admin_module
 from oncall.seed_admin import seed_admin
 
 
@@ -32,3 +34,21 @@ async def test_skips_quietly_when_no_credentials_are_configured(monkeypatch, cap
     monkeypatch.delenv("ONCALL_ADMIN_PASSWORD", raising=False)
     await seed_admin()
     assert "Admin bootstrap skipped" in capsys.readouterr().out
+
+
+async def test_a_mixed_case_username_is_stored_the_way_sign_in_looks_it_up(
+    monkeypatch, client: AsyncClient, db_factory
+) -> None:
+    monkeypatch.setattr(seed_admin_module, "SessionFactory", db_factory)
+    monkeypatch.setenv("ONCALL_ADMIN_USERNAME", " Admin.Kowalski ")
+    monkeypatch.setenv("ONCALL_ADMIN_PASSWORD", "a-real-admin-passphrase")
+
+    await seed_admin()
+    await seed_admin()
+
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "ADMIN.kowalski", "password": "a-real-admin-passphrase"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["username"] == "admin.kowalski"

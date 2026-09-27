@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 
 from oncall.auth import hash_password, token_hash
 from oncall.config import get_settings
@@ -178,7 +179,7 @@ async def test_an_expired_or_revoked_link_is_gone(client, db, frozen_clock) -> N
         )
 
 
-async def test_calendar_feeds(client, db, frozen_clock) -> None:
+async def test_calendar_feeds(client, db, db_factory, frozen_clock) -> None:
     today = frozen_clock.business_today()
     admin = await create_user(db, "admin", role=UserRole.admin)
     anna = await create_user(db, "anna", display_name="Anna Kowalska")
@@ -236,8 +237,11 @@ async def test_calendar_feeds(client, db, frozen_clock) -> None:
     assert [item.actor_label for item in revoked] == [admin.display_name]
     assert_error(await client.get(f"/calendar/feed/{raw}.ics"), 404, "Subskrypcja nie istnieje")
 
-    await db.execute(update(CalendarFeedToken).values(revoked_at=None, member_id=None))
-    await db.commit()
+    # A member's feed cannot lose its member: the database refuses the row.
+    orphaned = update(CalendarFeedToken).values(revoked_at=None, member_id=None)
+    async with db_factory() as other:
+        with pytest.raises(IntegrityError, match="ck_calendar_feed_tokens_owner"):
+            await other.execute(orphaned)
     assert_error(await client.get(f"/calendar/feed/{raw}.ics"), 404, "Subskrypcja nie istnieje")
 
     assert_error(

@@ -22,6 +22,24 @@ RULE_WINDOW_MARGIN = timedelta(days=10)
 
 
 @dataclass(frozen=True)
+class SlotOrigin:
+    """Who held a slot before somebody changed it by hand."""
+
+    #: None for somebody who was never a team member, or who could not be
+    #: identified when the origin was recorded; the name is then the identity.
+    member_id: uuid.UUID | None
+    assignee_name: str
+
+    def is_holder(self, member_id: uuid.UUID | None, assignee_name: str) -> bool:
+        """Whether a slot held by this identity and label is held by the
+        original person: by id where both sides have one, since a rename
+        changes the label and not the person, by label otherwise."""
+        if self.member_id is not None and member_id is not None:
+            return self.member_id == member_id
+        return self.assignee_name == assignee_name
+
+
+@dataclass(frozen=True)
 class Duty:
     """Who holds one slot of one schedule."""
 
@@ -37,6 +55,9 @@ class Duty:
     #: resolved it (the duties in force); a calendar entry changes with it.
     schedule_version: int | None = None
     schedule_status: ScheduleStatus | None = None
+    #: Who held the slot before its first manual change; None when that is
+    #: not recorded, which a republish treats as "cannot tell".
+    original: SlotOrigin | None = None
 
     @property
     def slot(self) -> Slot:

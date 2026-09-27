@@ -215,8 +215,9 @@ loginctl show-user podman --property=Linger
 Jedna kopia to jeden plik `oncall-<czas UTC>-<rodzaj>-<rewizja schematu>.dump`
 w formacie `pg_dump --format=custom`, kompresowany zstd, np.
 `oncall-20260926T023412Z-daily-0035_outbox_created_index.dump`. Rodzaj to
-`daily` (timer), `pre-update-<z>-to-<do>` (aktualizacja), `pre-restore`
-(stan sprzed odtworzenia) albo `manual`. Wszystkie liczą się do tej samej
+`daily` (timer), `pre-update-<z>-to-<do>` (aktualizacja),
+`pre-postgres-upgrade-from-<wersja>` (przeniesienie na nową wersję główną
+PostgreSQL), `pre-restore` (stan sprzed odtworzenia) albo `manual`. Wszystkie liczą się do tej samej
 puli najnowszych kopii.
 
 Kopia to tylko baza. `.env` i `tls/` zawierają hasła i klucz prywatny TLS i
@@ -284,6 +285,12 @@ obrazów, a przed zmianą jakiegokolwiek pliku. Używa skryptu kopii z katalogu
 wdrożenia, a gdy go tam nie ma (pierwsza aktualizacja do wydania z kopiami),
 skryptu z nowego wydania. Nieudany zrzut kończy aktualizację bez żadnej
 zmiany. Stos musi wtedy działać: skrypt czeka na bazę najwyżej 60 sekund.
+
+Wydanie, które przenosi bazę na nowszą wersję główną PostgreSQL, zamiast tego
+zrzutu uruchamia `upgrade-postgres` ze skryptu wydania: zrzut
+`pre-postgres-upgrade-from-<wersja>` powstaje przy zatrzymanych `api`,
+`worker` i `web` i to on przenosi dane do nowej wersji - patrz
+[Nowa wersja główna PostgreSQL](aktualizacja.md#nowa-wersja-główna-postgresql).
 
 Dopóki `setup.sh` nie zapisał ustawień, zrzut trafia do `~/oncall-backups`,
 który skrypt w razie potrzeby zakłada z prawami `0700`. Po instalacji brak

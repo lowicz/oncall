@@ -94,7 +94,7 @@ export function MonthlyReportsPanel() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.name}>
+                <tr key={row.member_id}>
                   <th scope="row" className="person">{row.name}</th>
                   {COLUMNS.map((key) => <td key={key} className={cellClass(key)}>{formatDecimal(row[key])}</td>)}
                 </tr>

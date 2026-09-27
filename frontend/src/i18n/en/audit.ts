@@ -39,6 +39,6 @@ export const audit: Messages['audit'] = {
     const logins = loginDays > 0
       ? `routine sign-ins are removed after ${pluralEn(loginDays, ['day', 'days'])}`
       : 'routine sign-ins are kept indefinitely'
-    return `${entries}, ${logins}. Schedule corrections are kept indefinitely.`
+    return `${entries}, ${logins}.`
   },
 }

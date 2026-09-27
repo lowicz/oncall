@@ -118,7 +118,7 @@ interrupted pass breaks nothing.
 
 | Data | Default | What retention never touches |
 | --- | --- | --- |
-| audit: operations (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 days | schedule correction entries (`schedule.override`, `schedule.override_batch`, `schedule.draft_override`) - never, because a republish reads them |
+| audit: operations (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 days | nothing; a republish reads whom a schedule correction replaced from the duty itself, not from the log |
 | audit: sign-ins and refused attempts (`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`) | 90 days | the last five minutes, which the sign-in throttle reads |
 | sent, failed and skipped e-mails (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 days | messages waiting or being sent, whatever their age |
 | finished generator runs (`ONCALL_RETENTION_RUNS_DAYS`) | 30 days | queued and running runs |
@@ -173,7 +173,7 @@ ONCALL_DATABASE_URL=postgresql+asyncpg://oncall:<the same password>@db:5432/onca
 in the address (`@` is `%40`).
 
 **The `postgres` image reads `POSTGRES_PASSWORD` only once**, when it
-initialises the empty `oncall-db` volume. On an existing database a change in
+initialises the empty `oncall-postgres-18` volume. On an existing database a change in
 `.env` changes nothing in PostgreSQL, and `api` and `worker` stop connecting.
 The password of a running database is changed first in the database itself,
 then in `.env`:
@@ -221,7 +221,7 @@ to its own `tmpfs` mounts and volumes:
 
 | Service | User | Writes | Ports in the container |
 | --- | --- | --- | --- |
-| `db` | `postgres` (70) | the `oncall-db` volume, `/var/run/postgresql`, `/tmp` | 5432 |
+| `db` | `postgres` (70) | the `oncall-postgres-18` volume, `/var/run/postgresql`, `/tmp` | 5432 |
 | `api` | `10001` | `/tmp` | 8000 |
 | `worker` | `10001` | `/tmp` | - |
 | `web` | `101` (nginx) | `/tmp`, `/etc/nginx/conf.d` | 8080, 8443 |

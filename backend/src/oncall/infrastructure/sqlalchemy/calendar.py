@@ -162,7 +162,7 @@ class SqlAlchemyCalendarRoster:
                 SwapRequest.service_date <= ends_on,
             )
         )
-        return set(rows.tuples())
+        return {(schedule_id, day, role) for schedule_id, day, role in rows}
 
     async def published_ranges(self, starts_on: date, ends_on: date) -> list[tuple[date, date]]:
         rows = await self._session.execute(
@@ -172,7 +172,7 @@ class SqlAlchemyCalendarRoster:
                 Schedule.ends_on >= starts_on,
             )
         )
-        return list(rows.tuples())
+        return [(starts, ends) for starts, ends in rows]
 
     async def contacts(self) -> list[Contact]:
         rows = await self._session.scalars(

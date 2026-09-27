@@ -59,7 +59,7 @@ async def test_duty_days_count_both_on_call_roles_and_skip_the_late_shift(client
     """Duty days are primary and secondary together, split into working days and
     a single weekend-plus-holiday bucket; the 11-19 shift is not a duty day."""
     anna_user = await create_user(db, "anna-days", display_name="Anna")
-    await create_member(db, anna_user, display_name="Anna")
+    anna = await create_member(db, anna_user, display_name="Anna")
     # 2026-11-10 is a Tuesday, 11-11 (Independence Day) a Wednesday holiday,
     # 11-14 a Saturday and 11-15 a Sunday.
     schedule = Schedule(
@@ -98,6 +98,7 @@ async def test_duty_days_count_both_on_call_roles_and_skip_the_late_shift(client
     preview = await client.get("/api/v1/reports/monthly", params={"month": "2026-11"})
     assert preview.status_code == 200, preview.text
     row = next(r for r in preview.json()["rows"] if r["name"] == "Anna")
+    assert row["member_id"] == str(anna.id)
     assert (row["oncall_workdays"], row["oncall_days_off"], row["oncall_total"]) == (1, 3, 4)
     assert row["oncall_total"] == row["oncall_workdays"] + row["oncall_days_off"]
     assert row["oncall_days_off"] == row["oncall_weekends"] + row["oncall_holidays"] == 2 + 1

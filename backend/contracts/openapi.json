@@ -2290,6 +2290,11 @@
             "title": "Late Shifts",
             "type": "integer"
           },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2352,6 +2357,7 @@
           }
         },
         "required": [
+          "member_id",
           "name",
           "primary_workdays",
           "primary_weekends",

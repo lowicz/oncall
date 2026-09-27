@@ -185,6 +185,7 @@ link podglądowy.
 
 Dziennik ma ograniczony czas przechowywania, który ekran podaje w stopce:
 wpisy o operacjach są usuwane po roku, zwykłe logowania po 90 dniach
-(administrator wdrożenia może zmienić oba czasy albo je wyłączyć). Wpisy o
-korektach grafiku są zachowywane bezterminowo. Wpis usunięty przez retencję
-nie wraca, więc starszą historię zachowuje eksport CSV.
+(administrator wdrożenia może zmienić oba czasy albo je wyłączyć). Dotyczy
+to także wpisów o korektach grafiku: to, kogo zastąpiła korekta, grafik
+pamięta przy samym dyżurze. Wpis usunięty przez retencję nie wraca, więc
+starszą historię zachowuje eksport CSV.

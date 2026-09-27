@@ -2,9 +2,11 @@
 # Tests for deploy/backup/oncall-backup.sh against real rootless Podman: a
 # PostgreSQL container started with the db service's Compose hardening and
 # labels, and api/worker stand-ins whose `python` records the alert it was
-# asked to send, plus a web stand-in. What the script writes lives in a
-# temporary directory, removed at exit with every container and volume the
-# test made.
+# asked to send, plus a web stand-in. upgrade-postgres is tested last, from a
+# PostgreSQL 17 db service that Compose itself starts from the stack's file as
+# it was, to the one the stack names now. What the script writes lives in a
+# temporary directory, removed at exit with every container, volume and
+# network the test made.
 #
 #   bash deploy/backup/oncall-backup.test.sh
 set -u
@@ -14,19 +16,28 @@ unset ONCALL_BACKUP_CONFIG ONCALL_BACKUP_DIR ONCALL_BACKUP_KEEP ONCALL_BACKUP_OW
 
 repo_root=$(cd "$(dirname "$0")/../.." && pwd -P)
 script=$repo_root/deploy/backup/oncall-backup.sh
-image=${ONCALL_BACKUP_TEST_IMAGE:-docker.io/library/postgres:17-alpine}
+image=${ONCALL_BACKUP_TEST_IMAGE:-docker.io/library/postgres:18-alpine}
+old_image=${ONCALL_BACKUP_TEST_OLD_IMAGE:-docker.io/library/postgres:17-alpine}
 work=$(mktemp -d)
 run_id=oncall-backup-test-$$
 failures=0
 current_test=""
+service_pid=""
 
 cleanup() {
-  local ids
+  local ids volume
   ids=$(podman ps --all --quiet --filter "label=$run_id")
   ids+=" $(podman ps --all --quiet --filter "label=io.github.lowicz.oncall.backup-verify=$deploy")"
+  ids+=" $(podman ps --all --quiet --filter "label=com.docker.compose.project=$run_id")"
   # shellcheck disable=SC2086 # one ID per word
   podman rm --force --volumes --time 0 $ids >/dev/null 2>&1
-  podman volume rm --force "$run_id-data" >/dev/null 2>&1
+  for volume in $(podman volume ls --quiet | grep "^${run_id}[-_]"); do
+    podman volume rm --force "$volume" >/dev/null 2>&1
+  done
+  podman network rm --force "${run_id}_default" >/dev/null 2>&1
+  if [ -n "$service_pid" ]; then
+    kill "$service_pid" 2>/dev/null
+  fi
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -72,13 +83,19 @@ EOF
 chmod 755 "$work/python"
 chmod 777 "$work/alert"
 
-podman image exists "$image" || podman pull --quiet "$image" >/dev/null || {
-  echo "cannot pull $image" >&2
-  exit 1
-}
+for pulled in "$image" "$old_image"; do
+  podman image exists "$pulled" || podman pull --quiet "$pulled" >/dev/null || {
+    echo "cannot pull $pulled" >&2
+    exit 1
+  }
+done
+# Where the image keeps its data: its one declared volume (PostgreSQL 18
+# declares /var/lib/postgresql, 17 /var/lib/postgresql/data). Containers of it
+# that need no data get a tmpfs there, so Podman creates no anonymous volume.
+data_path=$(podman image inspect --format '{{range $path, $_ := .Config.Volumes}}{{$path}}{{end}}' "$image")
 
 labels() { # service
-  printf -- '--label\n%s\n' "$run_id" "com.docker.compose.project=deploy" \
+  printf -- '--label\n%s\n' "$run_id" "com.docker.compose.project=$run_id" \
     "com.docker.compose.project.working_dir=$deploy" "com.docker.compose.service=$1"
 }
 
@@ -88,7 +105,7 @@ start_db() {
     --security-opt no-new-privileges:true --read-only --tmpfs /var/run/postgresql --tmpfs /tmp \
     --cap-drop ALL --cap-add CHOWN --cap-add DAC_READ_SEARCH --cap-add FOWNER --cap-add SETGID --cap-add SETUID \
     --env POSTGRES_DB=oncall --env POSTGRES_USER=oncall --env POSTGRES_PASSWORD=test \
-    --volume "$run_id-data:/var/lib/postgresql/data" "$image" >/dev/null
+    --volume "$run_id-data:$data_path" "$image" >/dev/null
   local waited=0
   until podman exec "$run_id-db" pg_isready -q -h 127.0.0.1 -U oncall -d oncall 2>/dev/null; do
     sleep 1
@@ -104,7 +121,7 @@ start_standin() { # service
   mapfile -t label_args < <(labels "$1")
   podman run --detach --name "$run_id-$1" "${label_args[@]}" --read-only \
     --volume "$work/python:/usr/local/bin/python:ro" --volume "$work/alert:/alert" \
-    --tmpfs /var/lib/postgresql/data --env ONCALL_SMTP_HOST=smtp.example.com "$image" sleep infinity >/dev/null
+    --tmpfs "$data_path" --env ONCALL_SMTP_HOST=smtp.example.com "$image" sleep infinity >/dev/null
 }
 
 psql_db() { # [database] ; SQL on stdin
@@ -124,7 +141,7 @@ verify_leftovers() {
   local left
   left=$(podman ps --all --quiet --filter "label=io.github.lowicz.oncall.backup-verify=$deploy")
   [ -z "$left" ] || fail "restore-test containers left behind: $left"
-  left=$(podman volume ls --quiet | grep -v "^$run_id-data$" | comm -13 "$work/volumes-before" - || true)
+  left=$(podman volume ls --quiet | sort | grep -v "^$run_id-data$" | comm -13 "$work/volumes-before" - || true)
   [ -z "$left" ] || fail "volumes left behind: $left"
   left=$(find "$backups" -maxdepth 1 -name '.tmp.*' 2>/dev/null)
   [ -z "$left" ] || fail "unfinished files left behind: $left"
@@ -302,9 +319,9 @@ has_text "$work/out" "alerts: sent through smtp.example.com"
 check "cleanup removes what a killed run left, and only that"
 mapfile -t label_args < <(labels verify-leftover)
 podman run --detach --name "$run_id-leftover" "${label_args[@]}" \
-  --label "io.github.lowicz.oncall.backup-verify=$deploy" --tmpfs /var/lib/postgresql/data "$image" sleep infinity >/dev/null
+  --label "io.github.lowicz.oncall.backup-verify=$deploy" --tmpfs "$data_path" "$image" sleep infinity >/dev/null
 podman run --detach --name "$run_id-other" --label "$run_id" \
-  --label "io.github.lowicz.oncall.backup-verify=/some/other/deployment" --tmpfs /var/lib/postgresql/data \
+  --label "io.github.lowicz.oncall.backup-verify=/some/other/deployment" --tmpfs "$data_path" \
   "$image" sleep infinity >/dev/null
 : >"$backups/.tmp.oncall-20260101T000000Z-daily-x.dump"
 run cleanup || fail "exited $?: $(cat "$work/out")"
@@ -391,6 +408,179 @@ ONCALL_BACKUP_KEEP=10 run restore "$work/truncated.dump" --yes && fail "restored
 [ "$(psql_db <<<"select count(*) from users where username = 'kept'")" = 1 ] || fail "the database changed"
 [ "$(podman inspect --format '{{.State.Running}}' "$run_id-api")" = true ] || fail "api is not running"
 [ "$(podman inspect --format '{{.State.Running}}' "$run_id-web")" = true ] || fail "web is not running"
+verify_leftovers
+
+# --- upgrade-postgres ---------------------------------------------------------
+
+# `podman compose` hands the Compose file to a provider (docker-compose or
+# podman-compose) that talks to Podman's API socket. The test serves its own
+# socket, so it neither needs the user's podman.socket nor reaches a Docker
+# daemon, and finds a docker-compose plugin where Docker installs one.
+socket=${XDG_RUNTIME_DIR:-/tmp}/$run_id.sock
+podman system service --time=0 "unix://$socket" >/dev/null 2>&1 &
+service_pid=$!
+for _ in $(seq 100); do
+  [ -S "$socket" ] && break
+  sleep 0.1
+done
+export DOCKER_HOST=unix://$socket
+if ! podman compose version >/dev/null 2>&1; then
+  mkdir -p "$work/bin"
+  for plugin in /usr/libexec/docker/cli-plugins/docker-compose /usr/lib/docker/cli-plugins/docker-compose \
+    /usr/local/lib/docker/cli-plugins/docker-compose; do
+    if [ -x "$plugin" ]; then
+      ln -s "$plugin" "$work/bin/docker-compose"
+      break
+    fi
+  done
+  export PATH=$work/bin:$PATH
+fi
+podman compose version >/dev/null 2>&1 || {
+  echo "podman compose does not work here: $(podman compose version 2>&1 | tail -n 3)" >&2
+  exit 1
+}
+
+# The stack's Compose file as releases on PostgreSQL 17 had it: that image, its
+# volume on the old data path, no initdb settings. And one whose db is still
+# 17 on a volume of its own, which is no upgrade.
+sed -e 's/image: postgres:[0-9]*-alpine/image: postgres:17-alpine/' \
+  -e 's|- oncall-postgres-[0-9]*:/var/lib/postgresql$|- oncall-db:/var/lib/postgresql/data|' \
+  -e 's/^  oncall-postgres-[0-9]*:$/  oncall-db:/' -e '/POSTGRES_INITDB_ARGS/d' \
+  "$deploy/docker-compose.yml" >"$deploy/compose-17.yml"
+sed -e 's/oncall-db/oncall-other/' "$deploy/compose-17.yml" >"$deploy/compose-17-other.yml"
+printf 'ONCALL_VERSION=0.0.0-test\nPOSTGRES_PASSWORD=test\n' >"$work/stack.env"
+grep -q 'oncall-db:/var/lib/postgresql/data' "$deploy/compose-17.yml" || {
+  echo "$deploy/compose-17.yml does not mount oncall-db on the old data path" >&2
+  exit 1
+}
+
+# Every file is in $deploy, which Compose then takes as the project directory.
+stack() {
+  podman compose --project-name "$run_id" --env-file "$work/stack.env" "$@"
+}
+
+# The volume the stack's db keeps its data in now, as Compose reads the file:
+# the one key under its top-level volumes.
+new_volume_key=$(stack -f "$deploy/docker-compose.yml" config 2>/dev/null |
+  awk '/^volumes:/ { found = 1; next } found && /^  [^ ]/ { sub(/^  /, ""); sub(/:.*/, ""); print; exit }')
+new_volume=${run_id}_$new_volume_key
+case $new_volume_key in
+  '' | *[[:space:]]*) echo "expected one volume in docker-compose.yml, Compose reads: $new_volume_key" >&2 && exit 1 ;;
+esac
+
+# The labels both providers put on a service's container (the stand-in db is
+# gone by then, and the other stand-ins are other services).
+stack_db() {
+  podman ps --all --quiet --filter "label=com.docker.compose.project=$run_id" \
+    --filter "label=com.docker.compose.service=db"
+}
+
+stack_psql() { # SQL on stdin
+  podman exec -i "$(stack_db)" psql -X -q -At -v ON_ERROR_STOP=1 -U oncall -d oncall
+}
+
+# What systemctl --user restart oncall.service does for the db: Compose starts
+# the service its installed file names.
+start_stack_db() { # compose file
+  stack -f "$1" up --detach --no-deps db >/dev/null 2>&1 || fail "Compose did not start db from $1"
+  local waited=0
+  until podman exec "$(stack_db)" pg_isready -q -h 127.0.0.1 -U oncall -d oncall 2>/dev/null; do
+    sleep 1
+    waited=$((waited + 1))
+    [ "$waited" -lt 90 ] || {
+      echo "the stack's database did not start" >&2
+      exit 1
+    }
+  done
+}
+
+running() {
+  [ "$(podman inspect --format '{{.State.Running}}' "$run_id-$1")" = true ]
+}
+
+podman rm --force --time 0 "$run_id-db" >/dev/null
+start_stack_db "$deploy/compose-17.yml"
+stack_psql <<'SQL'
+create table alembic_version (version_num varchar(32) primary key);
+insert into alembic_version values ('0035_outbox_created_index');
+create table team_members (id serial primary key, display_name varchar(160) not null);
+insert into team_members (display_name) values
+  ('Żaneta'), ('Marek'), ('Łukasz'), ('ala'), ('Lech'), ('Ewa'), ('Śliwa'), ('Adam');
+create table audit_events (id serial primary key, summary text);
+insert into audit_events (summary) select 'wpis ' || g from generate_series(1, 5000) g;
+SQL
+podman volume ls --quiet | sort >"$work/volumes-before"
+
+check "upgrade-postgres refuses a Compose file whose PostgreSQL is not newer, and removes what it created"
+podman start "$run_id-api" "$run_id-worker" "$run_id-web" >/dev/null
+run upgrade-postgres --env-file "$work/stack.env" "$deploy/compose-17-other.yml" && fail "upgraded to the same major version"
+has_text "$work/out" "runs PostgreSQL 17, which is not newer than 17"
+has_text "$work/out" "PostgreSQL 17's data is unchanged in the volume ${run_id}_oncall-db"
+has_text "$work/out" "systemctl --user restart oncall.service"
+podman volume exists "${run_id}_oncall-other" && fail "the volume it created survived"
+running api && fail "api was started again, onto a database that is not the stack's"
+verify_leftovers
+lock_is_free
+start_stack_db "$deploy/compose-17.yml"
+[ "$(stack_psql <<<'select count(*) from audit_events')" = 5000 ] || fail "PostgreSQL 17's data changed"
+[ "$(stack_psql <<<'show server_version_num' | cut -c1-2)" = 17 ] || fail "the stack's db is not PostgreSQL 17 again"
+
+[ ! -e "$deploy/.upgrade-postgres.compose.yml" ] || fail "the copy of the Compose file was left behind"
+
+check "upgrade-postgres leaves a volume that already exists alone"
+podman volume create --label "com.docker.compose.project=$run_id" --label "com.docker.compose.volume=$new_volume_key" \
+  "$new_volume" >/dev/null
+podman volume ls --quiet | sort >"$work/volumes-before"
+run upgrade-postgres --env-file "$work/stack.env" "$deploy/docker-compose.yml" && fail "upgraded into an existing volume"
+has_text "$work/out" "the volume $new_volume of the new database already exists"
+podman volume exists "$new_volume" || fail "the existing volume was removed"
+[ -z "$(stack_db)" ] || fail "the new database's container was left behind"
+verify_leftovers
+podman volume rm "$new_volume" >/dev/null
+podman volume ls --quiet | sort >"$work/volumes-before"
+start_stack_db "$deploy/compose-17.yml"
+
+check "upgrade-postgres moves the database to PostgreSQL 18 on a new volume, with checksums and Polish collation"
+podman start "$run_id-api" "$run_id-worker" "$run_id-web" >/dev/null
+stack_psql <<<"insert into audit_events (summary) values ('the last change before the upgrade')"
+backups_before=$(count)
+run upgrade-postgres --env-file "$work/stack.env" "$deploy/docker-compose.yml" || fail "exited $?: $(cat "$work/out")"
+has_text "$work/out" "PostgreSQL 18 holds the database (schema 0035_outbox_created_index): page checksums on, collation pl-PL (ICU)."
+has_text "$work/out" "PostgreSQL 17's data stays in the volume ${run_id}_oncall-db as the way back"
+[ "$(podman ps --all --quiet --filter "label=com.docker.compose.project=$run_id" --filter label=com.docker.compose.service=db | wc -l | tr -d ' ')" = 1 ] ||
+  fail "more than one db container"
+[ "$(stack_psql <<<'show server_version_num' | cut -c1-2)" = 18 ] || fail "the stack's db is not PostgreSQL 18"
+# Each major version needs a volume of its own: upgrade-postgres refuses one
+# that exists, so a new image on the old name could not be moved to.
+[ "$new_volume_key" = "oncall-postgres-$(($(stack_psql <<<'show server_version_num') / 10000))" ] ||
+  fail "db keeps its data in the volume $new_volume_key; name it after the PostgreSQL major version in docker-compose.yml"
+[ "$(stack_psql <<<'select count(*) from audit_events')" = 5001 ] || fail "not every row came across"
+[ "$(stack_psql <<<'select version_num from alembic_version')" = 0035_outbox_created_index ] ||
+  fail "the schema revision did not come across"
+[ "$(stack_psql <<<'show data_checksums')" = on ] || fail "page checksums are off"
+[ "$(stack_psql <<<"select string_agg(display_name, ',' order by display_name) from team_members")" = \
+  "Adam,ala,Ewa,Lech,Łukasz,Marek,Śliwa,Żaneta" ] || fail "names do not sort in Polish order"
+[ -n "$(stack_psql <<<"select last_analyze from pg_stat_user_tables where relname = 'audit_events'")" ] ||
+  fail "the restored database was not analysed"
+podman volume exists "${run_id}_oncall-db" || fail "PostgreSQL 17's volume was removed"
+[ "$(podman run --rm --volume "${run_id}_oncall-db:/old:ro" "$old_image" cat /old/PG_VERSION)" = 17 ] ||
+  fail "PostgreSQL 17's data directory is not intact"
+for service in api worker web; do
+  running "$service" && fail "$service runs; the stack must start from the files that name the new database"
+done
+[ "$(count)" = $((backups_before + 1)) ] || fail "expected one more backup, found $(count)"
+compgen -G "$backups/oncall-*-pre-postgres-upgrade-from-17-0035_outbox_created_index.dump" >/dev/null ||
+  fail "no pre-upgrade backup"
+podman volume ls --quiet | sort | grep -v "^$new_volume$" >"$work/volumes-now"
+[ -z "$(comm -13 "$work/volumes-before" "$work/volumes-now")" ] ||
+  fail "volumes left behind: $(comm -13 "$work/volumes-before" "$work/volumes-now")"
+podman volume ls --quiet | sort >"$work/volumes-before"
+verify_leftovers
+lock_is_free
+
+check "the database upgraded to PostgreSQL 18 is dumped and proved like any other"
+run dump --label after-upgrade || fail "exited $?: $(cat "$work/out")"
+has_text "$work/out" "Restoring it into a throwaway container"
 verify_leftovers
 
 if [ "$failures" -ne 0 ]; then

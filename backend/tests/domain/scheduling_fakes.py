@@ -28,6 +28,7 @@ from oncall.domain.vocabulary import (
     AssignmentRole,
     LateShiftAnchor,
     RotationMode,
+    ScheduleOrigin,
     ScheduleStatus,
 )
 from oncall.workdays import is_working_day, polish_holidays
@@ -42,6 +43,7 @@ def complete_schedule(
     status: ScheduleStatus = ScheduleStatus.draft,
     name: str = "Szkic testowy",
     version: int = 1,
+    origin: ScheduleOrigin = ScheduleOrigin.generated,
 ) -> Schedule:
     """A schedule covering every slot: rotation[i] on primary, the next person on
     secondary and on 11-19 on working days."""
@@ -66,6 +68,7 @@ def complete_schedule(
         starts_on=starts_on,
         ends_on=ends_on,
         status=status,
+        origin=origin,
         version=version,
         created_at=datetime(2030, 1, 1, tzinfo=UTC),
         rotation_mode=RotationMode.hybrid,
@@ -268,14 +271,6 @@ class FakeChangeLog:
 
     async def changes_since(self, moment, actions):
         return [item for at, item in self.records if at > moment and item.action in actions]
-
-    async def schedule_changes(self, schedule_ids, actions):
-        ids = {str(item) for item in schedule_ids}
-        return [
-            item
-            for _at, item in sorted(self.records, key=lambda pair: pair[0])
-            if item.entity_id in ids and item.action in actions
-        ]
 
     async def availability_spans(self, entry_ids):
         return {item: self.availability[item] for item in entry_ids if item in self.availability}

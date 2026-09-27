@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import func, select
 
@@ -253,3 +253,30 @@ async def test_policy_rejects_all_objective_weights_set_to_zero(client, db) -> N
 
     assert response.status_code == 422
     assert "Co najmniej jedna waga" in response.text
+
+
+async def test_the_date_filter_follows_the_warsaw_day(client, db) -> None:
+    """The dates are the days an administrator reads on screen: 27 September
+    in Warsaw runs from 22:00 UTC on the 26th to 22:00 UTC on the 27th."""
+    await create_user(db, "adm-audit", role=UserRole.admin)
+    for label, instant in (
+        ("before", datetime(2026, 9, 26, 21, 30, tzinfo=UTC)),
+        ("just after midnight", datetime(2026, 9, 26, 22, 30, tzinfo=UTC)),
+        ("late evening", datetime(2026, 9, 27, 21, 30, tzinfo=UTC)),
+        ("next day", datetime(2026, 9, 27, 22, 30, tzinfo=UTC)),
+    ):
+        db.add(
+            AuditEvent(
+                occurred_at=instant, actor_label="system", action="system.test", summary=label
+            )
+        )
+    await db.commit()
+    await login(client, "adm-audit")
+
+    response = await client.get(
+        "/api/v1/admin/audit",
+        params={"action": "system.test", "starts_on": "2026-09-27", "ends_on": "2026-09-27"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert [item["summary"] for item in response.json()] == ["late evening", "just after midnight"]

@@ -64,18 +64,11 @@ class CurrentPolicy(Protocol):
 
 
 class ChangeLog(Protocol):
-    """What happened since a draft was generated, and who a manual change
-    replaced."""
+    """What happened since a draft was generated."""
 
     async def changes_since(
         self, moment: datetime, actions: Iterable[str]
     ) -> list[ChangeRecord]: ...
-
-    async def schedule_changes(
-        self, schedule_ids: Iterable[uuid.UUID], actions: Iterable[str]
-    ) -> list[ChangeRecord]:
-        """Oldest first."""
-        ...
 
     async def availability_spans(
         self, entry_ids: Iterable[uuid.UUID]

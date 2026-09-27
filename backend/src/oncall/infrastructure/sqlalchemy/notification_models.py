@@ -5,7 +5,19 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Enum, Index, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from oncall.domain.clock import utc_now
@@ -18,8 +30,8 @@ class NotificationChannel(StrEnum):
 
 
 class NotificationStatus(StrEnum):
-    """Where an outbox row stands. Stored as text with no check constraint, and
-    exposed through no endpoint, so the set is ours to extend."""
+    """Where an outbox row stands. Exposed through no endpoint, so the set is
+    ours to extend with a migration that widens the check constraint."""
 
     pending = "pending"
     """Enqueued with the business change that caused it. Nobody has it."""
@@ -48,11 +60,18 @@ class NotificationOutbox(Base):
         # Retention deletes the oldest finished rows first, by creation time;
         # without this the worker would sort the whole table for every batch.
         Index("ix_notification_outbox_created", "created_at"),
+        CheckConstraint("attempts >= 0", name="ck_notification_outbox_attempts"),
+        UniqueConstraint("dedup_key", name="uq_notification_outbox_dedup_key"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     channel: Mapped[NotificationChannel] = mapped_column(
-        Enum(NotificationChannel, native_enum=False)
+        Enum(
+            NotificationChannel,
+            native_enum=False,
+            create_constraint=True,
+            name="ck_notification_outbox_channel",
+        )
     )
     recipient: Mapped[str] = mapped_column(String(320))
     subject: Mapped[str] = mapped_column(String(200))
@@ -60,13 +79,24 @@ class NotificationOutbox(Base):
     html_body: Mapped[str | None] = mapped_column(Text, nullable=True)
     context: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[NotificationStatus] = mapped_column(
-        Enum(NotificationStatus, native_enum=False), default=NotificationStatus.pending
+        Enum(
+            NotificationStatus,
+            native_enum=False,
+            create_constraint=True,
+            name="ck_notification_outbox_status",
+        ),
+        default=NotificationStatus.pending,
+        server_default=NotificationStatus.pending.value,
     )
-    attempts: Mapped[int] = mapped_column(Integer, default=0)
-    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )
     last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    dedup_key: Mapped[str | None] = mapped_column(String(160), unique=True, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    dedup_key: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 

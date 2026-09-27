@@ -93,8 +93,9 @@ jobs:
 
   backend-postgres:
     # SQLite serialises writers, so tests/test_concurrency_postgres.py runs
-    # against a real PostgreSQL. It skips itself without the URL below;
-    # backend/contracts/README.md requires it to run in CI.
+    # against a real PostgreSQL, and tests/test_schema_postgres.py checks what
+    # SQLite and `alembic check` cannot see. Both skip themselves without the
+    # URL below; backend/contracts/README.md requires them to run in CI.
     name: backend (PostgreSQL concurrency suite)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -102,8 +103,11 @@ jobs:
       run:
         working-directory: backend
     services:
+      # The stack's PostgreSQL version on the image's default initdb: no Polish
+      # database collation, so the Polish order test proves the collation the
+      # name columns carry themselves.
       postgres:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -141,7 +145,7 @@ jobs:
           ONCALL_DATABASE_URL: ${{ env.ONCALL_TEST_POSTGRES_URL }}
         run: uv run --frozen alembic check
       - name: Tests (PostgreSQL)
-        run: uv run --frozen pytest -q tests/test_concurrency_postgres.py --junitxml "$RUNNER_TEMP/junit-backend-postgres.xml"
+        run: uv run --frozen pytest -q tests/test_concurrency_postgres.py tests/test_schema_postgres.py --junitxml "$RUNNER_TEMP/junit-backend-postgres.xml"
       - name: Summary
         if: always()
         run: python3 ../.github/scripts/junit-summary.py "Backend (PostgreSQL)" "$RUNNER_TEMP/junit-backend-postgres.xml" >> "$GITHUB_STEP_SUMMARY"
@@ -241,10 +245,11 @@ jobs:
 
   backup:
     # oncall-backup.test.sh drives the real script against rootless Podman on
-    # the runner: a hardened postgres:17-alpine stands in for the stack's db,
-    # and every container, volume and file the test or the script creates must
-    # be gone afterwards.
-    name: database backup (setup, dump, restore test, restore, cleanup on Podman)
+    # the runner: a hardened postgres:18-alpine stands in for the stack's db,
+    # a PostgreSQL 17 db service started by `podman compose` is moved to 18 by
+    # upgrade-postgres, and every container, volume and file the test or the
+    # script creates must be gone afterwards.
+    name: database backup (setup, dump, restore test, restore, PostgreSQL upgrade, cleanup on Podman)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -257,7 +262,7 @@ jobs:
         run: systemd-analyze verify deploy/backup/oncall-backup.service deploy/backup/oncall-backup-alert.service deploy/backup/oncall-backup.timer
       - name: Production setup (stubbed systemd, loginctl and Podman)
         run: bash deploy/backup/setup.test.sh
-      - name: Dump, restore test, retention, restore, alert and cleanup against rootless Podman
+      - name: Dump, restore test, retention, restore, alert, PostgreSQL upgrade and cleanup against rootless Podman
         run: |
           podman --version
           bash deploy/backup/oncall-backup.test.sh

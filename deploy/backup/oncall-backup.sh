@@ -7,7 +7,9 @@
 # proved by a full restore into a throwaway container of the same image, and
 # only then kept. The newest ONCALL_BACKUP_KEEP backups stay; older ones go.
 # Guide: docs/wdrozenie/kopie-zapasowe.md. deploy/backup/setup.sh installs the
-# daily timer; deploy/update.sh runs `dump` before it restarts the stack.
+# daily timer; deploy/update.sh runs `dump` before it restarts the stack, and
+# `upgrade-postgres` instead when the release moves PostgreSQL to a new major
+# version.
 #
 # Settings come from the environment, then from the file setup.sh writes
 # (${XDG_CONFIG_HOME:-~/.config}/oncall/backup.conf, KEY=value lines, never
@@ -25,6 +27,10 @@ usage: oncall-backup.sh [--dir DEPLOY_DIR] COMMAND
   dump [--label LABEL]  take a backup, prove it restores, keep it, drop the oldest
   verify FILE           restore FILE into a throwaway container and check it
   restore FILE [--yes]  replace the database with FILE (stops api, worker and web)
+  upgrade-postgres [--env-file ENV_FILE] COMPOSE_FILE
+                        move the database to the newer PostgreSQL major version
+                        that COMPOSE_FILE's db service runs, on its own volume
+                        (deploy/update.sh runs it; stops api, worker and web)
   list                  the backups, newest first
   status                settings, the last success and the last failure
   check                 check settings, the backup directory and the stack
@@ -44,6 +50,8 @@ EOF
 readonly SETTINGS=(ONCALL_BACKUP_DIR ONCALL_BACKUP_KEEP ONCALL_BACKUP_OWNER
   ONCALL_BACKUP_ALERT_EMAIL ONCALL_BACKUP_TIME ONCALL_BACKUP_WAIT_SECONDS)
 readonly VERIFY_LABEL=io.github.lowicz.oncall.backup-verify
+# upgrade-postgres's copy of the new Compose file, in the deployment directory.
+readonly UPGRADE_COMPOSE=.upgrade-postgres.compose.yml
 readonly NAME_RE='^oncall-[0-9]{8}T[0-9]{6}Z-[A-Za-z0-9._-]+\.dump$'
 
 step=preflight
@@ -54,6 +62,10 @@ errfile=""
 verify_containers=()
 verified_revision=""
 stopped_services=()
+upgrade_container=""
+upgrade_volume=""
+upgrade_compose=""
+upgrade_way_back=""
 failure_recorded=false
 record_failures=false
 marked_running=false
@@ -132,6 +144,18 @@ on_exit() {
   for name in "${verify_containers[@]}"; do
     podman rm --force --volumes --time 0 "$name" >/dev/null 2>&1
   done
+  if [ -n "$upgrade_container" ]; then
+    podman rm --force --time 0 "$upgrade_container" >/dev/null 2>&1
+  fi
+  if [ -n "$upgrade_volume" ]; then
+    podman volume rm --force "$upgrade_volume" >/dev/null 2>&1 || warn "could not remove the volume $upgrade_volume"
+  fi
+  if [ -n "$upgrade_compose" ]; then
+    rm -f "$upgrade_compose"
+  fi
+  if [ -n "$upgrade_way_back" ]; then
+    warn "$upgrade_way_back"
+  fi
   if [ "${#stopped_services[@]}" -gt 0 ]; then
     warn "starting api, worker and web again"
     start_services "${stopped_services[@]}" >/dev/null 2>&1 || warn "could not start all of ${stopped_services[*]}"
@@ -452,6 +476,7 @@ sweep() {
   if [ -d "$backup_dir" ]; then
     find "$backup_dir" -maxdepth 1 -type f -name '.tmp.oncall-*' -delete
   fi
+  rm -f "$deploy_dir/$UPGRADE_COMPOSE"
 }
 
 backups_oldest_first() {
@@ -611,6 +636,132 @@ SQL
     say "The backup has schema revision $verified_revision; the database had $live_revision."
     say "api migrates an older schema as it starts; a newer one needs the release that wrote it."
   fi
+}
+
+# --- PostgreSQL major version ---------------------------------------------------
+
+server_major() { # container
+  local number
+  number=$(podman exec -i "$1" sh -c 'exec psql -X -q -At -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<<'show server_version_num')
+  [[ $number =~ ^[0-9]+$ ]] || die "cannot read the PostgreSQL version of $(container_field "$1" '{{.Names}}'): $number"
+  printf '%s\n' "$((number / 10000))"
+}
+
+# The named volume a db container keeps its data in. `podman inspect` is the
+# one place that names it; its tmpfs warning (see container_field) goes.
+data_volume() { # container
+  local volumes
+  volumes=$(podman inspect --format '{{range .Mounts}}{{if eq .Type "volume"}}{{println .Name}}{{end}}{{end}}' "$1" 2>/dev/null |
+    sed '/^$/d')
+  case $volumes in
+    '') die "$(container_field "$1" '{{.Names}}') keeps its data in no named volume" ;;
+    *$'\n'*) die "$(container_field "$1" '{{.Names}}') mounts more than one volume: $(printf '%s' "$volumes" | tr '\n' ' ')" ;;
+  esac
+  printf '%s\n' "$volumes"
+}
+
+# Moves the database to the newer PostgreSQL major version that COMPOSE_FILE's
+# db service runs. A data directory belongs to the major version that wrote
+# it, so the data travels as a dump: api, worker and web stop first, so the
+# dump holds every change, and the dump is proved by a restore like every
+# backup. Then the db service of COMPOSE_FILE starts on its own new volume, the
+# image initialises it with that file's settings, and the dump is restored into
+# it and analysed. The old volume is only read: it stays as the way back until
+# its owner removes it. A failure removes the new container and the volume
+# this run created and says how to start the stack again; api, worker and web
+# stay stopped either way, since the stack must start from the files that name
+# the database it is to use (update.sh installs the release's next).
+do_upgrade_postgres() {
+  local compose=$1 env_file=$2
+  [ -f "$compose" ] || die "no such file: $compose"
+  compose=$(cd "$(dirname "$compose")" && pwd -P)/$(basename "$compose")
+  if [ -n "$env_file" ]; then
+    [ -f "$env_file" ] || die "no such file: $env_file"
+  fi
+  wait_for_db
+  local old_id=$db_id old_major old_volume project service id
+  old_major=$(server_major "$old_id")
+  old_volume=$(data_volume "$old_id")
+  project=$(podman inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$old_id" 2>/dev/null) || true
+  [ -n "$project" ] || die "the db container of $deploy_dir has no Compose project label"
+
+  step=upgrade
+  for service in api worker web; do
+    if id=$(find_service "$service") && is_running "$id"; then
+      stopped_services+=("$id")
+    fi
+  done
+  if [ "${#stopped_services[@]}" -gt 0 ]; then
+    say "Stopping api, worker and web"
+    capture "stopping api, worker and web" podman stop "${stopped_services[@]}" >/dev/null
+  fi
+  label=pre-postgres-upgrade-from-$old_major
+  do_dump
+  local file revision=$verified_revision volumes_before
+  file=$(sed -n 's/^file=//p' "$state_dir/last-success")
+
+  step=upgrade
+  volumes_before=$(podman volume ls --quiet)
+  say "Stopping PostgreSQL $old_major"
+  capture "stopping the database" podman stop "$old_id" >/dev/null
+  # From here api, worker and web must stay stopped: the database they would
+  # reach is the new one, empty until the restore ends.
+  stopped_services=()
+  upgrade_way_back="PostgreSQL $old_major's data is unchanged in the volume $old_volume. Start the stack again on the files it runs: systemctl --user restart oncall.service"
+
+  say "Starting the database of $compose on a new volume"
+  # Compose takes the project directory from the first file's, and
+  # podman-compose has no --project-directory: a copy of the file in the
+  # deployment directory makes it this deployment's under either provider.
+  upgrade_compose=$deploy_dir/$UPGRADE_COMPOSE
+  cp "$compose" "$upgrade_compose"
+  local -a compose_args=(--project-name "$project" --file "$upgrade_compose")
+  if [ -n "$env_file" ]; then
+    compose_args=(--env-file "$env_file" "${compose_args[@]}")
+  fi
+  PODMAN_COMPOSE_WARNING_LOGS=false capture "starting the database of $compose" \
+    podman compose "${compose_args[@]}" up --detach --no-deps db
+  local new_id new_volume new_major
+  new_id=$(find_service db) || die "no db container of $deploy_dir after starting the database of $compose"
+  upgrade_container=$new_id
+  new_volume=$(data_volume "$new_id")
+  if [[ $'\n'$volumes_before$'\n' == *$'\n'$new_volume$'\n'* ]]; then
+    die "the volume $new_volume of the new database already exists, so it may hold data this run must not replace (from an interrupted or rolled-back upgrade). Check it, remove it if nothing in it is needed (podman volume rm $new_volume) and run this again"
+  fi
+  upgrade_volume=$new_volume
+  db_id=$new_id
+  if [ "$wait_seconds" -lt 120 ]; then
+    wait_seconds=120
+  fi
+  wait_for_db
+  new_major=$(server_major "$db_id")
+  [ "$new_major" -gt "$old_major" ] ||
+    die "$compose runs PostgreSQL $new_major, which is not newer than $old_major"
+  [ -z "$(table_list "$db_id")" ] || die "the new database is not empty"
+
+  say "Restoring $(basename "$file") into PostgreSQL $new_major"
+  # shellcheck disable=SC2094 # reads $file; capture writes only its own error file
+  capture "restoring $(basename "$file") into PostgreSQL $new_major" \
+    podman exec -i "$db_id" sh -c 'exec pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --exit-on-error --single-transaction' <"$file"
+  local expected restored
+  expected=$(archive_table_list "$db_id" "$file")
+  restored=$(table_list "$db_id")
+  [ "$restored" = "$expected" ] ||
+    die "$(basename "$file") did not restore the tables it lists: $(table_difference "$expected" "$restored")"
+  [ "$(schema_revision)" = "$revision" ] ||
+    die "PostgreSQL $new_major has schema revision '$(schema_revision)', the dump had '$revision'"
+  capture "analysing the restored database" db_psql <<<'analyze'
+  local checksums collation
+  checksums=$(db_psql <<<'show data_checksums')
+  collation=$(db_psql <<<"select coalesce(datlocale, datcollate) || case datlocprovider when 'i' then ' (ICU)' when 'b' then ' (builtin)' else ' (libc)' end from pg_database where datname = current_database()")
+
+  upgrade_container=""
+  upgrade_volume=""
+  upgrade_way_back=""
+  step="done"
+  say "PostgreSQL $new_major holds the database (schema $revision): page checksums $checksums, collation $collation."
+  say "PostgreSQL $old_major's data stays in the volume $old_volume as the way back. Once the new release runs well, remove it: podman volume rm $old_volume"
+  say "api, worker and web stay stopped until the stack starts on the files that name the new database."
 }
 
 # --- alerts -------------------------------------------------------------------
@@ -822,6 +973,27 @@ main() {
       take_lock
       wait_seconds=0
       do_restore "$file" "$confirmed"
+      ;;
+    upgrade-postgres)
+      local compose="" env_file=""
+      while [ "$#" -gt 0 ]; do
+        case $1 in
+          --env-file)
+            [ "$#" -ge 2 ] || die "--env-file needs a file"
+            env_file=$2
+            shift 2
+            ;;
+          -*) die "unknown upgrade-postgres option: $1" ;;
+          *)
+            [ -z "$compose" ] || die "usage: upgrade-postgres [--env-file ENV_FILE] COMPOSE_FILE"
+            compose=$1
+            shift
+            ;;
+        esac
+      done
+      [ -n "$compose" ] || die "usage: upgrade-postgres [--env-file ENV_FILE] COMPOSE_FILE"
+      take_lock
+      do_upgrade_postgres "$compose" "$env_file"
       ;;
     list) do_list ;;
     status) do_status ;;

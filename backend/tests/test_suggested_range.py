@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.clock import business_today
 from oncall.domain.scheduling.planning import range_end, suggested_start
-from oncall.domain.vocabulary import ScheduleStatus, UserRole
+from oncall.domain.vocabulary import ScheduleOrigin, ScheduleStatus, UserRole
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from tests.conftest import create_user, login
 
@@ -105,6 +105,7 @@ async def test_suggested_range_treats_imported_history_as_coverage(
         starts_on=today - timedelta(days=10),
         ends_on=today + timedelta(days=3),
         status=ScheduleStatus.superseded,
+        origin=ScheduleOrigin.imported,
     )
     db.add(imported)
     await db.commit()

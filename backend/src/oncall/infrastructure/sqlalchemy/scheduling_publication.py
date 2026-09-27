@@ -23,7 +23,7 @@ class SqlAlchemyPublicationSwaps:
         rows = await self._session.execute(
             select(TeamMember.id, TeamMember.display_name).where(TeamMember.id.in_(member_ids))
         )
-        return dict(rows.tuples().all())
+        return dict(rows.all())
 
     async def approved_on(self, schedule_ids: Iterable[uuid.UUID]) -> list[ApprovedSwap]:
         swaps = (
@@ -44,6 +44,7 @@ class SqlAlchemyPublicationSwaps:
         return [
             ApprovedSwap(
                 schedule_id=swap.schedule_id,
+                requester_member_id=swap.requester_member_id,
                 requester_name=names.get(swap.requester_member_id),
                 replacement_name=names.get(swap.replacement_member_id),
                 slots=tuple((item.service_date, item.role) for item in (swap.slots or [swap])),

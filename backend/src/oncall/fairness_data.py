@@ -12,7 +12,7 @@ from datetime import date, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleStatus
 from oncall.effective import effective_assignments, sorted_assignments
@@ -35,6 +35,7 @@ from oncall.fairness import project_duties as project_duties
 from oncall.fairness import reassign as reassign
 from oncall.fairness import window as window
 from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.presentation.reports import FairnessCategoryResponse, FairnessMemberResponse
@@ -57,14 +58,29 @@ async def latest_publish_end(db: AsyncSession) -> date | None:
     )
 
 
-def _unavailable_periods(member: TeamMember) -> list[tuple[date, date]]:
+async def _unavailable_periods(
+    db: AsyncSession, member_ids: list[uuid.UUID], window_start: date, window_end: date
+) -> dict[uuid.UUID, list[tuple[date, date]]]:
     """Hard-unavailability ranges for the fairness expected-share formula
-    (decision D3, variant B). Soft preferences are not read here."""
-    return [
-        (entry.starts_on, entry.ends_on)
-        for entry in member.availability
-        if entry.kind == AvailabilityKind.unavailable
-    ]
+    (decision D3, variant B). Soft preferences are not read here.
+
+    Only entries touching the window: the formula looks at no other day, and
+    a member's entries accumulate for as long as they are on the team.
+    """
+    periods: dict[uuid.UUID, list[tuple[date, date]]] = defaultdict(list)
+    rows = await db.execute(
+        select(Availability.member_id, Availability.starts_on, Availability.ends_on)
+        .where(
+            Availability.member_id.in_(member_ids),
+            Availability.kind == AvailabilityKind.unavailable,
+            Availability.starts_on <= window_end,
+            Availability.ends_on >= window_start,
+        )
+        .order_by(Availability.starts_on)
+    )
+    for member_id, starts_on, ends_on in rows:
+        periods[member_id].append((starts_on, ends_on))
+    return periods
 
 
 async def load_inputs(
@@ -72,22 +88,18 @@ async def load_inputs(
 ) -> tuple[list[FairnessMemberInput], list[FairnessDuty], set[date]]:
     """Members, served duties and Polish holidays for one window."""
     orm_members = (
-        (
-            await db.scalars(
-                select(TeamMember)
-                .options(
-                    joinedload(TeamMember.eligibility),
-                    joinedload(TeamMember.availability),
-                )
-                .where(
-                    TeamMember.active_from <= window_end,
-                    (TeamMember.active_until.is_(None)) | (TeamMember.active_until >= window_start),
-                )
-                .order_by(TeamMember.display_name)
+        await db.scalars(
+            select(TeamMember)
+            .options(selectinload(TeamMember.eligibility))
+            .where(
+                TeamMember.active_from <= window_end,
+                (TeamMember.active_until.is_(None)) | (TeamMember.active_until >= window_start),
             )
+            .order_by(TeamMember.display_name)
         )
-        .unique()
-        .all()
+    ).all()
+    unavailable = await _unavailable_periods(
+        db, [member.id for member in orm_members], window_start, window_end
     )
     members = [
         FairnessMemberInput(
@@ -103,7 +115,7 @@ async def load_inputs(
                 ]
                 for role in AssignmentRole
             },
-            unavailable_periods=_unavailable_periods(member),
+            unavailable_periods=unavailable[member.id],
         )
         for member in orm_members
     ]

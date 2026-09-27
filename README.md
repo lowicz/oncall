@@ -18,7 +18,7 @@ Fair duty rotations for infrastructure teams: <code>PRIMARY</code>, <code>SECOND
 <p align="center">
   <img alt="Python 3.14" src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white">
   <img alt="Node.js 24" src="https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white">
-  <img alt="PostgreSQL 17" src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white">
+  <img alt="PostgreSQL 18" src="https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white">
   <a href="https://github.com/lowicz?tab=packages&repo_name=oncall"><img alt="Container images on ghcr.io" src="https://img.shields.io/badge/ghcr.io-oncall--api%20%C2%B7%20oncall--web-2496ED?logo=docker&logoColor=white"></a>
   <a href="https://lowicz.github.io/oncall/"><img alt="Documentation" src="https://img.shields.io/badge/docs-PL%20%C2%B7%20EN-1d4ed8?logo=materialformkdocs&logoColor=white"></a>
 </p>
@@ -82,9 +82,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 Put `COMPOSE_FILE=docker-compose.yml:docker-compose.dev.yml` in `.env` to make
 plain `docker compose up --build` do the same. CI (`.github/workflows/ci.yml`)
-runs the backend and frontend gates, the PostgreSQL concurrency suite, both
-image builds and every Compose combination on each pull request, next to
-SonarCloud, CodeQL and Dependency Review; a tag `vX.Y.Z` publishes the images
+runs the backend and frontend gates, the PostgreSQL concurrency and schema
+suites, both image builds and every Compose combination on each pull request,
+next to SonarCloud, CodeQL and Dependency Review; a tag `vX.Y.Z` publishes the images
 (`.github/workflows/release.yml`). Required checks and repository security
 settings: [docs/wdrozenie/wydania.md](docs/wdrozenie/wydania.md).
 
@@ -130,9 +130,9 @@ any other refuses to run and prints the command that installs the right one.
 
 The gates CI runs, in the same order: `uv run ruff check .`, `uv run ruff format --check .`,
 `uv run mypy`, `uv run pytest`, `uv run python scripts/openapi_snapshot.py`. The
-PostgreSQL concurrency suite needs a disposable database:
+PostgreSQL suites need a disposable server:
 `docker compose -f docker-compose.contract.yml up -d` and
-`ONCALL_TEST_POSTGRES_URL=postgresql+asyncpg://oncall_contract:oncall_contract@127.0.0.1:55432/oncall_contract uv run pytest tests/test_concurrency_postgres.py`.
+`ONCALL_TEST_POSTGRES_URL=postgresql+asyncpg://oncall_contract:oncall_contract@127.0.0.1:55432/oncall_contract uv run pytest tests/test_concurrency_postgres.py tests/test_schema_postgres.py`.
 
 For Docker Compose, put the credentials in `.env`. On every API start the bootstrap
 creates the account or synchronizes its password, display name, admin role and active

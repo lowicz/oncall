@@ -11,7 +11,7 @@ from oncall.audit import record_audit
 from oncall.domain.history.models import IMPORT_NAME_PREFIX, HistoryImport, NewHistoryImport
 from oncall.domain.roster import Slot
 from oncall.domain.team import Member
-from oncall.domain.vocabulary import ScheduleStatus
+from oncall.domain.vocabulary import ScheduleOrigin, ScheduleStatus
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team import to_member
@@ -35,10 +35,7 @@ class SqlAlchemyHistory:
         rows = await self._session.execute(
             select(Schedule, func.count(Assignment.id))
             .outerjoin(Assignment, Assignment.schedule_id == Schedule.id)
-            .where(
-                Schedule.status == ScheduleStatus.superseded,
-                Schedule.name.startswith(IMPORT_NAME_PREFIX.rstrip()),
-            )
+            .where(Schedule.origin == ScheduleOrigin.imported)
             .group_by(Schedule.id)
             .order_by(Schedule.created_at.desc())
         )
@@ -51,7 +48,7 @@ class SqlAlchemyHistory:
                 rows=count,
                 created_at=schedule.created_at,
             )
-            for schedule, count in rows.tuples()
+            for schedule, count in rows
         ]
 
     async def members(self) -> list[Member]:
@@ -72,7 +69,7 @@ class SqlAlchemyHistory:
                 Assignment.service_date <= ends_on,
             )
         )
-        return set(rows.tuples())
+        return {(day, role) for day, role in rows}
 
     async def stage(self, history: NewHistoryImport) -> None:
         self._staged = Schedule(
@@ -80,6 +77,7 @@ class SqlAlchemyHistory:
             starts_on=history.starts_on,
             ends_on=history.ends_on,
             status=ScheduleStatus.superseded,
+            origin=ScheduleOrigin.imported,
             published_at=history.published_at,
             assignments=[
                 Assignment(

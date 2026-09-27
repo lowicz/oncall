@@ -36,6 +36,11 @@ The compatibility gate is intentionally split by observable boundary:
 - `alembic upgrade head` followed by `alembic check` on an empty PostgreSQL
   database pins that the ORM metadata describes exactly the migrated schema.
   CI runs both before the concurrency suite.
+- `tests/test_schema_postgres.py` compares what `alembic check` does not:
+  check and exclusion constraints, collations, server defaults and foreign
+  key actions, between a migrated database and one built from the models,
+  and pins the rules only PostgreSQL holds (overlapping periods, Polish name
+  order). It runs beside the concurrency suite.
 
 SQLite is a fast feedback database, not the persistence contract. A skipped
 PostgreSQL suite is acceptable locally but not in the compatibility CI job.

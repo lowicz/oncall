@@ -9,7 +9,7 @@ Registry, tagged with the release number:
 | `ghcr.io/lowicz/oncall-web` | `web` | nginx with the application (SPA) and this documentation under `/docs/` |
 
 The images are public: `docker compose pull` requires no login. The `db`
-database is the unmodified `postgres:17-alpine` image.
+database is the unmodified `postgres:18-alpine` image.
 
 ## Version number
 
@@ -141,7 +141,7 @@ Every change (pull request and the `main` branch) goes through `ci.yml`:
 | Job | What it checks |
 | --- | --- |
 | `backend` | `uv.lock` consistent with `pyproject.toml` (before the install), `ruff check`, `ruff format`, `mypy`, `pytest` on SQLite, OpenAPI consistent with the snapshot |
-| `backend-postgres` | the concurrency suite on a real PostgreSQL 17 |
+| `backend-postgres` | the concurrency and schema suites on a real PostgreSQL 18 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renders the documentation and checks the table of contents, links and anchors), the standalone site render |
 | `compose-config` | the validity of `docker-compose.yml` with every overlay, that the development overlay changes only the source of the images, that every service runs read-only and without kernel capabilities, and the tests of the `deploy/update.sh` update script |
 | `backup` | the [database backup](kopie-zapasowe.md) scripts (`shellcheck`, the units in `systemd-analyze verify`), the setup against stubbed systemd and Podman, and the dump, restore test, retention, restore, alert and cleanup against real rootless Podman |

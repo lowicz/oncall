@@ -13,6 +13,7 @@ from oncall.domain.vocabulary import (
     AssignmentRole,
     LateShiftAnchor,
     RotationMode,
+    ScheduleOrigin,
     ScheduleStatus,
 )
 from oncall.fairness import MemberBalance
@@ -26,17 +27,13 @@ ROTATION_NAME_LABELS = {
     RotationMode.weekly: "tygodniowy",
 }
 
-#: Imported history is stored as superseded schedules under this name prefix.
-HISTORY_IMPORT_PREFIX = "Import historii:"
-
 
 class RunState(StrEnum):
     """The four states a generation run passes through.
 
-    A `StrEnum` rather than a database enum: the column is plain text, and the
-    client pins these four spellings, so this names what is already there
-    instead of introducing a migration or a fifth state. Every transition
-    between them happens in `oncall.worker`.
+    A `StrEnum` rather than a database enum: the column is plain text that a
+    check constraint limits to these four spellings, which the client pins.
+    Every transition between them happens in `oncall.worker`.
     """
 
     queued = "queued"
@@ -144,6 +141,7 @@ class Schedule:
     starts_on: date
     ends_on: date
     status: ScheduleStatus
+    origin: ScheduleOrigin
     version: int
     created_at: datetime | None
     rotation_mode: RotationMode | None
@@ -156,9 +154,7 @@ class Schedule:
 
     @property
     def is_imported_history(self) -> bool:
-        return self.status == ScheduleStatus.superseded and self.name.startswith(
-            HISTORY_IMPORT_PREFIX
-        )
+        return self.origin == ScheduleOrigin.imported
 
     def with_holder(self, slot: Slot, name: str, member_id: uuid.UUID) -> Schedule:
         """The schedule with one slot handed to someone as a correction."""
@@ -488,6 +484,7 @@ class ChangeRecord:
 @dataclass(frozen=True)
 class ApprovedSwap:
     schedule_id: uuid.UUID
+    requester_member_id: uuid.UUID
     requester_name: str | None
     replacement_name: str | None
     #: Every slot the swap moved; a coupled 11-19 swap moves two.

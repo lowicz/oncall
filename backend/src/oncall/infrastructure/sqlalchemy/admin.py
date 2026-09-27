@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Mapping
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, func, or_, select, update
@@ -25,7 +25,7 @@ from oncall.domain.admin.models import (
     PendingActivation,
     RotationMember,
 )
-from oncall.domain.clock import as_utc
+from oncall.domain.clock import as_utc, business_day_start
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import (
     AccountTokenKind,
@@ -117,7 +117,7 @@ class SqlAlchemyAccounts:
             .outerjoin(TeamMember, TeamMember.user_id == User.id)
             .order_by(User.last_name, User.first_name)
         )
-        return [_to_administered(*row) for row in rows.tuples()]
+        return [_to_administered(*row) for row in rows]
 
     async def account(self, account_id: uuid.UUID) -> AdministeredAccount | None:
         row = (
@@ -286,6 +286,11 @@ class SqlAlchemyRotation:
             .where(Assignment.member_id == member_id)
             .values(assignee_name=display_name)
         )
+        await self._session.execute(
+            update(Assignment)
+            .where(Assignment.original_member_id == member_id)
+            .values(original_assignee_name=display_name)
+        )
 
     async def name_taken(self, display_name: str, *, other_than: uuid.UUID) -> bool:
         return bool(
@@ -307,6 +312,14 @@ class SqlAlchemyRotation:
                 update(Assignment)
                 .where(Assignment.member_id.is_(None), Assignment.assignee_name == name)
                 .values(assignee_name=pseudonym)
+            )
+            await self._session.execute(
+                update(Assignment)
+                .where(
+                    Assignment.original_member_id.is_(None),
+                    Assignment.original_assignee_name == name,
+                )
+                .values(original_assignee_name=pseudonym)
             )
 
     async def period(self, eligibility_id: uuid.UUID) -> EligibilityPeriod | None:
@@ -395,7 +408,7 @@ class SqlAlchemyRotation:
             query = query.where(Assignment.role == role)
         if limit is not None:
             query = query.limit(limit)
-        return list((await self._session.execute(query)).tuples().all())
+        return [(day, role) for day, role in await self._session.execute(query)]
 
     async def _loaded_member(self, member_id: uuid.UUID) -> TeamMember:
         return await self._session.scalar(
@@ -426,13 +439,14 @@ class SqlAlchemyAuditTrail:
                     AuditEvent.action.ilike(pattern),
                 )
             )
+        # The dates are the days people read on screen, in Warsaw time.
         if query.starts_on:
             statement = statement.where(
-                AuditEvent.occurred_at >= datetime.combine(query.starts_on, time.min, UTC)
+                AuditEvent.occurred_at >= business_day_start(query.starts_on)
             )
         if query.ends_on:
             statement = statement.where(
-                AuditEvent.occurred_at <= datetime.combine(query.ends_on, time.max, UTC)
+                AuditEvent.occurred_at < business_day_start(query.ends_on + timedelta(days=1))
             )
         if query.excluded_action is not None:
             statement = statement.where(AuditEvent.action != query.excluded_action)

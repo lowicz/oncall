@@ -15,19 +15,26 @@
 #      older than deploy/systemd leaves the host's copy in place,
 #   3. merges .env with the release's .env.example (see merge_env) and sets
 #      ONCALL_VERSION, the only value it ever changes,
-#   4. pulls both application images, so a missing release stops here with
+#   4. pulls both application images (and PostgreSQL's, when the release
+#      moves it to a new major version), so a missing release stops here with
 #      nothing changed and the restart does not wait for a download,
 #   5. dumps the database (deploy/backup/oncall-backup.sh, docs/wdrozenie/
 #      kopie-zapasowe.md), because the restart runs the release's migrations
-#      and they do not roll back; a failed dump stops here with nothing changed,
+#      and they do not roll back; a failed dump stops here with nothing changed.
+#      When the release's db image is a newer PostgreSQL major version, the
+#      release's backup script moves the data instead (upgrade-postgres: the
+#      application stops, the dump goes into the new version on a new volume,
+#      the old volume stays); a failure starts the stack again as it was, with
+#      nothing changed. A release with an older major version is refused,
+#      with nothing changed,
 #   6. backs up every file it is about to replace into DIR/.backup/<time>/,
 #      installs the files and the new .env,
 #   7. refreshes the installed unit files if the release changed them, then
 #      restarts oncall.service.
-# It never touches the drop-ins (WorkingDirectory, ONCALL_COMPOSE_FILES), tls/
-# or volumes, and does not install the backup timer (deploy/backup/setup.sh
-# does, once). Run again with the same version, it rewrites no file, dumps the
-# database and restarts the unit.
+# It never touches the drop-ins (WorkingDirectory, ONCALL_COMPOSE_FILES) or
+# tls/, never removes a volume, and does not install the backup timer
+# (deploy/backup/setup.sh does, once). Run again with the same version, it
+# rewrites no file, dumps the database and restarts the unit.
 #
 # Plain POSIX sh so that `curl ... | sh` works on any host shell. Everything
 # runs from main at the last line: a truncated download executes nothing.
@@ -279,6 +286,16 @@ backup() {
   cp -p "$dir/$1" "$backup_dir/$1"
 }
 
+# The image a Compose file's db service runs (the one postgres image in it).
+postgres_image() {
+  awk '$1 == "image:" && $2 ~ /(^|\/)postgres:[0-9]/ { print $2; exit }' "$1"
+}
+
+# The major version in a postgres image's tag: postgres:18-alpine is 18.
+postgres_major() {
+  printf '%s\n' "${1##*:}" | sed 's/[^0-9].*$//'
+}
+
 main() {
   if [ "${1:-}" = merge-env ]; then
     if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
@@ -386,6 +403,26 @@ main() {
     done
   fi
 
+  # A data directory belongs to the PostgreSQL major version that wrote it: a
+  # release that moves db to a newer one needs its data moved (step 5), and
+  # one that moves back would start the old version on its old volume.
+  if [ "$git_checkout" = true ]; then
+    git -C "$dir" show "$tag:docker-compose.yml" >"$stage/docker-compose.yml"
+  fi
+  installed_postgres=$(postgres_image "$dir/docker-compose.yml")
+  release_postgres=$(postgres_image "$stage/docker-compose.yml")
+  [ -n "$installed_postgres" ] || die "$dir/docker-compose.yml names no postgres image"
+  [ -n "$release_postgres" ] || die "docker-compose.yml of $tag names no postgres image"
+  installed_major=$(postgres_major "$installed_postgres")
+  release_major=$(postgres_major "$release_postgres")
+  postgres_upgrade=false
+  if [ "$release_major" -lt "$installed_major" ]; then
+    die "$version runs PostgreSQL $release_major and this deployment runs $installed_major; update.sh does not move a database to an older major version, nothing was changed (docs/wdrozenie/aktualizacja.md: going back after a PostgreSQL upgrade)"
+  elif [ "$release_major" -gt "$installed_major" ]; then
+    postgres_upgrade=true
+    say "$version moves the database from PostgreSQL $installed_major to $release_major"
+  fi
+
   merge_env "$dir/.env" "$stage/.env.example" "$version" >"$stage/env"
   assignments "$dir/.env" >"$stage/before"
   assignments "$stage/env" >"$stage/after"
@@ -397,23 +434,50 @@ main() {
     podman pull --quiet "$image:$version" >/dev/null ||
       die "cannot pull $image:$version; nothing was changed"
   done
+  if [ "$postgres_upgrade" = true ]; then
+    # Compose reads a short name as Docker Hub's; `podman pull` needs it said.
+    case $release_postgres in
+      */*) postgres_ref=$release_postgres ;;
+      *) postgres_ref=docker.io/library/$release_postgres ;;
+    esac
+    say "Pulling $postgres_ref"
+    podman pull --quiet "$postgres_ref" >/dev/null ||
+      die "cannot pull $postgres_ref; nothing was changed"
+  fi
 
   # The restart runs the release's migrations, and they do not roll back: the
   # database is dumped, and the dump proved by a restore, before anything
   # changes. The deployment's own backup script dumps it when it has one (it
   # matches the running stack), otherwise the release's.
   backup_script=""
+  if [ "$git_checkout" = true ] && git -C "$dir" cat-file -e "$tag:$dump_script" 2>/dev/null; then
+    git -C "$dir" show "$tag:$dump_script" >"$stage/oncall-backup.sh"
+    release_backup_script=$stage/oncall-backup.sh
+  elif [ "$git_checkout" = false ] && [ -f "$stage/$dump_script" ]; then
+    release_backup_script=$stage/$dump_script
+  else
+    release_backup_script=""
+  fi
   if [ -f "$dir/$dump_script" ]; then
     backup_script=$dir/$dump_script
-  elif [ "$git_checkout" = true ]; then
-    if git -C "$dir" cat-file -e "$tag:$dump_script" 2>/dev/null; then
-      git -C "$dir" show "$tag:$dump_script" >"$stage/oncall-backup.sh"
-      backup_script=$stage/oncall-backup.sh
-    fi
-  elif [ -f "$stage/$dump_script" ]; then
-    backup_script=$stage/$dump_script
+  else
+    backup_script=$release_backup_script
   fi
-  if [ -n "$backup_script" ]; then
+  if [ "$postgres_upgrade" = true ]; then
+    # Only the release's script knows upgrade-postgres, and the release's
+    # Compose file and merged .env name the new database.
+    [ -n "$release_backup_script" ] ||
+      die "$tag has no $dump_script to move the database to PostgreSQL $release_major; nothing was changed"
+    need_cmd bash
+    say "Moving the database to PostgreSQL $release_major; the application is stopped until the update ends"
+    if ! ONCALL_BACKUP_WAIT_SECONDS=${ONCALL_BACKUP_WAIT_SECONDS:-60} bash "$release_backup_script" --dir "$dir" \
+      upgrade-postgres --env-file "$stage/env" "$stage/docker-compose.yml"; then
+      say "Starting $unit again on the release it ran"
+      systemctl --user restart "$unit" ||
+        die "moving the database to PostgreSQL $release_major failed (see above), and $unit did not start again; see journalctl --user -u $unit. No file was changed"
+      die "moving the database to PostgreSQL $release_major failed (see above); $current runs again on its own database, unchanged, and no file was changed. Fix the cause and run this again"
+    fi
+  elif [ -n "$backup_script" ]; then
     need_cmd bash
     say "Dumping the database before the update"
     ONCALL_BACKUP_WAIT_SECONDS=${ONCALL_BACKUP_WAIT_SECONDS:-60} \
@@ -499,10 +563,20 @@ main() {
   fi
 
   say "Restarting $unit"
-  systemctl --user restart "$unit" ||
-    die "$unit did not start; see journalctl --user -u $unit. To roll back, run this script with the previous version ($current)"
+  if [ "$postgres_upgrade" = true ]; then
+    systemctl --user restart "$unit" ||
+      die "$unit did not start; see journalctl --user -u $unit. The database is in PostgreSQL $release_major now, so this script cannot go back to $current; docs/wdrozenie/aktualizacja.md (going back after a PostgreSQL upgrade) says how"
+  else
+    systemctl --user restart "$unit" ||
+      die "$unit did not start; see journalctl --user -u $unit. To roll back, run this script with the previous version ($current)"
+  fi
   say "On-call $version is running:"
   podman ps --format 'table {{.Names}} {{.Image}} {{.Status}}'
+  if [ "$postgres_upgrade" = true ]; then
+    say ""
+    say "The database runs on PostgreSQL $release_major. PostgreSQL $installed_major's data stays in its volume (named above) until you remove it"
+    say "Guide: https://github.com/$repo/blob/main/docs/wdrozenie/aktualizacja.md"
+  fi
 
   # The release carries the backups; installing their timer is a one-time
   # decision for this host (docs/wdrozenie/kopie-zapasowe.md).
