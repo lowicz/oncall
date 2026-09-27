@@ -1,6 +1,6 @@
 """One explicit source of business dates and absolute instants."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
@@ -32,6 +32,12 @@ def utc_now() -> datetime:
 
 def business_today() -> date:
     return system_clock.business_today()
+
+
+def business_day_start(day: date) -> datetime:
+    """The instant a business day begins, in UTC: midnight in Warsaw, which
+    is 22:00 or 23:00 UTC the evening before."""
+    return datetime.combine(day, time.min, BUSINESS_TIMEZONE).astimezone(UTC)
 
 
 def as_utc(value: datetime) -> datetime:

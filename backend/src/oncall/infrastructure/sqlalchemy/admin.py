@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Mapping
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, func, or_, select, update
@@ -25,7 +25,7 @@ from oncall.domain.admin.models import (
     PendingActivation,
     RotationMember,
 )
-from oncall.domain.clock import as_utc
+from oncall.domain.clock import as_utc, business_day_start
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import (
     AccountTokenKind,
@@ -439,13 +439,14 @@ class SqlAlchemyAuditTrail:
                     AuditEvent.action.ilike(pattern),
                 )
             )
+        # The dates are the days people read on screen, in Warsaw time.
         if query.starts_on:
             statement = statement.where(
-                AuditEvent.occurred_at >= datetime.combine(query.starts_on, time.min, UTC)
+                AuditEvent.occurred_at >= business_day_start(query.starts_on)
             )
         if query.ends_on:
             statement = statement.where(
-                AuditEvent.occurred_at <= datetime.combine(query.ends_on, time.max, UTC)
+                AuditEvent.occurred_at < business_day_start(query.ends_on + timedelta(days=1))
             )
         if query.excluded_action is not None:
             statement = statement.where(AuditEvent.action != query.excluded_action)
