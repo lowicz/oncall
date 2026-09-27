@@ -2,9 +2,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { NowStrip, coverageEnd, formatUntil } from './NowStrip'
 import { api } from '../api'
 import type { CurrentDuty, PublishedSchedule } from '../api'
+
+/** The freshness-dot rule the loaded stylesheet defines for a stale reading. */
+function staleDotRule(): CSSStyleRule | undefined {
+  for (const sheet of Array.from(document.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (rule instanceof CSSStyleRule && rule.selectorText === '.now-stale::before') return rule
+    }
+  }
+  return undefined
+}
 
 const duty = (over: Partial<CurrentDuty>): CurrentDuty => ({
   role: 'primary', service_date: '2026-09-09', assignee_name: 'Anna Kowalska', member_id: 'm1',
@@ -42,6 +53,30 @@ describe('NowStrip', () => {
     // The name may be cut with an ellipsis on a narrow bar; its title still carries it whole.
     expect(await within(strip).findByTitle('Katarzyna Dąbrowska-Wróblewska')).toHaveTextContent('Katarzyna Dąbrowska-Wróblewska')
     expect(within(strip).getByRole('link', { name: '+48 600 100 005' })).toHaveAttribute('href', 'tel:+48600100005')
+  })
+
+  it('sets the role chips white on the header band and leaves them filled everywhere else', async () => {
+    // The real stylesheet, so the header rule has to win the cascade over the
+    // shared chip fill; jsdom resolves no var(), so the tokens are compared by name.
+    loadRealStylesheet()
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
+      duty({}),
+      duty({ role: 'secondary', assignee_name: 'Marek Nowak' }),
+      duty({ role: 'late_shift', service_date: '2026-09-10', coverage_starts_at: '11:00', coverage_ends_at: '19:00', assignee_name: 'Ola Wiśniewska' }),
+    ]))
+    renderScreen(<><NowStrip /><span className="lbl lbl-p">P</span></>)
+
+    const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
+    await within(strip).findByTitle('Ola Wiśniewska')
+    const paint = (element: HTMLElement) => {
+      const style = getComputedStyle(element)
+      return [style.getPropertyValue('background'), style.getPropertyValue('color')]
+    }
+    const chip = (label: string) => paint(within(strip).getByText(label, { selector: '.lbl' }))
+    expect(chip('PRIMARY')).toEqual(['var(--band-chip)', 'var(--band-p)'])
+    expect(chip('SECONDARY')).toEqual(['var(--band-chip)', 'var(--band-sec)'])
+    expect(chip('11–19')).toEqual(['var(--band-chip)', 'var(--band-late)'])
+    expect(paint(screen.getByText('P'))).toEqual(['var(--p-fill)', 'var(--role-ink)'])
   })
 
   it('names the end of the duty with the weekday abbreviation every screen uses', () => {
@@ -102,6 +137,25 @@ describe('NowStrip', () => {
     await waitFor(() => expect(screen.getByText('stan z 09:00')).toHaveClass('now-stale'))
     expect(screen.getByText('stan z 09:00')).toHaveAttribute('title', 'Stan z 09:00')
     expect(screen.getByText('Anna Kowalska')).toBeInTheDocument()
+  })
+
+  it('draws a ringed warn dot before a stale timestamp so it reads on the header band', async () => {
+    // The real stylesheet, so the dot the now-stale class draws is the actual
+    // cascade; jsdom applies no pseudo-element, so the rule is read from the CSSOM.
+    loadRealStylesheet()
+    const published = vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ service_date: '2026-09-10' })]))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><NowStrip /></QueryClientProvider>)
+    expect(await screen.findByText('do pt 09:00 · 24 h 0 min')).toBeInTheDocument()
+
+    published.mockRejectedValue(new Error('offline'))
+    await act(async () => { await queryClient.refetchQueries({ queryKey: ['published-schedule'] }) })
+    await waitFor(() => expect(screen.getByText('stan z 09:00')).toHaveClass('now-stale'))
+
+    const dot = staleDotRule()
+    expect(dot?.style.background).toBe('var(--warn-dot)')
+    expect(dot?.style.boxShadow).toContain('var(--band-ink)')
+    expect(dot?.style.width).toBe('8px')
   })
 
   it('leaves the end out when the window cannot be read', () => {

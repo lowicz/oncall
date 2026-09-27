@@ -3,8 +3,8 @@
   "short_name": "On-call",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b0e13",
-  "theme_color": "#0b0e13",
+  "background_color": "#061228",
+  "theme_color": "#061228",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
     { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }

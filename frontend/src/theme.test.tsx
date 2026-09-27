@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
@@ -9,7 +11,7 @@ import {
 beforeEach(() => {
   document.documentElement.removeAttribute('data-theme')
   document.documentElement.removeAttribute('data-density')
-  document.head.innerHTML = '<meta name="theme-color" content="#0b0e13" />'
+  document.head.innerHTML = '<meta name="theme-color" content="#061228" />'
 })
 
 describe('theme preference', () => {
@@ -29,7 +31,7 @@ describe('theme preference', () => {
   it('writes the resolved scheme, the density and the browser chrome colour to the document', () => {
     setThemeMode('light')
     expect(document.documentElement.getAttribute('data-theme')).toBe('light')
-    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#eef1f5')
+    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#F4F6FA')
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
 
     setDensity('compact')
@@ -46,7 +48,26 @@ describe('theme preference', () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, 'system')
     applyPreferences()
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
-    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#0b0e13')
+    expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#061228')
+  })
+})
+
+describe('the matrix density token', () => {
+  it('shrinks the day cell in compact mode so the toggle visibly changes the matrix', () => {
+    const style = document.createElement('style')
+    style.textContent = readFileSync(resolve(process.cwd(), 'src/tokens.css'), 'utf8')
+    document.head.appendChild(style)
+    try {
+      const cell = () => getComputedStyle(document.documentElement).getPropertyValue('--cell').trim()
+      const fromDefault = cell()
+      setDensity('compact')
+      const fromCompact = cell()
+      expect(fromDefault).toBe('35px')
+      expect(fromCompact).toBe('29px')
+      expect(fromCompact).not.toBe(fromDefault)
+    } finally {
+      style.remove()
+    }
   })
 })
 

@@ -8,10 +8,10 @@ describe('Icon', () => {
     const svg = container.querySelector('svg')!
     expect(svg).toHaveAttribute('aria-hidden', 'true')
     expect(svg).not.toHaveAttribute('role')
-    expect(svg).toHaveAttribute('width', '16')
+    expect(svg).toHaveAttribute('width', '20')
     expect(svg).toHaveClass('icon', 'big')
     expect(svg.querySelector('title')).toBeNull()
-    expect(svg.querySelector('path')!.getAttribute('d')).toMatch(/^M3 6a2/)
+    expect(svg.querySelector('path')!.getAttribute('d')).toMatch(/^M5.75 4.75h12.5/)
   })
 
   it('is an image with a name when it carries meaning alone', () => {

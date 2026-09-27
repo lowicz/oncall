@@ -382,10 +382,11 @@ function languageLink({ path, language, toRoot }) {
   )
 }
 
-/** The product mark (the same E/ as src/ui/Icon.tsx and public/favicon.svg). */
+/** Duty ring, the same drawing as src/ui/Icon.tsx and public/favicon.svg. */
 const MARK =
-  '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/>' +
-  '<path fill="#fff" d="M12 16h20v6H19v7h11v6H19v7h13v6H12z"/><path fill="#fff" d="M44 16h7L42 48h-7z"/></svg>'
+  '<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="13" fill="#2870ED"/>' +
+  '<path d="M28.5 12.31A20 20 0 1 0 51.69 35.5" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>' +
+  '<circle cx="46.14" cy="17.86" r="5" fill="#FFFFFF"/></svg>'
 
 /**
  * Inside the image the pages sit next to the API, so the product name the
@@ -429,7 +430,7 @@ function layout({ path, title, siteTitle, bodyHtml, nav, toRoot, prev, next, opt
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0e13" />
+    <meta name="theme-color" content="#07152E" />
     <link rel="icon" href="${toRoot}assets/favicon.svg" type="image/svg+xml" />
     <meta name="robots" content="noindex,nofollow" />
     <title>${escapeHtml(title === siteTitle ? title : `${title} · ${siteTitle}`)}</title>
@@ -451,6 +452,7 @@ function layout({ path, title, siteTitle, bodyHtml, nav, toRoot, prev, next, opt
                 : 'dark'
         } catch (error) {}
         document.documentElement.setAttribute('data-theme', scheme)
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', scheme === 'light' ? '#F4F6FA' : '#07152E')
       })()
     </script>
     <link rel="stylesheet" href="${toRoot}assets/fonts.css" />
@@ -508,6 +510,7 @@ ${bodyHtml}
         var root = document.documentElement
         var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
         root.setAttribute('data-theme', next)
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', next === 'light' ? '#F4F6FA' : '#07152E')
         try {
           localStorage.setItem('oncall-theme', next)
         } catch (error) {}
@@ -550,8 +553,13 @@ const SUBSETS = /-(latin|latin-ext)-/
 
 async function buildFonts(outRoot) {
   const sources = [
-    { css: 'node_modules/@fontsource-variable/inter-tight/index.css', dir: 'node_modules/@fontsource-variable/inter-tight/files' },
-    { css: 'node_modules/@fontsource-variable/jetbrains-mono/index.css', dir: 'node_modules/@fontsource-variable/jetbrains-mono/files' },
+    { css: 'node_modules/@fontsource-variable/inter/index.css', dir: 'node_modules/@fontsource-variable/inter/files' },
+    { css: 'node_modules/@fontsource-variable/geist-mono/index.css', dir: 'node_modules/@fontsource-variable/geist-mono/files' },
+    ...['400', '700', '400-italic', '700-italic'].map((weight) => ({
+      css: `node_modules/@fontsource/stix-two-text/${weight}.css`,
+      dir: 'node_modules/@fontsource/stix-two-text/files',
+    })),
+
   ]
   const faces = []
   const files = new Set()
@@ -560,7 +568,7 @@ async function buildFonts(outRoot) {
     const css = await readFile(join(appRoot, source.css), 'utf8')
     for (const face of css.split('@font-face').slice(1)) {
       const url = /url\(\.\/files\/([^)]+\.woff2)\)/.exec(face)
-      if (!url || !SUBSETS.test(url[1]) || /italic/.test(url[1])) continue
+      if (!url || !SUBSETS.test(url[1])) continue
       faces.push(`@font-face${face.slice(0, face.lastIndexOf('}') + 1)}`.replace('./files/', './fonts/'))
       files.add(join(appRoot, source.dir, url[1]))
     }

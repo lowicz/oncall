@@ -125,7 +125,7 @@ describe('MonthlyReportsPanel', () => {
     // font-size for body readability, and that rule used to also catch this
     // header cell, so its rowspan-2 box centered on a taller line than
     // "Osoba"'s (jsdom can't resolve the `font` shorthand's var(--mono) that
-    // "Osoba" relies on, so it is compared against the 9.5px literal instead).
+    // "Osoba" relies on, so it is compared against the 12px literal instead).
     loadRealStylesheet()
 
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
@@ -135,8 +135,8 @@ describe('MonthlyReportsPanel', () => {
     const lateShift = within(table).getByRole('columnheader', { name: '11–19' })
     const [dataCell] = within(table).getAllByRole('cell', { name: '5' })
 
-    expect(getComputedStyle(lateShift).fontSize).toBe('9.5px')
-    expect(getComputedStyle(dataCell).fontSize).toBe('11.5px')
+    expect(getComputedStyle(lateShift).fontSize).toBe('12px')
+    expect(getComputedStyle(dataCell).fontSize).toBe('14px')
   })
 
   it('lines up the rowspan-2 headers on the leaf baseline and closes the header with one divider', async () => {

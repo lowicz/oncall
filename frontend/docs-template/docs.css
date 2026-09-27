@@ -2,17 +2,18 @@
  *
  * The documentation is plain static HTML - no React runtime - but it is the
  * same product, so it uses the application's own design tokens rather than a
- * second visual language: the palettes of src/tokens.css, the Inter Tight /
- * JetBrains Mono pairing, and the same `data-theme` attribute and
+ * second visual language: the palettes of src/tokens.css, Inter for the
+ * interface, STIX Two Text for reading, Geist Mono for code, and the same
  * `oncall-theme` storage key, so a reader who chose a theme in the
  * application keeps it here. */
 
 :root {
-  --sans: "Inter Tight Variable", "Inter Tight", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
+  --read: 'STIX Two Text', Georgia, serif;
   --radius: 8px;
   --sidebar-width: 268px;
-  --measure: 74ch;
+  --measure: 68ch;
 }
 
 /* Dark is the default the pre-paint script stamps on <html>; light is the
@@ -20,40 +21,42 @@
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0b0e13;
-  --paper: #10141b;
-  --fg: #e6ebf2;
-  --fg-muted: #8b97a8;
-  --accent: #6ea8ff;
-  --accent-label: #6ea8ff;
-  --accent-contrast: #06172e;
-  --topbar-bg: rgba(16, 20, 27, 0.92);
-  --topbar-fg: #e6ebf2;
-  --topbar-border: rgba(148, 163, 184, 0.14);
-  --nav-active-bg: rgba(110, 168, 255, 0.14);
-  --line: rgba(148, 163, 184, 0.14);
-  --line-soft: rgba(148, 163, 184, 0.1);
-  --code-bg: #161b24;
-  --table-header-bg: #161b24;
+  --bg: #07152E;
+  --paper: #0B1F42;
+  --fg: #F4F6FA;
+  --heading: #F4F6FA;
+  --fg-muted: #A3B5C9;
+  --accent: #65B8FF;
+  --accent-label: #65B8FF;
+  --accent-contrast: #0B1F42;
+  --topbar-bg: rgba(11, 31, 66, 0.92);
+  --topbar-fg: #F4F6FA;
+  --topbar-border: rgba(163, 181, 201, 0.16);
+  --nav-active-bg: rgba(101, 184, 255, 0.16);
+  --line: rgba(163, 181, 201, 0.16);
+  --line-soft: rgba(163, 181, 201, 0.12);
+  --code-bg: #122A52;
+  --table-header-bg: #122A52;
 }
 
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #eef1f5;
-  --paper: #ffffff;
-  --fg: #111827;
-  --fg-muted: #5b6676;
-  --accent: #1d4ed8;
-  --accent-label: #1d4ed8;
-  --accent-contrast: #ffffff;
+  --bg: #F4F6FA;
+  --paper: #FFFFFF;
+  --fg: #303030;
+  --heading: #0B1F42;
+  --fg-muted: #506A97;
+  --accent: #064EA1;
+  --accent-label: #064EA1;
+  --accent-contrast: #FFFFFF;
   --topbar-bg: rgba(255, 255, 255, 0.92);
-  --topbar-fg: #111827;
-  --topbar-border: rgba(17, 24, 39, 0.12);
-  --nav-active-bg: rgba(29, 78, 216, 0.1);
-  --line: rgba(17, 24, 39, 0.12);
-  --line-soft: rgba(17, 24, 39, 0.08);
-  --code-bg: #f3f5f8;
-  --table-header-bg: #f3f5f8;
+  --topbar-fg: #0B1F42;
+  --topbar-border: #E4EAF0;
+  --nav-active-bg: rgba(40, 112, 237, 0.1);
+  --line: #E4EAF0;
+  --line-soft: #E4EAF0;
+  --code-bg: #F4F6FA;
+  --table-header-bg: #F4F6FA;
 }
 
 * { box-sizing: border-box; }
@@ -72,9 +75,7 @@ body {
   min-width: 320px;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--sans);
-  font-size: 15.5px;
-  line-height: 1.65;
+  font: 400 16px/24px var(--sans);
 }
 
 a { color: var(--accent); }
@@ -110,19 +111,15 @@ summary:focus-visible {
   align-items: center;
   gap: 9px;
   color: var(--topbar-fg);
-  font: 650 0.85rem/1.2 var(--sans);
+  font: 700 16px/24px var(--sans);
   white-space: nowrap;
   text-decoration: none;
 }
 
-.wordmark svg { width: 26px; height: 26px; border-radius: 6px; flex: 0 0 auto; }
+.wordmark svg { width: 26px; height: 26px; border-radius: 0; flex: 0 0 auto; }
 
 .topbar-title {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font: 600 12px/16px var(--sans);
   color: var(--fg-muted);
   padding-left: 14px;
   border-left: 1px solid var(--line);
@@ -137,12 +134,12 @@ summary:focus-visible {
 
 .topbar-link,
 .theme-toggle {
-  font: 600 0.8rem/1 var(--sans);
+  font: 600 14px/21px var(--sans);
   color: var(--topbar-fg);
   background: transparent;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 8px 11px;
+  padding: 5px 12px;
   cursor: pointer;
   text-decoration: none;
 }
@@ -189,10 +186,8 @@ summary:focus-visible {
 
 .sidebar h2 {
   margin: 20px 0 6px;
-  font: 600 0.66rem/1.4 var(--mono);
-  letter-spacing: 0.1em;
+  font: 600 12px/16px var(--sans);
   color: var(--fg-muted);
-  text-transform: uppercase;
 }
 
 .sidebar h2:first-child { margin-top: 0; }
@@ -211,7 +206,8 @@ summary:focus-visible {
   border-radius: 6px;
   color: var(--fg);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 14px;
+  line-height: 21px;
 }
 
 .sidebar a:hover { background: var(--nav-active-bg); }
@@ -219,12 +215,13 @@ summary:focus-visible {
 .sidebar a[aria-current='page'] {
   background: var(--nav-active-bg);
   color: var(--accent-label);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 /* --- Article --------------------------------------------------------------- */
 
 .content {
+  font: 400 18px/26px var(--read);
   min-width: 0;
   padding: 28px 32px 36px;
   background: var(--paper);
@@ -236,27 +233,21 @@ summary:focus-visible {
 .content > :last-child { margin-bottom: 0; }
 
 .content h1 {
-  margin: 0 0 20px;
-  font-size: 1.7rem;
-  font-weight: 650;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  margin: 0 0 24px;
+  font: 700 40px/45px var(--sans);
 }
 
 /* Ruled section headings, as in the application. */
 .content h2 {
-  margin: 40px 0 12px;
+  margin: 48px 0 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
-  font-size: 1.1rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font: 700 24px/28px var(--sans);
 }
 
 .content h3 {
-  margin: 28px 0 8px;
-  font-size: 0.98rem;
-  font-weight: 650;
+  margin: 32px 0 8px;
+  font: 700 20px/24px var(--sans);
 }
 
 .content p,
@@ -274,14 +265,17 @@ summary:focus-visible {
   color: var(--fg-muted);
 }
 
-.content strong { font-weight: 650; }
+.content strong { font-weight: 700; }
+.content :is(h1, h2, h3, h4, h5, h6) { color: var(--heading); }
+.content :is(h4, h5, h6) { font: 700 16px/24px var(--sans); }
+[data-theme='light'] :is(.content, .sidebar, .pager a) { border-color: transparent; box-shadow: 0 2px 8px rgba(33, 65, 108, 0.08); }
 
 code {
   font-family: var(--mono);
-  /* Commands and file names are read to be typed: JetBrains Mono's ligatures
-     would draw -< and -> as arrows. */
+  /* Commands are read to be typed, not interpreted as typographic ligatures. */
   font-variant-ligatures: none;
-  font-size: 0.86em;
+  font-size: 16px;
+  line-height: 24px;
   background: var(--code-bg);
   padding: 0.12em 0.2em;
   border-radius: 4px;
@@ -294,13 +288,14 @@ pre {
   background: var(--code-bg);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
-  line-height: 1.5;
+  line-height: 21px;
 }
 
 pre code {
   background: none;
   padding: 0;
-  font-size: 0.82rem;
+  font-size: 14px;
+  line-height: 21px;
 }
 
 .table-scroll {
@@ -311,7 +306,7 @@ pre code {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font: 400 16px/24px var(--sans);
 }
 
 th, td {
@@ -323,7 +318,7 @@ th, td {
 
 thead th {
   background: var(--table-header-bg);
-  font-weight: 650;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -345,6 +340,7 @@ hr {
 }
 
 .pager a {
+  font: 600 16px/24px var(--sans);
   flex: 1 1 240px;
   min-width: 0;
   padding: 12px 16px;
@@ -360,9 +356,7 @@ hr {
 
 .pager span {
   display: block;
-  font: 600 0.66rem/1.4 var(--mono);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font: 600 12px/16px var(--sans);
   color: var(--fg-muted);
 }
 
@@ -371,8 +365,7 @@ hr {
    matches the application it ships with. */
 .site-footer {
   margin: 0;
-  font: 600 0.7rem/1.4 var(--mono);
-  letter-spacing: 0.06em;
+  font: 400 12px/16px var(--mono);
   color: var(--fg-muted);
 }
 
@@ -400,7 +393,7 @@ hr {
   .sidebar-toggle {
     display: block;
     padding: 14px 16px;
-    font: 650 0.875rem/1 var(--sans);
+    font: 600 14px/21px var(--sans);
     cursor: pointer;
     list-style: none;
   }
@@ -410,7 +403,7 @@ hr {
   .sidebar[open] .sidebar-toggle::after { content: " ▴"; }
   .sidebar-body { padding: 0 16px 16px; }
   .content { padding: 20px 18px 26px; }
-  .content h1 { font-size: 1.45rem; }
+  .content h1 { font-size: 32px; line-height: 36px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

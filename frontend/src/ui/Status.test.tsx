@@ -91,7 +91,7 @@ describe('Avatar', () => {
     expect(avatar).toHaveClass('ava', 'big')
     expect(avatar).toHaveAttribute('aria-hidden', 'true')
     expect(avatar.style.width).toBe('40px')
-    expect(avatar.style.fontSize).toBe('15px')
+    expect(avatar.style.height).toBe('40px')
   })
 
   it('shows a question mark for a person with no name', () => {

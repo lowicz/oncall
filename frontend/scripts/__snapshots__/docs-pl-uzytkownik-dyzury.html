@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0e13" />
+    <meta name="theme-color" content="#07152E" />
     <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
     <meta name="robots" content="noindex,nofollow" />
     <title>Teraz i Grafik · Dokumentacja On-call</title>
@@ -25,6 +25,7 @@
                 : 'dark'
         } catch (error) {}
         document.documentElement.setAttribute('data-theme', scheme)
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', scheme === 'light' ? '#F4F6FA' : '#07152E')
       })()
     </script>
     <link rel="stylesheet" href="../assets/fonts.css" />
@@ -32,7 +33,7 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="wordmark" href="../../"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><path fill="#fff" d="M12 16h20v6H19v7h11v6H19v7h13v6H12z"/><path fill="#fff" d="M44 16h7L42 48h-7z"/></svg><span id="brand-name">On-call</span></a>
+      <a class="wordmark" href="../../"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="13" fill="#2870ED"/><path d="M28.5 12.31A20 20 0 1 0 51.69 35.5" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/><circle cx="46.14" cy="17.86" r="5" fill="#FFFFFF"/></svg><span id="brand-name">On-call</span></a>
       <span class="topbar-title">Dokumentacja</span>
       <div class="topbar-actions">
         <a class="topbar-link" href="../en/uzytkownik/dyzury.html" lang="en" hreflang="en">English</a>
@@ -272,6 +273,7 @@ strzałki przesuwają widok tylko w jego granicach.</p>
         var root = document.documentElement
         var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
         root.setAttribute('data-theme', next)
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', next === 'light' ? '#F4F6FA' : '#07152E')
         try {
           localStorage.setItem('oncall-theme', next)
         } catch (error) {}

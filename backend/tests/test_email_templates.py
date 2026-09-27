@@ -22,7 +22,7 @@ import pytest
 
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.notifications import templates
-from oncall.notifications.layout import Brand
+from oncall.notifications.layout import Brand, Tone, status_tag
 from oncall.notifications.templates import RenderedEmail, format_day, format_range
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "email_swap_requested.html"
@@ -206,11 +206,13 @@ def test_the_html_and_the_text_say_the_same_thing(rendered: RenderedEmail) -> No
 
 def test_the_html_brands_the_mail_like_the_interface(rendered: RenderedEmail) -> None:
     assert "On-call" in rendered.html
-    assert "ZESPÓŁ WSPARCIA" in rendered.html, "the subtitle, upper case like `.brand-sub`"
+    assert "Zespół wsparcia" in rendered.html, "the subtitle, sentence case like `.brand-sub`"
+    assert '<img src="https://oncall.example.com/icon.png" width="26" height="26"' in rendered.html
+    assert 'alt="" style="display:block;border:0;"' in rendered.html
     assert 'href="https://oncall.example.com"' in rendered.html
     assert "Nie odpowiadaj na nią." in rendered.html
     # The light theme's signal colour, page background and ink.
-    for token in ("#1d4ed8", "#eef1f5", "#0f172a"):
+    for token in ("#2870ED", "#F4F6FA", "#303030"):
         assert token in rendered.html
 
 
@@ -227,9 +229,8 @@ OUTLOOK_HOSTILE = (
     r"url\(",
     # Ignored by Word, so the words themselves must already be what is shown.
     r"text-transform",
-    # No inline images: the mark is a coloured cell, not an SVG or a data URI.
+    # The mark is a sized remote PNG; Word cannot display SVG or data URIs.
     r"<svg",
-    r"<img",
     r"data:",
     # Lists as tables; Word's own bullets look like Word, not like the interface.
     r"<ul\b",
@@ -267,7 +268,10 @@ def test_data_is_escaped_in_the_html() -> None:
         app=Brand(name='On-call "<b>"', subtitle="<i>", url="https://oncall.example.com"),
     )
     assert "<script>" not in rendered.html
-    assert "<img" not in rendered.html
+    assert re.findall(r"<img[^>]*>", rendered.html) == [
+        '<img src="https://oncall.example.com/icon.png" width="26" height="26" '
+        'alt="" style="display:block;border:0;">'
+    ]
     assert "&lt;script&gt;" in rendered.html
     assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in rendered.html
     assert "On-call &quot;&lt;b&gt;&quot;" in rendered.html
@@ -308,7 +312,7 @@ def test_a_published_schedule_lists_only_the_given_duties() -> None:
         "Twoje dyżury w tym grafiku:\n- czw 24-09-2026 · SECONDARY\n- sob 26-09-2026 · 11–19"
         in with_duties.text
     )
-    assert "TWOJE DYŻURY W TYM GRAFIKU" in with_duties.html
+    assert "Twoje dyżury w tym grafiku" in with_duties.html
     assert with_duties.html.count(">SECONDARY<") == 1
     assert with_duties.html.count(">11–19<") == 1
     assert ">PRIMARY<" not in with_duties.html
@@ -316,7 +320,7 @@ def test_a_published_schedule_lists_only_the_given_duties() -> None:
     without = RENDERINGS["schedule_published_without_duties"]()
     assert "W tym grafiku nie masz żadnych dyżurów." in without.text
     assert "W tym grafiku nie masz żadnych dyżurów." in without.html
-    assert "TWOJE DYŻURY" not in without.html
+    assert "Twoje dyżury" not in without.html
 
 
 def test_a_batch_correction_lists_every_change_with_its_reason() -> None:
@@ -333,13 +337,32 @@ def test_a_batch_correction_lists_every_change_with_its_reason() -> None:
     assert ">PRIMARY<" in rendered.html and ">SECONDARY<" in rendered.html
 
 
+def test_status_pill_dot_uses_the_light_theme_dot_colour() -> None:
+    """The dot carries the meaning, so it is the light theme's `--*-dot`
+    (`--act` for `sig`), not the pill's text colour: `frontend/src/tokens.css`."""
+    dots = {
+        Tone.ok: "#017632",
+        Tone.warn: "#D25200",
+        Tone.bad: "#BC3B51",
+        Tone.sig: "#2870ED",
+    }
+    for tone, dot in dots.items():
+        html = status_tag("Status", tone)
+        assert f'color:{dot};" aria-hidden="true">&#9679;' in html, tone
+    # The cancelled swap is the reachable warn pill; its dot is not the text
+    # colour (#B84800), which no dot should carry.
+    cancelled = RENDERINGS["swap_cancelled"]().html
+    assert 'color:#D25200;" aria-hidden="true">&#9679;' in cancelled
+    assert 'color:#B84800;" aria-hidden="true">&#9679;' not in cancelled
+
+
 def test_optional_reasons_appear_only_when_given() -> None:
     with_reason = RENDERINGS["swap_rejected"]()
     assert "Powód: Nie mogę tego dnia\n" in with_reason.text
-    assert ">POWÓD<" in with_reason.html
+    assert ">Powód<" in with_reason.html
     assert "Nie mogę tego dnia" in with_reason.html
 
     without = RENDERINGS["swap_rejected_by_coordinator"]()
     assert "Powód" not in without.text
-    assert "POWÓD" not in without.html
+    assert "Powód" not in without.html
     assert "koordynator" in without.text

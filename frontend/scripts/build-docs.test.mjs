@@ -12,6 +12,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { JSDOM } from 'jsdom'
 
 // Vitest's root is frontend/ (vite.config.ts); jsdom rewrites import.meta.url,
 // so the script is located from there rather than from this file.
@@ -103,6 +104,31 @@ describe('build-docs.mjs', () => {
       const html = path.replace(/\.md$/, '.html')
       expect(existsSync(join(out, html))).toBe(true)
       expect(existsSync(join(out, 'en', html))).toBe(true)
+    }
+  })
+
+  it('applies the saved palette before paint and updates browser chrome on a switch', () => {
+    const dom = new JSDOM(page(join(scratch, 'site'), 'index.html'), {
+      url: 'https://example.test/docs/',
+      runScripts: 'dangerously',
+      beforeParse(window) {
+        window.localStorage.setItem('oncall-theme', 'light')
+        window.matchMedia = () => ({ matches: false, addEventListener() {} })
+      },
+    })
+    try {
+      const { document, localStorage } = dom.window
+      expect(document.documentElement.dataset.theme).toBe('light')
+      const chrome = document.querySelector('meta[name="theme-color"]')
+      expect(chrome.content).toBe('#F4F6FA')
+      document.getElementById('theme-toggle').click()
+      expect(document.documentElement.dataset.theme).toBe('dark')
+      expect(chrome.content).toBe('#07152E')
+      expect(localStorage.getItem('oncall-theme')).toBe('dark')
+      document.getElementById('theme-toggle').click()
+      expect(chrome.content).toBe('#F4F6FA')
+    } finally {
+      dom.window.close()
     }
   })
 
