@@ -13,6 +13,7 @@ from oncall.domain.vocabulary import (
     AssignmentRole,
     LateShiftAnchor,
     RotationMode,
+    ScheduleOrigin,
     ScheduleStatus,
 )
 from oncall.fairness import MemberBalance
@@ -25,9 +26,6 @@ ROTATION_NAME_LABELS = {
     RotationMode.hybrid: "hybrydowy",
     RotationMode.weekly: "tygodniowy",
 }
-
-#: Imported history is stored as superseded schedules under this name prefix.
-HISTORY_IMPORT_PREFIX = "Import historii:"
 
 
 class RunState(StrEnum):
@@ -144,6 +142,7 @@ class Schedule:
     starts_on: date
     ends_on: date
     status: ScheduleStatus
+    origin: ScheduleOrigin
     version: int
     created_at: datetime | None
     rotation_mode: RotationMode | None
@@ -156,9 +155,7 @@ class Schedule:
 
     @property
     def is_imported_history(self) -> bool:
-        return self.status == ScheduleStatus.superseded and self.name.startswith(
-            HISTORY_IMPORT_PREFIX
-        )
+        return self.origin == ScheduleOrigin.imported
 
     def with_holder(self, slot: Slot, name: str, member_id: uuid.UUID) -> Schedule:
         """The schedule with one slot handed to someone as a correction."""

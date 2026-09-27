@@ -8,7 +8,7 @@ leży w bazie jako grafik `superseded`.
 from datetime import timedelta
 
 from oncall.domain.clock import business_today
-from oncall.domain.vocabulary import AssignmentRole, RotationMode, ScheduleStatus
+from oncall.domain.vocabulary import AssignmentRole, RotationMode, ScheduleOrigin, ScheduleStatus
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from tests.conftest import create_member, create_user, login
 
@@ -20,12 +20,19 @@ async def _member(db, username: str, name: str):
     return await create_member(db, user, display_name=name)
 
 
-def _schedule(status: ScheduleStatus, name: str, anna, marek) -> Schedule:
+def _schedule(
+    status: ScheduleStatus,
+    name: str,
+    anna,
+    marek,
+    origin: ScheduleOrigin = ScheduleOrigin.generated,
+) -> Schedule:
     return Schedule(
         name=name,
         starts_on=TODAY,
         ends_on=TODAY,
         status=status,
+        origin=origin,
         version=1,
         rotation_mode=RotationMode.hybrid,
         assignments=[
@@ -54,6 +61,7 @@ async def test_imported_history_alone_does_not_count_as_published(client, db) ->
             f"Import historii: history.csv {TODAY + timedelta(days=1)}",
             anna,
             marek,
+            ScheduleOrigin.imported,
         )
     )
     await db.commit()

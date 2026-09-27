@@ -20,7 +20,13 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from oncall.domain.clock import utc_now
-from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode, ScheduleStatus
+from oncall.domain.vocabulary import (
+    AssignmentRole,
+    LateShiftAnchor,
+    RotationMode,
+    ScheduleOrigin,
+    ScheduleStatus,
+)
 from oncall.infrastructure.sqlalchemy.base import Base
 
 
@@ -32,6 +38,14 @@ class Schedule(Base):
     starts_on: Mapped[date] = mapped_column(Date)
     ends_on: Mapped[date] = mapped_column(Date)
     status: Mapped[ScheduleStatus] = mapped_column(Enum(ScheduleStatus, native_enum=False))
+    #: Generated drafts and their publications, or a history import. Imports
+    #: are stored retired (`superseded`) and fill only the slots no real
+    #: publication decides; the name is a label and decides nothing.
+    origin: Mapped[ScheduleOrigin] = mapped_column(
+        Enum(ScheduleOrigin, native_enum=False),
+        default=ScheduleOrigin.generated,
+        server_default=ScheduleOrigin.generated.value,
+    )
     version: Mapped[int] = mapped_column(default=1)
     created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=True

@@ -36,6 +36,7 @@ from oncall.domain.vocabulary import (
     AssignmentRole,
     AvailabilityKind,
     RotationMode,
+    ScheduleOrigin,
     ScheduleStatus,
     UserRole,
 )
@@ -192,6 +193,7 @@ async def test_published_schedules_stay_but_imported_history_can_be_deleted(worl
             _rotation(world),
             status=ScheduleStatus.superseded,
             name="Import historii: plik.csv",
+            origin=ScheduleOrigin.imported,
         )
     )
 

@@ -15,7 +15,6 @@ from sqlalchemy.orm import selectinload
 
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import (
-    HISTORY_IMPORT_PREFIX,
     CarriedChange,
     CoveredSpan,
     Schedule,
@@ -24,7 +23,7 @@ from oncall.domain.scheduling.models import (
 )
 from oncall.domain.scheduling.ports import NewDraft, StoredSchedule
 from oncall.domain.team import Member
-from oncall.domain.vocabulary import ScheduleStatus
+from oncall.domain.vocabulary import ScheduleOrigin, ScheduleStatus
 from oncall.infrastructure.sqlalchemy.roster import record_origin
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule as ScheduleRow
@@ -41,6 +40,7 @@ def _to_schedule(row: ScheduleRow) -> Schedule:
         starts_on=row.starts_on,
         ends_on=row.ends_on,
         status=row.status,
+        origin=row.origin,
         version=row.version,
         created_at=row.created_at,
         rotation_mode=row.rotation_mode,
@@ -151,7 +151,7 @@ class SqlAlchemySchedules:
                 .where(
                     (
                         (ScheduleRow.status == ScheduleStatus.published)
-                        | ScheduleRow.name.startswith(HISTORY_IMPORT_PREFIX)
+                        | (ScheduleRow.origin == ScheduleOrigin.imported)
                     ),
                     ScheduleRow.ends_on >= ending_on_or_after,
                 )
@@ -180,6 +180,7 @@ class SqlAlchemySchedules:
             starts_on=draft.starts_on,
             ends_on=draft.ends_on,
             status=ScheduleStatus.draft,
+            origin=ScheduleOrigin.generated,
             rotation_mode=draft.rotation_mode,
             solver_status=result.status,
             acceptance_floor=result.acceptance_floor,

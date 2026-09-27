@@ -5,8 +5,8 @@ from datetime import date, datetime
 from oncall.domain.team import Actor
 from oncall.domain.vocabulary import AssignmentRole
 
-#: Every import is stored as a retired schedule named with this prefix, which
-#: is how duty resolution tells imported history from real publications.
+#: How an import's schedule is named. Only a label: the schedule's origin is
+#: what tells imported history from real publications.
 IMPORT_NAME_PREFIX = "Import historii: "
 
 

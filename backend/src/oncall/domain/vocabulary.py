@@ -37,6 +37,13 @@ class ScheduleStatus(StrEnum):
     superseded = "superseded"
 
 
+class ScheduleOrigin(StrEnum):
+    """Where a schedule came from: the generator, or a history import."""
+
+    generated = "generated"
+    imported = "imported"
+
+
 class AvailabilityKind(StrEnum):
     unavailable = "unavailable"
     prefer_not = "prefer_not"

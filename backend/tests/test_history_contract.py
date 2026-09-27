@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 from sqlalchemy import delete, select
 
-from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.domain.vocabulary import AssignmentRole, ScheduleOrigin, ScheduleStatus, UserRole
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import Eligibility
@@ -147,8 +147,9 @@ async def test_history_import_contract(client, db) -> None:
     assert committed.status_code == 201, committed.text
     stored = await db.scalar(select(Schedule).where(Schedule.name == "Import historii: ok.csv"))
     assert committed.json() == {"schedule_id": str(stored.id), "imported_rows": 2}
-    assert (stored.status, stored.starts_on, stored.ends_on) == (
+    assert (stored.status, stored.origin, stored.starts_on, stored.ends_on) == (
         ScheduleStatus.superseded,
+        ScheduleOrigin.imported,
         MONDAY,
         MONDAY + timedelta(days=1),
     )

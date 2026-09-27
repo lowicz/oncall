@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy import delete, select
 
-from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.domain.vocabulary import AssignmentRole, ScheduleOrigin, ScheduleStatus, UserRole
 from oncall.effective import effective_assignments
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team_models import Eligibility
@@ -78,6 +78,7 @@ async def test_legacy_import_never_wins_over_real_publication(client, db) -> Non
         starts_on=DAY,
         ends_on=DAY,
         status=ScheduleStatus.superseded,
+        origin=ScheduleOrigin.imported,
         published_at=datetime.now(UTC),
         assignments=[
             Assignment(
@@ -108,6 +109,7 @@ async def test_import_fills_slot_not_covered_by_any_publication(client, db) -> N
         starts_on=DAY,
         ends_on=DAY,
         status=ScheduleStatus.superseded,
+        origin=ScheduleOrigin.imported,
         published_at=datetime.now(UTC),
         assignments=[
             Assignment(
