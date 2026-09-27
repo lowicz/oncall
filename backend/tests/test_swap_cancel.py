@@ -57,7 +57,8 @@ async def test_the_author_withdraws_a_pending_request_with_a_reason(client, db) 
     status = await db.scalar(select(SwapRequest.status).where(SwapRequest.id == uuid.UUID(swap_id)))
     assert status == SwapStatus.cancelled
     audited = await db.scalar(select(AuditEvent).where(AuditEvent.action == "swap.cancelled"))
-    assert audited is not None and audited.entity_id == swap_id
+    assert audited is not None
+    assert audited.entity_id == swap_id
     # A withdrawn request can no longer be accepted by the person it asked.
     await login(client, "dawid")
     assert (await client.post(f"/api/v1/swaps/{swap_id}/accept")).status_code == 409

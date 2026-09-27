@@ -146,14 +146,16 @@ async def test_a_run_that_loses_its_insert_to_an_active_one_gets_the_active_run(
 async def test_an_insert_that_fails_with_no_active_run_raises_and_keeps_the_session(db) -> None:
     user = await create_user(db, "koord", role=UserRole.coordinator)
     queue = SqlAlchemyGenerationQueue(db)
+    week_end = DAY + timedelta(days=6)
+    nobody = uuid.uuid4()
 
     with pytest.raises(IntegrityError):
-        await queue.enqueue(DAY, DAY + timedelta(days=6), uuid.uuid4())
+        await queue.enqueue(DAY, week_end, nobody)
 
     # Only the savepoint was undone: the unit of work goes on.
-    kept = await queue.enqueue(DAY, DAY + timedelta(days=6), user.id)
+    kept = await queue.enqueue(DAY, week_end, user.id)
     await db.commit()
-    assert (await queue.active_run_for(DAY, DAY + timedelta(days=6))).id == kept.id
+    assert (await queue.active_run_for(DAY, week_end)).id == kept.id
 
 
 class _RecordingSession:
