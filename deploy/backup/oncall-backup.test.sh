@@ -36,6 +36,8 @@ cleanup() {
   # makes api, worker and web require db) unless those go with it.
   # shellcheck disable=SC2086 # one ID per word
   podman rm --force --depend --volumes --time 0 $ids >/dev/null 2>&1
+  # podman-compose puts the project's containers in a pod of its own.
+  podman pod rm --force "pod_$run_id" >/dev/null 2>&1
   for volume in $(podman volume ls --quiet | grep "^${run_id}[-_]"); do
     podman volume rm --force "$volume" >/dev/null 2>&1
   done
@@ -570,13 +572,23 @@ start_stack_db "$deploy/compose-17.yml"
 
 [ ! -e "$deploy/.upgrade-postgres.compose.yml" ] || fail "the copy of the Compose file was left behind"
 
-check "upgrade-postgres leaves a volume that already exists alone"
-podman volume create --label "com.docker.compose.project=$run_id" --label "com.docker.compose.volume=$new_volume_key" \
-  "$new_volume" >/dev/null
+# The volume as Compose creates it for the stack's db service.
+create_new_volume() {
+  podman volume create --label "com.docker.compose.project=$run_id" --label "com.docker.compose.volume=$new_volume_key" \
+    "$new_volume" >/dev/null
+}
+
+check "upgrade-postgres leaves a volume that already holds data alone"
+create_new_volume
+# A data directory as PostgreSQL leaves it: its owner's alone.
+podman run --rm --volume "$new_volume:/volume" "$image" \
+  sh -c 'mkdir /volume/18 && echo 18 >/volume/18/PG_VERSION && chown -R postgres:postgres /volume/18 && chmod 700 /volume/18'
 podman volume ls --quiet | sort >"$work/volumes-before"
 run upgrade-postgres --env-file "$work/stack.env" "$deploy/docker-compose.yml" && fail "upgraded into an existing volume"
 has_text "$work/out" "the volume $new_volume of the new database already exists"
 podman volume exists "$new_volume" || fail "the existing volume was removed"
+[ "$(podman run --rm --volume "$new_volume:/volume:ro" "$image" cat /volume/18/PG_VERSION)" = 18 ] ||
+  fail "the existing volume's data changed"
 [ -z "$(stack_db)" ] || fail "the new database's container was left behind"
 verify_leftovers
 podman volume rm "$new_volume" >/dev/null
@@ -590,7 +602,11 @@ for service in api worker web; do
 done
 stack_psql <<<"insert into audit_events (summary) values ('the last change before the upgrade')"
 backups_before=$(count)
+# What a run that Podman refused to create the new db container for left
+# behind: Compose had created its volume, and nothing wrote to it.
+create_new_volume
 run upgrade-postgres --env-file "$work/stack.env" "$deploy/docker-compose.yml" || fail "exited $?: $(cat "$work/out")"
+has_text "$work/out" "The volume $new_volume already exists and is empty"
 has_text "$work/out" "PostgreSQL 18 holds the database (schema 0035_outbox_created_index): page checksums on, collation pl-PL (ICU)."
 has_text "$work/out" "PostgreSQL 17's data stays in the volume ${run_id}_oncall-db as the way back"
 [ "$(podman ps --all --quiet --filter "label=com.docker.compose.project=$run_id" --filter label=com.docker.compose.service=db | wc -l | tr -d ' ')" = 1 ] ||
