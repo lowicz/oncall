@@ -82,13 +82,18 @@ export function Icon({ name, size = 20, className, title }: {
   )
 }
 
-/** Duty ring with an active indicator, shared with the favicon. */
+/**
+ * Duty ring with an active indicator, shared with the favicon. Square app-icon
+ * construction: a 20% corner radius, the ring in the 75% L-zone with its round
+ * ends kept behind the centre lines, the dot alone in the top-right quarter,
+ * and a 13% safe margin.
+ */
 export function Mark({ size = 26, className }: { size?: number; className?: string }) {
   return (
     <svg className={cx('mark', className)} width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <rect className="mark-box" width="64" height="64" rx="4" fill="var(--act)" />
-      <path className="mark-line" d="M32 15.8a16.2 16.2 0 1 0 16.2 16.2" fill="none" stroke="var(--act-ink)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle className="mark-dot" cx="43.46" cy="20.54" r="4.32" fill="var(--act-ink)" />
+      <rect className="mark-box" width="64" height="64" rx="13" fill="var(--act)" />
+      <path className="mark-line" d="M28.5 12.31A20 20 0 1 0 51.69 35.5" fill="none" stroke="var(--act-ink)" strokeWidth="7" strokeLinecap="round" />
+      <circle className="mark-dot" cx="46.14" cy="17.86" r="5" fill="var(--act-ink)" />
     </svg>
   )
 }
