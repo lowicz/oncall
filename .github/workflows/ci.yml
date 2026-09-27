@@ -236,6 +236,8 @@ jobs:
         run: .github/scripts/env-vars-wired.sh
       - name: Every service is read-only and drops all capabilities; db publishes no port
         run: .github/scripts/compose-hardening.sh
+      - name: PostgreSQL data volume major matches the image major
+        run: .github/scripts/compose-postgres-volume.sh
       - name: User systemd unit calls the stack script
         run: .github/scripts/systemd-user-unit.sh
       - name: Deployment update script (POSIX sh, .env merge, whole runs)

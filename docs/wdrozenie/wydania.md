@@ -135,7 +135,7 @@ Każda zmiana (pull request i gałąź `main`) przechodzi przez `ci.yml`:
 | `backend` | zgodność `uv.lock` z `pyproject.toml` (przed instalacją), `ruff check`, `ruff format`, `mypy`, `pytest` na SQLite, zgodność OpenAPI ze snapshotem |
 | `backend-postgres` | zestawy współbieżności i schematu na prawdziwym PostgreSQL 18 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renderuje dokumentację i sprawdza spis treści, odsyłacze i kotwice), render strony samodzielnej |
-| `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, to, że każda usługa działa tylko do odczytu i bez uprawnień jądra, oraz testy skryptu aktualizacji `deploy/update.sh` |
+| `compose-config` | poprawność `docker-compose.yml` z każdą nakładką, to, że nakładka deweloperska zmienia tylko źródło obrazów, to, że każda usługa działa tylko do odczytu i bez uprawnień jądra, zgodność majora obrazu PostgreSQL z wolumenem `oncall-postgres-<wersja>`, oraz testy skryptu aktualizacji `deploy/update.sh` |
 | `backup` | skrypty [kopii zapasowych](kopie-zapasowe.md) (`shellcheck`, jednostki w `systemd-analyze verify`), instalację na stubach systemd i Podmana oraz zrzut, test odtworzenia, retencję, odtworzenie, alarm i sprzątanie na prawdziwym rootless Podmanie |
 | `workflows` | każda akcja w workflow jest przypięta do pełnego SHA z komentarzem wersji, każdy workflow deklaruje uprawnienia tokenu, a w repozytorium nie ma konfiguracji aktualizacji Dependabota |
 | `image-build` | oba Dockerfile budują się (bez publikacji), a żaden obraz nie działa jako root |
@@ -221,7 +221,7 @@ samym PR-ze:
 | --- | --- | --- |
 | Node.js | `NODE_VERSION` w `ci.yml`, `node-version` w `pages.yml`, `frontend/Dockerfile`, badge w `README.md` | wydania Node.js |
 | Python | `requires-python` w `backend/pyproject.toml`, `PYTHON_VERSION` w `ci.yml`, `backend/Dockerfile`, badge w `README.md` | wydania python.org |
-| PostgreSQL | `docker-compose.yml`, `docker-compose.contract.yml`, usługa bazy w `ci.yml`, badge w `README.md` | Docker Hub, wszędzie ten sam tag |
+| PostgreSQL | `docker-compose.yml` (obraz i wolumen `oncall-postgres-<wersja>`), `docker-compose.contract.yml`, usługa bazy w `ci.yml`, badge w `README.md` | Docker Hub, wszędzie ten sam major; CI (`compose-postgres-volume.sh`) pilnuje zgodności obrazu z wolumenem |
 | uv | `required-version` w `backend/pyproject.toml`, `UV_VERSION` w `ci.yml`, `backend/Dockerfile` | wydania uv na GitHubie |
 
 Gdyby obraz Node albo Pythona był osobną zależnością z Docker Hub, miałby inną
@@ -236,7 +236,7 @@ poprawkowe jej tagu. Dokładne digesty obrazów bazowych każdego wydania
 zapisuje jego provenance.
 
 Przed scaleniem aktualizacji środowiska uruchomieniowego przeszukaj gałąź
-PR-a starą wersją (np. `git grep -n '17-alpine\|PostgreSQL 17'`). Zostać może
+PR-a starą wersją (np. `git grep -n '17-alpine\|oncall-postgres-17\|PostgreSQL 17'`). Zostać może
 tylko opis w dokumentacji lub w `AGENTS.md` - popraw go w tym samym PR-ze -
 albo nowe miejsce z wersją, które trzeba dopisać do reguły tej grupy w
 `renovate.json5`.
