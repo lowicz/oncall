@@ -143,7 +143,7 @@ Every change (pull request and the `main` branch) goes through `ci.yml`:
 | `backend` | `uv.lock` consistent with `pyproject.toml` (before the install), `ruff check`, `ruff format`, `mypy`, `pytest` on SQLite, OpenAPI consistent with the snapshot |
 | `backend-postgres` | the concurrency and schema suites on a real PostgreSQL 18 |
 | `frontend` | `eslint`, `tsc`, `vitest`, `npm run build` (renders the documentation and checks the table of contents, links and anchors), the standalone site render |
-| `compose-config` | the validity of `docker-compose.yml` with every overlay, that the development overlay changes only the source of the images, that every service runs read-only and without kernel capabilities, and the tests of the `deploy/update.sh` update script |
+| `compose-config` | the validity of `docker-compose.yml` with every overlay, that the development overlay changes only the source of the images, that every service runs read-only and without kernel capabilities, that the PostgreSQL image major matches the `oncall-postgres-<major>` volume, and the tests of the `deploy/update.sh` update script |
 | `backup` | the [database backup](kopie-zapasowe.md) scripts (`shellcheck`, the units in `systemd-analyze verify`), the setup against stubbed systemd and Podman, and the dump, restore test, retention, restore, alert and cleanup against real rootless Podman |
 | `workflows` | every action in a workflow is pinned to a full SHA with a version comment, every workflow declares the token permissions, and the repository has no Dependabot update configuration |
 | `image-build` | both Dockerfiles build (without publishing), and no image runs as root |
@@ -229,7 +229,7 @@ same PR:
 | --- | --- | --- |
 | Node.js | `NODE_VERSION` in `ci.yml`, `node-version` in `pages.yml`, `frontend/Dockerfile`, the badge in `README.md` | Node.js releases |
 | Python | `requires-python` in `backend/pyproject.toml`, `PYTHON_VERSION` in `ci.yml`, `backend/Dockerfile`, the badge in `README.md` | python.org releases |
-| PostgreSQL | `docker-compose.yml`, `docker-compose.contract.yml`, the database service in `ci.yml`, the badge in `README.md` | Docker Hub, the same tag everywhere |
+| PostgreSQL | `docker-compose.yml` (image and the `oncall-postgres-<major>` volume), `docker-compose.contract.yml`, the database service in `ci.yml`, the badge in `README.md` | Docker Hub, the same major everywhere; CI (`compose-postgres-volume.sh`) keeps the image and the volume in step |
 | uv | `required-version` in `backend/pyproject.toml`, `UV_VERSION` in `ci.yml`, `backend/Dockerfile` | uv releases on GitHub |
 
 If the Node or Python image were a separate dependency from Docker Hub, it
@@ -245,7 +245,7 @@ database's tag for it. The exact digests of the base images of every release
 are recorded in its provenance.
 
 Before merging a runtime update, search the PR branch for the old version
-(e.g. `git grep -n '17-alpine\|PostgreSQL 17'`). What may remain is only a
+(e.g. `git grep -n '17-alpine\|oncall-postgres-17\|PostgreSQL 17'`). What may remain is only a
 description in the documentation or in `AGENTS.md` - fix it in the same PR -
 or a new place with the version, which has to be added to that group's rule in
 `renovate.json5`.

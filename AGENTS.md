@@ -35,7 +35,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   needs its own volume, `oncall-postgres-<major>`, and initdb settings
   (checksums, Polish ICU collation) only reach a new cluster;
   `deploy/backup/oncall-backup.test.sh` moves a Compose-started 17 to the
-  current file and checks both.
+  current file and checks both. Renovate's PostgreSQL group moves the
+  volume name with the image (custom manager in `renovate.json5`);
+  `.github/scripts/compose-postgres-volume.sh` refuses a Compose file
+  whose volume major disagrees with the image.
 - Ports are consumer-owned: each backend use-case module takes its own small
   `*Ports` bundle, or one protocol directly, from its feature's `ports.py`.
   Adapters satisfy them structurally without subclassing; strict mypy over
@@ -141,11 +144,13 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   (`renovate.json5`, the Mend GitHub App - no Dependabot) moves them, together
   with both lockfiles, the base images (by tag, no digest pins) and the tool
   versions repeated in the workflow `env` blocks. A version named in several
-  files (uv, Node, Python) is one custom regex manager on one datasource, and
-  the built-in manager that would also read one of those lines is disabled
-  there: a group moves only the members whose release date passed the
-  three-day rule, so a second datasource lets one file stay behind. A new
-  reference joins that manager. Keep new tool versions in the `env` blocks.
+  files (uv, Node, Python, the PostgreSQL major on the badge and the
+  `oncall-postgres-<major>` volume) is one custom regex manager on one
+  datasource, and the built-in manager that would also read one of those
+  lines is disabled there: a group moves only the members whose release date
+  passed the three-day rule, so a second datasource lets one file stay
+  behind. A new reference joins that manager. Keep new tool versions in the
+  `env` blocks.
 - Documentation on GitHub Pages (`.github/workflows/pages.yml`) is the same
   renderer in `--site` mode (`frontend/scripts/build-docs.mjs`); never add a
   second generator or a second copy of `docs/`. The regression test for the

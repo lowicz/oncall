@@ -147,14 +147,24 @@
       datasourceTemplate: 'python-version',
     },
     {
-      // The PostgreSQL version badge in README.md: the same Docker Hub
-      // `postgres` image the Compose files and ci.yml run, read as the bare
-      // major so the "PostgreSQL" group moves it with them. Docker Hub dates
-      // `18` and `18-alpine` separately, so the badge can follow the images a
-      // day or two later in a second pull request of the same group.
+      // The PostgreSQL major written as a bare number: the version badge in
+      // README.md and the data volume name in docker-compose.yml
+      // (`oncall-postgres-<major>`). Same Docker Hub `postgres` image the
+      // Compose files and ci.yml run, so the "PostgreSQL" group moves them
+      // with the `postgres:<major>-alpine` image lines. A major bump is a
+      // data move (deploy/update.sh, oncall-backup.sh upgrade-postgres): the
+      // new image must mount a new volume, named after that major. Docker Hub
+      // dates `18` and `18-alpine` separately, so the badge and the volume
+      // name can follow the images a day or two later in a second pull
+      // request of the same group; compose-postgres-volume.sh refuses a
+      // Compose file whose volume major disagrees with the image, so a PR
+      // that moved only one side cannot merge.
       customType: 'regex',
-      managerFilePatterns: ['/^README\\.md$/'],
-      matchStrings: ['shields\\.io/badge/PostgreSQL-(?<currentValue>[0-9]+)-'],
+      managerFilePatterns: ['/^README\\.md$/', '/^docker-compose\\.yml$/'],
+      matchStrings: [
+        'shields\\.io/badge/PostgreSQL-(?<currentValue>[0-9]+)-',
+        'oncall-postgres-(?<currentValue>[0-9]+)',
+      ],
       depNameTemplate: 'postgres',
       datasourceTemplate: 'docker',
       versioningTemplate: 'docker',
