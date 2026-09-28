@@ -3,7 +3,7 @@
 ## E-mail notifications
 
 Swap lifecycle events, schedule publications, coordinator's corrections and
-reminders to switch the number **write a row to the `notification_outbox`
+duty-start notices **write a row to the `notification_outbox`
 table in the same transaction as the business change**. A separate worker
 process drains the queue with exponential back-off and delivers the messages
 through channel providers.

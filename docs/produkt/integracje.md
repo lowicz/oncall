@@ -3,7 +3,7 @@
 ## Powiadomienia e-mail
 
 Zdarzenia cyklu zamian, publikacje grafiku, korekty koordynatora i
-przypomnienia o przełączeniu numeru **zapisują wiersz w tabeli
+powiadomienia o rozpoczęciu dyżuru **zapisują wiersz w tabeli
 `notification_outbox` w tej samej transakcji co zmiana biznesowa**. Osobny
 proces roboczy opróżnia kolejkę z wykładniczym wycofaniem i dostarcza wiadomości
 przez dostawców kanałów.
