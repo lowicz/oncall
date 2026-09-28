@@ -696,68 +696,95 @@ def assignments_overridden_in_batch(
     )
 
 
-def handover_outgoing(*, service_date: date, incoming_name: str, app: Brand) -> RenderedEmail:
-    day = format_day(service_date)
-    subject = f"Przekazanie numeru on-call: {day}"
-    body = (
-        f"Dziś ({day}) kończy się Twój dyżur PRIMARY.\n"
-        f"Numer on-call przejmuje: {incoming_name}.\n\n"
-        f"Pamiętaj o przełączeniu numeru.\n"
-        f"Grafik: {app.url}/\n"
-    )
+def _segment_line(role: AssignmentRole, starts_on: date, ends_on: date) -> str:
+    return f"{_slot_line(starts_on, role)} · ostatni dzień: {format_day(ends_on)}"
+
+
+def _segment_slot(role: AssignmentRole, starts_on: date, ends_on: date) -> Slot:
+    return _slot(starts_on, role, join(text("ostatni dzień: "), _day(ends_on)))
+
+
+def _rotation(
+    *,
+    starts_on: date,
+    segments: list[tuple[AssignmentRole, date]],
+    title: str,
+    opening: tuple[str, str],
+    note: Note | None,
+    action: Action,
+    app: Brand,
+) -> RenderedEmail:
+    """The two rotation notices share everything but their words: which roles
+    start, each with the last day of its segment, then the note and the link.
+    `opening` is the lead sentence around the first day."""
+    before, after = opening
+    roles = ", ".join(ROLE_LABELS[role] for role, _ in segments)
+    lines = "\n".join(_segment_line(role, starts_on, ends_on) for role, ends_on in segments)
+    reminder = f"{note.body}\n" if note else ""
     return _render(
         app=app,
-        subject=subject,
-        body=body,
-        eyebrow="Numer on-call",
-        title="Przekazanie numeru on-call",
-        lead=join(
-            text("Dziś ("),
-            _day(service_date),
-            text(") kończy się Twój dyżur "),
-            strong("PRIMARY"),
-            text("."),
+        subject=f"{title}: {format_day(starts_on)} · {roles}",
+        body=(
+            f"{before}{format_day(starts_on)}{after}\n{lines}\n\n"
+            f"{reminder}{action.label}: {action.url}\n"
         ),
-        facts=[
-            Fact("Dzień", _day(service_date)),
-            Fact("Rola", _role(AssignmentRole.primary)),
-            Fact("Numer przejmuje", strong(incoming_name)),
-        ],
-        note=Note("Pamiętaj o przełączeniu numeru."),
-        action=Action("Grafik", f"{app.url}/"),
+        eyebrow="Dyżur",
+        title=title,
+        lead=join(text(before), _day(starts_on), text(after)),
+        slots=[_segment_slot(role, starts_on, ends_on) for role, ends_on in segments],
+        note=note,
+        action=action,
     )
 
 
-def handover_incoming(*, service_date: date, outgoing_name: str, app: Brand) -> RenderedEmail:
-    day = format_day(service_date)
-    subject = f"Przejęcie numeru on-call: {day}"
-    body = (
-        f"Dziś ({day}) przejmujesz dyżur PRIMARY od: {outgoing_name}.\n\n"
-        f"Pamiętaj o przełączeniu numeru.\n"
-        f"Grafik: {app.url}/\n"
-    )
-    return _render(
+def _duties_noun(segments: list[tuple[AssignmentRole, date]]) -> str:
+    return "dyżur" if len(segments) == 1 else "dyżury"
+
+
+def _my_duties(app: Brand) -> Action:
+    return Action("Moje dyżury", f"{app.url}/moje")
+
+
+def rotation_ahead(
+    *, starts_on: date, segments: list[tuple[AssignmentRole, date]], app: Brand
+) -> RenderedEmail:
+    """Sent on the last working day before `starts_on`. `segments` are the
+    roles the recipient starts that day, in role order, each with the last day
+    of its segment."""
+    return _rotation(
+        starts_on=starts_on,
+        segments=segments,
+        title="Zapowiedź dyżuru",
+        opening=("W dniu ", f" zaczynasz {_duties_noun(segments)}:"),
+        note=None,
+        action=_my_duties(app),
         app=app,
-        subject=subject,
-        body=body,
-        eyebrow="Numer on-call",
-        title="Przejęcie numeru on-call",
-        lead=join(
-            text("Dziś ("),
-            _day(service_date),
-            text(") przejmujesz dyżur "),
-            strong("PRIMARY"),
-            text(" od: "),
-            strong(outgoing_name),
-            text("."),
-        ),
-        facts=[
-            Fact("Dzień", _day(service_date)),
-            Fact("Rola", _role(AssignmentRole.primary)),
-            Fact("Przejmujesz od", strong(outgoing_name)),
-        ],
-        note=Note("Pamiętaj o przełączeniu numeru."),
-        action=Action("Grafik", f"{app.url}/"),
+    )
+
+
+def rotation_same_day(
+    *,
+    starts_on: date,
+    segments: list[tuple[AssignmentRole, date]],
+    switch_url: str | None,
+    app: Brand,
+) -> RenderedEmail:
+    """Sent on `starts_on` itself, with the same `segments` as the notice
+    ahead. With PRIMARY among them it asks for the number to be switched,
+    and with `switch_url` its link is the switching page."""
+    noun = _duties_noun(segments)
+    primary = any(role is AssignmentRole.primary for role, _ in segments)
+    action = (
+        Action("Przełącz numer on-call", switch_url) if primary and switch_url else _my_duties(app)
+    )
+    return _rotation(
+        starts_on=starts_on,
+        segments=segments,
+        title=f"Dziś zaczynasz {noun}",
+        opening=("Dziś (", f") zaczynasz {noun}:"),
+        note=Note(_SWITCH_NUMBER) if primary else None,
+        action=action,
+        app=app,
     )
 
 

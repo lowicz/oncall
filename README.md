@@ -228,7 +228,9 @@ changes only the selected slot and increments the published version.
 [Swaps](docs/uzytkownik/zamiany.md) · [EN](docs/en/uzytkownik/zamiany.md).
 
 **E-mail notifications.** Swap events, publications, coordinator overrides and
-number handover reminders enqueue rows in `notification_outbox` inside the
+rotation notices (whoever starts a role hears about it on the last Polish
+working day before and on the first day, with a link to `ONCALL_SWITCH_URL`
+when PRIMARY starts) enqueue rows in `notification_outbox` inside the
 business transaction; the `worker` service (`python -m oncall.worker`) drains them with exponential
 backoff through channel providers (`email` today, more can plug into the same
 outbox). Delivery is at-least-once under a lease

@@ -16,6 +16,7 @@ import os
 import re
 from collections.abc import Callable
 from datetime import date, datetime
+from html import escape
 from pathlib import Path
 
 import pytest
@@ -32,6 +33,7 @@ APP = Brand(name="On-call", subtitle="Zespół wsparcia", url="https://oncall.ex
 DAY = date(2026, 9, 24)
 NEXT = date(2026, 9, 26)
 END = date(2026, 10, 21)
+SWITCH_URL = "https://centrala.example/przelacz?zespol=a&numer=1"
 
 #: Every template, with data that exercises its optional parts.
 RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
@@ -139,11 +141,25 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         reason="Odejście z zespołu",
         app=APP,
     ),
-    "handover_outgoing": lambda: templates.handover_outgoing(
-        service_date=DAY, incoming_name="Marek Nowak", app=APP
+    "rotation_ahead": lambda: templates.rotation_ahead(
+        starts_on=DAY,
+        segments=[(AssignmentRole.secondary, END), (AssignmentRole.late_shift, NEXT)],
+        app=APP,
     ),
-    "handover_incoming": lambda: templates.handover_incoming(
-        service_date=DAY, outgoing_name="Anna Kowalska", app=APP
+    "rotation_same_day": lambda: templates.rotation_same_day(
+        starts_on=DAY, segments=[(AssignmentRole.primary, END)], switch_url=None, app=APP
+    ),
+    "rotation_same_day_with_switch": lambda: templates.rotation_same_day(
+        starts_on=DAY,
+        segments=[(AssignmentRole.primary, END)],
+        switch_url=SWITCH_URL,
+        app=APP,
+    ),
+    "rotation_same_day_without_primary": lambda: templates.rotation_same_day(
+        starts_on=DAY,
+        segments=[(AssignmentRole.secondary, END), (AssignmentRole.late_shift, NEXT)],
+        switch_url=SWITCH_URL,
+        app=APP,
     ),
     "backup_failed": lambda: templates.backup_failed(
         host="oncall-prod",
@@ -194,7 +210,7 @@ def test_the_html_and_the_text_say_the_same_thing(rendered: RenderedEmail) -> No
     links = re.findall(r"https://\S+", rendered.text)
     assert links, "every mail leads somewhere"
     for link in links:
-        assert f'href="{link}"' in rendered.html
+        assert f'href="{escape(link)}"' in rendered.html
     assert f"<title>{rendered.subject}</title>" in rendered.html
     assert rendered.text.strip().splitlines()[0] in rendered.html
     assert "24-09-2026" in rendered.text
@@ -366,3 +382,68 @@ def test_optional_reasons_appear_only_when_given() -> None:
     assert "Powód" not in without.text
     assert "Powód" not in without.html
     assert "koordynator" in without.text
+
+
+def test_a_rotation_notice_names_each_role_with_the_last_day_of_its_segment() -> None:
+    rendered = RENDERINGS["rotation_ahead"]()
+    assert rendered.subject == "Zapowiedź dyżuru: czw 24-09-2026 · SECONDARY, 11–19"
+    assert rendered.text == (
+        "W dniu czw 24-09-2026 zaczynasz dyżury:\n"
+        "- czw 24-09-2026 · SECONDARY · ostatni dzień: śr 21-10-2026\n"
+        "- czw 24-09-2026 · 11–19 · ostatni dzień: sob 26-09-2026\n"
+        "\n"
+        "Moje dyżury: https://oncall.example.com/moje\n"
+    )
+    assert rendered.html.count("ostatni dzień: ") == 2
+    for shown in (">SECONDARY<", ">11–19<", "śr 21-10-2026", "sob 26-09-2026"):
+        assert shown in rendered.html
+    # Switching the number belongs to the first day's notice, not this one.
+    assert "numer" not in rendered.text.lower()
+
+
+def test_the_first_day_of_primary_asks_for_the_switch() -> None:
+    rendered = RENDERINGS["rotation_same_day"]()
+    assert rendered.subject == "Dziś zaczynasz dyżur: czw 24-09-2026 · PRIMARY"
+    assert rendered.text == (
+        "Dziś (czw 24-09-2026) zaczynasz dyżur:\n"
+        "- czw 24-09-2026 · PRIMARY · ostatni dzień: śr 21-10-2026\n"
+        "\n"
+        "Pamiętaj o przełączeniu numeru on-call.\n"
+        "Moje dyżury: https://oncall.example.com/moje\n"
+    )
+    assert "Pamiętaj o przełączeniu numeru on-call." in rendered.html
+    assert "Przełącz numer" not in rendered.html
+
+
+def test_the_switch_link_leads_the_first_day_of_primary() -> None:
+    rendered = RENDERINGS["rotation_same_day_with_switch"]()
+    # The switch is the one thing to do; it takes the place of the schedule link.
+    assert rendered.text.endswith(
+        f"\n\nPamiętaj o przełączeniu numeru on-call.\nPrzełącz numer on-call: {SWITCH_URL}\n"
+    )
+    escaped = "https://centrala.example/przelacz?zespol=a&amp;numer=1"
+    # The button and the address under it; the unescaped `&` never reaches markup.
+    assert rendered.html.count(f'href="{escaped}"') == 2
+    assert ">Przełącz numer on-call</a>" in rendered.html
+    assert SWITCH_URL not in rendered.html
+    assert "/moje" not in rendered.html
+
+
+def test_the_switch_link_is_only_for_primary() -> None:
+    rendered = RENDERINGS["rotation_same_day_without_primary"]()
+    assert rendered.subject == "Dziś zaczynasz dyżury: czw 24-09-2026 · SECONDARY, 11–19"
+    for body in (rendered.text, rendered.html):
+        assert "centrala.example" not in body
+        assert "numeru on-call" not in body
+    assert ">Moje dyżury</a>" in rendered.html
+
+
+def test_a_hostile_switch_url_stays_an_attribute() -> None:
+    rendered = templates.rotation_same_day(
+        starts_on=DAY,
+        segments=[(AssignmentRole.primary, END)],
+        switch_url='https://x.example/"><script>alert(1)</script>',
+        app=APP,
+    )
+    assert "<script>" not in rendered.html
+    assert 'href="https://x.example/&quot;&gt;&lt;script&gt;' in rendered.html

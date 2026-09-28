@@ -125,6 +125,31 @@ def test_blank_or_padded_version_is_normalised() -> None:
     assert Settings(version=" 1.4.0 ").version == "1.4.0"
 
 
+def test_the_switch_url_is_read_from_its_own_variable(monkeypatch) -> None:
+    """`ONCALL_SWITCH_URL`, not the doubled prefix the field name would give."""
+    monkeypatch.setenv("ONCALL_SWITCH_URL", "https://centrala.example/przelacz")
+    monkeypatch.setenv("ONCALL_ONCALL_SWITCH_URL", "https://wrong.example")
+
+    assert Settings().oncall_switch_url == "https://centrala.example/przelacz"
+
+
+def test_a_blank_switch_url_is_unset(monkeypatch) -> None:
+    monkeypatch.delenv("ONCALL_SWITCH_URL", raising=False)
+
+    assert Settings().oncall_switch_url is None
+    assert Settings(oncall_switch_url="").oncall_switch_url is None
+    assert Settings(oncall_switch_url="   ").oncall_switch_url is None
+    assert Settings(oncall_switch_url=" HTTP://x.example/ ").oncall_switch_url == (
+        "HTTP://x.example/"
+    )
+
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "centrala.example", "ftp://x.example"])
+def test_a_switch_url_must_be_a_web_address(url: str) -> None:
+    with pytest.raises(ValidationError, match="ONCALL_SWITCH_URL"):
+        Settings(oncall_switch_url=url)
+
+
 def test_retention_defaults_are_the_accepted_ages() -> None:
     """A deployment that sets nothing keeps business audit a year, sign-ins
     and the outbox a quarter, finished runs a month, and prunes hourly."""

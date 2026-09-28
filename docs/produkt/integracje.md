@@ -44,6 +44,27 @@ Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
 zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
 tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje** (`/moje`).
 
+Kto zaczyna dyżur w którejkolwiek roli - PRIMARY, SECONDARY albo 11–19 -
+dostaje dwie wiadomości o godzinie `ONCALL_HANDOVER_REMINDER_HOUR` (czasu
+warszawskiego, domyślnie 9): zapowiedź w ostatni polski dzień roboczy przed
+pierwszym dniem dyżuru i przypomnienie w sam pierwszy dzień. Dyżur zaczynający
+się w poniedziałek albo w weekend zapowiada więc piątek, a zaczynający się po
+święcie - ostatni dzień roboczy przed nim. Osoba oddająca dyżur nie dostaje
+o tym wiadomości.
+
+Kolejne dni tej samej roli u tej samej osoby to jeden dyżur: wiadomości
+przychodzą tylko na jego początku i podają jego ostatni dzień. Dla 11–19
+weekendy i święta, w które tej zmiany nie ma, nie przerywają ciągłości.
+Przejście z PRIMARY na SECONDARY zaczyna nowy dyżur, a więc kolejną zapowiedź
+i przypomnienie. Role, które ta sama osoba zaczyna tego samego dnia (np.
+SECONDARY i 11–19), są w jednej wiadomości, każda z własnym ostatnim dniem.
+
+Gdy wśród zaczynanych ról jest PRIMARY, przypomnienie z pierwszego dnia prosi
+o przełączenie numeru on-call, a jeśli ustawiono `ONCALL_SWITCH_URL`, jego
+przycisk prowadzi na stronę przełączania. Każda z dwóch wiadomości wychodzi do
+osoby najwyżej raz, więc kolejne przebiegi procesu roboczego w ciągu dnia
+niczego nie dublują.
+
 ## Kanały ICS
 
 Aplikacje kalendarzowe subskrybują odwoływalne adresy tokenowe pod `/calendar`.

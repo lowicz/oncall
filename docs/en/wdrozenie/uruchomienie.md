@@ -82,6 +82,8 @@ The full list with comments is in `.env.example`.
 | `ONCALL_APP_NAME` | `On-call` | the product name in the interface, e-mails and calendar names |
 | `ONCALL_APP_SUBTITLE` | empty | the second line under the name in the navigation, on the sign-in screen and in the e-mail header; empty hides the line |
 | `ONCALL_PUBLIC_BASE_URL` | `http://localhost:8080` | the address in e-mails, ICS feeds and links |
+| `ONCALL_HANDOVER_REMINDER_HOUR` | `9` | the hour (Warsaw time) of the announcements and reminders about a starting duty, see [Integrations](../produkt/integracje.md#e-mail-notifications) |
+| `ONCALL_SWITCH_URL` | empty | the page for switching the on-call number; the reminder on the first day of a PRIMARY duty leads there; empty leaves the link out |
 | `ONCALL_SESSION_COOKIE_SECURE` | `false` | set `true` together with TLS |
 | `ONCALL_API_WORKERS` | empty | the number of API processes; empty = from the CPU limit, minimum 2 |
 | `ONCALL_SOLVER_WORKERS` | `8` | CP-SAT threads |

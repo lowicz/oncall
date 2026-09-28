@@ -159,6 +159,12 @@ class Settings(BaseSettings):
     #: the message delivered anyway if the worker holding it dies.
     notification_lease_seconds: float = Field(default=300.0, ge=30, le=3600)
     handover_reminder_hour: int = 9  # Europe/Warsaw local time
+    #: The page the team switches the on-call number on. The notice on the
+    #: first day of a PRIMARY segment links to it; unset or empty, that notice
+    #: asks for the switch without a link. The page is outside this application,
+    #: so there is no default. Read from `ONCALL_SWITCH_URL`: the alias keeps
+    #: the prefix from being written twice.
+    oncall_switch_url: str | None = Field(default=None, validation_alias="oncall_switch_url")
     #: How often the worker reports how much work is waiting. The sample is one
     #: indexed read per queue and it is emitted whether or not anything is
     #: happening: a heartbeat that stops is the cheapest sign that the worker
@@ -193,6 +199,18 @@ class Settings(BaseSettings):
     def _blank_version_means_dev(cls, value: str) -> str:
         """An empty ONCALL_VERSION (a copied .env with the line unset) is a dev build."""
         return value.strip() or DEV_VERSION
+
+    @field_validator("oncall_switch_url")
+    @classmethod
+    def _switch_url_is_a_web_address(cls, value: str | None) -> str | None:
+        """Blank is unset; anything else must be an http(s) address, since a
+        reader follows it straight from the e-mail."""
+        url = (value or "").strip()
+        if not url:
+            return None
+        if not url.lower().startswith(("https://", "http://")):
+            raise ValueError("ONCALL_SWITCH_URL must start with https:// or http://")
+        return url
 
     @model_validator(mode="after")
     def _https_requires_secure_cookie(self) -> Self:

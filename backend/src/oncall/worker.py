@@ -1,4 +1,4 @@
-"""Background worker: notification outbox drain, handover reminders, and
+"""Background worker: notification outbox drain, rotation notices, and
 schedule generation.
 
 Runs as a separate process (``python -m oncall.worker``). The process runs
@@ -6,7 +6,8 @@ independent loops in one event loop:
 
 * the **notification loop** drains a batch of pending outbox rows through the
   registered channel providers and, after the configured hour in
-  Europe/Warsaw, enqueues reminders about today's PRIMARY handover;
+  Europe/Warsaw, enqueues the notices owed today to whoever starts a
+  rotation role (`oncall.domain.handover`);
 * one or more **generation lanes** claim queued ``ScheduleRun`` rows with
   ``SELECT ... FOR UPDATE SKIP LOCKED`` and solve them;
 * the **metrics loop** samples how much work is waiting in each and reports it
@@ -19,8 +20,8 @@ independent loops in one event loop:
 The loops are independent so a generation that takes a minute no longer holds
 back a swap notification behind it. The solve itself runs in
 a worker thread, so the notification loop keeps its rhythm while a lane is
-busy. Reminders are deduplicated per date and schedule, so the scan can repeat
-safely within the day.
+busy. Notices are deduplicated per timing, first day and person, so the scan
+can repeat safely within the day.
 
 Every database step opens exactly one `SqlAlchemyUnitOfWork` on the session
 factory the process was started with, and that unit of work is the only thing
@@ -115,14 +116,14 @@ async def generate_draft(
 
 
 async def scan_handover(db: AsyncSession, *, now_warsaw: datetime) -> int:
-    """Enqueue today's PRIMARY handover reminders; returns the number enqueued."""
+    """Enqueue the rotation notices owed today; returns the number enqueued."""
     return await remind_of_handover(
         now_warsaw, get_settings().handover_reminder_hour, handover_ports(db)
     )
 
 
 async def notification_cycle(factory: Sessions) -> dict[str, int]:
-    """One outbox drain plus one handover scan.
+    """One outbox drain plus one rotation-notice scan.
 
     Runs on a fixed rhythm in the worker, independent of any generation in
     flight, so a notification enqueued mid-generation is delivered within two
