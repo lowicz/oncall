@@ -294,7 +294,8 @@ jobs:
   image-build:
     # Builds both Dockerfiles exactly as release.yml will, but never pushes:
     # this job runs for pull requests, including ones from forks. The build is
-    # loaded into the runner's Docker only to check who the image runs as.
+    # loaded into the runner's Docker only to check who the image runs as and,
+    # for web, which nginx it runs.
     name: image builds (${{ matrix.name }}, no push)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -337,6 +338,21 @@ jobs:
             exit 1
           fi
           echo "$IMAGE runs as uid $uid"
+      # frontend/Dockerfile pins one nginx release; the image must run exactly
+      # that one, so a tag that does not hold the nginx it names, or a build
+      # that swaps the base, fails here instead of in a release.
+      - name: The web image runs the nginx release its Dockerfile pins
+        if: matrix.name == 'web'
+        env:
+          IMAGE: oncall-${{ matrix.name }}:ci
+        run: |
+          pinned=$(sed -En 's/^FROM nginxinc\/nginx-unprivileged:([0-9]+\.[0-9]+\.[0-9]+)-alpine([[:space:]].*)?$/\1/p' frontend/Dockerfile)
+          running=$(docker run --rm --entrypoint nginx "$IMAGE" -v 2>&1 | sed -n 's|^nginx version: nginx/||p')
+          if [ -z "$pinned" ] || [ "$running" != "$pinned" ]; then
+            echo "::error::$IMAGE runs nginx '$running', frontend/Dockerfile pins '$pinned'"
+            exit 1
+          fi
+          echo "$IMAGE runs nginx $running"
 
   sonarcloud:
     # Static analysis on SonarCloud (https://sonarcloud.io). Not in ci-ok's

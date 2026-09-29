@@ -244,6 +244,35 @@ a digest, `docker compose pull` also fetches the latest patch release of the
 database's tag for it. The exact digests of the base images of every release
 are recorded in its provenance.
 
+The base image of the `web` server names one nginx release: `frontend/Dockerfile`
+has `nginxinc/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, never a
+floating tag such as `1.31-alpine`. Every build of the same commit therefore
+starts from the nginx the pull request's CI built, and a new nginx reaches a
+release only through a reviewed Renovate pull request, not silently at the next
+build. Renovate reads that line with a rule of its own in `renovate.json5` and
+changes only the version number in it: the `-alpine` variant stays, and the
+tag cannot become a floating one. The `frontend/scripts/nginx-base-image.test.mjs`
+test rejects any other form of the tag, and the `image-build` job in CI checks
+that the built image runs exactly that nginx release.
+
+Renovate reads the nginx releases and their publication dates from the image's
+tag list on Docker Hub through a separate version source, not through its
+built-in reading of images from a `Dockerfile`: Docker Hub shows an anonymous
+client the dates of the first 1000 tags only, this image has more, and without
+dates the three-day rule would hold every nginx update in the “Pending Status
+Checks” section until someone forced it. Patch and minor releases come in the
+weekly “container base images” pull request, and a new major waits for
+approval in the Dependency Dashboard. Renovate proposes the highest release,
+and nginx numbers its mainline branch with an odd minor (1.31) and its stable
+branch with an even one (1.30), so a minor update can move the image from one
+branch to the other - that is judged in the review. nginx security fixes have
+no GitHub or OSV alerts, so they come as ordinary patch releases; an urgent one
+is raised at once with the box next to that update in the Dependency Dashboard
+(in the “Pending Status Checks” section while the release is less than three
+days old, then in “Awaiting Schedule”). An nginx release tag can be published
+again under the same number, e.g. with Alpine fixes; the digest each
+application release was built from is recorded in its provenance.
+
 Before merging a runtime update, search the PR branch for the old version
 (e.g. `git grep -n '17-alpine\|oncall-postgres-17\|PostgreSQL 17'`). What may remain is only a
 description in the documentation or in `AGENTS.md` - fix it in the same PR -

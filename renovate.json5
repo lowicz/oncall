@@ -75,6 +75,19 @@
   },
   ignorePaths: ['archive/**'],
   enabledManagers: ['github-actions', 'npm', 'pep621', 'dockerfile', 'docker-compose', 'custom.regex'],
+  customDatasources: {
+    // The nginx releases published as `nginxinc/nginx-unprivileged:<version>-alpine`,
+    // with the date each tag was pushed, for the nginx custom manager below. One
+    // anonymous page of Docker Hub's tag list: the 100 most recently pushed
+    // tags with `-alpine` in the name hold the newest releases, which is all
+    // an update needs; the pinned release itself need not be among them.
+    'nginx-unprivileged': {
+      defaultRegistryUrlTemplate: 'https://hub.docker.com/v2/repositories/nginxinc/nginx-unprivileged/tags?page_size=100&ordering=last_updated&name=-alpine',
+      transformTemplates: [
+        '{"releases": [results[$contains(name, /^[0-9]+\\.[0-9]+\\.[0-9]+-alpine$/)].{"version": $substringBefore(name, "-alpine"), "releaseTimestamp": tag_last_pushed}], "sourceUrl": "https://github.com/nginx/docker-nginx-unprivileged"}',
+      ],
+    },
+  },
   customManagers: [
     {
       // One uv release writes and reads backend/uv.lock: the one CI installs
@@ -169,6 +182,24 @@
       datasourceTemplate: 'docker',
       versioningTemplate: 'docker',
     },
+    {
+      // nginx: the base image of the web image (frontend/Dockerfile), pinned
+      // to one release. Only the version number is captured and moved, so the
+      // tag keeps its `-alpine` variant and can never become a floating one
+      // such as `1.31-alpine`; semver puts a new nginx major behind dashboard
+      // approval. Not read by the dockerfile manager: Docker Hub shows an
+      // anonymous client the push dates of the first 1000 tags only, this
+      // image has more, and Renovate's docker lookup then drops the dates of
+      // every tag, so the three-day rule would hold each nginx update in
+      // "Pending Status Checks" until someone forced it. The
+      // "nginx-unprivileged" datasource above reads the dates directly.
+      customType: 'regex',
+      managerFilePatterns: ['/^frontend/Dockerfile$/'],
+      matchStrings: ['FROM nginxinc/nginx-unprivileged:(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-alpine\\s'],
+      depNameTemplate: 'nginxinc/nginx-unprivileged',
+      datasourceTemplate: 'custom.nginx-unprivileged',
+      versioningTemplate: 'semver',
+    },
   ],
   packageRules: [
     // ---- one pull request per ecosystem for the routine updates ------------
@@ -206,6 +237,13 @@
       groupName: 'container base images',
       matchUpdateTypes: ['minor', 'patch'],
     },
+    {
+      // The nginx base image, read by its own manager, in the same weekly pull
+      // request as the other base images.
+      matchDepNames: ['nginxinc/nginx-unprivileged'],
+      groupName: 'container base images',
+      matchUpdateTypes: ['minor', 'patch'],
+    },
     // ---- tool versions that appear in more than one file move together ------
     {
       matchDepNames: ['astral-sh/uv'],
@@ -216,9 +254,10 @@
       // dockerfile manager they would be separate dependencies with their own
       // release dates (GHCR publishes none, Docker Hub dates a tag by its last
       // push), and a group moves only the members that pass the three-day
-      // rule.
+      // rule. The nginx line would be an undated second copy of the nginx
+      // custom manager's dependency.
       matchManagers: ['dockerfile'],
-      matchDepNames: ['ghcr.io/astral-sh/uv', 'node', 'python'],
+      matchDepNames: ['ghcr.io/astral-sh/uv', 'node', 'python', 'nginxinc/nginx-unprivileged'],
       enabled: false,
     },
     {

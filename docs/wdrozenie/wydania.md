@@ -235,6 +235,35 @@ digestu `docker compose pull` pobiera też dla bazy najnowsze wydanie
 poprawkowe jej tagu. Dokładne digesty obrazów bazowych każdego wydania
 zapisuje jego provenance.
 
+Obraz bazowy serwera `web` wskazuje jedno wydanie nginx: w `frontend/Dockerfile`
+stoi `nginxinc/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, nigdy tag
+pływający taki jak `1.31-alpine`. Każde budowanie tego samego commita zaczyna
+się więc od nginx, który zbudowało CI pull requesta, a nowy nginx trafia do
+wydania tylko przez przejrzany pull request Renovate, nie po cichu przy
+kolejnym budowaniu. Renovate czyta tę linię własną regułą w `renovate.json5` i
+zmienia w niej tylko numer wersji: wariant `-alpine` zostaje, a tag nie może
+stać się pływający. Test `frontend/scripts/nginx-base-image.test.mjs` odrzuca
+każdą inną postać tagu, a zadanie `image-build` w CI sprawdza, że zbudowany
+obraz uruchamia właśnie to wydanie nginx.
+
+Wydania nginx i daty ich publikacji Renovate czyta z listy tagów obrazu w
+Docker Hub osobnym źródłem wersji, a nie wbudowanym odczytem obrazów z
+`Dockerfile`: Docker Hub pokazuje anonimowemu klientowi daty tylko pierwszych
+1000 tagów, ten obraz ma ich więcej, a bez dat reguła trzech dni
+zatrzymywałaby każdą aktualizację nginx w sekcji „Pending Status Checks” aż do
+ręcznego wymuszenia. Wydania poprawkowe i minor przychodzą w cotygodniowym
+pull requeście „container base images”, nowy major czeka na zatwierdzenie w
+Dependency Dashboard. Renovate proponuje najwyższe wydanie, a nginx numeruje
+gałąź mainline nieparzystym minorem (1.31), a stable parzystym (1.30), więc
+aktualizacja minor może przenieść obraz z jednej gałęzi na drugą - ocenia się
+to w przeglądzie. Poprawki bezpieczeństwa nginx nie mają alertów GitHuba ani
+bazy OSV, więc przychodzą jako zwykłe wydania poprawkowe; pilną wystawia się od
+razu polem przy tej aktualizacji w Dependency Dashboard (w sekcji „Pending
+Status Checks”, dopóki wydanie ma mniej niż trzy dni, potem w „Awaiting
+Schedule”). Tag wydania nginx może zostać opublikowany ponownie pod tym samym
+numerem, np. z poprawkami Alpine; digest, z którego zbudowano wydanie
+aplikacji, zapisuje jego provenance.
+
 Przed scaleniem aktualizacji środowiska uruchomieniowego przeszukaj gałąź
 PR-a starą wersją (np. `git grep -n '17-alpine\|oncall-postgres-17\|PostgreSQL 17'`). Zostać może
 tylko opis w dokumentacji lub w `AGENTS.md` - popraw go w tym samym PR-ze -
