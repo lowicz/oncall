@@ -90,7 +90,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | to samo dla zwykłych logowań i nieudanych prób |
 | `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | wysłane, nieudane i pominięte e-maile |
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | zakończone uruchomienia generatora |
-| `ONCALL_SMTP_HOST` | puste | puste wyłącza wysyłkę e-maili |
+| `ONCALL_SMTP_HOST` | puste | serwer poczty wychodzącej; puste wyłącza wysyłkę e-maili, patrz [Serwer SMTP](#serwer-smtp) |
 | `ONCALL_LDAP_ENABLED` | `false` | logowanie z katalogu - patrz [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS na nginx - patrz [TLS](tls.md) |
 
@@ -99,6 +99,57 @@ Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej
 
 Proces roboczy ma w Compose przydział 2 CPU i z niego wynika domyślna liczba
 wątków solvera. Zmiana przydziału zmienia tę liczbę automatycznie.
+
+## Serwer SMTP
+
+Projekt nie hostuje poczty. Powiadomienia z kolejki i alarm o nieudanej
+[kopii zapasowej](kopie-zapasowe.md) wychodzą przez zewnętrzny serwer z
+`ONCALL_SMTP_HOST`, jako nadawca z `ONCALL_EMAIL_FROM`. Aplikacja obsługuje
+oba sposoby, na jakie serwer może ją przyjąć:
+
+- **Z logowaniem.** `ONCALL_SMTP_USERNAME` i `ONCALL_SMTP_PASSWORD` są
+  ustawione; aplikacja loguje się (SMTP AUTH) przed każdą wysyłką. Odrzucony
+  login albo hasło kończy wiadomość jako nieudaną, bez ponawiania.
+- **Bez logowania.** Obie zmienne są puste; aplikacja przedstawia się w
+  EHLO nazwą z `ONCALL_SMTP_LOCAL_HOSTNAME` i od razu przekazuje wiadomość, a
+  przekaźnik sam decyduje po tej nazwie albo po adresie, czy wolno jej
+  wysyłać. Odmowa przekaźnika też jest ostateczna. Pusta
+  `ONCALL_SMTP_LOCAL_HOSTNAME` oznacza nazwę systemu, w kontenerze zwykle jego
+  identyfikator, więc przekaźnik, który ufa nazwie, potrzebuje tej zmiennej.
+
+Tylko jedna z dwóch zmiennych logowania zatrzymuje start `api` i `worker` z
+wyjaśnieniem w logu: login bez hasła nie przeszedłby uwierzytelnienia, a
+hasło bez loginu wysyłałoby pocztę bez logowania. Wartość z samych spacji
+liczy się jako pusta; poza tym login i hasło są używane dokładnie tak, jak
+je wpisano.
+
+Połączenie wybierają `ONCALL_SMTP_PORT`, `ONCALL_SMTP_USE_TLS` i
+`ONCALL_SMTP_STARTTLS`:
+
+| Połączenie | Port | `USE_TLS` | `STARTTLS` |
+| --- | --- | --- | --- |
+| podniesione do TLS przez STARTTLS (domyślnie) | `587` | `false` | `true` |
+| TLS od pierwszego bajtu | `465` | `true` | `false` |
+| bez szyfrowania, np. przekaźnik w sieci wewnętrznej | `25` | `false` | `false` |
+
+Obu przełączników naraz aplikacja nie przyjmuje i nie uruchomi się. Serwer,
+który nie oferuje STARTTLS, wymaga `ONCALL_SMTP_STARTTLS=false`, inaczej
+każda wysyłka się nie uda. Przykład przekaźnika bez logowania:
+
+```bash
+# w .env
+ONCALL_SMTP_HOST=relay.firma.example
+ONCALL_SMTP_PORT=25
+ONCALL_SMTP_USERNAME=
+ONCALL_SMTP_PASSWORD=
+ONCALL_SMTP_LOCAL_HOSTNAME=oncall.firma.example
+ONCALL_SMTP_STARTTLS=false
+ONCALL_EMAIL_FROM="Dyżury <oncall@firma.example>"
+```
+
+Zmiana działa po ponownym uruchomieniu `api` i `worker`. Czy poczta dochodzi,
+sprawdza próbny alarm `./deploy/backup/oncall-backup.sh alert --test`, patrz
+[Sprawdzenie](kopie-zapasowe.md#sprawdzenie).
 
 ## Retencja danych
 

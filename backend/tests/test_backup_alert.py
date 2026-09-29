@@ -11,6 +11,7 @@ import pytest
 
 from oncall import backup_alert, config
 from oncall.config import Settings
+from tests.smtp_relay import Relay, serving
 
 ARGS = [
     "--to",
@@ -120,3 +121,27 @@ def test_the_script_reads_its_arguments_and_exits_with_the_outcome(
     assert [mail["To"] for mail in sent] == ["admin@example.com", "ops@example.com"]
     assert "pg_dump: connection refused" in sent[0].get_body(("plain",)).get_content()
     assert "backup alert sent to admin@example.com, ops@example.com" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("credentials", [None, ("oncall", "secret")], ids=["no-login", "login"])
+def test_the_alert_goes_out_with_or_without_an_smtp_login(monkeypatch, credentials) -> None:
+    """The alert takes the application's own path to the SMTP server: to a
+    relay that takes no login and trusts the EHLO name, and to a server that
+    wants the application to log in first."""
+    username, password = credentials or ("", "")
+    with serving(Relay(credentials=credentials, trusted_client="oncall-prod.example.com")) as relay:
+        configured = settings(
+            smtp_host="127.0.0.1",
+            smtp_port=relay.port,
+            smtp_starttls=False,
+            smtp_local_hostname="oncall-prod.example.com",
+            smtp_username=username,
+            smtp_password=password,
+        )
+        monkeypatch.setattr(backup_alert, "get_settings", lambda: configured)
+        exit_code = run(monkeypatch, ARGS, "pg_dump: connection refused\n")
+
+    assert exit_code == 0
+    assert relay.commands[0] == "EHLO oncall-prod.example.com"
+    assert relay.verbs.count("AUTH") == (2 if credentials else 0)
+    assert [b"pg_dump: connection refused" in mail for mail in relay.messages] == [True, True]

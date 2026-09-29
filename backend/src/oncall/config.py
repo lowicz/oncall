@@ -49,7 +49,12 @@ def available_cpu_count(cgroup_root: Path = CGROUP_ROOT) -> int:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="ONCALL_", extra="ignore")
+    #: A refused setting names the variable and the rule but never echoes the
+    #: input: that is every ONCALL_* value, passwords included, and it would
+    #: land in the container log.
+    model_config = SettingsConfigDict(
+        env_file=".env", env_prefix="ONCALL_", extra="ignore", hide_input_in_errors=True
+    )
 
     #: Product name shown in the interface, e-mails and calendar names. The
     #: subtitle is the optional second line under the name in the rail and on
@@ -122,10 +127,17 @@ class Settings(BaseSettings):
     # unset, e-mail notifications are marked as skipped instead of sent.
     smtp_host: str | None = None
     smtp_port: int = 587
+    #: Both set, the application logs in (SMTP AUTH) before it sends; both
+    #: unset, it sends without logging in, to a relay that decides by the
+    #: client's EHLO name or address whether it may. One without the other
+    #: is refused at startup.
     smtp_username: str | None = None
     smtp_password: str | None = None
     # FQDN sent in EHLO/HELO; some SMTP servers require a specific client name.
     smtp_local_hostname: str | None = None
+    #: TLS from the first byte (usually port 465) or a STARTTLS upgrade of a
+    #: plain connection (587); both off is a plain connection (25). Both on
+    #: is refused at startup.
     smtp_use_tls: bool = False
     smtp_starttls: bool = True
     email_from: str = "On-call <oncall@example.com>"
@@ -211,6 +223,45 @@ class Settings(BaseSettings):
         if not url.lower().startswith(("https://", "http://")):
             raise ValueError("ONCALL_SWITCH_URL must start with https:// or http://")
         return url
+
+    @field_validator("smtp_host", "smtp_local_hostname")
+    @classmethod
+    def _blank_smtp_host_is_unset(cls, value: str | None) -> str | None:
+        """Blank is unset, as Compose passes an unset variable: no host turns
+        e-mail off, no local hostname lets the EHLO carry the system's FQDN."""
+        return (value or "").strip() or None
+
+    @field_validator("smtp_username", "smtp_password")
+    @classmethod
+    def _blank_smtp_credential_is_unset(cls, value: str | None) -> str | None:
+        """Blank is unset: aiosmtplib logs in whenever a username is not None,
+        which a relay without authentication refuses. Anything else is used
+        exactly as written, since a password may begin or end with a space."""
+        return value if value and value.strip() else None
+
+    @model_validator(mode="after")
+    def _smtp_credentials_come_in_pairs(self) -> Self:
+        """A username alone would log in with an empty password, and a
+        password alone would not log in at all: mail would go out
+        unauthenticated from a deployment that meant to authenticate."""
+        if (self.smtp_username is None) != (self.smtp_password is None):
+            raise ValueError(
+                "Set both ONCALL_SMTP_USERNAME and ONCALL_SMTP_PASSWORD to log in to the SMTP "
+                "server, or leave both empty for a relay that accepts the application without "
+                "logging in."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _smtp_tls_is_one_mode(self) -> Self:
+        """aiosmtplib refuses both at once on every send; saying so at startup
+        is what keeps the outbox and the backup alert from failing silently."""
+        if self.smtp_use_tls and self.smtp_starttls:
+            raise ValueError(
+                "ONCALL_SMTP_USE_TLS and ONCALL_SMTP_STARTTLS exclude each other: TLS from the "
+                "first byte (usually port 465) needs ONCALL_SMTP_STARTTLS=false."
+            )
+        return self
 
     @model_validator(mode="after")
     def _https_requires_secure_cookie(self) -> Self:

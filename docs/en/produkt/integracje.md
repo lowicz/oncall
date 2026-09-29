@@ -24,7 +24,9 @@ repeat is recognisable as the same message.
 
 The SMTP server is an **external service** - the project does not host mail.
 Without a configured SMTP host, messages are marked `skipped` with the reason
-recorded in the queue.
+recorded in the queue. The application sends with a login or without one,
+through a relay that trusts its EHLO name, see
+[SMTP server](../wdrozenie/uruchomienie.md#smtp-server).
 
 Every message goes out in two versions at once (`multipart/alternative`): as
 plain text, which says everything on its own, and as HTML in the application's

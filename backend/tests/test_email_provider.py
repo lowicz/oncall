@@ -1,3 +1,4 @@
+import base64
 from dataclasses import replace
 
 import aiosmtplib
@@ -11,6 +12,7 @@ from oncall.notifications.base import (
     TemporaryNotificationError,
 )
 from oncall.notifications.email import SmtpEmailProvider
+from tests.smtp_relay import Relay, serving
 
 
 def settings_with(**overrides) -> Settings:
@@ -74,7 +76,8 @@ async def test_local_hostname_is_optional(monkeypatch) -> None:
     assert captured["local_hostname"] is None
 
 
-async def test_empty_local_hostname_is_normalized_to_none(monkeypatch) -> None:
+@pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
+async def test_empty_local_hostname_is_normalized_to_none(monkeypatch, blank) -> None:
     """#35: the documented empty default (and how compose passes an unset value)
     resolves to "", which aiosmtplib rejects; it must reach the library as None
     so every notification is not silently dropped."""
@@ -84,12 +87,13 @@ async def test_empty_local_hostname_is_normalized_to_none(monkeypatch) -> None:
         captured.update(kwargs)
 
     monkeypatch.setattr(aiosmtplib, "send", fake_send)
-    provider = SmtpEmailProvider(settings_with(smtp_local_hostname=""))
+    provider = SmtpEmailProvider(settings_with(smtp_local_hostname=blank))
     await provider.send(message())
     assert captured["local_hostname"] is None
 
 
-async def test_empty_credentials_send_without_logging_in(monkeypatch) -> None:
+@pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
+async def test_empty_credentials_send_without_logging_in(monkeypatch, blank) -> None:
     """`.env.example` leaves ONCALL_SMTP_USERNAME and ONCALL_SMTP_PASSWORD empty
     for a relay without authentication, and compose passes them as "". aiosmtplib
     logs in whenever a username is not None, which such a relay refuses ("The
@@ -100,14 +104,32 @@ async def test_empty_credentials_send_without_logging_in(monkeypatch) -> None:
         captured.update(kwargs)
 
     monkeypatch.setattr(aiosmtplib, "send", fake_send)
-    provider = SmtpEmailProvider(settings_with(smtp_username="", smtp_password=""))
+    provider = SmtpEmailProvider(settings_with(smtp_username=blank, smtp_password=blank))
     await provider.send(message())
     assert captured["username"] is None
     assert captured["password"] is None
 
 
-async def test_missing_host_disables_provider() -> None:
-    provider = SmtpEmailProvider(settings_with(smtp_host=None))
+@pytest.mark.parametrize(("use_tls", "starttls"), [(False, True), (True, False), (False, False)])
+async def test_the_transport_reaches_the_library_as_configured(
+    monkeypatch, use_tls, starttls
+) -> None:
+    """STARTTLS on 587, TLS from the first byte on 465, a plain connection to
+    a relay on 25: each goes to aiosmtplib unchanged."""
+    captured = {}
+
+    async def fake_send(email_message, **kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(aiosmtplib, "send", fake_send)
+    provider = SmtpEmailProvider(settings_with(smtp_use_tls=use_tls, smtp_starttls=starttls))
+    await provider.send(message())
+    assert (captured["use_tls"], captured["start_tls"]) == (use_tls, starttls)
+
+
+@pytest.mark.parametrize("host", [None, "", "   "])
+async def test_missing_host_disables_provider(host) -> None:
+    provider = SmtpEmailProvider(settings_with(smtp_host=host))
     with pytest.raises(NotificationDisabled):
         await provider.send(message())
 
@@ -221,3 +243,65 @@ def test_a_sender_without_a_domain_still_gets_a_well_formed_header() -> None:
     built = provider.build_message(replace(message(), idempotency_key="abc"))
 
     assert built["Message-ID"] == "<abc@oncall.invalid>"
+
+
+def through(relay: Relay, **overrides) -> SmtpEmailProvider:
+    """The provider pointed at `relay` over a plain connection, as at a relay
+    on port 25, without credentials unless the test gives them."""
+    values = {
+        "smtp_host": "127.0.0.1",
+        "smtp_port": relay.port,
+        "smtp_starttls": False,
+        "smtp_username": "",
+        "smtp_password": "",
+    }
+    return SmtpEmailProvider(settings_with(**(values | overrides)))
+
+
+@pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
+async def test_a_relay_that_trusts_the_application_gets_the_mail_without_a_login(blank) -> None:
+    """A relay that takes no login decides by the name the application gives
+    in EHLO whether it may send. The application must not try AUTH, which
+    such a relay does not offer, and hands the message over with its
+    envelope."""
+    with serving(Relay(trusted_client="oncall.internal.example.com")) as relay:
+        await through(relay, smtp_username=blank, smtp_password=blank).send(message())
+
+    assert relay.commands[0] == "EHLO oncall.internal.example.com"
+    assert relay.verbs == ["EHLO", "MAIL", "RCPT", "DATA", "QUIT"]
+    assert relay.commands[1].startswith("MAIL FROM:<oncall@example.com>")
+    assert relay.commands[2] == "RCPT TO:<anna@example.com>"
+    [delivered] = relay.messages
+    assert b"To: anna@example.com" in delivered
+
+
+async def test_a_relay_that_does_not_trust_the_application_refuses_it_for_good() -> None:
+    """The relay's refusal is its decision, not a hiccup: the message fails
+    without a retry, with the relay's answer as the reason."""
+    with serving(Relay(trusted_client="someone-else.example.com")) as relay:
+        provider = through(relay)
+        with pytest.raises(NotificationError, match="Relaying denied") as refused:
+            await provider.send(message())
+
+    assert not isinstance(refused.value, TemporaryNotificationError)
+    assert "AUTH" not in relay.verbs
+    assert relay.messages == []
+
+
+async def test_a_server_that_wants_a_login_gets_it_before_the_mail() -> None:
+    with serving(Relay(credentials=("oncall", "secret"))) as relay:
+        await through(relay, smtp_username="oncall", smtp_password="secret").send(message())
+
+    assert relay.verbs == ["EHLO", "AUTH", "MAIL", "RCPT", "DATA", "QUIT"]
+    assert relay.commands[1] == "AUTH PLAIN " + base64.b64encode(b"\0oncall\0secret").decode()
+    assert len(relay.messages) == 1
+
+
+async def test_a_refused_login_is_permanent() -> None:
+    with serving(Relay(credentials=("oncall", "secret"))) as relay:
+        provider = through(relay, smtp_username="oncall", smtp_password="wrong")
+        with pytest.raises(NotificationError, match="Odmowa uwierzytelnienia SMTP") as refused:
+            await provider.send(message())
+
+    assert not isinstance(refused.value, TemporaryNotificationError)
+    assert relay.messages == []
