@@ -92,7 +92,7 @@ The full list with comments is in `.env.example`.
 | `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | the same for routine sign-ins and refused attempts |
 | `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | sent, failed and skipped e-mails |
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | finished generator runs |
-| `ONCALL_SMTP_HOST` | empty | empty disables e-mail sending |
+| `ONCALL_SMTP_HOST` | empty | the outgoing mail server; empty disables e-mail sending, see [SMTP server](#smtp-server) |
 | `ONCALL_LDAP_ENABLED` | `false` | directory sign-in - see [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS on nginx - see [TLS](tls.md) |
 
@@ -102,6 +102,57 @@ PostgreSQL's `max_connections`.
 In Compose the worker process has an allocation of 2 CPUs, and the default
 number of solver threads follows from it. Changing the allocation changes that
 number automatically.
+
+## SMTP server
+
+The project does not host mail. Notifications from the queue and the alert
+about a failed [backup](kopie-zapasowe.md) go out through the external server
+in `ONCALL_SMTP_HOST`, with `ONCALL_EMAIL_FROM` as the sender. The application
+supports both ways a server can accept it:
+
+- **With a login.** `ONCALL_SMTP_USERNAME` and `ONCALL_SMTP_PASSWORD` are
+  set; the application logs in (SMTP AUTH) before every send. A refused
+  username or password ends the message as failed, without a retry.
+- **Without a login.** Both variables are empty; the application introduces
+  itself in EHLO with the name in `ONCALL_SMTP_LOCAL_HOSTNAME` and hands the
+  message over straight away, and the relay decides by that name or by the
+  address whether it may send. The relay's refusal is final as well. An empty
+  `ONCALL_SMTP_LOCAL_HOSTNAME` means the system's name, in a container usually
+  its identifier, so a relay that trusts the name needs this variable.
+
+Only one of the two login variables stops `api` and `worker` from starting,
+with an explanation in the log: a username without a password would fail to
+authenticate, and a password without a username would send mail without
+logging in. A value of nothing but spaces counts as empty; otherwise the
+username and password are used exactly as written.
+
+`ONCALL_SMTP_PORT`, `ONCALL_SMTP_USE_TLS` and `ONCALL_SMTP_STARTTLS` choose
+the connection:
+
+| Connection | Port | `USE_TLS` | `STARTTLS` |
+| --- | --- | --- | --- |
+| upgraded to TLS with STARTTLS (default) | `587` | `false` | `true` |
+| TLS from the first byte | `465` | `true` | `false` |
+| unencrypted, e.g. a relay on the internal network | `25` | `false` | `false` |
+
+The application does not accept both switches at once and will not start. A
+server that does not offer STARTTLS needs `ONCALL_SMTP_STARTTLS=false`,
+otherwise every send fails. An example of a relay without a login:
+
+```bash
+# in .env
+ONCALL_SMTP_HOST=relay.company.example
+ONCALL_SMTP_PORT=25
+ONCALL_SMTP_USERNAME=
+ONCALL_SMTP_PASSWORD=
+ONCALL_SMTP_LOCAL_HOSTNAME=oncall.company.example
+ONCALL_SMTP_STARTTLS=false
+ONCALL_EMAIL_FROM="On-call <oncall@company.example>"
+```
+
+The change takes effect after `api` and `worker` restart. Whether mail gets
+through is checked by the test alert `./deploy/backup/oncall-backup.sh alert --test`,
+see [Verification](kopie-zapasowe.md#verification).
 
 ## Data retention
 

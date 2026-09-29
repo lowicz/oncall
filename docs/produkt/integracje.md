@@ -24,7 +24,9 @@ więc powtórka jest rozpoznawalna jako ta sama wiadomość.
 
 Serwer SMTP jest **usługą zewnętrzną** - projekt nie hostuje poczty. Bez
 skonfigurowanego hosta SMTP wiadomości są oznaczane jako `skipped` z powodem
-zapisanym w kolejce.
+zapisanym w kolejce. Aplikacja wysyła z logowaniem albo bez niego, przez
+przekaźnik, który ufa jej nazwie z EHLO, patrz
+[Serwer SMTP](../wdrozenie/uruchomienie.md#serwer-smtp).
 
 Każda wiadomość wychodzi w dwóch wersjach naraz (`multipart/alternative`):
 jako zwykły tekst, który mówi wszystko sam, i jako HTML w jasnym motywie

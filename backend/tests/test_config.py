@@ -190,3 +190,70 @@ def test_retention_ages_are_days_zero_or_more(monkeypatch) -> None:
 def test_retention_rhythm_is_bounded(field: str, value: int) -> None:
     with pytest.raises(ValidationError, match=field):
         Settings(**{field: value})
+
+
+@pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
+def test_blank_smtp_settings_are_unset(blank: str) -> None:
+    """Compose passes an unset variable as "", and a stray space is no more a
+    value: no host turns e-mail off, no local hostname leaves the EHLO name to
+    the system, and no credentials send without logging in."""
+    settings = Settings(
+        smtp_host=blank, smtp_local_hostname=blank, smtp_username=blank, smtp_password=blank
+    )
+
+    assert settings.smtp_host is None
+    assert settings.smtp_local_hostname is None
+    assert settings.smtp_username is None
+    assert settings.smtp_password is None
+
+
+def test_smtp_hosts_are_trimmed_and_credentials_kept_as_written() -> None:
+    settings = Settings(
+        smtp_host=" smtp.example.com ",
+        smtp_local_hostname=" oncall.internal.example.com ",
+        smtp_username="oncall",
+        smtp_password=" pass phrase ",
+    )
+
+    assert settings.smtp_host == "smtp.example.com"
+    assert settings.smtp_local_hostname == "oncall.internal.example.com"
+    assert settings.smtp_username == "oncall"
+    assert settings.smtp_password == " pass phrase "
+
+
+@pytest.mark.parametrize(
+    ("username", "password"), [("oncall", None), ("oncall", " "), (None, "secret"), ("", "secret")]
+)
+def test_a_lone_smtp_credential_is_refused(username: str | None, password: str | None) -> None:
+    """A username alone would log in with an empty password; a password alone
+    would not log in at all and send unauthenticated from a deployment that
+    meant to authenticate. Neither may start."""
+    with pytest.raises(ValidationError, match="ONCALL_SMTP_USERNAME and ONCALL_SMTP_PASSWORD"):
+        Settings(smtp_host="smtp.example.com", smtp_username=username, smtp_password=password)
+
+
+def test_smtp_tls_and_starttls_are_refused_together() -> None:
+    """aiosmtplib refuses the pair on every send, which would fail the outbox
+    and the backup alert with nothing said at startup."""
+    with pytest.raises(ValidationError, match="ONCALL_SMTP_STARTTLS=false"):
+        Settings(smtp_use_tls=True, smtp_starttls=True)
+
+
+@pytest.mark.parametrize(("use_tls", "starttls"), [(False, True), (True, False), (False, False)])
+def test_each_smtp_transport_is_accepted(use_tls: bool, starttls: bool) -> None:
+    settings = Settings(smtp_use_tls=use_tls, smtp_starttls=starttls)
+
+    assert (settings.smtp_use_tls, settings.smtp_starttls) == (use_tls, starttls)
+
+
+def test_a_refused_setting_does_not_echo_the_configuration(monkeypatch) -> None:
+    """The error lands in the container log; it names the rule, never the
+    values, which include every password in the environment."""
+    monkeypatch.setenv("ONCALL_SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("ONCALL_SMTP_PASSWORD", "hunter2-do-not-log")
+
+    with pytest.raises(ValidationError) as refused:
+        Settings()
+
+    assert "ONCALL_SMTP_USERNAME" in str(refused.value)
+    assert "hunter2-do-not-log" not in str(refused.value)

@@ -240,8 +240,10 @@ is external, configured with `ONCALL_SMTP_HOST`, `ONCALL_SMTP_PORT`,
 `ONCALL_SMTP_USERNAME`, `ONCALL_SMTP_PASSWORD`, `ONCALL_SMTP_USE_TLS` /
 `ONCALL_SMTP_STARTTLS`, `ONCALL_EMAIL_FROM` and, when the server insists on a
 client name, `ONCALL_SMTP_LOCAL_HOSTNAME`; without `ONCALL_SMTP_HOST` messages
-are marked `skipped` with the reason in the outbox. Addresses come from the
-user accounts, edited on the "Osoby" screen.
+are marked `skipped` with the reason in the outbox. The username and password
+go together: both log in with SMTP AUTH, neither sends to a relay that trusts
+the EHLO name, and one alone stops the application at startup. Addresses come
+from the user accounts, edited on the "Osoby" screen.
 [Notifications](docs/produkt/integracje.md) ·
 [EN](docs/en/produkt/integracje.md).
 
