@@ -154,7 +154,11 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   lines is disabled there: a group moves only the members whose release date
   passed the three-day rule, so a second datasource lets one file stay
   behind. A new reference joins that manager. Keep new tool versions in the
-  `env` blocks.
+  `env` blocks. Renovate's docker lookup has no release dates for a Docker Hub
+  image with more than 1000 tags (anonymous pagination stops there), so the
+  three-day rule holds its updates for ever: the nginx base image, pinned to
+  one `X.Y.Z-alpine` release, is read by its own custom manager and dated
+  Docker Hub datasource instead (`frontend/scripts/nginx-base-image.test.mjs`).
 - Documentation on GitHub Pages (`.github/workflows/pages.yml`) is the same
   renderer in `--site` mode (`frontend/scripts/build-docs.mjs`); never add a
   second generator or a second copy of `docs/`. The regression test for the

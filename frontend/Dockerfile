@@ -20,7 +20,14 @@ RUN npm run build
 # listens on 8080 (HTTP) and 8443 (HTTPS), since binding below 1024 needs a
 # capability the container does not have. Compose runs it with a read-only root
 # filesystem; /tmp and /etc/nginx/conf.d are its only writable paths there.
-FROM nginxinc/nginx-unprivileged:1.31-alpine
+#
+# Pinned to one nginx release, `<major>.<minor>.<patch>-alpine`, never a
+# floating tag such as `1.31-alpine`: every build of a commit starts from the
+# nginx the pull request's CI built, and a new nginx reaches a release only
+# through a reviewed Renovate pull request. Renovate reads this line with the
+# nginx custom manager in renovate.json5 and moves only the version number;
+# frontend/scripts/nginx-base-image.test.mjs fails on any other tag form.
+FROM nginxinc/nginx-unprivileged:1.31.6-alpine
 # Set by the release workflow to the version tag; `dev` for local builds.
 ARG ONCALL_VERSION=dev
 ENV ONCALL_VERSION=${ONCALL_VERSION}
