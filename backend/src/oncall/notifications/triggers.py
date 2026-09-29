@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import Settings, get_settings
+from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -72,23 +73,19 @@ async def _enqueue_for(
     build,
     dedup_key: str | None = None,
     context: dict | None = None,
-) -> int:
+) -> None:
     """Enqueue one message per recipient that has a known e-mail address."""
-    sent = 0
     for name in dict.fromkeys(names):
         recipient = emails.get(name)
         if recipient is None:
             logger.info("No e-mail for %s; notification skipped", name)
             continue
         key = f"{dedup_key}:{name}" if dedup_key else None
-        enqueued_id = await enqueue_notification(
+        await enqueue_notification(
             db,
             _message(recipient, build(), {**(context or {}), "member": name}),
             dedup_key=key,
         )
-        if enqueued_id is not None:
-            sent += 1
-    return sent
 
 
 async def _active_coordinators(db: AsyncSession) -> list[User]:
@@ -568,40 +565,57 @@ async def notify_assignments_overridden_in_batch(
         )
 
 
-async def enqueue_handover_reminders(
-    db: AsyncSession,
-    *,
-    service_date: date,
-    schedule_id: uuid.UUID,
-    outgoing_name: str,
-    incoming_name: str,
-) -> int:
-    """Enqueue number-handover reminders exactly once per date and schedule."""
+async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> int:
+    """Queue one rotation notice for the person starting its segments, at
+    most once per timing, first day and person; answers how many were queued.
+
+    The key names the team member rather than the label, so it stays within
+    the column however long a name is.
+    """
     settings = get_settings()
-    emails = await _emails_for_names(db, [outgoing_name, incoming_name])
-    dedup_base = f"handover:{service_date.isoformat()}:{schedule_id}"
-    sent = await _enqueue_for(
-        db,
-        emails,
-        names=[outgoing_name],
-        build=lambda: templates.handover_outgoing(
-            service_date=service_date,
-            incoming_name=incoming_name,
+    recipient = (
+        await db.execute(
+            select(TeamMember.id, User.email)
+            .join(User, TeamMember.user_id == User.id)
+            .where(
+                TeamMember.display_name == notice.assignee_name,
+                User.is_active.is_(True),
+                User.email.is_not(None),
+            )
+        )
+    ).first()
+    if recipient is None:
+        logger.info("No e-mail for %s; notification skipped", notice.assignee_name)
+        return 0
+    member_id, email = recipient
+    segments = [(segment.role, segment.ends_on) for segment in notice.segments]
+    if notice.timing is NoticeTiming.ahead:
+        rendered = templates.rotation_ahead(
+            starts_on=notice.starts_on, segments=segments, app=_brand(settings)
+        )
+    else:
+        rendered = templates.rotation_same_day(
+            starts_on=notice.starts_on,
+            segments=segments,
+            switch_url=settings.oncall_switch_url,
             app=_brand(settings),
-        ),
-        dedup_key=f"{dedup_base}:outgoing",
-        context={"event": "number_handover", "service_date": service_date.isoformat()},
-    )
-    sent += await _enqueue_for(
+        )
+    queued = await enqueue_notification(
         db,
-        emails,
-        names=[incoming_name],
-        build=lambda: templates.handover_incoming(
-            service_date=service_date,
-            outgoing_name=outgoing_name,
-            app=_brand(settings),
+        _message(
+            email,
+            rendered,
+            {
+                "event": "rotation_notice",
+                "timing": notice.timing.value,
+                "starts_on": notice.starts_on.isoformat(),
+                "member": notice.assignee_name,
+                "segments": [
+                    {"role": role.value, "ends_on": ends_on.isoformat()}
+                    for role, ends_on in segments
+                ],
+            },
         ),
-        dedup_key=f"{dedup_base}:incoming",
-        context={"event": "number_handover", "service_date": service_date.isoformat()},
+        dedup_key=f"rotation:{notice.timing.value}:{notice.starts_on.isoformat()}:{member_id}",
     )
-    return sent
+    return 0 if queued is None else 1

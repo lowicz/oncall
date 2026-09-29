@@ -3,7 +3,7 @@
 ## E-mail notifications
 
 Swap lifecycle events, schedule publications, coordinator's corrections and
-reminders to switch the number **write a row to the `notification_outbox`
+duty-start notices **write a row to the `notification_outbox`
 table in the same transaction as the business change**. A separate worker
 process drains the queue with exponential back-off and delivers the messages
 through channel providers.
@@ -44,6 +44,26 @@ correction.
 The schedule publication message goes to every team member active in its
 range. It lists only their own duties (day and role) or says that there is
 none in this schedule, and leads to the **Mine** screen (`/moje`).
+
+Whoever starts a duty in any role - PRIMARY, SECONDARY or 11–19 - gets two
+messages at `ONCALL_HANDOVER_REMINDER_HOUR` (Warsaw time, 9 by default): an
+announcement on the last Polish working day before the first day of the duty
+and a reminder on that first day itself. A duty starting on a Monday or at the
+weekend is therefore announced on the Friday, and one starting after a holiday
+on the last working day before it. The person handing the duty over gets no
+message about it.
+
+Consecutive days of the same role held by the same person are one duty: the
+messages come only at its start and give its last day. For 11–19 the weekends
+and holidays that have no such shift do not break the run. Moving from PRIMARY
+to SECONDARY starts a new duty, and so another announcement and reminder.
+Roles the same person starts on the same day (e.g. SECONDARY and 11–19) are in
+one message, each with its own last day.
+
+When PRIMARY is among the roles starting, the first-day reminder asks for the
+on-call number to be switched and, if `ONCALL_SWITCH_URL` is set, its button
+leads to the switching page. Each of the two messages goes to a person at most
+once, so further worker passes during the day duplicate nothing.
 
 ## ICS feeds
 

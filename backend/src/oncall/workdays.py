@@ -6,7 +6,7 @@ CSV import have to answer this question identically. The `holidays` package is
 the single source of statutory holidays for every path.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 
 import holidays as country_holidays
@@ -46,3 +46,24 @@ def polish_holidays(starts_on: date, ends_on: date) -> set[date]:
 
 def is_working_day(day: date, holidays: set[date]) -> bool:
     return day.weekday() < 5 and day not in holidays
+
+
+def is_polish_working_day(day: date) -> bool:
+    """`is_working_day` against the Polish calendar of that day's year."""
+    return is_working_day(day, polish_holidays(day, day))
+
+
+def previous_working_day(day: date) -> date:
+    """The last Polish working day before `day`."""
+    day -= timedelta(days=1)
+    while not is_polish_working_day(day):
+        day -= timedelta(days=1)
+    return day
+
+
+def next_working_day(day: date) -> date:
+    """The first Polish working day after `day`."""
+    day += timedelta(days=1)
+    while not is_polish_working_day(day):
+        day += timedelta(days=1)
+    return day

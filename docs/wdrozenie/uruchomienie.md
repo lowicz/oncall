@@ -80,6 +80,8 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_APP_NAME` | `On-call` | nazwa produktu w interfejsie, e-mailach i nazwach kalendarzy |
 | `ONCALL_APP_SUBTITLE` | puste | drugi wiersz pod nazwą w nawigacji, na ekranie logowania i w nagłówku e-maili; pusty ukrywa wiersz |
 | `ONCALL_PUBLIC_BASE_URL` | `http://localhost:8080` | adres w e-mailach, kanałach ICS i linkach |
+| `ONCALL_HANDOVER_REMINDER_HOUR` | `9` | godzina (czasu warszawskiego) zapowiedzi i przypomnień o rozpoczęciu dyżuru, patrz [Integracje](../produkt/integracje.md#powiadomienia-e-mail) |
+| `ONCALL_SWITCH_URL` | puste | strona przełączania numeru on-call; prowadzi do niej przypomnienie z pierwszego dnia dyżuru PRIMARY; puste pomija link |
 | `ONCALL_SESSION_COOKIE_SECURE` | `false` | ustaw `true` razem z TLS |
 | `ONCALL_API_WORKERS` | puste | liczba procesów API; puste = z limitu CPU, minimum 2 |
 | `ONCALL_SOLVER_WORKERS` | `8` | wątki CP-SAT |
