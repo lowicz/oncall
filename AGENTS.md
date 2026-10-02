@@ -129,7 +129,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   `backend/pyproject.toml`, `thresholds` in `frontend/vite.config.ts`), so
   every changed line and branch needs a test. The backend figure is the
   SQLite suite alone: PostgreSQL-only statements are reached with a fake
-  `postgresql` dialect, and code no test can reach is deleted, not excluded. Run the same required commands locally before pushing.
+  `postgresql` dialect, and code no test can reach is deleted, not excluded.
+  Backend tests read the real clock unless they take `frozen_clock`, so a
+  branch reached only by dates relative to today is covered on some weekdays
+  only; give it a fixed-date test. Run the same required commands locally before pushing.
   Before opening a PR, compare the complete branch diff with the authorized task scope and stop for review if unrelated paths are present.
 - Security scanning: `codeql.yml` (advanced setup; GitHub's default setup
   must stay off) and `dependency-review.yml` (fails on high/critical). The

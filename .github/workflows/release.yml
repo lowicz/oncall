@@ -202,15 +202,15 @@ jobs:
           WORKFLOW_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
         run: |
           {
-            echo "## Obrazy"
+            echo "## Images"
             echo
             echo '```'
             cat digests/*.txt
             echo '```'
             echo
-            echo "Uruchomienie: \`ONCALL_VERSION=${VERSION}\` w \`.env\`, potem \`docker compose pull && docker compose up -d\` (docs/wdrozenie/wydania.md)."
+            echo "Deployment: set \`ONCALL_VERSION=${VERSION}\` in \`.env\`, then run \`docker compose pull && docker compose up -d\` (docs/en/wdrozenie/wydania.md)."
             echo
-            echo "Weryfikacja pochodzenia (dla każdego obrazu):"
+            echo "Provenance verification (for each image):"
             echo
             echo '```'
             echo "gh attestation verify oci://ghcr.io/${OWNER}/oncall-api:${VERSION} --owner ${OWNER}"

@@ -90,6 +90,23 @@ async def test_a_correction_hands_the_slot_over_and_reports_the_rules_it_breaks(
     ]
 
 
+async def test_the_late_shift_can_go_to_whoever_is_on_call_that_day(world) -> None:
+    """Only primary and secondary exclude each other: the late shift may sit with
+    either of them, as the late-shift anchor policy itself places it."""
+    schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
+
+    await correct_draft(
+        _correction(schedule, MONDAY, AssignmentRole.late_shift, world.anna.id), world.drafts
+    )
+
+    corrected = world.schedules.by_id[schedule.id]
+    held = next(item for item in corrected.assignments if item.slot == (MONDAY, "late_shift"))
+    assert (held.assignee_name, held.member_id, held.is_override) == ("Anna", world.anna.id, True)
+    assert world.journal.events == [
+        ("draft_corrected", {"args": (schedule.id, (MONDAY, "late_shift"), "Bartek", "Anna")})
+    ]
+
+
 @pytest.mark.parametrize(
     ("change", "error"),
     [
