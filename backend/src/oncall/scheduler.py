@@ -9,15 +9,12 @@ from math import ceil
 from ortools.sat.python import cp_model
 
 from oncall.config import available_cpu_count
-from oncall.domain.scheduling.solver import GENERATION_BUDGET_PASSES as GENERATION_BUDGET_PASSES
-from oncall.domain.scheduling.solver import DateRange as DateRange
 from oncall.domain.scheduling.solver import (
     GeneratedAssignment,
     SolverMember,
     SolverResult,
     total_time_budget,
 )
-from oncall.domain.scheduling.solver import PreferenceRange as PreferenceRange
 from oncall.domain.vocabulary import (
     ONCALL_ROLES,
     AssignmentRole,

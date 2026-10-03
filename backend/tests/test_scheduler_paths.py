@@ -9,14 +9,13 @@ import pytest
 from ortools.sat.python import cp_model
 
 from oncall import scheduler
+from oncall.domain.scheduling.solver import DateRange, PreferenceRange
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
 from oncall.fairness import ACCEPTANCE_POINTS
 from oncall.scheduler import (
     MODEL_BUILT,
     SOLVE_DONE,
     SOLVE_PASS,
-    DateRange,
-    PreferenceRange,
     SolverMember,
     _build_model_from_context,
     _ModelBuildContext,

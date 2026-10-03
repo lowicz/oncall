@@ -30,9 +30,9 @@ import sys
 from dataclasses import fields
 from datetime import date, timedelta
 
-from oncall.domain.scheduling.solver import PreferenceRange, SolverResult
+from oncall.domain.scheduling.solver import DateRange, PreferenceRange, SolverResult
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
-from oncall.scheduler import DateRange, SolverMember, generate_schedule
+from oncall.scheduler import SolverMember, generate_schedule
 from oncall.workdays import polish_holidays
 
 STARTS = date(2026, 11, 2)

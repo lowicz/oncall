@@ -29,25 +29,21 @@ def test_cpu_count_uses_cgroup_v1_quota(tmp_path) -> None:
 
 def test_cpu_count_uses_affinity_without_a_cgroup_limit(tmp_path, monkeypatch) -> None:
     (tmp_path / "cpu.max").write_text("max 100000\n")
-    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: set(range(6)))
+    monkeypatch.setattr(os, "process_cpu_count", lambda: 6)
 
     assert available_cpu_count(tmp_path) == 6
 
 
 def test_cpu_count_is_limited_to_eight(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: set(range(16)))
+    monkeypatch.setattr(os, "process_cpu_count", lambda: 16)
 
     assert available_cpu_count(tmp_path) == 8
 
 
-def test_cpu_count_without_an_affinity_call_falls_back_to_the_cpu_count(
-    tmp_path, monkeypatch
-) -> None:
-    """macOS has no `sched_getaffinity`; a development machine still runs."""
-    monkeypatch.delattr(os, "sched_getaffinity")
-    monkeypatch.setattr(os, "cpu_count", lambda: 4)
+def test_cpu_count_is_one_when_the_platform_cannot_tell(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(os, "process_cpu_count", lambda: None)
 
-    assert available_cpu_count(tmp_path) == 4
+    assert available_cpu_count(tmp_path) == 1
 
 
 def test_cpu_count_of_an_unknown_machine_is_one(tmp_path, monkeypatch) -> None:

@@ -32,7 +32,6 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from sqlalchemy.sql.elements import ColumnElement
 
 from oncall.database import SqlAlchemyUnitOfWork
 from oncall.domain.clock import as_utc, utc_now
@@ -126,11 +125,6 @@ class OutboxHealth:
     dead: int
 
 
-def _count(condition: ColumnElement[bool]) -> ColumnElement[int]:
-    """How many rows of one aggregate read satisfy a condition."""
-    return func.coalesce(func.sum(case((condition, 1), else_=0)), 0)
-
-
 async def outbox_health(db: AsyncSession, *, now: datetime) -> OutboxHealth:
     """Measure the outbox in one read.
 
@@ -143,12 +137,12 @@ async def outbox_health(db: AsyncSession, *, now: datetime) -> OutboxHealth:
     row = (
         await db.execute(
             select(
-                _count(eligible),
+                func.count().filter(eligible),
                 func.min(case((eligible, NotificationOutbox.created_at))),
-                _count(and_(eligible, NotificationOutbox.attempts > 0)),
+                func.count().filter(and_(eligible, NotificationOutbox.attempts > 0)),
                 func.coalesce(func.max(case((eligible, NotificationOutbox.attempts))), 0),
-                _count(and_(claimable, NotificationOutbox.next_attempt_at > now)),
-                _count(NotificationOutbox.status == NotificationStatus.failed),
+                func.count().filter(and_(claimable, NotificationOutbox.next_attempt_at > now)),
+                func.count().filter(NotificationOutbox.status == NotificationStatus.failed),
             )
         )
     ).one()

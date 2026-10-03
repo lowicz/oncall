@@ -2,9 +2,9 @@ from datetime import timedelta
 
 from fastapi import Response
 
-from oncall.auth import hash_password, set_session_cookie, share_link_active, verify_password
+from oncall.auth import hash_password, set_session_cookie, verify_password
 from oncall.config import get_settings
-from oncall.infrastructure.sqlalchemy.sharing_models import ShareLink
+from oncall.domain.sharing.models import link_is_active
 from tests.conftest import create_user, login
 
 
@@ -29,14 +29,13 @@ def test_an_expiry_already_behind_the_clock_yields_a_zero_max_age(frozen_clock) 
     assert "Max-Age=0" in response.headers["set-cookie"]
 
 
-def test_share_link_activity_falls_back_to_the_clock(frozen_clock) -> None:
-    link = ShareLink(expires_at=frozen_clock.instant + timedelta(seconds=1), revoked_at=None)
+def test_a_share_link_is_active_until_it_expires_or_is_revoked(frozen_clock) -> None:
+    now = frozen_clock.instant
+    expires_at = now + timedelta(seconds=1)
 
-    assert share_link_active(link)
-    frozen_clock.advance(timedelta(seconds=2))
-    assert not share_link_active(link)
-    # An explicit moment still wins over the clock.
-    assert share_link_active(link, now=frozen_clock.instant - timedelta(seconds=2))
+    assert link_is_active(None, expires_at, now)
+    assert not link_is_active(None, expires_at, now + timedelta(seconds=2))
+    assert not link_is_active(now, expires_at, now)
 
 
 async def test_a_session_expires_by_the_clock(client, db, frozen_clock) -> None:

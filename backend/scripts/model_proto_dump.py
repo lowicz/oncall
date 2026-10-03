@@ -20,14 +20,9 @@ floor probe. Extend it whenever a slice touches a branch it does not reach.
 import sys
 from datetime import date, timedelta
 
-from oncall.domain.scheduling.solver import PreferenceRange
+from oncall.domain.scheduling.solver import DateRange, PreferenceRange
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
-from oncall.scheduler import (
-    DateRange,
-    SolverMember,
-    _build_model_from_context,
-    _ModelBuildContext,
-)
+from oncall.scheduler import SolverMember, _build_model_from_context, _ModelBuildContext
 from oncall.workdays import polish_holidays
 
 STARTS = date(2026, 11, 2)

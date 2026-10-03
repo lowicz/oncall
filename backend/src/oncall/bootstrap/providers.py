@@ -71,14 +71,13 @@ from oncall.infrastructure.sqlalchemy.roster import (
     SqlAlchemyPublishedRoster,
     SqlAlchemyRosterPolicy,
 )
-from oncall.infrastructure.sqlalchemy.scheduling import (
-    draft_ports,
-    generation_request_ports,
-    policy_ports,
-    publication_ports,
-    schedule_query_ports,
+from oncall.infrastructure.sqlalchemy.scheduling import publication_ports, schedule_query_ports
+from oncall.infrastructure.sqlalchemy.scheduling_generation import (
+    SqlAlchemyGenerationQueue,
+    SqlAlchemyPolicyStore,
 )
-from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyPolicyStore
+from oncall.infrastructure.sqlalchemy.scheduling_journal import SqlAlchemySchedulingJournal
+from oncall.infrastructure.sqlalchemy.scheduling_schedules import SqlAlchemySchedules
 from oncall.infrastructure.sqlalchemy.sessions import SqlAlchemySessions
 from oncall.infrastructure.sqlalchemy.sharing import SqlAlchemyCalendarFeeds, SqlAlchemyShareLinks
 from oncall.infrastructure.sqlalchemy.swaps import SqlAlchemySwapJournal, SqlAlchemySwapRequests
@@ -98,15 +97,26 @@ def policy_reader(db: DbSession) -> CurrentPolicy:
 
 
 def policy_writer(db: DbSession, actor: CurrentUser) -> PolicyPorts:
-    return policy_ports(db, actor)
+    return PolicyPorts(
+        policy=SqlAlchemyPolicyStore(db),
+        journal=SqlAlchemySchedulingJournal(db, actor),
+    )
 
 
 def generation_requests(db: DbSession) -> GenerationRequestPorts:
-    return generation_request_ports(db)
+    return GenerationRequestPorts(
+        policy=SqlAlchemyPolicyStore(db),
+        roster=SqlAlchemyPublishedRoster(db),
+        queue=SqlAlchemyGenerationQueue(db),
+    )
 
 
 def draft_writer(db: DbSession, actor: CurrentUser) -> DraftPorts:
-    return draft_ports(db, actor)
+    return DraftPorts(
+        schedules=SqlAlchemySchedules(db),
+        team=SqlAlchemyTeamDirectory(db),
+        journal=SqlAlchemySchedulingJournal(db, actor),
+    )
 
 
 def publication_reader(db: DbSession) -> PublicationPorts:

@@ -14,14 +14,9 @@ from datetime import date
 import pytest
 from ortools.sat.python import cp_model
 
+from oncall.domain.scheduling.solver import GENERATION_BUDGET_PASSES, DateRange
 from oncall.domain.vocabulary import AssignmentRole, RotationMode, UserRole
-from oncall.scheduler import (
-    GENERATION_BUDGET_PASSES,
-    DateRange,
-    SolverMember,
-    generate_schedule,
-    total_time_budget,
-)
+from oncall.scheduler import SolverMember, generate_schedule, total_time_budget
 from tests.conftest import create_user, login
 
 

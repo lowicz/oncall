@@ -3,10 +3,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.scheduling.ports import (
-    DraftPorts,
     GenerationPorts,
-    GenerationRequestPorts,
-    PolicyPorts,
     PublicationPorts,
     ScheduleQueryPorts,
 )
@@ -16,7 +13,6 @@ from oncall.infrastructure.sqlalchemy.roster import SqlAlchemyPublishedRoster
 from oncall.infrastructure.sqlalchemy.scheduling_changes import SqlAlchemyChangeLog
 from oncall.infrastructure.sqlalchemy.scheduling_duty_history import SqlAlchemyDutyHistory
 from oncall.infrastructure.sqlalchemy.scheduling_generation import (
-    SqlAlchemyGenerationQueue,
     SqlAlchemyPolicyStore,
 )
 from oncall.infrastructure.sqlalchemy.scheduling_journal import SqlAlchemySchedulingJournal
@@ -38,21 +34,6 @@ def schedule_query_ports(session: AsyncSession) -> ScheduleQueryPorts:
     )
 
 
-def policy_ports(session: AsyncSession, actor: User) -> PolicyPorts:
-    return PolicyPorts(
-        policy=SqlAlchemyPolicyStore(session),
-        journal=SqlAlchemySchedulingJournal(session, actor),
-    )
-
-
-def generation_request_ports(session: AsyncSession) -> GenerationRequestPorts:
-    return GenerationRequestPorts(
-        policy=SqlAlchemyPolicyStore(session),
-        roster=SqlAlchemyPublishedRoster(session),
-        queue=SqlAlchemyGenerationQueue(session),
-    )
-
-
 def generation_ports(session: AsyncSession, actor: User) -> GenerationPorts:
     return GenerationPorts(
         policy=SqlAlchemyPolicyStore(session),
@@ -60,14 +41,6 @@ def generation_ports(session: AsyncSession, actor: User) -> GenerationPorts:
         history=SqlAlchemyDutyHistory(session),
         solver=CpSatSolver(),
         drafts=SqlAlchemySchedules(session),
-        journal=SqlAlchemySchedulingJournal(session, actor),
-    )
-
-
-def draft_ports(session: AsyncSession, actor: User) -> DraftPorts:
-    return DraftPorts(
-        schedules=SqlAlchemySchedules(session),
-        team=SqlAlchemyTeamDirectory(session),
         journal=SqlAlchemySchedulingJournal(session, actor),
     )
 

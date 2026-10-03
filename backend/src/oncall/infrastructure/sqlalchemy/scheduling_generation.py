@@ -7,7 +7,6 @@ from typing import Any, cast
 from sqlalchemy import CursorResult, Update, case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.elements import ColumnElement
 
 from oncall.domain.clock import as_utc
 from oncall.domain.scheduling.models import (
@@ -21,15 +20,6 @@ from oncall.domain.scheduling.models import (
 from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.infrastructure.sqlalchemy.scheduling_models import SchedulingPolicy as PolicyRow
 from oncall.policy import load_policy
-
-
-def _count(condition: ColumnElement[bool]) -> ColumnElement[int]:
-    """How many rows of an aggregate read satisfy one condition.
-
-    `count(*) FILTER` would say this more directly but is not portable to the
-    SQLite databases the fast tests run on.
-    """
-    return func.coalesce(func.sum(case((condition, 1), else_=0)), 0)
 
 
 async def _changed(session: AsyncSession, statement: Update) -> int:
@@ -143,8 +133,8 @@ class SqlAlchemyGenerationQueue:
         row = (
             await self._session.execute(
                 select(
-                    _count(queued),
-                    _count(running),
+                    func.count().filter(queued),
+                    func.count().filter(running),
                     # `created_at` is when the coordinator asked; `updated_at`
                     # on a held run is its last heartbeat. The oldest of each
                     # is the one worth watching, so both are `min`.

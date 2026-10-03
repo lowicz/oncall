@@ -31,7 +31,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from oncall.domain.scheduling.solver import SolverResult
+from oncall.domain.scheduling.solver import DateRange, SolverResult
 from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.rules import (
     RuleViolation,
@@ -42,7 +42,7 @@ from oncall.rules import (
     late_shift_on_day_off,
     oncall_rest_violations,
 )
-from oncall.scheduler import DateRange, SolverMember, generate_schedule
+from oncall.scheduler import SolverMember, generate_schedule
 from oncall.workdays import polish_holidays
 
 STARTS = date(2026, 11, 2)

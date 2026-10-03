@@ -14,7 +14,6 @@ from sqlalchemy.orm import joinedload
 
 from oncall.config import get_settings
 from oncall.database import get_db
-from oncall.domain.clock import as_utc as as_utc
 from oncall.domain.clock import utc_now
 from oncall.domain.sharing.models import link_is_active
 from oncall.domain.vocabulary import UserRole
@@ -51,10 +50,6 @@ async def verify_password_async(password_hash: str | None, password: str) -> boo
 
 def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
-
-
-def share_link_active(link: ShareLink, now: datetime | None = None) -> bool:
-    return link_is_active(link.revoked_at, link.expires_at, now or utc_now())
 
 
 def set_session_cookie(response: Response, raw_token: str, expires_at: datetime) -> None:
@@ -97,7 +92,9 @@ async def get_current_session(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=translate("access.account_inactive")
         )
-    if session.share_link is not None and not share_link_active(session.share_link):
+    if session.share_link is not None and not link_is_active(
+        session.share_link.revoked_at, session.share_link.expires_at, utc_now()
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=translate("sharing.link_expired_or_revoked"),

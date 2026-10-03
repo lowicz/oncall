@@ -13,8 +13,6 @@ The two catalogs are kept in step by `tests/test_i18n.py`: the same keys, the
 same placeholders.
 """
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import Literal, get_args
 
@@ -41,16 +39,6 @@ def set_request_language(language: Language) -> Token[Language]:
 
 def reset_request_language(token: Token[Language]) -> None:
     _request_language.reset(token)
-
-
-@contextmanager
-def language_scope(language: Language) -> Iterator[None]:
-    """Serve everything inside the block in `language` (tests, one-off calls)."""
-    token = set_request_language(language)
-    try:
-        yield
-    finally:
-        reset_request_language(token)
 
 
 def negotiate(accept_language: str | None) -> Language:
