@@ -9,7 +9,8 @@ Registry, oznaczone numerem wydania:
 | `ghcr.io/lowicz/oncall-web` | `web` | nginx z aplikacją (SPA) i tą dokumentacją pod `/docs/` |
 
 Obrazy są publiczne: `docker compose pull` nie wymaga logowania. Baza `db` to
-niezmieniony obraz `postgres:18-alpine`.
+niezmieniony obraz `postgres` z Docker Hub w jednym wydaniu PostgreSQL,
+wskazanym w `docker-compose.yml` (`postgres:<major>.<minor>-alpine`).
 
 ## Numer wersji
 
@@ -195,12 +196,20 @@ Zasady:
   otwierany w poniedziałek przed 6:00 czasu warszawskiego,
 - nowe wydanie pakietu musi mieć co najmniej trzy dni, zanim zostanie
   zaproponowane - świeżo opublikowana, być może przejęta, wersja nie trafia do
-  PR-a tego samego dnia,
+  PR-a tego samego dnia; bez tej karencji przychodzi tylko to, co nie ma daty
+  wydania: obraz `postgres` (Docker Hub nie podaje dat dla obrazu z tyloma
+  tagami), comiesięczne odświeżenie plików lock i przypięcie wersji (nie
+  wnoszą nowego wydania),
 - poprawki bezpieczeństwa (alerty GitHub i baza OSV) powstają natychmiast,
   osobno i z etykietą `security`,
 - zmiany wersji głównych oraz każda zmiana środowiska uruchomieniowego
   (Python, Node, PostgreSQL) czekają na zatwierdzenie w Dependency Dashboard -
-  to decyzje, nie rutyna,
+  to decyzje, nie rutyna; wyjątkiem jest wydanie poprawkowe używanej wersji
+  (Python 3.14.8 → 3.14.9, PostgreSQL 18.6 → 18.7), które przychodzi we
+  własnym cotygodniowym PR-ze,
+- pakiety npm, które muszą zmieniać się razem, mają wspólny PR (vitest, vite,
+  eslint z wtyczkami), a TypeScript (`@typescript/native` i `typescript`)
+  osobny, bo jego wydanie minor potrafi zepsuć sprawdzanie typów,
 - nic nie jest scalane automatycznie; każdy PR przechodzi `ci-ok` i przegląd.
 
 Taką aktualizację zatwierdza się w issue **Dependency Dashboard**: w sekcji
@@ -221,7 +230,7 @@ samym PR-ze:
 | --- | --- | --- |
 | Node.js | `NODE_VERSION` w `ci.yml`, `node-version` w `pages.yml`, `frontend/Dockerfile`, badge w `README.md` | wydania Node.js |
 | Python | `requires-python` w `backend/pyproject.toml`, `PYTHON_VERSION` w `ci.yml`, `backend/Dockerfile`, badge w `README.md` | wydania python.org |
-| PostgreSQL | `docker-compose.yml` (obraz i wolumen `oncall-postgres-<wersja>`), `docker-compose.contract.yml`, usługa bazy w `ci.yml`, badge w `README.md` | Docker Hub, wszędzie ten sam major; CI (`compose-postgres-volume.sh`) pilnuje zgodności obrazu z wolumenem |
+| PostgreSQL | `docker-compose.yml` (obraz i wolumen `oncall-postgres-<major>`), `docker-compose.contract.yml`, usługa bazy w `ci.yml`, badge w `README.md` | Docker Hub; trzy linie obrazu wskazują to samo wydanie (`<major>.<minor>-alpine`), wolumen i badge tylko jego major; CI (`compose-postgres-volume.sh`) pilnuje jednego i drugiego |
 | uv | `required-version` w `backend/pyproject.toml`, `UV_VERSION` w `ci.yml`, `backend/Dockerfile` | wydania uv na GitHubie |
 
 Gdyby obraz Node albo Pythona był osobną zależnością z Docker Hub, miałby inną
@@ -230,10 +239,8 @@ opublikowaniem obrazu, a zatwierdzona aktualizacja obejmuje tylko te pliki,
 których wersja ma już trzy dni. Obraz mógłby wtedy zostać na starej wersji,
 gdy CI testowałoby już nową. Obrazy nie są też przypięte do digestu: listy
 wydań Node.js i Pythona digestów nie znają, więc Renovate nie przesunąłby go
-razem z tagiem, a Docker użyłby digestu starego obrazu mimo nowego tagu. Bez
-digestu `docker compose pull` pobiera też dla bazy najnowsze wydanie
-poprawkowe jej tagu. Dokładne digesty obrazów bazowych każdego wydania
-zapisuje jego provenance.
+razem z tagiem, a Docker użyłby digestu starego obrazu mimo nowego tagu.
+Dokładne digesty obrazów bazowych każdego wydania zapisuje jego provenance.
 
 Obraz bazowy serwera `web` wskazuje jedno wydanie nginx: w `frontend/Dockerfile`
 stoi `nginxinc/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, nigdy tag
@@ -264,8 +271,31 @@ Schedule”). Tag wydania nginx może zostać opublikowany ponownie pod tym samy
 numerem, np. z poprawkami Alpine; digest, z którego zbudowano wydanie
 aplikacji, zapisuje jego provenance.
 
+Obraz bazy także wskazuje jedno wydanie: `postgres:<major>.<minor>-alpine` w
+obu plikach Compose i w usłudze bazy w `ci.yml`, nigdy tag pływający taki jak
+`18-alpine`. Host uruchamia więc to wydanie PostgreSQL, z którym CI
+przetestowało wydanie aplikacji, a nowe dostaje razem z kolejnym wydaniem
+aplikacji (`update.sh` pobiera je przed restartem), nie przy przypadkowym
+`docker compose pull`. Wydawca może przebudować obraz pod tym samym tagiem,
+np. z nowymi pakietami Alpine; wersja PostgreSQL zostaje ta sama. Nowa
+wersja główna to decyzja: tylko ją zawierają badge w `README.md` i nazwa
+wolumenu `oncall-postgres-<major>`, jej zmiana przenosi dane (patrz
+[Nowa wersja główna PostgreSQL](aktualizacja.md#nowa-wersja-główna-postgresql))
+i czeka na zatwierdzenie w Dependency Dashboard. Wydanie minor tej samej
+wersji głównej (18.6 → 18.7) to poprawki błędów i bezpieczeństwa na tym samym
+katalogu danych: przychodzi bez zatwierdzania, we własnym cotygodniowym pull
+requeście „PostgreSQL”, a oczekująca nowa wersja główna go nie wstrzymuje.
+Reguła trzech dni go nie obejmuje, bo Docker Hub nie podaje dat tego obrazu;
+zaplanowane wydania PostgreSQL wychodzą w czwartek, a Renovate otwiera PR w
+poniedziałek, wydanie pozaplanowe może jednak przyjść szybciej. Numery nie są
+ciągłe (po 18.4 wyszło 18.6, bo 18.5 nie zostało wydane); Renovate
+proponuje najwyższe wydanie. Opis PR-a odsyła do notatek wydania: ich sekcja
+„Migration to Version” mówi, czy po aktualizacji trzeba coś zrobić, na
+przykład przebudować indeksy, a taki krok trafia do tego samego PR-a.
+
 Przed scaleniem aktualizacji środowiska uruchomieniowego przeszukaj gałąź
-PR-a starą wersją (np. `git grep -n '17-alpine\|oncall-postgres-17\|PostgreSQL 17'`). Zostać może
+PR-a starą wersją (np. po przejściu z PostgreSQL 18:
+`git grep -n 'postgres:18\|oncall-postgres-18\|PostgreSQL 18'`). Zostać może
 tylko opis w dokumentacji lub w `AGENTS.md` - popraw go w tym samym PR-ze -
 albo nowe miejsce z wersją, które trzeba dopisać do reguły tej grupy w
 `renovate.json5`.

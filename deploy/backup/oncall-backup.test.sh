@@ -19,7 +19,13 @@ unset ONCALL_BACKUP_CONFIG ONCALL_BACKUP_DIR ONCALL_BACKUP_KEEP ONCALL_BACKUP_OW
 
 repo_root=$(cd "$(dirname "$0")/../.." && pwd -P)
 script=$repo_root/deploy/backup/oncall-backup.sh
-image=${ONCALL_BACKUP_TEST_IMAGE:-docker.io/library/postgres:18-alpine}
+# The stack's PostgreSQL release, as docker-compose.yml names it.
+stack_image=$(awk '$1 == "image:" && $2 ~ /^postgres:[0-9]/ { print $2; exit }' "$repo_root/docker-compose.yml")
+[ -n "$stack_image" ] || {
+  echo "$repo_root/docker-compose.yml names no postgres image" >&2
+  exit 1
+}
+image=${ONCALL_BACKUP_TEST_IMAGE:-docker.io/library/$stack_image}
 old_image=${ONCALL_BACKUP_TEST_OLD_IMAGE:-docker.io/library/postgres:17-alpine}
 work=$(mktemp -d)
 run_id=oncall-backup-test-$$
@@ -450,7 +456,7 @@ podman compose version >/dev/null 2>&1 || {
 # The stack's Compose file as releases on PostgreSQL 17 had it: that image, its
 # volume on the old data path, no initdb settings. And one whose db is still
 # 17 on a volume of its own, which is no upgrade.
-sed -e 's/image: postgres:[0-9]*-alpine/image: postgres:17-alpine/' \
+sed -e 's/image: postgres:[0-9.]*-alpine/image: postgres:17-alpine/' \
   -e 's|- oncall-postgres-[0-9]*:/var/lib/postgresql$|- oncall-db:/var/lib/postgresql/data|' \
   -e 's/^  oncall-postgres-[0-9]*:$/  oncall-db:/' -e '/POSTGRES_INITDB_ARGS/d' \
   "$deploy/docker-compose.yml" >"$deploy/compose-17.yml"
@@ -488,6 +494,10 @@ services:
 EOF
 grep -q 'oncall-db:/var/lib/postgresql/data' "$deploy/compose-17.yml" || {
   echo "$deploy/compose-17.yml does not mount oncall-db on the old data path" >&2
+  exit 1
+}
+grep -q 'image: postgres:17-alpine$' "$deploy/compose-17.yml" || {
+  echo "$deploy/compose-17.yml does not run postgres:17-alpine" >&2
   exit 1
 }
 

@@ -67,9 +67,12 @@ Skrypt nie zakłada wdrożenia od zera: pierwszy start opisują
    `git fetch --tags` i `git checkout` tagu.
 3. Buduje nowy `.env` - patrz [niżej](#jak-zmienia-się-env).
 4. Pobiera obrazy `ghcr.io/lowicz/oncall-api` i `ghcr.io/lowicz/oncall-web` w
-   tej wersji, a gdy wydanie zmienia wersję główną PostgreSQL, także jego
-   obraz. Jeśli wydania nie ma, skrypt kończy się tutaj i niczego nie
-   zmienia; restart nie czeka też potem na pobieranie.
+   tej wersji, a gdy wydanie wskazuje inne wydanie PostgreSQL niż wdrożenie,
+   także jego obraz. Nowe wydanie tej samej wersji głównej (np.
+   `postgres:18.6-alpine` po pływającym `postgres:18-alpine` starszych
+   wydań) nie przenosi danych: restart uruchamia nowy serwer na tym samym
+   wolumenie. Jeśli któregoś obrazu nie ma, skrypt kończy się tutaj i
+   niczego nie zmienia; restart nie czeka też potem na pobieranie.
 5. Robi zrzut bazy, sprawdzony odtworzeniem, bo restart uruchomi migracje
    wydania, a te nie cofają się same - patrz
    [Kopie zapasowe bazy](kopie-zapasowe.md#przed-aktualizacją). Nieudany zrzut
@@ -184,7 +187,7 @@ poprawieniu wierszy regułę kończy polecenie SQL podane w ostrzeżeniu.
 ## Nowa wersja główna PostgreSQL
 
 Katalog danych PostgreSQL należy do wersji głównej, która go zapisała: obraz
-`postgres:18-alpine` odmawia startu na danych wersji 17. Wydanie, które w
+PostgreSQL 18 odmawia startu na danych wersji 17. Wydanie, które w
 `docker-compose.yml` przenosi usługę `db` na nowszą wersję główną, przenosi
 więc też dane, i robi to `update.sh` bez żadnego dodatkowego polecenia.
 Pierwsze takie wydanie przenosi bazę z PostgreSQL 17 na 18.
