@@ -309,3 +309,12 @@ skrypt zostawia wtedy lokalne pliki jednostki (`... has no
 deploy/systemd/...; keeping the local one`). Checkoutu git nie da się cofnąć
 przed ten katalog bez usunięcia skryptu, który uruchamia jednostka, więc skrypt
 odmawia i niczego nie zmienia.
+
+W wydaniach sprzed przekazania `ONCALL_SOLVER_WORKERS` do kontenera `worker`
+`.env.example` miał `ONCALL_SOLVER_WORKERS=8`, a ta wartość nie docierała do
+generatora: liczba wątków CP-SAT wynikała z liczby procesorów. Skrypt zachowuje
+tę linię, więc po aktualizacji wartość naprawdę działa i na hoście z 2
+procesorami CP-SAT uruchamia 8 wątków zamiast 2. Jeśli `.env` wciąż ma
+`ONCALL_SOLVER_WORKERS=8` ze starego `.env.example`, a liczba wątków nie była
+wybrana świadomie, wyczyść wartość (`ONCALL_SOLVER_WORKERS=`) i uruchom
+`docker compose up -d worker`.
