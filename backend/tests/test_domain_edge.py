@@ -10,7 +10,6 @@ from oncall.routes.domain_edge import (
     RecordedHttpException,
     domain_errors_as_http,
     http_error,
-    refusals_as_http,
 )
 
 
@@ -42,7 +41,7 @@ def test_an_unmapped_error_has_no_response() -> None:
     assert http_error(_Unmapped(), SHARED_ERROR_STATUSES) is None
 
 
-def test_the_synchronous_edge_lets_an_unmapped_error_through_unchanged() -> None:
+def test_the_edge_lets_an_unmapped_error_through_unchanged() -> None:
     error = _Unmapped()
 
     with pytest.raises(_Unmapped) as raised, domain_errors_as_http(SHARED_ERROR_STATUSES):
@@ -51,7 +50,7 @@ def test_the_synchronous_edge_lets_an_unmapped_error_through_unchanged() -> None
     assert raised.value is error
 
 
-def test_the_synchronous_edge_answers_a_mapped_error_with_its_message() -> None:
+def test_the_edge_answers_a_mapped_error_with_its_message() -> None:
     with pytest.raises(HTTPException) as raised, domain_errors_as_http(SHARED_ERROR_STATUSES):
         raise NotATeamMember()
 
@@ -60,40 +59,15 @@ def test_the_synchronous_edge_answers_a_mapped_error_with_its_message() -> None:
     assert not isinstance(raised.value, RecordedHttpException)
 
 
-async def test_the_refusal_edge_lets_an_unmapped_error_through_unchanged() -> None:
-    error = _Unmapped()
-
-    with pytest.raises(_Unmapped) as raised:
-        async with refusals_as_http(None, SHARED_ERROR_STATUSES):
-            raise error
-
-    assert raised.value is error
-
-
-async def test_a_recorded_refusal_is_answered_so_that_what_it_recorded_is_committed() -> None:
-    refusals = refusals_as_http(
-        None,
-        {_Refused: 429},
-        headers={_Refused: lambda _error: {"Retry-After": "60"}},
+def test_a_recorded_refusal_is_answered_so_that_what_it_recorded_is_committed() -> None:
+    refusals = domain_errors_as_http(
+        {_Refused: 429}, headers={_Refused: lambda _error: {"Retry-After": "60"}}
     )
 
-    with pytest.raises(HTTPException) as raised:
-        async with refusals:
-            raise _Refused()
+    with pytest.raises(HTTPException) as raised, refusals:
+        raise _Refused()
 
     assert isinstance(raised.value, RecordedHttpException)
     assert raised.value.commit_transaction is True
     assert raised.value.status_code == 429
     assert raised.value.headers == {"Retry-After": "60"}
-
-
-async def test_an_ordinary_refusal_commits_nothing() -> None:
-    refusals = refusals_as_http(None, SHARED_ERROR_STATUSES)
-    refusal = NotATeamMember()
-
-    with pytest.raises(HTTPException) as raised:
-        async with refusals:
-            raise refusal
-
-    assert not isinstance(raised.value, RecordedHttpException)
-    assert raised.value.status_code == 403
