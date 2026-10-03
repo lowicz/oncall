@@ -23,10 +23,10 @@ export function useLanguageSwitch(): [Language, (language: Language) => void] {
 const options = LANGUAGES.map((language) => ({ value: language, label: languageNames[language] }))
 
 /** The language as a segmented control: on the sign-in screen and the More screen. */
-export function LanguageSegmented({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+export function LanguageSegmented() {
   const t = useMessages()
   const [language, change] = useLanguageSwitch()
-  return <Segmented<Language> size={size} label={t.theme.language} value={language} onChange={change} options={options} />
+  return <Segmented<Language> size="sm" label={t.theme.language} value={language} onChange={change} options={options} />
 }
 
 /** The language as a radio group inside the account menu. */

@@ -25,9 +25,8 @@ export function EmptyState({ icon = 'info', title, description, action, classNam
 }
 
 /** What the API said, with the retry and the status code for a ticket. */
-export function ErrorState({ error, title, onRetry, className }: {
+export function ErrorState({ error, onRetry, className }: {
   error: unknown
-  title?: ReactNode
   onRetry?: () => void
   className?: string
 }) {
@@ -37,7 +36,7 @@ export function ErrorState({ error, title, onRetry, className }: {
   return (
     <div className={cx('empty', 'empty-error', className)} role="alert">
       <Icon name="alert" size={28} />
-      <p className="empty-title">{title ?? t.common.fetchFailed}</p>
+      <p className="empty-title">{t.common.fetchFailed}</p>
       <p className="empty-desc">{message}</p>
       {onRetry && <div className="empty-action"><Button variant="primary" size="sm" icon="refresh" onClick={onRetry}>{t.common.retry}</Button></div>}
       {status !== null && <p className="empty-code">HTTP {status}</p>}

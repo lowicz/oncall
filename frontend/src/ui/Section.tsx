@@ -3,17 +3,15 @@ import { cx } from './cx'
 
 /** The title of a screen: the fact first (a date, a range, a name), the
  *  context under it, actions on the right in rising weight. */
-export function PageHeader({ title, sub, actions, className, eyebrow }: {
+export function PageHeader({ title, sub, actions, className }: {
   title: ReactNode
   sub?: ReactNode
   actions?: ReactNode
   className?: string
-  eyebrow?: ReactNode
 }) {
   return (
     <div className={cx('ph', className)}>
       <div className="ph-text">
-        {eyebrow && <div className="ph-eyebrow">{eyebrow}</div>}
         <h1 className="ph-title">{title}</h1>
         {sub && <div className="ph-sub">{sub}</div>}
       </div>

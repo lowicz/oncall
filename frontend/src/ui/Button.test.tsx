@@ -100,10 +100,10 @@ describe('link buttons', () => {
   })
 
   it('lead out of the application as a plain anchor', () => {
-    const { rerender } = render(<AnchorButton href="/docs/" variant="ghost" icon="doc" block>Dokumentacja</AnchorButton>)
+    const { rerender } = render(<AnchorButton href="/docs/" variant="ghost" icon="doc">Dokumentacja</AnchorButton>)
     const anchor = screen.getByRole('link', { name: 'Dokumentacja' })
     expect(anchor).toHaveAttribute('href', '/docs/')
-    expect(anchor).toHaveClass('btn', 'btn-ghost', 'btn-block')
+    expect(anchor).toHaveClass('btn', 'btn-ghost')
     expect(anchor.querySelector('svg')).not.toBeNull()
     rerender(<AnchorButton href="/feed.ics">ICS</AnchorButton>)
     expect(screen.getByRole('link', { name: 'ICS' }).querySelector('svg')).toBeNull()
