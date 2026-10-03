@@ -104,16 +104,3 @@ class FairnessDutyResponse(BaseModel):
     role: AssignmentRole
     points: float
     is_day_off: bool
-
-
-__all__ = [
-    "DraftFairnessImpactResponse",
-    "DraftLensSpreadResponse",
-    "FairnessCategoryResponse",
-    "FairnessDutyResponse",
-    "FairnessLensOutliersResponse",
-    "FairnessLensSpreadResponse",
-    "FairnessMemberResponse",
-    "FairnessOutlierResponse",
-    "FairnessReportResponse",
-]

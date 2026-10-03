@@ -176,6 +176,3 @@ class SqlAlchemySchedulingJournal:
             schedule.id,
             f"Opublikowano grafik „{name}” ({schedule.starts_on} – {schedule.ends_on})",
         )
-
-
-__all__ = ["SqlAlchemySchedulingJournal"]

@@ -16,7 +16,13 @@ from datetime import date, timedelta
 from ortools.sat.python import cp_model
 
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
-from oncall.scheduler import SCALE, DateRange, SolverMember, _build_model
+from oncall.scheduler import (
+    SCALE,
+    DateRange,
+    SolverMember,
+    _build_model_from_context,
+    _ModelBuildContext,
+)
 from oncall.workdays import polish_holidays
 
 # 4 weeks from a Monday: four weekends, plus 11-11 (Independence Day, a Wednesday).
@@ -42,22 +48,24 @@ def test_every_lens_deviation_sums_to_its_mean_after_solving() -> None:
         for d in (STARTS + timedelta(days=i) for i in range((ENDS - STARTS).days + 1))
     ), "expected the 11-11 holiday inside the horizon"
 
-    model, _variables, conflicts, lenses = _build_model(
-        starts_on=STARTS,
-        ends_on=ENDS,
-        mode=RotationMode.hybrid,
-        members=members,
-        historical_points={
-            ("Anna", AssignmentRole.primary): 40.0,
-            ("Bartek", AssignmentRole.secondary): 25.0,
-        },
-        holidays=holidays,
-        historical_lenses={("Anna", "weekends"): 6.0, ("Cezary", "holidays"): 2.0},
-        history_window=None,
-        fairness_weight=3.0,
-        continuity_weight=1.0,
-        preference_weight=2.0,
-        late_shift_anchor=LateShiftAnchor.secondary,
+    model, _variables, conflicts, lenses = _build_model_from_context(
+        _ModelBuildContext(
+            starts_on=STARTS,
+            ends_on=ENDS,
+            mode=RotationMode.hybrid,
+            members=members,
+            historical_points={
+                ("Anna", AssignmentRole.primary): 40.0,
+                ("Bartek", AssignmentRole.secondary): 25.0,
+            },
+            holidays=holidays,
+            historical_lenses={("Anna", "weekends"): 6.0, ("Cezary", "holidays"): 2.0},
+            history_window=None,
+            fairness_weight=3.0,
+            continuity_weight=1.0,
+            preference_weight=2.0,
+            late_shift_anchor=LateShiftAnchor.secondary,
+        ),
         spacing=True,
     )
     assert conflicts == []

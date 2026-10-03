@@ -48,6 +48,3 @@ def emit(event: str, *, level: int = logging.INFO, **fields: object) -> None:
     rather than in a second log line saying the same thing.
     """
     logger.log(level, "%s", render(event, fields))
-
-
-__all__ = ["emit", "logger", "render"]

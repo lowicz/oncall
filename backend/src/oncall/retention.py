@@ -235,16 +235,3 @@ async def prune_expired(
             # will go on with.
             report.capped.append(rule.name)
     return report
-
-
-__all__ = [
-    "EXPIRY_GRACE_DAYS",
-    "FINISHED_OUTBOX",
-    "FINISHED_RUNS",
-    "LOGIN_ACTIONS",
-    "RetentionPolicy",
-    "RetentionReport",
-    "Rule",
-    "delete_batch",
-    "prune_expired",
-]

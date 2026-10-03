@@ -1178,52 +1178,6 @@ def _build_model_from_context(
     return model, variables, conflicts, lenses
 
 
-def _build_model(
-    *,
-    starts_on: date,
-    ends_on: date,
-    mode: RotationMode,
-    members: list[SolverMember],
-    historical_points: dict[tuple[str, AssignmentRole], float],
-    holidays: set[date],
-    historical_lenses: dict[tuple[str, str], float] | None,
-    history_window: tuple[date, date] | None,
-    fairness_weight: float,
-    continuity_weight: float,
-    preference_weight: float,
-    late_shift_anchor: LateShiftAnchor,
-    spacing: bool,
-    prior_oncall: dict[str, set[date]] | None = None,
-    acceptance_cap: int | None = None,
-    fairness_only: bool = False,
-    fairness_bound: int | None = None,
-    window_cap: int | None = None,
-) -> _BuiltModel:
-    """Compatibility entry point for focused model tests."""
-    return _build_model_from_context(
-        _ModelBuildContext(
-            starts_on=starts_on,
-            ends_on=ends_on,
-            mode=mode,
-            members=members,
-            historical_points=historical_points,
-            holidays=holidays,
-            historical_lenses=historical_lenses,
-            history_window=history_window,
-            fairness_weight=fairness_weight,
-            continuity_weight=continuity_weight,
-            preference_weight=preference_weight,
-            late_shift_anchor=late_shift_anchor,
-            prior_oncall=prior_oncall,
-        ),
-        spacing=spacing,
-        acceptance_cap=acceptance_cap,
-        fairness_only=fairness_only,
-        fairness_bound=fairness_bound,
-        window_cap=window_cap,
-    )
-
-
 def _prior_history_warning(
     members: list[SolverMember],
     prior_oncall: dict[str, set[date]] | None,

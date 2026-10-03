@@ -1,4 +1,4 @@
-import { AssignmentRole, AvailabilityKind, CalendarData } from '../api'
+import { AssignmentRole, CalendarData } from '../api'
 import { formatMonth, isMonday, monthsShort } from './dates'
 import { messages } from '../i18n/messages'
 
@@ -210,16 +210,3 @@ export function monthGroups(days: CalendarData['days']): MonthGroup[] {
 
 /** Monday starts a new week block; used to draw the week separators. */
 export const startsWeek = (day: CalendarData['days'][number]) => isMonday(day.service_date)
-
-/** Single letters keep a 44px column readable. The legend above the matrix and
- *  the cell's accessible name both spell them out. */
-export const availabilityCodes: Record<AvailabilityKind, string> = {
-  unavailable: 'N',
-  prefer_not: 'W',
-  prefer: 'C',
-}
-
-export const changeCodes = {
-  swap: 'Z',
-  manual_override: 'K',
-} as const

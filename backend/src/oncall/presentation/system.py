@@ -24,6 +24,3 @@ class PublicConfigResponse(BaseModel):
     #: travel with the settings anyone may read.
     audit_retention_days: int
     login_audit_retention_days: int
-
-
-__all__ = ["HealthResponse", "PublicConfigResponse"]

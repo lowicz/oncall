@@ -99,20 +99,6 @@ export function Checkbox({ label, hint, className, ...rest }: {
   )
 }
 
-export function Radio({ label, hint, className, ...rest }: {
-  label: ReactNode
-  hint?: ReactNode
-} & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
-  return (
-    <label className={cx('check', 'radio', className)}>
-      <input type="radio" {...rest} />
-      <span className="check-body">
-        <span>{label}</span>
-        {hint && <small>{hint}</small>}
-      </span>
-    </label>
-  )
-}
 
 export interface SegmentOption<T extends string> {
   value: T
@@ -172,9 +158,4 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
       ))}
     </div>
   )
-}
-
-/** Fields side by side that wrap on a phone. */
-export function FieldRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('frow', className)}>{children}</div>
 }

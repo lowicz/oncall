@@ -69,7 +69,6 @@ class Settings(BaseSettings):
     #: no ONCALL_VERSION to the containers on purpose. A checkout build has no
     #: tag and says `dev`.
     version: str = DEV_VERSION
-    environment: str = "development"
     database_url: str = "postgresql+asyncpg://oncall:oncall@localhost:5432/oncall"
     database_pool_size: int = Field(default=3, ge=1, le=20)
     database_max_overflow: int = Field(default=2, ge=0, le=20)
@@ -143,7 +142,6 @@ class Settings(BaseSettings):
     email_from: str = "On-call <oncall@example.com>"
 
     public_base_url: str = "http://localhost:8080"
-    share_link_max_days: int = 30
 
     worker_poll_seconds: float = 5.0
     worker_batch_size: int = 20

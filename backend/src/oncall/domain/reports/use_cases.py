@@ -13,7 +13,7 @@ from oncall.domain.reports.models import DutyTally, MonthlyReport, MonthlyRow
 from oncall.domain.reports.ports import ReportPorts
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.fairness import day_weight
-from oncall.workdays import polish_holidays
+from oncall.workdays import is_working_day, polish_holidays
 
 
 def month_range(month: str) -> tuple[date, date]:
@@ -50,7 +50,7 @@ async def monthly_report(month: str, ports: ReportPorts) -> MonthlyReport:
             continue
         day = duty.service_date
         if duty.role == AssignmentRole.late_shift:
-            if day.weekday() < 5 and day not in holidays:
+            if is_working_day(day, holidays):
                 tally.late_shift += 1
             continue
         # A statutory holiday that falls on a weekend is a weekend (decision

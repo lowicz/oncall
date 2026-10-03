@@ -71,6 +71,3 @@ def _one_line(record: str) -> str:
     event name and a bare value too, and for any later change to rendering.
     """
     return record.replace("\r", "\\r").replace("\n", "\\n")
-
-
-__all__ = ["begin_attempt", "emit", "logger"]

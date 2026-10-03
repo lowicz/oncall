@@ -95,7 +95,3 @@ export function AnchorButton({ variant, size, block, icon, className, children, 
     </a>
   )
 }
-
-export function Spinner({ label }: { label?: string }) {
-  return <span className="spinner" role={label ? 'status' : undefined} aria-label={label} />
-}

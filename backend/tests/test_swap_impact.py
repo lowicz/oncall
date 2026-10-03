@@ -8,8 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.vocabulary import AssignmentRole, UserRole
-from oncall.fairness import FairnessDuty
-from oncall.fairness_data import reassign
+from oncall.fairness import FairnessDuty, reassign
 from tests.conftest import create_member, create_published_schedule, create_user, login
 
 START = date.today() + timedelta(days=1)

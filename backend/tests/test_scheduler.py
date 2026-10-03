@@ -9,7 +9,8 @@ from oncall.scheduler import (
     PreferenceRange,
     SolverMember,
     SolverResult,
-    _build_model,
+    _build_model_from_context,
+    _ModelBuildContext,
     generate_schedule,
 )
 
@@ -374,19 +375,21 @@ def test_late_shift_lens_leaves_the_range_family_only_when_anchored() -> None:
         LateShiftAnchor.primary,
         LateShiftAnchor.independent,
     ):
-        _model, _variables, conflicts, _lenses = _build_model(
-            starts_on=date(2026, 9, 1),
-            ends_on=date(2026, 9, 30),
-            mode=RotationMode.hybrid,
-            members=members,
-            historical_points={},
-            holidays=set(),
-            historical_lenses={},
-            history_window=None,
-            fairness_weight=3.0,
-            continuity_weight=1.0,
-            preference_weight=2.0,
-            late_shift_anchor=anchor,
+        _model, _variables, conflicts, _lenses = _build_model_from_context(
+            _ModelBuildContext(
+                starts_on=date(2026, 9, 1),
+                ends_on=date(2026, 9, 30),
+                mode=RotationMode.hybrid,
+                members=members,
+                historical_points={},
+                holidays=set(),
+                historical_lenses={},
+                history_window=None,
+                fairness_weight=3.0,
+                continuity_weight=1.0,
+                preference_weight=2.0,
+                late_shift_anchor=anchor,
+            ),
             spacing=False,
         )
         assert conflicts == []

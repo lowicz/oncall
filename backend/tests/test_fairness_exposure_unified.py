@@ -20,12 +20,10 @@ from sqlalchemy.orm import selectinload
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, UserRole
 from oncall.fairness import (
     ACCEPTANCE_POINTS,
+    generator_history_window,
     slot_exposure,
 )
-from oncall.fairness_data import (
-    generator_history_window,
-    solver_history,
-)
+from oncall.fairness_data import solver_history
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.scheduler import DateRange, PreferenceRange, SolverMember, _days, _role_day_weight

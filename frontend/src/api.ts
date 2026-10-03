@@ -696,6 +696,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+/** A state-changing call: a fresh CSRF token first, then the JSON request. */
+async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
+  return request<T>(path, {
+    method,
+    headers: { 'X-CSRF-Token': csrf_token },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
 /** Polls one generation run to its end and returns the finished draft.
  *  Shared by starting a generation and by rejoining one after a reload. */
 async function followRun(
@@ -749,7 +759,7 @@ export const api = {
     request<CalendarData>(
       `/api/v1/calendar?starts_on=${encodeURIComponent(startsOn)}&ends_on=${encodeURIComponent(endsOn)}`,
     ),
-  batchOverride: async (input: {
+  batchOverride: (input: {
     schedule_id: string
     expected_version: number
     assignments: Array<{
@@ -760,42 +770,17 @@ export const api = {
     reason: string
     /** Required when the batch breaks a hard rule (409 with the violations otherwise). */
     acknowledge_rule_violations?: boolean
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<Assignment[]>('/api/v1/calendar/override/batch', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
+  }) => send<Assignment[]>('POST', '/api/v1/calendar/override/batch', input),
   calendarEvents: (startsOn: string, endsOn: string) =>
     request<CalendarEvent[]>(
       `/api/v1/calendar/events?starts_on=${encodeURIComponent(startsOn)}&ends_on=${encodeURIComponent(endsOn)}`,
     ),
-  createCalendarEvent: async (input: CalendarEventInput) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<CalendarEvent>('/api/v1/calendar/events', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  updateCalendarEvent: async ({ id, ...input }: { id: string } & Partial<CalendarEventInput>) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<CalendarEvent>(`/api/v1/calendar/events/${id}`, {
-      method: 'PATCH',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  deleteCalendarEvent: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<void>(`/api/v1/calendar/events/${id}`, {
-      method: 'DELETE',
-      headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
-  directOverride: async (input: {
+  createCalendarEvent: (input: CalendarEventInput) =>
+    send<CalendarEvent>('POST', '/api/v1/calendar/events', input),
+  updateCalendarEvent: ({ id, ...input }: { id: string } & Partial<CalendarEventInput>) =>
+    send<CalendarEvent>('PATCH', `/api/v1/calendar/events/${id}`, input),
+  deleteCalendarEvent: (id: string) => send<void>('DELETE', `/api/v1/calendar/events/${id}`),
+  directOverride: (input: {
     schedule_id?: string
     expected_version: number
     service_date: string
@@ -804,63 +789,22 @@ export const api = {
     reason?: string
     /** Required when the override breaks a hard rule (409 with the violations otherwise). */
     acknowledge_rule_violations?: boolean
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<Assignment>('/api/v1/calendar/override', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  directOverrideCheck: async (input: {
+  }) => send<Assignment>('POST', '/api/v1/calendar/override', input),
+  directOverrideCheck: (input: {
     service_date: string
     role: AssignmentRole
     replacement_member_id: string
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<RuleViolation[]>('/api/v1/calendar/override/check', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
+  }) => send<RuleViolation[]>('POST', '/api/v1/calendar/override/check', input),
   availability: () => request<AvailabilityEntry[]>('/api/v1/availability/me'),
-  createAvailability: async (input: AvailabilityInput) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<AvailabilityEntry>('/api/v1/availability/me', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  deleteAvailability: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const response = await fetch(`/api/v1/availability/me/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
-    })
-    if (!response.ok) throw new Error(messages().common.entryDeleteFailed(response.status))
-  },
+  createAvailability: (input: AvailabilityInput) =>
+    send<AvailabilityEntry>('POST', '/api/v1/availability/me', input),
+  deleteAvailability: (id: string) => send<void>('DELETE', `/api/v1/availability/me/${id}`),
   memberAvailability: (memberId: string) =>
     request<AvailabilityEntry[]>(`/api/v1/availability/members/${memberId}`),
-  createMemberAvailability: async (memberId: string, input: AvailabilityInput) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<AvailabilityEntry>(`/api/v1/availability/members/${memberId}`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  deleteMemberAvailability: async (memberId: string, id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const response = await fetch(`/api/v1/availability/members/${memberId}/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
-    })
-    if (!response.ok) throw new Error(messages().common.entryDeleteFailed(response.status))
-  },
+  createMemberAvailability: (memberId: string, input: AvailabilityInput) =>
+    send<AvailabilityEntry>('POST', `/api/v1/availability/members/${memberId}`, input),
+  deleteMemberAvailability: (memberId: string, id: string) =>
+    send<void>('DELETE', `/api/v1/availability/members/${memberId}/${id}`),
   previewHistory: async (file: File) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
     const form = new FormData()
@@ -877,19 +821,16 @@ export const api = {
     }
     return response.json() as Promise<HistoryImportPreview>
   },
-  commitHistory: async (preview: HistoryImportPreview) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<{ schedule_id: string; imported_rows: number }>('/api/v1/history/commit', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify({ filename: preview.filename, rows: preview.rows }),
-    })
-  },
+  commitHistory: (preview: HistoryImportPreview) =>
+    send<{ schedule_id: string; imported_rows: number }>('POST', '/api/v1/history/commit', {
+      filename: preview.filename,
+      rows: preview.rows,
+    }),
   historyImports: () => request<HistoryImportRecord[]>('/api/v1/history/imports'),
   schedulingPolicy: () => request<SchedulingPolicy>('/api/v1/scheduling/policy'),
   suggestedScheduleRange: () =>
     request<SuggestedScheduleRange>('/api/v1/scheduling/suggested-range'),
-  updateSchedulingPolicy: async (input: {
+  updateSchedulingPolicy: (input: {
     rotation_mode: RotationMode
     fairness_weight?: number
     continuity_weight?: number
@@ -897,24 +838,12 @@ export const api = {
     late_shift_anchor?: LateShiftAnchor
     solve_seconds?: number
     coordinator_swap_approval_required?: boolean
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<SchedulingPolicy>('/api/v1/scheduling/policy', {
-      method: 'PUT',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
+  }) => send<SchedulingPolicy>('PUT', '/api/v1/scheduling/policy', input),
   generateSchedule: async (
     input: { starts_on: string; ends_on: string },
     onProgress?: (run: ScheduleRun) => void,
   ) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const run = await request<ScheduleRun>('/api/v1/scheduling/runs', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
+    const run = await send<ScheduleRun>('POST', '/api/v1/scheduling/runs', input)
     onProgress?.(run)
     return followRun(run.id, onProgress)
   },
@@ -927,18 +856,7 @@ export const api = {
       `/api/v1/scheduling/compare?left_id=${encodeURIComponent(leftId)}&right_id=${encodeURIComponent(rightId)}`,
     ),
   schedule: (id: string) => request<DraftSchedule>(`/api/v1/scheduling/${id}`),
-  deleteSchedule: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const response = await fetch(`/api/v1/scheduling/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
-    })
-    if (!response.ok) {
-      const body = await response.json().catch(() => null)
-      throw parseError(body, response.status)
-    }
-  },
+  deleteSchedule: (id: string) => send<void>('DELETE', `/api/v1/scheduling/${id}`),
   overrideDraft: async (input: {
     id: string
     expected_version: number
@@ -946,37 +864,20 @@ export const api = {
     role: AssignmentRole
     replacement_member_id: string
   }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
     const { id, ...body } = input
-    return request<DraftSchedule>(`/api/v1/scheduling/${id}/override`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(body),
-    })
+    return send<DraftSchedule>('POST', `/api/v1/scheduling/${id}/override`, body)
   },
   draftFairnessImpact: (id: string, version: number) =>
     request<DraftFairnessImpact>(
       `/api/v1/scheduling/${id}/fairness-impact?version=${version}`,
     ),
-  proposeSchedule: async ({ id, expectedVersion }: { id: string; expectedVersion: number }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<DraftSchedule>(`/api/v1/scheduling/${id}/propose`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify({ expected_version: expectedVersion }),
-    })
-  },
-  withdrawSchedule: async ({ id, expectedVersion }: { id: string; expectedVersion: number }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<DraftSchedule>(`/api/v1/scheduling/${id}/withdraw`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify({ expected_version: expectedVersion }),
-    })
-  },
+  proposeSchedule: ({ id, expectedVersion }: { id: string; expectedVersion: number }) =>
+    send<DraftSchedule>('POST', `/api/v1/scheduling/${id}/propose`, { expected_version: expectedVersion }),
+  withdrawSchedule: ({ id, expectedVersion }: { id: string; expectedVersion: number }) =>
+    send<DraftSchedule>('POST', `/api/v1/scheduling/${id}/withdraw`, { expected_version: expectedVersion }),
   publishPreview: (id: string) =>
     request<PublishPreview>(`/api/v1/scheduling/${id}/publish-preview`),
-  publishSchedule: async ({
+  publishSchedule: ({
     id,
     expectedVersion,
     acknowledgeLostChanges = false,
@@ -990,20 +891,14 @@ export const api = {
     acknowledgeGap?: boolean
     acknowledgeRestViolations?: boolean
     changeResolutions?: Record<string, 'draft' | 'change'>
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<DraftSchedule>(`/api/v1/scheduling/${id}/publish`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify({
-        expected_version: expectedVersion,
-        acknowledge_lost_changes: acknowledgeLostChanges,
-        acknowledge_gap: acknowledgeGap,
-        acknowledge_rest_violations: acknowledgeRestViolations,
-        change_resolutions: changeResolutions,
-      }),
-    })
-  },
+  }) =>
+    send<DraftSchedule>('POST', `/api/v1/scheduling/${id}/publish`, {
+      expected_version: expectedVersion,
+      acknowledge_lost_changes: acknowledgeLostChanges,
+      acknowledge_gap: acknowledgeGap,
+      acknowledge_rest_violations: acknowledgeRestViolations,
+      change_resolutions: changeResolutions,
+    }),
   swaps: (params: { status?: SwapStatus[]; limit?: number } = {}) => {
     const search = new URLSearchParams()
     params.status?.forEach((value) => search.append('status', value))
@@ -1021,103 +916,37 @@ export const api = {
     request<SwapOption[]>(
       `/api/v1/swaps/options?service_date=${encodeURIComponent(serviceDate)}&role=${role}`,
     ),
-  createSwap: async (input: {
+  createSwap: (input: {
     schedule_id: string
     service_date: string
     role: AssignmentRole
     replacement_member_id: string
     note?: string
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<SwapRequest>('/api/v1/swaps', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  acceptSwap: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<SwapRequest>(`/api/v1/swaps/${id}/accept`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
-  approveSwap: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<SwapRequest>(`/api/v1/swaps/${id}/approve`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
-  rejectSwap: async ({ id, reason }: { id: string; reason: string }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<SwapRequest>(`/api/v1/swaps/${id}/reject`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify({ reason }),
-    })
-  },
-  cancelSwap: async ({ id, reason }: { id: string; reason: string }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<SwapRequest>(`/api/v1/swaps/${id}/cancel`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify({ reason }),
-    })
-  },
-  createShareLink: async (input: {
+  }) => send<SwapRequest>('POST', '/api/v1/swaps', input),
+  acceptSwap: (id: string) => send<SwapRequest>('POST', `/api/v1/swaps/${id}/accept`),
+  approveSwap: (id: string) => send<SwapRequest>('POST', `/api/v1/swaps/${id}/approve`),
+  rejectSwap: ({ id, reason }: { id: string; reason: string }) =>
+    send<SwapRequest>('POST', `/api/v1/swaps/${id}/reject`, { reason }),
+  cancelSwap: ({ id, reason }: { id: string; reason: string }) =>
+    send<SwapRequest>('POST', `/api/v1/swaps/${id}/cancel`, { reason }),
+  createShareLink: (input: {
     label: string
     starts_on: string
     ends_on: string
     expires_days: number
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<ShareLinkCreated>('/api/v1/admin/share-links', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
+  }) => send<ShareLinkCreated>('POST', '/api/v1/admin/share-links', input),
   shareLinks: () => request<ShareLink[]>('/api/v1/admin/share-links'),
-  revokeShareLink: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const response = await fetch(`/api/v1/admin/share-links/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
-    })
-    if (!response.ok) throw new Error(messages().common.linkRevokeFailed(response.status))
-  },
-  createShareLinkFeed: async (linkId: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<FeedTokenCreated>(`/api/v1/admin/share-links/${linkId}/feed`, {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
+  revokeShareLink: (id: string) => send<void>('DELETE', `/api/v1/admin/share-links/${id}`),
+  createShareLinkFeed: (linkId: string) =>
+    send<FeedTokenCreated>('POST', `/api/v1/admin/share-links/${linkId}/feed`),
   exchangeShare: (token: string) =>
     request<ShareExchangeResult>('/api/v1/share/exchange', {
       method: 'POST',
       body: JSON.stringify({ token }),
     }),
-  createFeed: async (label: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<FeedTokenCreated>('/api/v1/calendar/feeds', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify({ label }),
-    })
-  },
+  createFeed: (label: string) => send<FeedTokenCreated>('POST', '/api/v1/calendar/feeds', { label }),
   feeds: () => request<FeedToken[]>('/api/v1/calendar/feeds'),
-  revokeFeed: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const response = await fetch(`/api/v1/calendar/feeds/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
-    })
-    if (!response.ok) throw new Error(messages().common.feedRevokeFailed(response.status))
-  },
+  revokeFeed: (id: string) => send<void>('DELETE', `/api/v1/calendar/feeds/${id}`),
   fairness: (asOf?: string) =>
     request<FairnessReport>(`/api/v1/fairness${asOf ? `?as_of=${asOf}` : ''}`),
   fairnessDuties: (memberId: string, asOf?: string) =>
@@ -1141,80 +970,31 @@ export const api = {
     ),
   adminUsers: () => request<AdminUser[]>('/api/v1/admin/users'),
   team: () => request<TeamMember[]>('/api/v1/team'),
-  createAdminUser: async (input: AdminUserInput) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<{ user: AdminUser; activation_url: string }>('/api/v1/admin/users', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  updateAdminUser: async ({ id, input }: { id: string; input: AdminUserUpdate }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<AdminUser>(`/api/v1/admin/users/${id}`, {
-      method: 'PATCH',
-      headers: { 'X-CSRF-Token': csrf_token },
-      body: JSON.stringify(input),
-    })
-  },
-  deleteAdminUser: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<void>(`/api/v1/admin/users/${id}`, {
-      method: 'DELETE', headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
+  createAdminUser: (input: AdminUserInput) =>
+    send<{ user: AdminUser; activation_url: string }>('POST', '/api/v1/admin/users', input),
+  updateAdminUser: ({ id, input }: { id: string; input: AdminUserUpdate }) =>
+    send<AdminUser>('PATCH', `/api/v1/admin/users/${id}`, input),
+  deleteAdminUser: (id: string) => send<void>('DELETE', `/api/v1/admin/users/${id}`),
   updateUserEmail: async ({ id, email }: { id: string; email: string | null }) => {
     return api.updateAdminUser({ id, input: { email } })
   },
-  issuePasswordReset: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<{ url: string; expires_at: string }>(`/api/v1/admin/users/${id}/reset`, {
-      method: 'POST', headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
-  reissueActivation: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<{ url: string; expires_at: string }>(`/api/v1/admin/users/${id}/activation`, {
-      method: 'POST', headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
-  createTeamMember: async (input: { user_id: string; active_from: string }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<TeamMember>('/api/v1/admin/team-members', {
-      method: 'POST', headers: { 'X-CSRF-Token': csrf_token }, body: JSON.stringify(input),
-    })
-  },
-  updateTeamMember: async ({ id, input }: {
+  issuePasswordReset: (id: string) =>
+    send<{ url: string; expires_at: string }>('POST', `/api/v1/admin/users/${id}/reset`),
+  reissueActivation: (id: string) =>
+    send<{ url: string; expires_at: string }>('POST', `/api/v1/admin/users/${id}/activation`),
+  createTeamMember: (input: { user_id: string; active_from: string }) =>
+    send<TeamMember>('POST', '/api/v1/admin/team-members', input),
+  updateTeamMember: ({ id, input }: {
     id: string; input: { active_from?: string; active_until?: string | null }
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<TeamMember>(`/api/v1/admin/team-members/${id}`, {
-      method: 'PATCH', headers: { 'X-CSRF-Token': csrf_token }, body: JSON.stringify(input),
-    })
-  },
-  createEligibility: async ({ memberId, input }: {
+  }) => send<TeamMember>('PATCH', `/api/v1/admin/team-members/${id}`, input),
+  createEligibility: ({ memberId, input }: {
     memberId: string
     input: { role: AssignmentRole; starts_on: string; ends_on: string | null }
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<Eligibility>(`/api/v1/admin/team-members/${memberId}/eligibility`, {
-      method: 'POST', headers: { 'X-CSRF-Token': csrf_token }, body: JSON.stringify(input),
-    })
-  },
-  updateEligibility: async ({ id, input }: {
+  }) => send<Eligibility>('POST', `/api/v1/admin/team-members/${memberId}/eligibility`, input),
+  updateEligibility: ({ id, input }: {
     id: string; input: { starts_on?: string; ends_on?: string | null }
-  }) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<Eligibility>(`/api/v1/admin/eligibility/${id}`, {
-      method: 'PATCH', headers: { 'X-CSRF-Token': csrf_token }, body: JSON.stringify(input),
-    })
-  },
-  deleteEligibility: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    return request<void>(`/api/v1/admin/eligibility/${id}`, {
-      method: 'DELETE', headers: { 'X-CSRF-Token': csrf_token },
-    })
-  },
+  }) => send<Eligibility>('PATCH', `/api/v1/admin/eligibility/${id}`, input),
+  deleteEligibility: (id: string) => send<void>('DELETE', `/api/v1/admin/eligibility/${id}`),
   activateAccount: (token: string, password: string) =>
     request<void>('/api/v1/auth/activate', {
       method: 'POST', body: JSON.stringify({ token, password }),

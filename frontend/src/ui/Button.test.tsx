@@ -2,7 +2,8 @@ import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { AnchorButton, Button, IconButton, LinkButton, Spinner } from './Button'
+import { loadRealStylesheet } from '../test/stylesheet'
+import { AnchorButton, Button, IconButton, LinkButton } from './Button'
 
 describe('Button', () => {
   it.each([
@@ -43,6 +44,15 @@ describe('Button', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
     expect(button.querySelector('.spinner')).not.toBeNull()
     expect(button.querySelector('svg')).toBeNull()
+  })
+
+  it('paints the pending spinner the size the real stylesheet gives it', () => {
+    loadRealStylesheet()
+    render(<Button loading>Publikuj</Button>)
+    const spinner = screen.getByRole('button', { name: 'Publikuj' }).querySelector('.spinner')!
+    const painted = getComputedStyle(spinner)
+    expect([painted.width, painted.height, painted.display]).toEqual(['12px', '12px', 'inline-block'])
+    expect(painted.animation).toContain('spin ')
   })
 
   it('can be disabled without spinning', () => {
@@ -97,15 +107,5 @@ describe('link buttons', () => {
     expect(anchor.querySelector('svg')).not.toBeNull()
     rerender(<AnchorButton href="/feed.ics">ICS</AnchorButton>)
     expect(screen.getByRole('link', { name: 'ICS' }).querySelector('svg')).toBeNull()
-  })
-})
-
-describe('Spinner', () => {
-  it('is announced only when named', () => {
-    const { container, rerender } = render(<Spinner label="Zapisywanie" />)
-    expect(screen.getByRole('status', { name: 'Zapisywanie' })).toHaveClass('spinner')
-    rerender(<Spinner />)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(container.querySelector('.spinner')).not.toBeNull()
   })
 })

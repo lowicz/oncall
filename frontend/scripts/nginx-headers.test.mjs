@@ -167,6 +167,49 @@ describe.each(presets)('nginx runs unprivileged - $name', ({ parsed, tls }) => {
   })
 })
 
+// The proxied locations take their forwarding from one shared snippet
+// (frontend/nginx-proxy.conf at /etc/nginx/proxy.conf). Resolving that include
+// gives the directives nginx applies to each location: what the API sees as the
+// client's address, scheme and host must not depend on which preset or path
+// carried the request.
+const PROXY_INCLUDE = '/etc/nginx/proxy.conf'
+const proxySnippet = parser.toJSON(read('nginx-proxy.conf'))
+
+function forwarding(block) {
+  const included = asArray(block.include).includes(PROXY_INCLUDE) ? proxySnippet : {}
+  return {
+    pass: block.proxy_pass,
+    version: block.proxy_http_version ?? included.proxy_http_version,
+    headers: [...asArray(included.proxy_set_header), ...asArray(block.proxy_set_header)].sort(),
+    readTimeout: block.proxy_read_timeout,
+  }
+}
+
+describe.each(presets)('nginx forwards to the API - $name', ({ parsed }) => {
+  const server = contentServer(parsed)
+
+  it.each([['/api/', '90s'], ['/calendar/', undefined]])('%s keeps one upstream connection and the client identity', (path, readTimeout) => {
+    expect(forwarding(locationBlock(server, path))).toEqual({
+      pass: 'http://oncall_api',
+      version: '1.1',
+      headers: [
+        'Connection ""',
+        'Host $host',
+        'X-Forwarded-For $proxy_add_x_forwarded_for',
+        'X-Forwarded-Proto $scheme',
+        'X-Real-IP $remote_addr',
+      ],
+      readTimeout,
+    })
+  })
+})
+
+describe('the shared proxy snippet', () => {
+  it('adds no response header, so the proxied locations keep inheriting the server ones', () => {
+    expect(proxySnippet.add_header).toBeUndefined()
+  })
+})
+
 describe('SPA index.html keeps the CSP strict', () => {
   const scripts = [...new JSDOM(read('index.html')).window.document.querySelectorAll('script')]
 

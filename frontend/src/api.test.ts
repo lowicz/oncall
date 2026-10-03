@@ -112,8 +112,6 @@ const get = (name: string, call: () => Promise<unknown>, url: string): Case =>
   ({ name, call, method: 'GET', url, headers: JSON_HEADERS })
 const send = (name: string, call: () => Promise<unknown>, method: string, url: string, body?: unknown): Case =>
   ({ name, call, method, url, headers: CSRF_JSON_HEADERS, body })
-const rawDelete = (name: string, call: () => Promise<unknown>, url: string): Case =>
-  ({ name, call, method: 'DELETE', url, headers: CSRF_RAW_HEADERS })
 
 const eventInput = { title: 'Szkolenie', starts_on: '2026-09-14', ends_on: '2026-09-15', color: 'blue' as const }
 const availabilityInput = { kind: 'prefer_not' as const, starts_on: '2026-09-14', ends_on: '2026-09-14', note: 'wizyta' }
@@ -157,12 +155,12 @@ const CASES: Case[] = [
   get('availability', () => api.availability(), '/api/v1/availability/me'),
   send('createAvailability', () => api.createAvailability(availabilityInput),
     'POST', '/api/v1/availability/me', availabilityInput),
-  rawDelete('deleteAvailability', () => api.deleteAvailability('a1'), '/api/v1/availability/me/a1'),
+  send('deleteAvailability', () => api.deleteAvailability('a1'), 'DELETE', '/api/v1/availability/me/a1'),
   get('memberAvailability', () => api.memberAvailability('m1'), '/api/v1/availability/members/m1'),
   send('createMemberAvailability', () => api.createMemberAvailability('m1', availabilityInput),
     'POST', '/api/v1/availability/members/m1', availabilityInput),
-  rawDelete('deleteMemberAvailability', () => api.deleteMemberAvailability('m1', 'a1'),
-    '/api/v1/availability/members/m1/a1'),
+  send('deleteMemberAvailability', () => api.deleteMemberAvailability('m1', 'a1'),
+    'DELETE', '/api/v1/availability/members/m1/a1'),
   send('commitHistory', () => api.commitHistory({
     filename: 'h.csv', valid: true, errors: [],
     rows: [{ service_date: '2026-01-05', role: 'primary', assignee_name: 'Jan' }],
@@ -179,7 +177,7 @@ const CASES: Case[] = [
   get('compareSchedules', () => api.compareSchedules('a b', 'c'),
     '/api/v1/scheduling/compare?left_id=a%20b&right_id=c'),
   get('schedule', () => api.schedule('s1'), '/api/v1/scheduling/s1'),
-  rawDelete('deleteSchedule', () => api.deleteSchedule('s1'), '/api/v1/scheduling/s1'),
+  send('deleteSchedule', () => api.deleteSchedule('s1'), 'DELETE', '/api/v1/scheduling/s1'),
   send('overrideDraft', () => api.overrideDraft({
     id: 's1', expected_version: 4, service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2',
   }), 'POST', '/api/v1/scheduling/s1/override', {
@@ -226,13 +224,13 @@ const CASES: Case[] = [
     label: 'Zarząd', starts_on: '2026-09-01', ends_on: '2026-09-30', expires_days: 7,
   }),
   get('shareLinks', () => api.shareLinks(), '/api/v1/admin/share-links'),
-  rawDelete('revokeShareLink', () => api.revokeShareLink('l1'), '/api/v1/admin/share-links/l1'),
+  send('revokeShareLink', () => api.revokeShareLink('l1'), 'DELETE', '/api/v1/admin/share-links/l1'),
   send('createShareLinkFeed', () => api.createShareLinkFeed('l1'), 'POST', '/api/v1/admin/share-links/l1/feed'),
   { name: 'exchangeShare', call: () => api.exchangeShare('abc'), method: 'POST', url: '/api/v1/share/exchange',
     headers: JSON_HEADERS, body: { token: 'abc' } },
   send('createFeed', () => api.createFeed('Telefon'), 'POST', '/api/v1/calendar/feeds', { label: 'Telefon' }),
   get('feeds', () => api.feeds(), '/api/v1/calendar/feeds'),
-  rawDelete('revokeFeed', () => api.revokeFeed('f1'), '/api/v1/calendar/feeds/f1'),
+  send('revokeFeed', () => api.revokeFeed('f1'), 'DELETE', '/api/v1/calendar/feeds/f1'),
   get('fairness today', () => api.fairness(), '/api/v1/fairness'),
   get('fairness as of a date', () => api.fairness('2026-06-30'), '/api/v1/fairness?as_of=2026-06-30'),
   get('fairnessDuties today', () => api.fairnessDuties('m 1'), '/api/v1/fairness/duties?member_id=m%201'),
@@ -321,19 +319,17 @@ describe('API refusals', () => {
   const failing = (status: number, body: unknown = { detail: 'Odmowa serwera' }) =>
     server(() => new Response(body === null ? 'not json' : JSON.stringify(body), { status }))
 
-  it.each([
-    ['logout', () => api.logout(), common().logoutFailed(500)],
-    ['deleteAvailability', () => api.deleteAvailability('a1'), common().entryDeleteFailed(500)],
-    ['deleteMemberAvailability', () => api.deleteMemberAvailability('m1', 'a1'), common().entryDeleteFailed(500)],
-    ['revokeShareLink', () => api.revokeShareLink('l1'), common().linkRevokeFailed(500)],
-    ['revokeFeed', () => api.revokeFeed('f1'), common().feedRevokeFailed(500)],
-  ])('%s reports its own failure with the status', async (_name, call, message) => {
+  it('logout reports its own failure with the status', async () => {
     failing(500)
-    await expect(call()).rejects.toThrow(message)
+    await expect(api.logout()).rejects.toThrow(common().logoutFailed(500))
   })
 
   it.each([
     ['deleteSchedule', () => api.deleteSchedule('s1')],
+    ['deleteAvailability', () => api.deleteAvailability('a1')],
+    ['deleteMemberAvailability', () => api.deleteMemberAvailability('m1', 'a1')],
+    ['revokeShareLink', () => api.revokeShareLink('l1')],
+    ['revokeFeed', () => api.revokeFeed('f1')],
     ['monthlyReport', () => api.monthlyReport('2026-09')],
     ['previewHistory', () => api.previewHistory(new File(['x'], 'h.csv'))],
     ['ownAvatar', () => api.ownAvatar('/api/v1/auth/me/avatar')],
@@ -349,6 +345,10 @@ describe('API refusals', () => {
 
   it.each([
     ['deleteSchedule', () => api.deleteSchedule('s1')],
+    ['deleteAvailability', () => api.deleteAvailability('a1')],
+    ['deleteMemberAvailability', () => api.deleteMemberAvailability('m1', 'a1')],
+    ['revokeShareLink', () => api.revokeShareLink('l1')],
+    ['revokeFeed', () => api.revokeFeed('f1')],
     ['monthlyReport', () => api.monthlyReport('2026-09')],
     ['previewHistory', () => api.previewHistory(new File(['x'], 'h.csv'))],
     ['ownAvatar', () => api.ownAvatar('/api/v1/auth/me/avatar')],

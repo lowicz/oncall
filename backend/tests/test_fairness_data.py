@@ -3,8 +3,7 @@
 from datetime import date
 
 from oncall.domain.vocabulary import AssignmentRole
-from oncall.fairness import FairnessDuty
-from oncall.fairness_data import project_duties
+from oncall.fairness import FairnessDuty, project_duties
 
 D1 = date(2026, 9, 21)
 D2 = date(2026, 9, 22)

@@ -29,8 +29,7 @@ export function addDays(value: string, days: number) {
 
 /** Sunday ending four full Monday-Sunday weeks after the starting week. */
 export function fourWeekRangeEnd(value: string) {
-  const start = new Date(`${value}T12:00:00Z`)
-  const mondayBasedWeekday = (start.getUTCDay() + 6) % 7
+  const mondayBasedWeekday = weekdayIndex(value)
   const daysToNextMonday = mondayBasedWeekday === 0 ? 0 : 7 - mondayBasedWeekday
   return addDays(value, daysToNextMonday + 27)
 }
@@ -71,6 +70,15 @@ export const weekdays = () => messages().dates.weekdaysShort
 export const weekdaysFromMonday = () => {
   const names = weekdays()
   return [...names.slice(1), names[0]]
+}
+
+/** 0 for Monday to 6 for Sunday. */
+export const weekdayIndex = (value: string) => (parse(value).getUTCDay() + 6) % 7
+
+/** "2026-09" moved by whole months. */
+export function shiftMonth(month: string, delta: number) {
+  const [y, m] = month.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7)
 }
 
 /** Whether a calendar date is a Monday, which is where every grid starts a week. */

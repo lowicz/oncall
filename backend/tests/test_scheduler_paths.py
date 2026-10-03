@@ -18,7 +18,8 @@ from oncall.scheduler import (
     DateRange,
     PreferenceRange,
     SolverMember,
-    _build_model,
+    _build_model_from_context,
+    _ModelBuildContext,
     date_ranges,
     generate_schedule,
 )
@@ -200,19 +201,21 @@ def test_the_anchored_late_shift_tie_breaker_compiles_in_once_priced(monkeypatch
         for index in range(4)
     ]
 
-    model, _variables, conflicts, _lenses = _build_model(
-        starts_on=MONDAY,
-        ends_on=MONDAY,
-        mode=RotationMode.hybrid,
-        members=members,
-        historical_points={},
-        holidays=set(),
-        historical_lenses={},
-        history_window=None,
-        fairness_weight=3.0,
-        continuity_weight=1.0,
-        preference_weight=2.0,
-        late_shift_anchor=LateShiftAnchor.secondary,
+    model, _variables, conflicts, _lenses = _build_model_from_context(
+        _ModelBuildContext(
+            starts_on=MONDAY,
+            ends_on=MONDAY,
+            mode=RotationMode.hybrid,
+            members=members,
+            historical_points={},
+            holidays=set(),
+            historical_lenses={},
+            history_window=None,
+            fairness_weight=3.0,
+            continuity_weight=1.0,
+            preference_weight=2.0,
+            late_shift_anchor=LateShiftAnchor.secondary,
+        ),
         spacing=False,
     )
 

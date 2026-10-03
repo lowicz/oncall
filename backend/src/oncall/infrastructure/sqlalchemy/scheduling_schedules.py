@@ -269,6 +269,3 @@ class SqlAlchemySchedules:
         row.published_at = published_at
         if row.name != name:
             row.name = name
-
-
-__all__ = ["PUBLICATION_LOCK_KEY", "SqlAlchemySchedules"]

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
-import { Checkbox, Field, FieldRow, Input, Radio, Segmented, Select, Textarea } from './Field'
+import { Checkbox, Field, Input, Segmented, Select, Textarea } from './Field'
 
 describe('Field', () => {
   it('labels the control and describes it with the hint', () => {
@@ -71,14 +71,12 @@ describe('the controls', () => {
     expect(screen.getByRole('combobox', { name: 'Tryb' })).not.toHaveAttribute('aria-invalid')
   })
 
-  it('label a checkbox and a radio, with a hint when given', () => {
+  it('label a checkbox, with a hint when given', () => {
     const onChange = vi.fn()
     render(
       <>
         <Checkbox label="Dołącz logowania" hint="Rutynowe wejścia" onChange={onChange} className="mine" />
         <Checkbox label="Bez podpowiedzi" />
-        <Radio label="Tygodniowo" hint="Jedna osoba na tydzień" name="mode" />
-        <Radio label="Dziennie" name="mode" />
       </>,
     )
     const checkbox = screen.getByRole('checkbox', { name: /Dołącz logowania/ })
@@ -87,14 +85,6 @@ describe('the controls', () => {
     expect(checkbox.closest('label')).toHaveClass('check', 'mine')
     expect(screen.getByText('Rutynowe wejścia').tagName).toBe('SMALL')
     expect(screen.getByRole('checkbox', { name: 'Bez podpowiedzi' }).closest('label')!.querySelector('small')).toBeNull()
-    expect(screen.getByRole('radio', { name: /Tygodniowo/ }).closest('label')).toHaveClass('check', 'radio')
-    expect(screen.getByText('Jedna osoba na tydzień')).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Dziennie' }).closest('label')!.querySelector('small')).toBeNull()
-  })
-
-  it('lay fields out side by side', () => {
-    const { container } = render(<FieldRow className="two"><span>a</span></FieldRow>)
-    expect(container.firstElementChild).toHaveClass('frow', 'two')
   })
 })
 

@@ -160,18 +160,3 @@ def calendar_response(matrix: CalendarMatrix) -> CalendarResponse:
             for item in matrix.availability
         ],
     )
-
-
-__all__ = [
-    "CalendarAssignmentResponse",
-    "CalendarAvailabilityResponse",
-    "CalendarDayResponse",
-    "CalendarEligibilityResponse",
-    "CalendarEventCreate",
-    "CalendarEventRef",
-    "CalendarEventResponse",
-    "CalendarEventUpdate",
-    "CalendarMemberResponse",
-    "CalendarResponse",
-    "calendar_response",
-]
