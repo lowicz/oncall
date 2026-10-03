@@ -7,7 +7,6 @@
   color-scheme: dark;
   --font: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
-  --read: 'STIX Two Text', Georgia, serif;
   --label: var(--font);
 
   --bg: #061228;
@@ -33,11 +32,8 @@
   --sec-fill: #B17EAD;
   --late-fill: #FFB196;
   --p: #65CDCF;
-  --p-bg: rgba(101, 205, 207, 0.18);
   --sec: #B17EAD;
-  --sec-bg: rgba(177, 126, 173, 0.2);
   --late: #FFB196;
-  --late-bg: rgba(255, 177, 150, 0.18);
 
   --ok: #6CD99D;
   --ok-bg: rgba(108, 217, 157, 0.14);
@@ -86,7 +82,6 @@
 
   --shadow: 0 30px 60px -30px rgba(2, 8, 24, 0.8);
   --shadow-sm: 0 10px 30px -12px rgba(2, 8, 24, 0.7);
-  --r-sm: 4px;
   --r: 8px;
   --r-md: 8px;
   --r-lg: 12px;
@@ -112,11 +107,8 @@
   --sig-soft: rgba(40, 112, 237, 0.1);
   --sig-line: rgba(40, 112, 237, 0.6);
   --p: #036A6D;
-  --p-bg: rgba(101, 205, 207, 0.28);
   --sec: #721C7A;
-  --sec-bg: rgba(177, 126, 173, 0.26);
   --late: #B84800;
-  --late-bg: rgba(255, 177, 150, 0.36);
   --ok: #017632;
   --ok-bg: rgba(108, 217, 157, 0.26);
   --ok-dot: #017632;

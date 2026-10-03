@@ -975,9 +975,6 @@ export const api = {
   updateAdminUser: ({ id, input }: { id: string; input: AdminUserUpdate }) =>
     send<AdminUser>('PATCH', `/api/v1/admin/users/${id}`, input),
   deleteAdminUser: (id: string) => send<void>('DELETE', `/api/v1/admin/users/${id}`),
-  updateUserEmail: async ({ id, email }: { id: string; email: string | null }) => {
-    return api.updateAdminUser({ id, input: { email } })
-  },
   issuePasswordReset: (id: string) =>
     send<{ url: string; expires_at: string }>('POST', `/api/v1/admin/users/${id}/reset`),
   reissueActivation: (id: string) =>

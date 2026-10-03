@@ -5,6 +5,7 @@ import { useMessages } from '../../i18n'
 import { usePublicConfig } from '../../hooks/usePublicConfig'
 import { auditActionLabel, humanizeAuditSummary } from '../../lib/labels'
 import { formatMoment } from '../../lib/dates'
+import { csvCell, downloadBlob } from '../../lib/download'
 import { DateField } from '../../components/DateField'
 import { Button, Checkbox, EmptyState, Field, InlineError, Input, List, ListRow, LoadingBlock, PageHeader, Select, Tag } from '../../ui'
 
@@ -53,19 +54,12 @@ export function AuditPanel() {
   }, [action, actor, queryText, startsOn, endsOn, includeLogins])
 
   const exportCsv = () => {
-    const escape = (value: string) => `"${value.replaceAll('"', '""')}"`
     const columns = t.audit.csv.columns
     const rows = [[columns.occurredAt, columns.action, columns.actor, columns.summary, columns.details], ...events.map((event) => [
       event.occurred_at, event.action, event.actor_label, event.summary,
       event.details ? JSON.stringify(event.details) : '',
     ])]
-    const blob = new Blob(['﻿', rows.map((row) => row.map(escape).join(',')).join('\n')], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = t.audit.csv.fileName
-    link.click()
-    URL.revokeObjectURL(url)
+    downloadBlob(t.audit.csv.fileName, new Blob(['\uFEFF', rows.map((row) => row.map(csvCell).join(',')).join('\n')], { type: 'text/csv' }))
   }
 
   return (

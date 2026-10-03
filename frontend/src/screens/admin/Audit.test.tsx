@@ -148,7 +148,7 @@ describe('AuditPanel filters and list', () => {
     fireEvent.click(exportButton)
 
     expect(click).toHaveBeenCalledTimes(1)
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:audit')
+    await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:audit'))
     // A byte-order mark first, so Excel reads the Polish letters as UTF-8.
     expect(Array.from(new Uint8Array(await exported!.slice(0, 3).arrayBuffer()))).toEqual([0xef, 0xbb, 0xbf])
     const text = await exported!.text()

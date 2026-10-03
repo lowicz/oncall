@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '../../api'
 import { useMessages } from '../../i18n'
 import { formatMonth, warsawDate } from '../../lib/dates'
+import { downloadBlob } from '../../lib/download'
 import { formatDecimal } from '../../lib/numbers'
 import { MonthField } from '../../components/MonthField'
 import { Box, Button, ErrorState, LoadingBlock, PageHeader, ScrollArea } from '../../ui'
@@ -34,16 +35,7 @@ export function MonthlyReportsPanel() {
   const partialCoverage = Boolean(preview.data && preview.data.staffed_days < preview.data.days_in_month)
   const download = useMutation({
     mutationFn: () => api.monthlyReport(month),
-    onSuccess: (blob) => {
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = t.reports.fileName(month)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.setTimeout(() => URL.revokeObjectURL(url), 0)
-    },
+    onSuccess: (blob) => downloadBlob(t.reports.fileName(month), blob),
   })
   const totals = Object.fromEntries(COLUMNS.map((key) => [key, rows.reduce((sum, row) => sum + row[key], 0)])) as Record<Column, number>
   const columns = t.reports.columns

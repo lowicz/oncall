@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 
 /**
  * The interface language: Polish by default, English on request.
@@ -67,6 +67,5 @@ function subscribe(listener: () => void) {
 
 export function useLanguage(): [Language, (language: Language) => void] {
   const language = useSyncExternalStore(subscribe, readLanguage, () => DEFAULT_LANGUAGE)
-  const set = useCallback((next: Language) => setLanguage(next), [])
-  return [language, set]
+  return [language, setLanguage]
 }

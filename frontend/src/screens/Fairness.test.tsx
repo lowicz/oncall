@@ -471,7 +471,7 @@ describe('FairnessPanel CSV export', () => {
     await screen.findByText(data.members[0].display_name)
     fireEvent.click(screen.getByRole('button', { name: /Eksport CSV/ }))
     expect(click).toHaveBeenCalledTimes(1)
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:fairness')
+    await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:fairness'))
     expect(blob!.type).toBe('text/csv;charset=utf-8')
     // A byte-order mark first, so a spreadsheet reads the Polish letters as UTF-8.
     expect(Array.from(new Uint8Array(await blob!.arrayBuffer()).slice(0, 3))).toEqual([0xEF, 0xBB, 0xBF])
