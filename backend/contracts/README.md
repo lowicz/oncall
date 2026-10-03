@@ -1,7 +1,8 @@
 # Backend compatibility contract
 
 This directory freezes externally observable backend behavior before the
-architecture migration described in `../ARCHITECTURE_ACTION_PLAN.md`.
+architecture migration described in
+`../../archive/backend/ARCHITECTURE_ACTION_PLAN.md`.
 
 ## OpenAPI
 
