@@ -142,8 +142,11 @@
       // backend image (backend/Dockerfile), from the python-version
       // datasource the pep621 manager reads `requires-python` from. Its
       // default versioning keeps the `3.14` form and moves only to a new
-      // minor. ruff and mypy take the version from requires-python and the
-      // interpreter (backend/pyproject.toml), so they need no entry here.
+      // minor. The image is pinned to one patch release
+      // (`python:3.14.8-slim`) and moves to the next 3.14.x the same way, so
+      // the tag keeps its `-slim` variant. ruff and mypy take the version
+      // from requires-python and the interpreter (backend/pyproject.toml), so
+      // they need no entry here.
       customType: 'regex',
       managerFilePatterns: [
         '/^\\.github/workflows/.+\\.ya?ml$/',
@@ -152,7 +155,7 @@
       ],
       matchStrings: [
         'PYTHON_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+)"',
-        'python:(?<currentValue>[0-9]+\\.[0-9]+)-slim',
+        'python:(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-slim',
         // The version badge in README.md.
         'shields\\.io/badge/Python-(?<currentValue>[0-9]+\\.[0-9]+)-',
       ],
