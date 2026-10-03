@@ -32,9 +32,8 @@ from datetime import date, timedelta
 import pytest
 
 from oncall.domain.scheduling.solver import SolverResult
-from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.rules import (
-    ONCALL_ROLES,
     RuleViolation,
     Slots,
     anchor_violations,

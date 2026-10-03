@@ -10,6 +10,7 @@ from collections.abc import Container
 from datetime import date
 
 from oncall.domain.vocabulary import AssignmentRole
+from oncall.workdays import is_working_day
 
 #: On-call coverage starts in the evening and ends the next morning.
 WORKDAY_START = "19:00"
@@ -22,7 +23,7 @@ LATE_SHIFT_END = "19:00"
 
 
 def is_day_off(day: date, holidays: Container[date]) -> bool:
-    return day.weekday() >= 5 or day in holidays
+    return not is_working_day(day, holidays)
 
 
 def coverage_window(

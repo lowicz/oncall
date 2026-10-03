@@ -18,10 +18,8 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from oncall.coverage import is_day_off
-from oncall.domain.vocabulary import AssignmentRole
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole
 from oncall.workdays import is_working_day
-
-ONCALL_ROLES = (AssignmentRole.primary, AssignmentRole.secondary)
 
 #: Acceptance criterion from archive/docs/PLAN.md par. 3, in points: the spread of
 #: every graded lens must fit in this many points. It lives here, next to the

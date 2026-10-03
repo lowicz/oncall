@@ -1,7 +1,7 @@
 from collections.abc import Callable, Coroutine
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 
 from oncall.auth import CurrentUser
 from oncall.domain.vocabulary import UserRole
@@ -21,3 +21,7 @@ def require_roles(
         return user
 
     return dependency
+
+
+Admin = Annotated[User, Depends(require_roles(UserRole.admin))]
+Coordinator = Annotated[User, Depends(require_roles(UserRole.coordinator, UserRole.admin))]

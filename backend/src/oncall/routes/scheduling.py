@@ -3,7 +3,7 @@ from dataclasses import asdict
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Query, status
 
 from oncall.auth import CsrfGuard
 from oncall.bootstrap.providers import (
@@ -26,10 +26,8 @@ from oncall.domain.scheduling.models import (
     Transition,
 )
 from oncall.domain.scheduling.ports import ScheduleQueryPorts
-from oncall.domain.vocabulary import UserRole
 from oncall.fairness_data import member_response
-from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.permissions import require_roles
+from oncall.permissions import Coordinator
 from oncall.presentation.reports import DraftFairnessImpactResponse, DraftLensSpreadResponse
 from oncall.presentation.rules import rule_violation_responses
 from oncall.presentation.scheduling import (
@@ -53,7 +51,6 @@ from oncall.presentation.scheduling import (
 from oncall.routes.domain_edge import actor_from, domain_errors_as_http
 
 router = APIRouter(prefix="/api/v1/scheduling", tags=["scheduling"])
-Coordinator = Annotated[User, Depends(require_roles(UserRole.coordinator, UserRole.admin))]
 
 
 def _lanes() -> int:

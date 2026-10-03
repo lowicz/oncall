@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from oncall.domain.calendar.models import WEEKDAYS
-from oncall.domain.vocabulary import AssignmentRole
+from oncall.domain.vocabulary import ROLE_LABELS, AssignmentRole
 from oncall.notifications import layout
 from oncall.notifications.layout import (
     Action,
@@ -33,14 +33,6 @@ from oncall.notifications.layout import (
     strong,
     text,
 )
-
-#: Role names as the team reads them, mirroring `frontend/src/lib/labels.ts`.
-#: „late_shift" is an internal identifier and must never reach a reader.
-ROLE_LABELS: dict[AssignmentRole, str] = {
-    AssignmentRole.primary: "PRIMARY",
-    AssignmentRole.secondary: "SECONDARY",
-    AssignmentRole.late_shift: "11–19",
-}
 
 #: The advice every mail about a PRIMARY hand-over repeats, in the interface's
 #: warning colour.

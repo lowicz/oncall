@@ -5,15 +5,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from oncall.domain.clock import utc_now
-from oncall.domain.vocabulary import AssignmentRole
-
-#: Role names as the team reads them, mirroring `frontend/src/lib/labels.ts`.
-#: „late_shift" is an internal identifier and must never reach a reader.
-ROLE_LABELS: dict[AssignmentRole, str] = {
-    AssignmentRole.primary: "PRIMARY",
-    AssignmentRole.secondary: "SECONDARY",
-    AssignmentRole.late_shift: "11–19",
-}
+from oncall.domain.vocabulary import ROLE_LABELS, AssignmentRole
 
 PRODID = "-//On-call//PL"
 FOLD_LIMIT = 75  # octets per RFC 5545 section 3.1

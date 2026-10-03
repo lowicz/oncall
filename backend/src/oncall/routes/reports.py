@@ -3,16 +3,14 @@ import io
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel
 
 from oncall.bootstrap.providers import ReportProvider
 from oncall.domain.reports.errors import InvalidMonth
 from oncall.domain.reports.models import DutyTally, MonthlyReport
 from oncall.domain.reports.use_cases import monthly_report
-from oncall.domain.vocabulary import UserRole
-from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.permissions import require_roles
+from oncall.permissions import Coordinator
 from oncall.routes.domain_edge import domain_errors_as_http
 
 
@@ -47,8 +45,6 @@ class MonthlyReportPreviewResponse(BaseModel):
 
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
-Coordinator = Annotated[User, Depends(require_roles(UserRole.coordinator, UserRole.admin))]
-
 HEADERS = (
     "miesiac",
     "osoba",

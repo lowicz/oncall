@@ -14,10 +14,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleStatus
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, AvailabilityKind, ScheduleStatus
 from oncall.effective import effective_assignments, sorted_assignments
 from oncall.fairness import (
-    ONCALL_ROLES,
     EligibilityPeriod,
     FairnessDuty,
     FairnessMemberInput,

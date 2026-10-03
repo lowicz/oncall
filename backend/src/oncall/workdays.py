@@ -6,6 +6,7 @@ CSV import have to answer this question identically. The `holidays` package is
 the single source of statutory holidays for every path.
 """
 
+from collections.abc import Container
 from datetime import date, timedelta
 from functools import lru_cache
 
@@ -44,7 +45,7 @@ def polish_holidays(starts_on: date, ends_on: date) -> set[date]:
     return set(polish_holiday_names(starts_on, ends_on))
 
 
-def is_working_day(day: date, holidays: set[date]) -> bool:
+def is_working_day(day: date, holidays: Container[date]) -> bool:
     return day.weekday() < 5 and day not in holidays
 
 

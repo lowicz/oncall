@@ -12,8 +12,8 @@ from datetime import date, timedelta
 
 from oncall.domain.scheduling.errors import IncompleteSchedule, SamePersonOnBothOnCallRoles
 from oncall.domain.scheduling.models import CoveredSpan, Schedule, SuggestedRange, VariantMetrics
-from oncall.domain.vocabulary import AssignmentRole
-from oncall.rules import ONCALL_ROLES, exempt_days, oncall_rest_violations, summarise
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole
+from oncall.rules import exempt_days, oncall_rest_violations, summarise
 from oncall.workdays import is_working_day, polish_holidays
 
 

@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Query, status
 
 from oncall.auth import CsrfGuard, CurrentPrincipal
 from oncall.bootstrap.providers import CalendarReader, CalendarWriter, OverrideProvider
@@ -17,9 +17,7 @@ from oncall.domain.overrides.models import (
     OverrideCheck,
     OverrideInput,
 )
-from oncall.domain.vocabulary import UserRole
-from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.permissions import require_roles
+from oncall.permissions import Coordinator
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.calendar import (
     CalendarEventCreate,
@@ -43,8 +41,6 @@ from oncall.routes.domain_edge import (
 )
 
 router = APIRouter(prefix="/api/v1/calendar", tags=["calendar"])
-Coordinator = Annotated[User, Depends(require_roles(UserRole.coordinator, UserRole.admin))]
-
 
 CALENDAR_ERROR_STATUSES = {
     calendar_errors.CalendarRangeError: status.HTTP_422_UNPROCESSABLE_CONTENT,

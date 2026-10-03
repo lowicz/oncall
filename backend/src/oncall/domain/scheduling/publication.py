@@ -27,6 +27,7 @@ from oncall.domain.scheduling.planning import validate_complete
 from oncall.domain.scheduling.ports import ChangeLog, PublicationPorts
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import (
+    ONCALL_ROLES,
     AssignmentRole,
     ScheduleStatus,
 )
@@ -35,7 +36,6 @@ from oncall.fairness import (
 )
 from oncall.i18n import translate
 from oncall.rules import (
-    ONCALL_ROLES,
     RuleViolation,
     exempt_days,
     oncall_rest_violations,
