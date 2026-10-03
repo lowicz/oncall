@@ -22,7 +22,12 @@ from datetime import date, timedelta
 
 from oncall.domain.scheduling.solver import PreferenceRange
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
-from oncall.scheduler import DateRange, SolverMember, _build_model
+from oncall.scheduler import (
+    DateRange,
+    SolverMember,
+    _build_model_from_context,
+    _ModelBuildContext,
+)
 from oncall.workdays import polish_holidays
 
 STARTS = date(2026, 11, 2)
@@ -110,24 +115,26 @@ def _case(
     fairness_only: bool = False,
     fairness_bound: int | None = None,
 ) -> tuple[str, str]:
-    model, variables, conflicts, lenses = _build_model(
-        starts_on=STARTS,
-        ends_on=ENDS,
-        mode=mode,
-        members=members,
-        historical_points={
-            ("Anna", AssignmentRole.primary): 40.0,
-            ("Bartek", AssignmentRole.secondary): 25.0,
-        },
-        holidays=HOLIDAYS,
-        historical_lenses={("Anna", "weekends"): 6.0, ("Cezary", "holidays"): 2.0},
-        history_window=None,
-        fairness_weight=3.0,
-        continuity_weight=1.0,
-        preference_weight=2.0,
-        late_shift_anchor=anchor,
+    model, variables, conflicts, lenses = _build_model_from_context(
+        _ModelBuildContext(
+            starts_on=STARTS,
+            ends_on=ENDS,
+            mode=mode,
+            members=members,
+            historical_points={
+                ("Anna", AssignmentRole.primary): 40.0,
+                ("Bartek", AssignmentRole.secondary): 25.0,
+            },
+            holidays=HOLIDAYS,
+            historical_lenses={("Anna", "weekends"): 6.0, ("Cezary", "holidays"): 2.0},
+            history_window=None,
+            fairness_weight=3.0,
+            continuity_weight=1.0,
+            preference_weight=2.0,
+            late_shift_anchor=anchor,
+            prior_oncall=prior_oncall,
+        ),
         spacing=spacing,
-        prior_oncall=prior_oncall,
         acceptance_cap=acceptance_cap,
         fairness_only=fairness_only,
         fairness_bound=fairness_bound,
