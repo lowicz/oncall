@@ -64,13 +64,13 @@ async def create_account(new: NewAccount, ports: AccountAdministrationPorts) -> 
     if not first_name:
         raise errors.FirstNameRequired()
     if await ports.identifiers.username_taken(new.username):
-        raise errors.UsernameTaken(new.username)
+        raise errors.UsernameTaken()
     if new.email and await ports.identifiers.email_taken(new.email):
-        raise errors.EmailTaken(new.email)
+        raise errors.EmailTaken()
     if new.personnel_number and await ports.identifiers.personnel_number_taken(
         new.personnel_number
     ):
-        raise errors.PersonnelNumberTaken(new.personnel_number)
+        raise errors.PersonnelNumberTaken()
     account = await ports.accounts.open_account(
         AccountRecord(
             username=new.username,
@@ -94,7 +94,7 @@ async def update_account(change: AccountChange, ports: AccountAdministrationPort
     changes = dict(change.changes)
     touched_identity = IDENTITY_FIELDS & changes.keys()
     if account.auth_source == AuthSource.ldap and touched_identity:
-        raise errors.DirectoryIdentityReadOnly(set(touched_identity))
+        raise errors.DirectoryIdentityReadOnly()
     if account.id == change.actor.user_id and (
         ("role" in changes and changes["role"] != account.role)
         or ("is_active" in changes and changes["is_active"] != account.is_active)
@@ -105,7 +105,7 @@ async def update_account(change: AccountChange, ports: AccountAdministrationPort
         or changes.get("is_active") is False
     )
     if removes_active_admin and await ports.accounts.active_admin_count() == 1:
-        raise errors.LastActiveAdminDemotion(account.id)
+        raise errors.LastActiveAdminDemotion()
     if "first_name" in changes and not changes["first_name"]:
         raise errors.FirstNameCleared()
     if "last_name" in changes and changes["last_name"] is None:
@@ -114,10 +114,10 @@ async def update_account(change: AccountChange, ports: AccountAdministrationPort
     if number is not None and await ports.identifiers.personnel_number_taken(
         number, other_than=account.id
     ):
-        raise errors.PersonnelNumberTaken(number)
+        raise errors.PersonnelNumberTaken()
     email = changes.get("email")
     if email is not None and await ports.identifiers.email_taken(email, other_than=account.id):
-        raise errors.EmailTaken(email)
+        raise errors.EmailTaken()
 
     before = {key: getattr(account, key) for key in changes}
     stored = {
@@ -142,7 +142,7 @@ async def issue_password_reset(
 ) -> IssuedToken:
     account = await _account(ports.accounts, action.account_id)
     if account.auth_source != AuthSource.local:
-        raise errors.DirectoryPasswordReadOnly(account.id)
+        raise errors.DirectoryPasswordReadOnly()
     token = await ports.accounts.issue_token(
         account.id, AccountTokenKind.password_reset, RESET_LINK_LIFETIME
     )
@@ -157,13 +157,13 @@ async def reissue_activation(
     password; the links issued before it stop working."""
     account = await ports.accounts.account(action.account_id)
     if account is None:
-        raise errors.AccountNotFound(action.account_id)
+        raise errors.AccountNotFound()
     if account.auth_source != AuthSource.local:
-        raise errors.DirectoryPasswordReadOnly(account.id)
+        raise errors.DirectoryPasswordReadOnly()
     if account.pending_activation is None:
-        raise errors.AccountAlreadyActivated(account.id)
+        raise errors.AccountAlreadyActivated()
     if not account.is_active:
-        raise errors.DisabledAccountActivation(account.id)
+        raise errors.DisabledAccountActivation()
     token = await ports.accounts.issue_token(
         account.id, AccountTokenKind.activation, ACTIVATION_LINK_LIFETIME
     )
@@ -176,7 +176,7 @@ async def delete_account(action: AccountAction, ports: AccountAdministrationPort
     if account.id == action.actor.user_id:
         raise errors.OwnAccountDeletion()
     if account.is_active_admin and await ports.accounts.active_admin_count() == 1:
-        raise errors.LastActiveAdminDeletion(account.id)
+        raise errors.LastActiveAdminDeletion()
     pseudonym = None
     if account.member_id is not None:
         # The member and its duty history stay for fairness; the name the
@@ -194,7 +194,7 @@ async def enrol_in_rotation(
 ) -> RotationMember:
     account = await _account(ports.accounts, enrolment.account_id)
     if await ports.rotation.account_is_enrolled(account.id):
-        raise errors.AccountAlreadyInRotation(account.id)
+        raise errors.AccountAlreadyInRotation()
     member = await ports.rotation.enrol(account, enrolment.active_from)
     await ports.journal.member_enrolled(member)
     return member
@@ -300,14 +300,14 @@ async def browse_audit(query: AuditQuery, trail: AuditTrail) -> AuditPage:
 async def _account(accounts: AccountLookup, account_id: uuid.UUID) -> Account:
     account = await accounts.account(account_id)
     if account is None:
-        raise errors.AccountNotFound(account_id)
+        raise errors.AccountNotFound()
     return account
 
 
 async def _member_for_change(rotation: HeldMembers, member_id: uuid.UUID) -> RotationMember:
     member = await rotation.member_for_change(member_id)
     if member is None:
-        raise errors.RotationMemberNotFound(member_id)
+        raise errors.RotationMemberNotFound()
     return member
 
 
@@ -318,11 +318,11 @@ async def _period_for_change(
     again under it, so a concurrent change to the same person is seen."""
     period = await rotation.period(eligibility_id)
     if period is None:
-        raise errors.EligibilityNotFound(eligibility_id)
+        raise errors.EligibilityNotFound()
     member = await _member_for_change(rotation, period.member_id)
     period = await rotation.period(eligibility_id)
     if period is None:
-        raise errors.EligibilityNotFound(eligibility_id)
+        raise errors.EligibilityNotFound()
     return member, period
 
 

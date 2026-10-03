@@ -9,9 +9,10 @@ class DomainError(Exception):
     `key` names the sentence the person acting sees, in `oncall.i18n`'s
     catalogs, and `params` fill its placeholders; `str(error)` renders it in
     the language of the request being served (Polish outside a request, so
-    the worker records Polish). Subclasses keep whatever else a caller needs
-    to react (ids, dates, violations) as attributes. Translating any of this
-    into a transport status happens only at the edge that owns the transport.
+    the worker records Polish). Subclasses keep as attributes only what a
+    caller reads to react (a reason, violations, what a publication would
+    lose). Translating any of this into a transport status happens only at
+    the edge that owns the transport.
     """
 
     def __init__(self, key: str, /, **params: object) -> None:

@@ -129,7 +129,7 @@ def validate_complete(schedule: Schedule) -> None:
         if set(assignments) != expected_roles:
             raise IncompleteSchedule()
         if assignments[AssignmentRole.primary] == assignments[AssignmentRole.secondary]:
-            raise SamePersonOnBothOnCallRoles(day)
+            raise SamePersonOnBothOnCallRoles()
 
 
 def comparison_metrics(schedule: Schedule) -> VariantMetrics:

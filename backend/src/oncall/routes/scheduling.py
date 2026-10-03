@@ -123,7 +123,7 @@ async def _written_schedule(
     schedule = await reads.schedules.schedule(schedule_id)
     if schedule is None:
         with _scheduling_errors():
-            raise errors.ScheduleNotFound(schedule_id)
+            raise errors.ScheduleNotFound()
     return schedule_response(
         await queries.view_schedule(schedule, reads, today=business_today(), warnings=warnings)
     )

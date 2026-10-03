@@ -691,10 +691,8 @@ async def test_every_lifecycle_step_refuses_a_schedule_that_does_not_exist(world
 async def test_only_a_proposal_has_a_publication_preview(world) -> None:
     draft = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
 
-    with pytest.raises(errors.OnlyProposalPublishable) as refused:
+    with pytest.raises(errors.OnlyProposalPublishable):
         await preview_publication(draft.id, world.publication, today=MONDAY)
-
-    assert refused.value.schedule_id == draft.id
 
 
 async def test_a_draft_naming_nobody_on_the_team_is_proposed_without_a_check(world) -> None:

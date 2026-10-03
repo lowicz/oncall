@@ -170,9 +170,9 @@ class SqlAlchemyAccounts:
             # login or number: answer as the check would have.
             message = str(error.orig)
             if "personnel_number" in message and record.personnel_number is not None:
-                raise errors.PersonnelNumberTaken(record.personnel_number) from None
+                raise errors.PersonnelNumberTaken() from None
             if "username" in message:
-                raise errors.UsernameTaken(record.username) from None
+                raise errors.UsernameTaken() from None
             raise
         return account_from_row(row)
 
@@ -194,7 +194,7 @@ class SqlAlchemyAccounts:
         try:
             await self._session.flush()
         except IntegrityError:
-            raise errors.AccountStillReferenced(account_id) from None
+            raise errors.AccountStillReferenced() from None
 
     async def issue_token(
         self, account_id: uuid.UUID, kind: AccountTokenKind, lifetime: timedelta
@@ -251,7 +251,7 @@ class SqlAlchemyRotation:
         try:
             await self._session.flush()
         except IntegrityError:
-            raise errors.AccountAlreadyInRotation(account.id) from None
+            raise errors.AccountAlreadyInRotation() from None
         return _to_member(row, [])
 
     async def change_membership(

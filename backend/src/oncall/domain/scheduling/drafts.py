@@ -38,24 +38,24 @@ async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[
     """Give one draft slot to another eligible and available member."""
     schedule = await ports.schedules.schedule_to_correct(correction.schedule_id)
     if schedule is None or schedule.status != ScheduleStatus.draft:
-        raise errors.EditableDraftNotFound(correction.schedule_id)
+        raise errors.EditableDraftNotFound()
     if schedule.version != correction.expected_version:
-        raise errors.DraftChanged(schedule.id)
+        raise errors.DraftChanged()
     day, role = correction.service_date, correction.role
     if not schedule.starts_on <= day <= schedule.ends_on:
-        raise errors.DateOutsideDraft(day)
+        raise errors.DateOutsideDraft()
     if role == AssignmentRole.late_shift and not is_working_day(day, polish_holidays(day, day)):
-        raise errors.LateShiftOnlyOnWorkingDays(day)
+        raise errors.LateShiftOnlyOnWorkingDays()
     replacement = await ports.team.member(correction.replacement_member_id)
     if replacement is None:
-        raise errors.ReplacementNotFound(correction.replacement_member_id)
+        raise errors.ReplacementNotFound()
     if not replacement.is_eligible(role, day):
-        raise errors.ReplacementNotEligible(replacement.id, (day, role))
+        raise errors.ReplacementNotEligible()
     if replacement.is_unavailable(day):
-        raise errors.ReplacementUnavailable(replacement.id, day)
+        raise errors.ReplacementUnavailable()
     assignment = next((item for item in schedule.assignments if item.slot == (day, role)), None)
     if assignment is None:
-        raise errors.DraftSlotNotFound((day, role))
+        raise errors.DraftSlotNotFound()
     if role in (AssignmentRole.primary, AssignmentRole.secondary):
         opposite = (
             AssignmentRole.secondary if role == AssignmentRole.primary else AssignmentRole.primary
@@ -64,7 +64,7 @@ async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[
             item.slot == (day, opposite) and item.member_id == replacement.id
             for item in schedule.assignments
         ):
-            raise errors.SecondOnCallSameDay(replacement.id, day)
+            raise errors.SecondOnCallSameDay()
     corrected = schedule.with_holder((day, role), replacement.display_name, replacement.id)
     warnings = member_rest_warnings(corrected, replacement.id)
     await ports.schedules.correct(schedule.id, (day, role), replacement)
@@ -77,13 +77,13 @@ async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[
 async def delete_schedule(schedule_id: uuid.UUID, ports: DraftPorts) -> None:
     schedule = await ports.schedules.schedule(schedule_id)
     if schedule is None:
-        raise errors.ScheduleNotFound(schedule_id)
+        raise errors.ScheduleNotFound()
     imported_history = schedule.is_imported_history
     if (
         schedule.status not in (ScheduleStatus.draft, ScheduleStatus.proposed)
         and not imported_history
     ):
-        raise errors.ScheduleNotDeletable(schedule.id)
+        raise errors.ScheduleNotDeletable()
     if imported_history:
         kind = "zaimportowaną historię"
     elif schedule.status == ScheduleStatus.proposed:
@@ -97,7 +97,7 @@ async def delete_schedule(schedule_id: uuid.UUID, ports: DraftPorts) -> None:
 async def propose(transition: Transition, ports: DraftPorts) -> None:
     schedule = await ports.schedules.schedule(transition.schedule_id)
     if schedule is None:
-        raise errors.ScheduleNotFound(transition.schedule_id)
+        raise errors.ScheduleNotFound()
     conflicts = await unavailability_conflicts(schedule, ports.team)
     if conflicts:
         raise errors.ProposalHasUnavailablePeople(conflicts)
@@ -107,7 +107,7 @@ async def propose(transition: Transition, ports: DraftPorts) -> None:
         to_status=ScheduleStatus.proposed,
         expected_version=transition.expected_version,
     ):
-        raise errors.DraftStateChanged(schedule.id)
+        raise errors.DraftStateChanged()
     await ports.journal.schedule_proposed(schedule.id)
 
 
@@ -118,5 +118,5 @@ async def withdraw(transition: Transition, ports: DraftPorts) -> None:
         to_status=ScheduleStatus.draft,
         expected_version=transition.expected_version,
     ):
-        raise errors.ProposalStateChanged(transition.schedule_id)
+        raise errors.ProposalStateChanged()
     await ports.journal.proposal_withdrawn(transition.schedule_id)

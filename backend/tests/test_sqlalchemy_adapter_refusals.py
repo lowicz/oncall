@@ -65,10 +65,9 @@ async def test_an_account_that_created_a_share_link_cannot_be_closed(db) -> None
     await db.commit()
     accounts = SqlAlchemyAccounts(db)
 
-    with pytest.raises(errors.AccountStillReferenced) as refused:
+    with pytest.raises(errors.AccountStillReferenced):
         await accounts.close_account(author_id)
 
-    assert refused.value.account_id == author_id
     await db.rollback()
     assert await db.scalar(select(func.count()).select_from(User)) == 1
 
@@ -80,10 +79,9 @@ async def test_an_account_enrolled_meanwhile_is_reported_as_in_the_rotation(db) 
     assert account is not None
     rotation = SqlAlchemyRotation(db)
 
-    with pytest.raises(errors.AccountAlreadyInRotation) as refused:
+    with pytest.raises(errors.AccountAlreadyInRotation):
         await rotation.enrol(account, TODAY)
 
-    assert refused.value.account_id == account.id
     await db.rollback()
     assert await db.scalar(select(func.count()).select_from(TeamMember)) == 1
 

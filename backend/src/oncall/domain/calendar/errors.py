@@ -1,5 +1,3 @@
-import uuid
-
 from oncall.domain.errors import DomainError
 
 
@@ -33,6 +31,5 @@ class DashboardRangeReversed(CalendarRangeError):
 
 
 class CalendarEventNotFound(DomainError):
-    def __init__(self, event_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("calendar.event_not_found")
-        self.event_id = event_id

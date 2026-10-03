@@ -77,7 +77,7 @@ async def sign_in(
         identity = await ports.directory.authenticate(login, request.password)
     except errors.DirectoryFailure as failure:
         await ports.attempts.directory_unavailable(login, failure.reason)
-        raise errors.DirectoryLoginUnavailable(failure.reason) from failure
+        raise errors.DirectoryLoginUnavailable() from failure
     if identity is None:
         if not local_password_checked:
             await ports.passwords.verify_decoy(request.password)
@@ -115,7 +115,7 @@ async def _enforce_throttle(request: SignInRequest, ports: SignInPorts, now: dat
         request.login_label if login_failures >= LOGIN_ATTEMPTS_PER_USERNAME else request.ip_label
     )
     times = await ports.attempts.throttled(label, since)
-    raise errors.LoginThrottled(label, retry_after_seconds(times))
+    raise errors.LoginThrottled(retry_after_seconds(times))
 
 
 async def _reject(
@@ -183,7 +183,7 @@ async def choose_password(
         raise errors.AccountLinkInvalid()
     account = link.credentials.account
     if account.auth_source != AuthSource.local:
-        raise DirectoryPasswordReadOnly(account.id)
+        raise DirectoryPasswordReadOnly()
     if choice.kind == AccountTokenKind.activation and link.credentials.password_set:
         raise errors.AccountAlreadyActivated()
     if choice.password.lower() == account.username.lower():
@@ -225,4 +225,4 @@ async def own_photo(account: Account | None, photos: DirectoryPhotos) -> Directo
     try:
         return await photos.photo(account.username)
     except errors.DirectoryFailure as failure:
-        raise errors.DirectoryUnavailable(failure.reason) from failure
+        raise errors.DirectoryUnavailable() from failure

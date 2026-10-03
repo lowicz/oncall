@@ -99,7 +99,7 @@ async def _takes_opposite_oncall(
 
 def _reject_past(request: SwapRequest, today: date) -> None:
     if any(day < today for day, _role in request.moves):
-        raise SwapInThePast(request.service_date)
+        raise SwapInThePast()
 
 
 def _require_reason(reason: str | None) -> None:
@@ -206,20 +206,20 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         raise PointsHiddenFromViewers()
     replacement = await ports.team.member(query.replacement_member_id)
     if replacement is None:
-        raise ReplacementNotFound(query.replacement_member_id)
+        raise ReplacementNotFound()
     publication = await ports.roster.latest_publication_covering(query.service_date)
     if publication is None:
-        raise NoPublicationForDay(query.service_date)
+        raise NoPublicationForDay()
     current = await ports.roster.duty(publication.id, (query.service_date, query.role))
     if current is None:
-        raise SlotHasNoPublishedDuty(query.service_date)
+        raise SlotHasNoPublishedDuty()
     requester = (
         await ports.team.member(current.member_id) if current.member_id is not None else None
     )
     if requester is None and current.member_id is None:
         requester = await ports.team.member_named(current.assignee_name)
     if requester is None:
-        raise SlotHolderNotATeamMember(current.assignee_name)
+        raise SlotHolderNotATeamMember()
     # A member may only preview a slot they are part of.
     if not query.actor.coordinates:
         own = await _member_for(query.actor, ports.team)
@@ -336,7 +336,7 @@ async def request_swap(
 ) -> SwapRequestView:
     """Ask a colleague to take over a published duty of one's own."""
     if swap.service_date < (today or business_today()):
-        raise SwapInThePast(swap.service_date)
+        raise SwapInThePast()
     requester = await _member_for(swap.actor, ports.team)
     # Which schedule owns the slot is resolved here, never taken from the
     # caller: once a shorter range is republished inside a longer one both are
@@ -347,21 +347,21 @@ async def request_swap(
     holidays = polish_holidays(window_start, window_end)
     in_force = duties.get((swap.service_date, swap.role))
     if in_force is None:
-        raise SlotNotPublished(swap.service_date)
+        raise SlotNotPublished()
     schedule = await ports.roster.schedule(in_force.schedule_id)
     if schedule is None or not schedule.published:
-        raise SlotNotPublished(swap.service_date)
+        raise SlotNotPublished()
     if not in_force.held_by(requester.id, requester.display_name):
         raise SlotNotYours()
     replacement = await ports.team.member(swap.replacement_member_id)
     if replacement is None or not replacement.is_eligible(swap.role, swap.service_date):
-        raise ReplacementNotEligible(swap.replacement_member_id)
+        raise ReplacementNotEligible()
     if replacement.id == requester.id:
         raise CannotSwapWithYourself()
     if not replacement.has_account:
-        raise ReplacementHasNoAccount(replacement.id)
+        raise ReplacementHasNoAccount()
     if replacement.is_unavailable(swap.service_date):
-        raise ReplacementUnavailable(replacement.id, swap.service_date)
+        raise ReplacementUnavailable()
 
     # A swap of the anchor role or of 11-19 carries both slots of that day as
     # one decision (decision D1); if the replacement cannot hold 11-19 the shift
@@ -377,9 +377,9 @@ async def request_swap(
     )
     for move in moves:
         if await _takes_opposite_oncall(ports.roster, schedule.id, move, replacement):
-            raise ReplacementAlreadyOnCall(move[0])
+            raise ReplacementAlreadyOnCall()
         if await ports.requests.has_active_request_for(move):
-            raise SlotHasActiveSwap(move[0])
+            raise SlotHasActiveSwap()
 
     # Up-front validation (decision D3): a request that would be rejected at
     # approval must not come into existence at all. `day_off_block` and the
@@ -434,7 +434,7 @@ async def accept_swap(
     member = await _member_for(decision.actor, ports.team)
     request = await ports.requests.take_for_decision(decision.swap_id)
     if request is None:
-        raise SwapNotFound(decision.swap_id)
+        raise SwapNotFound()
     if request.replacement_member_id != member.id:
         raise OnlyNamedReplacementMayAccept()
     if request.status != SwapStatus.pending_replacement:
@@ -466,7 +466,7 @@ async def reject_swap(decision: SwapDecisionInput, ports: SwapPorts) -> SwapRequ
     _require_reason(decision.reason)
     request = await ports.requests.take_for_decision(decision.swap_id)
     if request is None:
-        raise SwapNotFound(decision.swap_id)
+        raise SwapNotFound()
     if request.status == SwapStatus.pending_replacement:
         member = await _member_for(decision.actor, ports.team)
         if request.replacement_member_id != member.id:
@@ -496,7 +496,7 @@ async def cancel_swap(decision: SwapDecisionInput, ports: SwapPorts) -> SwapRequ
     member = await _member_for(decision.actor, ports.team)
     request = await ports.requests.take_for_decision(decision.swap_id)
     if request is None:
-        raise SwapNotFound(decision.swap_id)
+        raise SwapNotFound()
     if request.requester_member_id != member.id:
         raise OnlyRequesterMayCancel()
     if not request.active:
@@ -523,7 +523,7 @@ async def approve_swap(
     """
     request = await ports.requests.take_for_decision(decision.swap_id)
     if request is None:
-        raise SwapNotFound(decision.swap_id)
+        raise SwapNotFound()
     if request.status != SwapStatus.pending_coordinator:
         raise SwapNotAwaitingCoordinator()
     _reject_past(request, today or business_today())
@@ -582,7 +582,7 @@ async def _hand_over(
             )
             return SwapAutoCancelled(request.id)
         if await _takes_opposite_oncall(ports.roster, request.schedule_id, move, replacement):
-            raise ReplacementOnCallSinceRequest(move[0])
+            raise ReplacementOnCallSinceRequest()
 
     # Deciding validation (decision D3): the roster may have moved between the
     # request and the hand-over, so the hard rules are checked again here.
@@ -595,7 +595,7 @@ async def _hand_over(
     if not await ports.roster.advance_version(
         request.schedule_id, expected_version=None, only_if_published=True
     ):
-        raise ScheduleChangedSinceRequest(request.schedule_id)
+        raise ScheduleChangedSinceRequest()
     await ports.roster.hand_over(request.schedule_id, moves, replacement)
     approved = replace(request, status=SwapStatus.approved)
     await ports.requests.record_decision(approved)

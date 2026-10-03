@@ -70,7 +70,7 @@ async def create_event(new: NewCalendarEvent, ports: CalendarPorts) -> CalendarE
 async def change_event(change: CalendarEventChange, ports: CalendarPorts) -> CalendarEvent:
     event = await ports.events.event(change.event_id)
     if event is None:
-        raise errors.CalendarEventNotFound(change.event_id)
+        raise errors.CalendarEventNotFound()
     starts_on = change.changes.get("starts_on") or event.starts_on
     ends_on = change.changes.get("ends_on") or event.ends_on
     if ends_on < starts_on:
@@ -89,7 +89,7 @@ async def change_event(change: CalendarEventChange, ports: CalendarPorts) -> Cal
 async def delete_event(event_id: uuid.UUID, ports: CalendarPorts) -> None:
     event = await ports.events.event(event_id)
     if event is None:
-        raise errors.CalendarEventNotFound(event_id)
+        raise errors.CalendarEventNotFound()
     await ports.journal.event_deleted(event)
     await ports.events.remove(event.id)
 

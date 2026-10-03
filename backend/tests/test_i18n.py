@@ -72,7 +72,7 @@ def test_translate_fills_placeholders_and_rejects_unknown_keys() -> None:
 
 
 def test_domain_sentences_follow_the_language_in_scope() -> None:
-    error = ScheduleNotFound(uuid.uuid4())
+    error = ScheduleNotFound()
     violation = RuleViolation("three_in_seven", "Anna", (date(2026, 9, 7), date(2026, 9, 8)))
 
     assert str(error) == "Nie znaleziono grafiku"

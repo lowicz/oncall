@@ -82,7 +82,7 @@ async def check_override(check: OverrideCheck, ports: OverridePorts) -> list[Rul
         return []
     replacement = await ports.team.member(check.replacement_member_id)
     if replacement is None:
-        raise PersonNotFound(check.replacement_member_id)
+        raise PersonNotFound()
     in_force = await ports.roster.duties_in_force(check.service_date, check.service_date)
     current = in_force.get((check.service_date, check.role))
     from_name = current.assignee_name if current is not None else replacement.display_name
@@ -115,29 +115,27 @@ async def override_duty(
     """Put a person on one slot of the published roster."""
     today = today or business_today()
     if override.service_date < today and len((override.reason or "").strip()) < MIN_REASON_LENGTH:
-        raise HistoricalCorrectionNeedsReason(override.service_date)
+        raise HistoricalCorrectionNeedsReason()
     holidays = polish_holidays(override.service_date, override.service_date)
     if override.role == AssignmentRole.late_shift and not is_working_day(
         override.service_date, holidays
     ):
-        raise LateShiftOnlyOnWorkingDays(override.service_date)
+        raise LateShiftOnlyOnWorkingDays()
     schedule = await _schedule_for(ports.roster, override.schedule_id, override.service_date)
     if schedule is None or not schedule.published:
-        raise PublishedScheduleNotFound(override.schedule_id)
+        raise PublishedScheduleNotFound()
     replacement = await ports.team.member(override.replacement_member_id)
     if replacement is None or not replacement.is_eligible(override.role, override.service_date):
-        raise PersonNotEligible(
-            override.replacement_member_id, override.role, override.service_date
-        )
+        raise PersonNotEligible()
     if replacement.is_unavailable(override.service_date):
-        raise PersonUnavailable(replacement.id, override.service_date)
+        raise PersonUnavailable()
     slot = (override.service_date, override.role)
     assignment = await ports.roster.duty(schedule.id, slot)
     if assignment is not None and (
         assignment.member_id == replacement.id
         or (assignment.member_id is None and assignment.assignee_name == replacement.display_name)
     ):
-        raise PersonAlreadyHoldsRole(replacement.id, override.service_date)
+        raise PersonAlreadyHoldsRole()
     anchor = await ports.policy.late_shift_anchor()
     coupled_partner: Duty | None = None
     if _couples_late_shift(override.role, override.service_date, replacement, anchor, holidays):
@@ -150,7 +148,7 @@ async def override_duty(
     if opposite is not None:
         collision = await ports.roster.duty(schedule.id, (override.service_date, opposite))
         if collision is not None and collision.member_id == replacement.id:
-            raise PersonAlreadyOnCall(replacement.id, override.service_date)
+            raise PersonAlreadyOnCall()
     roles_to_move = [override.role] + (
         [AssignmentRole.late_shift] if coupled_partner is not None else []
     )
@@ -171,7 +169,7 @@ async def override_duty(
     if not await ports.roster.advance_version(
         schedule.id, expected_version=override.expected_version, only_if_published=True
     ):
-        raise RosterChangedMeanwhile(schedule.id, override.expected_version)
+        raise RosterChangedMeanwhile()
     previous_name = assignment.assignee_name if assignment is not None else UNSTAFFED
     # Who each moved slot is taken from, recorded before the hand-over: the
     # clicked slot plus, when the anchor couples it, 11-19.
@@ -214,7 +212,7 @@ async def override_duties_in_batch(
         raise BatchCorrectionNeedsReason()
     schedule = await ports.roster.schedule(batch.schedule_id)
     if schedule is None or not schedule.published:
-        raise PublishedScheduleNotFound(batch.schedule_id)
+        raise PublishedScheduleNotFound()
     slots = [(line.service_date, line.role) for line in batch.lines]
     if len(slots) != len(set(slots)):
         raise RepeatedSlotInBatch()
@@ -225,12 +223,12 @@ async def override_duties_in_batch(
     for line in batch.lines:
         replacement = replacements.get(line.replacement_member_id)
         if replacement is None or not replacement.is_eligible(line.role, line.service_date):
-            raise PersonNotEligible(line.replacement_member_id, line.role, line.service_date)
+            raise PersonNotEligible()
         if replacement.is_unavailable(line.service_date):
-            raise PersonUnavailable(replacement.id, line.service_date)
+            raise PersonUnavailable()
         assignment = await ports.roster.duty(schedule.id, (line.service_date, line.role))
         if assignment is None:
-            raise ScheduleSlotNotFound(line.service_date, line.role)
+            raise ScheduleSlotNotFound()
         moves.append(OverrideMove(line.service_date, line.role, assignment.assignee_name))
         changes.append(
             (line.service_date, line.role, assignment.assignee_name, replacement.display_name)
@@ -245,7 +243,7 @@ async def override_duties_in_batch(
     if not await ports.roster.advance_version(
         schedule.id, expected_version=batch.expected_version, only_if_published=False
     ):
-        raise RosterChangedMeanwhile(schedule.id, batch.expected_version)
+        raise RosterChangedMeanwhile()
     for line in batch.lines:
         await ports.roster.hand_over(
             schedule.id,

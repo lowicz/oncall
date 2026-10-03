@@ -15,9 +15,8 @@ IdentityConflictCause = Literal["personnel_number_mismatch", "login_taken"]
 
 
 class LoginThrottled(RecordedRefusal):
-    def __init__(self, label: str, retry_after: int) -> None:
+    def __init__(self, retry_after: int) -> None:
         super().__init__("access.login_throttled")
-        self.label = label
         self.retry_after = retry_after
 
 
@@ -40,17 +39,15 @@ class DirectoryFailure(DomainError):
 
 
 class DirectoryLoginUnavailable(RecordedRefusal):
-    def __init__(self, reason: str) -> None:
+    def __init__(self) -> None:
         super().__init__("access.directory_login_unavailable")
-        self.reason = reason
 
 
 class DirectoryUnavailable(DomainError):
     """The directory could not answer for the signed-in person's own data."""
 
-    def __init__(self, reason: str) -> None:
+    def __init__(self) -> None:
         super().__init__("access.directory_unavailable")
-        self.reason = reason
 
 
 class DirectoryIdentityTaken(DomainError):
