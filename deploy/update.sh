@@ -16,8 +16,9 @@
 #   3. merges .env with the release's .env.example (see merge_env) and sets
 #      ONCALL_VERSION, the only value it ever changes,
 #   4. pulls both application images (and PostgreSQL's, when the release
-#      moves it to a new major version), so a missing release stops here with
-#      nothing changed and the restart does not wait for a download,
+#      names another PostgreSQL release than the deployment runs), so a
+#      missing release stops here with nothing changed and the restart does
+#      not wait for a download,
 #   5. dumps the database (deploy/backup/oncall-backup.sh, docs/wdrozenie/
 #      kopie-zapasowe.md), because the restart runs the release's migrations
 #      and they do not roll back; a failed dump stops here with nothing changed.
@@ -291,7 +292,8 @@ postgres_image() {
   awk '$1 == "image:" && $2 ~ /(^|\/)postgres:[0-9]/ { print $2; exit }' "$1"
 }
 
-# The major version in a postgres image's tag: postgres:18-alpine is 18.
+# The major version in a postgres image's tag: postgres:18.6-alpine (and the
+# floating postgres:18-alpine of older releases) is 18.
 postgres_major() {
   printf '%s\n' "${1##*:}" | sed 's/[^0-9].*$//'
 }
@@ -434,7 +436,11 @@ main() {
     podman pull --quiet "$image:$version" >/dev/null ||
       die "cannot pull $image:$version; nothing was changed"
   done
-  if [ "$postgres_upgrade" = true ]; then
+  # Another release of the same major (18.6 after 18.4, or after the floating
+  # 18-alpine of older releases) moves no data, but its image is pulled here
+  # too: the restart would otherwise download it with the stack down, and
+  # fail there if it could not.
+  if [ "$release_postgres" != "$installed_postgres" ]; then
     # Compose reads a short name as Docker Hub's; `podman pull` needs it said.
     case $release_postgres in
       */*) postgres_ref=$release_postgres ;;

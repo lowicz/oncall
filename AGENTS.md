@@ -35,10 +35,15 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   needs its own volume, `oncall-postgres-<major>`, and initdb settings
   (checksums, Polish ICU collation) only reach a new cluster;
   `deploy/backup/oncall-backup.test.sh` moves a Compose-started 17 to the
-  current file and checks both. Renovate's PostgreSQL group moves the
-  volume name with the image (custom manager in `renovate.json5`);
-  `.github/scripts/compose-postgres-volume.sh` refuses a Compose file
-  whose volume major disagrees with the image.
+  current file and checks both. The image names one release,
+  `postgres:<major>.<minor>-alpine`, in both Compose files and the `ci.yml`
+  service; tests derive it from `docker-compose.yml`, never repeat it, so a
+  minor (a weekly Renovate PR, no approval) touches only those three lines,
+  and `update.sh` pulls a changed image before the restart. Renovate's
+  PostgreSQL group moves the volume name with the image on a new major
+  (custom manager in `renovate.json5`);
+  `.github/scripts/compose-postgres-volume.sh` refuses a floating tag, image
+  lines that differ, or a volume major that disagrees with the image.
 - Ports are consumer-owned: each backend use-case module takes its own small
   `*Ports` bundle, or one protocol directly, from its feature's `ports.py`.
   Adapters satisfy them structurally without subclassing; strict mypy over

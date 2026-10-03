@@ -9,7 +9,9 @@
 //     opened before working hours on Monday, Warsaw time;
 //   - major updates, and every update of a runtime (Python, Node,
 //     PostgreSQL), only after a maintainer approves them - they are decisions,
-//     not chores;
+//     not chores. The exception is a bug-fix release of the runtime already
+//     in use (Python 3.14.8 -> 3.14.9, PostgreSQL 18.6 -> 18.7): it comes in
+//     its own weekly pull request;
 //   - a version that appears in several files is read from one datasource
 //     in all of them, so every file gets the same version on the same day;
 //   - security updates at any time, on their own, labelled;
@@ -17,7 +19,9 @@
 //     every change lands through a reviewed pull request that passed `ci-ok`;
 //   - a release must be at least three days old before it is proposed, so a
 //     freshly published (and possibly hijacked) package cannot reach a pull
-//     request the same hour it appears.
+//     request the same hour it appears. Where no release date exists (the
+//     postgres image, lock file maintenance) the update is proposed without
+//     that wait; the rules below say why.
 //
 // Approving a major or runtime update: open the Dependency Dashboard issue and
 // tick the update's checkbox under "Pending Approval". Renovate opens the pull
@@ -33,7 +37,6 @@
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
     'config:recommended',
-    ':dependencyDashboard',
     ':semanticCommits',
     // Actions stay pinned to a full commit SHA with the version as a comment,
     // exactly the form the workflows use; Renovate moves both together.
@@ -41,11 +44,13 @@
     // No docker:pinDigests: images are referenced by tag. The node and
     // python tags follow the runtimes' own release lists (custom managers
     // below), which have no digests, so Renovate could not move a digest
-    // with the tag - and Docker runs the digest when both are written.
-    // Pinning only the remaining images (nginx, postgres) would also stop
-    // `docker compose pull` from bringing postgres patch releases to an
-    // installation. release.yml records each base image digest in the
-    // published image's provenance.
+    // with the tag - and Docker runs the digest when both are written. The
+    // nginx and postgres tags name one release each (`1.31.6-alpine`,
+    // `18.6-alpine`), so a new release reaches a build or an installation
+    // only through a reviewed pull request. The publisher can still rebuild
+    // a release under its tag (new Alpine packages, same version);
+    // release.yml records each base image digest in the published image's
+    // provenance.
   ],
   timezone: 'Europe/Warsaw',
   schedule: ['before 6am on monday'],
@@ -132,6 +137,7 @@
         // The version badge in README.md, so the badge and the runtime move in
         // the same pull request.
         'shields\\.io/badge/Node\\.js-(?<currentValue>[0-9]+)-',
+        'alt="Node\\.js (?<currentValue>[0-9]+)"',
       ],
       depNameTemplate: 'node',
       datasourceTemplate: 'node-version',
@@ -158,6 +164,7 @@
         'python:(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-slim',
         // The version badge in README.md.
         'shields\\.io/badge/Python-(?<currentValue>[0-9]+\\.[0-9]+)-',
+        'alt="Python (?<currentValue>[0-9]+\\.[0-9]+)"',
       ],
       depNameTemplate: 'python',
       datasourceTemplate: 'python-version',
@@ -165,20 +172,24 @@
     {
       // The PostgreSQL major written as a bare number: the version badge in
       // README.md and the data volume name in docker-compose.yml
-      // (`oncall-postgres-<major>`). Same Docker Hub `postgres` image the
-      // Compose files and ci.yml run, so the "PostgreSQL" group moves them
-      // with the `postgres:<major>-alpine` image lines. A major bump is a
-      // data move (deploy/update.sh, oncall-backup.sh upgrade-postgres): the
-      // new image must mount a new volume, named after that major. Docker Hub
-      // dates `18` and `18-alpine` separately, so the badge and the volume
-      // name can follow the images a day or two later in a second pull
-      // request of the same group; compose-postgres-volume.sh refuses a
-      // Compose file whose volume major disagrees with the image, so a PR
-      // that moved only one side cannot merge.
+      // (`oncall-postgres-<major>`). The image lines name one release
+      // (`postgres:18.6-alpine` in both Compose files and the ci.yml service)
+      // and are read by the docker-compose and github-actions managers from
+      // the same Docker Hub image, so the "PostgreSQL" group moves them with
+      // these. Docker versioning compares tags of the same shape only: `18`
+      // moves to another bare major alone, so a minor release (18.6 -> 18.7)
+      // changes the image lines and nothing else, while a new major changes
+      // the badge and the volume name in the same pull request. A major bump
+      // is a data move (deploy/update.sh, oncall-backup.sh upgrade-postgres):
+      // the new image must mount a new volume, named after that major.
+      // compose-postgres-volume.sh refuses a Compose file whose volume major
+      // disagrees with the image, and an image line in another file that
+      // names a different release.
       customType: 'regex',
       managerFilePatterns: ['/^README\\.md$/', '/^docker-compose\\.yml$/'],
       matchStrings: [
         'shields\\.io/badge/PostgreSQL-(?<currentValue>[0-9]+)-',
+        'alt="PostgreSQL (?<currentValue>[0-9]+)"',
         'oncall-postgres-(?<currentValue>[0-9]+)',
       ],
       depNameTemplate: 'postgres',
@@ -279,33 +290,71 @@
     {
       matchDepNames: ['python'],
       groupName: 'Python',
+      // A new minor waits for approval (and for wheels such as ortools'), so
+      // the next patch of the current minor gets its own pull request.
+      separateMinorPatch: true,
     },
     {
       matchDepNames: ['postgres'],
       groupName: 'PostgreSQL',
+      // Docker Hub shows an anonymous client the push dates of the first 1000
+      // tags only, this image has more, so the three-day rule would hold
+      // every PostgreSQL update in "Pending Status Checks" for ever. Without
+      // the dates there is no wait: a minor release is proposed on the first
+      // Monday after Docker Hub has it (scheduled minors come out on a
+      // Thursday), a major waits for dashboard approval.
+      minimumReleaseAgeBehaviour: 'timestamp-optional',
+    },
+    {
+      // A PostgreSQL release can ask for a step after the update (a REINDEX,
+      // a changed setting); its release notes say so. Image lines only: the
+      // bare major of the badge and the volume name has no minor.
+      matchDepNames: ['postgres'],
+      matchCurrentValue: '/^[0-9]+\\.[0-9]+-alpine$/',
+      prBodyNotes: [
+        'Read the [PostgreSQL {{{newMajor}}}.{{{newMinor}}} release notes](https://www.postgresql.org/docs/release/{{{newMajor}}}.{{{newMinor}}}/) before merging: a step their "Migration" section asks for (a REINDEX, a setting) ships in the same pull request.',
+      ],
+    },
+    {
+      // Lock file maintenance and pinning move to no new release, so they have
+      // no release date; with the date required they never pass the three-day
+      // rule. Keeping minimumReleaseAge lets npm still resolve with --before.
+      matchUpdateTypes: ['lockFileMaintenance', 'pin'],
+      minimumReleaseAgeBehaviour: 'timestamp-optional',
     },
     // ---- runtimes and majors are decisions: dashboard approval first --------
     {
       matchDepNames: ['node', 'python', 'postgres'],
       dependencyDashboardApproval: true,
-      labels: ['dependencies', 'runtime'],
+      addLabels: ['runtime'],
     },
     {
       matchUpdateTypes: ['major'],
       dependencyDashboardApproval: true,
-      labels: ['dependencies', 'major'],
+      addLabels: ['major'],
+    },
+    {
+      // A CPython patch release (3.14.8 -> 3.14.9) carries only bug and
+      // security fixes and touches only the backend image line: it comes in
+      // its own weekly pull request like the nginx patches, no approval.
+      matchDepNames: ['python'],
+      matchUpdateTypes: ['patch'],
+      dependencyDashboardApproval: false,
+    },
+    {
+      // The same for a PostgreSQL minor release (18.6 -> 18.7): bug and
+      // security fixes on the data directory the major already wrote, no
+      // dump or new volume. A new major still waits for approval, and its
+      // pull request is separate, so a pending one holds no minor back.
+      matchDepNames: ['postgres'],
+      matchUpdateTypes: ['minor'],
+      dependencyDashboardApproval: false,
     },
     // Python minors (3.14 -> 3.15) change the interpreter; treat them as majors.
     {
       matchDepNames: ['python'],
       matchUpdateTypes: ['minor'],
-      labels: ['dependencies', 'runtime', 'major'],
-    },
-    // ---- the frontend's MUI packages release together; keep them together ---
-    {
-      matchManagers: ['npm'],
-      matchPackageNames: ['/^@mui\\//', '/^@emotion\\//'],
-      groupName: 'frontend (MUI)',
+      addLabels: ['major'],
     },
     // ---- @vitest/coverage-v8 requires the exact vitest release; one PR ------
     {
@@ -333,6 +382,22 @@
         'typescript-eslint',
       ],
       groupName: 'frontend (eslint)',
+    },
+    // ---- @types/node majors share the Node.js branch; one approval ---------
+    // Grouped only, not pinned to the runtime major: npm offers every new
+    // @types/node major while the runtime moves on LTS majors alone, so the
+    // branch can hold an @types/node major ahead of the runtime.
+    {
+      matchDepNames: ['@types/node'],
+      matchUpdateTypes: ['major'],
+      groupName: 'Node.js',
+    },
+    // ---- TypeScript minors can break the type-check; keep them apart --------
+    // Both entries are npm aliases, so they are matched by depName.
+    {
+      matchManagers: ['npm'],
+      matchDepNames: ['@typescript/native', 'typescript'],
+      groupName: 'frontend (typescript)',
     },
   ],
 }

@@ -9,7 +9,8 @@ Registry, tagged with the release number:
 | `ghcr.io/lowicz/oncall-web` | `web` | nginx with the application (SPA) and this documentation under `/docs/` |
 
 The images are public: `docker compose pull` requires no login. The `db`
-database is the unmodified `postgres:18-alpine` image.
+database is the unmodified `postgres` image from Docker Hub in one PostgreSQL
+release, the one `docker-compose.yml` names (`postgres:<major>.<minor>-alpine`).
 
 ## Version number
 
@@ -203,12 +204,20 @@ The rules:
   on Monday before 6:00 Warsaw time,
 - a new package release must be at least three days old before it is
   proposed - a freshly published, possibly hijacked, version does not go into
-  a PR the same day,
+  a PR the same day; only what has no release date comes without that wait:
+  the `postgres` image (Docker Hub gives no dates for an image with that many
+  tags), the monthly lock file refresh and the pinning of a version (they
+  bring no new release),
 - security fixes (GitHub alerts and the OSV database) are created
   immediately, separately and with the `security` label,
 - major version changes and every change of the runtime (Python, Node,
   PostgreSQL) wait for approval in the Dependency Dashboard - these are
-  decisions, not routine,
+  decisions, not routine; the exception is a bug-fix release of the version in
+  use (Python 3.14.8 → 3.14.9, PostgreSQL 18.6 → 18.7), which comes in its
+  own weekly PR,
+- npm packages that must change together share a PR (vitest, vite, eslint with
+  its plugins), and TypeScript (`@typescript/native` and `typescript`) has its
+  own, because one of its minor releases can break the type check,
 - nothing is merged automatically; every PR goes through `ci-ok` and a review.
 
 Such an update is approved in the **Dependency Dashboard** issue: in the
@@ -229,7 +238,7 @@ same PR:
 | --- | --- | --- |
 | Node.js | `NODE_VERSION` in `ci.yml`, `node-version` in `pages.yml`, `frontend/Dockerfile`, the badge in `README.md` | Node.js releases |
 | Python | `requires-python` in `backend/pyproject.toml`, `PYTHON_VERSION` in `ci.yml`, `backend/Dockerfile`, the badge in `README.md` | python.org releases |
-| PostgreSQL | `docker-compose.yml` (image and the `oncall-postgres-<major>` volume), `docker-compose.contract.yml`, the database service in `ci.yml`, the badge in `README.md` | Docker Hub, the same major everywhere; CI (`compose-postgres-volume.sh`) keeps the image and the volume in step |
+| PostgreSQL | `docker-compose.yml` (image and the `oncall-postgres-<major>` volume), `docker-compose.contract.yml`, the database service in `ci.yml`, the badge in `README.md` | Docker Hub; the three image lines name the same release (`<major>.<minor>-alpine`), the volume and the badge only its major; CI (`compose-postgres-volume.sh`) holds both |
 | uv | `required-version` in `backend/pyproject.toml`, `UV_VERSION` in `ci.yml`, `backend/Dockerfile` | uv releases on GitHub |
 
 If the Node or Python image were a separate dependency from Docker Hub, it
@@ -239,10 +248,9 @@ covers only the files whose version is already three days old. The image could
 then stay on the old version while CI was already testing the new one. The
 images are also not pinned to a digest: the Node.js and Python release lists
 do not know the digests, so Renovate would not move it together with the tag,
-and Docker would use the digest of the old image despite the new tag. Without
-a digest, `docker compose pull` also fetches the latest patch release of the
-database's tag for it. The exact digests of the base images of every release
-are recorded in its provenance.
+and Docker would use the digest of the old image despite the new tag. The
+exact digests of the base images of every release are recorded in its
+provenance.
 
 The base image of the `web` server names one nginx release: `frontend/Dockerfile`
 has `nginxinc/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, never a
@@ -273,8 +281,31 @@ days old, then in “Awaiting Schedule”). An nginx release tag can be publishe
 again under the same number, e.g. with Alpine fixes; the digest each
 application release was built from is recorded in its provenance.
 
+The database image names one release as well: `postgres:<major>.<minor>-alpine`
+in both Compose files and in the database service of `ci.yml`, never a
+floating tag such as `18-alpine`. A host therefore runs the PostgreSQL release
+CI tested the application release with, and gets a new one with the next
+application release (`update.sh` pulls it before the restart), not with a
+chance `docker compose pull`. The publisher can rebuild the image under the
+same tag, e.g. with new Alpine packages; the PostgreSQL version stays the same.
+A new major version is a decision: only it is in the badge in `README.md` and
+in the `oncall-postgres-<major>` volume name, changing it moves the data (see
+[A new PostgreSQL major version](aktualizacja.md#a-new-postgresql-major-version))
+and it waits for approval in the Dependency Dashboard. A minor release of the
+same major (18.6 → 18.7) is bug and security fixes on the same data directory:
+it comes without approval, in its own weekly “PostgreSQL” pull request, and a
+pending new major does not hold it back. The three-day rule does not cover it,
+because Docker Hub gives no dates for this image; scheduled PostgreSQL releases
+come out on a Thursday and Renovate opens the PR on Monday, but an unscheduled
+release can come sooner. The numbers are not continuous (18.6 followed 18.4,
+because 18.5 was never released); Renovate proposes the highest release. The
+PR description links the release notes: their “Migration to Version” section
+says whether anything has to be done after the update, such as rebuilding
+indexes, and such a step goes into the same PR.
+
 Before merging a runtime update, search the PR branch for the old version
-(e.g. `git grep -n '17-alpine\|oncall-postgres-17\|PostgreSQL 17'`). What may remain is only a
+(e.g. after moving from PostgreSQL 18:
+`git grep -n 'postgres:18\|oncall-postgres-18\|PostgreSQL 18'`). What may remain is only a
 description in the documentation or in `AGENTS.md` - fix it in the same PR -
 or a new place with the version, which has to be added to that group's rule in
 `renovate.json5`.
