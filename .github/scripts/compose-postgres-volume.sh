@@ -16,19 +16,92 @@ cd "$(dirname "$0")/../.."
 
 file=docker-compose.yml
 
-image_line=$(grep -E '^[[:space:]]*image:[[:space:]]*postgres:[0-9]+' "$file" || true)
-case $image_line in
-  '')
-    echo "::error::$file has no postgres:<major> image line for the db service" >&2
-    exit 1
-    ;;
-  *$'\n'*)
-    echo "::error::$file names more than one postgres image: $image_line" >&2
-    exit 1
-    ;;
-esac
-image=${image_line#*image:}
-image=${image//[[:space:]]/}
+compose_config() {
+  local compose_file=$1
+  ONCALL_VERSION=${ONCALL_VERSION:-0.0.0-compose-check} docker compose -f "$compose_file" config --format json
+}
+
+compose_service_image() {
+  local compose_file=$1
+  local service=$2
+
+  compose_config "$compose_file" | python3 -c '
+import json
+import sys
+
+compose_file, service = sys.argv[1:]
+data = json.load(sys.stdin)
+try:
+    image = data["services"][service]["image"]
+except KeyError:
+    print(f"::error::{compose_file} has no {service} service image", file=sys.stderr)
+    sys.exit(1)
+if not isinstance(image, str) or not image:
+    print(f"::error::{compose_file} {service} service image is empty", file=sys.stderr)
+    sys.exit(1)
+print(image)
+' "$compose_file" "$service"
+}
+
+workflow_service_image() {
+  local workflow=$1
+  local job=$2
+  local service=$3
+
+  ruby -ryaml -e '
+path, job, service = ARGV
+begin
+  begin
+    data = YAML.safe_load_file(path, aliases: true)
+  rescue ArgumentError
+    data = YAML.load_file(path)
+  end
+  image = data.fetch("jobs").fetch(job).fetch("services").fetch(service).fetch("image")
+rescue KeyError
+  abort "::error::#{path} has no #{job}.services.#{service}.image"
+end
+unless image.is_a?(String) && !image.empty?
+  abort "::error::#{path} #{job}.services.#{service}.image is empty"
+end
+puts image
+' "$workflow" "$job" "$service"
+}
+
+compose_postgres_volume_majors() {
+  local compose_file=$1
+  local service=$2
+
+  compose_config "$compose_file" | python3 -c '
+import json
+import re
+import sys
+
+compose_file, service = sys.argv[1:]
+data = json.load(sys.stdin)
+try:
+    service_volumes = data["services"][service].get("volumes", [])
+except KeyError:
+    print(f"::error::{compose_file} has no {service} service", file=sys.stderr)
+    sys.exit(1)
+mounted = {
+    volume.get("source", "")
+    for volume in service_volumes
+    if volume.get("type") == "volume" and re.fullmatch(r"oncall-postgres-[0-9]+", volume.get("source", ""))
+}
+declared = {
+    name
+    for name in data.get("volumes", {})
+    if re.fullmatch(r"oncall-postgres-[0-9]+", name)
+}
+if not mounted or not declared:
+    print(f"::error::{compose_file} must mount and declare oncall-postgres-<major> for the db data directory", file=sys.stderr)
+    sys.exit(1)
+majors = sorted({name.rsplit("-", 1)[1] for name in mounted | declared})
+print("\n".join(majors))
+' "$compose_file" "$service"
+}
+
+image=$(compose_service_image "$file" db)
 if ! [[ $image =~ ^postgres:[0-9]+\.[0-9]+-alpine$ ]]; then
   echo "::error::$file: the db image is $image; name one release, postgres:<major>.<minor>-alpine" >&2
   exit 1
@@ -36,23 +109,18 @@ fi
 image_major=${image#postgres:}
 image_major=${image_major%%.*}
 
-for other in docker-compose.contract.yml .github/workflows/ci.yml; do
-  others=$({ grep -E '^[[:space:]]*image:[[:space:]]*postgres:' "$other" || true; } | sed -E 's/^[[:space:]]*image:[[:space:]]*//' | sort -u | paste -sd ' ' -)
-  if [ "$others" != "$image" ]; then
-    echo "::error::$other runs ${others:-no postgres image} but $file runs $image; keep them on one release" >&2
+contract_image=$(compose_service_image docker-compose.contract.yml contract-db)
+ci_image=$(workflow_service_image .github/workflows/ci.yml backend-postgres postgres)
+for other in "docker-compose.contract.yml:$contract_image" ".github/workflows/ci.yml:$ci_image"; do
+  other_file=${other%%:*}
+  other_image=${other#*:}
+  if [ "$other_image" != "$image" ]; then
+    echo "::error::$other_file runs ${other_image:-no postgres image} but $file runs $image; keep them on one release" >&2
     exit 1
   fi
 done
 
-mounts=$(grep -E '^[[:space:]]*-[[:space:]]*oncall-postgres-[0-9]+:' "$file" || true)
-decls=$(grep -E '^[[:space:]]*oncall-postgres-[0-9]+:[[:space:]]*$' "$file" || true)
-
-if [ -z "$mounts" ] || [ -z "$decls" ]; then
-  echo "::error::$file must mount and declare oncall-postgres-<major> for the db data directory" >&2
-  exit 1
-fi
-
-majors=$(printf '%s\n%s\n' "$mounts" "$decls" | sed -E 's/.*oncall-postgres-([0-9]+).*/\1/' | sort -u)
+majors=$(compose_postgres_volume_majors "$file" db)
 case $majors in
   *$'\n'*)
     echo "::error::$file names more than one oncall-postgres-* major:" >&2
