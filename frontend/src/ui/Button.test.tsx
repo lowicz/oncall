@@ -2,6 +2,7 @@ import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { AnchorButton, Button, IconButton, LinkButton } from './Button'
 
 describe('Button', () => {
@@ -43,6 +44,15 @@ describe('Button', () => {
     expect(button).toHaveAttribute('aria-busy', 'true')
     expect(button.querySelector('.spinner')).not.toBeNull()
     expect(button.querySelector('svg')).toBeNull()
+  })
+
+  it('paints the pending spinner the size the real stylesheet gives it', () => {
+    loadRealStylesheet()
+    render(<Button loading>Publikuj</Button>)
+    const spinner = screen.getByRole('button', { name: 'Publikuj' }).querySelector('.spinner')!
+    const painted = getComputedStyle(spinner)
+    expect([painted.width, painted.height, painted.display]).toEqual(['12px', '12px', 'inline-block'])
+    expect(painted.animation).toContain('spin ')
   })
 
   it('can be disabled without spinning', () => {

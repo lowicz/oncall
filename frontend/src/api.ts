@@ -856,18 +856,7 @@ export const api = {
       `/api/v1/scheduling/compare?left_id=${encodeURIComponent(leftId)}&right_id=${encodeURIComponent(rightId)}`,
     ),
   schedule: (id: string) => request<DraftSchedule>(`/api/v1/scheduling/${id}`),
-  deleteSchedule: async (id: string) => {
-    const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const response = await fetch(`/api/v1/scheduling/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
-    })
-    if (!response.ok) {
-      const body = await response.json().catch(() => null)
-      throw parseError(body, response.status)
-    }
-  },
+  deleteSchedule: (id: string) => send<void>('DELETE', `/api/v1/scheduling/${id}`),
   overrideDraft: async (input: {
     id: string
     expected_version: number

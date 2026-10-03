@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { Menu, MenuItem, MenuLink, MenuRadioGroup, MenuSeparator } from './Menu'
 
 function AccountMenu({ onRemove, onKeep }: { onRemove: () => void; onKeep: () => void }) {
@@ -86,6 +87,15 @@ describe('Menu', () => {
         .toHaveAttribute('aria-checked', 'true'))
     expect(within(screen.getByRole('menu')).getByRole('menuitemradio', { name: 'Ciemny' }))
       .toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('spaces the choices of a group the way the real stylesheet does', async () => {
+    loadRealStylesheet()
+    renderMenu()
+    const menu = await open()
+    const group = within(menu).getByRole('group', { name: 'Motyw' })
+    const painted = getComputedStyle(group)
+    expect([painted.display, painted.gap]).toEqual(['grid', '2px'])
   })
 
   it('follows an internal link through the router', async () => {

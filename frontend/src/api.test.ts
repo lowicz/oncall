@@ -112,8 +112,6 @@ const get = (name: string, call: () => Promise<unknown>, url: string): Case =>
   ({ name, call, method: 'GET', url, headers: JSON_HEADERS })
 const send = (name: string, call: () => Promise<unknown>, method: string, url: string, body?: unknown): Case =>
   ({ name, call, method, url, headers: CSRF_JSON_HEADERS, body })
-const rawDelete = (name: string, call: () => Promise<unknown>, url: string): Case =>
-  ({ name, call, method: 'DELETE', url, headers: CSRF_RAW_HEADERS })
 
 const eventInput = { title: 'Szkolenie', starts_on: '2026-09-14', ends_on: '2026-09-15', color: 'blue' as const }
 const availabilityInput = { kind: 'prefer_not' as const, starts_on: '2026-09-14', ends_on: '2026-09-14', note: 'wizyta' }
@@ -179,7 +177,7 @@ const CASES: Case[] = [
   get('compareSchedules', () => api.compareSchedules('a b', 'c'),
     '/api/v1/scheduling/compare?left_id=a%20b&right_id=c'),
   get('schedule', () => api.schedule('s1'), '/api/v1/scheduling/s1'),
-  rawDelete('deleteSchedule', () => api.deleteSchedule('s1'), '/api/v1/scheduling/s1'),
+  send('deleteSchedule', () => api.deleteSchedule('s1'), 'DELETE', '/api/v1/scheduling/s1'),
   send('overrideDraft', () => api.overrideDraft({
     id: 's1', expected_version: 4, service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2',
   }), 'POST', '/api/v1/scheduling/s1/override', {

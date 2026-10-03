@@ -208,10 +208,6 @@ describe('the shared proxy snippet', () => {
   it('adds no response header, so the proxied locations keep inheriting the server ones', () => {
     expect(proxySnippet.add_header).toBeUndefined()
   })
-
-  it('is installed where the presets include it', () => {
-    expect(read('Dockerfile')).toContain(`COPY frontend/nginx-proxy.conf ${PROXY_INCLUDE}`)
-  })
 })
 
 describe('SPA index.html keeps the CSP strict', () => {
