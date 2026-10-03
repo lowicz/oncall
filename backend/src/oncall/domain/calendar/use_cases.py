@@ -157,7 +157,7 @@ async def calendar_matrix(
             CalendarDay(
                 service_date=day,
                 weekday=weekday_name(day),
-                is_day_off=day.weekday() >= 5 or day in holidays,
+                is_day_off=is_day_off(day, holidays),
                 holiday_name=holidays.get(day),
                 published=any(first <= day <= last for first, last in published),
                 events=[event for event in events if event.starts_on <= day <= event.ends_on],
@@ -205,7 +205,7 @@ async def dashboard(
     return Dashboard(
         duties=[duty for duty in resolved if duty.service_date >= window_start],
         current=await _current_duties(audience, resolved, today, ports),
-        today_is_day_off=is_day_off(today, set(holiday_names)),
+        today_is_day_off=is_day_off(today, holiday_names),
         today_holiday_name=holiday_names.get(today),
     )
 

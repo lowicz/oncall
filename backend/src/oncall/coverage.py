@@ -6,6 +6,7 @@ not a date, and this module is where that span is defined for everyone who has
 to answer "until when".
 """
 
+from collections.abc import Container
 from datetime import date
 
 from oncall.domain.vocabulary import AssignmentRole
@@ -20,7 +21,7 @@ LATE_SHIFT_START = "11:00"
 LATE_SHIFT_END = "19:00"
 
 
-def is_day_off(day: date, holidays: set[date]) -> bool:
+def is_day_off(day: date, holidays: Container[date]) -> bool:
     return day.weekday() >= 5 or day in holidays
 
 

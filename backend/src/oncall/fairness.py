@@ -17,7 +17,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from oncall.coverage import is_day_off
 from oncall.domain.vocabulary import AssignmentRole
+from oncall.workdays import is_working_day
 
 ONCALL_ROLES = (AssignmentRole.primary, AssignmentRole.secondary)
 
@@ -128,7 +130,7 @@ class FairnessComputation:
 
 
 def day_weight(day: date, holidays: set[date]) -> float:
-    return 2.0 if day.weekday() >= 5 or day in holidays else 1.0
+    return 2.0 if is_day_off(day, holidays) else 1.0
 
 
 def _member_unavailable(member: FairnessMemberInput, day: date) -> bool:
@@ -268,7 +270,7 @@ def compute_fairness(
                 (AssignmentRole.late_shift,),
                 window_start,
                 window_end,
-                include=lambda day: day.weekday() < 5 and day not in holidays,
+                include=lambda day: is_working_day(day, holidays),
                 weight=lambda _day: 1.0,
             ),
             "weekends": _eligible_exposure(
@@ -396,9 +398,9 @@ def duty_points(
             continue
         if not (window_start <= duty.service_date <= window_end):
             continue
-        is_day_off = duty.service_date.weekday() >= 5 or duty.service_date in holidays
+        day_off = is_day_off(duty.service_date, holidays)
         result.append(
-            (duty.service_date, duty.role, day_weight(duty.service_date, holidays), is_day_off)
+            (duty.service_date, duty.role, day_weight(duty.service_date, holidays), day_off)
         )
     return sorted(result, key=lambda item: item[0], reverse=True)
 
