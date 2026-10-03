@@ -10,6 +10,12 @@
 # The image names one PostgreSQL release (postgres:<major>.<minor>-alpine),
 # never a floating tag, and the contract Compose file and the CI service run
 # that same release: what CI tested is what a host runs.
+#
+#   compose-postgres-volume.sh               the checks above
+#   compose-postgres-volume.sh --print-image  the resolved image, for the
+#                                           deploy tests, which take the
+#                                           stack's release from it instead
+#                                           of reading docker-compose.yml
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -101,7 +107,22 @@ print("\n".join(majors))
 ' "$compose_file" "$service"
 }
 
+print_image=false
+if [ "$#" -gt 1 ]; then
+  echo "::error::usage: ${0##*/} [--print-image]" >&2
+  exit 1
+fi
+case ${1:-} in
+  --print-image) print_image=true ;;
+  '') ;;
+  *) echo "::error::unknown argument: $1" >&2; exit 1 ;;
+esac
+
 image=$(compose_service_image "$file" db)
+if [ "$print_image" = true ]; then
+  echo "$image"
+  exit 0
+fi
 if ! [[ $image =~ ^postgres:[0-9]+\.[0-9]+-alpine$ ]]; then
   echo "::error::$file: the db image is $image; name one release, postgres:<major>.<minor>-alpine" >&2
   exit 1

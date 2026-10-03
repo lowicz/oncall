@@ -467,15 +467,20 @@ same_file "$deploy/docker-compose.tls.yml" "$release/docker-compose.tls.yml"
 has_line "$deploy/.env" 'ONCALL_VERSION=9.9.9'
 has_line "$work/log" 'systemctl --user restart oncall.service'
 
-# The PostgreSQL release this checkout's Compose file runs, and its major.
-stack_postgres=$(awk '$1 == "image:" && $2 ~ /^postgres:[0-9]/ { print $2; exit }' "$repo_root/docker-compose.yml")
-stack_major=${stack_postgres#postgres:}
+# The PostgreSQL release this checkout's Compose file runs, as Compose resolves
+# it, and that release's major. A release or major bump in docker-compose.yml
+# moves them with the file, with nothing to edit here.
+stack_postgres=$("$repo_root/.github/scripts/compose-postgres-volume.sh" --print-image) || exit 1
+stack_major=${stack_postgres##*:}
 stack_major=${stack_major%%[!0-9]*}
+[ -n "$stack_major" ] || {
+  echo "$stack_postgres names no PostgreSQL major version" >&2
+  exit 1
+}
 
 # This checkout's Compose file with another db image.
 on_postgres() { # image compose-file
   sed "s|image: postgres:[0-9.]*-alpine|image: $1|" "$repo_root/docker-compose.yml" >"$2"
-  grep -Fq "image: $1" "$2" || fail "$2 does not name $1"
 }
 
 # The deployment's Compose file as a release on PostgreSQL 17 had it.

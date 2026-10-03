@@ -19,13 +19,16 @@ unset ONCALL_BACKUP_CONFIG ONCALL_BACKUP_DIR ONCALL_BACKUP_KEEP ONCALL_BACKUP_OW
 
 repo_root=$(cd "$(dirname "$0")/../.." && pwd -P)
 script=$repo_root/deploy/backup/oncall-backup.sh
-# The stack's PostgreSQL release, as docker-compose.yml names it.
-stack_image=$(awk '$1 == "image:" && $2 ~ /^postgres:[0-9]/ { print $2; exit }' "$repo_root/docker-compose.yml")
-[ -n "$stack_image" ] || {
-  echo "$repo_root/docker-compose.yml names no postgres image" >&2
+# The stack's PostgreSQL release, as Compose resolves the db image of
+# docker-compose.yml, and the major of the image under test.
+stack_image=$("$repo_root/.github/scripts/compose-postgres-volume.sh" --print-image) || exit 1
+image=${ONCALL_BACKUP_TEST_IMAGE:-docker.io/library/$stack_image}
+stack_major=${image##*:}
+stack_major=${stack_major%%[!0-9]*}
+[ -n "$stack_major" ] || {
+  echo "$image names no PostgreSQL major version" >&2
   exit 1
 }
-image=${ONCALL_BACKUP_TEST_IMAGE:-docker.io/library/$stack_image}
 old_image=${ONCALL_BACKUP_TEST_OLD_IMAGE:-docker.io/library/postgres:17-alpine}
 work=$(mktemp -d)
 run_id=oncall-backup-test-$$
@@ -102,9 +105,10 @@ for pulled in "$image" "$old_image"; do
     exit 1
   }
 done
-# Where the image keeps its data: its one declared volume (PostgreSQL 18
-# declares /var/lib/postgresql, 17 /var/lib/postgresql/data). Containers of it
-# that need no data get a tmpfs there, so Podman creates no anonymous volume.
+# Where the image keeps its data: its one declared volume (PostgreSQL 18 and
+# later declare /var/lib/postgresql, 17 /var/lib/postgresql/data). Containers
+# of it that need no data get a tmpfs there, so Podman creates no anonymous
+# volume.
 data_path=$(podman image inspect --format '{{range $path, $_ := .Config.Volumes}}{{$path}}{{end}}' "$image")
 
 labels() { # service
@@ -492,14 +496,6 @@ services:
     tmpfs:
       - $data_path
 EOF
-grep -q 'oncall-db:/var/lib/postgresql/data' "$deploy/compose-17.yml" || {
-  echo "$deploy/compose-17.yml does not mount oncall-db on the old data path" >&2
-  exit 1
-}
-grep -q 'image: postgres:17-alpine$' "$deploy/compose-17.yml" || {
-  echo "$deploy/compose-17.yml does not run postgres:17-alpine" >&2
-  exit 1
-}
 
 # Every file is in $deploy, which Compose then takes as the project directory.
 stack() {
@@ -592,12 +588,12 @@ check "upgrade-postgres leaves a volume that already holds data alone"
 create_new_volume
 # A data directory as PostgreSQL leaves it: its owner's alone.
 podman run --rm --volume "$new_volume:/volume" "$image" \
-  sh -c 'mkdir /volume/18 && echo 18 >/volume/18/PG_VERSION && chown -R postgres:postgres /volume/18 && chmod 700 /volume/18'
+  sh -c "mkdir /volume/$stack_major && echo $stack_major >/volume/$stack_major/PG_VERSION && chown -R postgres:postgres /volume/$stack_major && chmod 700 /volume/$stack_major"
 podman volume ls --quiet | sort >"$work/volumes-before"
 run upgrade-postgres --env-file "$work/stack.env" "$deploy/docker-compose.yml" && fail "upgraded into an existing volume"
 has_text "$work/out" "the volume $new_volume of the new database already exists"
 podman volume exists "$new_volume" || fail "the existing volume was removed"
-[ "$(podman run --rm --volume "$new_volume:/volume:ro" "$image" cat /volume/18/PG_VERSION)" = 18 ] ||
+[ "$(podman run --rm --volume "$new_volume:/volume:ro" "$image" cat "/volume/$stack_major/PG_VERSION")" = "$stack_major" ] ||
   fail "the existing volume's data changed"
 [ -z "$(stack_db)" ] || fail "the new database's container was left behind"
 verify_leftovers
@@ -605,7 +601,7 @@ podman volume rm "$new_volume" >/dev/null
 podman volume ls --quiet | sort >"$work/volumes-before"
 start_stack_db "$deploy/compose-17.yml"
 
-check "upgrade-postgres moves the database to PostgreSQL 18 on a new volume, with checksums and Polish collation"
+check "upgrade-postgres moves the database to PostgreSQL $stack_major on a new volume, with checksums and Polish collation"
 start_stack_services "$deploy/compose-17.yml"
 for service in api worker web; do
   running "$service" || fail "$service does not run before the upgrade"
@@ -617,15 +613,16 @@ backups_before=$(count)
 create_new_volume
 run upgrade-postgres --env-file "$work/stack.env" "$deploy/docker-compose.yml" || fail "exited $?: $(cat "$work/out")"
 has_text "$work/out" "The volume $new_volume already exists and is empty"
-has_text "$work/out" "PostgreSQL 18 holds the database (schema 0035_outbox_created_index): page checksums on, collation pl-PL (ICU)."
+has_text "$work/out" "PostgreSQL $stack_major holds the database (schema 0035_outbox_created_index): page checksums on, collation pl-PL (ICU)."
 has_text "$work/out" "PostgreSQL 17's data stays in the volume ${run_id}_oncall-db as the way back"
 [ "$(podman ps --all --quiet --filter "label=com.docker.compose.project=$run_id" --filter label=com.docker.compose.service=db | wc -l | tr -d ' ')" = 1 ] ||
   fail "more than one db container"
-[ "$(stack_psql <<<'show server_version_num' | cut -c1-2)" = 18 ] || fail "the stack's db is not PostgreSQL 18"
+[ "$(stack_psql <<<'show server_version_num' | cut -c1-2)" = "$stack_major" ] ||
+  fail "the stack's db is not PostgreSQL $stack_major"
 # Each major version needs a volume of its own: upgrade-postgres refuses one
 # that exists, so a new image on the old name could not be moved to.
-[ "$new_volume_key" = "oncall-postgres-$(($(stack_psql <<<'show server_version_num') / 10000))" ] ||
-  fail "db keeps its data in the volume $new_volume_key; name it after the PostgreSQL major version in docker-compose.yml"
+[ "$new_volume_key" = "oncall-postgres-$stack_major" ] ||
+  fail "db keeps its data in the volume $new_volume_key, but the stack runs $stack_image"
 [ "$(stack_psql <<<'select count(*) from audit_events')" = 5001 ] || fail "not every row came across"
 [ "$(stack_psql <<<'select version_num from alembic_version')" = 0035_outbox_created_index ] ||
   fail "the schema revision did not come across"
@@ -650,15 +647,15 @@ podman volume ls --quiet | sort >"$work/volumes-before"
 verify_leftovers
 lock_is_free
 
-check "the stack starts again on the file that names PostgreSQL 18"
+check "the stack starts again on the file that names PostgreSQL $stack_major"
 start_stack_services "$deploy/docker-compose.yml"
 for service in api worker web; do
   running "$service" || fail "$service does not run"
 done
-[ "$(stack_psql <<<'show server_version_num' | cut -c1-2)" = 18 ] || fail "the stack's db is not PostgreSQL 18"
+[ "$(stack_psql <<<'show server_version_num' | cut -c1-2)" = "$stack_major" ] || fail "the stack's db is not PostgreSQL $stack_major"
 [ "$(stack_psql <<<'select count(*) from audit_events')" = 5001 ] || fail "the stack does not run on the upgraded database"
 
-check "the database upgraded to PostgreSQL 18 is dumped and proved like any other"
+check "the database upgraded to PostgreSQL $stack_major is dumped and proved like any other"
 run dump --label after-upgrade || fail "exited $?: $(cat "$work/out")"
 has_text "$work/out" "Restoring it into a throwaway container"
 verify_leftovers
