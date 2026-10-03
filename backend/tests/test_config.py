@@ -29,21 +29,15 @@ def test_cpu_count_uses_cgroup_v1_quota(tmp_path) -> None:
 
 def test_cpu_count_uses_affinity_without_a_cgroup_limit(tmp_path, monkeypatch) -> None:
     (tmp_path / "cpu.max").write_text("max 100000\n")
-    monkeypatch.setattr(os, "process_cpu_count", lambda: 6)
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: set(range(6)))
 
     assert available_cpu_count(tmp_path) == 6
 
 
 def test_cpu_count_is_limited_to_eight(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(os, "process_cpu_count", lambda: 16)
+    monkeypatch.setattr(os, "sched_getaffinity", lambda _pid: set(range(16)))
 
     assert available_cpu_count(tmp_path) == 8
-
-
-def test_cpu_count_is_one_when_the_platform_cannot_tell(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(os, "process_cpu_count", lambda: None)
-
-    assert available_cpu_count(tmp_path) == 1
 
 
 def test_cpu_count_of_an_unknown_machine_is_one(tmp_path, monkeypatch) -> None:

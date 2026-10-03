@@ -41,7 +41,11 @@ def available_cpu_count(cgroup_root: Path = CGROUP_ROOT) -> int:
     if quota is not None and period is not None and quota > 0 and period > 0:
         return max(1, min(8, ceil(quota / period)))
 
-    return max(1, min(8, os.process_cpu_count() or 1))
+    try:
+        detected = os.process_cpu_count()
+    except OSError:
+        detected = os.cpu_count()
+    return max(1, min(8, detected or 1))
 
 
 class Settings(BaseSettings):
