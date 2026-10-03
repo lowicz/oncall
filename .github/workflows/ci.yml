@@ -249,10 +249,10 @@ jobs:
   backup:
     # oncall-backup.test.sh drives the real script against rootless Podman on
     # the runner: the stack's postgres image, hardened, stands in for its db,
-    # a PostgreSQL 17 db service started by `podman compose` is moved to 18 by
-    # upgrade-postgres, under docker-compose and podman-compose, and every
-    # container, volume and file the test or the script creates must be gone
-    # afterwards.
+    # a PostgreSQL 17 db service started by `podman compose` is moved to the
+    # release's major by upgrade-postgres, under docker-compose and
+    # podman-compose. Every container, volume and file the test or the script
+    # creates must be gone afterwards.
     name: database backup (setup, dump, restore test, restore, PostgreSQL upgrade, cleanup on Podman)
     runs-on: ubuntu-latest
     timeout-minutes: 15
