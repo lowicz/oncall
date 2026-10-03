@@ -383,7 +383,10 @@
       ],
       groupName: 'frontend (eslint)',
     },
-    // ---- @types/node follows the Node major the runtime uses; one approval ---
+    // ---- @types/node majors share the Node.js branch; one approval ---------
+    // Grouped only, not pinned to the runtime major: npm offers every new
+    // @types/node major while the runtime moves on LTS majors alone, so the
+    // branch can hold an @types/node major ahead of the runtime.
     {
       matchDepNames: ['@types/node'],
       matchUpdateTypes: ['major'],
