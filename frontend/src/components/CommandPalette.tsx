@@ -3,7 +3,7 @@ import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
-import { monthFromName } from '../lib/dates'
+import { isIsoDate, monthFromName } from '../lib/dates'
 import { Access, docsHref, navLabel, visibleFor, allNav } from '../lib/nav'
 import { locale, useLanguage, useMessages } from '../i18n'
 import { Icon, IconName, cx } from '../ui'
@@ -19,10 +19,8 @@ interface Item {
 }
 
 function isoDay(year: number, month: number, day: number): string | null {
-  if (month < 1 || month > 12 || day < 1) return null
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
-  if (day > daysInMonth) return null
-  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return isIsoDate(iso) ? iso : null
 }
 
 /** "2026-09-24", "24-09-2026", "24 wrz", "24 Sep" or "24.09" as an ISO date, or null. */

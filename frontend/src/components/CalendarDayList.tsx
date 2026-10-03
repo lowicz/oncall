@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { AssignmentRole, CalendarData } from '../api'
 import { availabilityLabels, roleLabels } from '../lib/labels'
-import { addDays, formatDay, formatRange, formatWeekday, isMonday, isoWeek, warsawDate } from '../lib/dates'
+import { addDays, formatDay, formatRange, formatWeekday, isMonday, isoWeek, warsawDate, weekdayIndex } from '../lib/dates'
 import { CoverageGap } from '../lib/calendar'
 import { useMessages } from '../i18n'
 import { AvailabilityMark, RoleMark, Tag, cx } from '../ui'
@@ -29,8 +29,7 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
   // one): the ISO week number and the Monday-Sunday span it covers.
   const weekHeading = (day: CalendarData['days'][number], index: number) => {
     if (index > 0 && !isMonday(day.service_date)) return null
-    const offset = (new Date(`${day.service_date}T12:00:00Z`).getUTCDay() + 6) % 7
-    const monday = addDays(day.service_date, -offset)
+    const monday = addDays(day.service_date, -weekdayIndex(day.service_date))
     return (
       <div className="week-h" role="presentation">
         {t.week(isoWeek(day.service_date), formatRange(monday, addDays(monday, 6)))}

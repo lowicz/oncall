@@ -60,3 +60,6 @@ export function humanizeAuditSummary(summary: string): string {
     .replace(/\bsecondary\b/g, t.roles.secondary)
     .replace(/\blate_shift\b/g, t.roles.late_shift)
 }
+
+/** "Anna" from "Anna Kowalska": how a sentence names a teammate. */
+export const firstName = (name: string) => name.split(' ')[0]

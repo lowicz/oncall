@@ -1,11 +1,11 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FairnessCategory, FairnessMember, FairnessReport, api } from '../api'
-import { lensLabels, roleLabels } from '../lib/labels'
+import { firstName, lensLabels, roleLabels } from '../lib/labels'
 import { docsHref } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, roundPoints, totalBalance } from '../lib/fairness'
 import { formatDecimal, formatPoints, signed } from '../lib/numbers'
-import { formatDate, formatDayShort, formatShortDate, monthsShort, warsawDate } from '../lib/dates'
+import { formatDate, formatDayShort, formatShortDate, monthsShort, shiftMonth, warsawDate } from '../lib/dates'
 import { locale, messages, useLanguage, useMessages } from '../i18n'
 import { DateField } from '../components/DateField'
 import {
@@ -30,7 +30,6 @@ import {
 /** The lens the deviation column and the sort follow. */
 type Lens = 'total' | 'primary' | 'secondary' | 'late_shift' | 'weekends' | 'holidays'
 const LENSES: Lens[] = ['total', 'primary', 'secondary', 'late_shift', 'weekends', 'holidays']
-const firstName = (name: string) => name.split(' ')[0]
 
 /** "12 / 10.5" - what the person did against the fair share, in mono. */
 function Share({ category }: { category: FairnessCategory }) {
@@ -41,11 +40,7 @@ function Share({ category }: { category: FairnessCategory }) {
 
 /** Twelve month columns ending with the window, missing months as zero. */
 function monthsOf(windowEnd: string) {
-  const [y, m] = windowEnd.split('-').map(Number)
-  return Array.from({ length: 12 }, (_, index) => {
-    const date = new Date(Date.UTC(y, m - 1 - (11 - index), 1))
-    return date.toISOString().slice(0, 7)
-  })
+  return Array.from({ length: 12 }, (_, index) => shiftMonth(windowEnd.slice(0, 7), index - 11))
 }
 
 /**

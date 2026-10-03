@@ -14,12 +14,12 @@ import {
   api,
 } from '../api'
 import { useMessages } from '../i18n'
-import { availabilityLabels, roleLabels, shortRoleLabels, swapStatusLabels } from '../lib/labels'
+import { availabilityLabels, firstName, roleLabels, shortRoleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
 import { formatPoints } from '../lib/numbers'
 import { isOpen, needsMyDecision } from '../lib/swaps'
-import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, warsawDate, weekdaysFromMonday } from '../lib/dates'
+import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
@@ -60,20 +60,11 @@ type Brush = AvailabilityKind | 'clear'
 function monthOf(iso: string) {
   return iso.slice(0, 7)
 }
-function shiftMonth(month: string, delta: number) {
-  const [y, m] = month.split('-').map(Number)
-  const date = new Date(Date.UTC(y, m - 1 + delta, 1))
-  return date.toISOString().slice(0, 7)
-}
 function monthDays(month: string) {
   const [y, m] = month.split('-').map(Number)
   const count = new Date(Date.UTC(y, m, 0)).getUTCDate()
   return Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, '0')}`)
 }
-function weekdayIndex(iso: string) {
-  return (new Date(`${iso}T12:00:00Z`).getUTCDay() + 6) % 7
-}
-const firstName = (name: string) => name.split(' ')[0]
 const rangeText = (startsOn: string, endsOn: string) => (startsOn === endsOn ? formatDayShort(startsOn) : formatRange(startsOn, endsOn))
 
 type Day = CalendarData['days'][number]

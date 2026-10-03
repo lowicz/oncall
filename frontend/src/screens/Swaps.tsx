@@ -3,7 +3,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapRequest, SwapStatus, UserRole, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
-import { roleLabels, swapStatusLabels } from '../lib/labels'
+import { firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { formatDecimal, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
 import { SwapViewer, canCoordinate, canWithdraw, isOpen, needsMyDecision } from '../lib/swaps'
@@ -104,8 +104,6 @@ function SwapSteps({ status, approvalRequired }: { status: SwapStatus; approvalR
     />
   )
 }
-
-const firstName = (name: string) => name.split(' ')[0]
 
 /** Who acts next, under the status in the inbox table. */
 function stageDetail(item: SwapRequest, viewer: SwapViewer): string {

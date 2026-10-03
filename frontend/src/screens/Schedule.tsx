@@ -2,20 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { UserRole, api } from '../api'
-import { addDays, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
+import { addDays, daysBetween, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { LinkButton, PageHeader, SectionHeading } from '../ui'
 
-function daysBetween(a: string, b: string) {
-  return Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000) + 1
-}
-
 /** The zoom the range fits; an arbitrary od/do still gets sensible cells. */
 function zoomFor(range: CalendarRange): MatrixZoom {
-  const days = daysBetween(range.starts_on, range.ends_on)
+  const days = daysBetween(range.starts_on, range.ends_on) + 1
   if (days <= 14) return '2'
   if (days <= 28) return '4'
   return '8'
