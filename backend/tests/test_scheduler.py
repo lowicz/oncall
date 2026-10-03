@@ -2,11 +2,10 @@ from datetime import date, timedelta
 
 from ortools.sat.python import cp_model
 
+from oncall.domain.scheduling.solver import DateRange, PreferenceRange
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, RotationMode
 from oncall.scheduler import (
     TIE_BREAK_FRACTION,
-    DateRange,
-    PreferenceRange,
     SolverMember,
     SolverResult,
     _build_model_from_context,

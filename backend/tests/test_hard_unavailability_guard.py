@@ -13,14 +13,9 @@ generation happens to break.
 
 from datetime import date
 
-from oncall.domain.scheduling.solver import PreferenceRange
+from oncall.domain.scheduling.solver import DateRange, PreferenceRange
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind
-from oncall.scheduler import (
-    DateRange,
-    GeneratedAssignment,
-    SolverMember,
-    _hard_unavailability_conflict,
-)
+from oncall.scheduler import GeneratedAssignment, SolverMember, _hard_unavailability_conflict
 
 DAY = date(2026, 11, 4)
 

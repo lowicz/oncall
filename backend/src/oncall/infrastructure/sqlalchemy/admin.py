@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -34,28 +35,11 @@ from oncall.domain.vocabulary import (
     ScheduleStatus,
     UserRole,
 )
+from oncall.infrastructure.sqlalchemy.access import account_from_row
 from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team_models import Eligibility, TeamMember
-
-
-def _to_account(row: User, member_id: uuid.UUID | None) -> Account:
-    return Account(
-        id=row.id,
-        username=row.username,
-        personnel_number=row.personnel_number,
-        first_name=row.first_name,
-        last_name=row.last_name,
-        auth_source=row.auth_source,
-        role=row.role,
-        email=row.email,
-        phone=row.phone,
-        is_active=row.is_active,
-        created_at=row.created_at,
-        member_id=member_id,
-    )
-
 
 #: When the newest unused activation link of the account in the outer query
 #: stops working.
@@ -81,7 +65,7 @@ def _to_administered(
             link_expires_at=as_utc(link_expires_at) if link_expires_at is not None else None
         )
     return AdministeredAccount(
-        **vars(_to_account(row, member_id)),
+        **vars(replace(account_from_row(row), member_id=member_id)),
         pending_activation=pending_activation,
     )
 
@@ -186,11 +170,11 @@ class SqlAlchemyAccounts:
             # login or number: answer as the check would have.
             message = str(error.orig)
             if "personnel_number" in message and record.personnel_number is not None:
-                raise errors.PersonnelNumberTaken(record.personnel_number) from None
+                raise errors.PersonnelNumberTaken() from None
             if "username" in message:
-                raise errors.UsernameTaken(record.username) from None
+                raise errors.UsernameTaken() from None
             raise
-        return _to_account(row, None)
+        return account_from_row(row)
 
     async def change_account(self, account_id: uuid.UUID, changes: Mapping[str, Any]) -> Account:
         member_id = await self._session.scalar(
@@ -199,7 +183,7 @@ class SqlAlchemyAccounts:
         row = await self._session.get(User, account_id)
         for key, value in changes.items():
             setattr(row, key, value)
-        return _to_account(row, member_id)
+        return replace(account_from_row(row), member_id=member_id)
 
     async def close_account(self, account_id: uuid.UUID) -> None:
         row = await self._session.get(User, account_id)
@@ -210,7 +194,7 @@ class SqlAlchemyAccounts:
         try:
             await self._session.flush()
         except IntegrityError:
-            raise errors.AccountStillReferenced(account_id) from None
+            raise errors.AccountStillReferenced() from None
 
     async def issue_token(
         self, account_id: uuid.UUID, kind: AccountTokenKind, lifetime: timedelta
@@ -267,7 +251,7 @@ class SqlAlchemyRotation:
         try:
             await self._session.flush()
         except IntegrityError:
-            raise errors.AccountAlreadyInRotation(account.id) from None
+            raise errors.AccountAlreadyInRotation() from None
         return _to_member(row, [])
 
     async def change_membership(

@@ -5,7 +5,7 @@ import { Field, Input } from '../ui'
  * dates in and out, which is also what the API speaks, so no conversion layer
  * sits between the field and the request.
  */
-export function DateField({ label, value, onChange, id, required, disabled, minDate, maxDate, hint, error }: {
+export function DateField({ label, value, onChange, id, required, disabled, minDate, hint }: {
   label: string
   value: string
   onChange: (value: string) => void
@@ -13,13 +13,11 @@ export function DateField({ label, value, onChange, id, required, disabled, minD
   required?: boolean
   disabled?: boolean
   minDate?: string
-  maxDate?: string
   hint?: string
-  error?: string
 }) {
   return (
-    <Field label={label} id={id} required={required} hint={hint} error={error}>
-      {({ id: fieldId, describedBy, invalid }) => (
+    <Field label={label} id={id} required={required} hint={hint}>
+      {({ id: fieldId, describedBy }) => (
         <Input
           id={fieldId}
           name={fieldId}
@@ -27,10 +25,8 @@ export function DateField({ label, value, onChange, id, required, disabled, minD
           mono
           value={value}
           min={minDate}
-          max={maxDate}
           required={required}
           disabled={disabled}
-          invalid={invalid}
           aria-describedby={describedBy}
           onChange={(event) => onChange(event.target.value)}
         />

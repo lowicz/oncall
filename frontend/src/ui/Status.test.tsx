@@ -138,11 +138,9 @@ describe('DeviationBar', () => {
     expect(screen.getByText('-9,0')).toHaveClass('dev-v-under')
   })
 
-  it('draws no bar at zero, even with a zero scale, and can hide the value', () => {
-    const { container, rerender } = render(<DeviationBar value={0} max={0} />)
+  it('draws no bar at zero, even with a zero scale', () => {
+    const { container } = render(<DeviationBar value={0} max={0} />)
     expect(container.querySelector('i')!.style.width).toBe('0%')
     expect(screen.getByText('0,0').className).toBe('dev-v')
-    rerender(<DeviationBar value={0} max={0} showValue={false} />)
-    expect(screen.queryByText('0,0')).not.toBeInTheDocument()
   })
 })

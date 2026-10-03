@@ -6,6 +6,7 @@ import { docsHref } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, roundPoints, totalBalance } from '../lib/fairness'
 import { formatDecimal, formatPoints, signed } from '../lib/numbers'
 import { formatDate, formatDayShort, formatShortDate, monthsShort, shiftMonth, warsawDate } from '../lib/dates'
+import { csvCell, downloadBlob } from '../lib/download'
 import { locale, messages, useLanguage, useMessages } from '../i18n'
 import { DateField } from '../components/DateField'
 import {
@@ -137,8 +138,7 @@ function csvOf(report: FairnessReport, lateShiftBalanced: boolean) {
       ...lenses.flatMap((lens) => [member[lens].actual, member[lens].expected, member[lens].deviation]),
     ]
   })
-  const cell = (value: string | number) => (typeof value === 'number' ? String(value) : `"${value.replaceAll('"', '""')}"`)
-  return [head, ...rows].map((row) => row.map(cell).join(';')).join('\n')
+  return [head, ...rows].map((row) => row.map(csvCell).join(';')).join('\n')
 }
 
 /**
@@ -202,13 +202,7 @@ export function FairnessPanel() {
     ? roundPoints(criterionMembers.reduce((sum, member) => sum + totalBalance(member, lateShiftBalanced).actual, 0) / criterionMembers.length)
     : 0
   const exportCsv = (data: FairnessReport) => {
-    const blob = new Blob([`\uFEFF${csvOf(data, lateShiftBalanced)}`], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = t.csv.fileName(data.as_of)
-    link.click()
-    URL.revokeObjectURL(url)
+    downloadBlob(t.csv.fileName(data.as_of), new Blob([`\uFEFF${csvOf(data, lateShiftBalanced)}`], { type: 'text/csv;charset=utf-8' }))
   }
   const columnCount = lenses.length + 3
 

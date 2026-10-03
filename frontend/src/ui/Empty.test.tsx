@@ -40,10 +40,9 @@ describe('ErrorState', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
-  it('shows any other failure with its own title and no status or retry', () => {
-    render(<ErrorState error="przekroczono czas" title="Nie wczytano grafiku" />)
+  it('shows any other failure with no status or retry', () => {
+    render(<ErrorState error="przekroczono czas" />)
     const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent('Nie wczytano grafiku')
     expect(alert).toHaveTextContent('przekroczono czas')
     expect(alert).not.toHaveTextContent('HTTP')
     expect(screen.queryByRole('button')).not.toBeInTheDocument()

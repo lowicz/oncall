@@ -243,8 +243,6 @@ const CASES: Case[] = [
   send('updateAdminUser', () => api.updateAdminUser({ id: 'u1', input: { is_active: false } }),
     'PATCH', '/api/v1/admin/users/u1', { is_active: false }),
   send('deleteAdminUser', () => api.deleteAdminUser('u1'), 'DELETE', '/api/v1/admin/users/u1'),
-  send('updateUserEmail', () => api.updateUserEmail({ id: 'u1', email: 'jan@example.org' }),
-    'PATCH', '/api/v1/admin/users/u1', { email: 'jan@example.org' }),
   send('issuePasswordReset', () => api.issuePasswordReset('u1'), 'POST', '/api/v1/admin/users/u1/reset'),
   send('reissueActivation', () => api.reissueActivation('u1'), 'POST', '/api/v1/admin/users/u1/activation'),
   send('createTeamMember', () => api.createTeamMember({ user_id: 'u1', active_from: '2026-09-01' }),

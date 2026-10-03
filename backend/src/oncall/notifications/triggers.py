@@ -8,7 +8,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.config import Settings, get_settings
+from oncall.config import get_settings
 from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
@@ -24,15 +24,6 @@ logger = logging.getLogger(__name__)
 
 #: The order a day's roles are read in: PRIMARY, SECONDARY, 11–19.
 _ROLE_ORDER = {role: index for index, role in enumerate(AssignmentRole)}
-
-
-def _brand(settings: Settings) -> Brand:
-    """What every mail says about the application: its name, subtitle and address."""
-    return Brand(
-        name=settings.app_name,
-        subtitle=settings.app_subtitle,
-        url=settings.public_base_url,
-    )
 
 
 def _message(recipient: str, rendered: RenderedEmail, context: dict) -> NotificationMessage:
@@ -140,7 +131,7 @@ async def notify_swap_requested(
             service_date=service_date,
             role=role,
             requester_name=requester_name,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         context={"event": "swap_requested", "service_date": service_date.isoformat()},
     )
@@ -164,7 +155,7 @@ async def notify_swap_accepted(
             service_date=service_date,
             role=role,
             replacement_name=replacement_name,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         context={"event": "swap_accepted", "service_date": service_date.isoformat()},
     )
@@ -175,7 +166,7 @@ async def notify_swap_accepted(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         except_names=(requester_name, replacement_name),
         dedup_prefix=f"swap-pending:{service_date.isoformat()}:{role.value}",
@@ -207,7 +198,7 @@ async def notify_swap_rejected(
             replacement_name=replacement_name,
             reason=reason,
             by_coordinator=by_coordinator,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         context={"event": "swap_rejected", "service_date": service_date.isoformat()},
     )
@@ -233,7 +224,7 @@ async def notify_swap_cancelled(
             role=role,
             requester_name=requester_name,
             reason=reason,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         context={"event": "swap_cancelled", "service_date": service_date.isoformat()},
     )
@@ -261,7 +252,7 @@ async def notify_swap_cancelled_by_publication(
             role=role,
             requester_name=requester_name,
             reason="Grafik zastąpiony nową publikacją",
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         dedup_key=f"swap-publication-cancelled:{swap_id}",
         context={
@@ -290,7 +281,7 @@ async def notify_swap_approved(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         context={"event": "swap_approved", "service_date": service_date.isoformat()},
     )
@@ -320,7 +311,7 @@ async def notify_swap_recorded(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         dedup_key=f"swap-recorded:{swap_id}",
         context={"event": "swap_recorded", "service_date": service_date.isoformat()},
@@ -332,7 +323,7 @@ async def notify_swap_recorded(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         except_names=(requester_name, replacement_name),
         dedup_prefix=f"swap-recorded-fyi:{swap_id}",
@@ -385,7 +376,7 @@ async def notify_schedule_published(
                 starts_on=starts_on,
                 ends_on=ends_on,
                 duties=own,
-                app=_brand(settings),
+                app=Brand.from_settings(settings),
             ),
             context={"event": "schedule_published", "starts_on": starts_on.isoformat()},
         )
@@ -410,7 +401,7 @@ async def notify_availability_duty_conflict(
     conflict = templates.availability_duty_conflict(
         member_name=member_name,
         duties=duties,
-        app=_brand(settings),
+        app=Brand.from_settings(settings),
     )
     first_day = min(day for day, _ in duties)
     for coordinator in coordinators:
@@ -452,7 +443,7 @@ async def notify_availability_created_on_behalf(
             starts_on=starts_on,
             ends_on=ends_on,
             note=note,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         context={
             "event": "availability_created_on_behalf",
@@ -480,7 +471,7 @@ async def notify_assignment_overridden(
             role=role,
             previous_name=previous_name,
             new_name=new_name,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         context={"event": "assignment_overridden", "service_date": service_date.isoformat()},
     )
@@ -507,7 +498,7 @@ async def notify_assignments_changed_by_publication(
         names=names,
         build=lambda: templates.assignments_changed_by_publication(
             changes=changes,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         ),
         dedup_key=f"publication-assignments:{schedule_id}",
         context={
@@ -548,7 +539,7 @@ async def notify_assignments_overridden_in_batch(
             emails,
             names=[name],
             build=lambda own=own: templates.assignments_overridden_in_batch(
-                changes=own, reason=reason, app=_brand(settings)
+                changes=own, reason=reason, app=Brand.from_settings(settings)
             ),
             context={
                 "event": "assignments_overridden_in_batch",
@@ -591,14 +582,14 @@ async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> i
     segments = [(segment.role, segment.ends_on) for segment in notice.segments]
     if notice.timing is NoticeTiming.ahead:
         rendered = templates.rotation_ahead(
-            starts_on=notice.starts_on, segments=segments, app=_brand(settings)
+            starts_on=notice.starts_on, segments=segments, app=Brand.from_settings(settings)
         )
     else:
         rendered = templates.rotation_same_day(
             starts_on=notice.starts_on,
             segments=segments,
             switch_url=settings.oncall_switch_url,
-            app=_brand(settings),
+            app=Brand.from_settings(settings),
         )
     queued = await enqueue_notification(
         db,

@@ -20,7 +20,7 @@ from oncall.domain.availability.models import (
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.permissions import require_roles
+from oncall.permissions import Coordinator, require_roles
 from oncall.presentation.availability import (
     AvailabilityCreate,
     AvailabilityResponse,
@@ -29,16 +29,13 @@ from oncall.presentation.availability import (
 from oncall.routes.domain_edge import SHARED_ERROR_STATUSES, actor_from, domain_errors_as_http
 
 router = APIRouter(prefix="/api/v1/availability", tags=["availability"])
+#: Own entries are a member's to file. On-behalf-of filing (the `/members/`
+#: routes, guarded by `Coordinator`) is a coordinator responsibility, not a
+#: member one: a member editing another member's availability would be filing
+#: unverifiable claims about a colleague. Viewer is already excluded by role.
 MemberUser = Annotated[
     User,
     Depends(require_roles(UserRole.member, UserRole.coordinator, UserRole.admin)),
-]
-#: On-behalf-of filing is a coordinator responsibility, not a member one: a
-#: member editing another member's availability would be filing unverifiable
-#: claims about a colleague. Viewer is already excluded by role.
-CoordinatorUser = Annotated[
-    User,
-    Depends(require_roles(UserRole.coordinator, UserRole.admin)),
 ]
 
 AVAILABILITY_ERROR_STATUSES = {
@@ -124,7 +121,7 @@ async def delete_my_availability(
 @router.get("/members/{member_id}", response_model=list[AvailabilityResponse])
 async def list_member_availability(
     member_id: uuid.UUID,
-    user: CoordinatorUser,
+    user: Coordinator,
     ports: AvailabilityReader,
     starts_on: Annotated[date | None, Query()] = None,
     ends_on: Annotated[date | None, Query()] = None,
@@ -140,7 +137,7 @@ async def list_member_availability(
 async def create_member_availability(
     member_id: uuid.UUID,
     payload: AvailabilityCreate,
-    user: CoordinatorUser,
+    user: Coordinator,
     ports: AvailabilityWriter,
     _: CsrfGuard,
 ) -> AvailabilityResponse:
@@ -151,7 +148,7 @@ async def create_member_availability(
 async def delete_member_availability(
     member_id: uuid.UUID,
     entry_id: uuid.UUID,
-    user: CoordinatorUser,
+    user: Coordinator,
     ports: AvailabilityWriter,
     _: CsrfGuard,
 ) -> None:

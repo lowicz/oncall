@@ -5,7 +5,6 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall import login_log
 from oncall.auth import (
@@ -24,7 +23,6 @@ from oncall.bootstrap.providers import (
     SignInProvider,
 )
 from oncall.config import get_settings
-from oncall.database import get_db
 from oncall.domain.access import errors, use_cases
 from oncall.domain.access.models import AccountOverview, PasswordChoice, SignInRequest
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
@@ -43,10 +41,9 @@ from oncall.presentation.access import (
     UpdateOwnPhoneRequest,
     UserResponse,
 )
-from oncall.routes.domain_edge import domain_errors_as_http, refusals_as_http
+from oncall.routes.domain_edge import domain_errors_as_http
 
 router = APIRouter()
-DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
 AVATAR_PATH = "/api/v1/auth/me/avatar"
 
 
@@ -175,11 +172,10 @@ async def login(
     payload: LoginRequest,
     request: Request,
     response: Response,
-    db: DbSession,
     ports: SignInProvider,
 ) -> UserResponse:
     login_log.begin_attempt()
-    async with refusals_as_http(db, ACCESS_ERROR_STATUSES, headers=ACCESS_ERROR_HEADERS):
+    with domain_errors_as_http(ACCESS_ERROR_STATUSES, headers=ACCESS_ERROR_HEADERS):
         try:
             signed_in = await use_cases.sign_in(
                 SignInRequest(payload.username, payload.password, _client_ip(request)),
@@ -205,10 +201,9 @@ async def login(
 async def password_token_info(
     token: Annotated[str, Query(min_length=20, max_length=200)],
     kind: AccountTokenKind,
-    db: DbSession,
     links: AccountLinkProvider,
 ) -> AccountTokenInfoResponse:
-    async with refusals_as_http(db, ACCESS_ERROR_STATUSES):
+    with domain_errors_as_http(ACCESS_ERROR_STATUSES):
         account = await use_cases.describe_account_link(token, kind, links, now=utc_now())
     return AccountTokenInfoResponse(username=account.username, display_name=account.display_name)
 
@@ -216,10 +211,9 @@ async def password_token_info(
 async def _choose_password(
     payload: SetPasswordRequest,
     kind: AccountTokenKind,
-    db: AsyncSession,
     ports: PasswordProvider,
 ) -> None:
-    async with refusals_as_http(db, ACCESS_ERROR_STATUSES):
+    with domain_errors_as_http(ACCESS_ERROR_STATUSES):
         await use_cases.choose_password(
             PasswordChoice(token=payload.token, kind=kind, password=payload.password),
             ports,
@@ -228,17 +222,13 @@ async def _choose_password(
 
 
 @router.post("/api/v1/auth/activate", status_code=status.HTTP_204_NO_CONTENT)
-async def activate_account(
-    payload: SetPasswordRequest, db: DbSession, ports: PasswordProvider
-) -> None:
-    await _choose_password(payload, AccountTokenKind.activation, db, ports)
+async def activate_account(payload: SetPasswordRequest, ports: PasswordProvider) -> None:
+    await _choose_password(payload, AccountTokenKind.activation, ports)
 
 
 @router.post("/api/v1/auth/reset", status_code=status.HTTP_204_NO_CONTENT)
-async def reset_password(
-    payload: SetPasswordRequest, db: DbSession, ports: PasswordProvider
-) -> None:
-    await _choose_password(payload, AccountTokenKind.password_reset, db, ports)
+async def reset_password(payload: SetPasswordRequest, ports: PasswordProvider) -> None:
+    await _choose_password(payload, AccountTokenKind.password_reset, ports)
 
 
 @router.get("/api/v1/auth/me", response_model=UserResponse)
@@ -280,11 +270,10 @@ async def my_avatar(principal: CurrentPrincipal, photos: DirectoryPhotoProvider)
 async def update_my_phone(
     payload: UpdateOwnPhoneRequest,
     principal: CurrentPrincipal,
-    db: DbSession,
     profiles: OwnProfileProvider,
     _: CsrfGuard,
 ) -> UserResponse:
-    async with refusals_as_http(db, ACCESS_ERROR_STATUSES):
+    with domain_errors_as_http(ACCESS_ERROR_STATUSES):
         overview = await use_cases.change_own_phone(
             principal.user.id if principal.user is not None else None,
             payload.phone,

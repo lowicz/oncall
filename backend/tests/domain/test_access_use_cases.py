@@ -168,10 +168,9 @@ async def test_a_directory_identity_never_takes_over_another_account(
 async def test_a_directory_outage_is_recorded_and_reported(world) -> None:
     world.directory = FakeDirectory(failure="timeout")
 
-    with pytest.raises(errors.DirectoryLoginUnavailable) as refused:
+    with pytest.raises(errors.DirectoryLoginUnavailable):
         await sign_in(world)
 
-    assert refused.value.reason == "timeout"
     assert world.attempts.events == [("directory_unavailable", "ola", "timeout")]
     assert world.passwords.cost == 0
 
@@ -210,7 +209,8 @@ async def test_the_throttle_counts_logins_and_addresses_separately(
     with pytest.raises(errors.LoginThrottled) as refused:
         await sign_in(world)
 
-    assert (refused.value.label, refused.value.retry_after) == (label, retry_after)
+    assert refused.value.retry_after == retry_after
+    assert world.attempts.throttles == {label: 1}
     assert world.passwords.cost == 0
 
 
@@ -344,10 +344,11 @@ async def test_only_a_directory_account_has_a_photo_and_only_its_own(world) -> N
     assert world.directory.photo_calls == ["ola"]
 
 
-async def test_a_directory_outage_while_reading_the_photo_keeps_its_reason(world) -> None:
+async def test_a_directory_outage_while_reading_the_photo_keeps_its_cause(world) -> None:
     world.directory.failure = "connection_refused"
 
     with pytest.raises(errors.DirectoryUnavailable) as failure:
         await use_cases.own_photo(account("ola", auth_source=AuthSource.ldap), world.directory)
 
-    assert failure.value.reason == "connection_refused"
+    assert isinstance(failure.value.__cause__, errors.DirectoryFailure)
+    assert failure.value.__cause__.reason == "connection_refused"

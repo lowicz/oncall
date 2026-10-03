@@ -689,7 +689,7 @@ async def test_impact_needs_both_people_in_the_balance_window(world) -> None:
             SwapImpactQuery(coordinator(), DAY, AssignmentRole.primary, newcomer.id),
             world.swaps,
         )
-    assert refused.value.display_name == "Nowy"
+    assert refused.value.params == {"display_name": "Nowy"}
 
 
 async def test_the_anchor_role_alone_moves_to_whoever_already_holds_the_late_shift(

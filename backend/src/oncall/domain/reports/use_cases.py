@@ -20,7 +20,7 @@ def month_range(month: str) -> tuple[date, date]:
     try:
         start = date.fromisoformat(f"{month}-01")
     except ValueError as error:
-        raise InvalidMonth(month) from error
+        raise InvalidMonth() from error
     if start.month == 12:
         next_month = date(start.year + 1, 1, 1)
     else:

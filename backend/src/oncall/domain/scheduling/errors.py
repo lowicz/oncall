@@ -1,4 +1,3 @@
-import uuid
 from datetime import date
 
 from oncall.domain.errors import DomainError
@@ -12,15 +11,13 @@ from oncall.rules import RuleViolation
 
 
 class ScheduleNotFound(DomainError):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.schedule_not_found")
-        self.schedule_id = schedule_id
 
 
 class GenerationRunNotFound(DomainError):
-    def __init__(self, run_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.generation_run_not_found")
-        self.run_id = run_id
 
 
 class PolicyWithoutWeight(DomainError):
@@ -57,60 +54,48 @@ class InvalidCorrection(DomainError):
 
 
 class EditableDraftNotFound(DomainError):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.editable_draft_not_found")
-        self.schedule_id = schedule_id
 
 
 class DraftChanged(DomainError):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.draft_changed")
-        self.schedule_id = schedule_id
 
 
 class DateOutsideDraft(InvalidCorrection):
-    def __init__(self, service_date: date) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.date_outside_draft")
-        self.service_date = service_date
 
 
 class LateShiftOnlyOnWorkingDays(InvalidCorrection):
-    def __init__(self, service_date: date) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.late_shift_working_days_only")
-        self.service_date = service_date
 
 
 class ReplacementNotFound(DomainError):
-    def __init__(self, member_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.replacement_not_found")
-        self.member_id = member_id
 
 
 class ReplacementNotEligible(InvalidCorrection):
-    def __init__(self, member_id: uuid.UUID, slot: Slot) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.replacement_not_eligible")
-        self.member_id = member_id
-        self.slot = slot
 
 
 class ReplacementUnavailable(InvalidCorrection):
-    def __init__(self, member_id: uuid.UUID, service_date: date) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.replacement_unavailable")
-        self.member_id = member_id
-        self.service_date = service_date
 
 
 class DraftSlotNotFound(DomainError):
-    def __init__(self, slot: Slot) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.draft_slot_not_found")
-        self.slot = slot
 
 
 class SecondOnCallSameDay(InvalidCorrection):
-    def __init__(self, member_id: uuid.UUID, service_date: date) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.second_on_call_same_day")
-        self.member_id = member_id
-        self.service_date = service_date
 
 
 # --- comparing variants -----------------------------------------------------
@@ -143,33 +128,28 @@ class ScheduleConflict(DomainError):
 
 
 class ScheduleNotDeletable(ScheduleConflict):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.schedule_not_deletable")
-        self.schedule_id = schedule_id
 
 
 class DraftStateChanged(ScheduleConflict):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.draft_state_changed")
-        self.schedule_id = schedule_id
 
 
 class ProposalStateChanged(ScheduleConflict):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.proposal_state_changed")
-        self.schedule_id = schedule_id
 
 
 class PublicationStateChanged(ScheduleConflict):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.publication_state_changed")
-        self.schedule_id = schedule_id
 
 
 class OnlyProposalPublishable(ScheduleConflict):
-    def __init__(self, schedule_id: uuid.UUID) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.only_proposal_publishable")
-        self.schedule_id = schedule_id
 
 
 class IncompleteSchedule(ScheduleConflict):
@@ -178,9 +158,8 @@ class IncompleteSchedule(ScheduleConflict):
 
 
 class SamePersonOnBothOnCallRoles(ScheduleConflict):
-    def __init__(self, service_date: date) -> None:
+    def __init__(self) -> None:
         super().__init__("scheduling.same_person_on_both_on_call_roles")
-        self.service_date = service_date
 
 
 class UnavailablePeopleInSchedule(ScheduleConflict):

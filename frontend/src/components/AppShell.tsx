@@ -29,11 +29,11 @@ function useThemeOptions() {
   return { themeOptions, densityOptions }
 }
 
-export function ThemeSegmented({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+export function ThemeSegmented() {
   const t = useMessages().theme
   const { themeOptions } = useThemeOptions()
   const [mode, setMode] = useThemeMode()
-  return <Segmented<ThemeMode> size={size} label={t.theme} value={mode} onChange={setMode} options={themeOptions} />
+  return <Segmented<ThemeMode> size="sm" label={t.theme} value={mode} onChange={setMode} options={themeOptions} />
 }
 
 export function DensitySegmented() {

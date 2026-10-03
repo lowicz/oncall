@@ -161,7 +161,7 @@ async def generation_status(
 ) -> RunView:
     run = await ports.queue.run(run_id)
     if run is None:
-        raise errors.GenerationRunNotFound(run_id)
+        raise errors.GenerationRunNotFound()
     solve_seconds = (await ports.policy.current()).solve_seconds
     return await view_run(run, solve_seconds, ports.queue, lanes=lanes)
 

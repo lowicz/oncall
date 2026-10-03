@@ -132,9 +132,8 @@ async def test_nobody_gets_both_oncall_roles(world) -> None:
 
 
 async def test_a_stale_version_changes_nothing(world) -> None:
-    with pytest.raises(errors.RosterChangedMeanwhile) as refused:
+    with pytest.raises(errors.RosterChangedMeanwhile):
         await override(world, world.ewa, expected_version=7)
-    assert refused.value.expected_version == 7
     assert world.roster.handed_over == []
     assert world.journal.events == []
 
@@ -288,10 +287,9 @@ async def test_the_check_names_a_person_who_does_not_exist(world) -> None:
 async def test_an_override_needs_a_published_schedule(world) -> None:
     world.roster.schedule_ref.status = ScheduleStatus.draft
 
-    with pytest.raises(errors.PublishedScheduleNotFound) as refused:
+    with pytest.raises(errors.PublishedScheduleNotFound):
         await override(world, world.ewa)
 
-    assert refused.value.schedule_id is None
     assert world.roster.handed_over == []
     assert world.journal.events == []
 
@@ -299,10 +297,9 @@ async def test_an_override_needs_a_published_schedule(world) -> None:
 async def test_a_batch_needs_a_published_schedule(world) -> None:
     world.roster.schedule_ref.status = ScheduleStatus.draft
 
-    with pytest.raises(errors.PublishedScheduleNotFound) as refused:
+    with pytest.raises(errors.PublishedScheduleNotFound):
         await batch(world, BatchOverrideLine(DAY, AssignmentRole.primary, world.ewa.id))
 
-    assert refused.value.schedule_id == world.roster.schedule_ref.id
     assert world.roster.schedule_ref.version == 1
 
 

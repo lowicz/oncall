@@ -86,10 +86,10 @@ export function LinkButton({ variant, size, block, icon, className, children, ..
 }
 
 /** Plain anchor styled as a button: documentation, downloads, ICS. */
-export function AnchorButton({ variant, size, block, icon, className, children, ...rest }:
-  ButtonOwnProps & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+export function AnchorButton({ variant, size, icon, className, children, ...rest }:
+  Omit<ButtonOwnProps, 'block'> & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
   return (
-    <a className={classes({ variant, size, block }, className)} {...rest}>
+    <a className={classes({ variant, size }, className)} {...rest}>
       {icon && <Icon name={icon} />}
       {children}
     </a>

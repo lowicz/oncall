@@ -16,11 +16,11 @@ from itertools import pairwise
 
 import pytest
 
+from oncall.domain.scheduling.solver import DateRange
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.fairness import ACCEPTANCE_POINTS, day_weight, generator_history_window
 from oncall.scheduler import (
     REPAYMENT_SHARE,
-    DateRange,
     SolverMember,
     SolverResult,
     _criterion_warning,

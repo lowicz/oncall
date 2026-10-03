@@ -9,23 +9,21 @@ from math import ceil
 from ortools.sat.python import cp_model
 
 from oncall.config import available_cpu_count
-from oncall.domain.scheduling.solver import GENERATION_BUDGET_PASSES as GENERATION_BUDGET_PASSES
-from oncall.domain.scheduling.solver import DateRange as DateRange
 from oncall.domain.scheduling.solver import (
     GeneratedAssignment,
     SolverMember,
     SolverResult,
     total_time_budget,
 )
-from oncall.domain.scheduling.solver import PreferenceRange as PreferenceRange
 from oncall.domain.vocabulary import (
-    ROLE_LABELS as ROLE_LABELS,
-)
-from oncall.domain.vocabulary import (
+    ONCALL_ROLES,
     AssignmentRole,
     AvailabilityKind,
     LateShiftAnchor,
     RotationMode,
+)
+from oncall.domain.vocabulary import (
+    ROLE_LABELS as ROLE_LABELS,
 )
 from oncall.fairness import ACCEPTANCE_POINTS, slot_exposure
 from oncall.rules import MAX_CONSECUTIVE_ONCALL_DAYS, exempt_days, oncall_rest_violations
@@ -240,8 +238,6 @@ FAIRNESS_STEP = SCALE // 2
 #: the tie-breaker out entirely; raise it only after a re-measurement.
 TIE_BREAK_FRACTION = 0.0
 
-#: The roles that share one duty roster; the 11-19 shift is balanced on its own.
-ONCALL_ROLES = (AssignmentRole.primary, AssignmentRole.secondary)
 # MAX_CONSECUTIVE_ONCALL_DAYS lives in `oncall.rules` and is imported here, so
 # the solver's limit and the post-publication checks share one constant.
 

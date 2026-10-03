@@ -42,10 +42,10 @@ def available_cpu_count(cgroup_root: Path = CGROUP_ROOT) -> int:
         return max(1, min(8, ceil(quota / period)))
 
     try:
-        detected = len(os.sched_getaffinity(0))
-    except AttributeError, OSError:
-        detected = os.cpu_count() or 1
-    return max(1, min(8, detected))
+        detected = os.process_cpu_count()
+    except OSError:
+        detected = os.cpu_count()
+    return max(1, min(8, detected or 1))
 
 
 class Settings(BaseSettings):

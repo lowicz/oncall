@@ -22,12 +22,17 @@ class AssignmentRole(StrEnum):
     late_shift = "late_shift"
 
 
-#: How each role is named wherever people read it.
+#: How each role is named wherever people read it, mirroring
+#: `frontend/src/lib/labels.ts`. „late_shift" is an internal identifier and
+#: must never reach a reader.
 ROLE_LABELS = {
     AssignmentRole.primary: "PRIMARY",
     AssignmentRole.secondary: "SECONDARY",
     AssignmentRole.late_shift: "11–19",
 }
+
+#: The roles that share one duty roster; the 11-19 shift is balanced on its own.
+ONCALL_ROLES = (AssignmentRole.primary, AssignmentRole.secondary)
 
 
 class ScheduleStatus(StrEnum):

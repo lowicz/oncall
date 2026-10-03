@@ -64,7 +64,7 @@ async def revoke_share_link(
 ) -> None:
     link = await ports.links.link(revocation.link_id)
     if link is None:
-        raise errors.ShareLinkNotFound(revocation.link_id)
+        raise errors.ShareLinkNotFound()
     if link.revoked_at is None:
         await ports.links.revoke(link.id, now)
         await ports.link_journal.link_revoked(link)
@@ -77,9 +77,9 @@ async def exchange_share_link(
     if link is None:
         raise errors.ShareTokenUnknown()
     if link.used_at is not None:
-        raise errors.ShareLinkAlreadyUsed(link.id)
+        raise errors.ShareLinkAlreadyUsed()
     if not link.active(now):
-        raise errors.ShareLinkInactive(link.id)
+        raise errors.ShareLinkInactive()
     # The session never outlives the link that granted it.
     session = await ports.sessions.open_for_share_link(
         link.id, min(as_utc(link.expires_at), now + session_lifetime)
@@ -120,7 +120,7 @@ async def revoke_calendar_feed(
     if feed is None or (
         feed.created_by_id != revocation.actor.user_id and revocation.actor.role != UserRole.admin
     ):
-        raise errors.FeedNotFound(revocation.feed_id)
+        raise errors.FeedNotFound()
     if feed.revoked_at is None:
         await ports.feeds.revoke(feed.id, now)
         await ports.feed_journal.feed_revoked(feed)
@@ -129,7 +129,7 @@ async def revoke_calendar_feed(
 async def subscribe_share_link(request: LinkFeedRequest, ports: LinkFeedPorts) -> FeedIssued:
     link = await ports.links.link(request.link_id)
     if link is None:
-        raise errors.ShareLinkNotFound(request.link_id)
+        raise errors.ShareLinkNotFound()
     issued = await ports.feeds.issue(
         NewCalendarFeed(
             kind=FeedTokenKind.share_link,

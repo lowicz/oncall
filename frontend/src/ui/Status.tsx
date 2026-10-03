@@ -109,12 +109,11 @@ export function Avatar({ name, size = 26, className, src }: { name: string; size
  * fair share extend right in amber, below extend left in the signal colour.
  * `max` is the value that fills one half.
  */
-export function DeviationBar({ value, max, label, className, showValue = true }: {
+export function DeviationBar({ value, max, label, className }: {
   value: number
   max: number
   label?: string
   className?: string
-  showValue?: boolean
 }) {
   const width = Math.min(100, Math.abs(value) / Math.max(max, 0.01) * 100)
   const over = value > 0
@@ -124,7 +123,7 @@ export function DeviationBar({ value, max, label, className, showValue = true }:
       <span className="dev-track">
         <i className={over ? 'dev-over' : 'dev-under'} style={{ width: `${width / 2}%` }} />
       </span>
-      {showValue && <span className={cx('dev-v', over ? 'dev-v-over' : value < 0 ? 'dev-v-under' : '')}>{formatted}</span>}
+      <span className={cx('dev-v', over ? 'dev-v-over' : value < 0 ? 'dev-v-under' : '')}>{formatted}</span>
     </span>
   )
 }

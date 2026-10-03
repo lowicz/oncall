@@ -3,12 +3,11 @@ import { render, screen } from '@testing-library/react'
 import { Box, KeyValue, List, ListRow, PageHeader, SectionHeading, Steps } from './Section'
 
 describe('PageHeader', () => {
-  it('shows the eyebrow, the title, the context and the actions', () => {
+  it('shows the title, the context and the actions', () => {
     const { container } = render(
-      <PageHeader eyebrow="Grafik" title="Wrzesień 2026" sub="4 tygodnie" actions={<button>Publikuj</button>} className="top" />,
+      <PageHeader title="Wrzesień 2026" sub="4 tygodnie" actions={<button>Publikuj</button>} className="top" />,
     )
     expect(screen.getByRole('heading', { level: 1, name: 'Wrzesień 2026' })).toBeInTheDocument()
-    expect(screen.getByText('Grafik')).toHaveClass('ph-eyebrow')
     expect(screen.getByText('4 tygodnie')).toHaveClass('ph-sub')
     expect(screen.getByRole('button', { name: 'Publikuj' }).parentElement).toHaveClass('ph-actions')
     expect(container.firstElementChild).toHaveClass('ph', 'top')
@@ -16,7 +15,7 @@ describe('PageHeader', () => {
 
   it('shows the title alone', () => {
     const { container } = render(<PageHeader title="Zamiany" />)
-    expect(container.querySelector('.ph-eyebrow, .ph-sub, .ph-actions')).toBeNull()
+    expect(container.querySelector('.ph-sub, .ph-actions')).toBeNull()
   })
 })
 

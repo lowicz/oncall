@@ -7,9 +7,8 @@ a limited viewer session and the token leaves the URL immediately after.
 
 import uuid
 from datetime import timedelta
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Response, status
 
 from oncall.auth import CsrfGuard, set_session_cookie
 from oncall.bootstrap.providers import (
@@ -21,9 +20,7 @@ from oncall.config import get_settings
 from oncall.domain.clock import utc_now
 from oncall.domain.sharing import errors, use_cases
 from oncall.domain.sharing.models import ShareLinkRequest, ShareLinkRevocation
-from oncall.domain.vocabulary import UserRole
-from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.permissions import require_roles
+from oncall.permissions import Admin
 from oncall.presentation.sharing import (
     ShareExchangeRequest,
     ShareExchangeResponse,
@@ -36,8 +33,6 @@ from oncall.presentation.sharing import (
 from oncall.routes.domain_edge import SHARED_ERROR_STATUSES, actor_from, domain_errors_as_http
 
 router = APIRouter(tags=["share-links"])
-Admin = Annotated[User, Depends(require_roles(UserRole.admin))]
-
 SHARING_ERROR_STATUSES = {
     **SHARED_ERROR_STATUSES,
     errors.ShareLinkNotFound: status.HTTP_404_NOT_FOUND,

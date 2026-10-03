@@ -8,6 +8,7 @@ import { OffboardingDialog } from '../../components/OffboardingDialog'
 import { roleLabels as dutyRoleLabels, shortRoleLabels } from '../../lib/labels'
 import { roleLabels as accountRoleLabels } from '../../lib/nav'
 import { addDays, formatDate, formatMoment, formatShortDate, warsawDate } from '../../lib/dates'
+import { csvCell, downloadBlob } from '../../lib/download'
 import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
 import {
@@ -150,13 +151,12 @@ function csvOf(rows: Row[], today: string, now: number) {
     columns.person, columns.username, columns.number, columns.email, columns.phone, columns.role, columns.signIn,
     columns.active, columns.activation, columns.rotation, columns.entry, columns.exit, columns.qualifications,
   ]
-  const cell = (value: string | null | undefined) => `"${(value ?? '').replaceAll('"', '""')}"`
   const lines = rows.map(({ user, member }) => [
     user.display_name, user.username, user.personnel_number, user.email, user.phone, accountRoleLabels()[user.role],
     t.authSources[user.auth_source], user.is_active ? t.csv.yes : t.csv.no,
     activationCsv(user, now), rotationState(member, today),
     member?.active_from, member?.active_until, heldRoles(member, today).map((role) => dutyRoleLabels()[role]).join(' '),
-  ].map(cell).join(';'))
+  ].map(csvCell).join(';'))
   return [head.join(';'), ...lines].join('\n')
 }
 
@@ -407,13 +407,7 @@ export function PeoplePanel() {
   const selectedRoles = heldRoles(selectedRow?.member, today)
   const selectedActivation = selectedRow ? activationState(selectedRow.user, now) : null
   const exportCsv = () => {
-    const blob = new Blob([`\uFEFF${csvOf(rows, today, now)}`], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = t.csv.fileName(today)
-    link.click()
-    URL.revokeObjectURL(url)
+    downloadBlob(t.csv.fileName(today), new Blob([`\uFEFF${csvOf(rows, today, now)}`], { type: 'text/csv;charset=utf-8' }))
   }
   const roleOptions = roles.map((role) => ({ value: role, label: accountRoleLabels()[role] }))
   const subtitle = users.data && team.data && [

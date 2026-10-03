@@ -14,14 +14,13 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.i18n import translate
 from oncall.workdays import is_working_day
 
 #: Imported back by the solver, so the constant also lives in exactly one place.
 MAX_CONSECUTIVE_ONCALL_DAYS = 3
 
-ONCALL_ROLES = (AssignmentRole.primary, AssignmentRole.secondary)
 
 #: A slots map says who holds each roster slot: (day, role) -> assignee name.
 Slots = dict[tuple[date, AssignmentRole], str]

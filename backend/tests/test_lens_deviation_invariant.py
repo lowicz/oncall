@@ -15,14 +15,9 @@ from datetime import date, timedelta
 
 from ortools.sat.python import cp_model
 
+from oncall.domain.scheduling.solver import DateRange
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
-from oncall.scheduler import (
-    SCALE,
-    DateRange,
-    SolverMember,
-    _build_model_from_context,
-    _ModelBuildContext,
-)
+from oncall.scheduler import SCALE, SolverMember, _build_model_from_context, _ModelBuildContext
 from oncall.workdays import polish_holidays
 
 # 4 weeks from a Monday: four weekends, plus 11-11 (Independence Day, a Wednesday).

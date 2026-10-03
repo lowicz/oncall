@@ -8,9 +8,8 @@ import { LanguageSegmented } from './LanguageControl'
 /** The frame around the screens shown before a session exists: the mark, a
  *  headline, a card, and the small print with the documentation link and the
  *  language, the one preference a visitor can set before signing in. */
-export function AuthFrame({ title, sub, children, screen }: {
+export function AuthFrame({ title, children, screen }: {
   title: ReactNode
-  sub?: ReactNode
   children: ReactNode
   screen: string
 }) {
@@ -27,7 +26,6 @@ export function AuthFrame({ title, sub, children, screen }: {
           <p className="login-sub">
             {branding.name}
             {branding.subtitle && <> · {branding.subtitle}</>}
-            {sub && <> · {sub}</>}
           </p>
         </div>
         {children}

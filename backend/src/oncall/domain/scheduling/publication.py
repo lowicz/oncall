@@ -27,6 +27,7 @@ from oncall.domain.scheduling.planning import validate_complete
 from oncall.domain.scheduling.ports import ChangeLog, PublicationPorts
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import (
+    ONCALL_ROLES,
     AssignmentRole,
     ScheduleStatus,
 )
@@ -35,7 +36,6 @@ from oncall.fairness import (
 )
 from oncall.i18n import translate
 from oncall.rules import (
-    ONCALL_ROLES,
     RuleViolation,
     exempt_days,
     oncall_rest_violations,
@@ -451,9 +451,9 @@ async def preview_publication(
 ) -> PublicationPreview:
     schedule = await ports.schedules.schedule(schedule_id)
     if schedule is None:
-        raise errors.ScheduleNotFound(schedule_id)
+        raise errors.ScheduleNotFound()
     if schedule.status != ScheduleStatus.proposed:
-        raise errors.OnlyProposalPublishable(schedule.id)
+        raise errors.OnlyProposalPublishable()
     return await _preview(schedule, ports, today)
 
 
@@ -506,9 +506,9 @@ async def publish(
     await ports.schedules.hold_publication()
     schedule = await ports.schedules.schedule_to_publish(request.schedule_id)
     if schedule is None:
-        raise errors.ScheduleNotFound(request.schedule_id)
+        raise errors.ScheduleNotFound()
     if schedule.status != ScheduleStatus.proposed or schedule.version != request.expected_version:
-        raise errors.PublicationStateChanged(schedule.id)
+        raise errors.PublicationStateChanged()
     validate_complete(schedule)
     conflicts = await drafts.unavailability_conflicts(schedule, ports.team)
     if conflicts:

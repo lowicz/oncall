@@ -40,16 +40,6 @@ def test_cpu_count_is_limited_to_eight(tmp_path, monkeypatch) -> None:
     assert available_cpu_count(tmp_path) == 8
 
 
-def test_cpu_count_without_an_affinity_call_falls_back_to_the_cpu_count(
-    tmp_path, monkeypatch
-) -> None:
-    """macOS has no `sched_getaffinity`; a development machine still runs."""
-    monkeypatch.delattr(os, "sched_getaffinity")
-    monkeypatch.setattr(os, "cpu_count", lambda: 4)
-
-    assert available_cpu_count(tmp_path) == 4
-
-
 def test_cpu_count_of_an_unknown_machine_is_one(tmp_path, monkeypatch) -> None:
     def refused(_pid: int) -> set[int]:
         raise OSError("not permitted")

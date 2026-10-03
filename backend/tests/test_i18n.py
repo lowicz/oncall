@@ -8,7 +8,14 @@ import pytest
 
 from oncall.domain.scheduling.errors import ScheduleNotFound
 from oncall.domain.vocabulary import UserRole
-from oncall.i18n import CATALOGS, DEFAULT_LANGUAGE, language_scope, negotiate, translate
+from oncall.i18n import (
+    CATALOGS,
+    DEFAULT_LANGUAGE,
+    negotiate,
+    reset_request_language,
+    set_request_language,
+    translate,
+)
 from oncall.rules import RuleViolation, describe
 from oncall.workdays import polish_holiday_names
 from tests.conftest import create_user, login
@@ -65,7 +72,7 @@ def test_translate_fills_placeholders_and_rejects_unknown_keys() -> None:
 
 
 def test_domain_sentences_follow_the_language_in_scope() -> None:
-    error = ScheduleNotFound(uuid.uuid4())
+    error = ScheduleNotFound()
     violation = RuleViolation("three_in_seven", "Anna", (date(2026, 9, 7), date(2026, 9, 8)))
 
     assert str(error) == "Nie znaleziono grafiku"
@@ -75,13 +82,16 @@ def test_domain_sentences_follow_the_language_in_scope() -> None:
     )
     assert polish_holiday_names(HOLIDAY, HOLIDAY) == {HOLIDAY: "Narodowe Święto Niepodległości"}
 
-    with language_scope("en"):
+    token = set_request_language("en")
+    try:
         assert str(error) == "Schedule not found"
         assert violation.message == "More than 3 on-call duties within 7 days."
         assert describe(violation) == (
             "Anna: More than 3 on-call duties within 7 days. Days: 07-09-2026, 08-09-2026."
         )
         assert polish_holiday_names(HOLIDAY, HOLIDAY) == {HOLIDAY: "National Independence Day"}
+    finally:
+        reset_request_language(token)
 
     # The scope is gone: the recorded language is back.
     assert str(error) == "Nie znaleziono grafiku"

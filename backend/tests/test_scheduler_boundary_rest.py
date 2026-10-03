@@ -1,7 +1,8 @@
 from datetime import date, timedelta
 
+from oncall.domain.scheduling.solver import DateRange
 from oncall.domain.vocabulary import AssignmentRole, RotationMode
-from oncall.scheduler import DateRange, SolverMember, generate_schedule
+from oncall.scheduler import SolverMember, generate_schedule
 
 
 def member(name: str) -> SolverMember:

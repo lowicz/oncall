@@ -22,20 +22,13 @@ export function Menu({ trigger, children, align = 'end', className }: {
   )
 }
 
-export function MenuItem({ children, onClick, disabled, tone, closeOnClick = true }: {
+export function MenuItem({ children, onClick, disabled }: {
   children: ReactNode
   onClick?: () => void
   disabled?: boolean
-  tone?: 'danger'
-  closeOnClick?: boolean
 }) {
   return (
-    <BaseMenu.Item
-      className={cx('menu-item', tone === 'danger' && 'menu-danger')}
-      onClick={onClick}
-      disabled={disabled}
-      closeOnClick={closeOnClick}
-    >
+    <BaseMenu.Item className="menu-item" onClick={onClick} disabled={disabled}>
       {children}
     </BaseMenu.Item>
   )

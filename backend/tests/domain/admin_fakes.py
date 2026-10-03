@@ -114,7 +114,7 @@ class FakeAccounts:
         from oncall.domain.admin.errors import AccountStillReferenced
 
         if account_id in self.referenced:
-            raise AccountStillReferenced(account_id)
+            raise AccountStillReferenced()
         del self.by_id[account_id]
 
     async def issue_token(self, account_id, kind, lifetime):

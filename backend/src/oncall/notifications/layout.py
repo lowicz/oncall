@@ -40,6 +40,7 @@ from enum import StrEnum
 from html import escape
 from typing import NamedTuple
 
+from oncall.config import Settings
 from oncall.domain.vocabulary import AssignmentRole
 
 # Light-theme tokens from `frontend/src/tokens.css`. The translucent ones are
@@ -191,9 +192,15 @@ class Action:
 
 @dataclass(frozen=True)
 class Brand:
+    """What every mail says about the application: its name, subtitle and address."""
+
     name: str
     subtitle: str
     url: str
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> Brand:
+        return cls(settings.app_name, settings.app_subtitle, settings.public_base_url)
 
 
 def _cell(inner: Html, *, style: str) -> Html:

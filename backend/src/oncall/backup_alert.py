@@ -52,11 +52,7 @@ async def send_alert(args: argparse.Namespace, details: list[str]) -> list[str]:
         failed_at=args.failed_at,
         step=args.step,
         details=details,
-        app=Brand(
-            name=settings.app_name,
-            subtitle=settings.app_subtitle,
-            url=settings.public_base_url,
-        ),
+        app=Brand.from_settings(settings),
         test=args.test,
     )
     provider = SmtpEmailProvider(settings)

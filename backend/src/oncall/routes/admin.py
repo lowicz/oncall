@@ -4,7 +4,7 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Query, Response, status
 
 from oncall.auth import CsrfGuard
 from oncall.bootstrap.providers import (
@@ -27,9 +27,7 @@ from oncall.domain.admin.models import (
     MembershipChange,
     NewAccount,
 )
-from oncall.domain.vocabulary import UserRole
-from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.permissions import require_roles
+from oncall.permissions import Admin
 from oncall.presentation.admin import (
     AdminUserCreate,
     AdminUserCreatedResponse,
@@ -47,8 +45,6 @@ from oncall.presentation.admin import (
 from oncall.routes.domain_edge import actor_from, domain_errors_as_http
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
-Admin = Annotated[User, Depends(require_roles(UserRole.admin))]
-
 ADMIN_ERROR_STATUSES = {
     errors.AccountNotFound: status.HTTP_404_NOT_FOUND,
     errors.RotationMemberNotFound: status.HTTP_404_NOT_FOUND,

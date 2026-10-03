@@ -124,10 +124,10 @@ async def balance_report(query: BalanceQuery, ports: BalancePorts) -> BalanceRep
 async def duty_breakdown(query: DutyBreakdownQuery, ports: BalancePorts) -> list[DutyPoints]:
     _refuse_viewers(query.actor)
     if not query.actor.coordinates and await _own_member_id(query.actor, ports) != query.member_id:
-        raise errors.OwnDutiesOnly(query.member_id)
+        raise errors.OwnDutiesOnly()
     member = await ports.team.member(query.member_id)
     if member is None:
-        raise errors.BalanceMemberNotFound(query.member_id)
+        raise errors.BalanceMemberNotFound()
     window_start, window_end = window(query.as_of)
     _, duties = await ports.history.balance_inputs(window_start, window_end)
     return [

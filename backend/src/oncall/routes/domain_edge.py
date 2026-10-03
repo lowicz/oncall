@@ -9,12 +9,11 @@ is the exception: what the use case recorded before refusing is committed
 first, then the refusal is answered.
 """
 
-from collections.abc import AsyncIterator, Callable, Iterator, Mapping
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import Principal
 from oncall.domain.calendar.models import Audience
@@ -75,26 +74,12 @@ def http_error(
 
 @contextmanager
 def domain_errors_as_http(
-    statuses: ErrorStatuses, details: ErrorDetails | None = None
-) -> Iterator[None]:
-    try:
-        yield
-    except DomainError as error:
-        response = http_error(error, statuses, details)
-        if response is None:
-            raise
-        raise response from error
-
-
-@asynccontextmanager
-async def refusals_as_http(
-    db: AsyncSession,
     statuses: ErrorStatuses,
     details: ErrorDetails | None = None,
     headers: ErrorHeaders | None = None,
-) -> AsyncIterator[None]:
-    """Like `domain_errors_as_http`, but a `RecordedRefusal` commits what the
-    use case recorded before the refusal is answered."""
+) -> Iterator[None]:
+    """Answer a mapped `DomainError`; a `RecordedRefusal` is answered so that
+    what the use case recorded before refusing is committed."""
     try:
         yield
     except DomainError as error:

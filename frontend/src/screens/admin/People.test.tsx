@@ -460,7 +460,7 @@ describe('PeoplePanel table states and export', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Eksport CSV' }))
 
     expect(click).toHaveBeenCalledTimes(1)
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:people')
+    await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:people'))
     expect(Array.from(new Uint8Array(await exported!.slice(0, 3).arrayBuffer()))).toEqual([0xef, 0xbb, 0xbf])
     expect((await exported!.text()).split('\n')).toEqual([
       'osoba;login;numer;email;telefon;rola;logowanie;aktywne;aktywacja;rotacja;wejscie;wyjscie;kwalifikacje',

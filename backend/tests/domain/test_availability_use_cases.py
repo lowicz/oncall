@@ -113,14 +113,13 @@ async def test_an_entry_wholly_in_the_past_is_refused(world) -> None:
 
 
 async def test_an_identical_entry_and_an_overlapping_one_are_told_apart(world) -> None:
-    existing = stored(world, AvailabilityKind.prefer_not, DAY, DAY + timedelta(days=2))
+    stored(world, AvailabilityKind.prefer_not, DAY, DAY + timedelta(days=2))
 
-    with pytest.raises(errors.AvailabilityAlreadyExists) as identical:
+    with pytest.raises(errors.AvailabilityAlreadyExists):
         await declare(world, own(world), OwnMember())
-    with pytest.raises(errors.AvailabilityOverlaps) as overlapping:
+    with pytest.raises(errors.AvailabilityOverlaps):
         await declare(world, own(world), OwnMember(), kind=AvailabilityKind.unavailable)
 
-    assert identical.value.entry_id == overlapping.value.entry_id == existing.id
     assert world.ledger.pending is None
 
 

@@ -57,7 +57,7 @@ async def show_schedule(
 ) -> ScheduleView:
     schedule = await ports.schedules.schedule(schedule_id)
     if schedule is None:
-        raise errors.ScheduleNotFound(schedule_id)
+        raise errors.ScheduleNotFound()
     return await view_schedule(schedule, ports, today=today)
 
 
@@ -89,7 +89,7 @@ async def suggest_range(schedules: ScheduleReads, *, today: date) -> SuggestedRa
 async def fairness_impact(schedule_id: uuid.UUID, ports: ScheduleQueryPorts) -> FairnessImpact:
     schedule = await ports.schedules.schedule(schedule_id)
     if schedule is None:
-        raise errors.ScheduleNotFound(schedule_id)
+        raise errors.ScheduleNotFound()
     # Both sides use one rolling window. The draft replaces regenerated slots
     # instead of adding a second duty on top of the published assignment.
     projected_end = schedule.ends_on

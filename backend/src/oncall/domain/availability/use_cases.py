@@ -33,7 +33,7 @@ async def _resolve(ref: MemberRef, actor: Actor, team: TeamDirectory) -> Member:
     if isinstance(ref, MemberById):
         member = await team.member(ref.member_id)
         if member is None:
-            raise TeamMemberNotFound(ref.member_id)
+            raise TeamMemberNotFound()
         return member
     member = await team.member_for_account(actor.user_id)
     if member is None:
@@ -58,13 +58,13 @@ async def declare_availability(
     """One write path for a member's own entry and a coordinator's entry on
     their behalf, so the rules cannot drift between the two."""
     if declaration.ends_on < declaration.starts_on:
-        raise AvailabilityRangeReversed(declaration.starts_on, declaration.ends_on)
+        raise AvailabilityRangeReversed()
     if (declaration.ends_on - declaration.starts_on).days > MAX_ENTRY_DAYS:
-        raise AvailabilityRangeTooLong(declaration.starts_on, declaration.ends_on)
+        raise AvailabilityRangeTooLong()
     member = await _resolve(declaration.member, declaration.actor, ports.team)
     on_behalf = member.user_id != declaration.actor.user_id
     if declaration.ends_on < (today or business_today()):
-        raise AvailabilityInThePast(declaration.ends_on)
+        raise AvailabilityInThePast()
     overlapping = await ports.ledger.overlapping_entry(
         member.id, declaration.starts_on, declaration.ends_on
     )
@@ -74,8 +74,8 @@ async def declare_availability(
             and overlapping.starts_on == declaration.starts_on
             and overlapping.ends_on == declaration.ends_on
         ):
-            raise AvailabilityAlreadyExists(overlapping.id)
-        raise AvailabilityOverlaps(overlapping.id)
+            raise AvailabilityAlreadyExists()
+        raise AvailabilityOverlaps()
     new_entry = NewAvailabilityEntry(
         member_id=member.id,
         created_by_user_id=declaration.actor.user_id,
@@ -119,7 +119,7 @@ async def withdraw_availability(
     member = await _resolve(withdrawal.member, withdrawal.actor, ports.team)
     entry = await ports.ledger.entry_to_withdraw(member.id, withdrawal.entry_id)
     if entry is None:
-        raise AvailabilityEntryNotFound(withdrawal.entry_id)
+        raise AvailabilityEntryNotFound()
     await ports.journal.withdrawn(
         member=member,
         entry=entry,

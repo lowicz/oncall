@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 
 /**
  * Colour scheme preference: dark is the default, light is the alternative and
@@ -94,12 +94,10 @@ function subscribe(listener: () => void) {
 
 export function useThemeMode(): [ThemeMode, (mode: ThemeMode) => void] {
   const mode = useSyncExternalStore(subscribe, readThemeMode, () => 'dark' as ThemeMode)
-  const set = useCallback((next: ThemeMode) => setThemeMode(next), [])
-  return [mode, set]
+  return [mode, setThemeMode]
 }
 
 export function useDensity(): [Density, (density: Density) => void] {
   const density = useSyncExternalStore(subscribe, readDensity, () => 'default' as Density)
-  const set = useCallback((next: Density) => setDensity(next), [])
-  return [density, set]
+  return [density, setDensity]
 }
