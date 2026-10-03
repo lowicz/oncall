@@ -257,3 +257,24 @@ def test_a_refused_setting_does_not_echo_the_configuration(monkeypatch) -> None:
 
     assert "ONCALL_SMTP_USERNAME" in str(refused.value)
     assert "hunter2-do-not-log" not in str(refused.value)
+
+
+@pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
+def test_blank_solver_workers_leaves_the_count_to_the_cpu_allocation(monkeypatch, blank) -> None:
+    """Compose passes an unset ONCALL_SOLVER_WORKERS as an empty string."""
+    monkeypatch.setenv("ONCALL_SOLVER_WORKERS", blank)
+
+    assert Settings().solver_workers is None
+
+
+def test_solver_workers_from_the_environment_is_the_count(monkeypatch) -> None:
+    monkeypatch.setenv("ONCALL_SOLVER_WORKERS", "4")
+
+    assert Settings().solver_workers == 4
+
+
+def test_solver_workers_above_eight_is_refused(monkeypatch) -> None:
+    monkeypatch.setenv("ONCALL_SOLVER_WORKERS", "9")
+
+    with pytest.raises(ValidationError):
+        Settings()

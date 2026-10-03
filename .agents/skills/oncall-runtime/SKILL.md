@@ -16,8 +16,9 @@ metadata:
   never use bare `docker compose up --build`, because the production file has
   no build definitions. The dev overlay may change nothing but `image`/`build`;
   `.github/scripts/compose-parity.sh` enforces that in CI. `.github/scripts/env-vars-wired.sh` (same CI job) fails
-  if an `ONCALL_*` documented in `.env.example` is referenced by no Compose
-  file, so a documented knob cannot silently go unplumbed.
+  if an `ONCALL_*` documented in `.env.example` is neither an `environment:`
+  key nor a `${...}` interpolation in any Compose file (a comment does not
+  count), so a documented knob cannot silently go unplumbed.
 - The `web` image builds from the **repository root** (`context: .`,
   `dockerfile: frontend/Dockerfile`), because the image carries `docs/` as well
   as `frontend/`. The root `.dockerignore` governs that build. `backend/Dockerfile`
