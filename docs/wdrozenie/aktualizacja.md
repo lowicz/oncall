@@ -273,7 +273,7 @@ startem PostgreSQL (tak kończyły się 1.7.1 i 1.7.2 pod podman-compose), skryp
 wykorzystuje. Jeśli ten wolumen już istnieje i coś zawiera (po przeniesieniu
 przerwanym np. zabiciem procesu albo po powrocie opisanym niżej), skrypt go
 nie nadpisuje i odmawia, podając jego nazwę. Po sprawdzeniu, że nie ma w nim
-niczego potrzebnego, usuń go (`podman volume rm <nazwa>`) i uruchom ponownie jednostkę
+niczego potrzebnego, usuń go (`podman volume rm <nazwa>`) i uruchom
 aktualizację ponownie.
 
 ### Powrót sprzed aktualizacji PostgreSQL
