@@ -7,10 +7,12 @@
 # Python image and runs as an unprivileged user. No BuildKit-only syntax, so
 # `podman compose` builds it too.
 
-# The Python minor CI tests (PYTHON_VERSION in .github/workflows/ci.yml) and
-# requires-python allows. Renovate's "Python" group moves the three together
-# and reads this line only in the `python:<major>.<minor>-slim` form.
-ARG PYTHON_IMAGE=python:3.14-slim
+# The Python release the image runs: the minor CI tests (PYTHON_VERSION in
+# .github/workflows/ci.yml) and requires-python allows, pinned to one patch
+# release. Renovate's "Python" group moves it to the next patch release, and
+# the three together on a new minor; it reads this line only in the
+# `python:<major>.<minor>.<patch>-slim` form.
+ARG PYTHON_IMAGE=python:3.14.8-slim
 
 FROM ${PYTHON_IMAGE} AS build
 # The uv release pyproject.toml pins ([tool.uv] required-version); `uv sync`
