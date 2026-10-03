@@ -62,6 +62,3 @@ class Availability(Base):
 
     member: Mapped[TeamMember] = relationship(back_populates="availability")
     created_by: Mapped[User | None] = relationship()
-
-
-__all__ = ["Availability"]

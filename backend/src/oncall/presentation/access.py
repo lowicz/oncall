@@ -87,13 +87,3 @@ class SetPasswordRequest(BaseModel):
 class AccountTokenInfoResponse(BaseModel):
     username: str
     display_name: str
-
-
-__all__ = [
-    "AccountTokenInfoResponse",
-    "LoginRequest",
-    "SetPasswordRequest",
-    "ShareSessionInfo",
-    "UpdateOwnPhoneRequest",
-    "UserResponse",
-]

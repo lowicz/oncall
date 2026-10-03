@@ -98,6 +98,3 @@ class NotificationOutbox(Base):
         DateTime(timezone=True), default=utc_now, server_default=func.now()
     )
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-__all__ = ["NotificationChannel", "NotificationOutbox", "NotificationStatus"]

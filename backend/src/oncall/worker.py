@@ -98,12 +98,6 @@ def _generation_failure(exc: Exception) -> tuple[str, list[str] | None]:
     return " | ".join(parts)[:500], conflicts
 
 
-def _generation_error(exc: Exception) -> str:
-    """Backward-compatible summary helper used by focused unit tests."""
-    message, conflicts = _generation_failure(exc)
-    return " | ".join([message, *(conflicts or [])])[:500]
-
-
 async def generate_draft(
     request: GenerationRequest,
     user: User,

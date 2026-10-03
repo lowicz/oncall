@@ -31,6 +31,3 @@ class AuditEvent(Base):
     entity_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     summary: Mapped[str] = mapped_column(String(300))
     details: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-
-
-__all__ = ["AuditEvent"]

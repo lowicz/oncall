@@ -95,6 +95,3 @@ class SwapRequestSlot(Base):
         )
     )
     swap_request: Mapped[SwapRequest] = relationship(back_populates="slots")
-
-
-__all__ = ["SwapRequest", "SwapRequestSlot"]

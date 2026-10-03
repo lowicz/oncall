@@ -295,6 +295,3 @@ class SqlAlchemyPolicyStore:
         if change.coordinator_swap_approval_required is not None:
             row.coordinator_swap_approval_required = change.coordinator_swap_approval_required
         return _to_policy(row)
-
-
-__all__ = ["SqlAlchemyGenerationQueue", "SqlAlchemyPolicyStore", "SqlAlchemyRunClaims"]

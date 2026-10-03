@@ -33,6 +33,3 @@ def polish_text(length: int) -> String:
 def _create_btree_gist(_: MetaData, connection: Connection, **__: Any) -> None:
     if connection.dialect.name == "postgresql":
         connection.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
-
-
-__all__ = ["POLISH_COLLATION", "Base", "polish_text"]

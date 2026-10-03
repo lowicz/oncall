@@ -25,15 +25,6 @@ from oncall.fairness import (
     MemberBalance,
     day_weight,
 )
-
-# Pure, so they live in `oncall.fairness` where the domain can reach them;
-# re-exported because callers have always imported them from here.
-from oncall.fairness import WINDOW_DAYS as WINDOW_DAYS
-from oncall.fairness import generator_history_window as generator_history_window
-from oncall.fairness import history_window as history_window
-from oncall.fairness import project_duties as project_duties
-from oncall.fairness import reassign as reassign
-from oncall.fairness import window as window
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember

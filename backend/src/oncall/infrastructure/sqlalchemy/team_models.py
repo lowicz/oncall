@@ -80,6 +80,3 @@ class Eligibility(Base):
     ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     member: Mapped[TeamMember] = relationship(back_populates="eligibility")
-
-
-__all__ = ["Eligibility", "TeamMember"]

@@ -38,6 +38,3 @@ class CalendarEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now()
     )
-
-
-__all__ = ["CalendarEvent"]

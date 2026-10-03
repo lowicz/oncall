@@ -69,6 +69,3 @@ class CalendarFeedToken(Base):
     )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-__all__ = ["CalendarFeedToken", "ShareLink"]

@@ -49,6 +49,3 @@ class PublishedScheduleResponse(BaseModel):
     #: days off instead of a misleading "nobody assigned".
     today_is_day_off: bool = False
     today_holiday_name: str | None = None
-
-
-__all__ = ["CurrentDutyResponse", "PublishedScheduleResponse"]

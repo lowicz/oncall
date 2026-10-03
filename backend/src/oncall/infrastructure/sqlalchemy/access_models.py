@@ -165,6 +165,3 @@ class Session(Base):
 
     user: Mapped[User | None] = relationship()
     share_link: Mapped[ShareLink | None] = relationship()
-
-
-__all__ = ["AccountToken", "Session", "User"]

@@ -14,6 +14,3 @@ class AssignmentResponse(BaseModel):
     assignee_name: str
     is_override: bool
     rule_violations: list[RuleViolationResponse] = []
-
-
-__all__ = ["AssignmentResponse"]
