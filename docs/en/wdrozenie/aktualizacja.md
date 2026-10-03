@@ -317,5 +317,5 @@ reached the generator: the number of CP-SAT threads came from the CPU count.
 The script keeps that line, so after the update the value really applies, and
 on a 2-CPU host CP-SAT runs 8 threads instead of 2. If `.env` still has
 `ONCALL_SOLVER_WORKERS=8` from the old `.env.example` and the thread count was
-not chosen on purpose, blank the value (`ONCALL_SOLVER_WORKERS=`) and run
-`docker compose up -d worker`.
+not chosen on purpose, blank the value (`ONCALL_SOLVER_WORKERS=`) and restart
+the unit (`systemctl --user restart oncall`).

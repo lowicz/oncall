@@ -273,7 +273,7 @@ startem PostgreSQL (tak kończyły się 1.7.1 i 1.7.2 pod podman-compose), skryp
 wykorzystuje. Jeśli ten wolumen już istnieje i coś zawiera (po przeniesieniu
 przerwanym np. zabiciem procesu albo po powrocie opisanym niżej), skrypt go
 nie nadpisuje i odmawia, podając jego nazwę. Po sprawdzeniu, że nie ma w nim
-niczego potrzebnego, usuń go (`podman volume rm <nazwa>`) i uruchom
+niczego potrzebnego, usuń go (`podman volume rm <nazwa>`) i uruchom ponownie jednostkę
 aktualizację ponownie.
 
 ### Powrót sprzed aktualizacji PostgreSQL
@@ -317,4 +317,4 @@ tę linię, więc po aktualizacji wartość naprawdę działa i na hoście z 2
 procesorami CP-SAT uruchamia 8 wątków zamiast 2. Jeśli `.env` wciąż ma
 `ONCALL_SOLVER_WORKERS=8` ze starego `.env.example`, a liczba wątków nie była
 wybrana świadomie, wyczyść wartość (`ONCALL_SOLVER_WORKERS=`) i uruchom
-`docker compose up -d worker`.
+ponownie jednostkę (`systemctl --user restart oncall`).
