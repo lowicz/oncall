@@ -18,7 +18,6 @@ from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleS
 from oncall.effective import effective_assignments, sorted_assignments
 from oncall.fairness import (
     ONCALL_ROLES,
-    CategoryBalance,
     EligibilityPeriod,
     FairnessDuty,
     FairnessMemberInput,
@@ -28,7 +27,7 @@ from oncall.fairness import (
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
-from oncall.presentation.reports import FairnessCategoryResponse, FairnessMemberResponse
+from oncall.presentation.reports import FairnessMemberResponse
 from oncall.workdays import polish_holidays
 
 
@@ -201,25 +200,10 @@ async def prior_oncall_days(
     return dict(result)
 
 
-def category_response(balance: CategoryBalance) -> FairnessCategoryResponse:
-    return FairnessCategoryResponse(
-        actual=balance.actual, expected=balance.expected, deviation=balance.deviation
-    )
-
-
 def member_response(
     member: MemberBalance, criterion_ids: set[uuid.UUID] | None = None
 ) -> FairnessMemberResponse:
     return FairnessMemberResponse(
-        member_id=member.member_id,
-        display_name=member.display_name,
-        active_from=member.active_from,
-        eligible_days=member.eligible_days,
-        primary=category_response(member.primary),
-        secondary=category_response(member.secondary),
-        late_shift=category_response(member.late_shift),
-        weekends=category_response(member.weekends),
-        holidays=category_response(member.holidays),
-        total_points=member.total_points,
+        **vars(member),
         in_criterion=criterion_ids is None or member.member_id in criterion_ids,
     )

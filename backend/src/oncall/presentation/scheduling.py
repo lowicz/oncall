@@ -7,22 +7,16 @@ from typing import Literal, TypedDict
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from oncall.domain.scheduling.models import (
-    Comparison,
-    PendingSwapNotice,
-    ProtectedChange,
-    PublicationPreview,
     QueuedGeneration,
     RunView,
     ScheduleSummary,
     ScheduleView,
-    SuggestedRange,
 )
 from oncall.domain.scheduling.solver import total_time_budget
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
 from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.rules import RuleViolationResponse
-from oncall.rules import RuleViolation
 
 #: Solver budget bounds. Below 5 s the model is barely built; above 300 s the
 #: request outlives every proxy timeout in front of it.
@@ -153,6 +147,8 @@ class ScheduleTransitionRequest(BaseModel):
 
 
 class PublishChangeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     service_date: date
     role: AssignmentRole
     previous_assignee_name: str
@@ -163,6 +159,8 @@ class PublishChangeResponse(BaseModel):
 
 
 class PublishPendingSwapResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     service_date: date
     role: AssignmentRole
@@ -172,6 +170,8 @@ class PublishPendingSwapResponse(BaseModel):
 
 
 class PublishPreviewResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     lost_changes: list[PublishChangeResponse]
     carried_changes: list[PublishChangeResponse] = Field(default_factory=list)
     pending_swaps: list[PublishPendingSwapResponse]
@@ -206,29 +206,6 @@ class QueuedRunResponse(RunResponse):
     uncovered_before: list[date]
 
 
-class SuggestedRangeResponse(TypedDict):
-    first_uncovered: date
-    starts_on: date
-    ends_on: date
-
-
-class ComparisonVariantResponse(TypedDict):
-    id: uuid.UUID
-    name: str
-    rotation_mode: RotationMode | None
-    assignment_count: int
-    handovers: int
-    max_consecutive_days: int
-    load_spread: int
-    override_count: int
-
-
-class ComparisonResponse(TypedDict):
-    starts_on: date
-    ends_on: date
-    variants: list[ComparisonVariantResponse]
-
-
 def run_response(view: RunView) -> RunResponse:
     run = view.run
     return {
@@ -249,14 +226,6 @@ def queued_run_response(queued: QueuedGeneration) -> QueuedRunResponse:
     return {
         **run_response(queued.view),
         "uncovered_before": list(queued.uncovered_before),
-    }
-
-
-def suggested_range_response(suggestion: SuggestedRange) -> SuggestedRangeResponse:
-    return {
-        "first_uncovered": suggestion.first_uncovered,
-        "starts_on": suggestion.starts_on,
-        "ends_on": suggestion.ends_on,
     }
 
 
@@ -320,67 +289,4 @@ def schedule_summary_response(item: ScheduleSummary) -> ScheduleSummaryResponse:
         solver_status=item.solver_status or "UNKNOWN",
         assignment_count=item.assignment_count,
         created_at=item.created_at,
-    )
-
-
-def comparison_response(comparison: Comparison) -> ComparisonResponse:
-    return {
-        "starts_on": comparison.starts_on,
-        "ends_on": comparison.ends_on,
-        "variants": [
-            {
-                "id": item.id,
-                "name": item.name,
-                "rotation_mode": item.rotation_mode,
-                "assignment_count": item.assignment_count,
-                "handovers": item.handovers,
-                "max_consecutive_days": item.max_consecutive_days,
-                "load_spread": item.load_spread,
-                "override_count": item.override_count,
-            }
-            for item in comparison.variants
-        ],
-    }
-
-
-def protected_change_response(change: ProtectedChange) -> PublishChangeResponse:
-    return PublishChangeResponse(
-        service_date=change.service_date,
-        role=change.role,
-        previous_assignee_name=change.previous_assignee_name,
-        new_assignee_name=change.new_assignee_name,
-        source=change.source,
-        original_assignee_name=change.original_assignee_name,
-        reason=change.reason,
-    )
-
-
-def pending_swap_response(item: PendingSwapNotice) -> PublishPendingSwapResponse:
-    return PublishPendingSwapResponse(
-        id=item.id,
-        service_date=item.service_date,
-        role=item.role,
-        requester_name=item.requester_name,
-        replacement_name=item.replacement_name,
-        status=item.status,
-    )
-
-
-def violation_response(violation: RuleViolation) -> RuleViolationResponse:
-    return RuleViolationResponse(
-        rule=violation.rule,
-        message=violation.message,
-        member_name=violation.member_name,
-        days=list(violation.days),
-    )
-
-
-def publication_preview_response(preview: PublicationPreview) -> PublishPreviewResponse:
-    return PublishPreviewResponse(
-        lost_changes=[protected_change_response(item) for item in preview.lost_changes],
-        carried_changes=[protected_change_response(item) for item in preview.carried_changes],
-        pending_swaps=[pending_swap_response(item) for item in preview.pending_swaps],
-        uncovered_before=list(preview.uncovered_before),
-        stale_changes_count=preview.stale_changes_count,
-        rest_violations=[violation_response(item) for item in preview.rest_violations],
     )

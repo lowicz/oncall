@@ -33,7 +33,6 @@ from oncall.presentation.swaps import (
     SwapRequestCreate,
     SwapRequestResponse,
     swap_option_response,
-    swap_policy_response,
     swap_response,
 )
 from oncall.routes.domain_edge import (
@@ -122,7 +121,7 @@ async def swap_policy(_: CurrentUser, ports: SwapProvider) -> SwapPolicyResponse
     """Whether a request the replacement accepts still waits for a
     coordinator. Readable by every signed-in member: the swap screens word the
     next step from it."""
-    return swap_policy_response(await use_cases.swap_policy(ports))
+    return SwapPolicyResponse.model_validate(await use_cases.swap_policy(ports))
 
 
 @router.get("/options", response_model=list[SwapOptionResponse])

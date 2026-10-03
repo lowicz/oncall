@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import asdict
 from datetime import date
 from typing import Annotated
 
@@ -30,11 +31,13 @@ from oncall.fairness_data import member_response
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import require_roles
 from oncall.presentation.reports import DraftFairnessImpactResponse, DraftLensSpreadResponse
+from oncall.presentation.rules import rule_violation_responses
 from oncall.presentation.scheduling import (
-    ComparisonResponse,
     DraftOverrideRequest,
     DraftScheduleResponse,
     GenerateScheduleRequest,
+    PublishChangeResponse,
+    PublishPendingSwapResponse,
     PublishPreviewResponse,
     QueuedRunResponse,
     RunResponse,
@@ -42,17 +45,10 @@ from oncall.presentation.scheduling import (
     ScheduleTransitionRequest,
     SchedulingPolicyResponse,
     SchedulingPolicyUpdate,
-    SuggestedRangeResponse,
-    comparison_response,
-    pending_swap_response,
-    protected_change_response,
-    publication_preview_response,
     queued_run_response,
     run_response,
     schedule_response,
     schedule_summary_response,
-    suggested_range_response,
-    violation_response,
 )
 from oncall.routes.domain_edge import actor_from, domain_errors_as_http
 
@@ -90,10 +86,12 @@ SCHEDULING_ERROR_DETAILS = {
     errors.LostChangesNotAcknowledged: lambda error: _decision_detail(
         error,
         lost_changes=[
-            protected_change_response(item).model_dump(mode="json") for item in error.lost_changes
+            PublishChangeResponse.model_validate(item).model_dump(mode="json")
+            for item in error.lost_changes
         ],
         pending_swaps=[
-            pending_swap_response(item).model_dump(mode="json") for item in error.pending_swaps
+            PublishPendingSwapResponse.model_validate(item).model_dump(mode="json")
+            for item in error.pending_swaps
         ],
     ),
     errors.ChangeResolutionRequired: lambda error: _decision_detail(error, slots=error.slots),
@@ -111,7 +109,7 @@ SCHEDULING_ERROR_DETAILS = {
     errors.RestViolationsNotAcknowledged: lambda error: _decision_detail(
         error,
         rest_violations=[
-            violation_response(item).model_dump(mode="json") for item in error.violations
+            item.model_dump(mode="json") for item in rule_violation_responses(error.violations)
         ],
     ),
 }
@@ -176,9 +174,9 @@ async def generation_status(
 
 
 @router.get("/suggested-range", response_model=dict[str, date])
-async def suggested_range(_: Coordinator, reads: ScheduleQueryProvider) -> SuggestedRangeResponse:
+async def suggested_range(_: Coordinator, reads: ScheduleQueryProvider) -> dict[str, date]:
     suggestion = await queries.suggest_range(reads.schedules, today=business_today())
-    return suggested_range_response(suggestion)
+    return asdict(suggestion)
 
 
 @router.get("/policy", response_model=SchedulingPolicyResponse)
@@ -256,10 +254,10 @@ async def compare_schedules(
     right_id: Annotated[uuid.UUID, Query()],
     _: Coordinator,
     reads: ScheduleQueryProvider,
-) -> ComparisonResponse:
+) -> dict[str, object]:
     with _scheduling_errors():
         comparison = await queries.compare_variants(left_id, right_id, reads.schedules)
-    return comparison_response(comparison)
+    return asdict(comparison)
 
 
 @router.get("/{schedule_id}", response_model=DraftScheduleResponse)
@@ -355,7 +353,7 @@ async def publication_preview(
 ) -> PublishPreviewResponse:
     with _scheduling_errors():
         preview = await publication.preview_publication(schedule_id, ports, today=business_today())
-    return publication_preview_response(preview)
+    return PublishPreviewResponse.model_validate(preview)
 
 
 @router.post("/{schedule_id}/publish", response_model=DraftScheduleResponse)
