@@ -181,9 +181,14 @@ services:
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
       ONCALL_SWITCH_URL: ${ONCALL_SWITCH_URL:-}
-      # ONCALL_SOLVER_WORKERS remains available in .env as an explicit override.
+      # Empty leaves the count to the application: this container's CPU quota
+      # or affinity, capped at eight.
+      ONCALL_SOLVER_WORKERS: ${ONCALL_SOLVER_WORKERS:-}
       ONCALL_SOLVER_LOG: ${ONCALL_SOLVER_LOG:-false}
       ONCALL_GENERATION_CONCURRENCY: ${ONCALL_GENERATION_CONCURRENCY:-1}
+      ONCALL_STALE_RUN_SECONDS: ${ONCALL_STALE_RUN_SECONDS:-120}
+      ONCALL_NOTIFICATION_LEASE_SECONDS: ${ONCALL_NOTIFICATION_LEASE_SECONDS:-300}
+      ONCALL_METRICS_INTERVAL_SECONDS: ${ONCALL_METRICS_INTERVAL_SECONDS:-60}
       # Data retention runs here, once an interval; the ages are shared with
       # the API above, which only states them.
       ONCALL_RETENTION_AUDIT_DAYS: ${ONCALL_RETENTION_AUDIT_DAYS:-365}

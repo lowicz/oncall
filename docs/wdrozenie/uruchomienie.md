@@ -84,7 +84,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_SWITCH_URL` | puste | strona przełączania numeru on-call; prowadzi do niej przypomnienie z pierwszego dnia dyżuru PRIMARY; puste pomija link |
 | `ONCALL_SESSION_COOKIE_SECURE` | `false` | ustaw `true` razem z TLS |
 | `ONCALL_API_WORKERS` | puste | liczba procesów API; puste = z limitu CPU, minimum 2 |
-| `ONCALL_SOLVER_WORKERS` | `8` | wątki CP-SAT |
+| `ONCALL_SOLVER_WORKERS` | puste | wątki CP-SAT; puste = z limitu CPU, maksimum 8 |
 | `ONCALL_GENERATION_CONCURRENCY` | `1` | równoległe generowania w procesie roboczym |
 | `ONCALL_RETENTION_AUDIT_DAYS` | `365` | po ilu dniach znikają wpisy audytu o operacjach; `0` = bezterminowo, patrz [Retencja danych](#retencja-danych) |
 | `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | to samo dla zwykłych logowań i nieudanych prób |

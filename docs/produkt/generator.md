@@ -100,8 +100,8 @@ kilka - model, który musi dowieść, że kryterium odbioru jest nieosiągalne, 
 rozwiązywany wielokrotnie - więc górny limit całego generowania jest
 odpowiednio większy. Ekran pokazuje obie liczby.
 
-Liczba równoległych wątków CP-SAT wynika z przydziału CPU kontenera roboczego
-(w Compose: 2 CPU), z limitem 8. Można ją nadpisać zmienną
+Liczba równoległych wątków CP-SAT wynika z przydziału CPU kontenera roboczego,
+z limitem 8. Można ją nadpisać zmienną
 `ONCALL_SOLVER_WORKERS`.
 
 ## Powtarzalność
