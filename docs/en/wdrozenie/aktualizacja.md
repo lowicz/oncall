@@ -310,3 +310,12 @@ plain directory the script then leaves the local unit files alone (`... has no
 deploy/systemd/...; keeping the local one`). A git checkout cannot be moved
 back before that directory without deleting the script the unit runs, so the
 script refuses and changes nothing.
+
+In releases from before `ONCALL_SOLVER_WORKERS` reached the `worker`
+container, `.env.example` had `ONCALL_SOLVER_WORKERS=8`, and the value never
+reached the generator: the number of CP-SAT threads came from the CPU count.
+The script keeps that line, so after the update the value really applies, and
+on a 2-CPU host CP-SAT runs 8 threads instead of 2. If `.env` still has
+`ONCALL_SOLVER_WORKERS=8` from the old `.env.example` and the thread count was
+not chosen on purpose, blank the value (`ONCALL_SOLVER_WORKERS=`) and restart
+the unit (`systemctl --user restart oncall`).

@@ -103,7 +103,7 @@ is solved repeatedly - so the upper limit of the whole generation is
 correspondingly higher. The screen shows both numbers.
 
 The number of parallel CP-SAT threads follows from the CPU allocation of the
-worker container (in Compose: 2 CPUs), with a limit of 8. It can be overridden
+worker container, with a limit of 8. It can be overridden
 with the `ONCALL_SOLVER_WORKERS` variable.
 
 ## Repeatability

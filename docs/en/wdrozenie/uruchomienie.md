@@ -86,7 +86,7 @@ The full list with comments is in `.env.example`.
 | `ONCALL_SWITCH_URL` | empty | the page for switching the on-call number; the reminder on the first day of a PRIMARY duty leads there; empty leaves the link out |
 | `ONCALL_SESSION_COOKIE_SECURE` | `false` | set `true` together with TLS |
 | `ONCALL_API_WORKERS` | empty | the number of API processes; empty = from the CPU limit, minimum 2 |
-| `ONCALL_SOLVER_WORKERS` | `8` | CP-SAT threads |
+| `ONCALL_SOLVER_WORKERS` | empty | CP-SAT threads; empty = from the CPU limit, maximum 8 |
 | `ONCALL_GENERATION_CONCURRENCY` | `1` | parallel generations in the worker process |
 | `ONCALL_RETENTION_AUDIT_DAYS` | `365` | after how many days audit entries about operations disappear; `0` = indefinitely, see [Data retention](#data-retention) |
 | `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | the same for routine sign-ins and refused attempts |

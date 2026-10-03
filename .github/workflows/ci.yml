@@ -234,7 +234,9 @@ jobs:
       - name: The development overlay changes nothing but where images come from
         run: .github/scripts/compose-parity.sh
       - name: Documented environment variables are wired into Compose
-        run: .github/scripts/env-vars-wired.sh
+        run: |
+          bash .github/scripts/env-vars-wired.test.sh
+          .github/scripts/env-vars-wired.sh
       - name: Every service is read-only and drops all capabilities; db publishes no port
         run: .github/scripts/compose-hardening.sh
       - name: PostgreSQL runs one release everywhere and its data volume is named after its major

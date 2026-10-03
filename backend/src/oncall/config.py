@@ -160,7 +160,9 @@ class Settings(BaseSettings):
     #: a slow database, not a bound on the solve: a healthy generation keeps
     #: beating however long it takes.
     stale_run_seconds: float = Field(default=120.0, ge=10, le=3600)
-    solver_workers: int = Field(default=available_cpu_count(), ge=1, le=8)
+    #: CP-SAT threads per solve. Unset or empty, the solver takes
+    #: `available_cpu_count()`.
+    solver_workers: int | None = Field(default=None, ge=1, le=8)
     solver_log: bool = False
     notification_max_attempts: int = 5
     #: How long a worker's claim on an outbox row holds before the row becomes
@@ -209,6 +211,12 @@ class Settings(BaseSettings):
     def _blank_version_means_dev(cls, value: str) -> str:
         """An empty ONCALL_VERSION (a copied .env with the line unset) is a dev build."""
         return value.strip() or DEV_VERSION
+
+    @field_validator("solver_workers", mode="before")
+    @classmethod
+    def _blank_solver_workers_is_unset(cls, value: object) -> object:
+        """Blank is unset, as Compose passes an unset variable."""
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("oncall_switch_url")
     @classmethod
