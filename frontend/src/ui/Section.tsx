@@ -40,11 +40,6 @@ export function SectionHeading({ title, meta, controls, className, as: Heading =
   )
 }
 
-/** A bordered surface. */
-export function Panelbox({ children, className, padded }: { children: ReactNode; className?: string; padded?: boolean }) {
-  return <div className={cx('panel', padded && 'panel-padded', className)}>{children}</div>
-}
-
 /** A callout with a coloured left rule: a rule result, a consequence, a note. */
 export function Box({ tone = 'muted', title, children, className, role }: {
   tone?: 'muted' | 'ok' | 'warn' | 'bad' | 'sig'
@@ -111,13 +106,4 @@ export function ListRow({ children, aside, className, highlight, tone }: {
       {aside && <div className="list-aside">{aside}</div>}
     </div>
   )
-}
-
-export function ListHeading({ children }: { children: ReactNode }) {
-  return <div className="list-h">{children}</div>
-}
-
-/** Visually hidden text for screen readers. */
-export function SrOnly({ children }: { children: ReactNode }) {
-  return <span className="sr-only">{children}</span>
 }

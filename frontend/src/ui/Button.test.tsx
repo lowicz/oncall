@@ -2,7 +2,7 @@ import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { AnchorButton, Button, IconButton, LinkButton, Spinner } from './Button'
+import { AnchorButton, Button, IconButton, LinkButton } from './Button'
 
 describe('Button', () => {
   it.each([
@@ -97,15 +97,5 @@ describe('link buttons', () => {
     expect(anchor.querySelector('svg')).not.toBeNull()
     rerender(<AnchorButton href="/feed.ics">ICS</AnchorButton>)
     expect(screen.getByRole('link', { name: 'ICS' }).querySelector('svg')).toBeNull()
-  })
-})
-
-describe('Spinner', () => {
-  it('is announced only when named', () => {
-    const { container, rerender } = render(<Spinner label="Zapisywanie" />)
-    expect(screen.getByRole('status', { name: 'Zapisywanie' })).toHaveClass('spinner')
-    rerender(<Spinner />)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(container.querySelector('.spinner')).not.toBeNull()
   })
 })

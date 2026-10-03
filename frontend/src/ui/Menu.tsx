@@ -56,19 +56,10 @@ export function MenuLink({ to, children, external }: { to: string; children: Rea
  * The heading of a group of items. Base UI ties it to the group through
  * context and throws when the label is rendered on its own, which is what
  * blanked the whole application when the account menu opened. So the label
- * is only ever exposed as part of `MenuGroup` / `MenuRadioGroup`.
+ * is only ever exposed as part of `MenuRadioGroup`.
  */
 function GroupLabel({ children }: { children: ReactNode }) {
   return <BaseMenu.GroupLabel className="menu-label">{children}</BaseMenu.GroupLabel>
-}
-
-export function MenuGroup({ label, children }: { label?: ReactNode; children: ReactNode }) {
-  return (
-    <BaseMenu.Group className="menu-group">
-      {label && <GroupLabel>{label}</GroupLabel>}
-      {children}
-    </BaseMenu.Group>
-  )
 }
 
 /**

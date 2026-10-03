@@ -2,16 +2,14 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { Menu, MenuGroup, MenuItem, MenuLink, MenuRadioGroup, MenuSeparator } from './Menu'
+import { Menu, MenuItem, MenuLink, MenuRadioGroup, MenuSeparator } from './Menu'
 
 function AccountMenu({ onRemove, onKeep }: { onRemove: () => void; onKeep: () => void }) {
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark')
   return (
     <Menu trigger={<button type="button">Konto</button>} className="account" align="start">
-      <MenuGroup label="Konto">
-        <MenuLink to="/wiecej">Ustawienia</MenuLink>
-        <MenuLink to="/docs/" external>Dokumentacja</MenuLink>
-      </MenuGroup>
+      <MenuLink to="/wiecej">Ustawienia</MenuLink>
+      <MenuLink to="/docs/" external>Dokumentacja</MenuLink>
       <MenuSeparator />
       <MenuRadioGroup
         label="Motyw"
@@ -23,11 +21,9 @@ function AccountMenu({ onRemove, onKeep }: { onRemove: () => void; onKeep: () =>
           { value: 'system', label: 'Systemowy', disabled: true },
         ]}
       />
-      <MenuGroup>
-        <MenuItem onClick={onKeep} closeOnClick={false}>Zostaw otwarte</MenuItem>
-        <MenuItem onClick={onRemove} tone="danger">Usuń konto</MenuItem>
-        <MenuItem disabled>Niedostępne</MenuItem>
-      </MenuGroup>
+      <MenuItem onClick={onKeep} closeOnClick={false}>Zostaw otwarte</MenuItem>
+      <MenuItem onClick={onRemove} tone="danger">Usuń konto</MenuItem>
+      <MenuItem disabled>Niedostępne</MenuItem>
     </Menu>
   )
 }
@@ -52,11 +48,11 @@ async function open() {
 }
 
 describe('Menu', () => {
-  it('opens from its trigger with grouped items, links and a separator', async () => {
+  it('opens from its trigger with items, links and a separator', async () => {
     renderMenu()
     const menu = await open()
     expect(menu).toHaveClass('menu', 'account')
-    expect(within(menu).getAllByText('Konto')[0]).toHaveClass('menu-label')
+    expect(within(menu).getByText('Motyw')).toHaveClass('menu-label')
     expect(within(menu).getByRole('menuitem', { name: 'Dokumentacja' })).toHaveAttribute('href', '/docs/')
     expect(within(menu).getByRole('menuitem', { name: 'Ustawienia' })).toHaveAttribute('href', '/wiecej')
     expect(within(menu).getByRole('separator')).toHaveClass('menu-sep')
