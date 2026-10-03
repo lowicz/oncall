@@ -29,11 +29,14 @@ x-web-image: &web-image ghcr.io/lowicz/oncall-web:${ONCALL_VERSION:?set ONCALL_V
 
 services:
   db:
-    # A new major version is not a new tag alone: the data directory belongs to
-    # the major that wrote it. deploy/update.sh moves the data when a release
-    # changes this line (oncall-backup.sh upgrade-postgres,
+    # One PostgreSQL release, the one CI tested this file with: a new minor
+    # release (bug and security fixes, same data directory) reaches a host
+    # with an On-call release, never on its own. A new major version is not a
+    # new tag alone: the data directory belongs to the major that wrote it.
+    # deploy/update.sh moves the data when a release changes the major on
+    # this line (oncall-backup.sh upgrade-postgres,
     # docs/wdrozenie/aktualizacja.md).
-    image: postgres:18-alpine
+    image: postgres:18.6-alpine
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

@@ -103,11 +103,12 @@ jobs:
       run:
         working-directory: backend
     services:
-      # The stack's PostgreSQL version on the image's default initdb: no Polish
-      # database collation, so the Polish order test proves the collation the
-      # name columns carry themselves.
+      # The stack's PostgreSQL release (the tag of docker-compose.yml, which
+      # .github/scripts/compose-postgres-volume.sh holds this line to) on the
+      # image's default initdb: no Polish database collation, so the Polish
+      # order test proves the collation the name columns carry themselves.
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18.6-alpine
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -236,7 +237,7 @@ jobs:
         run: .github/scripts/env-vars-wired.sh
       - name: Every service is read-only and drops all capabilities; db publishes no port
         run: .github/scripts/compose-hardening.sh
-      - name: PostgreSQL data volume major matches the image major
+      - name: PostgreSQL runs one release everywhere and its data volume is named after its major
         run: .github/scripts/compose-postgres-volume.sh
       - name: User systemd unit calls the stack script
         run: .github/scripts/systemd-user-unit.sh
@@ -247,7 +248,7 @@ jobs:
 
   backup:
     # oncall-backup.test.sh drives the real script against rootless Podman on
-    # the runner: a hardened postgres:18-alpine stands in for the stack's db,
+    # the runner: the stack's postgres image, hardened, stands in for its db,
     # a PostgreSQL 17 db service started by `podman compose` is moved to 18 by
     # upgrade-postgres, under docker-compose and podman-compose, and every
     # container, volume and file the test or the script creates must be gone

@@ -6,6 +6,10 @@
 # that already exists. Renovate moves the image tag and the volume name
 # together (renovate.json5, the PostgreSQL group); this check keeps a hand
 # edit or a split update from shipping one without the other.
+#
+# The image names one PostgreSQL release (postgres:<major>.<minor>-alpine),
+# never a floating tag, and the contract Compose file and the CI service run
+# that same release: what CI tested is what a host runs.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -23,9 +27,22 @@ case $image_line in
     exit 1
     ;;
 esac
-image_major=${image_line##*:}
-image_major=${image_major%%-*}
-image_major=${image_major%%[^0-9]*}
+image=${image_line#*image:}
+image=${image//[[:space:]]/}
+if ! [[ $image =~ ^postgres:[0-9]+\.[0-9]+-alpine$ ]]; then
+  echo "::error::$file: the db image is $image; name one release, postgres:<major>.<minor>-alpine" >&2
+  exit 1
+fi
+image_major=${image#postgres:}
+image_major=${image_major%%.*}
+
+for other in docker-compose.contract.yml .github/workflows/ci.yml; do
+  others=$({ grep -E '^[[:space:]]*image:[[:space:]]*postgres:' "$other" || true; } | sed -E 's/^[[:space:]]*image:[[:space:]]*//' | sort -u | paste -sd ' ' -)
+  if [ "$others" != "$image" ]; then
+    echo "::error::$other runs ${others:-no postgres image} but $file runs $image; keep them on one release" >&2
+    exit 1
+  fi
+done
 
 mounts=$(grep -E '^[[:space:]]*-[[:space:]]*oncall-postgres-[0-9]+:' "$file" || true)
 decls=$(grep -E '^[[:space:]]*oncall-postgres-[0-9]+:[[:space:]]*$' "$file" || true)
@@ -50,4 +67,4 @@ if [ "$majors" != "$image_major" ]; then
   exit 1
 fi
 
-echo "compose postgres volume: oncall-postgres-$image_major matches postgres:$image_major"
+echo "compose postgres volume: oncall-postgres-$image_major matches $image, as do docker-compose.contract.yml and ci.yml"

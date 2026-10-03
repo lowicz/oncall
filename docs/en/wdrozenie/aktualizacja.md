@@ -68,9 +68,13 @@ described in [Running the stack](uruchomienie.md) and [Systemd](systemd.md).
    `git fetch --tags` and a `git checkout` of the tag instead.
 3. Builds the new `.env` - see [below](#how-env-changes).
 4. Pulls the `ghcr.io/lowicz/oncall-api` and `ghcr.io/lowicz/oncall-web`
-   images in that version, and PostgreSQL's image too when the release
-   changes its major version. If the release does not exist, the script stops
-   here and changes nothing; nor does the restart later wait for the pull.
+   images in that version, and PostgreSQL's image too when the release names
+   another PostgreSQL release than the deployment. A new release of the same
+   major version (e.g. `postgres:18.6-alpine` after the floating
+   `postgres:18-alpine` of older releases) moves no data: the restart starts
+   the new server on the same volume. If an image does not exist, the script
+   stops here and changes nothing; nor does the restart later wait for the
+   pull.
 5. Dumps the database, proved by a restore, because the restart runs the
    release's migrations and they do not roll back on their own - see
    [Database backups](kopie-zapasowe.md#before-an-update). A failed dump ends
@@ -184,7 +188,7 @@ are corrected, the SQL command the warning gives finishes the rule.
 ## A new PostgreSQL major version
 
 A PostgreSQL data directory belongs to the major version that wrote it: the
-`postgres:18-alpine` image refuses to start on version 17's data. A release
+PostgreSQL 18 image refuses to start on version 17's data. A release
 that moves the `db` service in `docker-compose.yml` to a newer major version
 therefore moves the data too, and `update.sh` does it without any extra
 command. The first such release moves the database from PostgreSQL 17 to 18.
