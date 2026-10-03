@@ -119,9 +119,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `.github/workflows/ci.yml` is the gate list (backend: `uv lock --check`
   before the install, ruff check + format, mypy, pytest on SQLite, OpenAPI
   snapshot; backend-postgres: migrations from empty plus `alembic check`, then
-  the concurrency and schema suites against postgres:18; frontend: eslint, tsc, vitest,
-  `npm run build`, site render; compose-config; workflows; image-build
-  without push). `ci-ok` is the one status of ci.yml the ruleset
+  the concurrency and schema suites against the PostgreSQL release
+  `docker-compose.yml` names; frontend: eslint, tsc, vitest, `npm run build`,
+  site render; compose-config; workflows; image-build without push).
+  `ci-ok` is the one status of ci.yml the ruleset
   `main-protected` requires; pull requests report it as `ci-ok`, never
   `ci / ci-ok`, which is its name only under release.yml. SonarCloud (`sonarcloud` job, identity in
   `sonar-project.properties`) is not in `ci-ok` needs and skips cleanly when
