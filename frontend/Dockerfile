@@ -38,6 +38,8 @@ COPY frontend/nginx.http.conf /etc/nginx/presets/http.conf
 COPY frontend/nginx.https.conf /etc/nginx/presets/https.conf
 # Included by both presets at /etc/nginx/security-headers.conf.
 COPY frontend/nginx-security-headers.conf /etc/nginx/security-headers.conf
+# Included by the proxied locations of both presets at /etc/nginx/proxy.conf.
+COPY frontend/nginx-proxy.conf /etc/nginx/proxy.conf
 COPY frontend/docker-entrypoint.d/40-tls.sh /docker-entrypoint.d/40-tls.sh
 RUN chmod 0755 /docker-entrypoint.d/40-tls.sh
 COPY --from=build /app/dist /usr/share/nginx/html
