@@ -83,13 +83,15 @@ def test_domain_sentences_follow_the_language_in_scope() -> None:
     assert polish_holiday_names(HOLIDAY, HOLIDAY) == {HOLIDAY: "Narodowe Święto Niepodległości"}
 
     token = set_request_language("en")
-    assert str(error) == "Schedule not found"
-    assert violation.message == "More than 3 on-call duties within 7 days."
-    assert describe(violation) == (
-        "Anna: More than 3 on-call duties within 7 days. Days: 07-09-2026, 08-09-2026."
-    )
-    assert polish_holiday_names(HOLIDAY, HOLIDAY) == {HOLIDAY: "National Independence Day"}
-    reset_request_language(token)
+    try:
+        assert str(error) == "Schedule not found"
+        assert violation.message == "More than 3 on-call duties within 7 days."
+        assert describe(violation) == (
+            "Anna: More than 3 on-call duties within 7 days. Days: 07-09-2026, 08-09-2026."
+        )
+        assert polish_holiday_names(HOLIDAY, HOLIDAY) == {HOLIDAY: "National Independence Day"}
+    finally:
+        reset_request_language(token)
 
     # The scope is gone: the recorded language is back.
     assert str(error) == "Nie znaleziono grafiku"
