@@ -199,7 +199,8 @@ Zasady:
   PR-a tego samego dnia; bez tej karencji przychodzi tylko to, co nie ma daty
   wydania: obraz `postgres` (Docker Hub nie podaje dat dla obrazu z tyloma
   tagami), comiesięczne odświeżenie plików lock i przypięcie wersji (nie
-  wnoszą nowego wydania),
+  wnoszą nowego wydania); daty stabilnych wydań Pythona pochodzą z API
+  python.org, więc jego poprawki czekają pełne trzy dni,
 - poprawki bezpieczeństwa (alerty GitHub i baza OSV) powstają natychmiast,
   osobno i z etykietą `security`,
 - zmiany wersji głównych oraz każda zmiana środowiska uruchomieniowego
@@ -229,7 +230,7 @@ samym PR-ze:
 | Grupa | Pliki | Źródło wersji |
 | --- | --- | --- |
 | Node.js | `NODE_VERSION` w `ci.yml`, `node-version` w `pages.yml`, `frontend/Dockerfile`, badge w `README.md` | wydania Node.js |
-| Python | `requires-python` w `backend/pyproject.toml`, `PYTHON_VERSION` w `ci.yml`, `backend/Dockerfile`, badge w `README.md` | wydania python.org |
+| Python | `requires-python` w `backend/pyproject.toml`, `PYTHON_VERSION` w `ci.yml`, `backend/Dockerfile`, badge w `README.md` | datowane stabilne wydania z API python.org; CI, obraz i badge wskazują tę samą wersję poprawkową, a granica interpretera zmienia się z minorem |
 | PostgreSQL | `docker-compose.yml` (obraz i wolumen `oncall-postgres-<major>`), `docker-compose.contract.yml`, usługa bazy w `ci.yml`, badge w `README.md` | Docker Hub; trzy linie obrazu wskazują to samo wydanie (`<major>.<minor>-alpine`), wolumen i badge tylko jego major; CI (`compose-postgres-volume.sh`) pilnuje jednego i drugiego |
 | uv | `required-version` w `backend/pyproject.toml`, `UV_VERSION` w `ci.yml`, `backend/Dockerfile` | wydania uv na GitHubie |
 
@@ -289,9 +290,7 @@ Reguła trzech dni go nie obejmuje, bo Docker Hub nie podaje dat tego obrazu;
 zaplanowane wydania PostgreSQL wychodzą w czwartek, a Renovate otwiera PR w
 poniedziałek, wydanie pozaplanowe może jednak przyjść szybciej. Numery nie są
 ciągłe (po 18.4 wyszło 18.6, bo 18.5 nie zostało wydane); Renovate
-proponuje najwyższe wydanie. Opis PR-a odsyła do notatek wydania: ich sekcja
-„Migration to Version” mówi, czy po aktualizacji trzeba coś zrobić, na
-przykład przebudować indeksy, a taki krok trafia do tego samego PR-a.
+proponuje najwyższe wydanie.
 
 Przed scaleniem aktualizacji środowiska uruchomieniowego przeszukaj gałąź
 PR-a starą wersją (np. po przejściu z PostgreSQL 18:

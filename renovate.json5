@@ -81,6 +81,12 @@
   ignorePaths: ['archive/**'],
   enabledManagers: ['github-actions', 'npm', 'pep621', 'dockerfile', 'docker-compose', 'custom.regex'],
   customDatasources: {
+    'python-releases': {
+      defaultRegistryUrlTemplate: 'https://www.python.org/api/v2/downloads/release/',
+      transformTemplates: [
+        '{"releases": [$[is_published = true and pre_release = false and $contains(name, /^Python [0-9]+\\.[0-9]+\\.[0-9]+$/)].{"version": $substringAfter(name, "Python "), "releaseTimestamp": release_date}], "homepage": "https://www.python.org/downloads/", "sourceUrl": "https://github.com/python/cpython"}',
+      ],
+    },
     // The nginx releases published as `nginxinc/nginx-unprivileged:<version>-alpine`,
     // with the date each tag was pushed, for the nginx custom manager below. One
     // anonymous page of Docker Hub's tag list: the 100 most recently pushed
@@ -144,15 +150,9 @@
       versioningTemplate: 'node',
     },
     {
-      // One Python minor, for the same reason: CI (`PYTHON_VERSION`) and the
-      // backend image (backend/Dockerfile), from the python-version
-      // datasource the pep621 manager reads `requires-python` from. Its
-      // default versioning keeps the `3.14` form and moves only to a new
-      // minor. The image is pinned to one patch release
-      // (`python:3.14.8-slim`) and moves to the next 3.14.x the same way, so
-      // the tag keeps its `-slim` variant. ruff and mypy take the version
-      // from requires-python and the interpreter (backend/pyproject.toml), so
-      // they need no entry here.
+      // CI, the image and the badge name the same Python patch release.
+      // python.org dates stable releases; the pep621 interpreter bound uses
+      // this source too, so one age gate applies across the group.
       customType: 'regex',
       managerFilePatterns: [
         '/^\\.github/workflows/.+\\.ya?ml$/',
@@ -160,14 +160,15 @@
         '/^README\\.md$/',
       ],
       matchStrings: [
-        'PYTHON_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+)"',
+        'PYTHON_VERSION: "(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"',
         'python:(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-slim',
         // The version badge in README.md.
-        'shields\\.io/badge/Python-(?<currentValue>[0-9]+\\.[0-9]+)-',
-        'alt="Python (?<currentValue>[0-9]+\\.[0-9]+)"',
+        'shields\\.io/badge/Python-(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-',
+        'alt="Python (?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)"',
       ],
       depNameTemplate: 'python',
-      datasourceTemplate: 'python-version',
+      datasourceTemplate: 'custom.python-releases',
+      versioningTemplate: 'python',
     },
     {
       // The PostgreSQL major written as a bare number: the version badge in
@@ -245,6 +246,7 @@
       matchManagers: ['pep621'],
       matchDepTypes: ['requires-python'],
       rangeStrategy: 'update-lockfile',
+      overrideDatasource: 'custom.python-releases',
     },
     {
       matchManagers: ['dockerfile', 'docker-compose'],
@@ -306,16 +308,6 @@
       minimumReleaseAgeBehaviour: 'timestamp-optional',
     },
     {
-      // A PostgreSQL release can ask for a step after the update (a REINDEX,
-      // a changed setting); its release notes say so. Image lines only: the
-      // bare major of the badge and the volume name has no minor.
-      matchDepNames: ['postgres'],
-      matchCurrentValue: '/^[0-9]+\\.[0-9]+-alpine$/',
-      prBodyNotes: [
-        'Read the [PostgreSQL {{{newMajor}}}.{{{newMinor}}} release notes](https://www.postgresql.org/docs/release/{{{newMajor}}}.{{{newMinor}}}/) before merging: a step their "Migration" section asks for (a REINDEX, a setting) ships in the same pull request.',
-      ],
-    },
-    {
       // Lock file maintenance and pinning move to no new release, so they have
       // no release date; with the date required they never pass the three-day
       // rule. Keeping minimumReleaseAge lets npm still resolve with --before.
@@ -335,7 +327,7 @@
     },
     {
       // A CPython patch release (3.14.8 -> 3.14.9) carries only bug and
-      // security fixes and touches only the backend image line: it comes in
+      // security fixes and moves the image, CI and badge together: it comes in
       // its own weekly pull request like the nginx patches, no approval.
       matchDepNames: ['python'],
       matchUpdateTypes: ['patch'],

@@ -57,11 +57,7 @@ workflow_service_image() {
   ruby -ryaml -e '
 path, job, service = ARGV
 begin
-  begin
-    data = YAML.safe_load_file(path, aliases: true)
-  rescue ArgumentError
-    data = YAML.load_file(path)
-  end
+  data = YAML.safe_load_file(path, aliases: true)
   image = data.fetch("jobs").fetch(job).fetch("services").fetch(service).fetch("image")
 rescue KeyError
   abort "::error::#{path} has no #{job}.services.#{service}.image"

@@ -207,7 +207,8 @@ The rules:
   a PR the same day; only what has no release date comes without that wait:
   the `postgres` image (Docker Hub gives no dates for an image with that many
   tags), the monthly lock file refresh and the pinning of a version (they
-  bring no new release),
+  bring no new release); stable Python releases have dates from the python.org
+  API, so its patches wait the full three days,
 - security fixes (GitHub alerts and the OSV database) are created
   immediately, separately and with the `security` label,
 - major version changes and every change of the runtime (Python, Node,
@@ -237,7 +238,7 @@ same PR:
 | Group | Files | Version source |
 | --- | --- | --- |
 | Node.js | `NODE_VERSION` in `ci.yml`, `node-version` in `pages.yml`, `frontend/Dockerfile`, the badge in `README.md` | Node.js releases |
-| Python | `requires-python` in `backend/pyproject.toml`, `PYTHON_VERSION` in `ci.yml`, `backend/Dockerfile`, the badge in `README.md` | python.org releases |
+| Python | `requires-python` in `backend/pyproject.toml`, `PYTHON_VERSION` in `ci.yml`, `backend/Dockerfile`, the badge in `README.md` | dated stable releases from the python.org API; CI, image and badge name the same patch version, while the interpreter bound changes with the minor |
 | PostgreSQL | `docker-compose.yml` (image and the `oncall-postgres-<major>` volume), `docker-compose.contract.yml`, the database service in `ci.yml`, the badge in `README.md` | Docker Hub; the three image lines name the same release (`<major>.<minor>-alpine`), the volume and the badge only its major; CI (`compose-postgres-volume.sh`) holds both |
 | uv | `required-version` in `backend/pyproject.toml`, `UV_VERSION` in `ci.yml`, `backend/Dockerfile` | uv releases on GitHub |
 
@@ -298,10 +299,7 @@ pending new major does not hold it back. The three-day rule does not cover it,
 because Docker Hub gives no dates for this image; scheduled PostgreSQL releases
 come out on a Thursday and Renovate opens the PR on Monday, but an unscheduled
 release can come sooner. The numbers are not continuous (18.6 followed 18.4,
-because 18.5 was never released); Renovate proposes the highest release. The
-PR description links the release notes: their “Migration to Version” section
-says whether anything has to be done after the update, such as rebuilding
-indexes, and such a step goes into the same PR.
+because 18.5 was never released); Renovate proposes the highest release.
 
 Before merging a runtime update, search the PR branch for the old version
 (e.g. after moving from PostgreSQL 18:

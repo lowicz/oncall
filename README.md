@@ -16,7 +16,7 @@ Fair duty rotations for infrastructure teams: <code>PRIMARY</code>, <code>SECOND
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/lowicz/oncall"></a>
 </p>
 <p align="center">
-  <img alt="Python 3.14" src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white">
+  <img alt="Python 3.14.8" src="https://img.shields.io/badge/Python-3.14.8-3776AB?logo=python&logoColor=white">
   <img alt="Node.js 24" src="https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white">
   <img alt="PostgreSQL 18" src="https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white">
   <a href="https://github.com/lowicz?tab=packages&repo_name=oncall"><img alt="Container images on ghcr.io" src="https://img.shields.io/badge/ghcr.io-oncall--api%20%C2%B7%20oncall--web-2496ED?logo=docker&logoColor=white"></a>
