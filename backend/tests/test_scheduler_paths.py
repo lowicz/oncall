@@ -388,6 +388,59 @@ def test_a_relaxed_spacing_model_that_conflicts_is_not_solved(monkeypatch) -> No
     assert result.warnings == ()
 
 
+def test_a_relaxed_spacing_probe_that_runs_out_of_time_retries_with_the_cap_kept(
+    monkeypatch,
+) -> None:
+    calls = _conflicts_on(monkeypatch, lambda _options: False)
+    probes = _scripted(monkeypatch, [cp_model.INFEASIBLE, cp_model.UNKNOWN, cp_model.FEASIBLE])
+
+    result = _six(historical_points={})
+
+    # The relaxed probe proved nothing, so it is solved again in the time left
+    # rather than read as proof that the criterion is unattainable; the
+    # spacing rules it then suspends are still reported.
+    assert [(call["spacing"], call["acceptance_cap"]) for call in calls] == [
+        (True, ACCEPTANCE_POINTS),
+        (False, ACCEPTANCE_POINTS),
+    ]
+    assert probes == [False, False, False]
+    assert result.status == "FEASIBLE"
+    assert any("rozrzedzania musiały zostać zawieszone" in item for item in result.warnings)
+
+
+def test_a_relaxed_spacing_probe_proven_infeasible_on_its_retry_drops_the_cap(
+    monkeypatch,
+) -> None:
+    calls = _conflicts_on(monkeypatch, lambda _options: False)
+    _scripted(
+        monkeypatch,
+        [cp_model.INFEASIBLE, cp_model.UNKNOWN, cp_model.INFEASIBLE, cp_model.FEASIBLE],
+    )
+
+    result = _six(historical_points={})
+
+    # The retry proves the criterion unattainable, so the cap is dropped and
+    # the uncapped run with the spacing rules kept is the one that succeeds.
+    assert [(call["spacing"], call["acceptance_cap"]) for call in calls][-1] == (True, None)
+    assert result.status == "FEASIBLE"
+
+
+def test_a_relaxed_spacing_probe_out_of_time_with_none_left_fails_as_such(monkeypatch) -> None:
+    calls = _conflicts_on(monkeypatch, lambda _options: False)
+    _scripted(monkeypatch, [cp_model.INFEASIBLE, cp_model.UNKNOWN], pause=1.0)
+
+    result = _six(historical_points={}, solve_seconds=1)
+
+    # The main solve spent the whole ceiling; the cap is never dropped on an
+    # unproven probe, and the run fails as out of time, blaming no rule.
+    assert [(call["spacing"], call["acceptance_cap"]) for call in calls] == [
+        (True, ACCEPTANCE_POINTS),
+        (False, ACCEPTANCE_POINTS),
+    ]
+    assert result.failure_reason == "UNKNOWN"
+    assert result.warnings == ()
+
+
 def test_a_floor_probe_whose_model_conflicts_counts_as_unreachable(monkeypatch) -> None:
     calls = _conflicts_on(monkeypatch, lambda options: options["window_cap"] is not None)
     probes = _scripted(monkeypatch, [cp_model.FEASIBLE])

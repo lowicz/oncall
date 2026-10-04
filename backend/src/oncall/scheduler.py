@@ -1280,7 +1280,6 @@ class _RecoveredSolve:
     lenses: list[_Lens]
     solver: cp_model.CpSolver
     status: cp_model.CpSolverStatus
-    warnings: tuple[str, ...]
     #: Whether the model that produced the solution still had the spacing
     #: rules compiled in; the floor probes have to ask under the same rules.
     spacing: bool
@@ -1290,9 +1289,9 @@ def _recover_from_infeasible(
     *,
     spacing: bool,
     solve_seconds: float,
-    spacing_suspended: str,
     build: Callable[..., _BuiltModel],
     solve: Callable[..., tuple[cp_model.CpSolver, cp_model.CpSolverStatus]],
+    time_left: Callable[[], float],
 ) -> _RecoveredSolve:
     """Find out which of three things blocked the run, and say so.
 
@@ -1307,7 +1306,9 @@ def _recover_from_infeasible(
     infeasibility pins it on the criterion. Only in the second case is the cap
     abandoned and the run solved on the objective alone; how far the result
     then is from the criterion is judged afterwards on the 12-month window,
-    like every other run (decision D2).
+    like every other run (decision D2). A probe that runs out of time proves
+    neither, so it is solved again in the time left; only a probe still
+    unanswered when the time is spent goes back to the caller, the cap kept.
     """
     if spacing:
         relaxed_model, relaxed_variables, relaxed_conflicts, relaxed_lenses = build(
@@ -1317,22 +1318,23 @@ def _recover_from_infeasible(
         relaxed_solver: cp_model.CpSolver | None = None
         if not relaxed_conflicts:
             relaxed_solver, relaxed_status = solve(relaxed_model, solve_seconds)
-        if relaxed_solver is not None and relaxed_status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            # The criterion survives; only the spacing rules had to go.
+            while relaxed_status == cp_model.UNKNOWN and time_left() >= MIN_PASS_SECONDS:
+                relaxed_solver, relaxed_status = solve(relaxed_model, time_left())
+        if relaxed_solver is not None and relaxed_status != cp_model.INFEASIBLE:
+            # The criterion survives, only the spacing rules had to go - or
+            # the probe ran out of time, which proves nothing either way.
             return _RecoveredSolve(
                 relaxed_model,
                 relaxed_variables,
                 relaxed_lenses,
                 relaxed_solver,
                 relaxed_status,
-                (spacing_suspended,),
                 False,
             )
 
     # The criterion itself is unattainable in this range. Drop the cap and
     # solve normally; the spacing rules are suspended only when they
     # independently block coverage.
-    warnings: list[str] = []
     model, variables, _, lenses = build(spacing, None)
     solver, status = solve(model, solve_seconds)
     final_spacing = spacing
@@ -1341,9 +1343,7 @@ def _recover_from_infeasible(
         solver, status = solve(fallback_model, solve_seconds)
         model, variables, lenses = fallback_model, fallback_variables, fallback_lenses
         final_spacing = False
-        if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            warnings.append(spacing_suspended)
-    return _RecoveredSolve(model, variables, lenses, solver, status, tuple(warnings), final_spacing)
+    return _RecoveredSolve(model, variables, lenses, solver, status, final_spacing)
 
 
 def _window_spreads(solver: cp_model.CpSolver, lenses: list[_Lens]) -> dict[str, int]:
@@ -1671,10 +1671,6 @@ def generate_schedule(
     if prior_warning is not None:
         warnings.append(prior_warning)
     acceptance_floor: int | None = None
-    spacing_suspended = (
-        "Reguły rozrzedzania musiały zostać zawieszone, bo przy tej "
-        "obsadzie i nieobecnościach nie da się ich spełnić."
-    )
 
     phase_started = time.monotonic()
     criterion = _criterion_pass(
@@ -1696,13 +1692,12 @@ def generate_schedule(
         recovered = _recover_from_infeasible(
             spacing=spacing,
             solve_seconds=solve_seconds,
-            spacing_suspended=spacing_suspended,
             build=build,
             solve=solve,
+            time_left=time_left,
         )
         model, variables, lenses = recovered.model, recovered.variables, recovered.lenses
         solver, status = recovered.solver, recovered.status
-        warnings.extend(recovered.warnings)
         final_spacing = recovered.spacing
 
     if status == cp_model.UNKNOWN and time_left() >= MIN_PASS_SECONDS:
@@ -1714,6 +1709,11 @@ def generate_schedule(
     status_name = solver.status_name(status)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return _failure_result(status, status_name, time.monotonic() - started, tuple(warnings))
+    if spacing and not final_spacing:
+        warnings.append(
+            "Reguły rozrzedzania musiały zostać zawieszone, bo przy tej "
+            "obsadzie i nieobecnościach nie da się ich spełnić."
+        )
 
     # The criterion is judged where the report judges it: on the 12-month
     # window. A run that kept the range level can still miss it because of
