@@ -396,8 +396,9 @@ def test_a_relaxed_spacing_probe_that_runs_out_of_time_retries_with_the_cap_kept
 
     result = _six(historical_points={})
 
-    # The relaxed probe proved nothing, so it is solved again in the time left
-    # rather than read as proof that the criterion is unattainable.
+    # The relaxed probe proved nothing, so the run's retry solves it again in
+    # the time left rather than reading it as proof that the criterion is
+    # unattainable; the spacing rules it then suspends are still reported.
     assert [(call["spacing"], call["acceptance_cap"]) for call in calls] == [
         (True, ACCEPTANCE_POINTS),
         (False, ACCEPTANCE_POINTS),
