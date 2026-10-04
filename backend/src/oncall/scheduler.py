@@ -185,8 +185,8 @@ FLOOR_PROBE_SECONDS = 25.0
 #: the rest of the debt waits for the next range.
 REPAYMENT_SHARE = 0.5
 
-#: Below this many seconds left, an optional pass (the floor bisection) is not
-#: worth starting.
+#: Below this many seconds left, a further pass (the retry after a pass that ran
+#: out of time, the floor bisection) is not worth starting.
 MIN_PASS_SECONDS = 1.0
 
 #: Data loading, the worker hand-off and progress writes sit outside the solver
@@ -1443,20 +1443,20 @@ def _solution_assignments(
 def _failure_result(
     status: cp_model.CpSolverStatus,
     status_name: str,
-    solve_seconds: float,
+    elapsed_seconds: float,
     warnings: tuple[str, ...],
 ) -> SolverResult:
     """What to tell the coordinator when no schedule came back.
 
     Running out of time and being genuinely over-constrained look the same in
     the result but need opposite advice, so they are never merged into one
-    message.
+    message. The time named is the time the run took, not a configured limit.
     """
     if status == cp_model.UNKNOWN:
-        budget_label = f"{total_time_budget(solve_seconds):.6f}".rstrip("0").rstrip(".")
+        elapsed_label = f"{elapsed_seconds:.1f}".replace(".", ",")
         conflicts = (
-            f"Solver nie zdążył znaleźć kompletnego grafiku w {budget_label} s "
-            "(pełny limit generowania). Dane nie wskazują na konflikt reguł. "
+            f"Solver nie zdążył znaleźć kompletnego grafiku w {elapsed_label} s. "
+            "Dane nie wskazują na konflikt reguł. "
             "Spróbuj krótszego zakresu albo zwiększ budżet czasu w ustawieniach "
             "generowania.",
         )
@@ -1546,6 +1546,7 @@ def generate_schedule(
     log_search_progress: bool = False,
     progress_callback: Callable[[str], None] | None = None,
 ) -> SolverResult:
+    started = time.monotonic()
     days = _days(starts_on, ends_on)
     context = _ModelBuildContext(
         starts_on=starts_on,
@@ -1704,9 +1705,15 @@ def generate_schedule(
         warnings.extend(recovered.warnings)
         final_spacing = recovered.spacing
 
+    if status == cp_model.UNKNOWN and time_left() >= MIN_PASS_SECONDS:
+        # Running out of a pass's budget proves nothing about the rules, and
+        # the run's ceiling usually still has most of its time: a starved
+        # solver gets that time instead of failing long before the ceiling.
+        solver, status = solve(model, time_left())
+
     status_name = solver.status_name(status)
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        return _failure_result(status, status_name, solve_seconds, tuple(warnings))
+        return _failure_result(status, status_name, time.monotonic() - started, tuple(warnings))
 
     # The criterion is judged where the report judges it: on the 12-month
     # window. A run that kept the range level can still miss it because of
