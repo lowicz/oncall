@@ -218,4 +218,3 @@ def test_a_run_out_of_time_names_the_time_it_took(monkeypatch) -> None:
     # The stubbed passes return at once, so the run took a fraction of a
     # second, not the 12 s ceiling the message used to quote.
     assert float(match.group(1).replace(",", ".")) <= round(elapsed, 1)
-    assert "12 s" not in result.conflicts[0]

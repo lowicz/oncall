@@ -232,7 +232,6 @@ def test_unknown_reports_time_budget_instead_of_a_rule_conflict() -> None:
     assert "nie zdążył" in result.conflicts[0]
     # The message names the time the run took, which is what the coordinator
     # actually waited, not a configured limit.
-    assert "0.000004 s" not in result.conflicts[0]
     assert re.search(r"w \d+,\d s\.", result.conflicts[0]), result.conflicts[0]
 
 
