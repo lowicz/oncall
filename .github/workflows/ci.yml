@@ -71,7 +71,7 @@ jobs:
       - name: Types
         run: uv run --frozen mypy
       - name: Tests (SQLite)
-        run: uv run --frozen pytest -q --cov --cov-report=xml:coverage.xml --junitxml "$RUNNER_TEMP/junit-backend.xml"
+        run: uv run --frozen pytest -q -n auto --dist worksteal --cov --cov-report=xml:coverage.xml --junitxml "$RUNNER_TEMP/junit-backend.xml"
       - name: OpenAPI contract matches the approved snapshot
         run: uv run --frozen python scripts/openapi_snapshot.py
       - name: Summary
@@ -254,10 +254,14 @@ jobs:
     # a PostgreSQL 17 db service started by `podman compose` is moved to 18 by
     # upgrade-postgres, under docker-compose and podman-compose, and every
     # container, volume and file the test or the script creates must be gone
-    # afterwards.
-    name: database backup (setup, dump, restore test, restore, PostgreSQL upgrade, cleanup on Podman)
+    # afterwards. One runner per Compose provider, so the two runs overlap.
+    name: database backup (${{ matrix.compose }}; setup, dump, restore test, restore, PostgreSQL upgrade, cleanup on Podman)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        compose: [docker-compose, podman-compose]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -269,12 +273,14 @@ jobs:
       - name: Production setup (stubbed systemd, loginctl and Podman)
         run: bash deploy/backup/setup.test.sh
       - name: Dump, restore test, retention, restore, alert, PostgreSQL upgrade and cleanup against rootless Podman
+        if: matrix.compose == 'docker-compose'
         run: |
           podman --version
           bash deploy/backup/oncall-backup.test.sh
       # podman-compose makes each container require the ones its service
       # depends on, and Podman removes no container another one requires.
       - name: The same against rootless Podman with podman-compose as the Compose provider
+        if: matrix.compose == 'podman-compose'
         env:
           PODMAN_COMPOSE_PROVIDER: podman-compose
         run: |

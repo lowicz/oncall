@@ -286,6 +286,11 @@ async def _solve_and_store(
     return stored.id
 
 
+#: How often a running generation touches its row: the progress bar's
+#: refresh, and the heartbeat `recover_abandoned_runs` reads.
+HEARTBEAT_SECONDS = 1.0
+
+
 async def _heartbeat(factory: Sessions, run_id: uuid.UUID, progress: int) -> None:
     """The heartbeat step: touch the held run with where its bar stands."""
     async with SqlAlchemyUnitOfWork(factory) as db:
@@ -318,7 +323,7 @@ async def _report_progress(
     """
     bar = _Bar(progress=start)
     while not solving.done():
-        await asyncio.sleep(1)
+        await asyncio.sleep(HEARTBEAT_SECONDS)
         # Folded once per pass, and named before the statement so it stays
         # that way: calling `advance` twice would consume the milestone list
         # twice and double the announced budget.

@@ -67,9 +67,12 @@ def test_every_lens_deviation_sums_to_its_mean_after_solving() -> None:
     labels = {lens.label for lens in lenses}
     assert {"primary", "secondary", "late_shift", "weekends", "holidays"} <= labels
 
+    # Any feasible roster fills every slot once, so the invariant holds for the
+    # first solution as surely as for the optimum: no need to optimise.
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 20.0
     solver.parameters.num_workers = 4
+    solver.parameters.stop_after_first_solution = True
     status = solver.solve(model)
     assert status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
 

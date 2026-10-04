@@ -16,7 +16,6 @@ touch the row when the bar is standing still, which is what
 assumes.
 """
 
-import asyncio
 from datetime import date, timedelta
 
 import pytest
@@ -29,7 +28,7 @@ from oncall.infrastructure.sqlalchemy.scheduling_generation import SqlAlchemyGen
 from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS
 from oncall.worker import generation_cycle, process_schedule_run
-from tests.conftest import create_user, staged_draft
+from tests.conftest import Heartbeats, create_user, staged_draft
 
 #: The default from `Settings.stale_run_seconds`, restated here so a change to
 #: it has to be made deliberately in both places.
@@ -156,7 +155,9 @@ async def test_a_generation_lane_reclaims_before_it_claims(db, db_factory) -> No
     assert (await _as_stored(db_factory, run.id)).status == "failed"
 
 
-async def test_the_row_stays_fresh_while_the_bar_stands_still(db, db_factory, monkeypatch) -> None:
+async def test_the_row_stays_fresh_while_the_bar_stands_still(
+    db, db_factory, monkeypatch, heartbeats: Heartbeats
+) -> None:
     """The heartbeat is the whole basis of the cutoff, so it is measured here.
 
     This generation never announces a milestone, so the bar sits at its claimed
@@ -171,7 +172,7 @@ async def test_the_row_stays_fresh_while_the_bar_stands_still(db, db_factory, mo
 
     async def fake_generate(_request, _user, session, progress=None):
         for _ in range(3):
-            await asyncio.sleep(1.4)
+            await heartbeats.wait()
             async with db_factory() as reader:
                 row = await reader.execute(
                     select(ScheduleRun.updated_at, ScheduleRun.progress).where(
@@ -197,7 +198,7 @@ async def test_the_row_stays_fresh_while_the_bar_stands_still(db, db_factory, mo
 
 
 async def test_a_reclaimed_run_is_not_resurrected_by_the_worker_that_lost_it(
-    db, db_factory, monkeypatch
+    db, db_factory, monkeypatch, heartbeats: Heartbeats
 ) -> None:
     """The other half of the race, and the reason the recovery is safe.
 
@@ -215,7 +216,7 @@ async def test_a_reclaimed_run_is_not_resurrected_by_the_worker_that_lost_it(
         assert progress is not None
         progress(MODEL_BUILT)
         progress(f"{SOLVE_PASS} 15")
-        await asyncio.sleep(1.4)
+        await heartbeats.wait()
         # Somebody else decides this lane is gone and reclaims the run.
         async with db_factory() as other:
             assert (
@@ -227,7 +228,7 @@ async def test_a_reclaimed_run_is_not_resurrected_by_the_worker_that_lost_it(
                 == 1
             )
             await other.commit()
-        await asyncio.sleep(1.4)
+        await heartbeats.wait()
         progress(SOLVE_DONE)
         return await staged_draft(session)
 

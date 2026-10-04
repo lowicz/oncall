@@ -1,7 +1,10 @@
+import asyncio
+import os
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 
+import argon2
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, select
@@ -9,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
+from oncall import auth, worker
 from oncall.auth import hash_password
 from oncall.database import SqlAlchemyUnitOfWork, get_db
 from oncall.domain import clock
@@ -23,9 +27,80 @@ from tests.frozen_clock import FrozenClock
 
 TEST_PASSWORD = "test-password-123"
 
+# Production hashes at argon2's default cost, ~50 ms a hash and the same a
+# verify; the suite does that well over a thousand times. The tests exercise
+# the flows, not the work factor, so they hash at the cheapest valid one -
+# the unknown-user dummy included, or every refused login still pays it.
+auth.password_hasher = argon2.PasswordHasher(time_cost=1, memory_cost=8, parallelism=1)
+auth.DUMMY_PASSWORD_HASH = auth.hash_password("dummy-password-used-only-to-equalize-login-cost")
+
+
+@pytest.fixture(autouse=True)
+def _fast_heartbeat(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The worker beats every tenth of a second in tests, not every second."""
+    monkeypatch.setattr(worker, "HEARTBEAT_SECONDS", 0.1)
+
+
+class Heartbeats:
+    """Counts the worker's finished heartbeats, so a test waits for beats
+    rather than for a stretch of time that a loaded machine may not honour."""
+
+    def __init__(self) -> None:
+        self.count = 0
+        self._beat = asyncio.Event()
+
+    def beat(self) -> None:
+        self.count += 1
+        self._beat.set()
+
+    async def wait(self, beats: int = 1) -> None:
+        """Return once `beats` more heartbeats have been written."""
+        target = self.count + beats
+        # A loop that stopped beating fails the test instead of hanging it.
+        async with asyncio.timeout(60):
+            while self.count < target:
+                self._beat.clear()
+                await self._beat.wait()
+
+
+@pytest.fixture
+def heartbeats(monkeypatch: pytest.MonkeyPatch) -> Heartbeats:
+    counter = Heartbeats()
+    heartbeat = worker._heartbeat
+
+    async def counted(*args) -> None:
+        await heartbeat(*args)
+        counter.beat()
+
+    monkeypatch.setattr(worker, "_heartbeat", counted)
+    return counter
+
+
 #: Where a frozen test starts unless it moves itself: an ordinary working
 #: morning, the same day in Warsaw and in UTC.
 FROZEN_AT = datetime(2026, 9, 15, 10, 0, tzinfo=UTC)
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_xdist_auto_num_workers(config: pytest.Config) -> int:
+    """`-n auto`: one worker per two CPUs, so every solver keeps two threads."""
+    return max(1, len(os.sched_getaffinity(0)) // 2)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Under xdist, give each worker its own share of the CPUs.
+
+    CP-SAT sizes its thread pool from the CPUs the process may use
+    (`available_cpu_count`), so N workers would each start one solver thread
+    per CPU and starve each other's time-limited solves. Worker k takes every
+    N-th CPU, which keeps the machine at one solver thread per CPU.
+    """
+    name = os.environ.get("PYTEST_XDIST_WORKER")
+    count = int(os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1"))
+    if name is None or count < 2:
+        return
+    cpus = sorted(os.sched_getaffinity(0))
+    os.sched_setaffinity(0, cpus[int(name.removeprefix("gw")) % len(cpus) :: count])
 
 
 @pytest.fixture

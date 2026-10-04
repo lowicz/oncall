@@ -45,7 +45,7 @@ uv sync --extra dev --frozen
 uv run --frozen ruff check .
 uv run --frozen ruff format --check .
 uv run --frozen mypy
-uv run --frozen pytest
+uv run --frozen pytest -n auto --dist worksteal --cov
 uv run --frozen python scripts/openapi_snapshot.py
 ```
 
