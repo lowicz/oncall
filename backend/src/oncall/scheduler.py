@@ -1322,20 +1322,18 @@ def _recover_from_infeasible(
             relaxed_solver, relaxed_status = solve(relaxed_model, solve_seconds)
             if relaxed_status == cp_model.UNKNOWN and time_left() >= MIN_PASS_SECONDS:
                 relaxed_solver, relaxed_status = solve(relaxed_model, time_left())
-        if relaxed_solver is not None and relaxed_status in (
-            cp_model.OPTIMAL,
-            cp_model.FEASIBLE,
-            cp_model.UNKNOWN,
-        ):
+        if relaxed_solver is not None and relaxed_status != cp_model.INFEASIBLE:
             # A solution: the criterion survives, only the spacing rules had
-            # to go. Out of time: nothing is proven, so nothing is suspended.
+            # to go. Anything else proves nothing, so nothing is suspended.
             return _RecoveredSolve(
                 relaxed_model,
                 relaxed_variables,
                 relaxed_lenses,
                 relaxed_solver,
                 relaxed_status,
-                () if relaxed_status == cp_model.UNKNOWN else (spacing_suspended,),
+                (spacing_suspended,)
+                if relaxed_status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+                else (),
                 False,
             )
 
