@@ -1293,6 +1293,7 @@ def _recover_from_infeasible(
     spacing_suspended: str,
     build: Callable[..., _BuiltModel],
     solve: Callable[..., tuple[cp_model.CpSolver, cp_model.CpSolverStatus]],
+    time_left: Callable[[], float],
 ) -> _RecoveredSolve:
     """Find out which of three things blocked the run, and say so.
 
@@ -1307,7 +1308,9 @@ def _recover_from_infeasible(
     infeasibility pins it on the criterion. Only in the second case is the cap
     abandoned and the run solved on the objective alone; how far the result
     then is from the criterion is judged afterwards on the 12-month window,
-    like every other run (decision D2).
+    like every other run (decision D2). A probe that runs out of time proves
+    neither, so it is solved again in the time left, and if that runs out too
+    the run fails as out of time with the cap kept.
     """
     if spacing:
         relaxed_model, relaxed_variables, relaxed_conflicts, relaxed_lenses = build(
@@ -1317,15 +1320,22 @@ def _recover_from_infeasible(
         relaxed_solver: cp_model.CpSolver | None = None
         if not relaxed_conflicts:
             relaxed_solver, relaxed_status = solve(relaxed_model, solve_seconds)
-        if relaxed_solver is not None and relaxed_status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            # The criterion survives; only the spacing rules had to go.
+            if relaxed_status == cp_model.UNKNOWN and time_left() >= MIN_PASS_SECONDS:
+                relaxed_solver, relaxed_status = solve(relaxed_model, time_left())
+        if relaxed_solver is not None and relaxed_status in (
+            cp_model.OPTIMAL,
+            cp_model.FEASIBLE,
+            cp_model.UNKNOWN,
+        ):
+            # A solution: the criterion survives, only the spacing rules had
+            # to go. Out of time: nothing is proven, so nothing is suspended.
             return _RecoveredSolve(
                 relaxed_model,
                 relaxed_variables,
                 relaxed_lenses,
                 relaxed_solver,
                 relaxed_status,
-                (spacing_suspended,),
+                () if relaxed_status == cp_model.UNKNOWN else (spacing_suspended,),
                 False,
             )
 
@@ -1699,6 +1709,7 @@ def generate_schedule(
             spacing_suspended=spacing_suspended,
             build=build,
             solve=solve,
+            time_left=time_left,
         )
         model, variables, lenses = recovered.model, recovered.variables, recovered.lenses
         solver, status = recovered.solver, recovered.status
