@@ -135,6 +135,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   every changed line and branch needs a test. The backend figure is the
   SQLite suite alone: PostgreSQL-only statements are reached with a fake
   `postgresql` dialect, and code no test can reach is deleted, not excluded.
+  The SQLite suite runs under pytest-xdist, and its solver tests need at
+  least two CPUs per worker, which `backend/tests/conftest.py` enforces by
+  sizing `-n auto` to half the CPUs and pinning each worker to its own share.
   Backend tests read the real clock unless they take `frozen_clock`, so a
   branch reached only by dates relative to today is covered on some weekdays
   only; give it a fixed-date test. Run the same required commands locally before pushing.

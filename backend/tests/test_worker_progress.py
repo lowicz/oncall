@@ -5,7 +5,6 @@ więc przy budżecie 90 sekund pasek stał przez większość przebiegu. Teraz j
 interpolowany po budżecie wszystkich zapowiedzianych przebiegów solvera.
 """
 
-import asyncio
 from datetime import date, timedelta
 
 from sqlalchemy import select
@@ -21,7 +20,7 @@ from oncall.worker import (
     process_schedule_run,
     solve_progress,
 )
-from tests.conftest import create_user, staged_draft
+from tests.conftest import Heartbeats, create_user, staged_draft
 
 
 def test_progress_moves_with_the_time_spent_searching() -> None:
@@ -125,7 +124,7 @@ def test_only_the_milestone_may_claim_the_solve_finished(monkeypatch) -> None:
 
 
 async def test_the_worker_writes_a_moving_bar_between_the_milestones(
-    db, db_factory, monkeypatch
+    db, db_factory, monkeypatch, heartbeats: Heartbeats
 ) -> None:
     user = await create_user(db, "koord.progress", role=UserRole.coordinator)
     run = ScheduleRun(
@@ -147,7 +146,7 @@ async def test_the_worker_writes_a_moving_bar_between_the_milestones(
         progress(MODEL_BUILT)
         progress(f"{SOLVE_PASS} 15")
         for _ in range(3):
-            await asyncio.sleep(1.4)
+            await heartbeats.wait()
             # Read back through a fresh session, like any other client would:
             # the polling loop in `process_schedule_run` writes progress only
             # to the row (via its own separate session), never to `run`

@@ -36,7 +36,7 @@ from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule, ScheduleRun
 from oncall.scheduler import MODEL_BUILT, SOLVE_DONE, SOLVE_PASS
 from oncall.worker import generation_cycle, process_schedule_run
-from tests.conftest import create_user, staged_draft
+from tests.conftest import Heartbeats, create_user, staged_draft
 
 
 class _SessionUse:
@@ -143,6 +143,7 @@ async def test_the_progress_bar_never_writes_through_the_generation_session(
     db_factory: async_sessionmaker[AsyncSession],
     session_use: _SessionUse,
     monkeypatch: pytest.MonkeyPatch,
+    heartbeats: Heartbeats,
 ) -> None:
     """The documented fix, stated as a structure rather than as a comment."""
     await _queued_run(db)
@@ -157,8 +158,7 @@ async def test_the_progress_bar_never_writes_through_the_generation_session(
         generation["task"] = asyncio.current_task().get_name()
         progress(MODEL_BUILT)
         progress(f"{SOLVE_PASS} 15")
-        for _ in range(2):
-            await asyncio.sleep(1.4)
+        await heartbeats.wait(2)
         progress(SOLVE_DONE)
         # Real work on the generation's own session, so it is a genuine
         # concurrent user of it rather than an idle placeholder.
@@ -186,6 +186,7 @@ async def test_no_session_is_used_by_two_tasks_at_once(
     db_factory: async_sessionmaker[AsyncSession],
     session_use: _SessionUse,
     monkeypatch: pytest.MonkeyPatch,
+    heartbeats: Heartbeats,
 ) -> None:
     """The invariant itself, over a run with a solve and a bar in flight."""
     await _queued_run(db)
@@ -199,7 +200,7 @@ async def test_no_session_is_used_by_two_tasks_at_once(
         progress(MODEL_BUILT)
         progress(f"{SOLVE_PASS} 15")
         for _ in range(2):
-            await asyncio.sleep(1.4)
+            await heartbeats.wait()
             await session.scalar(select(ScheduleRun).limit(1))
         progress(SOLVE_DONE)
         staged = await staged_draft(session)
@@ -242,7 +243,10 @@ async def test_the_probe_would_notice_a_shared_session() -> None:
 
 
 async def test_every_step_is_one_committed_unit_of_work(
-    db: AsyncSession, db_factory: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
+    db: AsyncSession,
+    db_factory: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+    heartbeats: Heartbeats,
 ) -> None:
     """Each session the worker opens is a unit of work: committed once, closed.
 
@@ -254,7 +258,7 @@ async def test_every_step_is_one_committed_unit_of_work(
     await _queued_run(db)
 
     async def fake_generate(_request, _user, session, progress=None):
-        await asyncio.sleep(1.4)
+        await heartbeats.wait()
         return await staged_draft(session)
 
     monkeypatch.setattr("oncall.worker.generate_draft", fake_generate)
