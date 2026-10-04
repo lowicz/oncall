@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 
 from ortools.sat.python import cp_model
@@ -229,9 +230,10 @@ def test_unknown_reports_time_budget_instead_of_a_rule_conflict() -> None:
     assert result.status == "UNKNOWN"
     assert result.failure_reason == "UNKNOWN"
     assert "nie zdążył" in result.conflicts[0]
-    # The message names the whole-run ceiling (4 x the per-pass budget), which
-    # is what the coordinator actually waited (HGH6-02).
-    assert "0.000004 s" in result.conflicts[0]
+    # The message names the time the run took, which is what the coordinator
+    # actually waited, not a configured limit.
+    assert "0.000004 s" not in result.conflicts[0]
+    assert re.search(r"w \d+,\d s\.", result.conflicts[0]), result.conflicts[0]
 
 
 def test_historical_imbalance_affects_global_solution() -> None:

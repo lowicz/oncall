@@ -8,6 +8,7 @@ budget a 225 s one. Now `generate_schedule` tracks a deadline and hands every
 pass only the time left.
 """
 
+import re
 import time
 from datetime import date
 
@@ -154,3 +155,67 @@ def test_floor_probes_stop_after_the_first_feasible_solution(monkeypatch) -> Non
     assert stop_flags[:3] == [False, False, False]
     assert stop_flags[3:]
     assert all(stop_flags[3:])
+
+
+def test_a_pass_that_runs_out_of_time_retries_in_the_time_left(monkeypatch) -> None:
+    """A starved solver that finds nothing within its pass budget is handed the
+    rest of the run's ceiling before the run gives up (issue #179); stubbed
+    statuses, because a really starved thread fails only some of the time."""
+    budgets: list[float] = []
+    script = [cp_model.UNKNOWN, cp_model.FEASIBLE]
+
+    def scripted_solve(self, model):
+        budgets.append(self.parameters.max_time_in_seconds)
+        return script.pop(0)
+
+    monkeypatch.setattr(cp_model.CpSolver, "solve", scripted_solve)
+    monkeypatch.setattr(cp_model.CpSolver, "boolean_value", lambda self, _v: False)
+    monkeypatch.setattr(cp_model.CpSolver, "value", lambda self, _v: 0)
+
+    result = generate_schedule(
+        starts_on=date(2026, 9, 7),
+        ends_on=date(2026, 9, 20),
+        mode=RotationMode.hybrid,
+        members=[_member(f"Osoba {index}") for index in range(6)],
+        historical_points={},
+        holidays=set(),
+        solve_seconds=3.0,
+    )
+
+    assert result.failure_reason is None
+    assert result.status == "FEASIBLE"
+    # The first pass had its own budget; the retry has what is left of the
+    # ceiling, less the orchestration reserve.
+    assert budgets[0] <= 3.0
+    assert 3.0 < budgets[1] <= total_time_budget(3.0) - 3.0
+
+
+def test_a_run_out_of_time_names_the_time_it_took(monkeypatch) -> None:
+    budgets: list[float] = []
+
+    def unknown_solve(self, model):
+        budgets.append(self.parameters.max_time_in_seconds)
+        return cp_model.UNKNOWN
+
+    monkeypatch.setattr(cp_model.CpSolver, "solve", unknown_solve)
+
+    started = time.monotonic()
+    result = generate_schedule(
+        starts_on=date(2026, 9, 7),
+        ends_on=date(2026, 9, 20),
+        mode=RotationMode.hybrid,
+        members=[_member(f"Osoba {index}") for index in range(6)],
+        historical_points={},
+        holidays=set(),
+        solve_seconds=3.0,
+    )
+    elapsed = time.monotonic() - started
+
+    assert result.failure_reason == "UNKNOWN"
+    assert len(budgets) == 2, budgets
+    match = re.search(r"w (\d+,\d) s\.", result.conflicts[0])
+    assert match is not None, result.conflicts[0]
+    # The stubbed passes return at once, so the run took a fraction of a
+    # second, not the 12 s ceiling the message used to quote.
+    assert float(match.group(1).replace(",", ".")) <= round(elapsed, 1)
+    assert "12 s" not in result.conflicts[0]
