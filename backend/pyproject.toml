@@ -18,7 +18,7 @@ dependencies = [
   "argon2-cffi==25.1.0",
   "asyncpg==0.31.0",
   "email-validator==2.3.0",
-  "fastapi==0.142.1",
+  "fastapi==0.142.2",
   "holidays==0.105",
   "ldap3==2.9.1",
   "ortools==9.15.6755",
