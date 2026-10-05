@@ -26,7 +26,8 @@ class SwapRequestStore(Protocol):
         ...
 
     async def record_decision(self, request: SwapRequest) -> None:
-        """Store the request's new status and decision note."""
+        """Store the request's new status, decision note and acknowledged
+        rule violations."""
         ...
 
     async def requests(
@@ -52,10 +53,20 @@ class SwapJournal(Protocol):
         requester_name: str,
         replacement_name: str,
         warnings: list[RuleViolation],
-    ) -> None: ...
+        violations: list[RuleViolation],
+    ) -> None:
+        """`violations` are the hard rules the requester acknowledged; the
+        same argument of `accepted` and `approved` names the ones the person
+        deciding there did."""
+        ...
 
     async def accepted(
-        self, request: SwapRequest, *, requester_name: str, replacement_name: str
+        self,
+        request: SwapRequest,
+        *,
+        requester_name: str,
+        replacement_name: str,
+        violations: list[RuleViolation],
     ) -> None: ...
 
     async def rejected(
@@ -85,6 +96,7 @@ class SwapJournal(Protocol):
         replacement_name: str,
         by_coordinator: bool,
         self_approved: bool,
+        violations: list[RuleViolation],
     ) -> None:
         """The swap is in the schedule: approved by a coordinator, or written
         on the replacement's acceptance alone when the policy asks for no

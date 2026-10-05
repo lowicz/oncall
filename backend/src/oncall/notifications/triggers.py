@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import date
 
 from sqlalchemy import select
@@ -19,6 +19,7 @@ from oncall.notifications.base import NotificationMessage
 from oncall.notifications.layout import Brand
 from oncall.notifications.service import enqueue_notification
 from oncall.notifications.templates import RenderedEmail
+from oncall.rules import RuleViolation
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,10 @@ async def notify_swap_requested(
     role: AssignmentRole,
     requester_name: str,
     replacement_name: str,
+    violations: Sequence[RuleViolation],
 ) -> None:
+    """`violations` here and in the triggers below are the hard rules the
+    swap breaks knowingly; the mails that lead to a decision name them."""
     settings = get_settings()
     emails = await _emails_for_names(db, [replacement_name])
     await _enqueue_for(
@@ -131,6 +135,7 @@ async def notify_swap_requested(
             service_date=service_date,
             role=role,
             requester_name=requester_name,
+            violations=violations,
             app=Brand.from_settings(settings),
         ),
         context={"event": "swap_requested", "service_date": service_date.isoformat()},
@@ -144,6 +149,7 @@ async def notify_swap_accepted(
     role: AssignmentRole,
     requester_name: str,
     replacement_name: str,
+    violations: Sequence[RuleViolation],
 ) -> None:
     settings = get_settings()
     emails = await _emails_for_names(db, [requester_name])
@@ -166,6 +172,7 @@ async def notify_swap_accepted(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
+            violations=violations,
             app=Brand.from_settings(settings),
         ),
         except_names=(requester_name, replacement_name),
@@ -269,6 +276,7 @@ async def notify_swap_approved(
     role: AssignmentRole,
     requester_name: str,
     replacement_name: str,
+    violations: Sequence[RuleViolation],
 ) -> None:
     settings = get_settings()
     emails = await _emails_for_names(db, [requester_name, replacement_name])
@@ -281,6 +289,7 @@ async def notify_swap_approved(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
+            violations=violations,
             app=Brand.from_settings(settings),
         ),
         context={"event": "swap_approved", "service_date": service_date.isoformat()},
@@ -295,6 +304,7 @@ async def notify_swap_recorded(
     requester_name: str,
     replacement_name: str,
     swap_id: uuid.UUID,
+    violations: Sequence[RuleViolation],
 ) -> None:
     """A swap the replacement's acceptance wrote into the schedule: both
     parties learn it is in force, and every coordinator is told, with
@@ -311,6 +321,7 @@ async def notify_swap_recorded(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
+            violations=violations,
             app=Brand.from_settings(settings),
         ),
         dedup_key=f"swap-recorded:{swap_id}",
@@ -323,6 +334,7 @@ async def notify_swap_recorded(
             role=role,
             requester_name=requester_name,
             replacement_name=replacement_name,
+            violations=violations,
             app=Brand.from_settings(settings),
         ),
         except_names=(requester_name, replacement_name),

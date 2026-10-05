@@ -22,9 +22,11 @@ from pathlib import Path
 import pytest
 
 from oncall.domain.vocabulary import AssignmentRole
+from oncall.i18n import reset_request_language, set_request_language
 from oncall.notifications import templates
 from oncall.notifications.layout import Brand, Tone, status_tag
 from oncall.notifications.templates import RenderedEmail, format_day, format_range
+from oncall.rules import RuleViolation
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "email_swap_requested.html"
 
@@ -35,10 +37,36 @@ NEXT = date(2026, 9, 26)
 END = date(2026, 10, 21)
 SWITCH_URL = "https://centrala.example/przelacz?zespol=a&numer=1"
 
+#: Two overlapping windows of one broken rule, as the rule check reports them;
+#: a mail names the rule once, over the days of both.
+BROKEN = [
+    RuleViolation(
+        "three_in_seven",
+        "Marek Nowak",
+        (date(2026, 9, 21), date(2026, 9, 22), date(2026, 9, 23), DAY),
+    ),
+    RuleViolation("three_in_seven", "Marek Nowak", (date(2026, 9, 22), date(2026, 9, 23), DAY)),
+]
+BROKEN_LINE = (
+    "Marek Nowak: Więcej niż 3 dyżury on-call w okresie 7 dni. "
+    "Dni: 21-09-2026, 22-09-2026, 23-09-2026, 24-09-2026."
+)
+
 #: Every template, with data that exercises its optional parts.
 RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
     "swap_requested": lambda: templates.swap_requested(
-        service_date=DAY, role=AssignmentRole.primary, requester_name="Anna Kowalska", app=APP
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        violations=[],
+        app=APP,
+    ),
+    "swap_requested_breaking_a_rule": lambda: templates.swap_requested(
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        violations=BROKEN,
+        app=APP,
     ),
     "swap_accepted": lambda: templates.swap_accepted(
         service_date=DAY, role=AssignmentRole.secondary, replacement_name="Marek Nowak", app=APP
@@ -48,6 +76,15 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         role=AssignmentRole.secondary,
         requester_name="Anna Kowalska",
         replacement_name="Marek Nowak",
+        violations=[],
+        app=APP,
+    ),
+    "swap_pending_coordinator_breaking_a_rule": lambda: templates.swap_pending_coordinator(
+        service_date=DAY,
+        role=AssignmentRole.secondary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+        violations=BROKEN,
         app=APP,
     ),
     "swap_rejected": lambda: templates.swap_rejected(
@@ -80,6 +117,15 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",
         replacement_name="Marek Nowak",
+        violations=[],
+        app=APP,
+    ),
+    "swap_approved_breaking_a_rule": lambda: templates.swap_approved(
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+        violations=BROKEN,
         app=APP,
     ),
     "swap_recorded": lambda: templates.swap_recorded(
@@ -87,6 +133,15 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",
         replacement_name="Marek Nowak",
+        violations=[],
+        app=APP,
+    ),
+    "swap_recorded_breaking_a_rule": lambda: templates.swap_recorded(
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+        violations=BROKEN,
         app=APP,
     ),
     "swap_recorded_for_coordinator": lambda: templates.swap_recorded_for_coordinator(
@@ -94,7 +149,18 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",
         replacement_name="Marek Nowak",
+        violations=[],
         app=APP,
+    ),
+    "swap_recorded_for_coordinator_breaking_a_rule": (
+        lambda: templates.swap_recorded_for_coordinator(
+            service_date=DAY,
+            role=AssignmentRole.primary,
+            requester_name="Anna Kowalska",
+            replacement_name="Marek Nowak",
+            violations=BROKEN,
+            app=APP,
+        )
     ),
     "schedule_published": lambda: templates.schedule_published(
         name="Październik 2026",
@@ -308,6 +374,40 @@ def test_the_recorded_swap_asks_nobody_for_a_decision() -> None:
     assert fyi.subject.startswith("Do wiadomości:")
     assert "tylko informacyjna" in fyi.text
     assert "tylko informacyjna" in fyi.html
+
+
+def test_a_swap_that_breaks_a_hard_rule_names_it_in_the_mails_about_it() -> None:
+    """Once per person and rule, with the days of every overlapping window,
+    in the plain text and as a fact row; the ordinary swap says nothing."""
+    for name in (
+        "swap_requested",
+        "swap_pending_coordinator",
+        "swap_approved",
+        "swap_recorded",
+        "swap_recorded_for_coordinator",
+    ):
+        breaking = RENDERINGS[f"{name}_breaking_a_rule"]()
+        assert f"Zamiana łamie reguły grafiku:\n- {BROKEN_LINE}\n\n" in breaking.text, name
+        assert breaking.html.count(">Łamie regułę<") == 1, name
+        assert BROKEN_LINE in breaking.html, name
+        # The preview line stays the sentence the mail opens with.
+        assert not breaking.text.startswith("Zamiana łamie"), name
+
+        ordinary = RENDERINGS[name]()
+        assert "łamie reguł" not in ordinary.text.lower(), name
+        assert "Łamie regułę" not in ordinary.html, name
+
+
+def test_a_broken_rule_is_named_in_polish_whatever_language_asked_for_the_swap() -> None:
+    """A mail is sent, not answered: the request that causes it may be in
+    English, the recipient reads Polish."""
+    token = set_request_language("en")
+    try:
+        rendered = RENDERINGS["swap_requested_breaking_a_rule"]()
+    finally:
+        reset_request_language(token)
+    assert BROKEN_LINE in rendered.text
+    assert "More than" not in rendered.text + rendered.html
 
 
 def test_the_coordinator_copy_wraps_the_accepted_mail() -> None:

@@ -1,6 +1,8 @@
 """D3/Z8: hard rules are enforced on the swap path - a swap that would break
-them is rejected with 409 naming the rule and the days, both at create
-(up-front) and at approve (deciding, because the roster may have moved)."""
+them is answered with 409 naming the rule and the days until whoever acts
+acknowledges it, both at create (up-front) and at approve (deciding, because
+the roster may have moved). `tests/test_swap_rule_breaking.py` follows such a
+swap all the way into the schedule."""
 
 from datetime import date, timedelta
 
@@ -57,7 +59,7 @@ async def _roster(db: AsyncSession):
 
 @pytest.mark.anyio
 @pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
-async def test_swap_breaking_three_in_seven_is_rejected_at_create(
+async def test_swap_breaking_three_in_seven_is_refused_at_create_until_acknowledged(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     """The regression case from QA-REPORT-5: Magdalena has 22-24, the swap
@@ -85,6 +87,7 @@ async def test_swap_breaking_three_in_seven_is_rejected_at_create(
     # together with the secondary role, so `late_shift_anchor` is not raised.
     assert "late_shift_anchor" not in {item["rule"] for item in violations}
     assert created.json()["detail"]["next_step"]
+    assert created.json()["detail"]["reason"] == "RULE_VIOLATIONS"
 
 
 @pytest.mark.anyio
@@ -120,7 +123,8 @@ async def test_valid_swap_still_passes_and_approve_rechecks_the_rules(
 ) -> None:
     """A clean swap (a primary weekday slot, which the secondary anchor does
     not touch) is created; when the roster moves before approval so the same
-    swap would now break three_in_seven, approval rejects it."""
+    swap would now break three_in_seven, approval refuses it until the
+    coordinator acknowledges what it breaks."""
     members = await _team(db)
     schedule = await _roster(db)
     await login(client, "ola")
@@ -172,6 +176,15 @@ async def test_valid_swap_still_passes_and_approve_rechecks_the_rules(
     violations = approved.json()["detail"]["violations"]
     three_in_seven = next(item for item in violations if item["rule"] == "three_in_seven")
     assert three_in_seven["member_name"] == "Marek Nowak"
+    assert "2026-09-23" in three_in_seven["days"]
+    assert approved.json()["detail"]["reason"] == "RULE_VIOLATIONS"
+
+    acknowledged = await client.post(
+        f"/api/v1/swaps/{swap_id}/approve", json={"acknowledge_rule_violations": True}
+    )
+    assert acknowledged.status_code == 200, acknowledged.text
+    assert acknowledged.json()["status"] == "approved"
+    assert "three_in_seven" in {item["rule"] for item in acknowledged.json()["rule_violations"]}
 
 
 @pytest.mark.anyio

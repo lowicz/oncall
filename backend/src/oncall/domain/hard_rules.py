@@ -1,9 +1,9 @@
 """The hard-rule checks, run against the roster in force.
 
-One loader, shared by the swap path (block, decision D3) and the coordinator
-override (warning plus audit): the same resolved roster the calendar matrix
-shows, the same substitution, the same violations - so the two paths can
-never disagree about what a slot move would break.
+One loader, shared by the swap path and the coordinator override: the same
+resolved roster the calendar matrix shows, the same substitution, the same
+violations - so the two paths can never disagree about what a slot move
+would break, and both let it through only with an acknowledgement.
 """
 
 from datetime import date

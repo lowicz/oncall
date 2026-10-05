@@ -65,6 +65,27 @@ class SwapBreaksHardRules(DomainError):
         return translate("swaps.blocked_next_step")
 
 
+class SwapRuleViolationsNotAcknowledged(DomainError):
+    """A swap that breaks a hard rule goes ahead only once the person asking
+    for it or deciding on it has seen the violations and acknowledged them."""
+
+    reason = "RULE_VIOLATIONS"
+
+    def __init__(self, violations: list[RuleViolation]) -> None:
+        super().__init__("swaps.rule_violations_not_acknowledged")
+        self.violations = violations
+
+    @property
+    def next_step(self) -> str:
+        """What that person does next, in the language of the request."""
+        return translate("swaps.acknowledge_next_step")
+
+
+class RuleBreakingSwapNeedsReason(DomainError):
+    def __init__(self) -> None:
+        super().__init__("swaps.rule_breaking_swap_needs_reason")
+
+
 class SwapNotFound(DomainError):
     def __init__(self) -> None:
         super().__init__("swaps.not_found")

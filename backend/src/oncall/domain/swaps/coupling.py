@@ -1,11 +1,11 @@
-"""Which slots a swap moves, and which rule breaks it may bend."""
+"""Which slots a swap moves, and what each rule it breaks means for it."""
 
 from datetime import date
 
 from oncall.domain.roster import OPPOSITE_ONCALL, Duty, Slot, anchor_role
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor
-from oncall.rules import RuleViolation
+from oncall.rules import RuleViolation, merged
 from oncall.workdays import is_working_day
 
 #: Rules a swap bends but does not break. `day_off_block` is a warning on the
@@ -13,6 +13,14 @@ from oncall.workdays import is_working_day
 #: 11-19 anchor split is tolerated only when the replacement cannot hold 11-19,
 #: so it is added per-request rather than listed here.
 TOLERATED_SWAP_RULES = frozenset({"day_off_block", "oncall_late_shift_overlap"})
+
+#: Rules a swap may break, but only knowingly: the ones a coordinator's
+#: correction may break with an acknowledgement. Whoever asks for the swap and
+#: whoever lets it into the schedule each acknowledge them. Every other rule,
+#: a new one included until it is listed here, refuses the swap outright.
+ACKNOWLEDGEABLE_SWAP_RULES = frozenset(
+    {"max_consecutive", "three_in_seven", "rest_after_run", "late_shift_anchor"}
+)
 
 
 def partner_role(role: AssignmentRole, anchor: LateShiftAnchor) -> AssignmentRole | None:
@@ -134,11 +142,14 @@ def has_anchor_exception(moves: list[Slot], anchor: LateShiftAnchor, holidays: s
 
 def partition_violations(
     violations: list[RuleViolation], *, anchor_exception: bool
-) -> tuple[list[RuleViolation], list[RuleViolation]]:
-    """Split into rules that block the swap and rules it only bends."""
+) -> tuple[list[RuleViolation], list[RuleViolation], list[RuleViolation]]:
+    """Split into rules that refuse the swap, rules it breaks only with an
+    acknowledgement (one entry per person and rule) and rules it only bends."""
     tolerated = set(TOLERATED_SWAP_RULES)
     if anchor_exception:
         tolerated.add("late_shift_anchor")
-    blocking = [item for item in violations if item.rule not in tolerated]
     warnings = [item for item in violations if item.rule in tolerated]
-    return blocking, warnings
+    broken = [item for item in violations if item.rule not in tolerated]
+    hard = [item for item in broken if item.rule not in ACKNOWLEDGEABLE_SWAP_RULES]
+    to_acknowledge = [item for item in broken if item.rule in ACKNOWLEDGEABLE_SWAP_RULES]
+    return hard, merged(to_acknowledge), warnings

@@ -8,14 +8,19 @@ inside the first fortnight and no Polish holiday interferes.
 from datetime import date, timedelta
 
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMode
+from oncall.i18n import reset_request_language, set_request_language
 from oncall.rules import (
+    RuleViolation,
     anchor_violations,
+    batch_substitution_violations,
     day_off_block_violations,
     exempt_days,
     late_shift_on_day_off,
+    merged,
     oncall_late_shift_overlap,
     oncall_rest_violations,
     substitution_violations,
+    summarise,
 )
 
 DAY = date(2026, 9, 7)  # Monday
@@ -211,6 +216,80 @@ def test_substitution_ignores_a_preexisting_violation() -> None:
         holidays=set(),
     )
     assert violations == []
+
+
+def test_a_new_violation_is_reported_on_the_days_the_move_adds() -> None:
+    """Dariusz is already over three in seven on the 7th-13th. Taking the 6th
+    as well opens a second window, and that window - the one with the moved
+    day in it - is what the person acknowledging the move has to read, not
+    the days Dariusz was over the limit on before anybody asked."""
+    base = date(2026, 10, 6)
+    held = [base + timedelta(days=offset) for offset in (1, 3, 6, 7)]
+    slots = {(day, AssignmentRole.secondary): "Dariusz" for day in held}
+    slots[(base, AssignmentRole.secondary)] = "Anna"
+
+    violations = substitution_violations(
+        slots,
+        [(base, AssignmentRole.secondary)],
+        "Anna",
+        "Dariusz",
+        LateShiftAnchor.independent,
+        holidays=set(),
+    )
+
+    assert [item for item in violations if item.rule == "three_in_seven"] == [
+        RuleViolation("three_in_seven", "Dariusz", (base, *held[:3]))
+    ]
+
+
+def test_a_violation_that_only_moves_to_other_days_is_not_new() -> None:
+    """Anna holds four duties in seven days and gives one away for another
+    inside the same week: the rule is broken as often as before."""
+    base = date(2026, 10, 5)
+    slots = {
+        (base + timedelta(days=offset), AssignmentRole.secondary): "Anna" for offset in (0, 1, 3, 4)
+    }
+    slots[(base + timedelta(days=5), AssignmentRole.secondary)] = "Marek"
+    moves = [
+        (base, AssignmentRole.secondary, "Marek"),
+        (base + timedelta(days=5), AssignmentRole.secondary, "Anna"),
+    ]
+
+    assert batch_substitution_violations(slots, moves, LateShiftAnchor.independent, set()) == []
+
+
+def test_merged_names_each_person_and_rule_once_over_all_the_days() -> None:
+    first = RuleViolation("three_in_seven", "Marek", (DAY, DAY + timedelta(days=2)))
+    second = RuleViolation("three_in_seven", "Marek", (DAY + timedelta(days=1), DAY))
+    other = RuleViolation("rest_after_run", "Anna", (DAY,))
+
+    assert merged([first, other, second]) == [
+        other,
+        RuleViolation(
+            "three_in_seven", "Marek", (DAY, DAY + timedelta(days=1), DAY + timedelta(days=2))
+        ),
+    ]
+    assert merged([]) == []
+
+
+def test_a_summary_is_written_in_the_language_asked_for_or_the_request_s() -> None:
+    """What is sent or recorded names its language; what is answered follows
+    the request."""
+    long_run = [RuleViolation("max_consecutive", "Anna", tuple(sorted(days_from(DAY, 8))))]
+    polish = (
+        "Anna: Więcej niż 3 kolejne dni dyżuru on-call. Dni: 07-09-2026, 08-09-2026, "
+        "09-09-2026, 10-09-2026, 11-09-2026, 12-09-2026 i 2 więcej."
+    )
+    token = set_request_language("en")
+    try:
+        assert summarise(long_run, "pl") == [polish]
+        assert summarise(long_run) == [
+            "Anna: More than 3 consecutive on-call days. Days: 07-09-2026, 08-09-2026, "
+            "09-09-2026, 10-09-2026, 11-09-2026, 12-09-2026 and 2 more."
+        ]
+    finally:
+        reset_request_language(token)
+    assert summarise(long_run) == [polish]
 
 
 def test_weekly_rotation_states_no_rest_rule() -> None:

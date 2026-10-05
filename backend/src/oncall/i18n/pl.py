@@ -248,6 +248,16 @@ MESSAGES: dict[str, str] = {
     "swaps.slot_has_active_swap": "Dla tego slotu istnieje aktywna zamiana",
     "swaps.breaks_hard_rules": "Operacja łamie reguły twarde grafiku",
     "swaps.blocked_next_step": "Wybierz inny dzień albo poproś koordynatora o korektę grafiku.",
+    "swaps.rule_violations_not_acknowledged": (
+        "Zamiana złamie reguły twarde grafiku; potwierdź świadome naruszenie"
+    ),
+    "swaps.acknowledge_next_step": (
+        "Potwierdź świadome naruszenie reguł twardych albo zrezygnuj z tej zamiany;"
+        " potwierdzenie trafi do dziennika audytu."
+    ),
+    "swaps.rule_breaking_swap_needs_reason": (
+        "Zamiana łamiąca reguły twarde wymaga powodu (minimum 10 znaków)"
+    ),
     "swaps.not_found": "Nie znaleziono zamiany",
     "swaps.only_named_replacement_may_accept": "Tylko wskazany zastępca może zaakceptować",
     "swaps.only_named_replacement_may_reject": "Tylko wskazany zastępca może odrzucić prośbę",
