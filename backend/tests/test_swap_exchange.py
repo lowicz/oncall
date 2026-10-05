@@ -818,9 +818,7 @@ async def test_a_republish_knows_each_direction_of_an_exchange_by_its_own_holder
     ]
 
 
-async def test_a_republish_carries_both_directions_of_an_exchange_as_one(
-    client, db, team
-) -> None:
+async def test_a_republish_carries_both_directions_of_an_exchange_as_one(client, db, team) -> None:
     """Handing the Tuesday back to Bartosz alone is a fourth duty in his week,
     which giving back his Wednesday undoes: the two directions are judged as
     one batch and carried together, never one without the other."""
