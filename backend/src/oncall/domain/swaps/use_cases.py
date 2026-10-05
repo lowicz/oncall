@@ -362,7 +362,6 @@ async def list_return_options(
             if len(roles) == 1
             else [(roles[0], "whole"), *((role, "single") for role in roles)]
         )
-        default = set(roster.moves((day, roles[0]), replacement, requester))
         parts: dict[frozenset[Slot], ReturnOption] = {}
         for role, scope in ways:
             returned = roster.moves((day, role), replacement, requester, scope)
@@ -388,9 +387,10 @@ async def list_return_options(
             continue
         # What a request without a scope takes is offered first, unless a rule
         # refuses it and another way of the day is open.
+        unscoped = parts.pop(frozenset(roster.moves((day, roles[0]), replacement, requester)), None)
         offered, *others = sorted(
-            parts.values(),
-            key=lambda part: (bool(part.blocking_violations), set(part.slots) != default),
+            [way for way in (unscoped, *parts.values()) if way is not None],
+            key=lambda way: bool(way.blocking_violations),
         )
         options.append(replace(offered, parts=tuple(others)))
     return sorted(
