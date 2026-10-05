@@ -1512,13 +1512,13 @@ describe('SwapPanel: what is given of a day', () => {
     expect(await screen.findByRole('radiogroup', { name: 'W zamian biorę' })).toBeInTheDocument()
 
     fireEvent.click(scopeChoice(`Tylko ${label(anchor)}`))
-    expect(scopeGroup()).toHaveAccessibleDescription('Zmiana 11–19 tego dnia zostaje u Ciebie. Rozdzielasz parę: prośba będzie wymagała potwierdzenia.')
+    expect(scopeGroup()).toHaveAccessibleDescription('Zmiana 11–19 tego dnia zostaje u Ciebie. Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.')
     // Another scope is another request: the candidate is picked again.
     expect(screen.queryByRole('radiogroup', { name: 'W zamian biorę' })).not.toBeInTheDocument()
 
     fireEvent.click(scopeChoice('Tylko 11–19'))
     expect(scopeChoice('Tylko 11–19')).toBeChecked()
-    expect(scopeGroup()).toHaveAccessibleDescription(`${label(anchor)} tego dnia zostaje u Ciebie. Rozdzielasz parę: prośba będzie wymagała potwierdzenia.`)
+    expect(scopeGroup()).toHaveAccessibleDescription(`${label(anchor)} tego dnia zostaje u Ciebie. Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.`)
     await waitFor(() => expect(search).toHaveBeenCalledWith('2099-09-14', 'late_shift', 'single'))
     // The split is the same for every candidate: said once above, not on each.
     const candidate = await screen.findByRole('radio', { name: /Piotr Zieliński/ })

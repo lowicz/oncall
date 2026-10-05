@@ -96,8 +96,10 @@ bilans są liczone dla tego wyboru. W dzień z jedną rolą wyboru nie ma.
 - Oddanie jednej roli z takiej pary rozdziela ją. Prośba łamie wtedy regułę
   powiązania i przechodzi drogę opisaną w części
   [Zamiana łamiąca reguły](#zamiana-łamiąca-reguły); podpowiedź zapowiada to
-  raz, a nie przy każdym kandydacie. Druga rola zostaje u Ciebie i można o
-  nią poprosić osobno.
+  raz, a nie przy każdym kandydacie. Wyjątkiem jest oddanie samej roli
+  kotwiczącej osobie, która tego dnia nie może pełnić zmiany 11–19: to
+  wyjątek od powiązania, który daje tylko ostrzeżenie, bez potwierdzenia.
+  Druga rola zostaje u Ciebie i można o nią poprosić osobno.
 - Gdy powiązanie tych dwóch ról nie wiąże (ustawienie „Niezależnie od on-call”
   albo rola on-call inna niż kotwicząca), domyślnie przechodzi jedna rola, a
   „Cały dyżur” przenosi obie; osoba przejmująca musi wtedy mieć eligibility do

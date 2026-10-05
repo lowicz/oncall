@@ -107,8 +107,10 @@ has no such choice.
 - Giving one role of such a pair splits it. The request then breaks the
   anchor rule and takes the path described in
   [A swap that breaks the rules](#a-swap-that-breaks-the-rules); the hint
-  announces this once, not on every candidate. The other role stays with you
-  and can be requested separately.
+  announces this once, not on every candidate. The exception is giving the
+  anchor role alone to a person who cannot work the 11–19 shift that day:
+  that is the exception to the anchor and only warns, with no confirmation.
+  The other role stays with you and can be requested separately.
 - When the anchor does not bind the two roles (the “Independent of on-call”
   setting, or an on-call role other than the anchor role), one role moves by
   default and “Whole duty” moves both; the person taking over then needs

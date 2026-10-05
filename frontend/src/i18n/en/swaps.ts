@@ -123,7 +123,7 @@ export const swaps: Messages['swaps'] = {
     wholeHint: (roles: string) => `${roles}. One acceptance by the replacement covers both.`,
     keeps: (role: string) => `${role} that day stays with you.`,
     keepsLateShift: 'The 11–19 shift that day stays with you.',
-    splitNeedsAcknowledgement: 'You split the pair: the request will need a confirmation.',
+    splitNeedsAcknowledgement: 'You split the pair: the request may need a confirmation - if so, it appears below.',
     noUpcomingDuties: 'No upcoming duties',
     pickDuty: 'Pick a duty',
     unavailableCollision: 'conflict: unavailable',

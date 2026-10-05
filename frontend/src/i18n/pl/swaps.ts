@@ -137,7 +137,7 @@ export const swaps = {
     wholeHint: (roles: string) => `${roles}. Jedna akceptacja zastępcy obejmuje oba.`,
     keeps: (role: string) => `${role} tego dnia zostaje u Ciebie.`,
     keepsLateShift: 'Zmiana 11–19 tego dnia zostaje u Ciebie.',
-    splitNeedsAcknowledgement: 'Rozdzielasz parę: prośba będzie wymagała potwierdzenia.',
+    splitNeedsAcknowledgement: 'Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.',
     noUpcomingDuties: 'Brak nadchodzących dyżurów',
     pickDuty: 'Wybierz dyżur',
     unavailableCollision: 'kolizja: nie mogę',
