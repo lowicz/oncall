@@ -57,22 +57,23 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
  * (their own choice), a coordinator override is something they lose (it is
  * done to them) and moves 11-19 with its anchor role only. `inReturn` is the
  * duty that comes back when the swap is an exchange, `scope` what the swap
- * gives of the day.
+ * gives of the day and `returnScope` what it takes of the day in return.
  *
  * The preview is about points only. The rules the move breaks or bends are
  * listed by the screen around it, which is also where they are acknowledged;
  * repeating them here showed every violation twice.
  */
-export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, scope, mode = 'swap' }: {
+export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, scope, returnScope, mode = 'swap' }: {
   serviceDate: string
   role: AssignmentRole
   replacementId: string
   inReturn?: SwapSlot
   scope?: SwapScope
+  returnScope?: SwapScope
   mode?: 'swap' | 'override'
 }) {
   const impact = useQuery({
-    ...swapImpactQuery(serviceDate, role, replacementId, { inReturn, scope, correction: mode === 'override' }),
+    ...swapImpactQuery(serviceDate, role, replacementId, { inReturn, scope, returnScope, correction: mode === 'override' }),
     enabled: Boolean(serviceDate && role && replacementId),
   })
   const t = useMessages().swaps.impact

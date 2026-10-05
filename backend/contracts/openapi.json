@@ -3666,7 +3666,7 @@
         "type": "object"
       },
       "SwapReturnOptionResponse": {
-        "description": "A duty of the replacement the requester could take in exchange. The\nthree lists judge the whole exchange, both directions as one move.",
+        "description": "A day of the replacement the requester could take in exchange. The\nthree lists judge the whole exchange, both directions as one move.",
         "properties": {
           "blocking_violations": {
             "default": [],
@@ -3674,6 +3674,14 @@
               "$ref": "#/components/schemas/RuleViolationResponse"
             },
             "title": "Blocking Violations",
+            "type": "array"
+          },
+          "parts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SwapReturnOptionResponse"
+            },
+            "title": "Parts",
             "type": "array"
           },
           "role": {
@@ -3686,6 +3694,21 @@
             },
             "title": "Rule Violations",
             "type": "array"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "whole",
+                  "single"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
           },
           "service_date": {
             "format": "date",
@@ -3722,6 +3745,21 @@
         "properties": {
           "role": {
             "$ref": "#/components/schemas/AssignmentRole"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "whole",
+                  "single"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
           },
           "service_date": {
             "format": "date",
@@ -9019,6 +9057,26 @@
                 }
               ],
               "title": "Scope"
+            }
+          },
+          {
+            "in": "query",
+            "name": "return_scope",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "whole",
+                    "single"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Scope"
             }
           },
           {

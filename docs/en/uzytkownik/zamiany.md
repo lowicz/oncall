@@ -83,8 +83,8 @@ and sending.
      name of your on-call role) on a whole duty says the person cannot work
      the 11–19 shift: they take the on-call role alone and the shift stays
      with you. This is the exception to the anchor and only warns.
-3. Optionally pick, in the **In return I take** list, a duty of that person
-   that you take in exchange (see
+3. Optionally pick, in the **In return I take** list, a day of that person
+   whose duty you take in exchange (see
    [Exchanging a duty for a duty](#exchanging-a-duty-for-a-duty)). With no
    pick the request only gives your duty away.
 4. Under the list you see the **Effect on the balance**: how many points move
@@ -128,9 +128,10 @@ your duty and take one of the replacement's duties in return. Each of the two
 people then has as many duties as before, so usually no rule is broken.
 
 After you pick the candidate, the form shows the **In return I take** list
-with their duties of the next 90 days. The first item, “Nothing, I only give
-the duty away”, is the ordinary one-way request. Every item carries a verdict
-computed for the whole exchange, both directions at once:
+with their duties of the next 90 days, one item a day. The first item,
+“Nothing, I only give the duty away”, is the ordinary one-way request. Every
+item carries a verdict computed for the whole exchange, both directions at
+once:
 
 - **“no rule violations”** - the exchange breaks nothing; when giving the duty
   away alone would need an acknowledgement, the first such item is
@@ -142,14 +143,26 @@ computed for the whole exchange, both directions at once:
 - **“hard rule”** with the note “not possible: …” - this item cannot be
   picked.
 
+When the replacement holds an on-call role and the 11–19 shift that day, the
+same choice as **I give** appears under the picked item, here as **I take**:
+“Whole duty”, “Only SECONDARY” (or “Only PRIMARY”) and “Only 11–19”. The item
+then shows the roles that come back and the verdict for that choice; this is
+how you give, for example, your 11–19 shift on Tuesday for the replacement's
+11–19 shift on Wednesday. The default is the same as when giving: the whole
+duty when the anchor binds the two roles, one role when it does not. If a hard
+rule rules the default out and another choice is possible, the item offers
+that one: when you hold the other on-call role that day yourself, you get the
+11–19 shift alone. A day with one role has no such choice.
+
 The rules of an exchange:
 
-- one duty moves in each direction, and the duty taken in return is on another
-  day than the one given,
-- the duty taken in return moves whole: the anchor role and 11–19 travel
-  together, and when the person taking over cannot work the 11–19 shift, the
-  shift stays with the person who has it,
-- you need eligibility for the role taken in return and must have no
+- one day moves in each direction - the whole duty or one role of it - and the
+  day taken in return is another than the one given,
+- a whole duty taken in return moves like one given: the anchor role and
+  11–19 travel together, and when you cannot work the 11–19 shift, the shift
+  stays with the replacement (the exception to the anchor, a warning only);
+  taking one role of an anchored pair splits it and needs an acknowledgement,
+- you need eligibility for every role taken in return and must have no
   “Unavailable” entry that day,
 - no other open request may cover the duty taken in return,
 - the two duties may belong to different published schedules.
@@ -183,7 +196,7 @@ Breaking four rest and anchor rules can be acknowledged:
 - more than 3 on-call duties within 7 days,
 - less than 2 days of rest after a run of on-call duties,
 - the 11–19 shift and the anchor role held by different people, also when the
-  request gives only one role of the anchored pair.
+  request gives or takes in return only one role of the anchored pair.
 
 The other hard rules block a swap without exception: the same person will not
 take both on-call duties of one day, and the 11–19 shift will not land on a
@@ -195,7 +208,8 @@ How it goes:
    breaks the schedule rules” with a list: who, which rule and on which days.
    The “Send request” button works only after ticking “I understand and
    knowingly break these rules”; the **reason** is optional. Picking another
-   candidate, or another duty in return, takes the tick back.
+   candidate, or another duty in return, including another **I take** choice,
+   takes the tick back.
 2. The **replacement** sees the same list in the decision sheet - next to
    their own name with the note “(you)”, because it is most often their rest
    the swap cuts into. “Accept” works only after ticking the acknowledgement.

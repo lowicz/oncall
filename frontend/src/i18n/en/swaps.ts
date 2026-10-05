@@ -146,6 +146,7 @@ export const swaps: Messages['swaps'] = {
     improvesBalance: 'improves the balance',
     hardRule: 'hard rule',
     inReturn: 'In return I take',
+    takeScope: 'I take',
     inReturnMeta: (name: string) => `optional · from: ${name}`,
     returnSearching: 'Looking for duties to take in return',
     noReturnDuties: (name: string) => `${name} has no upcoming duties that could be taken in return.`,

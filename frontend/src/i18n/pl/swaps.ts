@@ -163,6 +163,8 @@ export const swaps = {
     hardRule: 'reguła twarda',
     /** The optional step: one of the replacement's duties taken in exchange. */
     inReturn: 'W zamian biorę',
+    /** What the request takes of the chosen day of the replacement, when it has two roles. */
+    takeScope: 'Biorę',
     inReturnMeta: (name: string) => `opcjonalnie · od: ${name}`,
     returnSearching: 'Szukam dyżurów do wzięcia w zamian',
     noReturnDuties: (name: string) => `${name} nie ma nadchodzących dyżurów, które można wziąć w zamian.`,
