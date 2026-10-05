@@ -381,8 +381,8 @@ async def _protected_changes(
         source = "approved_swap" if swap is not None else "override"
         if swap is None:
             origin = old.original
-        elif swap.requester_name is not None:
-            origin = SlotOrigin(swap.requester_member_id, swap.requester_name)
+        elif swap.original_name is not None:
+            origin = SlotOrigin(swap.original_member_id, swap.original_name)
         else:
             origin = None
         moves = list(swap.slots) if swap is not None else [old.slot]
@@ -410,6 +410,8 @@ async def _pending_swap_notices(
     fully covers, and otherwise only the days inside its own range. A swap on
     a day this schedule does not touch survives the publication, so naming it
     would ask the coordinator to weigh something that is not going to happen.
+    An exchange is one decision, so losing a slot of either direction takes
+    the whole request.
     """
     overlapping = await ports.schedules.published_overlapping(schedule)
     fully_covered = {
@@ -421,10 +423,10 @@ async def _pending_swap_notices(
     pending = [
         swap
         for swap in candidates
-        if (
-            swap.schedule_id in fully_covered
-            or any(schedule.starts_on <= day <= schedule.ends_on for day in swap.slot_dates)
-            or (not swap.slot_dates and schedule.starts_on <= swap.service_date <= schedule.ends_on)
+        if not swap.schedule_ids.isdisjoint(fully_covered)
+        or any(
+            schedule.starts_on <= day <= schedule.ends_on
+            for day, _role in swap.slots + swap.return_slots
         )
     ]
     member_ids = {
@@ -441,6 +443,8 @@ async def _pending_swap_notices(
             requester_name=names.get(swap.requester_member_id, "Nieznana osoba"),
             replacement_name=names.get(swap.replacement_member_id, "Nieznana osoba"),
             status=swap.status,
+            slots=swap.slots,
+            return_slots=swap.return_slots,
         )
         for swap in pending
     ]

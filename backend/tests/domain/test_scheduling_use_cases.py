@@ -417,13 +417,13 @@ async def test_publication_carries_a_safe_change_and_replaces_the_rest(world) ->
     )
     pending = PendingSwap(
         uuid.uuid4(),
-        world.roster.schedule_ref.id,
+        frozenset({world.roster.schedule_ref.id}),
         MONDAY + timedelta(days=2),
         AssignmentRole.primary,
         "pending_coordinator",
         world.celina.id,
         world.dawid.id,
-        (MONDAY + timedelta(days=2),),
+        ((MONDAY + timedelta(days=2), AssignmentRole.primary),),
     )
     world.swaps.pending.append(pending)
 
@@ -623,19 +623,51 @@ async def test_a_pending_swap_outside_the_published_range_is_not_a_publication_n
     world.swaps.pending.append(
         PendingSwap(
             uuid.uuid4(),
-            world.roster.schedule_ref.id,
+            frozenset({world.roster.schedule_ref.id}),
             untouched_day,
             AssignmentRole.primary,
             "pending_coordinator",
             world.celina.id,
             world.dawid.id,
-            (untouched_day,),
+            ((untouched_day, AssignmentRole.primary),),
         )
     )
 
     preview = await preview_publication(fortnight.id, world.publication, today=MONDAY)
 
     assert preview.pending_swaps == ()
+
+
+async def test_a_pending_exchange_is_announced_for_the_day_it_takes_in_return(world) -> None:
+    """The duty given away lies in the half the fortnight does not touch, the
+    one taken in return inside it: the exchange is one decision, so the
+    publication cancels it, and the notice carries both directions."""
+    month = complete_schedule(MONDAY, _rotation(world), days=28, status=ScheduleStatus.published)
+    world.publish_roster_from(month)
+    fortnight = world.schedules.put(
+        complete_schedule(
+            MONDAY, _rotation(world), status=ScheduleStatus.proposed, name="Szkic marzec"
+        )
+    )
+    given = (MONDAY + timedelta(days=20), AssignmentRole.primary)
+    returned = (MONDAY + timedelta(days=3), AssignmentRole.primary)
+    world.swaps.pending.append(
+        PendingSwap(
+            uuid.uuid4(),
+            frozenset({world.roster.schedule_ref.id}),
+            *given,
+            "pending_replacement",
+            world.celina.id,
+            world.dawid.id,
+            (given,),
+            (returned,),
+        )
+    )
+
+    preview = await preview_publication(fortnight.id, world.publication, today=MONDAY)
+
+    (notice,) = preview.pending_swaps
+    assert (notice.slots, notice.return_slots) == ((given,), (returned,))
 
 
 async def test_a_carry_is_not_refused_for_a_rule_the_rotation_does_not_have(world) -> None:
@@ -823,9 +855,8 @@ async def test_a_swap_whose_requester_is_unknown_cannot_be_carried(world) -> Non
     world.swaps.approved.append(
         ApprovedSwap(
             schedule_id=world.roster.schedule_ref.id,
-            requester_member_id=world.anna.id,
-            requester_name=None,
-            replacement_name="Dawid",
+            original_member_id=world.anna.id,
+            original_name=None,
             slots=((MONDAY, AssignmentRole.primary),),
         )
     )

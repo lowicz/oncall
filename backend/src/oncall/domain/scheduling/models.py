@@ -439,6 +439,9 @@ class PendingSwapNotice:
     requester_name: str
     replacement_name: str
     status: str
+    #: Every slot the requester gives, and the ones taken in exchange.
+    slots: tuple[Slot, ...] = ()
+    return_slots: tuple[Slot, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -483,24 +486,32 @@ class ChangeRecord:
 
 @dataclass(frozen=True)
 class ApprovedSwap:
+    """The slots an approved swap moved one way, within one schedule: what
+    the requester gave, or what the replacement gave back in an exchange."""
+
     schedule_id: uuid.UUID
-    requester_member_id: uuid.UUID
-    requester_name: str | None
-    replacement_name: str | None
-    #: Every slot the swap moved; a coupled 11-19 swap moves two.
+    #: Who held the slots before the swap; the name is None when it cannot
+    #: be told any more.
+    original_member_id: uuid.UUID
+    original_name: str | None
+    #: A coupled 11-19 swap moves two.
     slots: tuple[Slot, ...]
 
 
 @dataclass(frozen=True)
 class PendingSwap:
     id: uuid.UUID
-    schedule_id: uuid.UUID
+    #: Every schedule that holds one of its slots: the two directions of an
+    #: exchange may lie in different publications.
+    schedule_ids: frozenset[uuid.UUID]
     service_date: date
     role: AssignmentRole
     status: str
     requester_member_id: uuid.UUID
     replacement_member_id: uuid.UUID
-    slot_dates: tuple[date, ...]
+    #: Every slot the requester gives, and the ones taken in exchange.
+    slots: tuple[Slot, ...]
+    return_slots: tuple[Slot, ...] = ()
 
 
 @dataclass(frozen=True)

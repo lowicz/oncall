@@ -75,6 +75,14 @@ class SwapStatus(StrEnum):
     cancelled = "cancelled"
 
 
+class SwapSlotDirection(StrEnum):
+    """Which way a slot of a swap travels: from the requester to the
+    replacement, or back to the requester in return."""
+
+    given = "given"
+    returned = "returned"
+
+
 class AuthSource(StrEnum):
     local = "local"
     ldap = "ldap"

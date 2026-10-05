@@ -11,12 +11,13 @@ from sqlalchemy import func, select
 from oncall.domain.access import errors as AccessErrors
 from oncall.domain.availability.models import NewAvailabilityEntry
 from oncall.domain.overrides.models import OverrideMove
-from oncall.domain.swaps.models import AcknowledgedViolation, NewSwapRequest
+from oncall.domain.swaps.models import AcknowledgedViolation, NewSwapRequest, SwapReturn
 from oncall.domain.vocabulary import (
     AssignmentRole,
     AvailabilityKind,
     LateShiftAnchor,
     ScheduleStatus,
+    SwapSlotDirection,
     SwapStatus,
     UserRole,
 )
@@ -30,7 +31,7 @@ from oncall.infrastructure.sqlalchemy.roster import (
     SqlAlchemyRosterPolicy,
 )
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
-from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
 from oncall.infrastructure.sqlalchemy.swaps import SqlAlchemySwapJournal, SqlAlchemySwapRequests
 from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
 from oncall.rules import RuleViolation
@@ -183,6 +184,39 @@ async def test_swap_store_round_trip_without_committing(db, people) -> None:
 
     await db.rollback()
     assert await _count(db, SwapRequest) == 0
+
+
+async def test_swap_store_keeps_each_direction_of_an_exchange_with_its_schedule(db, people) -> None:
+    """The duty taken in return lies in another publication: every slot row
+    says which way it travels and which schedule holds it, and the request
+    reads back the same whichever way it is loaded."""
+    later = await create_published_schedule(
+        db, starts_on=DAY + timedelta(days=3), days=1, primary=["Anna"], secondary=["Bartek"]
+    )
+    back = DAY + timedelta(days=3)
+    in_return = SwapReturn(
+        later.id, ((back, AssignmentRole.late_shift), (back, AssignmentRole.primary))
+    )
+    store = SqlAlchemySwapRequests(db)
+
+    stored = await store.add(_new_request(people, in_return=in_return))
+
+    # The on-call role names each duty; its 11-19 follows.
+    assert stored.slots == ((DAY, AssignmentRole.secondary), (DAY, AssignmentRole.late_shift))
+    assert stored.in_return == SwapReturn(
+        later.id, ((back, AssignmentRole.primary), (back, AssignmentRole.late_shift))
+    )
+    rows = (await db.scalars(select(SwapRequestSlot))).all()
+    assert {(row.service_date, row.direction, row.schedule_id) for row in rows} == {
+        (DAY, SwapSlotDirection.given, people["schedule"].id),
+        (back, SwapSlotDirection.returned, later.id),
+    }
+    assert await store.has_active_request_for((back, AssignmentRole.primary))
+    assert (await store.take_for_decision(stored.id)).in_return == stored.in_return
+    (listed,) = await store.requests(involving=None, statuses=(), limit=10, offset=0)
+    assert (listed.slots, listed.in_return) == (stored.slots, stored.in_return)
+
+    await db.rollback()
 
 
 async def test_swap_store_keeps_the_acknowledged_violations_by_side(db, people) -> None:

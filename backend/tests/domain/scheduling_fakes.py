@@ -290,7 +290,7 @@ class FakePublicationSwaps:
         return [item for item in self.approved if item.schedule_id in schedule_ids]
 
     async def pending_on(self, schedule_ids):
-        return [item for item in self.pending if item.schedule_id in schedule_ids]
+        return [item for item in self.pending if not item.schedule_ids.isdisjoint(schedule_ids)]
 
     async def cancel_for_publication(self, swap_ids):
         taken = [item.id for item in self.pending if item.id in swap_ids]

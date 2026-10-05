@@ -147,6 +147,56 @@ def _broken_rules_facts(violations: Sequence[RuleViolation]) -> list[Fact]:
     return [Fact("Łamie regułę", text(line)) for line in _broken_rules(violations)]
 
 
+#: The heading over the list of every slot a swap moves.
+_MOVED_SLOTS = "Zamiana obejmuje"
+
+#: A roster position as the domain has it; `Slot` here is a row of the mail.
+Duty = tuple[date, AssignmentRole]
+
+
+@dataclass(frozen=True)
+class _SwapDuties:
+    """How a swap's mail names its duties beyond the one in its first
+    sentence: the 11-19 slot that travels with a role and, in an exchange,
+    the duty taken in return."""
+
+    #: The day and role of the subject line; both duties of an exchange.
+    headline: str
+    #: The plain-text list of every slot, empty while only one moves.
+    text: str
+    slots: list[Slot] | None
+    facts: list[Fact]
+    #: The advice to switch the on-call number, naming both days of an exchange.
+    switch_number: str
+
+
+def _swap_duties(
+    service_date: date, role: AssignmentRole, slots: Sequence[Duty], return_slots: Sequence[Duty]
+) -> _SwapDuties:
+    headline = f"{format_day(service_date)} · {ROLE_LABELS[role]}"
+    facts: list[Fact] = []
+    switch_number = _SWITCH_NUMBER
+    if return_slots:
+        return_date, return_role = return_slots[0]
+        headline += f" ⇄ {format_day(return_date)} · {ROLE_LABELS[return_role]}"
+        facts = [Fact("W zamian", join(_day(return_date), text(" · "), _role(return_role)))]
+        switch_number = (
+            f"{_SWITCH_NUMBER.removesuffix('.')}: "
+            f"{format_day(service_date)} i {format_day(return_date)}."
+        )
+    if len(slots) + len(return_slots) < 2:
+        return _SwapDuties(headline, "", None, facts, switch_number)
+    lines = [_slot_line(*slot) for slot in slots] + [
+        f"{_slot_line(*slot)} (w zamian)" for slot in return_slots
+    ]
+    rows = [_slot(*slot) for slot in slots] + [
+        _slot(*slot, text("w zamian")) for slot in return_slots
+    ]
+    return _SwapDuties(
+        headline, f"{_MOVED_SLOTS}:\n" + "\n".join(lines) + "\n\n", rows, facts, switch_number
+    )
+
+
 def _swaps_action(app: Brand, label: str = "Zobacz zamiany") -> Action:
     return Action(label=label, url=f"{app.url}/#zamiany")
 
@@ -159,14 +209,18 @@ def swap_requested(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
     requester_name: str,
     violations: Sequence[RuleViolation],
     app: Brand,
 ) -> RenderedEmail:
     day = format_day(service_date)
-    subject = f"Prośba o zamianę: {day} · {ROLE_LABELS[role]}"
+    duties = _swap_duties(service_date, role, slots, return_slots)
+    subject = f"Prośba o zamianę: {duties.headline}"
     body = (
         f"{requester_name} prosi o przejęcie dyżuru {ROLE_LABELS[role]} w dniu {day}.\n\n"
+        + duties.text
         + _broken_rules_text(violations)
         + f"Odpowiedz w aplikacji: {app.url}/#zamiany\n"
     )
@@ -188,21 +242,32 @@ def swap_requested(
             Fact("Dzień", _day(service_date)),
             Fact("Rola", _role(role)),
             Fact("Prosi", text(requester_name)),
+            *duties.facts,
             *_broken_rules_facts(violations),
         ],
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
         action=_swaps_action(app, "Odpowiedz w aplikacji"),
     )
 
 
 def swap_accepted(
-    *, service_date: date, role: AssignmentRole, replacement_name: str, app: Brand
+    *,
+    service_date: date,
+    role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
+    replacement_name: str,
+    app: Brand,
 ) -> RenderedEmail:
     day = format_day(service_date)
-    subject = f"Zamiana zaakceptowana przez zastępcę: {day} · {ROLE_LABELS[role]}"
+    duties = _swap_duties(service_date, role, slots, return_slots)
+    subject = f"Zamiana zaakceptowana przez zastępcę: {duties.headline}"
     body = (
         f"{replacement_name} zaakceptował(a) Twoją prośbę o zamianę dyżuru "
         f"{ROLE_LABELS[role]} w dniu {day}.\n\n"
-        f"Wniosek czeka teraz na akceptację koordynatora: {app.url}/#zamiany\n"
+        + duties.text
+        + f"Wniosek czeka teraz na akceptację koordynatora: {app.url}/#zamiany\n"
     )
     return _render(
         app=app,
@@ -222,8 +287,11 @@ def swap_accepted(
             Fact("Dzień", _day(service_date)),
             Fact("Rola", _role(role)),
             Fact("Zastępca", text(replacement_name)),
+            *duties.facts,
             Fact("Status", status_tag("Oczekuje na koordynatora", Tone.sig)),
         ],
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
         note=Note("Wniosek czeka teraz na akceptację koordynatora.", Tone.sig),
         action=_swaps_action(app),
     )
@@ -233,6 +301,8 @@ def swap_pending_coordinator(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
     requester_name: str,
     replacement_name: str,
     violations: Sequence[RuleViolation],
@@ -240,8 +310,14 @@ def swap_pending_coordinator(
 ) -> RenderedEmail:
     """The coordinator's copy of an accepted swap: the same facts, with the
     decision it now waits for in front."""
+    duties = _swap_duties(service_date, role, slots, return_slots)
     accepted = swap_accepted(
-        service_date=service_date, role=role, replacement_name=replacement_name, app=app
+        service_date=service_date,
+        role=role,
+        slots=slots,
+        return_slots=return_slots,
+        replacement_name=replacement_name,
+        app=app,
     )
     body = (
         f"{requester_name} i {replacement_name} uzgodnili zamianę. "
@@ -270,9 +346,12 @@ def swap_pending_coordinator(
             Fact("Rola", _role(role)),
             Fact("Oddaje", text(requester_name)),
             Fact("Przejmuje", text(replacement_name)),
+            *duties.facts,
             Fact("Status", status_tag("Oczekuje na koordynatora", Tone.sig)),
             *_broken_rules_facts(violations),
         ],
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
         action=_swaps_action(app, "Podejmij decyzję"),
     )
 
@@ -281,6 +360,8 @@ def swap_rejected(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
     requester_name: str,
     replacement_name: str,
     reason: str | None,
@@ -289,19 +370,21 @@ def swap_rejected(
 ) -> RenderedEmail:
     who = "koordynator" if by_coordinator else replacement_name
     day = format_day(service_date)
-    subject = f"Zamiana odrzucona: {day} · {ROLE_LABELS[role]}"
+    duties = _swap_duties(service_date, role, slots, return_slots)
+    subject = f"Zamiana odrzucona: {duties.headline}"
     body = (
         f"Prośba o zamianę dyżuru {ROLE_LABELS[role]} w dniu {day} "
         f"({requester_name} → {replacement_name}) została odrzucona przez: {who}.\n"
     )
     if reason:
         body += f"Powód: {reason}\n"
-    body += f"\nSzczegóły: {app.url}/#zamiany\n"
+    body += f"\n{duties.text}Szczegóły: {app.url}/#zamiany\n"
     facts = [
         Fact("Dzień", _day(service_date)),
         Fact("Rola", _role(role)),
         Fact("Oddaje", text(requester_name)),
         Fact("Przejmuje", text(replacement_name)),
+        *duties.facts,
         Fact("Odrzucił(a)", text(who)),
         Fact("Status", status_tag("Odrzucona", Tone.bad)),
     ]
@@ -323,6 +406,8 @@ def swap_rejected(
             text("."),
         ),
         facts=facts,
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
         action=_swaps_action(app, "Szczegóły"),
     )
 
@@ -331,22 +416,26 @@ def swap_cancelled(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
     requester_name: str,
     reason: str | None,
     app: Brand,
 ) -> RenderedEmail:
     day = format_day(service_date)
-    subject = f"Zamiana wycofana: {day} · {ROLE_LABELS[role]}"
+    duties = _swap_duties(service_date, role, slots, return_slots)
+    subject = f"Zamiana wycofana: {duties.headline}"
     body = (
         f"{requester_name} wycofał(a) prośbę o zamianę dyżuru {ROLE_LABELS[role]} w dniu {day}.\n"
     )
     if reason:
         body += f"Powód: {reason}\n"
-    body += f"\nSzczegóły: {app.url}/#zamiany\n"
+    body += f"\n{duties.text}Szczegóły: {app.url}/#zamiany\n"
     facts = [
         Fact("Dzień", _day(service_date)),
         Fact("Rola", _role(role)),
         Fact("Wycofał(a)", text(requester_name)),
+        *duties.facts,
         Fact("Status", status_tag("Wycofana", Tone.warn)),
     ]
     if reason:
@@ -366,6 +455,8 @@ def swap_cancelled(
             text("."),
         ),
         facts=facts,
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
         action=_swaps_action(app, "Szczegóły"),
     )
 
@@ -374,18 +465,22 @@ def swap_approved(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
     requester_name: str,
     replacement_name: str,
     violations: Sequence[RuleViolation],
     app: Brand,
 ) -> RenderedEmail:
     day = format_day(service_date)
-    subject = f"Zamiana zatwierdzona: {day} · {ROLE_LABELS[role]}"
+    duties = _swap_duties(service_date, role, slots, return_slots)
+    subject = f"Zamiana zatwierdzona: {duties.headline}"
     body = (
         f"Koordynator zatwierdził zamianę dyżuru {ROLE_LABELS[role]} w dniu {day}.\n"
         f"Dyżur przejmuje: {replacement_name} (zamiast: {requester_name}).\n\n"
+        + duties.text
         + _broken_rules_text(violations)
-        + f"{_SWITCH_NUMBER}\n"
+        + f"{duties.switch_number}\n"
         f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
@@ -406,10 +501,13 @@ def swap_approved(
             Fact("Rola", _role(role)),
             Fact("Dyżur przejmuje", strong(replacement_name)),
             Fact("Zamiast", text(requester_name)),
+            *duties.facts,
             Fact("Status", status_tag("Zatwierdzona", Tone.ok)),
             *_broken_rules_facts(violations),
         ],
-        note=Note(_SWITCH_NUMBER),
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
+        note=Note(duties.switch_number),
         action=_schedule_action(app),
     )
 
@@ -418,6 +516,8 @@ def swap_recorded(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
     requester_name: str,
     replacement_name: str,
     violations: Sequence[RuleViolation],
@@ -427,11 +527,15 @@ def swap_recorded(
     into the schedule: the same facts as an approval, with nobody's decision
     in front of it."""
     day = format_day(service_date)
-    subject = f"Zamiana wpisana do grafiku: {day} · {ROLE_LABELS[role]}"
+    duties = _swap_duties(service_date, role, slots, return_slots)
+    subject = f"Zamiana wpisana do grafiku: {duties.headline}"
     body = (
         f"{replacement_name} przyjął(ęła) dyżur {ROLE_LABELS[role]} w dniu {day} "
         f"(zamiast: {requester_name}). Zamiana jest już w grafiku i nie wymaga "
-        "zatwierdzenia koordynatora.\n\n" + _broken_rules_text(violations) + f"{_SWITCH_NUMBER}\n"
+        "zatwierdzenia koordynatora.\n\n"
+        + duties.text
+        + _broken_rules_text(violations)
+        + f"{duties.switch_number}\n"
         f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
@@ -453,10 +557,13 @@ def swap_recorded(
             Fact("Rola", _role(role)),
             Fact("Dyżur przejmuje", strong(replacement_name)),
             Fact("Zamiast", text(requester_name)),
+            *duties.facts,
             Fact("Status", status_tag("W grafiku", Tone.ok)),
             *_broken_rules_facts(violations),
         ],
-        note=Note(_SWITCH_NUMBER),
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
+        note=Note(duties.switch_number),
         action=_schedule_action(app),
     )
 
@@ -465,6 +572,8 @@ def swap_recorded_for_coordinator(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Duty] = (),
+    return_slots: Sequence[Duty] = (),
     requester_name: str,
     replacement_name: str,
     violations: Sequence[RuleViolation],
@@ -474,10 +583,12 @@ def swap_recorded_for_coordinator(
     with nothing to decide. It is also how a coordinator learns that two
     members broke a hard rule between themselves."""
     day = format_day(service_date)
-    subject = f"Do wiadomości: zamiana wpisana do grafiku {day} · {ROLE_LABELS[role]}"
+    duties = _swap_duties(service_date, role, slots, return_slots)
+    subject = f"Do wiadomości: zamiana wpisana do grafiku {duties.headline}"
     body = (
         f"{requester_name} i {replacement_name} zamienili się dyżurem {ROLE_LABELS[role]} "
         f"w dniu {day}. Dyżur przejmuje: {replacement_name}.\n\n"
+        + duties.text
         + _broken_rules_text(violations)
         + "Zamiana jest już w grafiku; zgodnie z ustawieniami nie wymaga Twojego "
         "zatwierdzenia. Ta wiadomość jest tylko informacyjna.\n\n"
@@ -504,9 +615,12 @@ def swap_recorded_for_coordinator(
             Fact("Rola", _role(role)),
             Fact("Oddaje", text(requester_name)),
             Fact("Przejmuje", text(replacement_name)),
+            *duties.facts,
             Fact("Status", status_tag("W grafiku", Tone.ok)),
             *_broken_rules_facts(violations),
         ],
+        slots=duties.slots,
+        slots_heading=_MOVED_SLOTS,
         note=Note(
             "Zamiana jest już w grafiku; zgodnie z ustawieniami nie wymaga Twojego "
             "zatwierdzenia. Ta wiadomość jest tylko informacyjna."

@@ -245,6 +245,17 @@ MESSAGES: dict[str, str] = {
     "swaps.replacement_already_on_call": (
         "The replacement already has a second on-call on that day"
     ),
+    "swaps.return_needs_day_and_role": (
+        "Give both the day and the role of the duty taken in return"
+    ),
+    "swaps.return_on_the_same_day": "The duty taken in return has to be on another day",
+    "swaps.return_slot_not_theirs": "The duty taken in return is not the replacement's",
+    "swaps.requester_not_eligible": (
+        "The requester has no eligibility for the duty taken in return"
+    ),
+    "swaps.requester_unavailable": (
+        "The requester is unavailable on the day of the duty taken in return"
+    ),
     "swaps.slot_has_active_swap": "An active swap exists for this slot",
     "swaps.breaks_hard_rules": "The operation breaks the schedule's hard rules",
     "swaps.blocked_next_step": "Choose another day or ask the coordinator to correct the schedule.",

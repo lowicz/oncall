@@ -19,7 +19,7 @@ from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, SwapStatus
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.calendar_model import CalendarEvent as CalendarEventRow
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
-from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
+from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
@@ -155,11 +155,15 @@ class SqlAlchemyCalendarRoster:
     async def approved_swap_slots(
         self, starts_on: date, ends_on: date
     ) -> set[tuple[uuid.UUID, date, AssignmentRole]]:
+        # Every slot a swap moved, not only the one that names it: the 11-19
+        # that travelled with its role and both directions of an exchange.
         rows = await self._session.execute(
-            select(SwapRequest.schedule_id, SwapRequest.service_date, SwapRequest.role).where(
+            select(SwapRequestSlot.schedule_id, SwapRequestSlot.service_date, SwapRequestSlot.role)
+            .join(SwapRequest, SwapRequestSlot.swap_request_id == SwapRequest.id)
+            .where(
                 SwapRequest.status == SwapStatus.approved,
-                SwapRequest.service_date >= starts_on,
-                SwapRequest.service_date <= ends_on,
+                SwapRequestSlot.service_date >= starts_on,
+                SwapRequestSlot.service_date <= ends_on,
             )
         )
         return {(schedule_id, day, role) for schedule_id, day, role in rows}

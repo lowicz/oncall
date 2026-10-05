@@ -19,7 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from oncall.domain.clock import utc_now
-from oncall.domain.vocabulary import AssignmentRole, SwapStatus
+from oncall.domain.vocabulary import AssignmentRole, SwapSlotDirection, SwapStatus
 from oncall.infrastructure.sqlalchemy.base import Base
 
 
@@ -83,6 +83,8 @@ class SwapRequestSlot(Base):
         UniqueConstraint("swap_request_id", "service_date", "role", name="uq_swap_request_slot"),
         # Whether a slot already has a swap in progress, asked of every new one.
         Index("ix_swap_request_slots_day_role", "service_date", "role"),
+        # The swaps a publication finds on the schedules it replaces.
+        Index("ix_swap_request_slots_schedule", "schedule_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -101,4 +103,20 @@ class SwapRequestSlot(Base):
             name="ck_swap_request_slots_role",
         )
     )
+    #: `given` goes from the requester to the replacement; `returned` is what
+    #: the requester takes in exchange.
+    direction: Mapped[SwapSlotDirection] = mapped_column(
+        Enum(
+            SwapSlotDirection,
+            native_enum=False,
+            create_constraint=True,
+            name="ck_swap_request_slots_direction",
+        ),
+        default=SwapSlotDirection.given,
+        server_default=SwapSlotDirection.given.value,
+    )
+    #: The schedule that holds the slot. The two directions of an exchange
+    #: may lie in different publications, so the request's own `schedule_id`
+    #: only names the schedule of its headline slot.
+    schedule_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("schedules.id", ondelete="CASCADE"))
     swap_request: Mapped[SwapRequest] = relationship(back_populates="slots")

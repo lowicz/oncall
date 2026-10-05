@@ -52,8 +52,58 @@ BROKEN_LINE = (
     "Dni: 21-09-2026, 22-09-2026, 23-09-2026, 24-09-2026."
 )
 
+#: An exchange: Anna's SECONDARY with the 11-19 that travels with it, for
+#: Marek's Saturday in return.
+EXCHANGE = {
+    "service_date": DAY,
+    "role": AssignmentRole.secondary,
+    "slots": [(DAY, AssignmentRole.secondary), (DAY, AssignmentRole.late_shift)],
+    "return_slots": [(NEXT, AssignmentRole.secondary)],
+    "app": APP,
+}
+PEOPLE = {"requester_name": "Anna Kowalska", "replacement_name": "Marek Nowak"}
+EXCHANGE_HEADLINE = "czw 24-09-2026 · SECONDARY ⇄ sob 26-09-2026 · SECONDARY"
+EXCHANGE_LINES = (
+    "Zamiana obejmuje:\n"
+    "- czw 24-09-2026 · SECONDARY\n"
+    "- czw 24-09-2026 · 11–19\n"
+    "- sob 26-09-2026 · SECONDARY (w zamian)\n\n"
+)
+#: The same eight mails about an exchange.
+EXCHANGES: dict[str, Callable[[], RenderedEmail]] = {
+    "swap_requested_exchange": lambda: templates.swap_requested(
+        **EXCHANGE, requester_name="Anna Kowalska", violations=BROKEN
+    ),
+    "swap_accepted_exchange": lambda: templates.swap_accepted(
+        **EXCHANGE, replacement_name="Marek Nowak"
+    ),
+    "swap_pending_coordinator_exchange": lambda: templates.swap_pending_coordinator(
+        **EXCHANGE, **PEOPLE, violations=[]
+    ),
+    "swap_rejected_exchange": lambda: templates.swap_rejected(
+        **EXCHANGE, **PEOPLE, reason="Nie mogę w sobotę", by_coordinator=False
+    ),
+    "swap_cancelled_exchange": lambda: templates.swap_cancelled(
+        **EXCHANGE, requester_name="Anna Kowalska", reason=None
+    ),
+    "swap_approved_exchange": lambda: templates.swap_approved(**EXCHANGE, **PEOPLE, violations=[]),
+    "swap_recorded_exchange": lambda: templates.swap_recorded(**EXCHANGE, **PEOPLE, violations=[]),
+    "swap_recorded_for_coordinator_exchange": lambda: templates.swap_recorded_for_coordinator(
+        **EXCHANGE, **PEOPLE, violations=[]
+    ),
+}
+
 #: Every template, with data that exercises its optional parts.
 RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
+    **EXCHANGES,
+    "swap_requested_with_its_late_shift": lambda: templates.swap_requested(
+        service_date=DAY,
+        role=AssignmentRole.secondary,
+        slots=[(DAY, AssignmentRole.secondary), (DAY, AssignmentRole.late_shift)],
+        requester_name="Anna Kowalska",
+        violations=[],
+        app=APP,
+    ),
     "swap_requested": lambda: templates.swap_requested(
         service_date=DAY,
         role=AssignmentRole.primary,
@@ -396,6 +446,51 @@ def test_a_swap_that_breaks_a_hard_rule_names_it_in_the_mails_about_it() -> None
         ordinary = RENDERINGS[name]()
         assert "łamie reguł" not in ordinary.text.lower(), name
         assert "Łamie regułę" not in ordinary.html, name
+
+
+@pytest.mark.parametrize("name", sorted(EXCHANGES))
+def test_every_mail_about_an_exchange_names_both_directions(name) -> None:
+    """The subject carries both duties, the text lists every slot with the
+    ones taken in return marked, and the HTML repeats both as a fact row and
+    a slot list."""
+    rendered = EXCHANGES[name]()
+
+    assert rendered.subject.endswith(EXCHANGE_HEADLINE)
+    assert rendered.text.count(EXCHANGE_LINES) == 1
+    assert rendered.html.count("Zamiana obejmuje") == 1
+    assert rendered.html.count(">W zamian<") == 1
+    assert rendered.html.count(">w zamian<") == 1
+
+
+def test_the_number_reminder_names_both_days_of_an_exchange() -> None:
+    reminder = "Pamiętaj o przełączeniu numeru on-call: czw 24-09-2026 i sob 26-09-2026."
+    for name in ("swap_approved_exchange", "swap_recorded_exchange"):
+        rendered = EXCHANGES[name]()
+        assert reminder in rendered.text and reminder in rendered.html, name
+    assert "Pamiętaj o przełączeniu numeru on-call.\n" in RENDERINGS["swap_approved"]().text
+
+
+def test_a_swap_lists_its_slots_once_more_than_one_moves() -> None:
+    """The 11-19 that travels with a role is named, where the mail used to
+    show the one slot the request was filed for. A swap of a single slot has
+    nothing to add to its first sentence."""
+    coupled = RENDERINGS["swap_requested_with_its_late_shift"]()
+    assert coupled.subject == "Prośba o zamianę: czw 24-09-2026 · SECONDARY"
+    assert (
+        "Zamiana obejmuje:\n- czw 24-09-2026 · SECONDARY\n- czw 24-09-2026 · 11–19\n\n"
+        in coupled.text
+    )
+    assert "Zamiana obejmuje" in coupled.html and "W zamian" not in coupled.html
+
+    single = templates.swap_requested(
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        slots=[(DAY, AssignmentRole.primary)],
+        requester_name="Anna Kowalska",
+        violations=[],
+        app=APP,
+    )
+    assert single == RENDERINGS["swap_requested"]()
 
 
 def test_a_broken_rule_is_named_in_polish_whatever_language_asked_for_the_swap() -> None:

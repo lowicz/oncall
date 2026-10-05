@@ -229,7 +229,7 @@ class FakeSwapRequests:
         self.decisions: list[SwapRequest] = []
 
     async def has_active_request_for(self, slot):
-        return any(item.active and slot in item.moves for item in self.by_id.values())
+        return any(item.active and slot in item.all_moves for item in self.by_id.values())
 
     async def add(self, request: NewSwapRequest):
         stored = SwapRequest(
@@ -246,6 +246,7 @@ class FakeSwapRequests:
             created_at=datetime.now(UTC),
             slots=request.slots,
             rule_violations=request.rule_violations,
+            in_return=request.in_return,
         )
         self.by_id[stored.id] = stored
         return stored

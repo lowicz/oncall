@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Literal
 
 from oncall.domain.roster import Slot
@@ -14,6 +14,10 @@ ACTIVE_SWAP_STATUSES = (SwapStatus.pending_replacement, SwapStatus.pending_coord
 #: Why an approval turned into an automatic cancellation; stored on the request,
 #: so it is written in the recorded language.
 SLOT_CHANGED_OWNER_NOTE = "Slot zmienił właściciela przed zatwierdzeniem"
+
+#: How far ahead the duties offered in return are read: as far as the
+#: calendar shows at once.
+RETURN_HORIZON = timedelta(days=90)
 
 #: The two people of a request, by the side they are on.
 SwapParty = Literal["requester", "replacement"]
@@ -46,6 +50,26 @@ def acknowledged_violations(
 
 
 @dataclass(frozen=True)
+class SwapReturn:
+    """The duty the requester takes in exchange, and the schedule that holds
+    it. The two days of an exchange may lie in different publications."""
+
+    schedule_id: uuid.UUID
+    #: The duty asked for first, then the 11-19 slot that travels with it.
+    slots: tuple[Slot, ...]
+
+
+@dataclass(frozen=True)
+class SwapTransfer:
+    """One slot a swap moves: where it is, who gives it up and who takes it."""
+
+    schedule_id: uuid.UUID
+    slot: Slot
+    giver: Member
+    taker: Member
+
+
+@dataclass(frozen=True)
 class SwapRequestInput:
     actor: Actor
     service_date: date
@@ -54,6 +78,8 @@ class SwapRequestInput:
     #: Why the swap is needed; required once it breaks a hard rule.
     note: str | None = None
     acknowledge_rule_violations: bool = False
+    #: A duty of the replacement the requester takes in exchange.
+    in_return: Slot | None = None
 
 
 @dataclass(frozen=True)
@@ -75,11 +101,26 @@ class ReplacementOptionsQuery:
 
 
 @dataclass(frozen=True)
+class ReturnOptionsQuery:
+    """The duty the actor gives away and the colleague asked to take it."""
+
+    actor: Actor
+    service_date: date
+    role: AssignmentRole
+    replacement_member_id: uuid.UUID
+
+
+@dataclass(frozen=True)
 class SwapImpactQuery:
     actor: Actor
     service_date: date
     role: AssignmentRole
     replacement_member_id: uuid.UUID
+    #: A duty of the replacement that goes back to the holder in exchange.
+    in_return: Slot | None = None
+    #: A coordinator's correction rather than a swap: it carries 11-19 along
+    #: only from its anchor role, where a swap couples the pair from either.
+    correction: bool = False
 
 
 @dataclass(frozen=True)
@@ -102,6 +143,7 @@ class NewSwapRequest:
     slots: tuple[Slot, ...]
     status: SwapStatus = SwapStatus.pending_replacement
     rule_violations: tuple[AcknowledgedViolation, ...] = ()
+    in_return: SwapReturn | None = None
 
 
 @dataclass(frozen=True)
@@ -123,10 +165,36 @@ class SwapRequest:
     #: The hard rules acknowledged at the latest step that asked for it: the
     #: request, the acceptance, the approval.
     rule_violations: tuple[AcknowledgedViolation, ...] = ()
+    #: What the requester takes in exchange; None for a one-way hand-over.
+    in_return: SwapReturn | None = None
 
     @property
     def moves(self) -> list[Slot]:
+        """The slots the requester gives to the replacement."""
         return list(self.slots) or [(self.service_date, self.role)]
+
+    @property
+    def return_moves(self) -> list[Slot]:
+        """The slots the requester takes from the replacement in exchange."""
+        return list(self.in_return.slots) if self.in_return is not None else []
+
+    @property
+    def all_moves(self) -> list[Slot]:
+        """Every slot the request moves, in either direction."""
+        return self.moves + self.return_moves
+
+    def transfers(self, requester: Member, replacement: Member) -> list[SwapTransfer]:
+        """Every slot the request moves, with the schedule that holds it, the
+        person it leaves and the person it goes to."""
+        given = [
+            SwapTransfer(self.schedule_id, slot, requester, replacement) for slot in self.moves
+        ]
+        if self.in_return is None:
+            return given
+        return given + [
+            SwapTransfer(self.in_return.schedule_id, slot, replacement, requester)
+            for slot in self.in_return.slots
+        ]
 
     def named_violations(
         self, requester_name: str, replacement_name: str
@@ -162,6 +230,11 @@ class SwapRequestView:
             (self.request.service_date, self.request.role)
         ]
 
+    @property
+    def return_slots(self) -> list[Slot]:
+        """What the requester takes in exchange, the duty asked for first."""
+        return self.request.return_moves
+
 
 @dataclass(frozen=True)
 class SwapPolicy:
@@ -195,6 +268,22 @@ class ReplacementOption:
 
 
 @dataclass(frozen=True)
+class ReturnOption:
+    """A duty of the replacement the requester could take in exchange, with
+    what the whole exchange - both directions - would break or bend."""
+
+    #: The duty as it is asked for; `slots` adds the 11-19 that travels with it.
+    service_date: date
+    role: AssignmentRole
+    slots: tuple[Slot, ...]
+    #: Rules that rule the exchange out.
+    blocking_violations: tuple[RuleViolation, ...]
+    #: Rules the exchange breaks and the request has to acknowledge.
+    rule_violations: tuple[RuleViolation, ...]
+    warning_violations: tuple[RuleViolation, ...]
+
+
+@dataclass(frozen=True)
 class SwapImpactSide:
     member_id: uuid.UUID
     display_name: str
@@ -211,3 +300,6 @@ class SwapImpact:
     window_end: date
     requester: SwapImpactSide
     replacement: SwapImpactSide
+    #: The day that comes back in an exchange, and what it is worth.
+    return_date: date | None = None
+    return_points: float | None = None
