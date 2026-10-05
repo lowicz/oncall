@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from oncall.domain.calendar.models import WEEKDAYS
-from oncall.domain.vocabulary import ROLE_LABELS, AssignmentRole
+from oncall.domain.vocabulary import ONCALL_ROLES, ROLE_LABELS, AssignmentRole
 from oncall.notifications import layout
 from oncall.notifications.layout import (
     Action,
@@ -166,8 +166,9 @@ class _SwapDuties:
     text: str
     slots: list[Slot] | None
     facts: list[Fact]
-    #: The advice to switch the on-call number, naming both days of an exchange.
-    switch_number: str
+    #: The advice to switch the on-call number, naming the days of an
+    #: exchange; none when no on-call role moves.
+    switch_number: str | None
 
 
 def _swap_duties(
@@ -175,15 +176,24 @@ def _swap_duties(
 ) -> _SwapDuties:
     headline = f"{format_day(service_date)} · {ROLE_LABELS[role]}"
     facts: list[Fact] = []
-    switch_number = _SWITCH_NUMBER
+    oncall_days = sorted(
+        {
+            day
+            for day, slot_role in [*(slots or [(service_date, role)]), *return_slots]
+            if slot_role in ONCALL_ROLES
+        }
+    )
+    switch_number = None
+    if oncall_days:
+        switch_number = (
+            f"{_SWITCH_NUMBER.removesuffix('.')}: {' i '.join(map(format_day, oncall_days))}."
+            if return_slots
+            else _SWITCH_NUMBER
+        )
     if return_slots:
         return_date, return_role = return_slots[0]
         headline += f" ⇄ {format_day(return_date)} · {ROLE_LABELS[return_role]}"
         facts = [Fact("W zamian", join(_day(return_date), text(" · "), _role(return_role)))]
-        switch_number = (
-            f"{_SWITCH_NUMBER.removesuffix('.')}: "
-            f"{format_day(service_date)} i {format_day(return_date)}."
-        )
     if len(slots) + len(return_slots) < 2:
         return _SwapDuties(headline, "", None, facts, switch_number)
     lines = [_slot_line(*slot) for slot in slots] + [
@@ -480,8 +490,8 @@ def swap_approved(
         f"Dyżur przejmuje: {replacement_name} (zamiast: {requester_name}).\n\n"
         + duties.text
         + _broken_rules_text(violations)
-        + f"{duties.switch_number}\n"
-        f"Aktualny grafik: {app.url}/\n"
+        + (f"{duties.switch_number}\n" if duties.switch_number else "")
+        + f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
         app=app,
@@ -507,7 +517,7 @@ def swap_approved(
         ],
         slots=duties.slots,
         slots_heading=_MOVED_SLOTS,
-        note=Note(duties.switch_number),
+        note=Note(duties.switch_number) if duties.switch_number else None,
         action=_schedule_action(app),
     )
 
@@ -535,8 +545,8 @@ def swap_recorded(
         "zatwierdzenia koordynatora.\n\n"
         + duties.text
         + _broken_rules_text(violations)
-        + f"{duties.switch_number}\n"
-        f"Aktualny grafik: {app.url}/\n"
+        + (f"{duties.switch_number}\n" if duties.switch_number else "")
+        + f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
         app=app,
@@ -563,7 +573,7 @@ def swap_recorded(
         ],
         slots=duties.slots,
         slots_heading=_MOVED_SLOTS,
-        note=Note(duties.switch_number),
+        note=Note(duties.switch_number) if duties.switch_number else None,
         action=_schedule_action(app),
     )
 

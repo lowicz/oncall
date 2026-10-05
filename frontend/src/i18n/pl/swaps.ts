@@ -36,9 +36,8 @@ export const swaps = {
     effect: 'Skutek pkt',
     stage: 'Etap',
     actions: 'Akcje',
-    twoSlots: '2 sloty',
-    /** Under an exchange: every slot it moves, both directions counted. */
-    exchange: (count: number) => `wymiana · ${pluralPl(count, ['slot', 'sloty', 'slotów'])}`,
+    /** Under an exchange, whose roles the row already names. */
+    exchange: 'wymiana',
     /** The "effect" column when nobody ends up with more points. */
     noEffect: 'bez zmian',
     expired: 'termin minął',
@@ -129,9 +128,16 @@ export const swaps = {
     stepCandidate: '2 kandydat',
     stepReturn: '3 w zamian',
     stepReason: '4 powód i wysłanie',
-    giving: (slot: string) => `Oddajesz: ${slot}`,
     myDuty: 'Mój dyżur',
-    myDutyHint: 'Dzień i rola z opublikowanego grafiku.',
+    myDutyHint: 'Dzień z opublikowanego grafiku i wszystko, co tego dnia masz.',
+    /** What the request gives of a day with two roles. */
+    scope: 'Oddaję',
+    wholeDuty: 'Cały dyżur',
+    only: (role: string) => `Tylko ${role}`,
+    wholeHint: (roles: string) => `${roles}. Jedna akceptacja zastępcy obejmuje oba.`,
+    keeps: (role: string) => `${role} tego dnia zostaje u Ciebie.`,
+    keepsLateShift: 'Zmiana 11–19 tego dnia zostaje u Ciebie.',
+    splitNeedsAcknowledgement: 'Rozdzielasz parę: prośba będzie wymagała potwierdzenia.',
     noUpcomingDuties: 'Brak nadchodzących dyżurów',
     pickDuty: 'Wybierz dyżur',
     unavailableCollision: 'kolizja: nie mogę',
@@ -142,7 +148,8 @@ export const swaps = {
     searching: 'Szukam dostępnych osób',
     noCandidates: 'Brak dostępnych zastępców',
     onDutyThatDay: 'ma już dyżur tego dnia',
-    takesBothSlots: 'obejmie oba sloty dnia',
+    /** A candidate who may not hold 11-19 takes the on-call role of the whole duty alone. */
+    takesOnly: (role: string) => `przejmie tylko ${role}, nie pełni 11–19`,
     splitsDaysOff: 'dzieli blok dni wolnych',
     blocked: (message: string) => `nie można: ${message}`,
     breaksRule: (message: string) => `łamie regułę: ${message}`,
@@ -165,14 +172,12 @@ export const swaps = {
     exchangeCleanBody: 'Prośba idzie zwykłą ścieżką, bez potwierdzeń.',
     exchangeTitle: (given: string, taken: string) => `Wymiana: ${given} ⇄ ${taken}`,
     exchangeTogether: 'Oba dyżury przechodzą razem albo wcale.',
-    bothSlotsTitle: 'Prośba obejmie oba sloty tego dnia',
     bothSlotsWithApproval: 'Jedna akceptacja zastępcy, jedno zatwierdzenie koordynatora.',
     bothSlotsWithoutApproval: 'Jedna akceptacja zastępcy załatwia całość.',
     warningsWithApproval: 'Wyślesz mimo to - koordynator zobaczy ostrzeżenie',
     warningsWithoutApproval: 'Wyślesz mimo to - zamiana nie wymaga zatwierdzenia koordynatora',
     note: 'Powód',
     noteHint: 'Zobaczą zastępca i koordynator.',
-    noteRequiredHint: (minLength: number) => `Wymagany, gdy zamiana łamie reguły (min. ${minLength} znaków). Zobaczą zastępca i koordynator.`,
   },
   /** The points preview (`src/components/SwapImpactPreview.tsx`). */
   impact: {

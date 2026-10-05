@@ -1,6 +1,6 @@
 """A member asks for a swap that breaks a rest rule, the way a coordinator's
-correction may: knowingly, with a reason, acknowledged again by whoever lets
-it into the schedule.
+correction may: knowingly, acknowledged again by whoever lets it into the
+schedule. A reason is optional.
 
 The roster is the one the request for this came from. Anna hands Tuesday the
 6th of October - SECONDARY and the 11-19 that travels with it - to Bartosz,
@@ -154,9 +154,7 @@ async def test_the_candidate_a_rest_rule_stands_against_can_be_asked(client, tea
         }
 
 
-async def test_the_request_is_refused_until_the_requester_acknowledges_and_says_why(
-    client, db, team
-) -> None:
+async def test_the_request_is_refused_until_the_requester_acknowledges(client, db, team) -> None:
     await login(client, "ania")
 
     unacknowledged = await client.post("/api/v1/swaps", json=_request(team, note=REASON))
@@ -171,14 +169,6 @@ async def test_the_request_is_refused_until_the_requester_acknowledges_and_says_
         "violations": [BROKEN],
     }
 
-    for note in (None, "pilne"):
-        unexplained = await client.post(
-            "/api/v1/swaps", json=_request(team, note=note, acknowledge_rule_violations=True)
-        )
-        assert unexplained.status_code == 422, unexplained.text
-        assert unexplained.json()["detail"] == (
-            "Zamiana łamiąca reguły twarde wymaga powodu (minimum 10 znaków)"
-        )
     assert (await client.get("/api/v1/swaps")).json() == []
 
     created = await client.post(

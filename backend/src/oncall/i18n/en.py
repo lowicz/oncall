@@ -266,9 +266,6 @@ MESSAGES: dict[str, str] = {
         "Confirm a deliberate violation of the hard rules or give up this swap;"
         " the confirmation will be recorded in the audit log."
     ),
-    "swaps.rule_breaking_swap_needs_reason": (
-        "A swap that breaks the hard rules requires a reason (at least 10 characters)"
-    ),
     "swaps.not_found": "Swap not found",
     "swaps.only_named_replacement_may_accept": "Only the named replacement can accept",
     "swaps.only_named_replacement_may_reject": "Only the named replacement can decline the request",

@@ -21,7 +21,7 @@ address `/zamiany?skrzynka=moje` opens the named one. The total of requests
 that need your action also appears as a badge next to the “Swaps” item in the
 navigation.
 
-A table row gives the day and role, who hands over, who takes over, the
+A table row gives the day and the roles that move, who hands over, who takes over, the
 **effect** (the person who gains points, and how many; “no change” when nobody
 does) and the **stage** - who is next. An
 [exchange](#exchanging-a-duty-for-a-duty) has both days in the first column.
@@ -58,9 +58,11 @@ The **New swap** button in the screen header opens the form in a panel; the
 chosen. The form leads through four steps: duty, candidate, in return, reason
 and sending.
 
-1. In the **My duty** field pick your upcoming duty. The list gives the date,
-   the role and how far away the day is. A duty colliding with your
-   “Unavailable” entry is marked.
+1. In the **My duty** field pick your upcoming duty. The list has one item a
+   day: the date, every role you hold that day (for example “SECONDARY +
+   11–19”) and how far away the day is. A duty colliding with your
+   “Unavailable” entry is marked. A day with two roles has the **I give**
+   choice under the field (see below).
 2. Under the field appears the **Candidates** list: eligible and available
    people who do not hold the opposite role that day, ordered from the best
    candidate. Next to each you see their availability, their deviation from
@@ -70,13 +72,17 @@ and sending.
    - a person marked **“not possible: …”** is blocked by a rule a swap may
      not break, and cannot be picked,
    - a person marked **“breaks a rule: …”** and **“needs confirmation”** can
-     be picked, but the request then needs an acknowledgement and a reason
+     be picked, but the request then needs an acknowledgement
      (see [A swap that breaks the rules](#a-swap-that-breaks-the-rules)); such
      people are listed after those who break no rule,
    - the **“improves the balance”** mark says the swap will reduce the
      inequality,
    - the **“splits a block of days off”** mark announces a warning for the
-     coordinator.
+     coordinator,
+   - the note **“will take only SECONDARY, does not work 11–19”** (with the
+     name of your on-call role) on a whole duty says the person cannot work
+     the 11–19 shift: they take the on-call role alone and the shift stays
+     with you. This is the exception to the anchor and only warns.
 3. Optionally pick, in the **In return I take** list, a duty of that person
    that you take in exchange (see
    [Exchanging a duty for a duty](#exchanging-a-duty-for-a-duty)). With no
@@ -84,14 +90,29 @@ and sending.
 4. Under the list you see the **Effect on the balance**: how many points move
    between the two of you, counted over every slot that moves.
 5. Optionally add a **Reason**; the replacement and the coordinator will see
-   it. The reason is required when the swap breaks rules.
+   it. The reason is not required, also when the swap breaks rules.
 6. “Send request”. The screen confirms the sending with the message “Sent
    to: …” and moves to the **Mine** inbox.
 
-If the “11–19 anchor” setting makes both roles belong to one person that day,
-the request will cover **both slots at once** - the screen announces this. One
-acceptance by the replacement and one approval by the coordinator settle the
-whole thing.
+When you hold an on-call role and the 11–19 shift that day, the **I give**
+choice appears under the **My duty** field: “Whole duty”, “Only SECONDARY”
+(or “Only PRIMARY” - the name of your role that day) and “Only 11–19”. The
+hint under it says what moves or what stays with you, and the candidates and
+the effect on the balance are computed for that choice. A day with one role
+has no such choice.
+
+- When the “11–19 anchor” setting binds the two roles (the anchor role and
+  11–19), the **whole duty** is the default: both slots at once, one
+  acceptance by the replacement and one approval by the coordinator.
+- Giving one role of such a pair splits it. The request then breaks the
+  anchor rule and takes the path described in
+  [A swap that breaks the rules](#a-swap-that-breaks-the-rules); the hint
+  announces this once, not on every candidate. The other role stays with you
+  and can be requested separately.
+- When the anchor does not bind the two roles (the “Independent of on-call”
+  setting, or an on-call role other than the anchor role), one role moves by
+  default and “Whole duty” moves both; the person taking over then needs
+  eligibility for both.
 
 When the swap violates a soft rule (for example it splits a block of days
 off), you will see the warning “You can still send it - the coordinator will
@@ -123,9 +144,9 @@ The rules of an exchange:
 
 - one duty moves in each direction, and the duty taken in return is on another
   day than the one given,
-- the 11–19 anchor works on both sides: SECONDARY and 11–19 travel together,
-  and when the person taking over cannot work the 11–19 shift, the shift stays
-  with the person who has it,
+- the duty taken in return moves whole: the anchor role and 11–19 travel
+  together, and when the person taking over cannot work the 11–19 shift, the
+  shift stays with the person who has it,
 - you need eligibility for the role taken in return and must have no
   “Unavailable” entry that day,
 - no other open request may cover the duty taken in return,
@@ -136,13 +157,15 @@ approval by the coordinator, when it is switched on) covers both sides, and
 both duties move together or not at all. If either of them changed owner
 before the decision, the request is cancelled.
 
-In the inbox an exchange has both days in the first column (for example “Tue
-6 Oct SECONDARY ⇄ Wed 7 Oct SECONDARY”) and the note “exchange · 4 slots”. The
+In the inbox an exchange has both days in the first column with the roles that
+move (for example “Tue 6 Oct 11–19 ⇄ Wed 7 Oct SECONDARY + 11–19”), and the
+note “exchange”. The
 decision sheet shows the replacement the rows **You get** and **You give**,
 the author **You give** and **You get**, and everyone else **Duty** and **In
 return** - each with the day, the roles and the other person. When an open
 exchange breaks nothing, the sheet says so outright. The e-mails name both
-duties, and the reminder to switch the phone number over gives both days.
+duties, and the reminder to switch the phone number over gives the days an
+on-call role moves on; the 11–19 shift alone needs none.
 
 ## A swap that breaks the rules
 
@@ -157,7 +180,8 @@ Breaking four rest and anchor rules can be acknowledged:
 - more than 3 consecutive on-call days,
 - more than 3 on-call duties within 7 days,
 - less than 2 days of rest after a run of on-call duties,
-- the 11–19 shift and the anchor role held by different people.
+- the 11–19 shift and the anchor role held by different people, also when the
+  request gives only one role of the anchored pair.
 
 The other hard rules block a swap without exception: the same person will not
 take both on-call duties of one day, and the 11–19 shift will not land on a
@@ -168,9 +192,8 @@ How it goes:
 1. The **requester**, after picking the candidate, sees the box “This swap
    breaks the schedule rules” with a list: who, which rule and on which days.
    The “Send request” button works only after ticking “I understand and
-   knowingly break these rules” and writing a **reason** (at least 10
-   characters). Picking another candidate, or another duty in return, takes
-   the tick back.
+   knowingly break these rules”; the **reason** is optional. Picking another
+   candidate, or another duty in return, takes the tick back.
 2. The **replacement** sees the same list in the decision sheet - next to
    their own name with the note “(you)”, because it is most often their rest
    the swap cuts into. “Accept” works only after ticking the acknowledgement.

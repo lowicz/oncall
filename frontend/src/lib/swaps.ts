@@ -1,4 +1,4 @@
-import { AssignmentRole, RuleViolation, SwapRequest, SwapSlot, SwapStatus, UserRole, api } from '../api'
+import { AssignmentRole, LateShiftAnchor, RuleViolation, SwapRequest, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
 import { formatDayShort, warsawDate } from './dates'
 import { roleLabels } from './labels'
 
@@ -57,18 +57,60 @@ export function swapHeadline(item: SwapRequest) {
   return returned ? `${dayRole(item)} ⇄ ${dayRole(returned)}` : dayRole(item)
 }
 
+/** What a stored request gives of its day, for the projection of its points. */
+export const scopeOf = (item: SwapRequest): SwapScope => (slotsOf(item).length > 1 ? 'whole' : 'single')
+
 /**
  * The projected balances of one move, as a query every place that shows them
- * shares. `inReturn` makes it an exchange; `correction` a coordinator's
- * correction instead of a swap.
+ * shares. `inReturn` makes it an exchange; `scope` is what it gives of the
+ * day; `correction` makes it a coordinator's correction instead of a swap.
  */
-export const swapImpactQuery = (serviceDate: string, role: AssignmentRole, replacementId: string, inReturn?: SwapSlot, correction = false) => ({
-  queryKey: ['swap-impact', serviceDate, role, replacementId, inReturn?.service_date, inReturn?.role, correction],
-  queryFn: () => api.swapImpact(serviceDate, role, replacementId, { inReturn, correction }),
+export const swapImpactQuery = (
+  serviceDate: string,
+  role: AssignmentRole,
+  replacementId: string,
+  { inReturn, scope, correction = false }: { inReturn?: SwapSlot; scope?: SwapScope; correction?: boolean } = {},
+) => ({
+  queryKey: ['swap-impact', serviceDate, role, replacementId, inReturn?.service_date, inReturn?.role, scope, correction],
+  queryFn: () => api.swapImpact(serviceDate, role, replacementId, { inReturn, scope, correction }),
 })
 
-/** The shortest reason a rule-breaking request may carry, as the API has it. */
-export const RULE_BREAK_REASON_LENGTH = 10
+/** What the form gives of a day: the whole duty, or one of its roles. */
+export type SwapChoice = 'whole' | AssignmentRole
+
+const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
+
+/** One day of the person's duties, with every role held that day, the on-call role first. */
+export interface DutyDay {
+  service_date: string
+  roles: AssignmentRole[]
+}
+
+/** The person's published duties from `from` on, one entry per day. */
+export function dutyDays(
+  assignments: { service_date: string; role: AssignmentRole; assignee_name: string }[],
+  displayName: string,
+  from: string,
+): DutyDay[] {
+  const held = new Map<string, AssignmentRole[]>()
+  for (const item of assignments) {
+    if (item.assignee_name === displayName && item.service_date >= from) {
+      held.set(item.service_date, [...(held.get(item.service_date) ?? []), item.role])
+    }
+  }
+  return [...held].map(([service_date, roles]) => ({ service_date, roles: ROLE_ORDER.filter((role) => roles.includes(role)) }))
+}
+
+/**
+ * What the form gives of a day until the person picks otherwise: what a
+ * request moved before it could say. The pair the 11-19 anchor binds goes
+ * whole; two slots nothing binds go one at a time, the one the person came
+ * with first.
+ */
+export function defaultChoice(roles: AssignmentRole[], anchor: LateShiftAnchor, linked: string | null): SwapChoice {
+  if (roles.length > 1 && roles[0] === anchor) return 'whole'
+  return roles.find((role) => role === linked) ?? roles[0]
+}
 
 export interface SwapGroups {
   actionable: SwapRequest[]

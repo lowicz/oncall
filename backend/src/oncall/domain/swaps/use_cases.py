@@ -11,7 +11,6 @@ from datetime import date
 
 from oncall.domain.clock import business_today
 from oncall.domain.errors import NotATeamMember
-from oncall.domain.overrides.models import MIN_REASON_LENGTH
 from oncall.domain.ports import PublishedRoster, TeamDirectory
 from oncall.domain.roster import (
     OPPOSITE_ONCALL,
@@ -48,7 +47,6 @@ from oncall.domain.swaps.errors import (
     RequesterUnavailable,
     ReturnOnTheSameDay,
     ReturnSlotNotTheirs,
-    RuleBreakingSwapNeedsReason,
     ScheduleChangedSinceRequest,
     SelfApprovalNotAllowed,
     SlotHasActiveSwap,
@@ -86,6 +84,7 @@ from oncall.domain.swaps.models import (
     SwapRequestInput,
     SwapRequestView,
     SwapReturn,
+    SwapScope,
     acknowledged_violations,
 )
 from oncall.domain.swaps.ports import SwapExpiryPorts, SwapPorts
@@ -151,17 +150,20 @@ def _named(
     )
 
 
+def _party_ids(requests: Sequence[SwapRequest]) -> set[uuid.UUID]:
+    """Everyone the requests involve."""
+    return {
+        member_id
+        for request in requests
+        for member_id in (request.requester_member_id, request.replacement_member_id)
+    }
+
+
 async def _party_names(
     requests: Sequence[SwapRequest], team: TeamDirectory
 ) -> dict[uuid.UUID, str]:
     """The display name of everyone the requests involve."""
-    return await team.display_names(
-        {
-            member_id
-            for request in requests
-            for member_id in (request.requester_member_id, request.replacement_member_id)
-        }
-    )
+    return await team.display_names(_party_ids(requests))
 
 
 async def _view(request: SwapRequest, team: TeamDirectory) -> SwapRequestView:
@@ -184,9 +186,10 @@ class _Roster:
     mode: RotationMode
     holidays: set[date]
 
-    def moves(self, slot: Slot, giver: Member, taker: Member) -> tuple[list[Slot], bool]:
-        """The slots that leave `giver` when `taker` takes this one, and
-        whether 11-19 stays behind as the tolerated anchor exception."""
+    def moves(
+        self, slot: Slot, giver: Member, taker: Member, scope: SwapScope | None = None
+    ) -> list[Slot]:
+        """The slots that leave `giver` when `taker` takes this one."""
         service_date, role = slot
         return moves_for(
             service_date=service_date,
@@ -196,41 +199,34 @@ class _Roster:
             duties=self.duties,
             anchor=self.anchor,
             holidays=self.holidays,
+            scope=scope,
         )
 
     def tiers(
-        self,
-        given: list[Slot],
-        returned: list[Slot],
-        requester_name: str,
-        replacement_name: str,
-        exception_days: set[date],
+        self, given: list[Slot], returned: list[Slot], requester: Member, replacement: Member
     ) -> RuleTiers:
         """How the swap stands against the hard rules, both directions
         checked as one batch: the half an exchange gives away is often a
         violation the half it takes back undoes."""
         violations = batch_substitution_violations(
             holder_names(self.duties),
-            [(day, role, replacement_name) for day, role in given]
-            + [(day, role, requester_name) for day, role in returned],
+            [(day, role, replacement.display_name) for day, role in given]
+            + [(day, role, requester.display_name) for day, role in returned],
             self.anchor,
             self.holidays,
             self.mode,
-            names={requester_name, replacement_name},
+            names={requester.display_name, replacement.display_name},
+        )
+        exception_days = anchor_exception_days(
+            [(slot, replacement) for slot in given] + [(slot, requester) for slot in returned],
+            self.anchor,
+            self.holidays,
         )
         return partition_violations(violations, anchor_exception_days=exception_days)
 
-    def standing(
-        self, request: SwapRequest, requester_name: str, replacement_name: str
-    ) -> RuleTiers:
+    def standing(self, request: SwapRequest, requester: Member, replacement: Member) -> RuleTiers:
         """`tiers` for a stored request, on this roster as it is now."""
-        return self.tiers(
-            request.moves,
-            request.return_moves,
-            requester_name,
-            replacement_name,
-            anchor_exception_days(request.all_moves, self.anchor, self.holidays),
-        )
+        return self.tiers(request.moves, request.return_moves, requester, replacement)
 
 
 async def _roster_around(days: list[date], ports: SwapPorts) -> _Roster:
@@ -265,7 +261,8 @@ async def _published_duty(
 async def list_replacement_options(
     query: ReplacementOptionsQuery, ports: SwapPorts, *, today: date | None = None
 ) -> list[ReplacementOption]:
-    """Colleagues who could take the slot, each with what picking them means."""
+    """Colleagues who could take what the scope gives of the day, each with
+    what picking them means."""
     if query.service_date < (today or business_today()):
         return []
     requester = await _member_for(query.actor, ports.team)
@@ -298,14 +295,11 @@ async def list_replacement_options(
     }
     options: list[ReplacementOption] = []
     for member in offered:
-        moves, anchor_exception = roster.moves((query.service_date, query.role), requester, member)
-        blocking, to_acknowledge, warnings = roster.tiers(
-            moves,
-            [],
-            requester.display_name,
-            member.display_name,
-            {query.service_date} if anchor_exception else set(),
-        )
+        moves = roster.moves((query.service_date, query.role), requester, member, query.scope)
+        # `request_swap` refuses a replacement who cannot hold every slot.
+        if not all(member.is_eligible(role, day) for day, role in moves):
+            continue
+        blocking, to_acknowledge, warnings = roster.tiers(moves, [], requester, member)
         # A coupled swap can hand the candidate a second on-call role the
         # clicked-slot filter never saw; `request_swap` refuses that, so the
         # option must say so rather than be offered and then refused.
@@ -344,7 +338,7 @@ async def list_return_options(
         raise ReplacementNotFound()
     horizon = today + RETURN_HORIZON
     roster = await _roster_around([today, query.service_date, horizon], ports)
-    given, given_exception = roster.moves((query.service_date, query.role), requester, replacement)
+    given = roster.moves((query.service_date, query.role), requester, replacement, query.scope)
     in_other_requests = await ports.requests.active_slots(today, horizon)
     options: dict[frozenset[Slot], ReturnOption] = {}
     # The on-call role of a day before its 11-19: a pair that travels together
@@ -361,17 +355,10 @@ async def list_return_options(
             or requester.is_unavailable(day)
         ):
             continue
-        returned, return_exception = roster.moves(slot, replacement, requester)
+        returned = roster.moves(slot, replacement, requester)
         if frozenset(returned) in options or in_other_requests.intersection(returned):
             continue
-        blocking, to_acknowledge, warnings = roster.tiers(
-            given,
-            returned,
-            requester.display_name,
-            replacement.display_name,
-            ({query.service_date} if given_exception else set())
-            | ({day} if return_exception else set()),
-        )
+        blocking, to_acknowledge, warnings = roster.tiers(given, returned, requester, replacement)
         options[frozenset(returned)] = ReturnOption(
             service_date=day,
             role=role,
@@ -432,10 +419,10 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
     if query.correction and query.role == AssignmentRole.late_shift:
         given = [slot]
     else:
-        given, _exception = roster.moves(slot, requester, replacement)
+        given = roster.moves(slot, requester, replacement, query.scope)
     moved = [(move, requester, replacement) for move in given]
     if query.in_return is not None:
-        returned, _exception = roster.moves(query.in_return, replacement, requester)
+        returned = roster.moves(query.in_return, replacement, requester)
         moved += [(move, replacement, requester) for move in returned]
 
     # The window ends on the last moved day so every moved duty is inside it.
@@ -489,9 +476,11 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
 
 async def swap_policy(ports: SwapPorts) -> SwapPolicy:
     """How far a request travels: to a coordinator, or straight into the
-    schedule once the replacement agrees."""
+    schedule once the replacement agrees; and which role 11-19 travels with,
+    which decides what a request gives of a day unless it says."""
     return SwapPolicy(
-        coordinator_approval_required=await ports.policy.coordinator_swap_approval_required()
+        coordinator_approval_required=await ports.policy.coordinator_swap_approval_required(),
+        late_shift_anchor=await ports.policy.late_shift_anchor(),
     )
 
 
@@ -509,9 +498,13 @@ async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[Swa
     requests = await ports.requests.requests(
         involving=involving, statuses=query.statuses, limit=query.limit, offset=query.offset
     )
-    names = await _party_names(requests, ports.team)
+    members = await ports.team.members(_party_ids(requests))
     views = [
-        _named(request, names[request.requester_member_id], names[request.replacement_member_id])
+        _named(
+            request,
+            members[request.requester_member_id].display_name,
+            members[request.replacement_member_id].display_name,
+        )
         for request in requests
     ]
     open_requests = [request for request in requests if request.active]
@@ -524,7 +517,9 @@ async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[Swa
 
     def as_it_stands(view: SwapRequestView) -> SwapRequestView:
         _refusing, to_acknowledge, warnings = roster.standing(
-            view.request, view.requester_name, view.replacement_name
+            view.request,
+            members[view.request.requester_member_id],
+            members[view.request.replacement_member_id],
         )
         return SwapRequestView(
             request=view.request,
@@ -544,10 +539,9 @@ async def _duty_in_return(
     replacement: Member,
     roster: _Roster,
     published: PublishedRoster,
-) -> tuple[SwapReturn, bool]:
+) -> SwapReturn:
     """The replacement's duty the requester asks for in exchange, checked the
-    way the duty given away is, with the two people in each other's place.
-    Also whether its 11-19 stays behind as the tolerated anchor exception."""
+    way the duty given away is, with the two people in each other's place."""
     day, role = slot
     if day == given_day:
         raise ReturnOnTheSameDay()
@@ -558,8 +552,7 @@ async def _duty_in_return(
         raise RequesterNotEligible()
     if requester.is_unavailable(day):
         raise RequesterUnavailable()
-    moves, anchor_exception = roster.moves(slot, replacement, requester)
-    return SwapReturn(schedule.id, tuple(moves)), anchor_exception
+    return SwapReturn(schedule.id, tuple(roster.moves(slot, replacement, requester)))
 
 
 async def request_swap(
@@ -586,19 +579,18 @@ async def request_swap(
     if replacement.is_unavailable(swap.service_date):
         raise ReplacementUnavailable()
 
-    # A swap of the anchor role or of 11-19 carries both slots of that day as
-    # one decision (decision D1); if the replacement cannot hold 11-19 the shift
-    # stays put and the anchor split is a tolerated exception.
-    moves, anchor_exception = roster.moves(slot, requester, replacement)
-    exception_days = {swap.service_date} if anchor_exception else set()
+    # Without a scope a swap of the anchor role or of 11-19 carries both slots
+    # of that day as one decision (decision D1); if the replacement cannot hold
+    # 11-19 the shift stays put and the anchor split is a tolerated exception.
+    moves = roster.moves(slot, requester, replacement, swap.scope)
+    if not all(replacement.is_eligible(role, day) for day, role in moves):
+        raise ReplacementNotEligible()
     in_return, returned = None, []
     if swap.in_return is not None:
-        in_return, return_exception = await _duty_in_return(
+        in_return = await _duty_in_return(
             swap.in_return, swap.service_date, requester, replacement, roster, ports.roster
         )
         returned = list(in_return.slots)
-        if return_exception:
-            exception_days.add(swap.in_return[0])
     for move in moves:
         if await _takes_opposite_oncall(ports.roster, schedule.id, move, replacement):
             raise ReplacementAlreadyOnCall()
@@ -613,25 +605,21 @@ async def request_swap(
     # anchor exception only warn (decisions D1, D2). The requester ending up
     # with both on-call roles on the day taken in return is one of the rules
     # that refuse it here.
-    blocking, to_acknowledge, warnings = roster.tiers(
-        moves, returned, requester.display_name, replacement.display_name, exception_days
-    )
+    blocking, to_acknowledge, warnings = roster.tiers(moves, returned, requester, replacement)
     if blocking:
         raise SwapBreaksHardRules(blocking)
     # A member may ask for what a coordinator's correction may do: break a
-    # rest or anchor rule knowingly. Asking takes having seen the violations
-    # and saying why; the replacement, and a coordinator where the policy asks
-    # for one, acknowledge them again when they decide.
-    if to_acknowledge:
-        if not swap.acknowledge_rule_violations:
-            raise SwapRuleViolationsNotAcknowledged(to_acknowledge)
-        if len((swap.note or "").strip()) < MIN_REASON_LENGTH:
-            raise RuleBreakingSwapNeedsReason()
+    # rest or anchor rule knowingly. Asking takes having seen the violations;
+    # a reason is welcome but not required. The replacement, and a coordinator
+    # where the policy asks for one, acknowledge them again when they decide.
+    if to_acknowledge and not swap.acknowledge_rule_violations:
+        raise SwapRuleViolationsNotAcknowledged(to_acknowledge)
     request = await ports.requests.add(
         NewSwapRequest(
             schedule_id=schedule.id,
             service_date=swap.service_date,
-            role=swap.role,
+            # The duty is named by its on-call role whichever slot was asked for.
+            role=moves[0][1],
             requester_member_id=requester.id,
             replacement_member_id=replacement.id,
             schedule_version=schedule.version,
@@ -682,9 +670,7 @@ async def accept_swap(
         # A rule that refuses the swap outright is left to the approval,
         # which answers for the hand-over.
         roster = await _roster_around([day for day, _role in request.all_moves], ports)
-        _refusing, to_acknowledge, _warnings = roster.standing(
-            request, requester.display_name, member.display_name
-        )
+        _refusing, to_acknowledge, _warnings = roster.standing(request, requester, member)
         if to_acknowledge and not decision.acknowledge_rule_violations:
             raise SwapRuleViolationsNotAcknowledged(to_acknowledge)
         accepted = replace(
@@ -862,9 +848,7 @@ async def _hand_over(
     # request and the hand-over, so the hard rules are checked again here and
     # acknowledged by whoever decides now.
     roster = await _roster_around([day for day, _role in request.all_moves], ports)
-    blocking, to_acknowledge, _warnings = roster.standing(
-        request, requester.display_name, replacement.display_name
-    )
+    blocking, to_acknowledge, _warnings = roster.standing(request, requester, replacement)
     if blocking:
         raise SwapBreaksHardRules(blocking)
     if to_acknowledge and not acknowledged:

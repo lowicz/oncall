@@ -260,9 +260,6 @@ MESSAGES: dict[str, str] = {
         "Potwierdź świadome naruszenie reguł twardych albo zrezygnuj z tej zamiany;"
         " potwierdzenie trafi do dziennika audytu."
     ),
-    "swaps.rule_breaking_swap_needs_reason": (
-        "Zamiana łamiąca reguły twarde wymaga powodu (minimum 10 znaków)"
-    ),
     "swaps.not_found": "Nie znaleziono zamiany",
     "swaps.only_named_replacement_may_accept": "Tylko wskazany zastępca może zaakceptować",
     "swaps.only_named_replacement_may_reject": "Tylko wskazany zastępca może odrzucić prośbę",

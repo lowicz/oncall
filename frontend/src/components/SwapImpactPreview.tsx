@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AssignmentRole, FairnessMember, SwapImpactMember, SwapSlot } from '../api'
+import { AssignmentRole, FairnessMember, SwapImpactMember, SwapScope, SwapSlot } from '../api'
 import { useMessages } from '../i18n'
 import { formatDate, formatDay, formatDayShort } from '../lib/dates'
 import { lensLabels } from '../lib/labels'
@@ -56,21 +56,23 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
  * `mode` names the move: a swap is something the on-call person hands over
  * (their own choice), a coordinator override is something they lose (it is
  * done to them) and moves 11-19 with its anchor role only. `inReturn` is the
- * duty that comes back when the swap is an exchange.
+ * duty that comes back when the swap is an exchange, `scope` what the swap
+ * gives of the day.
  *
  * The preview is about points only. The rules the move breaks or bends are
  * listed by the screen around it, which is also where they are acknowledged;
  * repeating them here showed every violation twice.
  */
-export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, mode = 'swap' }: {
+export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, scope, mode = 'swap' }: {
   serviceDate: string
   role: AssignmentRole
   replacementId: string
   inReturn?: SwapSlot
+  scope?: SwapScope
   mode?: 'swap' | 'override'
 }) {
   const impact = useQuery({
-    ...swapImpactQuery(serviceDate, role, replacementId, inReturn, mode === 'override'),
+    ...swapImpactQuery(serviceDate, role, replacementId, { inReturn, scope, correction: mode === 'override' }),
     enabled: Boolean(serviceDate && role && replacementId),
   })
   const t = useMessages().swaps.impact

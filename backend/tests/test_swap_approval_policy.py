@@ -135,11 +135,14 @@ async def test_every_member_reads_the_swap_policy(client, db) -> None:
 
     read = await client.get(SWAP_POLICY)
     assert read.status_code == 200, read.text
-    assert read.json() == {"coordinator_approval_required": True}
+    assert read.json() == {"coordinator_approval_required": True, "late_shift_anchor": "secondary"}
 
     await _set_approval(client, False)
     await login(client, "marek")
-    assert (await client.get(SWAP_POLICY)).json() == {"coordinator_approval_required": False}
+    assert (await client.get(SWAP_POLICY)).json() == {
+        "coordinator_approval_required": False,
+        "late_shift_anchor": "secondary",
+    }
 
 
 async def test_by_default_the_acceptance_still_waits_for_a_coordinator(client, db) -> None:

@@ -104,11 +104,6 @@ class SwapRuleViolationsNotAcknowledged(DomainError):
         return translate("swaps.acknowledge_next_step")
 
 
-class RuleBreakingSwapNeedsReason(DomainError):
-    def __init__(self) -> None:
-        super().__init__("swaps.rule_breaking_swap_needs_reason")
-
-
 class SwapNotFound(DomainError):
     def __init__(self) -> None:
         super().__init__("swaps.not_found")

@@ -3462,10 +3462,14 @@
           "coordinator_approval_required": {
             "title": "Coordinator Approval Required",
             "type": "boolean"
+          },
+          "late_shift_anchor": {
+            "$ref": "#/components/schemas/LateShiftAnchor"
           }
         },
         "required": [
-          "coordinator_approval_required"
+          "coordinator_approval_required",
+          "late_shift_anchor"
         ],
         "title": "SwapPolicyResponse",
         "type": "object"
@@ -3512,6 +3516,21 @@
             "format": "uuid",
             "title": "Schedule Id",
             "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "whole",
+                  "single"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
           },
           "service_date": {
             "format": "date",
@@ -8983,6 +9002,26 @@
             }
           },
           {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "whole",
+                    "single"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope"
+            }
+          },
+          {
             "in": "cookie",
             "name": "oncall_session",
             "required": false,
@@ -9047,6 +9086,26 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/AssignmentRole"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "whole",
+                    "single"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope"
             }
           },
           {
@@ -9179,6 +9238,26 @@
               "format": "uuid",
               "title": "Replacement Member Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "whole",
+                    "single"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scope"
             }
           },
           {

@@ -18,6 +18,7 @@ from oncall.domain.swaps.models import (
     SwapListQuery,
     SwapRequestInput,
     SwapRequestView,
+    SwapScope,
 )
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus, UserRole
 from oncall.fairness_data import member_response
@@ -68,7 +69,6 @@ SWAP_ERROR_STATUSES = {
     errors.SlotHasActiveSwap: status.HTTP_409_CONFLICT,
     errors.SwapBreaksHardRules: status.HTTP_409_CONFLICT,
     errors.SwapRuleViolationsNotAcknowledged: status.HTTP_409_CONFLICT,
-    errors.RuleBreakingSwapNeedsReason: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.SwapNotFound: status.HTTP_404_NOT_FOUND,
     errors.OnlyNamedReplacementMayAccept: status.HTTP_403_FORBIDDEN,
     errors.OnlyNamedReplacementMayReject: status.HTTP_403_FORBIDDEN,
@@ -142,10 +142,11 @@ async def replacement_options(
     ports: SwapProvider,
     service_date: Annotated[date, Query()],
     role: Annotated[AssignmentRole, Query()],
+    scope: Annotated[SwapScope | None, Query()] = None,
 ) -> list[SwapOptionResponse]:
     with _swap_errors_as_http():
         options = await use_cases.list_replacement_options(
-            ReplacementOptionsQuery(actor_from(user), service_date, role), ports
+            ReplacementOptionsQuery(actor_from(user), service_date, role, scope), ports
         )
     return [swap_option_response(option) for option in options]
 
@@ -157,12 +158,13 @@ async def return_options(
     service_date: Annotated[date, Query()],
     role: Annotated[AssignmentRole, Query()],
     replacement_member_id: Annotated[uuid.UUID, Query()],
+    scope: Annotated[SwapScope | None, Query()] = None,
 ) -> list[SwapReturnOptionResponse]:
     """The replacement's coming duties the requester could take in exchange
     for the one named here, the ones whose exchange breaks nothing first."""
     with _swap_errors_as_http():
         options = await use_cases.list_return_options(
-            ReturnOptionsQuery(actor_from(user), service_date, role, replacement_member_id),
+            ReturnOptionsQuery(actor_from(user), service_date, role, replacement_member_id, scope),
             ports,
         )
     return [swap_return_option_response(option) for option in options]
@@ -178,6 +180,7 @@ async def swap_impact(
     return_date: Annotated[date | None, Query()] = None,
     return_role: Annotated[AssignmentRole | None, Query()] = None,
     correction: Annotated[bool, Query()] = False,
+    scope: Annotated[SwapScope | None, Query()] = None,
 ) -> SwapImpactResponse:
     # The document this docstring cites now lives in archive/docs/PLAN.md. The
     # path is left as written because FastAPI publishes this docstring as the
@@ -191,7 +194,8 @@ async def swap_impact(
     """
     # `return_date` and `return_role` name the duty that comes back in an
     # exchange; `correction` asks for a coordinator's correction instead of a
-    # swap. Kept out of the docstring, which is the published description.
+    # swap; `scope` is what the swap gives of the day, as `POST /swaps` takes
+    # it. Kept out of the docstring, which is the published description.
     if (return_date is None) != (return_role is None):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, translate("swaps.return_needs_day_and_role")
@@ -206,6 +210,7 @@ async def swap_impact(
                 replacement_member_id,
                 in_return=in_return,
                 correction=correction,
+                scope=scope,
             ),
             ports,
         )
@@ -269,6 +274,7 @@ async def create_swap(
                     if payload.in_return is not None
                     else None
                 ),
+                scope=payload.scope,
             ),
             ports,
         )

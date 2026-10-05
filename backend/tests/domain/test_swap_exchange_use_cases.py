@@ -102,10 +102,7 @@ async def test_an_exchange_that_still_breaks_a_rule_is_acknowledged_like_a_hand_
     assert [(item.rule, item.member_name) for item in refused.value.violations] == [
         ("rest_after_run", "Dawid")
     ]
-    with pytest.raises(errors.RuleBreakingSwapNeedsReason):
-        await ask(world, in_return=tuesday, acknowledge_rule_violations=True)
-
-    view = await ask(world, in_return=tuesday, acknowledge_rule_violations=True, note=REASON)
+    view = await ask(world, in_return=tuesday, acknowledge_rule_violations=True)
 
     assert [(item.rule, item.party) for item in view.request.rule_violations] == [
         ("rest_after_run", "replacement")

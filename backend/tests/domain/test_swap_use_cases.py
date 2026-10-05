@@ -196,15 +196,16 @@ async def test_a_request_breaking_a_rest_rule_is_refused_until_it_is_acknowledge
     assert world.requests.by_id == {}
 
 
-@pytest.mark.parametrize("note", [None, "", "   krótko   "])
-async def test_a_request_breaking_a_rest_rule_has_to_say_why(world, note) -> None:
-    """The bar of a coordinator's own correction: ten characters of reason."""
+@pytest.mark.parametrize("note", [None, "", "krótko"])
+async def test_the_acknowledgement_alone_files_a_rule_breaking_request(world, note) -> None:
+    """The tick is the requester's word; a reason is welcome, never required."""
     dawid_served_the_three_days_before(world)
 
-    with pytest.raises(errors.RuleBreakingSwapNeedsReason):
-        await ask(world, world.dawid, note=note, acknowledge=True)
+    view = await ask(world, world.dawid, note=note, acknowledge=True)
 
-    assert world.requests.by_id == {}
+    assert view.request.status == SwapStatus.pending_replacement
+    assert view.request.note == note
+    assert {item.rule for item in view.request.rule_violations} == set(FOURTH_DAY_IN_A_ROW)
 
 
 async def test_an_acknowledged_request_keeps_the_rules_it_breaks(world) -> None:
