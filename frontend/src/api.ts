@@ -127,14 +127,19 @@ export interface SwapOption {
   next_step?: string | null
 }
 
-/** A duty of the replacement the requester could take in exchange. The three
+/** A day of the replacement the requester could take in exchange. The three
  *  lists judge the whole exchange, both directions as one move. */
 export interface SwapReturnOption extends SwapSlot {
-  /** The slots that come back - two when the 11-19 anchor couples them. */
+  /** What `in_return` asks with to take `slots`; none on a day with one role. */
+  scope?: SwapScope | null
+  /** The slots that come back: the whole duty of the day or one role of it. */
   slots: SwapSlot[]
   blocking_violations: RuleViolation[]
   rule_violations: RuleViolation[]
   warning_violations: RuleViolation[]
+  /** The other ways to take a day with two roles, each judged the same way;
+   *  this one is offered first. */
+  parts?: SwapReturnOption[]
 }
 
 export interface SwapRequest {
@@ -935,18 +940,24 @@ export const api = {
   },
   swapPolicy: () => request<SwapPolicy>('/api/v1/swaps/policy'),
   /** `inReturn` projects an exchange; `scope` is what the swap gives of the
-   *  day; `correction` a coordinator's correction, which moves 11-19 with its
-   *  anchor role only. */
+   *  day and `returnScope` what it takes of the day in return; `correction` a
+   *  coordinator's correction, which moves 11-19 with its anchor role only. */
   swapImpact: (
     serviceDate: string,
     role: AssignmentRole,
     replacementMemberId: string,
-    { inReturn, scope, correction }: { inReturn?: SwapSlot; scope?: SwapScope; correction?: boolean } = {},
+    { inReturn, scope, returnScope, correction }: {
+      inReturn?: SwapSlot
+      scope?: SwapScope
+      returnScope?: SwapScope
+      correction?: boolean
+    } = {},
   ) =>
     request<SwapImpact>(
       `/api/v1/swaps/impact?service_date=${encodeURIComponent(serviceDate)}`
       + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`
       + (inReturn ? `&return_date=${encodeURIComponent(inReturn.service_date)}&return_role=${inReturn.role}` : '')
+      + (inReturn && returnScope ? `&return_scope=${returnScope}` : '')
       + (scope ? `&scope=${scope}` : '')
       + (correction ? '&correction=true' : ''),
     ),
@@ -968,8 +979,8 @@ export const api = {
     replacement_member_id: string
     note?: string
     acknowledge_rule_violations?: boolean
-    /** The duty of the replacement taken in exchange. */
-    in_return?: SwapSlot
+    /** The duty of the replacement taken in exchange, and what of its day. */
+    in_return?: SwapSlot & { scope?: SwapScope }
     scope?: SwapScope
   }) => send<SwapRequest>('POST', '/api/v1/swaps', input),
   /** `acknowledge`: the person deciding has seen the hard rules the swap breaks. */

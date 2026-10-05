@@ -57,22 +57,33 @@ export function swapHeadline(item: SwapRequest) {
   return returned ? `${dayRole(item)} ⇄ ${dayRole(returned)}` : dayRole(item)
 }
 
-/** What a stored request gives of its day, for the projection of its points. */
-export const scopeOf = (item: SwapRequest): SwapScope => (slotsOf(item).length > 1 ? 'whole' : 'single')
+const scopeOf = (slots: SwapSlot[]): SwapScope => (slots.length > 1 ? 'whole' : 'single')
+
+/** What a stored request moves, as the projection of its points asks for it. */
+export function movesOf(item: SwapRequest) {
+  const inReturn = returnOf(item)
+  return { inReturn, scope: scopeOf(slotsOf(item)), returnScope: inReturn && scopeOf(returnSlotsOf(item)) }
+}
 
 /**
  * The projected balances of one move, as a query every place that shows them
  * shares. `inReturn` makes it an exchange; `scope` is what it gives of the
- * day; `correction` makes it a coordinator's correction instead of a swap.
+ * day and `returnScope` what it takes of the day in return; `correction`
+ * makes it a coordinator's correction instead of a swap.
  */
 export const swapImpactQuery = (
   serviceDate: string,
   role: AssignmentRole,
   replacementId: string,
-  { inReturn, scope, correction = false }: { inReturn?: SwapSlot; scope?: SwapScope; correction?: boolean } = {},
+  { inReturn, scope, returnScope, correction = false }: {
+    inReturn?: SwapSlot
+    scope?: SwapScope
+    returnScope?: SwapScope
+    correction?: boolean
+  } = {},
 ) => ({
-  queryKey: ['swap-impact', serviceDate, role, replacementId, inReturn?.service_date, inReturn?.role, scope, correction],
-  queryFn: () => api.swapImpact(serviceDate, role, replacementId, { inReturn, scope, correction }),
+  queryKey: ['swap-impact', serviceDate, role, replacementId, inReturn?.service_date, inReturn?.role, scope, returnScope, correction],
+  queryFn: () => api.swapImpact(serviceDate, role, replacementId, { inReturn, scope, returnScope, correction }),
 })
 
 /** What the form gives of a day: the whole duty, or one of its roles. */

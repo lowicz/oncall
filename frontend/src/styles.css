@@ -462,6 +462,8 @@ button.rank-c { cursor: pointer; }
 button.rank-c:hover:not(:disabled) { background: var(--s2); }
 .rank-best { border-color: var(--sig); background: var(--sig-soft); }
 .rank-sel { box-shadow: 0 0 0 2px var(--sig-line); }
+/* How a selected row's day is taken: under the row, kept apart from the next one. */
+.rank-sub { padding: 0 0 6px 12px; }
 .rank-blocked { opacity: 0.6; }
 .rank-no { font: 700 12px/16px var(--label); color: var(--dim); text-align: center; }
 .rank-nm { font-weight: 600; font-size: 14px; line-height: 21px; min-width: 0; }

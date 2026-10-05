@@ -325,10 +325,11 @@ async def list_replacement_options(
 async def list_return_options(
     query: ReturnOptionsQuery, ports: SwapPorts, *, today: date | None = None
 ) -> list[ReturnOption]:
-    """The replacement's coming duties the requester could take in exchange
+    """The replacement's coming days the requester could take in exchange
     for the one given away, each with what the whole exchange would break or
-    bend. The ones that break nothing come first: handing a duty over adds
-    one to the replacement's week, an exchange only moves it."""
+    bend, and a day with two roles also with what taking one of them would.
+    The ones that break nothing come first: handing a duty over adds one to
+    the replacement's week, an exchange only moves it."""
     today = today or business_today()
     if query.service_date < today:
         return []
@@ -340,35 +341,60 @@ async def list_return_options(
     roster = await _roster_around([today, query.service_date, horizon], ports)
     given = roster.moves((query.service_date, query.role), requester, replacement, query.scope)
     in_other_requests = await ports.requests.active_slots(today, horizon)
-    options: dict[frozenset[Slot], ReturnOption] = {}
-    # The on-call role of a day before its 11-19: a pair that travels together
-    # is offered once, under the role that names the duty.
-    for slot in sorted(
+    # The replacement's roles of each day, the on-call role before its 11-19.
+    days: dict[date, list[AssignmentRole]] = {}
+    for day, role in sorted(
         roster.duties, key=lambda slot: (slot[0], slot[1] == AssignmentRole.late_shift)
     ):
-        day, role = slot
         if (
-            not today <= day <= horizon
-            or day == query.service_date
-            or not roster.duties[slot].held_by(replacement.id, replacement.display_name)
-            or not requester.is_eligible(role, day)
-            or requester.is_unavailable(day)
+            today <= day <= horizon
+            and day != query.service_date
+            and roster.duties[(day, role)].held_by(replacement.id, replacement.display_name)
+            and not requester.is_unavailable(day)
         ):
-            continue
-        returned = roster.moves(slot, replacement, requester)
-        if frozenset(returned) in options or in_other_requests.intersection(returned):
-            continue
-        blocking, to_acknowledge, warnings = roster.tiers(given, returned, requester, replacement)
-        options[frozenset(returned)] = ReturnOption(
-            service_date=day,
-            role=role,
-            slots=tuple(returned),
-            blocking_violations=tuple(blocking),
-            rule_violations=tuple(to_acknowledge),
-            warning_violations=tuple(warnings),
+            days.setdefault(day, []).append(role)
+    options: list[ReturnOption] = []
+    for day, roles in days.items():
+        # A day with two roles is taken whole or one role at a time; each way
+        # is judged on its own, and two ways that move the same slots are one.
+        ways: list[tuple[AssignmentRole, SwapScope | None]] = (
+            [(roles[0], None)]
+            if len(roles) == 1
+            else [(roles[0], "whole"), *((role, "single") for role in roles)]
         )
+        parts: dict[frozenset[Slot], ReturnOption] = {}
+        for role, scope in ways:
+            returned = roster.moves((day, role), replacement, requester, scope)
+            if (
+                frozenset(returned) in parts
+                or in_other_requests.intersection(returned)
+                or not all(requester.is_eligible(each, on) for on, each in returned)
+            ):
+                continue
+            blocking, to_acknowledge, warnings = roster.tiers(
+                given, returned, requester, replacement
+            )
+            parts[frozenset(returned)] = ReturnOption(
+                service_date=day,
+                role=role,
+                slots=tuple(returned),
+                blocking_violations=tuple(blocking),
+                rule_violations=tuple(to_acknowledge),
+                warning_violations=tuple(warnings),
+                scope=scope,
+            )
+        if not parts:
+            continue
+        # What a request without a scope takes is offered first, unless a rule
+        # refuses it and another way of the day is open.
+        unscoped = parts.pop(frozenset(roster.moves((day, roles[0]), replacement, requester)), None)
+        offered, *others = sorted(
+            [way for way in (unscoped, *parts.values()) if way is not None],
+            key=lambda way: bool(way.blocking_violations),
+        )
+        options.append(replace(offered, parts=tuple(others)))
     return sorted(
-        options.values(),
+        options,
         key=lambda option: (
             bool(option.blocking_violations),
             bool(option.rule_violations),
@@ -422,7 +448,7 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         given = roster.moves(slot, requester, replacement, query.scope)
     moved = [(move, requester, replacement) for move in given]
     if query.in_return is not None:
-        returned = roster.moves(query.in_return, replacement, requester)
+        returned = roster.moves(query.in_return, replacement, requester, query.return_scope)
         moved += [(move, replacement, requester) for move in returned]
 
     # The window ends on the last moved day so every moved duty is inside it.
@@ -534,25 +560,28 @@ async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[Swa
 
 async def _duty_in_return(
     slot: Slot,
+    scope: SwapScope | None,
     given_day: date,
     requester: Member,
     replacement: Member,
     roster: _Roster,
     published: PublishedRoster,
 ) -> SwapReturn:
-    """The replacement's duty the requester asks for in exchange, checked the
-    way the duty given away is, with the two people in each other's place."""
-    day, role = slot
+    """What the requester asks for in exchange of the replacement's day,
+    checked the way the duty given away is, with the two people in each
+    other's place."""
+    day, _role = slot
     if day == given_day:
         raise ReturnOnTheSameDay()
     in_force, schedule = await _published_duty(slot, roster, published)
     if not in_force.held_by(replacement.id, replacement.display_name):
         raise ReturnSlotNotTheirs()
-    if not requester.is_eligible(role, day):
+    returned = roster.moves(slot, replacement, requester, scope)
+    if not all(requester.is_eligible(role, on) for on, role in returned):
         raise RequesterNotEligible()
     if requester.is_unavailable(day):
         raise RequesterUnavailable()
-    return SwapReturn(schedule.id, tuple(roster.moves(slot, replacement, requester)))
+    return SwapReturn(schedule.id, tuple(returned))
 
 
 async def request_swap(
@@ -588,7 +617,13 @@ async def request_swap(
     in_return, returned = None, []
     if swap.in_return is not None:
         in_return = await _duty_in_return(
-            swap.in_return, swap.service_date, requester, replacement, roster, ports.roster
+            swap.in_return,
+            swap.return_scope,
+            swap.service_date,
+            requester,
+            replacement,
+            roster,
+            ports.roster,
         )
         returned = list(in_return.slots)
     for move in moves:

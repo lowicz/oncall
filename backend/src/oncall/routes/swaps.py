@@ -181,6 +181,7 @@ async def swap_impact(
     return_role: Annotated[AssignmentRole | None, Query()] = None,
     correction: Annotated[bool, Query()] = False,
     scope: Annotated[SwapScope | None, Query()] = None,
+    return_scope: Annotated[SwapScope | None, Query()] = None,
 ) -> SwapImpactResponse:
     # The document this docstring cites now lives in archive/docs/PLAN.md. The
     # path is left as written because FastAPI publishes this docstring as the
@@ -194,8 +195,9 @@ async def swap_impact(
     """
     # `return_date` and `return_role` name the duty that comes back in an
     # exchange; `correction` asks for a coordinator's correction instead of a
-    # swap; `scope` is what the swap gives of the day, as `POST /swaps` takes
-    # it. Kept out of the docstring, which is the published description.
+    # swap; `scope` is what the swap gives of the day and `return_scope` what
+    # it takes of the day that comes back, as `POST /swaps` takes them. Kept
+    # out of the docstring, which is the published description.
     if (return_date is None) != (return_role is None):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, translate("swaps.return_needs_day_and_role")
@@ -211,6 +213,7 @@ async def swap_impact(
                 in_return=in_return,
                 correction=correction,
                 scope=scope,
+                return_scope=return_scope,
             ),
             ports,
         )
@@ -275,6 +278,7 @@ async def create_swap(
                     else None
                 ),
                 scope=payload.scope,
+                return_scope=payload.in_return.scope if payload.in_return is not None else None,
             ),
             ports,
         )

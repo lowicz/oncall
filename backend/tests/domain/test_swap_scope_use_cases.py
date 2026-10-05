@@ -1,5 +1,6 @@
 """What a request gives of a day - the whole duty or one of its two slots -
-against in-memory ports, under each on-call role 11-19 may be anchored to.
+and what it takes of the day that comes back in an exchange, against
+in-memory ports, under each on-call role 11-19 may be anchored to.
 
 Every scenario runs twice: with 11-19 following SECONDARY and following
 PRIMARY. Anna holds the anchor role and 11-19 on Wednesday, Ewa holds the
@@ -39,6 +40,8 @@ DAY = date(2030, 3, 13)
 TODAY = DAY - timedelta(days=7)
 THURSDAY = DAY + timedelta(days=1)
 FRIDAY = DAY + timedelta(days=2)
+SATURDAY = DAY + timedelta(days=3)
+MONDAY = DAY + timedelta(days=5)
 LATE = AssignmentRole.late_shift
 
 
@@ -78,7 +81,18 @@ def world(anchor, other) -> World:
     return world
 
 
-def ask(world, replacement, role, scope=None, *, day=DAY, requester=None, acknowledge=False):
+def ask(
+    world,
+    replacement,
+    role,
+    scope=None,
+    *,
+    day=DAY,
+    requester=None,
+    acknowledge=False,
+    in_return=None,
+    return_scope=None,
+):
     return request_swap(
         SwapRequestInput(
             actor=account(requester or world.anna),
@@ -86,7 +100,9 @@ def ask(world, replacement, role, scope=None, *, day=DAY, requester=None, acknow
             role=role,
             replacement_member_id=replacement.id,
             acknowledge_rule_violations=acknowledge,
+            in_return=in_return,
             scope=scope,
+            return_scope=return_scope,
         ),
         world.swaps,
         today=TODAY,
@@ -331,3 +347,222 @@ async def test_the_anchor_role_given_away_from_a_third_persons_late_shift_stays_
 
 async def test_the_swap_policy_names_the_anchor(world, anchor) -> None:
     assert (await swap_policy(world.swaps)).late_shift_anchor == anchor.value
+
+
+def dawid_holds_the_pair_on_friday(world, anchor) -> None:
+    world.roster.assign(FRIDAY, anchor, world.dawid)
+    world.roster.assign(FRIDAY, LATE, world.dawid)
+
+
+async def returns(world, role, scope=None, *, day=DAY, requester=None):
+    """Dawid's days the requester could take back for `role` of `day`."""
+    listed = await list_return_options(
+        ReturnOptionsQuery(account(requester or world.anna), day, role, world.dawid.id, scope),
+        world.swaps,
+        today=TODAY,
+    )
+    return {option.service_date: option for option in listed}
+
+
+def ways(option) -> list[tuple]:
+    """How a day may be taken, the way it is offered first leading."""
+    return [(way.role, way.scope, way.slots) for way in (option, *option.parts)]
+
+
+async def test_a_day_is_offered_as_it_is_taken_by_default_with_its_other_ways(
+    world, anchor, other
+) -> None:
+    """The pair the anchor binds comes back whole unless asked otherwise; a
+    pair it does not bind one role at a time; a day with one role has no
+    other way to be taken."""
+    dawid_holds_the_pair_on_friday(world, anchor)
+    world.roster.assign(SATURDAY, anchor, world.dawid)
+    world.roster.assign(MONDAY, anchor, world.bartek)
+    world.roster.assign(MONDAY, other, world.dawid)
+    world.roster.assign(MONDAY, LATE, world.dawid)
+
+    offered = await returns(world, anchor, "whole")
+
+    assert ways(offered[FRIDAY]) == [
+        (anchor, "whole", ((FRIDAY, anchor), (FRIDAY, LATE))),
+        (anchor, "single", ((FRIDAY, anchor),)),
+        (LATE, "single", ((FRIDAY, LATE),)),
+    ]
+    assert offered[FRIDAY].rule_violations == ()
+    for part in offered[FRIDAY].parts:
+        assert split("Anna", "Dawid") <= rules(part.rule_violations)
+    assert ways(offered[SATURDAY]) == [(anchor, None, ((SATURDAY, anchor),))]
+    assert ways(offered[MONDAY]) == [
+        (other, "single", ((MONDAY, other),)),
+        (other, "whole", ((MONDAY, other), (MONDAY, LATE))),
+        (LATE, "single", ((MONDAY, LATE),)),
+    ]
+
+
+@pytest.mark.parametrize("kept", ["anchor", "late"])
+async def test_one_role_is_exchanged_for_the_same_role_of_another_day(world, anchor, kept) -> None:
+    """11-19 for 11-19, or the anchor role for the anchor role: each person
+    splits a pair, so every step acknowledges the split on both days."""
+    dawid_holds_the_pair_on_friday(world, anchor)
+    role = LATE if kept == "anchor" else anchor
+
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged) as refused:
+        await ask(
+            world, world.dawid, role, "single", in_return=(FRIDAY, role), return_scope="single"
+        )
+    assert rules(refused.value.violations) == split("Anna", "Dawid")
+    assert {item.days for item in refused.value.violations} == {(DAY, FRIDAY)}
+
+    view = await ask(
+        world,
+        world.dawid,
+        role,
+        "single",
+        in_return=(FRIDAY, role),
+        return_scope="single",
+        acknowledge=True,
+    )
+    assert view.slots == [(DAY, role)]
+    assert view.return_slots == [(FRIDAY, role)]
+
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged):
+        await accept(world, world.dawid, view.request.id)
+    await accept(world, world.dawid, view.request.id, acknowledge=True)
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged):
+        await approve(world, view.request.id)
+    approved = await approve(world, view.request.id, acknowledge=True)
+    assert approved.request.status == SwapStatus.approved
+    assert world.roster.handed_over == [
+        ((DAY, role), world.dawid.id),
+        ((FRIDAY, role), world.anna.id),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("given", "scope", "taken", "return_scope", "split_day"),
+    [
+        ("anchor", "whole", "late", "single", FRIDAY),
+        ("late", "single", "anchor", "whole", DAY),
+    ],
+    ids=["whole for one role", "one role for whole"],
+)
+async def test_mixed_scopes_split_only_the_day_taken_apart(
+    world, anchor, given, scope, taken, return_scope, split_day
+) -> None:
+    dawid_holds_the_pair_on_friday(world, anchor)
+    roles = {"anchor": anchor, "late": LATE}
+
+    view = await ask(
+        world,
+        world.dawid,
+        roles[given],
+        scope,
+        in_return=(FRIDAY, roles[taken]),
+        return_scope=return_scope,
+        acknowledge=True,
+    )
+
+    assert {(item.rule, item.party, item.days) for item in view.request.rule_violations} == {
+        ("late_shift_anchor", "requester", (split_day,)),
+        ("late_shift_anchor", "replacement", (split_day,)),
+    }
+    assert len(view.slots) + len(view.return_slots) == 3
+
+
+async def test_on_a_day_the_requester_holds_the_other_oncall_role_only_its_late_shift_comes_back(
+    world, anchor, other
+) -> None:
+    """Nobody holds both on-call roles on a day: Dawid's whole Friday and his
+    anchor role are refused, his 11-19 alone is offered, to acknowledge."""
+    dawid_holds_the_pair_on_friday(world, anchor)
+    world.roster.assign(FRIDAY, other, world.anna)
+
+    friday = (await returns(world, anchor, "whole"))[FRIDAY]
+
+    assert (friday.role, friday.scope) == (LATE, "single")
+    assert friday.blocking_violations == ()
+    assert rules(friday.rule_violations) == split("Anna", "Dawid")
+    assert rules(friday.warning_violations) == {("oncall_late_shift_overlap", "Anna")}
+    assert [(part.role, part.scope) for part in friday.parts] == [
+        (anchor, "whole"),
+        (anchor, "single"),
+    ]
+    for part in friday.parts:
+        assert ("same_day_oncall", "Anna") in rules(part.blocking_violations)
+
+    for role, return_scope in [(anchor, None), (anchor, "whole"), (anchor, "single")]:
+        with pytest.raises(errors.SwapBreaksHardRules):
+            await ask(
+                world,
+                world.dawid,
+                anchor,
+                "whole",
+                in_return=(FRIDAY, role),
+                return_scope=return_scope,
+                acknowledge=True,
+            )
+    view = await ask(
+        world,
+        world.dawid,
+        anchor,
+        "whole",
+        in_return=(FRIDAY, LATE),
+        return_scope="single",
+        acknowledge=True,
+    )
+    assert view.return_slots == [(FRIDAY, LATE)]
+
+
+async def test_the_requester_takes_back_only_what_they_may_hold(world, anchor) -> None:
+    """Celina may not hold 11-19: under the anchor Dawid's whole Friday comes
+    back as its anchor role alone, the exception; with 11-19 independent the
+    whole day cannot come back at all."""
+    world.roster.assign(THURSDAY, anchor, world.celina)
+    dawid_holds_the_pair_on_friday(world, anchor)
+
+    async def friday():
+        return (await returns(world, anchor, day=THURSDAY, requester=world.celina))[FRIDAY]
+
+    assert ways(await friday()) == [(anchor, "whole", ((FRIDAY, anchor),))]
+    assert {item.rule for item in (await friday()).warning_violations} == {"late_shift_anchor"}
+
+    world.policy.anchor = LateShiftAnchor.independent
+    assert ways(await friday()) == [(anchor, "single", ((FRIDAY, anchor),))]
+    with pytest.raises(errors.RequesterNotEligible):
+        await ask(
+            world,
+            world.dawid,
+            anchor,
+            day=THURSDAY,
+            requester=world.celina,
+            in_return=(FRIDAY, anchor),
+            return_scope="whole",
+        )
+
+
+async def test_the_impact_projects_the_scope_taken_in_return(world, anchor) -> None:
+    dawid_holds_the_pair_on_friday(world, anchor)
+
+    async def impact(return_scope):
+        return await preview_swap_impact(
+            SwapImpactQuery(
+                account(world.anna),
+                DAY,
+                LATE,
+                world.dawid.id,
+                in_return=(FRIDAY, LATE),
+                scope="single",
+                return_scope=return_scope,
+            ),
+            world.swaps,
+        )
+
+    late_for_late = await impact("single")
+    for side in (late_for_late.requester, late_for_late.replacement):
+        assert side.after.late_shift.actual == side.before.late_shift.actual
+        assert getattr(side.after, anchor).actual == getattr(side.before, anchor).actual
+
+    late_for_whole = await impact("whole")
+    for side, change in ((late_for_whole.requester, 1), (late_for_whole.replacement, -1)):
+        assert side.after.late_shift.actual == side.before.late_shift.actual
+        assert getattr(side.after, anchor).actual == getattr(side.before, anchor).actual + change

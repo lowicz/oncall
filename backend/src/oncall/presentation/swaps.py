@@ -44,17 +44,22 @@ class SwapOptionResponse(BaseModel):
 
 
 class SwapReturnOptionResponse(BaseModel):
-    """A duty of the replacement the requester could take in exchange. The
+    """A day of the replacement the requester could take in exchange. The
     three lists judge the whole exchange, both directions as one move."""
 
     service_date: date
     role: AssignmentRole
+    #: What `in_return` asks with to take `slots`, as `POST /swaps` takes it.
+    scope: SwapScope | None = None
     slots: list[SwapSlotResponse] = []
     #: Rules that rule the exchange out.
     blocking_violations: list[RuleViolationResponse] = []
     #: Hard rules the exchange breaks; the request has to acknowledge them.
     rule_violations: list[RuleViolationResponse] = []
     warning_violations: list[RuleViolationResponse] = []
+    #: The other ways to take a day with two roles - the whole duty or one
+    #: role of it - each judged the same way. This one is offered first.
+    parts: list[SwapReturnOptionResponse] = []
 
 
 class SwapReturnRequest(BaseModel):
@@ -64,6 +69,8 @@ class SwapReturnRequest(BaseModel):
 
     service_date: date
     role: AssignmentRole
+    #: What the request takes of that day, as `SwapRequestCreate.scope` gives.
+    scope: SwapScope | None = None
 
 
 class SwapRequestCreate(BaseModel):
@@ -208,8 +215,10 @@ def swap_return_option_response(option: ReturnOption) -> SwapReturnOptionRespons
     return SwapReturnOptionResponse(
         service_date=option.service_date,
         role=option.role,
+        scope=option.scope,
         slots=_slots(option.slots),
         blocking_violations=rule_violation_responses(option.blocking_violations),
         rule_violations=rule_violation_responses(option.rule_violations),
         warning_violations=rule_violation_responses(option.warning_violations),
+        parts=[swap_return_option_response(part) for part in option.parts],
     )

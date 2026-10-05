@@ -213,6 +213,10 @@ const CASES: Case[] = [
     + '&return_date=2026-09-15&return_role=secondary&correction=true'),
   get('swapImpact of one slot', () => api.swapImpact('2026-09-14', 'late_shift', 'm 2', { scope: 'single' }),
     '/api/v1/swaps/impact?service_date=2026-09-14&role=late_shift&replacement_member_id=m%202&scope=single'),
+  get('swapImpact of one slot for one slot', () => api.swapImpact('2026-09-14', 'late_shift', 'm 2', {
+    inReturn: { service_date: '2026-09-16', role: 'late_shift' }, scope: 'single', returnScope: 'single',
+  }), '/api/v1/swaps/impact?service_date=2026-09-14&role=late_shift&replacement_member_id=m%202'
+    + '&return_date=2026-09-16&return_role=late_shift&return_scope=single&scope=single'),
   get('swapOptions', () => api.swapOptions('2026-09-14', 'secondary'),
     '/api/v1/swaps/options?service_date=2026-09-14&role=secondary'),
   get('swapOptions of a whole duty', () => api.swapOptions('2026-09-14', 'secondary', 'whole'),

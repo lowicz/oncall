@@ -74,8 +74,8 @@ prowadzi przez cztery kroki: dyżur, kandydat, w zamian, powód i wysłanie.
      roli on-call) przy całym dyżurze mówi, że ta osoba nie może pełnić zmiany
      11–19: przejmie samą rolę on-call, a zmiana zostaje u Ciebie. To wyjątek
      od powiązania, który daje tylko ostrzeżenie.
-3. Opcjonalnie wybierz na liście **W zamian biorę** dyżur tej osoby, który
-   weźmiesz w zamian (patrz [Wymiana dyżur za dyżur](#wymiana-dyżur-za-dyżur)).
+3. Opcjonalnie wybierz na liście **W zamian biorę** dzień tej osoby, z którego
+   weźmiesz dyżur w zamian (patrz [Wymiana dyżur za dyżur](#wymiana-dyżur-za-dyżur)).
    Bez wyboru prośba dotyczy tylko oddania dyżuru.
 4. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
    Wami, policzone dla wszystkich przenoszonych slotów.
@@ -117,9 +117,9 @@ dyżur, a w zamian bierzesz jeden z dyżurów zastępcy. Każda z dwóch osób m
 potem tyle samo dyżurów co przedtem, więc zwykle żadna reguła nie jest łamana.
 
 Po wybraniu kandydata formularz pokazuje listę **W zamian biorę** z jego
-dyżurami z najbliższych 90 dni. Pierwsza pozycja, „Nic, tylko oddaję dyżur”,
-to zwykła prośba w jedną stronę. Każda pozycja ma werdykt policzony dla całej
-wymiany, w obie strony naraz:
+dyżurami z najbliższych 90 dni, jedną pozycją na dzień. Pierwsza pozycja,
+„Nic, tylko oddaję dyżur”, to zwykła prośba w jedną stronę. Każda pozycja ma
+werdykt policzony dla całej wymiany, w obie strony naraz:
 
 - **„bez naruszeń reguł”** - wymiana niczego nie łamie; gdy samo oddanie
   dyżuru wymagałoby potwierdzenia, pierwsza taka pozycja jest wyróżniona,
@@ -130,15 +130,27 @@ wymiany, w obie strony naraz:
 - **„reguła twarda”** z dopiskiem „nie można: …” - tej pozycji nie da się
   wybrać.
 
+Gdy zastępca ma tego dnia rolę on-call i zmianę 11–19, pod wybraną pozycją
+pojawia się ten sam wybór co **Oddaję**, tu jako **Biorę**: „Cały dyżur”,
+„Tylko SECONDARY” (albo „Tylko PRIMARY”) i „Tylko 11–19”. Pozycja pokazuje
+wtedy role, które wracają, i werdykt dla tego wyboru; tak oddasz na przykład
+swoją zmianę 11–19 we wtorek za zmianę 11–19 zastępcy w środę. Domyślny
+wybór jest taki jak przy oddawaniu: cały dyżur, gdy powiązanie wiąże te dwie
+role, jedna rola, gdy nie wiąże. Jeśli reguła twarda wyklucza domyślny wybór,
+a inny jest możliwy, pozycja proponuje ten inny: gdy sam masz tego dnia drugą
+rolę on-call, dostajesz samą zmianę 11–19. W dzień z jedną rolą wyboru nie
+ma.
+
 Zasady wymiany:
 
-- w każdą stronę przechodzi jeden dyżur, a dyżur brany w zamian jest z innego
-  dnia niż oddawany,
-- dyżur brany w zamian przechodzi w całości: rola kotwicząca i 11–19 idą
-  razem, a gdy osoba przejmująca nie może pełnić zmiany 11–19, zmiana zostaje
-  u dotychczasowej,
-- do roli branej w zamian musisz mieć eligibility i nie możesz mieć tego dnia
-  wpisu „nie mogę”,
+- w każdą stronę przechodzi jeden dzień - cały dyżur albo jedna jego rola - a
+  dzień brany w zamian jest inny niż oddawany,
+- cały dyżur brany w zamian przechodzi jak oddawany: rola kotwicząca i 11–19
+  idą razem, a gdy nie możesz pełnić zmiany 11–19, zmiana zostaje u zastępcy
+  (wyjątek od powiązania, tylko ostrzeżenie); wzięcie jednej roli z
+  powiązanej pary rozdziela ją i wymaga potwierdzenia,
+- do każdej roli branej w zamian musisz mieć eligibility i nie możesz mieć
+  tego dnia wpisu „nie mogę”,
 - dyżuru branego w zamian nie może obejmować inna otwarta prośba,
 - oba dyżury mogą należeć do różnych opublikowanych grafików.
 
@@ -170,8 +182,8 @@ Potwierdzić można złamanie czterech reguł odpoczynku i powiązania:
 - więcej niż 3 kolejne dni dyżuru on-call,
 - więcej niż 3 dyżury on-call w okresie 7 dni,
 - mniej niż 2 dni przerwy po serii dyżurów on-call,
-- zmiana 11–19 i rola kotwicząca u różnych osób, także gdy prośba oddaje tylko
-  jedną rolę z powiązanej pary.
+- zmiana 11–19 i rola kotwicząca u różnych osób, także gdy prośba oddaje albo
+  bierze w zamian tylko jedną rolę z powiązanej pary.
 
 Pozostałe reguły twarde blokują zamianę bez wyjątku: ta sama osoba nie
 obejmie obu dyżurów on-call jednego dnia, a zmiana 11–19 nie trafi na dzień
@@ -183,7 +195,7 @@ Jak to przebiega:
    grafiku” z listą: kto, którą regułę i w które dni. Przycisk „Wyślij prośbę”
    działa dopiero po zaznaczeniu „Rozumiem i świadomie łamię te reguły”;
    **powód** jest opcjonalny. Wybranie innego kandydata albo innego dyżuru w
-   zamian cofa zaznaczenie.
+   zamian, także innego wyboru **Biorę**, cofa zaznaczenie.
 2. **Zastępca** widzi tę samą listę w arkuszu decyzji - przy własnym nazwisku
    z dopiskiem „(Ty)”, bo to najczęściej jego odpoczynek zamiana skraca.
    „Akceptuję” działa dopiero po zaznaczeniu potwierdzenia.

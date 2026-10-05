@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SwapRequest, SwapStatus } from '../api'
-import { brokenRules, canWithdraw, defaultChoice, dutyDays, groupSwaps, isExpired, isLapsed, isOpen, needsMyDecision, scopeOf } from './swaps'
+import { brokenRules, canWithdraw, defaultChoice, dutyDays, groupSwaps, isExpired, isLapsed, isOpen, movesOf, needsMyDecision } from './swaps'
 
 const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   schedule_id: 's1',
@@ -169,13 +169,21 @@ describe('defaultChoice', () => {
   })
 })
 
-describe('scopeOf', () => {
-  it('reads a stored request as the whole duty when it moves both slots of its day', () => {
-    expect(scopeOf(swap({ id: '1', slots: [
-      { service_date: '2026-09-14', role: 'primary' },
-      { service_date: '2026-09-14', role: 'late_shift' },
-    ] }))).toBe('whole')
-    expect(scopeOf(swap({ id: '2', slots: [{ service_date: '2026-09-14', role: 'late_shift' }] }))).toBe('single')
-    expect(scopeOf(swap({ id: '3' }))).toBe('single')
+describe('movesOf', () => {
+  it('reads either direction of a stored request as the whole duty when it moves both slots of its day', () => {
+    expect(movesOf(swap({
+      id: '1',
+      slots: [{ service_date: '2026-09-14', role: 'primary' }, { service_date: '2026-09-14', role: 'late_shift' }],
+      return_slots: [{ service_date: '2026-09-16', role: 'late_shift' }, { service_date: '2026-09-16', role: 'secondary' }],
+    }))).toEqual({ inReturn: { service_date: '2026-09-16', role: 'late_shift' }, scope: 'whole', returnScope: 'whole' })
+    expect(movesOf(swap({
+      id: '2',
+      slots: [{ service_date: '2026-09-14', role: 'late_shift' }],
+      return_slots: [{ service_date: '2026-09-16', role: 'late_shift' }],
+    }))).toEqual({ inReturn: { service_date: '2026-09-16', role: 'late_shift' }, scope: 'single', returnScope: 'single' })
+  })
+
+  it('asks nothing of a day in return that a one-way request does not take', () => {
+    expect(movesOf(swap({ id: '3' }))).toEqual({ inReturn: undefined, scope: 'single', returnScope: undefined })
   })
 })

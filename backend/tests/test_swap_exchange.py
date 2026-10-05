@@ -526,9 +526,11 @@ async def test_a_duty_with_a_swap_in_progress_cannot_be_taken_in_return(client, 
 
     assert refused.status_code == 409, refused.text
     assert refused.json()["detail"] == "Dla tego slotu istnieje aktywna zamiana"
-    # What cannot be taken is not offered either.
-    offered = {option["service_date"] for option in await _return_options(client, team)}
-    assert "2026-10-07" not in offered
+    # What cannot be taken is not offered either: of Wednesday only the 11-19
+    # the other request leaves behind.
+    offered = {option["service_date"]: option for option in await _return_options(client, team)}
+    assert offered["2026-10-07"]["slots"] == _slots(("2026-10-07", "late_shift"))
+    assert offered["2026-10-07"]["parts"] == []
     assert "2026-10-10" in offered
 
 
@@ -579,7 +581,21 @@ async def test_the_exchange_may_not_put_the_requester_on_call_twice_in_a_day(cli
         },
     )
     wednesday = next(o for o in options.json() if o["service_date"] == "2026-10-07")
-    assert [item["rule"] for item in wednesday["blocking_violations"]] == ["same_day_oncall"]
+    assert [(part["role"], part["scope"]) for part in wednesday["parts"]] == [
+        ("secondary", "whole"),
+        ("secondary", "single"),
+    ]
+    for part in wednesday["parts"]:
+        assert [item["rule"] for item in part["blocking_violations"]] == ["same_day_oncall"]
+    # 11-19 is not an on-call role: taking it alone splits Bartosz's pair, a
+    # rule to acknowledge, and is the way the day is offered. Bartosz then
+    # keeps his SECONDARY and gains Monday's PRIMARY.
+    assert (wednesday["role"], wednesday["scope"]) == ("late_shift", "single")
+    assert wednesday["blocking_violations"] == []
+    assert {item["rule"] for item in wednesday["rule_violations"]} == {
+        "late_shift_anchor",
+        "three_in_seven",
+    }
 
 
 async def test_the_requester_who_cannot_hold_11_19_leaves_it_with_the_replacement(
@@ -711,6 +727,84 @@ async def test_an_exchange_crosses_a_publication_boundary(client, db, two_weeks)
     assert approved.status_code == 200, approved.text
     assert (await _holders(db, date(2026, 10, 10)))[AssignmentRole.primary] == "Dariusz Zieliński"
     assert (await _holders(db, date(2026, 10, 12)))[AssignmentRole.primary] == "Filip Kamiński"
+    for schedule in (first, second):
+        await db.refresh(schedule)
+        assert schedule.version == 2
+
+
+async def test_one_role_is_exchanged_for_one_role_across_a_publication_boundary(
+    client, db, two_weeks
+) -> None:
+    """Anna's 11-19 of Tuesday the 6th for Bartosz's of Friday the 16th, a
+    publication apart: each keeps the SECONDARY of their own day, and each
+    split pair is acknowledged once, on both days."""
+    first, second = two_weeks["schedules"]
+    bartosz = str(two_weeks["Bartosz Nowak"].id)
+    request = {
+        "schedule_id": str(first.id),
+        "service_date": "2026-10-06",
+        "role": "late_shift",
+        "scope": "single",
+        "replacement_member_id": bartosz,
+        "in_return": {"service_date": "2026-10-16", "role": "late_shift", "scope": "single"},
+    }
+    await login(client, "ania")
+
+    refused = await client.post("/api/v1/swaps", json=request)
+    assert refused.status_code == 409, refused.text
+    assert {
+        (item["rule"], item["member_name"], tuple(item["days"]))
+        for item in refused.json()["detail"]["violations"]
+    } == {
+        ("late_shift_anchor", name, ("2026-10-06", "2026-10-16"))
+        for name in ("Anna Kowalska", "Bartosz Nowak")
+    }
+    impact = await client.get(
+        "/api/v1/swaps/impact",
+        params={
+            "service_date": "2026-10-06",
+            "role": "late_shift",
+            "scope": "single",
+            "replacement_member_id": bartosz,
+            "return_date": "2026-10-16",
+            "return_role": "late_shift",
+            "return_scope": "single",
+        },
+    )
+    assert impact.status_code == 200, impact.text
+    for side in ("requester", "replacement"):
+        before, after = impact.json()[side]["before"], impact.json()[side]["after"]
+        assert after["late_shift"]["actual"] == before["late_shift"]["actual"]
+        assert after["secondary"]["actual"] == before["secondary"]["actual"]
+
+    created = await client.post(
+        "/api/v1/swaps", json={**request, "acknowledge_rule_violations": True}
+    )
+
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["slots"] == _slots(("2026-10-06", "late_shift"))
+    assert body["return_slots"] == _slots(("2026-10-16", "late_shift"))
+    await login(client, "bartek")
+    accepted = await client.post(
+        f"/api/v1/swaps/{body['id']}/accept", json={"acknowledge_rule_violations": True}
+    )
+    assert accepted.status_code == 200, accepted.text
+    await login(client, "koord")
+    approved = await client.post(
+        f"/api/v1/swaps/{body['id']}/approve", json={"acknowledge_rule_violations": True}
+    )
+    assert approved.status_code == 200, approved.text
+    assert await _holders(db, date(2026, 10, 6)) == {
+        AssignmentRole.primary: "Ewa Lewandowska",
+        AssignmentRole.secondary: "Anna Kowalska",
+        AssignmentRole.late_shift: "Bartosz Nowak",
+    }
+    assert await _holders(db, date(2026, 10, 16)) == {
+        AssignmentRole.primary: "Filip Kamiński",
+        AssignmentRole.secondary: "Bartosz Nowak",
+        AssignmentRole.late_shift: "Anna Kowalska",
+    }
     for schedule in (first, second):
         await db.refresh(schedule)
         assert schedule.version == 2

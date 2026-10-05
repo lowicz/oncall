@@ -69,7 +69,7 @@ class SwapReturn:
     it. The two days of an exchange may lie in different publications."""
 
     schedule_id: uuid.UUID
-    #: The duty and the 11-19 slot that travels with it.
+    #: What the request takes of that day: the whole duty or one role of it.
     slots: tuple[Slot, ...]
 
 
@@ -95,6 +95,8 @@ class SwapRequestInput:
     #: A duty of the replacement the requester takes in exchange.
     in_return: Slot | None = None
     scope: SwapScope | None = None
+    #: What the request takes of the day `in_return` names, as `scope` gives.
+    return_scope: SwapScope | None = None
 
 
 @dataclass(frozen=True)
@@ -139,6 +141,7 @@ class SwapImpactQuery:
     #: only from its anchor role, where a swap couples the pair from either.
     correction: bool = False
     scope: SwapScope | None = None
+    return_scope: SwapScope | None = None
 
 
 @dataclass(frozen=True)
@@ -288,10 +291,11 @@ class ReplacementOption:
 
 @dataclass(frozen=True)
 class ReturnOption:
-    """A duty of the replacement the requester could take in exchange, with
+    """A day of the replacement the requester could take in exchange, with
     what the whole exchange - both directions - would break or bend."""
 
-    #: The duty as it is asked for; `slots` adds the 11-19 that travels with it.
+    #: The duty as it is asked for, with the scope it is asked with; `slots`
+    #: are what that takes of the day.
     service_date: date
     role: AssignmentRole
     slots: tuple[Slot, ...]
@@ -300,6 +304,10 @@ class ReturnOption:
     #: Rules the exchange breaks and the request has to acknowledge.
     rule_violations: tuple[RuleViolation, ...]
     warning_violations: tuple[RuleViolation, ...]
+    scope: SwapScope | None = None
+    #: The other ways to take a day with two roles - the whole duty or one
+    #: role of it - each judged the same way. This one is offered first.
+    parts: tuple[ReturnOption, ...] = ()
 
 
 @dataclass(frozen=True)

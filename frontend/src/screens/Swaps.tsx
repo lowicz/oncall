@@ -1,7 +1,7 @@
 import { Fragment, ReactNode, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
+import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { formatDecimal, signedPoints } from '../lib/numbers'
@@ -17,10 +17,10 @@ import {
   dutyDays,
   isLapsed,
   isOpen,
+  movesOf,
   needsMyDecision,
   returnOf,
   returnSlotsOf,
-  scopeOf,
   slotsOf,
   swapHeadline,
   swapImpactQuery,
@@ -71,6 +71,12 @@ function inboxOf(item: SwapRequest, me: string): Inbox {
 }
 
 const slotKey = (slot: SwapSlot) => `${slot.service_date}|${slot.role}`
+
+const wayOrder = (way: SwapReturnOption) => (way.scope === 'whole' ? 0 : way.role === 'late_shift' ? 2 : 1)
+/** Every way to take a day of the replacement, in the order the "I give" choice has them: the whole duty, the on-call role, 11-19. */
+const waysOf = (option: SwapReturnOption) => [option, ...(option.parts ?? [])].sort((left, right) => wayOrder(left) - wayOrder(right))
+/** One way to take a day, as the form keeps it. */
+const wayKey = (way: SwapReturnOption) => `${slotKey(way)}|${way.scope ?? ''}`
 
 /** What an acknowledgement was given for: each rule, whose it is and on which days. */
 const rulesKey = (violations: RuleViolation[]) =>
@@ -148,7 +154,8 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
       type="button"
       role="radio"
       aria-checked={selected}
-      disabled={Boolean(blockedBy)}
+      // A selected day stays selectable: another way of taking it may be open.
+      disabled={Boolean(blockedBy) && !selected}
       className={cx('rank-c', best && 'rank-best', selected && 'rank-sel', blockedBy && 'rank-blocked')}
       onClick={onSelect}
     >
@@ -332,7 +339,7 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
       {exchange && open && brokenRules(item).length === 0 && <Box tone="ok" title={rules.exchangeClean} />}
       <ViolationList violations={item.warnings ?? []} title={t.warnings} />
       {item.replacement_member_id && open && (
-        <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} inReturn={returnOf(item)} scope={scopeOf(item)} />
+        <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} {...movesOf(item)} />
       )}
       {expired && <Box tone="warn" title={t.expired} />}
       {!approvalRequired && mustDecide && item.status === 'pending_replacement' && (
@@ -384,8 +391,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // so it is taken back when those change or another request is in front.
   const [composeAcknowledgedFor, setComposeAcknowledgedFor] = useState<string | null>(null)
   const [sheetAcknowledgedFor, setSheetAcknowledgedFor] = useState<string | null>(null)
-  // The duty of the replacement taken in exchange, as `slotKey` names it;
-  // empty for a one-way hand-over.
+  // The way the replacement's day is taken in exchange, as `wayKey` names
+  // it; empty for a one-way hand-over.
   const [inReturn, setInReturn] = useState('')
   const pickReturn = (key: string) => { setInReturn(key); setComposeAcknowledgedFor(null) }
   const pickReplacement = (memberId: string) => { setReplacementId(memberId); pickReturn('') }
@@ -470,7 +477,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     return rightBenefit - leftBenefit || left.display_name.localeCompare(right.display_name, locale())
   })
   const selectedOption = options.data?.find((option) => option.member_id === replacementId)
-  const selectedReturn = returnOptions.data?.find((option) => slotKey(option) === inReturn)
+  const returnDay = returnOptions.data?.find((option) => waysOf(option).some((way) => wayKey(way) === inReturn))
+  const selectedReturn = returnDay && waysOf(returnDay).find((way) => wayKey(way) === inReturn)
   // An exchange is judged as one move, so its verdict replaces the hand-over's.
   const verdict: Verdict | undefined = selectedReturn ?? selectedOption
   // The hard rules the request being written breaks: it is sent only
@@ -553,7 +561,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // One projection per open row, for the "effect" column.
   const projected = visible.filter((item) => isOpen(item) && item.replacement_member_id)
   const rowImpacts = useQueries({
-    queries: projected.map((item) => swapImpactQuery(item.service_date, item.role, item.replacement_member_id as string, { inReturn: returnOf(item), scope: scopeOf(item) })),
+    queries: projected.map((item) => swapImpactQuery(item.service_date, item.role, item.replacement_member_id as string, movesOf(item))),
   })
   const impactOfRow = (item: SwapRequest) => {
     const index = projected.indexOf(item)
@@ -766,7 +774,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 replacement_member_id: replacementId,
                 note,
                 acknowledge_rule_violations: breaksRules,
-                in_return: selectedReturn && { service_date: selectedReturn.service_date, role: selectedReturn.role },
+                in_return: selectedReturn && { service_date: selectedReturn.service_date, role: selectedReturn.role, scope: selectedReturn.scope ?? undefined },
                 scope,
               })
             }
@@ -894,21 +902,41 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               {returnOptions.data && returnOptions.data.length > 0 && (
                 <div className="rank">
                   <ReturnChoice no="–" title={t.swaps.compose.nothingInReturn} verdict={selectedOption} selected={!selectedReturn} onSelect={() => pickReturn('')} />
-                  {returnOptions.data.map((option, index) => (
-                    <ReturnChoice
-                      key={slotKey(option)}
-                      no={index + 1}
-                      // The day names the duty; its roles would not fit beside the verdict.
-                      title={formatDayShort(option.service_date)}
-                      detail={`${roleList(option.slots)} · ${relativeDay(option.service_date)}`}
-                      verdict={option}
-                      own={ownRules(option)}
-                      selected={option === selectedReturn}
-                      // The first exchange that spares the request an acknowledgement.
-                      best={index === 0 && Boolean(selectedOption.rule_violations?.length) && option.rule_violations.length + option.blocking_violations.length === 0}
-                      onSelect={() => pickReturn(slotKey(option))}
-                    />
-                  ))}
+                  {returnOptions.data.map((option, index) => {
+                    // The selected day reads as the way it is taken.
+                    const way = option === returnDay && selectedReturn ? selectedReturn : option
+                    return (
+                      <Fragment key={slotKey(option)}>
+                        <ReturnChoice
+                          no={index + 1}
+                          // The day names the duty; its roles would not fit beside the verdict.
+                          title={formatDayShort(option.service_date)}
+                          detail={`${roleList(way.slots)} · ${relativeDay(option.service_date)}`}
+                          verdict={way}
+                          own={ownRules(way)}
+                          selected={option === returnDay}
+                          // The first exchange that spares the request an acknowledgement.
+                          best={index === 0 && Boolean(selectedOption.rule_violations?.length) && option.rule_violations.length + option.blocking_violations.length === 0}
+                          onSelect={() => option !== returnDay && pickReturn(wayKey(option))}
+                        />
+                        {/* A day with two roles is taken whole or one role of it, like the day given. */}
+                        {option === returnDay && option.parts?.length ? (
+                          <div className="rank-sub">
+                            <Segmented
+                              label={t.swaps.compose.takeScope}
+                              className="seg-tight"
+                              value={wayKey(way)}
+                              onChange={pickReturn}
+                              options={waysOf(option).map((each) => ({
+                                value: wayKey(each),
+                                label: each.scope === 'whole' ? t.swaps.compose.wholeDuty : t.swaps.compose.only(roles[each.role]),
+                              }))}
+                            />
+                          </div>
+                        ) : null}
+                      </Fragment>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -939,7 +967,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             </>
           )}
           {serviceDate && assignmentRole && replacementId && (
-            <SwapImpactPreview serviceDate={serviceDate} role={assignmentRole} replacementId={replacementId} inReturn={selectedReturn} scope={scope} />
+            <SwapImpactPreview
+              serviceDate={serviceDate}
+              role={assignmentRole}
+              replacementId={replacementId}
+              inReturn={selectedReturn}
+              scope={scope}
+              returnScope={selectedReturn?.scope ?? undefined}
+            />
           )}
           <Field label={t.swaps.compose.note} id="swap-note" hint={t.swaps.compose.noteHint}>
             {({ id, describedBy }) => (
