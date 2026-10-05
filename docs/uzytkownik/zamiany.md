@@ -20,7 +20,8 @@ Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres
 akcji pojawia się także jako znacznik przy pozycji „Zamiany” w nawigacji.
 
 Wiersz tabeli podaje dzień i rolę, kto oddaje, kto przejmuje, **skutek** (osoba,
-która zyska punkty, i ile) oraz **etap** - kto jest następny. Znacznik
+która zyska punkty, i ile; „bez zmian”, gdy nikt) oraz **etap** - kto jest
+następny. [Wymiana](#wymiana-dyżur-za-dyżur) ma w pierwszej kolumnie oba dni. Znacznik
 **„łamie reguły”** oznacza wniosek opisany w części
 [Zamiana łamiąca reguły](#zamiana-łamiąca-reguły). Przycisk **Zdecyduj** (gdy
 decyzja należy do Ciebie) albo **Podgląd** otwiera arkusz sprawy.
@@ -30,7 +31,9 @@ decyzja należy do Ciebie) albo **Podgląd** otwiera arkusz sprawy.
 Arkusz pokazuje obie osoby, dyżur, powód wnioskodawcy, pasek etapów
 (złożona → zastępca → koordynator → w grafiku; etap „koordynator” znika, gdy
 zatwierdzanie zamian jest wyłączone), **Wpływ na bilans** obu osób, reguły,
-które zamiana łamie, i ostrzeżenia. Decyzję podejmujesz w tym samym miejscu:
+które zamiana łamie, i ostrzeżenia. Przy [wymianie](#wymiana-dyżur-za-dyżur)
+zamiast dwóch osób pokazuje dwa dyżury: oddawany i brany w zamian. Decyzję
+podejmujesz w tym samym miejscu:
 
 - **Zastępca** klika „Akceptuję” albo „Odrzuć”. Przy wyłączonym zatwierdzaniu
   arkusz zapowiada, że akceptacja od razu wpisze zamianę do grafiku.
@@ -46,7 +49,7 @@ arkuszu; powód widzą obie strony, zostaje przy wniosku i w audycie. Przycisk
 
 Przycisk **Nowa zamiana** w nagłówku ekranu otwiera formularz w panelu; przycisk
 **Poproś o zamianę** na ekranie Moje otwiera go z wybranym dyżurem. Formularz
-prowadzi przez trzy kroki: dyżur, kandydat, powód i wysłanie.
+prowadzi przez cztery kroki: dyżur, kandydat, w zamian, powód i wysłanie.
 
 1. W polu **Mój dyżur** wybierz swój nadchodzący dyżur. Lista podaje datę,
    rolę i jak daleko jest ten dzień. Dyżur kolidujący z Twoim wpisem
@@ -65,11 +68,14 @@ prowadzi przez trzy kroki: dyżur, kandydat, powód i wysłanie.
    - oznaczenie **„poprawia bilans”** mówi, że zamiana zmniejszy nierówność,
    - oznaczenie **„dzieli blok dni wolnych”** zapowiada ostrzeżenie dla
      koordynatora.
-3. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
-   Wami.
-4. Opcjonalnie dopisz **Powód**; zobaczą go zastępca i koordynator. Powód jest
+3. Opcjonalnie wybierz na liście **W zamian biorę** dyżur tej osoby, który
+   weźmiesz w zamian (patrz [Wymiana dyżur za dyżur](#wymiana-dyżur-za-dyżur)).
+   Bez wyboru prośba dotyczy tylko oddania dyżuru.
+4. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
+   Wami, policzone dla wszystkich przenoszonych slotów.
+5. Opcjonalnie dopisz **Powód**; zobaczą go zastępca i koordynator. Powód jest
    wymagany, gdy zamiana łamie reguły.
-5. „Wyślij prośbę”. Ekran potwierdza wysłanie komunikatem „Wysłano do: …” i
+6. „Wyślij prośbę”. Ekran potwierdza wysłanie komunikatem „Wysłano do: …” i
    przechodzi do skrzynki **Moje**.
 
 Jeśli ustawienie „Powiązanie 11–19” sprawia, że tego dnia obie role należą do
@@ -80,11 +86,59 @@ Gdy zamiana narusza regułę miękką (na przykład dzieli blok dni wolnych),
 zobaczysz ostrzeżenie „Wyślesz mimo to - koordynator zobaczy ostrzeżenie”.
 Wysłanie jest nadal możliwe.
 
+## Wymiana dyżur za dyżur
+
+Oddany dyżur dokłada zastępcy jeden dzień w tygodniu, więc przy pełnym grafiku
+łatwo o złamanie reguły odpoczynku. Wymiana go tylko przesuwa: oddajesz swój
+dyżur, a w zamian bierzesz jeden z dyżurów zastępcy. Każda z dwóch osób ma
+potem tyle samo dyżurów co przedtem, więc zwykle żadna reguła nie jest łamana.
+
+Po wybraniu kandydata formularz pokazuje listę **W zamian biorę** z jego
+dyżurami z najbliższych 90 dni. Pierwsza pozycja, „Nic, tylko oddaję dyżur”,
+to zwykła prośba w jedną stronę. Każda pozycja ma werdykt policzony dla całej
+wymiany, w obie strony naraz:
+
+- **„bez naruszeń reguł”** - wymiana niczego nie łamie; gdy samo oddanie
+  dyżuru wymagałoby potwierdzenia, pierwsza taka pozycja jest wyróżniona,
+- **„ostrzeżenie”** - wymiana narusza regułę miękką; wysłanie jest możliwe,
+- **„wymaga potwierdzenia”** - wymiana łamie regułę odpoczynku albo
+  powiązania i przechodzi drogę opisaną w części
+  [Zamiana łamiąca reguły](#zamiana-łamiąca-reguły),
+- **„reguła twarda”** z dopiskiem „nie można: …” - tej pozycji nie da się
+  wybrać.
+
+Zasady wymiany:
+
+- w każdą stronę przechodzi jeden dyżur, a dyżur brany w zamian jest z innego
+  dnia niż oddawany,
+- powiązanie 11–19 działa po obu stronach: SECONDARY i 11–19 idą razem, a gdy
+  osoba przejmująca nie może pełnić zmiany 11–19, zmiana zostaje u
+  dotychczasowej,
+- do roli branej w zamian musisz mieć eligibility i nie możesz mieć tego dnia
+  wpisu „nie mogę”,
+- dyżuru branego w zamian nie może obejmować inna otwarta prośba,
+- oba dyżury mogą należeć do różnych opublikowanych grafików.
+
+Wymiana jest niepodzielna: **jedna akceptacja** zastępcy (i jedno
+zatwierdzenie koordynatora, gdy jest włączone) obejmuje obie strony, a oba
+dyżury przechodzą razem albo wcale. Jeśli przed decyzją którykolwiek z nich
+zmienił właściciela, prośba jest anulowana.
+
+W skrzynce wymiana ma w pierwszej kolumnie oba dni (na przykład „wt 6 paź
+SECONDARY ⇄ śr 7 paź SECONDARY”) i dopisek „wymiana · 4 sloty”. Arkusz decyzji
+pokazuje zastępcy wiersze **Dostajesz** i **Oddajesz**, autorowi **Oddajesz**
+i **Dostajesz**, a pozostałym **Dyżur** i **W zamian** - każdy z dniem, rolami
+i drugą osobą. Gdy otwarta wymiana niczego nie łamie, arkusz mówi to wprost.
+Wiadomości e-mail wymieniają oba dyżury, a przypomnienie o przełączeniu
+numeru podaje oba dni.
+
 ## Zamiana łamiąca reguły
 
 Czasem jedyna osoba, która może Cię zastąpić, ma już za dużo dyżurów - na
 przykład wszyscy pozostali są na urlopie. Prośbę o taką zamianę można złożyć,
-ale każdy, kto ją popycha dalej, musi to zrobić świadomie.
+ale każdy, kto ją popycha dalej, musi to zrobić świadomie. Zanim to zrobisz,
+sprawdź listę „W zamian biorę”: [wymiana](#wymiana-dyżur-za-dyżur) często nie
+łamie żadnej reguły.
 
 Potwierdzić można złamanie czterech reguł odpoczynku i powiązania:
 
@@ -103,7 +157,7 @@ Jak to przebiega:
    grafiku” z listą: kto, którą regułę i w które dni. Przycisk „Wyślij prośbę”
    działa dopiero po zaznaczeniu „Rozumiem i świadomie łamię te reguły” i
    wpisaniu **powodu** (co najmniej 10 znaków). Wybranie innego kandydata
-   cofa zaznaczenie.
+   albo innego dyżuru w zamian cofa zaznaczenie.
 2. **Zastępca** widzi tę samą listę w arkuszu decyzji - przy własnym nazwisku
    z dopiskiem „(Ty)”, bo to najczęściej jego odpoczynek zamiana skraca.
    „Akceptuję” działa dopiero po zaznaczeniu potwierdzenia.
@@ -169,7 +223,8 @@ zgłoszenie ──► Oczekuje na zastępcę ──► Zatwierdzona (od razu w g
 Zatwierdzenie koordynatora - albo, przy wyłączonym zatwierdzaniu, akceptacja
 zastępcy:
 
-- tworzy korektę (override) wyłącznie na wybranym dniu i wybranej roli,
+- tworzy korektę (override) wyłącznie na slotach objętych wnioskiem - przy
+  wymianie w obu kierunkach, w jednym kroku,
 - **nie przelicza** pozostałych dni grafiku,
 - podnosi wersję opublikowanego grafiku,
 - rozsyła powiadomienia i aktualizuje kanały ICS,
@@ -179,5 +234,6 @@ zastępcy:
 ## Termin minął
 
 Wniosek dotyczący dnia, który już był, dostaje w tabeli dopisek **„termin
-minął”** i traci przyciski decyzji. Nie da się zaakceptować zastępstwa wstecz -
-taki dzień poprawia koordynator korektą na macierzy.
+minął”** i traci przyciski decyzji; przy wymianie wystarczy, że minął
+wcześniejszy z dwóch dni. Nie da się zaakceptować zastępstwa wstecz - taki
+dzień poprawia koordynator korektą na macierzy.

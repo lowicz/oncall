@@ -4,13 +4,14 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from oncall.auth import CsrfGuard, CurrentUser
 from oncall.bootstrap.providers import SwapProvider
 from oncall.domain.swaps import errors, use_cases
 from oncall.domain.swaps.models import (
     ReplacementOptionsQuery,
+    ReturnOptionsQuery,
     SwapAutoCancelled,
     SwapDecisionInput,
     SwapImpactQuery,
@@ -32,8 +33,10 @@ from oncall.presentation.swaps import (
     SwapPolicyResponse,
     SwapRequestCreate,
     SwapRequestResponse,
+    SwapReturnOptionResponse,
     swap_option_response,
     swap_response,
+    swap_return_option_response,
 )
 from oncall.routes.domain_edge import (
     SHARED_ERROR_STATUSES,
@@ -58,6 +61,10 @@ SWAP_ERROR_STATUSES = {
     errors.ReplacementUnavailable: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.ReplacementAlreadyOnCall: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.ReplacementOnCallSinceRequest: status.HTTP_409_CONFLICT,
+    errors.ReturnOnTheSameDay: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    errors.ReturnSlotNotTheirs: status.HTTP_409_CONFLICT,
+    errors.RequesterNotEligible: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    errors.RequesterUnavailable: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.SlotHasActiveSwap: status.HTTP_409_CONFLICT,
     errors.SwapBreaksHardRules: status.HTTP_409_CONFLICT,
     errors.SwapRuleViolationsNotAcknowledged: status.HTTP_409_CONFLICT,
@@ -143,6 +150,24 @@ async def replacement_options(
     return [swap_option_response(option) for option in options]
 
 
+@router.get("/return-options", response_model=list[SwapReturnOptionResponse])
+async def return_options(
+    user: CurrentUser,
+    ports: SwapProvider,
+    service_date: Annotated[date, Query()],
+    role: Annotated[AssignmentRole, Query()],
+    replacement_member_id: Annotated[uuid.UUID, Query()],
+) -> list[SwapReturnOptionResponse]:
+    """The replacement's coming duties the requester could take in exchange
+    for the one named here, the ones whose exchange breaks nothing first."""
+    with _swap_errors_as_http():
+        options = await use_cases.list_return_options(
+            ReturnOptionsQuery(actor_from(user), service_date, role, replacement_member_id),
+            ports,
+        )
+    return [swap_return_option_response(option) for option in options]
+
+
 @router.get("/impact", response_model=SwapImpactResponse)
 async def swap_impact(
     user: CurrentUser,
@@ -150,6 +175,9 @@ async def swap_impact(
     service_date: Annotated[date, Query()],
     role: Annotated[AssignmentRole, Query()],
     replacement_member_id: Annotated[uuid.UUID, Query()],
+    return_date: Annotated[date | None, Query()] = None,
+    return_role: Annotated[AssignmentRole | None, Query()] = None,
+    correction: Annotated[bool, Query()] = False,
 ) -> SwapImpactResponse:
     # The document this docstring cites now lives in archive/docs/PLAN.md. The
     # path is left as written because FastAPI publishes this docstring as the
@@ -161,9 +189,24 @@ async def swap_impact(
     sending the request. Nothing is written; the projection reuses the same
     12-month window as the fairness report so the two never disagree.
     """
+    # `return_date` and `return_role` name the duty that comes back in an
+    # exchange; `correction` asks for a coordinator's correction instead of a
+    # swap. Kept out of the docstring, which is the published description.
+    if (return_date is None) != (return_role is None):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, translate("swaps.return_needs_day_and_role")
+        )
+    in_return = (return_date, return_role) if return_date and return_role else None
     with _swap_errors_as_http():
         impact = await use_cases.preview_swap_impact(
-            SwapImpactQuery(actor_from(user), service_date, role, replacement_member_id),
+            SwapImpactQuery(
+                actor_from(user),
+                service_date,
+                role,
+                replacement_member_id,
+                in_return=in_return,
+                correction=correction,
+            ),
             ports,
         )
 
@@ -183,6 +226,8 @@ async def swap_impact(
         window_end=impact.window_end,
         requester=side(impact.requester),
         replacement=side(impact.replacement),
+        return_date=impact.return_date,
+        return_points=impact.return_points,
     )
 
 
@@ -219,6 +264,11 @@ async def create_swap(
                 replacement_member_id=payload.replacement_member_id,
                 note=payload.note,
                 acknowledge_rule_violations=payload.acknowledge_rule_violations,
+                in_return=(
+                    (payload.in_return.service_date, payload.in_return.role)
+                    if payload.in_return is not None
+                    else None
+                ),
             ),
             ports,
         )

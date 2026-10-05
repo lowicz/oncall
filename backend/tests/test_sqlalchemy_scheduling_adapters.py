@@ -15,6 +15,7 @@ from oncall.domain.vocabulary import (
     AssignmentRole,
     RotationMode,
     ScheduleStatus,
+    SwapSlotDirection,
     SwapStatus,
     UserRole,
 )
@@ -108,6 +109,9 @@ async def test_swaps_are_cancelled_for_a_publication_with_the_reason_recorded(db
         replacement_member_id=people[1].id,
         status=SwapStatus.pending_coordinator,
         schedule_version=1,
+        slots=[
+            SwapRequestSlot(service_date=DAY, role=AssignmentRole.primary, schedule_id=schedule.id)
+        ],
     )
     db.add(swap)
     await db.commit()
@@ -199,6 +203,74 @@ async def test_publishing_under_the_same_name_keeps_the_name(db) -> None:
     )
 
 
+async def _exchange(db, status: SwapStatus) -> dict:
+    """Anna gives Bartek her duty of the first publication and takes his of
+    the second one in return."""
+    first = await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
+    second = await create_published_schedule(
+        db, starts_on=DAY + timedelta(days=1), days=1, primary=["Bartek"]
+    )
+    people = []
+    for name in ("Anna", "Bartek"):
+        user = await create_user(db, name.lower(), display_name=name)
+        people.append(await create_member(db, user, display_name=name))
+    swap = SwapRequest(
+        schedule_id=first.id,
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        requester_member_id=people[0].id,
+        replacement_member_id=people[1].id,
+        status=status,
+        schedule_version=1,
+        slots=[
+            SwapRequestSlot(service_date=DAY, role=AssignmentRole.primary, schedule_id=first.id),
+            SwapRequestSlot(
+                service_date=DAY + timedelta(days=1),
+                role=AssignmentRole.primary,
+                schedule_id=second.id,
+                direction=SwapSlotDirection.returned,
+            ),
+        ],
+    )
+    db.add(swap)
+    await db.commit()
+    return {"swap": swap, "first": first, "second": second, "anna": people[0], "bartek": people[1]}
+
+
+async def test_a_pending_exchange_is_found_by_the_schedule_of_either_direction(db) -> None:
+    exchange = await _exchange(db, SwapStatus.pending_replacement)
+    swaps = SqlAlchemyPublicationSwaps(db)
+
+    (pending,) = await swaps.pending_on([exchange["second"].id])
+
+    assert pending.id == exchange["swap"].id
+    assert pending.schedule_ids == {exchange["first"].id, exchange["second"].id}
+    assert pending.slots == ((DAY, AssignmentRole.primary),)
+    assert pending.return_slots == ((DAY + timedelta(days=1), AssignmentRole.primary),)
+    assert await swaps.pending_on([uuid.uuid4()]) == []
+
+
+async def test_an_approved_exchange_is_two_changes_each_with_its_own_original_holder(db) -> None:
+    """The requester held what was given, the replacement what came back: a
+    republish compares each slot with the person it was taken from."""
+    exchange = await _exchange(db, SwapStatus.approved)
+
+    approved = await SqlAlchemyPublicationSwaps(db).approved_on([exchange["second"].id])
+
+    assert [
+        (item.schedule_id, item.original_member_id, item.original_name, item.slots)
+        for item in approved
+    ] == [
+        (exchange["first"].id, exchange["anna"].id, "Anna", ((DAY, AssignmentRole.primary),)),
+        (
+            exchange["second"].id,
+            exchange["bartek"].id,
+            "Bartek",
+            ((DAY + timedelta(days=1), AssignmentRole.primary),),
+        ),
+    ]
+
+
 async def test_the_days_a_swap_touches_are_read_per_request(db) -> None:
     schedule = await create_published_schedule(db, starts_on=DAY, days=2, primary=["Anna"])
     people = []
@@ -215,8 +287,8 @@ async def test_the_days_a_swap_touches_are_read_per_request(db) -> None:
         schedule_version=1,
     )
     swap.slots = [
-        SwapRequestSlot(service_date=DAY, role=AssignmentRole.primary),
-        SwapRequestSlot(service_date=DAY + timedelta(days=1), role=AssignmentRole.primary),
+        SwapRequestSlot(service_date=day, role=AssignmentRole.primary, schedule_id=schedule.id)
+        for day in (DAY, DAY + timedelta(days=1))
     ]
     db.add(swap)
     await db.commit()

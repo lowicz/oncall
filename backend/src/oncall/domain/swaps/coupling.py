@@ -121,35 +121,43 @@ def takes_second_oncall(duties: dict[Slot, Duty], moves: list[Slot], member: Mem
     return False
 
 
-def has_anchor_exception(moves: list[Slot], anchor: LateShiftAnchor, holidays: set[date]) -> bool:
-    """Whether the stored slot set decoupled 11-19 on purpose.
+def anchor_exception_days(
+    moves: list[Slot], anchor: LateShiftAnchor, holidays: set[date]
+) -> set[date]:
+    """The days on which the stored slot set decoupled 11-19 on purpose.
 
-    `request_swap` leaves the 11-19 slot out of the move set only when the
-    replacement cannot hold it, so on approval a day that moves the anchor role
-    without its 11-19 partner is the tolerated exception, not a fresh break.
+    `request_swap` leaves the 11-19 slot out of the move set only when whoever
+    takes the anchor role cannot hold it, so on approval a day that moves the
+    anchor role without its 11-19 partner is the tolerated exception, not a
+    fresh break. Each direction of an exchange stands on its own day.
     """
     bound = anchor_role(anchor)
     if bound is None:
-        return False
+        return set()
     move_set = set(moves)
-    return any(
-        role == bound
+    return {
+        day
+        for day, role in moves
+        if role == bound
         and is_working_day(day, holidays)
         and (day, AssignmentRole.late_shift) not in move_set
-        for day, role in moves
-    )
+    }
 
 
 def partition_violations(
-    violations: list[RuleViolation], *, anchor_exception: bool
+    violations: list[RuleViolation], *, anchor_exception_days: set[date]
 ) -> tuple[list[RuleViolation], list[RuleViolation], list[RuleViolation]]:
     """Split into rules that refuse the swap, rules it breaks only with an
-    acknowledgement (one entry per person and rule) and rules it only bends."""
-    tolerated = set(TOLERATED_SWAP_RULES)
-    if anchor_exception:
-        tolerated.add("late_shift_anchor")
-    warnings = [item for item in violations if item.rule in tolerated]
-    broken = [item for item in violations if item.rule not in tolerated]
+    acknowledgement (one entry per person and rule) and rules it only bends.
+    The 11-19 anchor split is bent, not broken, on `anchor_exception_days`."""
+
+    def tolerated(item: RuleViolation) -> bool:
+        return item.rule in TOLERATED_SWAP_RULES or (
+            item.rule == "late_shift_anchor" and anchor_exception_days.issuperset(item.days)
+        )
+
+    warnings = [item for item in violations if tolerated(item)]
+    broken = [item for item in violations if not tolerated(item)]
     hard = [item for item in broken if item.rule not in ACKNOWLEDGEABLE_SWAP_RULES]
     to_acknowledge = [item for item in broken if item.rule in ACKNOWLEDGEABLE_SWAP_RULES]
     return hard, merged(to_acknowledge), warnings

@@ -37,6 +37,10 @@ export const swaps = {
     stage: 'Etap',
     actions: 'Akcje',
     twoSlots: '2 sloty',
+    /** Under an exchange: every slot it moves, both directions counted. */
+    exchange: (count: number) => `wymiana · ${pluralPl(count, ['slot', 'sloty', 'slotów'])}`,
+    /** The "effect" column when nobody ends up with more points. */
+    noEffect: 'bez zmian',
     expired: 'termin minął',
     decide: 'Zdecyduj',
     preview: 'Podgląd',
@@ -57,6 +61,8 @@ export const swaps = {
   rules: {
     tag: 'łamie reguły',
     breaks: 'Ta zamiana łamie reguły grafiku',
+    /** An exchange, both directions checked as one move. */
+    exchangeClean: 'Ta wymiana nie łamie żadnej reguły',
     /** The same list on a swap already in the schedule. */
     broken: 'Świadomie złamane reguły',
     /** After the name of the person reading, in the list of who breaks what. */
@@ -74,6 +80,16 @@ export const swaps = {
   },
   sheet: {
     title: (slot: string) => `Zamiana · ${slot}`,
+    /** An exchange is named by its two days. */
+    exchangeTitle: (given: string, taken: string) => `Wymiana · ${given} ⇄ ${taken}`,
+    /** The two directions of an exchange, as each of the two people reads them. */
+    youGet: 'Dostajesz',
+    youGive: 'Oddajesz',
+    fromPerson: (name: string) => `od: ${name}`,
+    forPerson: (name: string) => `dla: ${name}`,
+    /** And as anyone else does: the duty, and the one that comes back for it. */
+    inReturn: 'W zamian',
+    between: (giver: string, taker: string) => `${giver} → ${taker}`,
     gives: 'Oddaje',
     takes: 'Przejmuje',
     thatIsYou: 'to Ty',
@@ -111,7 +127,8 @@ export const swaps = {
     step: 'Krok',
     stepDuty: '1 dyżur',
     stepCandidate: '2 kandydat',
-    stepReason: '3 powód i wysłanie',
+    stepReturn: '3 w zamian',
+    stepReason: '4 powód i wysłanie',
     giving: (slot: string) => `Oddajesz: ${slot}`,
     myDuty: 'Mój dyżur',
     myDutyHint: 'Dzień i rola z opublikowanego grafiku.',
@@ -137,6 +154,17 @@ export const swaps = {
     belowShare: (points: string) => `${points} pkt poniżej udziału`,
     improvesBalance: 'poprawia bilans',
     hardRule: 'reguła twarda',
+    /** The optional step: one of the replacement's duties taken in exchange. */
+    inReturn: 'W zamian biorę',
+    inReturnMeta: (name: string) => `opcjonalnie · od: ${name}`,
+    returnSearching: 'Szukam dyżurów do wzięcia w zamian',
+    noReturnDuties: (name: string) => `${name} nie ma nadchodzących dyżurów, które można wziąć w zamian.`,
+    nothingInReturn: 'Nic, tylko oddaję dyżur',
+    warning: 'ostrzeżenie',
+    noViolations: 'bez naruszeń reguł',
+    exchangeCleanBody: 'Prośba idzie zwykłą ścieżką, bez potwierdzeń.',
+    exchangeTitle: (given: string, taken: string) => `Wymiana: ${given} ⇄ ${taken}`,
+    exchangeTogether: 'Oba dyżury przechodzą razem albo wcale.',
     bothSlotsTitle: 'Prośba obejmie oba sloty tego dnia',
     bothSlotsWithApproval: 'Jedna akceptacja zastępcy, jedno zatwierdzenie koordynatora.',
     bothSlotsWithoutApproval: 'Jedna akceptacja zastępcy załatwia całość.',
@@ -159,6 +187,8 @@ export const swaps = {
     /** A swap: the person chooses to hand the duty over. */
     handsOver: 'oddaje dyżur',
     takes: 'przejmuje dyżur',
+    /** Either side of an exchange: the day handed over and the day taken. */
+    exchanges: (gives: string, takes: string) => `oddaje ${gives}, bierze ${takes}`,
     points: (before: string, after: string, change: string) => `punkty ${before} → ${after} (${change})`,
     closer: 'bliżej równowagi',
     further: 'dalej od równowagi',

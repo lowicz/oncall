@@ -1,5 +1,6 @@
 import uuid
 from dataclasses import dataclass
+from datetime import date
 from typing import Protocol
 
 from oncall.domain.ports import FairnessHistory, PublishedRoster, RosterPolicy, TeamDirectory
@@ -16,6 +17,11 @@ class SwapRequestStore(Protocol):
         The answer holds until the unit of work ends: a concurrent request for
         the same day waits here instead of racing past the check.
         """
+        ...
+
+    async def active_slots(self, first: date, last: date) -> set[Slot]:
+        """The slots pending requests move between the two days, read without
+        holding the days: what a form may still offer, not a reservation."""
         ...
 
     async def add(self, request: NewSwapRequest) -> SwapRequest: ...

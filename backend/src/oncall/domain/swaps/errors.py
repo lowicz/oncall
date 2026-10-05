@@ -49,6 +49,29 @@ class ReplacementOnCallSinceRequest(ReplacementAlreadyOnCall):
     """Same break, found at approval: the roster moved after the request."""
 
 
+class ReturnOnTheSameDay(DomainError):
+    """An exchange trades two days; a trade of roles within one day is not
+    a request this version takes."""
+
+    def __init__(self) -> None:
+        super().__init__("swaps.return_on_the_same_day")
+
+
+class ReturnSlotNotTheirs(DomainError):
+    def __init__(self) -> None:
+        super().__init__("swaps.return_slot_not_theirs")
+
+
+class RequesterNotEligible(DomainError):
+    def __init__(self) -> None:
+        super().__init__("swaps.requester_not_eligible")
+
+
+class RequesterUnavailable(DomainError):
+    def __init__(self) -> None:
+        super().__init__("swaps.requester_unavailable")
+
+
 class SlotHasActiveSwap(DomainError):
     def __init__(self) -> None:
         super().__init__("swaps.slot_has_active_swap")

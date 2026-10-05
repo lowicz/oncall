@@ -1,11 +1,13 @@
 """HTTP contracts and edge mappers for duty swaps."""
 
 import uuid
+from collections.abc import Iterable
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from oncall.domain.swaps.models import ReplacementOption, SwapRequestView
+from oncall.domain.roster import Slot
+from oncall.domain.swaps.models import ReplacementOption, ReturnOption, SwapRequestView
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, SwapStatus
 from oncall.presentation.reports import FairnessMemberResponse
 from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
@@ -41,6 +43,30 @@ class SwapOptionResponse(BaseModel):
     next_step: str | None = None
 
 
+class SwapReturnOptionResponse(BaseModel):
+    """A duty of the replacement the requester could take in exchange. The
+    three lists judge the whole exchange, both directions as one move."""
+
+    service_date: date
+    role: AssignmentRole
+    slots: list[SwapSlotResponse] = []
+    #: Rules that rule the exchange out.
+    blocking_violations: list[RuleViolationResponse] = []
+    #: Hard rules the exchange breaks; the request has to acknowledge them
+    #: and say why.
+    rule_violations: list[RuleViolationResponse] = []
+    warning_violations: list[RuleViolationResponse] = []
+
+
+class SwapReturnRequest(BaseModel):
+    """The duty of the replacement the requester takes in exchange."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    service_date: date
+    role: AssignmentRole
+
+
 class SwapRequestCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -52,6 +78,9 @@ class SwapRequestCreate(BaseModel):
     #: The requester has seen the hard rules the swap breaks; `note` then has
     #: to say why it is needed.
     acknowledge_rule_violations: bool = False
+    #: Turns the hand-over into an exchange: both directions are checked as
+    #: one move and decided by one acceptance and one approval.
+    in_return: SwapReturnRequest | None = None
 
 
 class SwapDecisionRequest(BaseModel):
@@ -83,7 +112,11 @@ class SwapRequestResponse(BaseModel):
     note: str | None
     decision_note: str | None
     created_at: datetime
+    #: What the requester gives, the on-call role before its 11-19.
     slots: list[SwapSlotResponse] = []
+    #: What the requester takes in exchange, in the same order; empty for a
+    #: one-way hand-over.
+    return_slots: list[SwapSlotResponse] = []
     #: Rules the swap bends: when it is created and while it is open.
     warnings: list[RuleViolationResponse] = []
     #: Hard rules the swap breaks: on the roster as it is now while the
@@ -111,7 +144,8 @@ class SwapImpactMemberResponse(BaseModel):
 
 
 class SwapImpactResponse(BaseModel):
-    """Projected effect of moving a single duty, shown before the request is sent."""
+    """Projected effect of a swap on both balances, shown before the request
+    is sent: every slot it moves, in both directions of an exchange."""
 
     service_date: date
     role: AssignmentRole
@@ -120,6 +154,13 @@ class SwapImpactResponse(BaseModel):
     window_end: date
     requester: SwapImpactMemberResponse
     replacement: SwapImpactMemberResponse
+    #: The day that comes back in an exchange, and what it is worth.
+    return_date: date | None = None
+    return_points: float | None = None
+
+
+def _slots(slots: Iterable[Slot]) -> list[SwapSlotResponse]:
+    return [SwapSlotResponse(service_date=day, role=role) for day, role in slots]
 
 
 def swap_response(view: SwapRequestView) -> SwapRequestResponse:
@@ -137,7 +178,8 @@ def swap_response(view: SwapRequestView) -> SwapRequestResponse:
         note=request.note,
         decision_note=request.decision_note,
         created_at=request.created_at,
-        slots=[SwapSlotResponse(service_date=day, role=role) for day, role in view.slots],
+        slots=_slots(view.slots),
+        return_slots=_slots(view.return_slots),
         warnings=rule_violation_responses(view.warnings),
         rule_violations=rule_violation_responses(view.rule_violations),
     )
@@ -149,9 +191,20 @@ def swap_option_response(option: ReplacementOption) -> SwapOptionResponse:
         display_name=option.member.display_name,
         availability=option.availability,
         on_duty_that_day=option.on_duty_that_day,
-        slots=[SwapSlotResponse(service_date=day, role=role) for day, role in option.slots],
+        slots=_slots(option.slots),
         blocking_violations=rule_violation_responses(option.blocking_violations),
         rule_violations=rule_violation_responses(option.rule_violations),
         warning_violations=rule_violation_responses(option.warning_violations),
         next_step=option.next_step,
+    )
+
+
+def swap_return_option_response(option: ReturnOption) -> SwapReturnOptionResponse:
+    return SwapReturnOptionResponse(
+        service_date=option.service_date,
+        role=option.role,
+        slots=_slots(option.slots),
+        blocking_violations=rule_violation_responses(option.blocking_violations),
+        rule_violations=rule_violation_responses(option.rule_violations),
+        warning_violations=rule_violation_responses(option.warning_violations),
     )

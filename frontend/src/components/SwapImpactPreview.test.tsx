@@ -63,6 +63,19 @@ describe('SwapImpactPreview', () => {
     expect(screen.getByText('dalej od równowagi').parentElement).toHaveClass('impact-d-warn')
   })
 
+  it('names both days of an exchange and what each side gives and takes', async () => {
+    const inReturn = { service_date: '2026-09-26', role: 'secondary' } as const
+    const call = vi.spyOn(api, 'swapImpact').mockResolvedValue({ ...impact, return_date: '2026-09-26', return_points: 2 })
+    renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m2" inReturn={inReturn} />)
+
+    expect(await screen.findByText(/Okno 24-09-2025 – 24-09-2026\./)).toHaveTextContent(
+      'czw 24-09-2026 to 1 punkt. sob 26-09-2026 to 2 punkty (2X). Okno',
+    )
+    expect(screen.getByText('Marek Nowak · oddaje czw 24 wrz, bierze sob 26 wrz')).toBeInTheDocument()
+    expect(screen.getByText('Tomek Lis · oddaje sob 26 wrz, bierze czw 24 wrz')).toBeInTheDocument()
+    expect(call).toHaveBeenCalledWith('2026-09-24', 'primary', 'm2', { inReturn, correction: false })
+  })
+
   it('says so when a side keeps its balance', async () => {
     vi.spyOn(api, 'swapImpact').mockResolvedValue({ ...impact, replacement: { ...impact.replacement, after: impact.replacement.before } })
     renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m2" />)

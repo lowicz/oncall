@@ -386,7 +386,8 @@ describe('CalendarMatrix override balance preview (MED6-04)', () => {
     expect(screen.getByText(/przejmuje dyżur/)).toBeInTheDocument()
     // Marek moves from -2 to -1 on primary: closer to balance.
     expect(screen.getAllByText(/bliżej równowagi/).length).toBeGreaterThan(0)
-    expect(impact).toHaveBeenCalledWith(day(1), 'primary', 'm2')
+    // Asked for as a correction: 11-19 moves with its anchor role only.
+    expect(impact).toHaveBeenCalledWith(day(1), 'primary', 'm2', { correction: true })
   })
 
   it('says nobody loses a duty when the slot was empty', async () => {

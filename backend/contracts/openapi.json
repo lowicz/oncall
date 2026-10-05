@@ -3312,7 +3312,7 @@
         "type": "object"
       },
       "SwapImpactResponse": {
-        "description": "Projected effect of moving a single duty, shown before the request is sent.",
+        "description": "Projected effect of a swap on both balances, shown before the request\nis sent: every slot it moves, in both directions of an exchange.",
         "properties": {
           "points": {
             "title": "Points",
@@ -3323,6 +3323,29 @@
           },
           "requester": {
             "$ref": "#/components/schemas/SwapImpactMemberResponse"
+          },
+          "return_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Date"
+          },
+          "return_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Points"
           },
           "role": {
             "$ref": "#/components/schemas/AssignmentRole"
@@ -3455,6 +3478,16 @@
             "title": "Acknowledge Rule Violations",
             "type": "boolean"
           },
+          "in_return": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SwapReturnRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "note": {
             "anyOf": [
               {
@@ -3547,6 +3580,14 @@
             "title": "Requester Name",
             "type": "string"
           },
+          "return_slots": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SwapSlotResponse"
+            },
+            "title": "Return Slots",
+            "type": "array"
+          },
           "role": {
             "$ref": "#/components/schemas/AssignmentRole"
           },
@@ -3603,6 +3644,77 @@
           "created_at"
         ],
         "title": "SwapRequestResponse",
+        "type": "object"
+      },
+      "SwapReturnOptionResponse": {
+        "description": "A duty of the replacement the requester could take in exchange. The\nthree lists judge the whole exchange, both directions as one move.",
+        "properties": {
+          "blocking_violations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Blocking Violations",
+            "type": "array"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AssignmentRole"
+          },
+          "rule_violations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Rule Violations",
+            "type": "array"
+          },
+          "service_date": {
+            "format": "date",
+            "title": "Service Date",
+            "type": "string"
+          },
+          "slots": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SwapSlotResponse"
+            },
+            "title": "Slots",
+            "type": "array"
+          },
+          "warning_violations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Warning Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_date",
+          "role"
+        ],
+        "title": "SwapReturnOptionResponse",
+        "type": "object"
+      },
+      "SwapReturnRequest": {
+        "additionalProperties": false,
+        "description": "The duty of the replacement the requester takes in exchange.",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/AssignmentRole"
+          },
+          "service_date": {
+            "format": "date",
+            "title": "Service Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_date",
+          "role"
+        ],
+        "title": "SwapReturnRequest",
         "type": "object"
       },
       "SwapSlotResponse": {
@@ -8828,6 +8940,49 @@
             }
           },
           {
+            "in": "query",
+            "name": "return_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "return_role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AssignmentRole"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Return Role"
+            }
+          },
+          {
+            "in": "query",
+            "name": "correction",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Correction",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "cookie",
             "name": "oncall_session",
             "required": false,
@@ -8988,6 +9143,88 @@
           }
         },
         "summary": "Swap Policy",
+        "tags": [
+          "swaps"
+        ]
+      }
+    },
+    "/api/v1/swaps/return-options": {
+      "get": {
+        "description": "The replacement's coming duties the requester could take in exchange\nfor the one named here, the ones whose exchange breaks nothing first.",
+        "operationId": "return_options_api_v1_swaps_return_options_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "service_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Service Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AssignmentRole"
+            }
+          },
+          {
+            "in": "query",
+            "name": "replacement_member_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Replacement Member Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SwapReturnOptionResponse"
+                  },
+                  "title": "Response Return Options Api V1 Swaps Return Options Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Return Options",
         "tags": [
           "swaps"
         ]

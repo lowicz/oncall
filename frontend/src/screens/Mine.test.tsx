@@ -145,6 +145,19 @@ describe('MineScreen points and swaps', () => {
     // A swap between two other people is not mine.
     expect(screen.queryByText(/Ola/)).not.toBeInTheDocument()
   })
+
+  it('names both duties of an exchange, whichever side of it I am on', async () => {
+    stub()
+    const taken = [{ service_date: '2026-09-30', role: 'secondary' as const }]
+    vi.spyOn(api, 'swaps').mockResolvedValue([
+      swap({ id: 'w1', return_slots: taken }),
+      swap({ id: 'w2', service_date: '2026-09-28', requester_name: 'Julia Nowak', replacement_name: 'Marek Nowak', return_slots: taken }),
+    ])
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+
+    expect(await screen.findByText('Piotr ⇄ Ty · sob 3 paź PRIMARY ⇄ śr 30 wrz SECONDARY')).toBeInTheDocument()
+    expect(screen.getByText('Ty ⇄ Marek · pon 28 wrz PRIMARY ⇄ śr 30 wrz SECONDARY')).toBeInTheDocument()
+  })
 })
 
 describe('MineScreen availability calendar', () => {

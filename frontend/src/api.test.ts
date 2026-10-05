@@ -207,8 +207,14 @@ const CASES: Case[] = [
   get('swapPolicy', () => api.swapPolicy(), '/api/v1/swaps/policy'),
   get('swapImpact', () => api.swapImpact('2026-09-14', 'primary', 'm 2'),
     '/api/v1/swaps/impact?service_date=2026-09-14&role=primary&replacement_member_id=m%202'),
+  get('swapImpact of an exchange, as a correction', () => api.swapImpact('2026-09-14', 'primary', 'm 2', {
+    inReturn: { service_date: '2026-09-15', role: 'secondary' }, correction: true,
+  }), '/api/v1/swaps/impact?service_date=2026-09-14&role=primary&replacement_member_id=m%202'
+    + '&return_date=2026-09-15&return_role=secondary&correction=true'),
   get('swapOptions', () => api.swapOptions('2026-09-14', 'secondary'),
     '/api/v1/swaps/options?service_date=2026-09-14&role=secondary'),
+  get('swapReturnOptions', () => api.swapReturnOptions('2026-09-14', 'secondary', 'm 2'),
+    '/api/v1/swaps/return-options?service_date=2026-09-14&role=secondary&replacement_member_id=m%202'),
   send('createSwap', () => api.createSwap({
     schedule_id: 's1', service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2', note: 'urlop',
   }), 'POST', '/api/v1/swaps', {

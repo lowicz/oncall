@@ -4,7 +4,7 @@ import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { SwapPanel } from './Swaps'
 import { api, ApiError } from '../api'
-import type { SwapImpact, SwapOption, SwapPolicy, SwapRequest } from '../api'
+import type { SwapImpact, SwapOption, SwapPolicy, SwapRequest, SwapReturnOption } from '../api'
 
 // The suite clock is 2026-09-10 (src/test/setup.ts).
 
@@ -293,6 +293,8 @@ const impact: SwapImpact = {
 
 function stubSchedule() {
   stub([])
+  // Nothing to take in return, unless a test offers something.
+  vi.spyOn(api, 'swapReturnOptions').mockResolvedValue([])
   vi.spyOn(api, 'publishedSchedule').mockResolvedValue({
     generated_at: '2026-09-01T10:00:00Z',
     is_published: true,
@@ -335,7 +337,7 @@ describe('SwapPanel new request', () => {
     expect(option).toHaveTextContent('Chętnie wezmę')
     fireEvent.click(option)
 
-    await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1'))
+    await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', { correction: false }))
     expect(await screen.findByText('Wpływ na bilans')).toBeInTheDocument()
     expect(await screen.findByText('punkty 5 → 4 (-1)')).toBeInTheDocument()
     expect(await screen.findByText('punkty 2 → 3 (+1)')).toBeInTheDocument()
@@ -677,7 +679,7 @@ describe('SwapPanel stages and sheets', () => {
     // A request past its date can no longer be decided, only read.
     fireEvent.click(within(row).getByRole('button', { name: 'Podgląd: wt 8 wrz PRIMARY' }))
     const sheet = await screen.findByRole('dialog', { name: 'Zamiana · wt 8 wrz PRIMARY' })
-    expect(within(sheet).getByText('wt 8 wrz · PRIMARY + wt 8 wrz · 11–19')).toBeInTheDocument()
+    expect(within(sheet).getByText('wt 8 wrz · PRIMARY + 11–19')).toBeInTheDocument()
     expect(within(sheet).getByText('Powód od: Anna Kowalska')).toBeInTheDocument()
     expect(within(sheet).getByText('„Wyjazd służbowy”')).toBeInTheDocument()
     expect(within(sheet).getByText('Termin dyżuru minął.')).toBeInTheDocument()
@@ -826,7 +828,7 @@ describe('SwapPanel stages and sheets', () => {
 
     const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
     expect(await within(row).findByText(/^Piotr \+1/)).toBeInTheDocument()
-    expect(impactCall).toHaveBeenCalledWith('2026-09-14', 'primary', 'p1')
+    expect(impactCall).toHaveBeenCalledWith('2026-09-14', 'primary', 'p1', { correction: false })
 
     fireEvent.click(within(row).getByRole('button', { name: /Zdecyduj/ }))
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
@@ -1135,5 +1137,334 @@ describe('SwapPanel composing', () => {
     const form = screen.getByRole('form', { name: 'Nowa prośba o zamianę' })
     for (const text of texts) expect(await within(form).findByText(text, { exact: false })).toBeInTheDocument()
     if (texts.length === 2) expect(within(form).queryByText('Wybierz inny dzień.')).not.toBeInTheDocument()
+  })
+})
+
+const THREE_IN_SEVEN = {
+  rule: 'three_in_seven',
+  message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.',
+  member_name: 'Piotr Zieliński',
+  days: ['2099-09-14', '2099-09-15', '2099-09-18', '2099-09-19'],
+}
+const DAYS_OFF = { rule: 'single_day_off', message: 'Dzieli blok dni wolnych.', member_name: 'Anna Kowalska', days: ['2099-09-20'] }
+
+/** A duty of Piotr that Anna could take for her Monday 14 September 2099. */
+const returnOption = (day: string, over: Partial<SwapReturnOption> = {}): SwapReturnOption => ({
+  service_date: day,
+  role: 'secondary',
+  slots: [{ service_date: day, role: 'secondary' }, { service_date: day, role: 'late_shift' }],
+  blocking_violations: [],
+  rule_violations: [],
+  warning_violations: [],
+  ...over,
+})
+
+describe('SwapPanel exchange: the "in return" step', () => {
+  /** Piotr, to whom the Monday alone would be a fourth duty in the week. */
+  const piotr: SwapOption = {
+    member_id: 'p1',
+    display_name: 'Piotr Zieliński',
+    availability: null,
+    on_duty_that_day: false,
+    slots: [{ service_date: '2099-09-14', role: 'primary' }, { service_date: '2099-09-14', role: 'late_shift' }],
+    blocking_violations: [],
+    rule_violations: [THREE_IN_SEVEN],
+    warning_violations: [],
+  }
+  const RETURNS = [
+    returnOption('2099-09-16'),
+    returnOption('2099-09-20', { slots: [{ service_date: '2099-09-20', role: 'secondary' }], warning_violations: [DAYS_OFF] }),
+    returnOption('2099-09-18', { rule_violations: [{ ...THREE_IN_SEVEN, member_name: 'Anna Kowalska', days: ['2099-09-17', '2099-09-18'] }] }),
+    returnOption('2099-09-21', { blocking_violations: [{ rule: 'same_day_oncall', message: 'Obie role on-call jednego dnia.', member_name: 'Anna Kowalska', days: ['2099-09-21'] }] }),
+  ]
+
+  function stubForm(option: SwapOption = piotr) {
+    stubSchedule()
+    vi.spyOn(api, 'swapOptions').mockResolvedValue([option])
+    return vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
+  }
+  async function pickPiotr() {
+    renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    const slot = await screen.findByLabelText(/Mój dyżur/)
+    await screen.findByRole('option', { name: /PRIMARY/ })
+    fireEvent.change(slot, { target: { value: '2099-09-14|primary' } })
+    fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
+  }
+  const returns = () => screen.findByRole('radiogroup', { name: 'W zamian biorę' })
+  const choice = async (name: RegExp) => within(await returns()).findByRole('radio', { name })
+  const steps = () => within(screen.getByRole('list', { name: 'Krok' })).getAllByRole('listitem')
+  const sendButton = () => screen.getByRole('button', { name: 'Wyślij prośbę' })
+  const acknowledgement = () => screen.queryByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
+
+  it('offers the replacement\'s duties with a verdict for each, the clean exchange first in line', async () => {
+    stubForm()
+    let offer: (value: SwapReturnOption[]) => void = () => {}
+    const search = vi.spyOn(api, 'swapReturnOptions').mockReturnValue(new Promise((resolve) => { offer = resolve }))
+    await pickPiotr()
+
+    expect(await screen.findByRole('status', { name: 'Szukam dyżurów do wzięcia w zamian' })).toBeInTheDocument()
+    expect(search).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1')
+    expect(screen.getByText('Oddajesz: pon 14 wrz · PRIMARY + 11–19')).toBeInTheDocument()
+    expect(steps().map((item) => [item.textContent, item.getAttribute('aria-current')])).toEqual([
+      ['1 dyżur', null], ['2 kandydat', null], ['3 w zamian', 'step'], ['4 powód i wysłanie', null],
+    ])
+    act(() => offer(RETURNS))
+
+    const group = await returns()
+    expect(within(group).getByText('opcjonalnie · od: Piotr')).toBeInTheDocument()
+    const [nothing, clean, bends, breaks, blocked] = await within(group).findAllByRole('radio')
+    // Handing the duty over is the choice until another is made, and says what it breaks.
+    expect(nothing).toBeChecked()
+    expect(nothing).toHaveTextContent('–Nic, tylko oddaję dyżurłamie regułę: Więcej niż 3 dyżury on-call w okresie 7 dni.wymaga potwierdzenia')
+    expect(clean).toHaveTextContent('1śr 16 wrzSECONDARY + 11–19 · za 26669 dnibez naruszeń reguł')
+    expect(clean).toHaveClass('rank-best')
+    expect(bends).toHaveTextContent('2niedz 20 wrzSECONDARY · za 26673 dni · Dzieli blok dni wolnych.ostrzeżenie')
+    expect(bends).not.toHaveClass('rank-best')
+    expect(breaks).toHaveTextContent('łamie regułę: Więcej niż 3 dyżury on-call w okresie 7 dni.wymaga potwierdzenia')
+    expect(breaks).toBeEnabled()
+    expect(blocked).toHaveTextContent('–pon 21 wrzSECONDARY + 11–19 · za 26674 dni · nie można: Obie role on-call jednego dnia.reguła twarda')
+    expect(blocked).toBeDisabled()
+  })
+
+  it('sends a clean exchange with nothing to acknowledge, where the hand-over alone broke a rule', async () => {
+    const impactCall = stubForm()
+    vi.spyOn(api, 'swapReturnOptions').mockResolvedValue(RETURNS)
+    const create = vi.spyOn(api, 'createSwap').mockResolvedValue(swap({ id: '9', service_date: '2099-09-14' }))
+    await pickPiotr()
+
+    // One way: the rule is acknowledged, and both slots of the day are named.
+    expect(await screen.findByText('Ta zamiana łamie reguły grafiku')).toBeInTheDocument()
+    expect(screen.getByText('Prośba obejmie oba sloty tego dnia')).toBeInTheDocument()
+    expect(sendButton()).toBeDisabled()
+
+    fireEvent.click(await choice(/śr 16 wrz/))
+    expect(await choice(/śr 16 wrz/)).toBeChecked()
+    expect(await choice(/Nic, tylko oddaję dyżur/)).not.toBeChecked()
+    expect(screen.queryByText('Ta zamiana łamie reguły grafiku')).not.toBeInTheDocument()
+    expect(acknowledgement()).not.toBeInTheDocument()
+    expect(screen.getByText('Ta wymiana nie łamie żadnej reguły').parentElement).toHaveTextContent('Prośba idzie zwykłą ścieżką, bez potwierdzeń.')
+    const exchange = screen.getByText('Wymiana: pon 14 wrz ⇄ śr 16 wrz').parentElement as HTMLElement
+    expect(exchange).toHaveTextContent('Jedna akceptacja zastępcy, jedno zatwierdzenie koordynatora. Oba dyżury przechodzą razem albo wcale.')
+    expect(screen.queryByText('Prośba obejmie oba sloty tego dnia')).not.toBeInTheDocument()
+    expect(steps().map((item) => item.getAttribute('aria-current'))).toEqual([null, null, null, 'step'])
+    expect(screen.getByLabelText(/Powód/)).not.toBeRequired()
+    await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', {
+      inReturn: RETURNS[0], correction: false,
+    }))
+
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(create).toHaveBeenCalled())
+    expect(create.mock.calls[0][0]).toEqual({
+      schedule_id: 'sched-1',
+      service_date: '2099-09-14',
+      role: 'primary',
+      replacement_member_id: 'p1',
+      note: '',
+      acknowledge_rule_violations: false,
+      in_return: { service_date: '2099-09-16', role: 'secondary' },
+    })
+  })
+
+  it('has an exchange that still breaks a rule acknowledged, and takes the tick back with the choice', async () => {
+    stubForm()
+    vi.spyOn(api, 'swapPolicy').mockResolvedValue(NO_APPROVAL)
+    vi.spyOn(api, 'swapReturnOptions').mockResolvedValue(RETURNS)
+    const create = vi.spyOn(api, 'createSwap').mockResolvedValue(swap({ id: '9', service_date: '2099-09-14' }))
+    await pickPiotr()
+
+    fireEvent.click(await choice(/pt 18 wrz/))
+    // The exchange's own violation replaces the hand-over's.
+    const box = (await screen.findByText('Ta zamiana łamie reguły grafiku')).parentElement as HTMLElement
+    expect(within(box).getByRole('listitem')).toHaveTextContent('Anna Kowalska: Więcej niż 3 dyżury on-call w okresie 7 dni. (17-09-2099, 18-09-2099)')
+    expect(screen.queryByText('Ta wymiana nie łamie żadnej reguły')).not.toBeInTheDocument()
+    expect(screen.getByText(/^Wymiana: /).parentElement).toHaveTextContent('Jedna akceptacja zastępcy załatwia całość. Oba dyżury przechodzą razem albo wcale.')
+    fireEvent.change(screen.getByLabelText(/Powód/), { target: { value: 'Urlop, nikt inny nie może' } })
+    fireEvent.click(acknowledgement() as HTMLElement)
+    expect(sendButton()).toBeEnabled()
+
+    // Back to the hand-over: its rule was never acknowledged.
+    fireEvent.click(await choice(/Nic, tylko oddaję dyżur/))
+    expect(acknowledgement()).not.toBeChecked()
+    expect(sendButton()).toBeDisabled()
+
+    fireEvent.click(await choice(/pt 18 wrz/))
+    fireEvent.click(acknowledgement() as HTMLElement)
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(create).toHaveBeenCalled())
+    expect(create.mock.calls[0][0]).toMatchObject({
+      acknowledge_rule_violations: true,
+      in_return: { service_date: '2099-09-18', role: 'secondary' },
+    })
+  })
+
+  it('lists what an exchange bends, and suggests none when the hand-over breaks nothing', async () => {
+    stubForm({ ...piotr, slots: undefined, rule_violations: [] })
+    vi.spyOn(api, 'swapReturnOptions').mockResolvedValue(RETURNS)
+    await pickPiotr()
+
+    const [nothing, clean] = await within(await returns()).findAllByRole('radio')
+    expect(nothing).toHaveTextContent('–Nic, tylko oddaję dyżurbez naruszeń reguł')
+    expect(clean).not.toHaveClass('rank-best')
+    // The reason moves the form on: the optional step counts as settled.
+    fireEvent.change(screen.getByLabelText(/Powód/), { target: { value: 'Wyjazd' } })
+    expect(steps().map((item) => item.getAttribute('aria-current'))).toEqual([null, null, null, 'step'])
+
+    fireEvent.click(await choice(/niedz 20 wrz/))
+    const warnings = screen.getByText('Wyślesz mimo to - koordynator zobaczy ostrzeżenie').parentElement as HTMLElement
+    expect(within(warnings).getByRole('listitem')).toHaveTextContent('Anna Kowalska: Dzieli blok dni wolnych. (20-09-2099)')
+    expect(screen.getByText('Wymiana: pon 14 wrz ⇄ niedz 20 wrz')).toBeInTheDocument()
+    expect(sendButton()).toBeEnabled()
+  })
+
+  it('says so when the replacement has no duty to give back', async () => {
+    stubForm()
+    await pickPiotr()
+
+    expect(await screen.findByText('Piotr nie ma nadchodzących dyżurów, które można wziąć w zamian.')).toBeInTheDocument()
+    expect(within(await returns()).queryByRole('radio')).not.toBeInTheDocument()
+  })
+
+  it('shows a failed list of duties and reads it again on retry', async () => {
+    stubForm()
+    vi.spyOn(api, 'swapReturnOptions')
+      .mockRejectedValueOnce(new ApiError('Nie udało się wczytać dyżurów', 500))
+      .mockResolvedValue(RETURNS)
+    await pickPiotr()
+
+    const group = await returns()
+    expect(await within(group).findByText('Nie udało się wczytać dyżurów')).toBeInTheDocument()
+    fireEvent.click(within(group).getByRole('button', { name: 'Spróbuj ponownie' }))
+    expect(await choice(/śr 16 wrz/)).toBeInTheDocument()
+  })
+
+  it('reads the duties again when the request is refused, and sends nothing a hard rule now rules out', async () => {
+    stubForm()
+    const search = vi.spyOn(api, 'swapReturnOptions')
+      .mockResolvedValueOnce(RETURNS)
+      .mockResolvedValue([{ ...RETURNS[0], blocking_violations: RETURNS[3].blocking_violations }])
+    vi.spyOn(api, 'createSwap').mockRejectedValue(new ApiError('Zamiana złamie reguły twarde grafiku', 409))
+    await pickPiotr()
+    fireEvent.click(await choice(/śr 16 wrz/))
+    fireEvent.click(sendButton())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Zamiana złamie reguły twarde grafiku')
+    await waitFor(() => expect(search).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(sendButton()).toBeDisabled())
+    expect(await choice(/śr 16 wrz/)).toHaveTextContent('reguła twarda')
+  })
+})
+
+describe('SwapPanel exchange: the inbox and the sheet', () => {
+  const exchange = (over: Partial<SwapRequest> = {}) => swap({
+    id: '1',
+    replacement_member_id: 'p1',
+    slots: [{ service_date: '2026-09-14', role: 'primary' }, { service_date: '2026-09-14', role: 'late_shift' }],
+    return_slots: [{ service_date: '2026-09-16', role: 'secondary' }, { service_date: '2026-09-16', role: 'late_shift' }],
+    ...over,
+  })
+  const rowsOf = (sheet: HTMLElement) => [...sheet.querySelectorAll('.role-row')].map((row) => [...row.children].map((cell) => cell.textContent))
+
+  it('shows the replacement both days in the row and what they get and give in the sheet', async () => {
+    stub([exchange()])
+    // A working day for a working day: nobody's points move.
+    const impactCall = vi.spyOn(api, 'swapImpact').mockResolvedValue({
+      ...impact, requester: { ...impact.requester, after: impact.requester.before }, replacement: { ...impact.replacement, after: impact.replacement.before },
+    })
+    const accept = vi.spyOn(api, 'acceptSwap').mockResolvedValue(exchange({ status: 'pending_coordinator' }))
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+
+    const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY ⇄ śr 16 wrz SECONDARYza 4 dni · wymiana · 4 sloty')
+    expect(await within(row).findByText('bez zmian')).toBeInTheDocument()
+    expect(impactCall).toHaveBeenCalledWith('2026-09-14', 'primary', 'p1', {
+      inReturn: { service_date: '2026-09-16', role: 'secondary' }, correction: false,
+    })
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Zdecyduj: pon 14 wrz PRIMARY ⇄ śr 16 wrz SECONDARY' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Wymiana · pon 14 wrz ⇄ śr 16 wrz' })
+    expect(rowsOf(sheet)).toEqual([
+      ['Dostajesz', 'pon 14 wrzPRIMARY + 11–19od: Anna Kowalska', 'za 4 dni'],
+      ['Oddajesz', 'śr 16 wrzSECONDARY + 11–19dla: Anna Kowalska', 'za 6 dni'],
+    ])
+    // The rows name the duties; the one-way sheet's "Dyżur" line is not repeated.
+    expect(within(sheet).queryByText('Dyżur')).not.toBeInTheDocument()
+    expect(within(sheet).getByText('Ta wymiana nie łamie żadnej reguły')).toBeInTheDocument()
+    expect(await within(sheet).findByText('Wpływ na bilans')).toBeInTheDocument()
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
+    await waitFor(() => expect(accept).toHaveBeenCalled())
+    expect(accept.mock.calls[0][0]).toEqual({ id: '1', acknowledge: false })
+  })
+
+  it('shows the requester what they give and get, and who gains when the days differ in worth', async () => {
+    stub([exchange()])
+    // Anna gives a working day and takes one worth more: the points come to her.
+    vi.spyOn(api, 'swapImpact').mockResolvedValue({ ...impact, requester: impact.replacement, replacement: impact.requester })
+    renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
+
+    const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
+    expect(await within(row).findByText(/^Piotr \+1/)).toBeInTheDocument()
+    fireEvent.click(within(row).getByRole('button', { name: /^Podgląd/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Wymiana ·/ })
+    expect(rowsOf(sheet)).toEqual([
+      ['Oddajesz', 'pon 14 wrzPRIMARY + 11–19dla: Piotr Zieliński', 'za 4 dni'],
+      ['Dostajesz', 'śr 16 wrzSECONDARY + 11–19od: Piotr Zieliński', 'za 6 dni'],
+    ])
+    expect(within(sheet).getByRole('button', { name: 'Wycofaj' })).toBeInTheDocument()
+  })
+
+  it('shows a coordinator both directions and has a broken rule acknowledged before the one approval', async () => {
+    stub([exchange({ status: 'pending_coordinator', rule_violations: [{ ...THREE_IN_SEVEN, days: ['2026-09-14', '2026-09-15'] }] })])
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
+    const approve = vi.spyOn(api, 'approveSwap').mockResolvedValue(exchange({ status: 'approved' }))
+    renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
+
+    const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY ⇄ śr 16 wrz SECONDARY łamie regułyza 4 dni · wymiana · 4 sloty')
+    fireEvent.click(within(row).getByRole('button', { name: /^Zdecyduj/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Wymiana ·/ })
+    expect(rowsOf(sheet)).toEqual([
+      ['Dyżur', 'pon 14 wrzPRIMARY + 11–19Anna Kowalska → Piotr Zieliński', 'za 4 dni'],
+      ['W zamian', 'śr 16 wrzSECONDARY + 11–19Piotr Zieliński → Anna Kowalska', 'za 6 dni'],
+    ])
+    expect(within(sheet).queryByText('Ta wymiana nie łamie żadnej reguły')).not.toBeInTheDocument()
+    const approval = within(sheet).getByRole('button', { name: 'Zatwierdź i wpisz do grafiku' })
+    expect(approval).toBeDisabled()
+    fireEvent.click(within(sheet).getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' }))
+    fireEvent.click(approval)
+    await waitFor(() => expect(approve).toHaveBeenCalled())
+    expect(approve.mock.calls[0][0]).toEqual({ id: '1', acknowledge: true })
+  })
+
+  it.each([
+    ['approved', null, 'w grafiku'],
+    ['cancelled', 'Dyżur zmienił właściciela przed akceptacją', 'wycofana'],
+  ] as const)('keeps both directions on a %s exchange, with no verdict left to give', async (status, note, outcome) => {
+    stub([exchange({ status, decision_note: note, return_slots: [{ service_date: '2026-09-16', role: 'secondary' }] })])
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />, { route: '/zamiany?skrzynka=zamkniete' })
+
+    const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('wymiana · 3 sloty')
+    fireEvent.click(within(row).getByRole('button', { name: /^Podgląd/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Wymiana ·/ })
+    expect(stepsOf(sheet).at(-1)).toBe(outcome)
+    expect(rowsOf(sheet)).toHaveLength(2)
+    expect(within(sheet).queryByText('Ta wymiana nie łamie żadnej reguły')).not.toBeInTheDocument()
+    expect(within(sheet).queryByText('Wpływ na bilans')).not.toBeInTheDocument()
+    expect(within(sheet).queryAllByText(`„${note}”`)).toHaveLength(note ? 1 : 0)
+  })
+
+  it('closes the decision once either day of an exchange has passed', async () => {
+    // The duty given is still ahead; the one that comes back was two days ago.
+    stub([exchange({ return_slots: [{ service_date: '2026-09-08', role: 'secondary' }] })])
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+
+    const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('wymiana · 3 sloty · termin minął')
+    fireEvent.click(within(row).getByRole('button', { name: /^Podgląd/ }))
+    const sheet = await screen.findByRole('dialog', { name: 'Wymiana · pon 14 wrz ⇄ wt 8 wrz' })
+    expect(within(sheet).getByText('Termin dyżuru minął.')).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Akceptuję' })).not.toBeInTheDocument()
   })
 })

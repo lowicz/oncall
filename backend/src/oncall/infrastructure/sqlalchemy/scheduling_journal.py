@@ -151,6 +151,8 @@ class SqlAlchemySchedulingJournal:
             self._session,
             service_date=notice.service_date,
             role=notice.role,
+            slots=notice.slots,
+            return_slots=notice.return_slots,
             requester_name=notice.requester_name,
             replacement_name=notice.replacement_name,
             swap_id=swap_id,

@@ -134,6 +134,11 @@ stawek ani raportów** i nie wpływają na solver.
   potwierdzenia żądanie kończy się odpowiedzią `409` z listą naruszeń.
   Pozostałe reguły twarde blokują zamianę bezwarunkowo. Przebieg opisuje
   [Zamiana łamiąca reguły](../uzytkownik/zamiany.md#zamiana-łamiąca-reguły).
+  Prośba może też wskazać dyżur zastępcy brany w zamian (w API pole
+  `in_return`): oba kierunki są wtedy sprawdzane jako jeden ruch, decyduje o
+  nich jedna akceptacja i jedno zatwierdzenie, a do grafiku trafiają razem,
+  także gdy należą do dwóch publikacji. Opisuje to
+  [Wymiana dyżur za dyżur](../uzytkownik/zamiany.md#wymiana-dyżur-za-dyżur).
 
 Publikacja nowego grafiku jest serializowana w bazie, sprawdza pełne pokrycie i
 zastępuje tylko te opublikowane grafiki, które w całości mieszczą się w nowym

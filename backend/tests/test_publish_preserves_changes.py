@@ -131,7 +131,9 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
         replacement_member_id=members[replacement_name].id,
         status=SwapStatus.pending_coordinator,
         schedule_version=old.version,
-        slots=[SwapRequestSlot(service_date=start, role=AssignmentRole.primary)],
+        slots=[
+            SwapRequestSlot(service_date=start, role=AssignmentRole.primary, schedule_id=old.id)
+        ],
     )
     db.add(swap)
     carried_swap = SwapRequest(
@@ -143,8 +145,8 @@ async def test_publish_requires_acknowledgement_and_cancels_pending_swap(
         status=SwapStatus.approved,
         schedule_version=old.version,
         slots=[
-            SwapRequestSlot(service_date=start, role=AssignmentRole.secondary),
-            SwapRequestSlot(service_date=start, role=AssignmentRole.late_shift),
+            SwapRequestSlot(service_date=start, role=AssignmentRole.secondary, schedule_id=old.id),
+            SwapRequestSlot(service_date=start, role=AssignmentRole.late_shift, schedule_id=old.id),
         ],
     )
     for role in (AssignmentRole.secondary, AssignmentRole.late_shift):

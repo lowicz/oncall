@@ -123,6 +123,16 @@ export interface SwapOption {
   next_step?: string | null
 }
 
+/** A duty of the replacement the requester could take in exchange. The three
+ *  lists judge the whole exchange, both directions as one move. */
+export interface SwapReturnOption extends SwapSlot {
+  /** The slots that come back - two when the 11-19 anchor couples them. */
+  slots: SwapSlot[]
+  blocking_violations: RuleViolation[]
+  rule_violations: RuleViolation[]
+  warning_violations: RuleViolation[]
+}
+
 export interface SwapRequest {
   id: string
   schedule_id: string
@@ -137,6 +147,9 @@ export interface SwapRequest {
   decision_note: string | null
   created_at: string
   slots?: SwapSlot[]
+  /** What the requester takes in exchange, its headline slot first; empty
+   *  for a one-way hand-over. */
+  return_slots?: SwapSlot[]
   /** Rules the swap bends: at creation, and while the request is open. */
   warnings?: RuleViolation[]
   /** Hard rules the swap breaks: on the roster as it is now while the request
@@ -588,6 +601,9 @@ export interface SwapImpact {
   window_end: string
   requester: SwapImpactMember
   replacement: SwapImpactMember
+  /** The day that comes back in an exchange, and what it is worth. */
+  return_date?: string | null
+  return_points?: number | null
 }
 
 export interface FairnessDuty {
@@ -912,14 +928,28 @@ export const api = {
     return request<SwapRequest[]>(`/api/v1/swaps${query ? `?${query}` : ''}`)
   },
   swapPolicy: () => request<SwapPolicy>('/api/v1/swaps/policy'),
-  swapImpact: (serviceDate: string, role: AssignmentRole, replacementMemberId: string) =>
+  /** `inReturn` projects an exchange; `correction` a coordinator's correction,
+   *  which moves 11-19 with its anchor role only. */
+  swapImpact: (
+    serviceDate: string,
+    role: AssignmentRole,
+    replacementMemberId: string,
+    { inReturn, correction }: { inReturn?: SwapSlot; correction?: boolean } = {},
+  ) =>
     request<SwapImpact>(
       `/api/v1/swaps/impact?service_date=${encodeURIComponent(serviceDate)}`
-      + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`,
+      + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`
+      + (inReturn ? `&return_date=${encodeURIComponent(inReturn.service_date)}&return_role=${inReturn.role}` : '')
+      + (correction ? '&correction=true' : ''),
     ),
   swapOptions: (serviceDate: string, role: AssignmentRole) =>
     request<SwapOption[]>(
       `/api/v1/swaps/options?service_date=${encodeURIComponent(serviceDate)}&role=${role}`,
+    ),
+  swapReturnOptions: (serviceDate: string, role: AssignmentRole, replacementMemberId: string) =>
+    request<SwapReturnOption[]>(
+      `/api/v1/swaps/return-options?service_date=${encodeURIComponent(serviceDate)}`
+      + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`,
     ),
   createSwap: (input: {
     schedule_id: string
@@ -928,6 +958,8 @@ export const api = {
     replacement_member_id: string
     note?: string
     acknowledge_rule_violations?: boolean
+    /** The duty of the replacement taken in exchange. */
+    in_return?: SwapSlot
   }) => send<SwapRequest>('POST', '/api/v1/swaps', input),
   /** `acknowledge`: the person deciding has seen the hard rules the swap breaks. */
   acceptSwap: ({ id, acknowledge }: { id: string; acknowledge: boolean }) =>

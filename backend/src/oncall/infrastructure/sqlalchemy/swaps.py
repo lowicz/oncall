@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Iterable
 from datetime import date
 from typing import Any
 
@@ -13,8 +14,9 @@ from oncall.domain.swaps.models import (
     AcknowledgedViolation,
     NewSwapRequest,
     SwapRequest,
+    SwapReturn,
 )
-from oncall.domain.vocabulary import AssignmentRole, SwapStatus
+from oncall.domain.vocabulary import AssignmentRole, SwapSlotDirection, SwapStatus
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.overrides import acknowledged_suffix, violations_detail
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest as SwapRequestRow
@@ -44,7 +46,38 @@ def _stored_violations(
     ] or None
 
 
-def _to_request(row: SwapRequestRow, slots: list[Slot]) -> SwapRequest:
+def slots_by_direction(
+    rows: Iterable[SwapRequestSlot],
+) -> tuple[list[SwapRequestSlot], list[SwapRequestSlot]]:
+    """A request's slot rows as the ones the requester gives and the ones
+    taken in return, each with the on-call role that names the duty before
+    the 11-19 that travels with it, however the rows were read."""
+    ordered = sorted(rows, key=lambda row: row.role == AssignmentRole.late_shift)
+    return (
+        [row for row in ordered if row.direction == SwapSlotDirection.given],
+        [row for row in ordered if row.direction == SwapSlotDirection.returned],
+    )
+
+
+def _slot_rows(request: NewSwapRequest) -> list[SwapRequestSlot]:
+    """One row per slot the request moves, each with its direction and the
+    schedule that holds it."""
+    directions = [(SwapSlotDirection.given, request.schedule_id, request.slots)]
+    if request.in_return is not None:
+        directions.append(
+            (SwapSlotDirection.returned, request.in_return.schedule_id, request.in_return.slots)
+        )
+    return [
+        SwapRequestSlot(
+            service_date=service_date, role=role, direction=direction, schedule_id=schedule_id
+        )
+        for direction, schedule_id, slots in directions
+        for service_date, role in slots
+    ]
+
+
+def _to_request(row: SwapRequestRow, slots: Iterable[SwapRequestSlot]) -> SwapRequest:
+    given, returned = slots_by_direction(slots)
     return SwapRequest(
         id=row.id,
         schedule_id=row.schedule_id,
@@ -57,7 +90,14 @@ def _to_request(row: SwapRequestRow, slots: list[Slot]) -> SwapRequest:
         note=row.note,
         decision_note=row.decision_note,
         created_at=row.created_at,
-        slots=tuple(slots),
+        slots=tuple((slot.service_date, slot.role) for slot in given),
+        in_return=(
+            SwapReturn(
+                returned[0].schedule_id, tuple((slot.service_date, slot.role) for slot in returned)
+            )
+            if returned
+            else None
+        ),
         rule_violations=tuple(
             AcknowledgedViolation(
                 item["rule"], item["party"], tuple(date.fromisoformat(day) for day in item["days"])
@@ -100,6 +140,17 @@ class SqlAlchemySwapRequests:
         )
         return clash is not None
 
+    async def active_slots(self, first: date, last: date) -> set[Slot]:
+        rows = await self._session.execute(
+            select(SwapRequestSlot.service_date, SwapRequestSlot.role)
+            .join(SwapRequestRow, SwapRequestSlot.swap_request_id == SwapRequestRow.id)
+            .where(
+                SwapRequestRow.status.in_(ACTIVE_SWAP_STATUSES),
+                SwapRequestSlot.service_date.between(first, last),
+            )
+        )
+        return {(service_date, role) for service_date, role in rows}
+
     async def add(self, request: NewSwapRequest) -> SwapRequest:
         row = SwapRequestRow(
             schedule_id=request.schedule_id,
@@ -111,22 +162,19 @@ class SqlAlchemySwapRequests:
             schedule_version=request.schedule_version,
             note=request.note,
             rule_violations=_stored_violations(request.rule_violations),
-            slots=[
-                SwapRequestSlot(service_date=service_date, role=role)
-                for service_date, role in request.slots
-            ],
+            slots=_slot_rows(request),
         )
         self._session.add(row)
         await self._session.flush()
         # As stored, so `created_at` reads the same as on any later load.
         await self._session.refresh(row, attribute_names=["created_at"])
-        return _to_request(row, list(request.slots))
+        return _to_request(row, row.slots)
 
-    async def _slots(self, swap_id: uuid.UUID) -> list[Slot]:
+    async def _slots(self, swap_id: uuid.UUID) -> list[SwapRequestSlot]:
         rows = await self._session.scalars(
             select(SwapRequestSlot).where(SwapRequestSlot.swap_request_id == swap_id)
         )
-        return [(row.service_date, row.role) for row in rows]
+        return list(rows)
 
     async def take_for_decision(self, swap_id: uuid.UUID) -> SwapRequest | None:
         # The row lock is the atomic part of every decision: a second decision
@@ -170,13 +218,23 @@ class SqlAlchemySwapRequests:
         if statuses:
             query = query.where(SwapRequestRow.status.in_(statuses))
         rows = (await self._session.scalars(query.limit(limit).offset(offset))).all()
-        return [
-            _to_request(row, [(slot.service_date, slot.role) for slot in row.slots]) for row in rows
-        ]
+        return [_to_request(row, row.slots) for row in rows]
+
+
+def _slot_list(slots: list[Slot]) -> str:
+    return ", ".join(f"{day} · {ROLE_AUDIT_LABELS[role]}" for day, role in slots)
 
 
 def _headline(request: SwapRequest) -> str:
-    return f"{request.service_date} · {ROLE_AUDIT_LABELS[request.role]}"
+    return _slot_list([(request.service_date, request.role)])
+
+
+def _in_return(request: SwapRequest, requester_name: str) -> str:
+    """What an exchange adds to a summary: the duty that goes the other way.
+    Nothing for a one-way hand-over."""
+    if request.in_return is None:
+        return ""
+    return f" · w zamian {requester_name} przejmuje [{_slot_list(request.return_moves)}]"
 
 
 def _rule_details(violations: list[RuleViolation], details: dict[str, Any]) -> dict | None:
@@ -208,13 +266,11 @@ class SqlAlchemySwapJournal:
             self._session,
             service_date=request.service_date,
             role=request.role,
+            slots=request.moves,
+            return_slots=request.return_moves,
             requester_name=requester_name,
             replacement_name=replacement_name,
             violations=violations,
-        )
-        slot_summary = ", ".join(
-            f"{move_date} · {ROLE_AUDIT_LABELS[move_role]}"
-            for move_date, move_role in request.moves
         )
         record_audit(
             self._session,
@@ -223,7 +279,9 @@ class SqlAlchemySwapJournal:
             entity_type="swap",
             entity_id=request.id,
             summary=(
-                f"Prośba o zamianę [{slot_summary}]: {requester_name} → {replacement_name}"
+                f"Prośba o zamianę [{_slot_list(request.moves)}]: "
+                f"{requester_name} → {replacement_name}"
+                + _in_return(request, requester_name)
                 + acknowledged_suffix(violations)
             ),
             details=_rule_details(
@@ -243,6 +301,8 @@ class SqlAlchemySwapJournal:
             self._session,
             service_date=request.service_date,
             role=request.role,
+            slots=request.moves,
+            return_slots=request.return_moves,
             requester_name=requester_name,
             replacement_name=replacement_name,
             violations=violations,
@@ -255,7 +315,9 @@ class SqlAlchemySwapJournal:
             entity_id=request.id,
             summary=(
                 f"Zastępca zaakceptował zamianę {_headline(request)}: "
-                f"{requester_name} → {replacement_name}" + acknowledged_suffix(violations)
+                f"{requester_name} → {replacement_name}"
+                + _in_return(request, requester_name)
+                + acknowledged_suffix(violations)
             ),
             details=_rule_details(violations, {}),
         )
@@ -273,6 +335,8 @@ class SqlAlchemySwapJournal:
             self._session,
             service_date=request.service_date,
             role=request.role,
+            slots=request.moves,
+            return_slots=request.return_moves,
             requester_name=requester_name,
             replacement_name=replacement_name,
             reason=reason,
@@ -286,6 +350,7 @@ class SqlAlchemySwapJournal:
             entity_id=request.id,
             summary=(
                 f"Odrzucono zamianę {_headline(request)}: {requester_name} → {replacement_name}"
+                + _in_return(request, requester_name)
             ),
             details={"reason": reason, "by_coordinator": by_coordinator},
         )
@@ -302,6 +367,8 @@ class SqlAlchemySwapJournal:
             self._session,
             service_date=request.service_date,
             role=request.role,
+            slots=request.moves,
+            return_slots=request.return_moves,
             requester_name=requester_name,
             replacement_name=replacement_name,
             reason=reason,
@@ -314,6 +381,7 @@ class SqlAlchemySwapJournal:
             entity_id=request.id,
             summary=(
                 f"Wycofano zamianę {_headline(request)}: {requester_name} → {replacement_name}"
+                + _in_return(request, requester_name)
             ),
             details={"reason": reason},
         )
@@ -333,6 +401,8 @@ class SqlAlchemySwapJournal:
                 self._session,
                 service_date=request.service_date,
                 role=request.role,
+                slots=request.moves,
+                return_slots=request.return_moves,
                 requester_name=requester_name,
                 replacement_name=replacement_name,
                 violations=violations,
@@ -346,6 +416,8 @@ class SqlAlchemySwapJournal:
                 self._session,
                 service_date=request.service_date,
                 role=request.role,
+                slots=request.moves,
+                return_slots=request.return_moves,
                 requester_name=requester_name,
                 replacement_name=replacement_name,
                 swap_id=request.id,
@@ -364,7 +436,9 @@ class SqlAlchemySwapJournal:
             action="swap.approved",
             entity_type="swap",
             entity_id=request.id,
-            summary=summary + acknowledged_suffix(violations),
+            summary=(
+                summary + _in_return(request, requester_name) + acknowledged_suffix(violations)
+            ),
             details=_rule_details(
                 violations, {"self_approved": self_approved, "by_coordinator": by_coordinator}
             ),

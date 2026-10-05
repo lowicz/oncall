@@ -13,6 +13,7 @@ from oncall.domain.roster import Duty, Slot, SlotOrigin
 from oncall.domain.scheduling import drafts, errors
 from oncall.domain.scheduling.generation import uncovered_dates
 from oncall.domain.scheduling.models import (
+    ApprovedSwap,
     CarriedChange,
     ChangeRecord,
     PendingSwapNotice,
@@ -37,9 +38,9 @@ from oncall.fairness import (
 from oncall.i18n import translate
 from oncall.rules import (
     RuleViolation,
+    batch_substitution_violations,
     exempt_days,
     oncall_rest_violations,
-    substitution_violations,
 )
 from oncall.workdays import polish_holidays
 
@@ -206,47 +207,51 @@ def _holds_role_period(member: Member, role: AssignmentRole, day: date) -> bool:
 
 async def _carry_conflict_reason(
     schedule: Schedule,
-    old: Duty,
-    origin: SlotOrigin | None,
-    moves: list[Slot],
+    parts: list[tuple[Duty, SlotOrigin | None, list[Slot]]],
     ports: PublicationPorts,
 ) -> str | None:
-    if origin is None:
-        return translate("scheduling.carry.original_unknown")
-    replacement = (
-        await ports.team.member(old.member_id)
-        if old.member_id is not None
-        else await ports.team.member_named(old.assignee_name)
-    )
-    if replacement is None:
-        return translate("scheduling.carry.replacement_not_member")
+    """Why the changes in `parts` cannot be carried across together.
+
+    Each part is one change: the duty the draft replaces, whom it was taken
+    from and every slot it moved. Both directions of an exchange are one
+    batch, since one half alone is often the violation the other undoes.
+    """
     draft = {item.slot: item for item in schedule.assignments}
-    if any(
-        draft.get(move) is None
-        or not origin.is_holder(draft[move].member_id, draft[move].assignee_name)
-        for move in moves
-    ):
-        return translate("scheduling.carry.different_original")
-    # The draft names the original person by today's label, which is the one
-    # every other slot in the rule check below carries.
-    original_name = draft[moves[0]].assignee_name
-    for service_date, role in moves:
-        if not _holds_role_period(replacement, role, service_date) or (
-            replacement.is_unavailable(service_date)
+    batch: list[tuple[date, AssignmentRole, str]] = []
+    for old, origin, moves in parts:
+        if origin is None:
+            return translate("scheduling.carry.original_unknown")
+        replacement = (
+            await ports.team.member(old.member_id)
+            if old.member_id is not None
+            else await ports.team.member_named(old.assignee_name)
+        )
+        if replacement is None:
+            return translate("scheduling.carry.replacement_not_member")
+        if any(
+            draft.get(move) is None
+            or not origin.is_holder(draft[move].member_id, draft[move].assignee_name)
+            for move in moves
         ):
-            return translate("scheduling.carry.replacement_not_eligible")
-    window_start = min(day for day, _role in moves) - timedelta(days=10)
-    window_end = max(day for day, _role in moves) + timedelta(days=10)
+            return translate("scheduling.carry.different_original")
+        for service_date, role in moves:
+            if not _holds_role_period(replacement, role, service_date) or (
+                replacement.is_unavailable(service_date)
+            ):
+                return translate("scheduling.carry.replacement_not_eligible")
+            batch.append((service_date, role, old.assignee_name))
+    window_start = min(day for day, _role, _name in batch) - timedelta(days=10)
+    window_end = max(day for day, _role, _name in batch) + timedelta(days=10)
     resolved = await ports.roster.duties_in_force(window_start, window_end)
     slots = {key: item.assignee_name for key, item in resolved.items()}
     for item in schedule.assignments:
         slots[item.slot] = item.assignee_name
     policy = await ports.policy.current()
-    violations = substitution_violations(
+    # The draft names each original person by today's label, which is the
+    # one every other slot in the rule check carries.
+    violations = batch_substitution_violations(
         slots,
-        moves,
-        original_name,
-        old.assignee_name,
+        batch,
         policy.late_shift_anchor,
         polish_holidays(window_start, window_end),
         policy.rotation_mode,
@@ -372,6 +377,20 @@ async def _protected_changes(
         for swap in approved
         for service_date, role in swap.slots
     }
+
+    def origin_of(swap: ApprovedSwap) -> SlotOrigin | None:
+        if swap.original_name is None:
+            return None
+        return SlotOrigin(swap.original_member_id, swap.original_name)
+
+    # The directions of one exchange this draft replaces, each with the first
+    # duty it replaces, so they are carried or lost together.
+    replaced: dict[uuid.UUID, dict[ApprovedSwap, Duty]] = defaultdict(dict)
+    for old, _new in changed:
+        swap = approved_slots.get((old.schedule_id, old.service_date, old.role))
+        if swap is not None:
+            replaced[swap.swap_id].setdefault(swap, old)
+    swap_reasons: dict[uuid.UUID, str | None] = {}
     protected = []
     for old, new in changed:
         slot_key = (old.schedule_id, old.service_date, old.role)
@@ -381,12 +400,19 @@ async def _protected_changes(
         source = "approved_swap" if swap is not None else "override"
         if swap is None:
             origin = old.original
-        elif swap.requester_name is not None:
-            origin = SlotOrigin(swap.requester_member_id, swap.requester_name)
+            reason = await _carry_conflict_reason(schedule, [(old, origin, [old.slot])], ports)
         else:
-            origin = None
-        moves = list(swap.slots) if swap is not None else [old.slot]
-        reason = await _carry_conflict_reason(schedule, old, origin, moves, ports)
+            origin = origin_of(swap)
+            if swap.swap_id not in swap_reasons:
+                swap_reasons[swap.swap_id] = await _carry_conflict_reason(
+                    schedule,
+                    [
+                        (first, origin_of(direction), list(direction.slots))
+                        for direction, first in replaced[swap.swap_id].items()
+                    ],
+                    ports,
+                )
+            reason = swap_reasons[swap.swap_id]
         protected.append(
             ProtectedChange(
                 service_date=old.service_date,
@@ -410,6 +436,8 @@ async def _pending_swap_notices(
     fully covers, and otherwise only the days inside its own range. A swap on
     a day this schedule does not touch survives the publication, so naming it
     would ask the coordinator to weigh something that is not going to happen.
+    An exchange is one decision, so losing a slot of either direction takes
+    the whole request.
     """
     overlapping = await ports.schedules.published_overlapping(schedule)
     fully_covered = {
@@ -421,10 +449,10 @@ async def _pending_swap_notices(
     pending = [
         swap
         for swap in candidates
-        if (
-            swap.schedule_id in fully_covered
-            or any(schedule.starts_on <= day <= schedule.ends_on for day in swap.slot_dates)
-            or (not swap.slot_dates and schedule.starts_on <= swap.service_date <= schedule.ends_on)
+        if not swap.schedule_ids.isdisjoint(fully_covered)
+        or any(
+            schedule.starts_on <= day <= schedule.ends_on
+            for day, _role in swap.slots + swap.return_slots
         )
     ]
     member_ids = {
@@ -441,6 +469,8 @@ async def _pending_swap_notices(
             requester_name=names.get(swap.requester_member_id, "Nieznana osoba"),
             replacement_name=names.get(swap.replacement_member_id, "Nieznana osoba"),
             status=swap.status,
+            slots=swap.slots,
+            return_slots=swap.return_slots,
         )
         for swap in pending
     ]

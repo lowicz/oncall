@@ -138,6 +138,11 @@ schedule, the rates nor the reports** and do not affect the solver.
   the violations. The other hard rules block a swap unconditionally. The flow
   is described in
   [A swap that breaks the rules](../uzytkownik/zamiany.md#a-swap-that-breaks-the-rules).
+  A request can also name a duty of the replacement taken in return (in the
+  API the field `in_return`): both directions are then checked as one move,
+  decided by one acceptance and one approval, and written into the schedule
+  together, also when they belong to two publications. It is described in
+  [Exchanging a duty for a duty](../uzytkownik/zamiany.md#exchanging-a-duty-for-a-duty).
 
 Publishing a new schedule is serialised in the database, checks full coverage
 and supersedes only those published schedules that fit entirely within the new

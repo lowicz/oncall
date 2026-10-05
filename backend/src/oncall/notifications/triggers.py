@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
 from oncall.domain.handover import NoticeTiming, RotationNotice
+from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
@@ -119,12 +120,16 @@ async def notify_swap_requested(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Slot] = (),
+    return_slots: Sequence[Slot] = (),
     requester_name: str,
     replacement_name: str,
     violations: Sequence[RuleViolation],
 ) -> None:
     """`violations` here and in the triggers below are the hard rules the
-    swap breaks knowingly; the mails that lead to a decision name them."""
+    swap breaks knowingly; the mails that lead to a decision name them.
+    `slots` are every slot the requester gives and `return_slots` the ones
+    taken in exchange: a mail names all of them once more than one moves."""
     settings = get_settings()
     emails = await _emails_for_names(db, [replacement_name])
     await _enqueue_for(
@@ -134,6 +139,8 @@ async def notify_swap_requested(
         build=lambda: templates.swap_requested(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             violations=violations,
             app=Brand.from_settings(settings),
@@ -147,6 +154,8 @@ async def notify_swap_accepted(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Slot] = (),
+    return_slots: Sequence[Slot] = (),
     requester_name: str,
     replacement_name: str,
     violations: Sequence[RuleViolation],
@@ -160,6 +169,8 @@ async def notify_swap_accepted(
         build=lambda: templates.swap_accepted(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             replacement_name=replacement_name,
             app=Brand.from_settings(settings),
         ),
@@ -170,6 +181,8 @@ async def notify_swap_accepted(
         templates.swap_pending_coordinator(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             replacement_name=replacement_name,
             violations=violations,
@@ -186,6 +199,8 @@ async def notify_swap_rejected(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Slot] = (),
+    return_slots: Sequence[Slot] = (),
     requester_name: str,
     replacement_name: str,
     reason: str | None,
@@ -201,6 +216,8 @@ async def notify_swap_rejected(
         build=lambda: templates.swap_rejected(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             replacement_name=replacement_name,
             reason=reason,
@@ -216,6 +233,8 @@ async def notify_swap_cancelled(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Slot] = (),
+    return_slots: Sequence[Slot] = (),
     requester_name: str,
     replacement_name: str,
     reason: str | None,
@@ -229,6 +248,8 @@ async def notify_swap_cancelled(
         build=lambda: templates.swap_cancelled(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             reason=reason,
             app=Brand.from_settings(settings),
@@ -242,6 +263,8 @@ async def notify_swap_cancelled_by_publication(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Slot] = (),
+    return_slots: Sequence[Slot] = (),
     requester_name: str,
     replacement_name: str,
     swap_id: uuid.UUID,
@@ -257,6 +280,8 @@ async def notify_swap_cancelled_by_publication(
         build=lambda: templates.swap_cancelled(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             reason="Grafik zastąpiony nową publikacją",
             app=Brand.from_settings(settings),
@@ -274,6 +299,8 @@ async def notify_swap_approved(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Slot] = (),
+    return_slots: Sequence[Slot] = (),
     requester_name: str,
     replacement_name: str,
     violations: Sequence[RuleViolation],
@@ -287,6 +314,8 @@ async def notify_swap_approved(
         build=lambda: templates.swap_approved(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             replacement_name=replacement_name,
             violations=violations,
@@ -301,6 +330,8 @@ async def notify_swap_recorded(
     *,
     service_date: date,
     role: AssignmentRole,
+    slots: Sequence[Slot] = (),
+    return_slots: Sequence[Slot] = (),
     requester_name: str,
     replacement_name: str,
     swap_id: uuid.UUID,
@@ -319,6 +350,8 @@ async def notify_swap_recorded(
         build=lambda: templates.swap_recorded(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             replacement_name=replacement_name,
             violations=violations,
@@ -332,6 +365,8 @@ async def notify_swap_recorded(
         templates.swap_recorded_for_coordinator(
             service_date=service_date,
             role=role,
+            slots=slots,
+            return_slots=return_slots,
             requester_name=requester_name,
             replacement_name=replacement_name,
             violations=violations,

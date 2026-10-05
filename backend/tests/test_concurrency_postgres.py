@@ -265,6 +265,115 @@ async def test_two_requests_for_one_slot_leave_one_active_swap(pg, monkeypatch) 
     assert active == 1
 
 
+#: A reason and an acknowledgement, for a roster in which three people carry
+#: every duty: whatever rest rule an exchange bends there is beside the point.
+KNOWINGLY = {"note": "Wymiana w teście współbieżności", "acknowledge_rule_violations": True}
+
+
+def _exchange(roster: dict, schedule, given: tuple, replacement: str, back: tuple) -> dict:
+    """A request body: `given` and `back` are (days after the first, role)."""
+
+    def slot(offset: int, role: str) -> dict:
+        return {
+            "service_date": (roster["day"] + timedelta(days=offset)).isoformat(),
+            "role": role,
+        }
+
+    return {
+        "schedule_id": str(schedule.id),
+        **slot(*given),
+        "replacement_member_id": str(roster["members"][replacement].id),
+        "in_return": slot(*back),
+        **KNOWINGLY,
+    }
+
+
+async def test_two_exchanges_crossing_the_same_days_leave_one_request(pg, monkeypatch) -> None:
+    """Anna asks Celina for her second day against Anna's first; Celina asks
+    for the same trade from her side. Each names the days in the opposite
+    order, so each would hold the day the other needs: the days are reserved
+    in date order, the second request waits and then finds the first."""
+    roster = await _roster(pg)
+    schedule = roster["schedule"]
+    _hold(monkeypatch, "notify_swap_requested")
+    anna, celina = await _client("anna"), await _client("celina")
+    try:
+        responses = await asyncio.gather(
+            anna.post(
+                "/api/v1/swaps",
+                json=_exchange(roster, schedule, (0, "primary"), "celina", (1, "secondary")),
+            ),
+            celina.post(
+                "/api/v1/swaps",
+                json=_exchange(roster, schedule, (1, "secondary"), "anna", (0, "primary")),
+            ),
+        )
+    finally:
+        await anna.aclose()
+        await celina.aclose()
+
+    assert sorted(item.status_code for item in responses) == [201, 409], [
+        item.text for item in responses
+    ]
+    refused = next(item for item in responses if item.status_code == 409)
+    assert refused.json()["detail"] == "Dla tego slotu istnieje aktywna zamiana"
+    assert await pg.scalar(select(func.count()).select_from(SwapRequest)) == 1
+
+
+async def test_two_exchanges_crossing_two_publications_are_both_approved(pg, monkeypatch) -> None:
+    """One exchange gives from the first week and takes from the second, the
+    other the reverse. Each hand-over holds both schedules; taken in one
+    order, the second approval waits for the first instead of deadlocking."""
+    roster = await _roster(pg)
+    first = roster["schedule"]
+    second = await create_published_schedule(
+        pg,
+        starts_on=roster["day"] + timedelta(days=7),
+        days=7,
+        primary=["Bartek", "Celina", "Anna"],
+        secondary=["Celina", "Anna", "Bartek"],
+    )
+    # The second week's rotation is the fortnight's own; the newer publication
+    # is the one in force there.
+    swaps = []
+    for requester, body, replacement in (
+        ("anna", _exchange(roster, first, (0, "primary"), "celina", (7, "secondary")), "celina"),
+        ("bartek", _exchange(roster, second, (10, "primary"), "anna", (2, "secondary")), "anna"),
+    ):
+        asking, answering = await _client(requester), await _client(replacement)
+        try:
+            created = await asking.post("/api/v1/swaps", json=body)
+            assert created.status_code == 201, created.text
+            swaps.append(created.json()["id"])
+            accepted = await answering.post(
+                f"/api/v1/swaps/{swaps[-1]}/accept", json={"acknowledge_rule_violations": True}
+            )
+            assert accepted.status_code == 200, accepted.text
+        finally:
+            await asking.aclose()
+            await answering.aclose()
+    _hold(monkeypatch, "notify_swap_approved")
+    koord1, koord2 = await _client("koord1"), await _client("koord2")
+    try:
+        responses = await asyncio.gather(
+            *(
+                client.post(
+                    f"/api/v1/swaps/{swap_id}/approve", json={"acknowledge_rule_violations": True}
+                )
+                for client, swap_id in zip((koord1, koord2), swaps, strict=True)
+            )
+        )
+    finally:
+        await koord1.aclose()
+        await koord2.aclose()
+
+    assert [item.status_code for item in responses] == [200, 200], [item.text for item in responses]
+    versions = (
+        await pg.scalars(select(Schedule.version).where(Schedule.id.in_((first.id, second.id))))
+    ).all()
+    assert versions == [3, 3]
+
+
 async def test_two_overlapping_declarations_store_one_entry(pg, monkeypatch) -> None:
     roster = await _roster(pg)
     ewa = roster["members"]["ewa"]
