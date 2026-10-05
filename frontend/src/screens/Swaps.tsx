@@ -13,6 +13,7 @@ import {
   canCoordinate,
   canWithdraw,
   dayRole,
+  isLapsed,
   isOpen,
   needsMyDecision,
   returnOf,
@@ -65,8 +66,6 @@ function inboxOf(item: SwapRequest, me: string): Inbox {
   return 'w-toku'
 }
 
-/** Past its day with nobody having decided: closed in all but its status, which the worker changes within the hour. */
-const isLapsed = (item: SwapRequest) => !isOpen(item) && item.status.startsWith('pending_')
 const slotKey = (slot: SwapSlot) => `${slot.service_date}|${slot.role}`
 
 /** What an acknowledgement was given for: each rule, whose it is and on which days. */

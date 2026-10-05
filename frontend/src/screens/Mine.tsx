@@ -18,7 +18,7 @@ import { availabilityLabels, firstName, roleLabels, shortRoleLabels, swapStatusL
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
 import { formatPoints } from '../lib/numbers'
-import { OPEN_STATUSES, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
+import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -564,7 +564,7 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
   ].slice(0, 5)
   const arrow = (item: SwapRequest) => (returnOf(item) ? '⇄' : '→')
   const stage = (item: SwapRequest) => {
-    if (OPEN_STATUSES.includes(item.status) && !isOpen(item)) return expired
+    if (isLapsed(item)) return expired
     if (item.status === 'pending_replacement') {
       return item.replacement_name === displayName
         ? t.askedYou

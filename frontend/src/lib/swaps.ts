@@ -27,6 +27,9 @@ export const isExpired = (item: SwapRequest) =>
  */
 export const isOpen = (item: SwapRequest) => OPEN_STATUSES.includes(item.status) && !isExpired(item)
 
+/** Past its day with nobody having decided: closed in all but its status, which the worker changes within the hour. */
+export const isLapsed = (item: SwapRequest) => OPEN_STATUSES.includes(item.status) && isExpired(item)
+
 /** True when this request is waiting on *this* person specifically. */
 export function needsMyDecision(item: SwapRequest, viewer: SwapViewer) {
   if (!isOpen(item)) return false

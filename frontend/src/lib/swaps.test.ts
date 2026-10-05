@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SwapRequest, SwapStatus } from '../api'
-import { brokenRules, canWithdraw, groupSwaps, isExpired, isOpen, needsMyDecision } from './swaps'
+import { brokenRules, canWithdraw, groupSwaps, isExpired, isLapsed, isOpen, needsMyDecision } from './swaps'
 
 const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   schedule_id: 's1',
@@ -58,6 +58,9 @@ describe('isExpired', () => {
     for (const status of ['pending_replacement', 'pending_coordinator'] as SwapStatus[]) {
       const item = swap({ id: '1', status, service_date: '2026-09-09', rule_violations })
       expect(isOpen(item)).toBe(false)
+      expect(isLapsed(item)).toBe(true)
+      expect(isLapsed({ ...item, service_date: '2026-09-10' })).toBe(false)
+      expect(isLapsed({ ...item, status: 'cancelled' })).toBe(false)
       // Nobody can decide on it or pull it back, so no count and no inbox keeps it.
       expect(needsMyDecision(item, viewer)).toBe(false)
       expect(canWithdraw(item, { displayName: 'Anna', role: 'member' })).toBe(false)
