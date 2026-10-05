@@ -211,10 +211,16 @@ const CASES: Case[] = [
     inReturn: { service_date: '2026-09-15', role: 'secondary' }, correction: true,
   }), '/api/v1/swaps/impact?service_date=2026-09-14&role=primary&replacement_member_id=m%202'
     + '&return_date=2026-09-15&return_role=secondary&correction=true'),
+  get('swapImpact of one slot', () => api.swapImpact('2026-09-14', 'late_shift', 'm 2', { scope: 'single' }),
+    '/api/v1/swaps/impact?service_date=2026-09-14&role=late_shift&replacement_member_id=m%202&scope=single'),
   get('swapOptions', () => api.swapOptions('2026-09-14', 'secondary'),
     '/api/v1/swaps/options?service_date=2026-09-14&role=secondary'),
+  get('swapOptions of a whole duty', () => api.swapOptions('2026-09-14', 'secondary', 'whole'),
+    '/api/v1/swaps/options?service_date=2026-09-14&role=secondary&scope=whole'),
   get('swapReturnOptions', () => api.swapReturnOptions('2026-09-14', 'secondary', 'm 2'),
     '/api/v1/swaps/return-options?service_date=2026-09-14&role=secondary&replacement_member_id=m%202'),
+  get('swapReturnOptions for one slot', () => api.swapReturnOptions('2026-09-14', 'late_shift', 'm 2', 'single'),
+    '/api/v1/swaps/return-options?service_date=2026-09-14&role=late_shift&replacement_member_id=m%202&scope=single'),
   send('createSwap', () => api.createSwap({
     schedule_id: 's1', service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2', note: 'urlop',
   }), 'POST', '/api/v1/swaps', {

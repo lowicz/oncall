@@ -470,6 +470,29 @@ def test_the_number_reminder_names_both_days_of_an_exchange() -> None:
     assert "Pamiętaj o przełączeniu numeru on-call.\n" in RENDERINGS["swap_approved"]().text
 
 
+def test_the_number_reminder_names_only_the_days_an_oncall_role_moves() -> None:
+    """11-19 is not an on-call duty: handing the shift over alone, or for
+    another 11-19, switches no number, and an exchange of it for a duty names
+    that duty's day only."""
+    late_shift = {
+        "service_date": DAY,
+        "role": AssignmentRole.late_shift,
+        "slots": [(DAY, AssignmentRole.late_shift)],
+        "app": APP,
+        **PEOPLE,
+        "violations": [],
+    }
+    reminder = "Pamiętaj o przełączeniu numeru on-call: sob 26-09-2026."
+    for render in (templates.swap_approved, templates.swap_recorded):
+        for alone in (
+            render(**late_shift),
+            render(**late_shift, return_slots=[(NEXT, AssignmentRole.late_shift)]),
+        ):
+            assert "numeru on-call" not in alone.text and "numeru on-call" not in alone.html
+        exchanged = render(**late_shift, return_slots=[(NEXT, AssignmentRole.secondary)])
+        assert reminder in exchanged.text and reminder in exchanged.html
+
+
 def test_a_swap_lists_its_slots_once_more_than_one_moves() -> None:
     """The 11-19 that travels with a role is named, where the mail used to
     show the one slot the request was filed for. A swap of a single slot has

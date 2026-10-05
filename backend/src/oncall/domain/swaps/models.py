@@ -5,7 +5,12 @@ from typing import Literal
 
 from oncall.domain.roster import Slot
 from oncall.domain.team import Actor, Member
-from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, SwapStatus
+from oncall.domain.vocabulary import (
+    AssignmentRole,
+    AvailabilityKind,
+    LateShiftAnchor,
+    SwapStatus,
+)
 from oncall.fairness import MemberBalance
 from oncall.rules import RuleViolation
 
@@ -25,6 +30,11 @@ RETURN_HORIZON = timedelta(days=90)
 
 #: The two people of a request, by the side they are on.
 SwapParty = Literal["requester", "replacement"]
+
+#: What a request gives of a day: every slot the giver holds that day, or the
+#: named slot alone. Asked for when the request is filed and turned into its
+#: slots there; without one a request moves what the 11-19 anchor couples.
+SwapScope = Literal["whole", "single"]
 
 
 @dataclass(frozen=True)
@@ -79,11 +89,12 @@ class SwapRequestInput:
     service_date: date
     role: AssignmentRole
     replacement_member_id: uuid.UUID
-    #: Why the swap is needed; required once it breaks a hard rule.
+    #: Why the swap is needed, if the requester says.
     note: str | None = None
     acknowledge_rule_violations: bool = False
     #: A duty of the replacement the requester takes in exchange.
     in_return: Slot | None = None
+    scope: SwapScope | None = None
 
 
 @dataclass(frozen=True)
@@ -102,6 +113,7 @@ class ReplacementOptionsQuery:
     actor: Actor
     service_date: date
     role: AssignmentRole
+    scope: SwapScope | None = None
 
 
 @dataclass(frozen=True)
@@ -112,6 +124,7 @@ class ReturnOptionsQuery:
     service_date: date
     role: AssignmentRole
     replacement_member_id: uuid.UUID
+    scope: SwapScope | None = None
 
 
 @dataclass(frozen=True)
@@ -125,6 +138,7 @@ class SwapImpactQuery:
     #: A coordinator's correction rather than a swap: it carries 11-19 along
     #: only from its anchor role, where a swap couples the pair from either.
     correction: bool = False
+    scope: SwapScope | None = None
 
 
 @dataclass(frozen=True)
@@ -242,9 +256,11 @@ class SwapRequestView:
 @dataclass(frozen=True)
 class SwapPolicy:
     """What the swap screens need to know about the policy: whether a request
-    the replacement accepts still waits for a coordinator."""
+    the replacement accepts still waits for a coordinator, and which on-call
+    role 11-19 travels with."""
 
     coordinator_approval_required: bool
+    late_shift_anchor: LateShiftAnchor
 
 
 @dataclass(frozen=True)

@@ -7,8 +7,8 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from oncall.domain.roster import Slot
-from oncall.domain.swaps.models import ReplacementOption, ReturnOption, SwapRequestView
-from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, SwapStatus
+from oncall.domain.swaps.models import ReplacementOption, ReturnOption, SwapRequestView, SwapScope
+from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, SwapStatus
 from oncall.presentation.reports import FairnessMemberResponse
 from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
 
@@ -37,7 +37,7 @@ class SwapOptionResponse(BaseModel):
     #: Rules that rule the candidate out.
     blocking_violations: list[RuleViolationResponse] = []
     #: Hard rules a request to this candidate breaks; it has to acknowledge
-    #: them and say why.
+    #: them.
     rule_violations: list[RuleViolationResponse] = []
     warning_violations: list[RuleViolationResponse] = []
     next_step: str | None = None
@@ -52,8 +52,7 @@ class SwapReturnOptionResponse(BaseModel):
     slots: list[SwapSlotResponse] = []
     #: Rules that rule the exchange out.
     blocking_violations: list[RuleViolationResponse] = []
-    #: Hard rules the exchange breaks; the request has to acknowledge them
-    #: and say why.
+    #: Hard rules the exchange breaks; the request has to acknowledge them.
     rule_violations: list[RuleViolationResponse] = []
     warning_violations: list[RuleViolationResponse] = []
 
@@ -75,12 +74,15 @@ class SwapRequestCreate(BaseModel):
     role: AssignmentRole
     replacement_member_id: uuid.UUID
     note: str | None = Field(default=None, max_length=500)
-    #: The requester has seen the hard rules the swap breaks; `note` then has
-    #: to say why it is needed.
+    #: The requester has seen the hard rules the swap breaks.
     acknowledge_rule_violations: bool = False
     #: Turns the hand-over into an exchange: both directions are checked as
     #: one move and decided by one acceptance and one approval.
     in_return: SwapReturnRequest | None = None
+    #: What the request gives of the day: `whole` every slot the requester
+    #: holds that day, `single` the named slot alone. Without it, the slots
+    #: the 11-19 anchor couples.
+    scope: SwapScope | None = None
 
 
 class SwapDecisionRequest(BaseModel):
@@ -132,6 +134,9 @@ class SwapPolicyResponse(BaseModel):
     #: True: the request then waits for a coordinator. False: the acceptance
     #: writes it into the schedule and coordinators are only told.
     coordinator_approval_required: bool
+    #: The on-call role 11-19 travels with; the form gives that pair whole
+    #: unless the member asks for one slot.
+    late_shift_anchor: LateShiftAnchor
 
 
 class SwapImpactMemberResponse(BaseModel):

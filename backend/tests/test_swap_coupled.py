@@ -98,6 +98,80 @@ async def test_swapping_the_anchor_role_moves_the_late_shift_with_it(
 
 @pytest.mark.anyio
 @pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
+async def test_under_a_primary_anchor_the_late_shift_alone_goes_into_the_schedule(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """The anchor is a setting. With 11-19 following PRIMARY, Ola's Tuesday is
+    PRIMARY + 11-19 and she gives the 11-19 alone, knowingly, to Marek."""
+    members = await _team(db)
+    schedule = await create_published_schedule(
+        db,
+        starts_on=START,
+        days=7,
+        primary=["Ola Zalewska"],
+        secondary=["Magdalena Woźniak"],
+        late_shift=["Ola Zalewska"],
+    )
+    await login(client, "koord")
+    saved = await client.put(
+        "/api/v1/scheduling/policy",
+        json={"rotation_mode": "hybrid", "late_shift_anchor": "primary"},
+    )
+    assert saved.status_code == 200, saved.text
+    await login(client, "ola")
+    marek = str(members["Marek Nowak"].id)
+    late_shift_alone = {"service_date": "2026-09-22", "role": "late_shift", "scope": "single"}
+    split = {("late_shift_anchor", "Ola Zalewska"), ("late_shift_anchor", "Marek Nowak")}
+
+    options = await client.get("/api/v1/swaps/options", params=late_shift_alone)
+    assert options.status_code == 200, options.text
+    by_name = {option["display_name"]: option for option in options.json()}
+    assert by_name["Marek Nowak"]["slots"] == [{"service_date": "2026-09-22", "role": "late_shift"}]
+    assert {
+        (item["rule"], item["member_name"]) for item in by_name["Marek Nowak"]["rule_violations"]
+    } == split
+    # Magdalena holds SECONDARY that day: the pair would give her both on-call
+    # roles, the 11-19 alone does not.
+    assert by_name["Magdalena Woźniak"]["blocking_violations"] == []
+
+    impact = await client.get(
+        "/api/v1/swaps/impact", params={**late_shift_alone, "replacement_member_id": marek}
+    )
+    assert impact.status_code == 200, impact.text
+    taker = impact.json()["replacement"]
+    assert taker["after"]["late_shift"]["actual"] == taker["before"]["late_shift"]["actual"] + 1
+    assert taker["after"]["primary"]["actual"] == taker["before"]["primary"]["actual"]
+
+    created = await client.post(
+        "/api/v1/swaps",
+        json={
+            **late_shift_alone,
+            "schedule_id": str(schedule.id),
+            "replacement_member_id": marek,
+            "acknowledge_rule_violations": True,
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["slots"] == [{"service_date": "2026-09-22", "role": "late_shift"}]
+
+    swap_id = created.json()["id"]
+    acknowledged = {"acknowledge_rule_violations": True}
+    await login(client, "marek")
+    accepted = await client.post(f"/api/v1/swaps/{swap_id}/accept", json=acknowledged)
+    assert accepted.status_code == 200, accepted.text
+    await login(client, "koord")
+    approved = await client.post(f"/api/v1/swaps/{swap_id}/approve", json=acknowledged)
+    assert approved.status_code == 200, approved.text
+    published = (await client.get("/api/v1/schedules/published")).json()
+    assert {
+        a["role"]: a["assignee_name"]
+        for a in published["assignments"]
+        if a["service_date"] == "2026-09-22"
+    } == {"primary": "Ola Zalewska", "secondary": "Magdalena Woźniak", "late_shift": "Marek Nowak"}
+
+
+@pytest.mark.anyio
+@pytest.mark.usefixtures("frozen_clock")  # the swapped duty must still lie ahead
 async def test_replacement_without_late_shift_eligibility_takes_only_the_anchor(
     client: AsyncClient, db: AsyncSession
 ) -> None:

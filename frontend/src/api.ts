@@ -103,6 +103,10 @@ export interface SwapSlot {
   role: AssignmentRole
 }
 
+/** What a request gives of a day: every slot held that day, or the named slot
+ *  alone. Without one, the request moves what the 11-19 anchor couples. */
+export type SwapScope = 'whole' | 'single'
+
 export interface SwapOption {
   member_id: string
   display_name: string
@@ -115,7 +119,7 @@ export interface SwapOption {
   /** Rules that rule this candidate out; when set, it is not selectable. */
   blocking_violations?: RuleViolation[]
   /** Hard rules a request to this candidate breaks: it stays selectable, and
-   *  the request has to acknowledge them and say why. */
+   *  the request has to acknowledge them. */
   rule_violations?: RuleViolation[]
   /** Rules the swap bends but does not break; the candidate stays selectable. */
   warning_violations?: RuleViolation[]
@@ -224,6 +228,8 @@ export interface SchedulingPolicy {
 /** How far a swap request travels once the replacement agrees; every member may read it. */
 export interface SwapPolicy {
   coordinator_approval_required: boolean
+  /** The on-call role 11-19 travels with, which the form gives whole unless asked otherwise. */
+  late_shift_anchor: LateShiftAnchor
 }
 
 export interface DraftSchedule {
@@ -928,28 +934,32 @@ export const api = {
     return request<SwapRequest[]>(`/api/v1/swaps${query ? `?${query}` : ''}`)
   },
   swapPolicy: () => request<SwapPolicy>('/api/v1/swaps/policy'),
-  /** `inReturn` projects an exchange; `correction` a coordinator's correction,
-   *  which moves 11-19 with its anchor role only. */
+  /** `inReturn` projects an exchange; `scope` is what the swap gives of the
+   *  day; `correction` a coordinator's correction, which moves 11-19 with its
+   *  anchor role only. */
   swapImpact: (
     serviceDate: string,
     role: AssignmentRole,
     replacementMemberId: string,
-    { inReturn, correction }: { inReturn?: SwapSlot; correction?: boolean } = {},
+    { inReturn, scope, correction }: { inReturn?: SwapSlot; scope?: SwapScope; correction?: boolean } = {},
   ) =>
     request<SwapImpact>(
       `/api/v1/swaps/impact?service_date=${encodeURIComponent(serviceDate)}`
       + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`
       + (inReturn ? `&return_date=${encodeURIComponent(inReturn.service_date)}&return_role=${inReturn.role}` : '')
+      + (scope ? `&scope=${scope}` : '')
       + (correction ? '&correction=true' : ''),
     ),
-  swapOptions: (serviceDate: string, role: AssignmentRole) =>
+  swapOptions: (serviceDate: string, role: AssignmentRole, scope?: SwapScope) =>
     request<SwapOption[]>(
-      `/api/v1/swaps/options?service_date=${encodeURIComponent(serviceDate)}&role=${role}`,
+      `/api/v1/swaps/options?service_date=${encodeURIComponent(serviceDate)}&role=${role}`
+      + (scope ? `&scope=${scope}` : ''),
     ),
-  swapReturnOptions: (serviceDate: string, role: AssignmentRole, replacementMemberId: string) =>
+  swapReturnOptions: (serviceDate: string, role: AssignmentRole, replacementMemberId: string, scope?: SwapScope) =>
     request<SwapReturnOption[]>(
       `/api/v1/swaps/return-options?service_date=${encodeURIComponent(serviceDate)}`
-      + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`,
+      + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`
+      + (scope ? `&scope=${scope}` : ''),
     ),
   createSwap: (input: {
     schedule_id: string
@@ -960,6 +970,7 @@ export const api = {
     acknowledge_rule_violations?: boolean
     /** The duty of the replacement taken in exchange. */
     in_return?: SwapSlot
+    scope?: SwapScope
   }) => send<SwapRequest>('POST', '/api/v1/swaps', input),
   /** `acknowledge`: the person deciding has seen the hard rules the swap breaks. */
   acceptSwap: ({ id, acknowledge }: { id: string; acknowledge: boolean }) =>

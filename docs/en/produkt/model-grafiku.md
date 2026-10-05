@@ -133,7 +133,7 @@ schedule, the rates nor the reports** and do not affect the solver.
   (`max_consecutive`, `three_in_seven`, `rest_after_run`,
   `late_shift_anchor`): the requester, the replacement and - when they
   approve - the coordinator each acknowledge it with the field
-  `acknowledge_rule_violations: true`, and the requester gives a reason;
+  `acknowledge_rule_violations: true` (the reason is optional);
   without the acknowledgement the request ends with a `409` response listing
   the violations. The other hard rules block a swap unconditionally. The flow
   is described in

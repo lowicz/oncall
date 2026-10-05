@@ -301,7 +301,7 @@ function stubApi() {
     { id: 'e2', title: 'Przegląd serwerowni', color: 'amber', starts_on: '2026-09-24', ends_on: '2026-09-26', created_at: '2026-09-02T10:00:00Z' },
   ])
   vi.spyOn(api, 'swaps').mockResolvedValue(SWAPS)
-  vi.spyOn(api, 'swapPolicy').mockResolvedValue({ coordinator_approval_required: true })
+  vi.spyOn(api, 'swapPolicy').mockResolvedValue({ coordinator_approval_required: true, late_shift_anchor: 'secondary' })
   vi.spyOn(api, 'availability').mockResolvedValue(AVAILABILITY)
   vi.spyOn(api, 'memberAvailability').mockResolvedValue(AVAILABILITY)
   vi.spyOn(api, 'team').mockResolvedValue(TEAM)

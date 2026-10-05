@@ -92,7 +92,7 @@ optimistic lockingu - chroni przed cichym nadpisaniem cudzej zmiany.
 Lista zawiera tylko osoby eligible, dostępne i niemające tego dnia przeciwnej
 roli. Osoba oznaczona „nie można: …” jest zablokowana regułą, której zamiana
 nie może złamać. Osobę oznaczoną „łamie regułę: …” można wybrać po
-potwierdzeniu i podaniu powodu - patrz
+potwierdzeniu - patrz
 [Zamiana łamiąca reguły](zamiany.md#zamiana-łamiąca-reguły).
 
 **„Termin minął”**
@@ -100,9 +100,10 @@ Dzień wniosku już był. Decyzji nie da się podjąć wstecz - koordynator popr
 taki dzień korektą na macierzy.
 
 **Prośba objęła dwa sloty zamiast jednego**
-Ustawienie „Powiązanie 11–19” sprawia, że tego dnia obie role należą do jednej
-osoby. Ekran zapowiada to przed wysłaniem; jedna akceptacja (oraz, gdy jest
-wymagane, jedno zatwierdzenie) obsługuje całość.
+Ustawienie „Powiązanie 11–19” wiąże tego dnia Twoje dwie role, więc pole
+„Oddaję” było ustawione na „Cały dyżur”; jedna akceptacja (oraz, gdy jest
+wymagane, jedno zatwierdzenie) obsługuje całość. Aby oddać jedną rolę, wybierz
+„Tylko …” - rozdzielenie pary wymaga potwierdzenia.
 
 ## Grafik i macierz
 

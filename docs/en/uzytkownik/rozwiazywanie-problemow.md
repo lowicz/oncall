@@ -93,7 +93,7 @@ else's change.
 The list contains only people who are eligible, available and do not hold
 the opposite role that day. A person marked “not possible: …” is blocked by a
 rule a swap may not break. A person marked “breaks a rule: …” can be picked
-after an acknowledgement and a reason - see
+after an acknowledgement - see
 [A swap that breaks the rules](zamiany.md#a-swap-that-breaks-the-rules).
 
 **“Date passed”**
@@ -102,9 +102,10 @@ retroactively - the coordinator fixes such a day with a correction on the
 matrix.
 
 **The request covered two slots instead of one**
-The “11–19 anchor” setting makes both roles on that day belong to one person.
-The screen announces this before sending; one acceptance (and, where
-required, one approval) handles the whole thing.
+The “11–19 anchor” setting binds your two roles that day, so the “I give”
+field was set to “Whole duty”; one acceptance (and, where required, one
+approval) handles the whole thing. To give one role, pick “Only …” - splitting
+the pair needs an acknowledgement.
 
 ## Schedule and matrix
 

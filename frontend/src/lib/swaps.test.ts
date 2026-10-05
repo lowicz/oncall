@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SwapRequest, SwapStatus } from '../api'
-import { brokenRules, canWithdraw, groupSwaps, isExpired, isLapsed, isOpen, needsMyDecision } from './swaps'
+import { brokenRules, canWithdraw, defaultChoice, dutyDays, groupSwaps, isExpired, isLapsed, isOpen, needsMyDecision, scopeOf } from './swaps'
 
 const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   schedule_id: 's1',
@@ -133,5 +133,49 @@ describe('groupSwaps', () => {
   it('returns empty buckets for an empty list', () => {
     expect(groupSwaps([], { displayName: 'Anna', role: 'member' }))
       .toEqual({ actionable: [], inProgress: [], resolved: [] })
+  })
+})
+
+describe('dutyDays', () => {
+  it('lists each coming day once, with every role held that day, the on-call role first', () => {
+    const held = (service_date: string, role: 'primary' | 'secondary' | 'late_shift', assignee_name = 'Anna') =>
+      ({ service_date, role, assignee_name })
+    expect(dutyDays([
+      held('2026-09-09', 'primary'),
+      held('2026-09-14', 'late_shift'),
+      held('2026-09-14', 'secondary'),
+      held('2026-09-14', 'primary', 'Piotr'),
+      held('2026-09-19', 'primary'),
+    ], 'Anna', '2026-09-10')).toEqual([
+      { service_date: '2026-09-14', roles: ['secondary', 'late_shift'] },
+      { service_date: '2026-09-19', roles: ['primary'] },
+    ])
+  })
+})
+
+describe('defaultChoice', () => {
+  it.each(['secondary', 'primary'] as const)('gives the pair the %s anchor binds whole', (anchor) => {
+    expect(defaultChoice([anchor, 'late_shift'], anchor, 'late_shift')).toBe('whole')
+  })
+
+  it('gives two slots nothing binds one at a time, the one the link names first', () => {
+    expect(defaultChoice(['primary', 'late_shift'], 'secondary', null)).toBe('primary')
+    expect(defaultChoice(['primary', 'late_shift'], 'secondary', 'late_shift')).toBe('late_shift')
+    expect(defaultChoice(['secondary', 'late_shift'], 'independent', 'secondary')).toBe('secondary')
+  })
+
+  it('gives the one role of a day that has one', () => {
+    expect(defaultChoice(['secondary'], 'secondary', 'primary')).toBe('secondary')
+  })
+})
+
+describe('scopeOf', () => {
+  it('reads a stored request as the whole duty when it moves both slots of its day', () => {
+    expect(scopeOf(swap({ id: '1', slots: [
+      { service_date: '2026-09-14', role: 'primary' },
+      { service_date: '2026-09-14', role: 'late_shift' },
+    ] }))).toBe('whole')
+    expect(scopeOf(swap({ id: '2', slots: [{ service_date: '2026-09-14', role: 'late_shift' }] }))).toBe('single')
+    expect(scopeOf(swap({ id: '3' }))).toBe('single')
   })
 })
