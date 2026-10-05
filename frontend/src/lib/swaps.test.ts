@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SwapRequest, SwapStatus } from '../api'
-import { brokenRules, canWithdraw, groupSwaps, needsMyDecision } from './swaps'
+import { brokenRules, canWithdraw, groupSwaps, isExpired, isOpen, needsMyDecision } from './swaps'
 
 const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   schedule_id: 's1',
@@ -33,6 +33,36 @@ describe('needsMyDecision', () => {
     for (const status of ['approved', 'rejected', 'cancelled'] as SwapStatus[]) {
       expect(needsMyDecision(swap({ id: '1', status }), { displayName: 'Piotr', role: 'admin' }))
         .toBe(false)
+    }
+  })
+})
+
+describe('isExpired', () => {
+  // The test clock stands on 10 September 2026.
+  it('holds from the day after the duty, not on the day itself', () => {
+    expect(isExpired(swap({ id: '1', service_date: '2026-09-10' }))).toBe(false)
+    expect(isExpired(swap({ id: '1', service_date: '2026-09-09' }))).toBe(true)
+  })
+
+  it('reads every slot of both directions: an exchange is one decision', () => {
+    const ahead = { service_date: '2026-09-14', role: 'primary' } as const
+    const past = { service_date: '2026-09-08', role: 'secondary' } as const
+    expect(isExpired(swap({ id: '1', slots: [ahead], return_slots: [ahead] }))).toBe(false)
+    expect(isExpired(swap({ id: '1', slots: [ahead], return_slots: [past] }))).toBe(true)
+    expect(isExpired(swap({ id: '1', slots: [past] }))).toBe(true)
+  })
+
+  it('closes a request past its day, whatever its status still says', () => {
+    const viewer = { displayName: 'Piotr', role: 'admin' } as const
+    const rule_violations = [{ rule: 'three_in_seven', message: 'Więcej niż 3 dyżury.', member_name: 'Piotr', days: ['2026-09-09'] }]
+    for (const status of ['pending_replacement', 'pending_coordinator'] as SwapStatus[]) {
+      const item = swap({ id: '1', status, service_date: '2026-09-09', rule_violations })
+      expect(isOpen(item)).toBe(false)
+      // Nobody can decide on it or pull it back, so no count and no inbox keeps it.
+      expect(needsMyDecision(item, viewer)).toBe(false)
+      expect(canWithdraw(item, { displayName: 'Anna', role: 'member' })).toBe(false)
+      expect(groupSwaps([item], viewer)).toEqual({ actionable: [], inProgress: [], resolved: [item] })
+      expect(brokenRules(item)).toEqual([])
     }
   })
 })

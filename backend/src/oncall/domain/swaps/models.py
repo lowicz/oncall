@@ -15,6 +15,10 @@ ACTIVE_SWAP_STATUSES = (SwapStatus.pending_replacement, SwapStatus.pending_coord
 #: so it is written in the recorded language.
 SLOT_CHANGED_OWNER_NOTE = "Slot zmienił właściciela przed zatwierdzeniem"
 
+#: Why a request nobody decided on in time was closed by the worker; stored on
+#: the request like the note above.
+SWAP_EXPIRED_NOTE = "Termin dyżuru minął"
+
 #: How far ahead the duties offered in return are read: as far as the
 #: calendar shows at once.
 RETURN_HORIZON = timedelta(days=90)

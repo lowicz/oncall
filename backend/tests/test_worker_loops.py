@@ -103,20 +103,26 @@ async def test_the_metrics_loop_logs_a_failed_sample_and_keeps_its_rhythm(
     assert any(r.getMessage() == "Metrics sample failed" for r in caplog.records)
 
 
-async def test_the_retention_loop_logs_a_failed_pass_and_tries_again_next_interval(
+async def test_the_maintenance_loop_logs_a_failed_step_and_still_runs_the_other(
     monkeypatch, sleeps, caplog
 ) -> None:
+    """Pruning and closing expired swap requests share the loop, not their
+    fate: each step fails on its own and both are tried again next interval."""
     monkeypatch.setattr(get_settings(), "retention_interval_seconds", 3600.0)
-    cycle, calls = _scripted([RuntimeError("blokada"), RetentionReport()])
-    monkeypatch.setattr(worker, "retention_cycle", cycle)
+    retention, pruned = _scripted([RuntimeError("blokada"), RetentionReport(), RetentionReport()])
+    expiry, closed = _scripted([1, RuntimeError("baza niedostępna")])
+    monkeypatch.setattr(worker, "retention_cycle", retention)
+    monkeypatch.setattr(worker, "swap_expiry_cycle", expiry)
+    factory = object()
 
     with pytest.raises(_Stop):
-        await worker._retention_loop(object())
+        await worker._maintenance_loop(factory)
 
-    assert len(calls) == 3
+    assert pruned == [factory] * 3
+    assert closed == [factory] * 3
     assert sleeps == [3600.0, 3600.0]
-    failures = [r for r in caplog.records if r.getMessage() == "Retention cycle failed"]
-    assert len(failures) == 1
+    messages = [r.getMessage() for r in caplog.records if r.exc_info is not None]
+    assert messages == ["Retention cycle failed", "Swap expiry cycle failed"]
 
 
 async def test_a_generation_lane_polls_again_at_once_only_after_it_did_work(

@@ -13,7 +13,7 @@ mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jes
 | **Do mnie** | wnioski, w których to Ty masz przyjąć albo odrzucić zastępstwo |
 | **Moje** | Twoje własne, jeszcze otwarte prośby |
 | **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie. Gdy zatwierdzanie zamian jest wyłączone (patrz [Zatwierdzenie koordynatora](#zatwierdzenie-koordynatora)), także koordynator widzi tu zwykłe **W toku** |
-| **Zamknięte** | zatwierdzone, odrzucone i wycofane |
+| **Zamknięte** | zatwierdzone, odrzucone i wycofane, także zamknięte przez aplikację [po terminie](#termin-minął) |
 
 Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres
 `/zamiany?skrzynka=moje` otwiera wskazaną. Suma spraw wymagających Twojej
@@ -186,6 +186,7 @@ zgłoszenie ──► Oczekuje na zastępcę ──► Oczekuje na koordynatora 
                     │                          │
                     └── Odrzucona              └── Odrzucona
  autor w każdej chwili: Wycofana
+ aplikacja, gdy minie dzień dyżuru bez decyzji: Wycofana
 ```
 
 ## Zatwierdzenie koordynatora
@@ -234,6 +235,17 @@ zastępcy:
 ## Termin minął
 
 Wniosek dotyczący dnia, który już był, dostaje w tabeli dopisek **„termin
-minął”** i traci przyciski decyzji; przy wymianie wystarczy, że minął
-wcześniejszy z dwóch dni. Nie da się zaakceptować zastępstwa wstecz - taki
-dzień poprawia koordynator korektą na macierzy.
+minął”** i traci przyciski decyzji oraz wycofania; przy wymianie wystarczy, że
+minął wcześniejszy z dwóch dni. Taki wniosek nie czeka już na niczyją decyzję:
+od razu jest liczony i pokazywany wśród **Zamkniętych**, znika więc ze
+skrzynki **Do mnie**, z licznika spraw czekających na Twoją decyzję i ze
+znacznika przy pozycji „Zamiany” w nawigacji.
+
+Aplikacja zamyka go sama, zwykle w ciągu godziny: wniosek dostaje status
+„Wycofana” i powód „Termin dyżuru minął”. Nikt nie dostaje o tym wiadomości;
+w dzienniku audytu zostaje wpis **Zamknięto zamianę po terminie**, którego
+autorem jest „system”. Przy wymianie zwalnia to późniejszy z dwóch dyżurów,
+więc można o niego poprosić od nowa.
+
+Nie da się zaakceptować zastępstwa wstecz - taki dzień poprawia koordynator
+korektą na macierzy.

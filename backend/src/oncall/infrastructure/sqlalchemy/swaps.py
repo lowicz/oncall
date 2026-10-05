@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from datetime import date
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,11 +16,13 @@ from oncall.domain.swaps.models import (
     SwapRequest,
     SwapReturn,
 )
+from oncall.domain.swaps.ports import SwapExpiryPorts
 from oncall.domain.vocabulary import AssignmentRole, SwapSlotDirection, SwapStatus
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.overrides import acknowledged_suffix, violations_detail
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest as SwapRequestRow
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequestSlot
+from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
 from oncall.notifications import triggers
 from oncall.rules import RuleViolation
 
@@ -220,6 +222,29 @@ class SqlAlchemySwapRequests:
         rows = (await self._session.scalars(query.limit(limit).offset(offset))).all()
         return [_to_request(row, row.slots) for row in rows]
 
+    async def take_expired(self, today: date) -> list[SwapRequest]:
+        # The row locks make this safe beside a decision taken at the same
+        # moment: whichever comes second reads the request as the first left
+        # it, so a request just withdrawn or rejected is not closed again.
+        rows = (
+            await self._session.scalars(
+                select(SwapRequestRow)
+                .options(selectinload(SwapRequestRow.slots))
+                .where(
+                    SwapRequestRow.status.in_(ACTIVE_SWAP_STATUSES),
+                    # The headline day covers a request stored before slots
+                    # existed; the slots add the day taken in return.
+                    or_(
+                        SwapRequestRow.service_date < today,
+                        SwapRequestRow.slots.any(SwapRequestSlot.service_date < today),
+                    ),
+                )
+                .order_by(SwapRequestRow.created_at, SwapRequestRow.id)
+                .with_for_update()
+            )
+        ).all()
+        return [_to_request(row, row.slots) for row in rows]
+
 
 def _slot_list(slots: list[Slot]) -> str:
     return ", ".join(f"{day} · {ROLE_AUDIT_LABELS[role]}" for day, role in slots)
@@ -247,9 +272,10 @@ def _rule_details(violations: list[RuleViolation], details: dict[str, Any]) -> d
 
 class SqlAlchemySwapJournal:
     """Queues the e-mails and writes the audit entries in the acting account's
-    name, inside the caller's unit of work."""
+    name, inside the caller's unit of work. Without an account - the worker -
+    the entries are the system's."""
 
-    def __init__(self, session: AsyncSession, actor: User) -> None:
+    def __init__(self, session: AsyncSession, actor: User | None) -> None:
         self._session = session
         self._actor = actor
 
@@ -443,3 +469,26 @@ class SqlAlchemySwapJournal:
                 violations, {"self_approved": self_approved, "by_coordinator": by_coordinator}
             ),
         )
+
+    async def expired(
+        self, request: SwapRequest, *, requester_name: str, replacement_name: str
+    ) -> None:
+        record_audit(
+            self._session,
+            actor=self._actor,
+            action="swap.expired",
+            entity_type="swap",
+            entity_id=request.id,
+            summary=(
+                f"Zamknięto zamianę {_headline(request)} po terminie: "
+                f"{requester_name} → {replacement_name}" + _in_return(request, requester_name)
+            ),
+        )
+
+
+def swap_expiry_ports(session: AsyncSession) -> SwapExpiryPorts:
+    return SwapExpiryPorts(
+        team=SqlAlchemyTeamDirectory(session),
+        requests=SqlAlchemySwapRequests(session),
+        journal=SqlAlchemySwapJournal(session, None),
+    )

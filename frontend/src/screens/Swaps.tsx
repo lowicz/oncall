@@ -16,6 +16,8 @@ import {
   isOpen,
   needsMyDecision,
   returnOf,
+  returnSlotsOf,
+  slotsOf,
   swapHeadline,
   swapImpactQuery,
 } from '../lib/swaps'
@@ -63,10 +65,8 @@ function inboxOf(item: SwapRequest, me: string): Inbox {
   return 'w-toku'
 }
 
-const slotsOf = (item: SwapRequest): SwapSlot[] => (item.slots?.length ? item.slots : [item])
-/** What comes back in an exchange; nothing for a one-way hand-over. */
-const returnSlotsOf = (item: SwapRequest) => item.return_slots ?? []
-const isExpired = (item: SwapRequest) => [...slotsOf(item), ...returnSlotsOf(item)].some((slot) => slot.service_date < warsawDate())
+/** Past its day with nobody having decided: closed in all but its status, which the worker changes within the hour. */
+const isLapsed = (item: SwapRequest) => !isOpen(item) && item.status.startsWith('pending_')
 const slotKey = (slot: SwapSlot) => `${slot.service_date}|${slot.role}`
 
 /** What an acknowledgement was given for: each rule, whose it is and on which days. */
@@ -192,14 +192,12 @@ function SwapSteps({ status, approvalRequired }: { status: SwapStatus; approvalR
 function stageDetail(item: SwapRequest, viewer: SwapViewer): string {
   const t = messages().swaps.stage
   const me = (name: string) => name === viewer.displayName
-  if (item.status === 'pending_replacement') return me(item.replacement_name) ? t.waitingForYou : t.waitingFor(item.replacement_name)
-  if (item.status === 'pending_coordinator') {
-    return canCoordinate(viewer.role)
-      ? t.acceptedWaitingForYou(firstName(item.replacement_name))
-      : t.acceptedWaitingForCoordinator(firstName(item.replacement_name))
-  }
   if (item.status === 'approved') return t.inSchedule
-  return item.decision_note ? t.reason(item.decision_note) : ''
+  if (!isOpen(item)) return item.decision_note ? t.reason(item.decision_note) : ''
+  if (item.status === 'pending_replacement') return me(item.replacement_name) ? t.waitingForYou : t.waitingFor(item.replacement_name)
+  return canCoordinate(viewer.role)
+    ? t.acceptedWaitingForYou(firstName(item.replacement_name))
+    : t.acceptedWaitingForCoordinator(firstName(item.replacement_name))
 }
 
 /**
@@ -224,12 +222,10 @@ function Effect({ impact }: { impact: SwapImpact | undefined }) {
 
 /** What the viewer may do with a request: decide it, withdraw it, or only read it. */
 function decisionOf(item: SwapRequest, viewer: SwapViewer) {
-  const expired = isExpired(item)
-  const pending = item.status.startsWith('pending_')
   return {
-    expired,
-    pending,
-    mustDecide: needsMyDecision(item, viewer) && !expired,
+    open: isOpen(item),
+    expired: isLapsed(item),
+    mustDecide: needsMyDecision(item, viewer),
     withdrawable: canWithdraw(item, viewer),
   }
 }
@@ -291,7 +287,7 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
 }) {
   const t = useMessages().swaps.sheet
   const rules = useMessages().swaps.rules
-  const { expired, pending, mustDecide, withdrawable } = decisionOf(item, viewer)
+  const { open, expired, mustDecide, withdrawable } = decisionOf(item, viewer)
   const reasonLabel = mustDecide ? t.rejectionReason : t.withdrawalReason
   const exchange = Boolean(returnOf(item))
   return (
@@ -325,12 +321,12 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
           </>
         )}
       </ViolationList>
-      {exchange && pending && brokenRules(item).length === 0 && <Box tone="ok" title={rules.exchangeClean} />}
+      {exchange && open && brokenRules(item).length === 0 && <Box tone="ok" title={rules.exchangeClean} />}
       <ViolationList violations={item.warnings ?? []} title={t.warnings} />
-      {item.replacement_member_id && pending && (
+      {item.replacement_member_id && open && (
         <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} inReturn={returnOf(item)} />
       )}
-      {expired && pending && <Box tone="warn" title={t.expired} />}
+      {expired && <Box tone="warn" title={t.expired} />}
       {!approvalRequired && mustDecide && item.status === 'pending_replacement' && (
         <Box tone="sig" title={t.immediateTitle}>
           {t.immediateBody}
@@ -535,7 +531,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     .filter((item) => inboxOf(item, displayName) === inbox)
     .sort((left, right) => (inbox === 'zamkniete' ? right.created_at.localeCompare(left.created_at) : left.service_date.localeCompare(right.service_date)))
   // One projection per open row, for the "effect" column.
-  const projected = visible.filter((item) => isOpen(item) && item.replacement_member_id && !isExpired(item))
+  const projected = visible.filter((item) => isOpen(item) && item.replacement_member_id)
   const rowImpacts = useQueries({
     queries: projected.map((item) => swapImpactQuery(item.service_date, item.role, item.replacement_member_id as string, returnOf(item))),
   })
@@ -634,9 +630,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 </thead>
                 <tbody>
                   {visible.map((item) => {
-                    const expired = isExpired(item)
-                    const pending = item.status.startsWith('pending_')
-                    const decide = needsMyDecision(item, viewer) && !expired
+                    const decide = needsMyDecision(item, viewer)
                     const verb = decide ? t.swaps.table.decide : t.swaps.table.preview
                     const returned = returnOf(item)
                     return (
@@ -650,7 +644,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                             {returned
                               ? ` · ${t.swaps.table.exchange(slotsOf(item).length + returnSlotsOf(item).length)}`
                               : (item.slots?.length ?? 0) > 1 && ` · ${t.swaps.table.twoSlots}`}
-                            {expired && pending && ` · ${t.swaps.table.expired}`}
+                            {isLapsed(item) && ` · ${t.swaps.table.expired}`}
                           </small>
                         </th>
                         <td>{item.requester_name}</td>

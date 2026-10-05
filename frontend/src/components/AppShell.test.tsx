@@ -135,6 +135,8 @@ describe('AppShell navigation', () => {
       swap({ id: '2', replacement_name: 'Piotr Zieliński' }),
       swap({ id: '3', replacement_name: 'Ktoś inny' }),
       swap({ id: '4', status: 'approved' }),
+      // Past its day: nobody can decide on it any more.
+      swap({ id: '5', replacement_name: 'Piotr Zieliński', service_date: '2026-09-09' }),
     ])
     renderShell({ role: 'member', hasTeamMember: true })
     const link = await screen.findByRole('link', { name: /Zamiany/ })

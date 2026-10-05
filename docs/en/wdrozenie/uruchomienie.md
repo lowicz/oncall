@@ -169,6 +169,10 @@ default) batches per table in one pass. Whatever is left is simply older on
 the next pass: a database that grew for years is cleaned up gradually, and an
 interrupted pass breaks nothing.
 
+On the same rhythm the worker closes the swap requests whose day passed with
+no decision (see [Date passed](../uzytkownik/zamiany.md#date-passed)). That
+is not retention: the request stays in the database as a closed one.
+
 | Data | Default | What retention never touches |
 | --- | --- | --- |
 | audit: operations (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 days | nothing; a republish reads whom a schedule correction replaced from the duty itself, not from the log |

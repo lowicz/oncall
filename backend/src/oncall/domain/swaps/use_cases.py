@@ -69,6 +69,7 @@ from oncall.domain.swaps.errors import (
 from oncall.domain.swaps.models import (
     RETURN_HORIZON,
     SLOT_CHANGED_OWNER_NOTE,
+    SWAP_EXPIRED_NOTE,
     NewSwapRequest,
     ReplacementOption,
     ReplacementOptionsQuery,
@@ -87,7 +88,7 @@ from oncall.domain.swaps.models import (
     SwapReturn,
     acknowledged_violations,
 )
-from oncall.domain.swaps.ports import SwapPorts
+from oncall.domain.swaps.ports import SwapExpiryPorts, SwapPorts
 from oncall.domain.team import Actor, Member
 from oncall.domain.vocabulary import (
     AssignmentRole,
@@ -150,8 +151,21 @@ def _named(
     )
 
 
+async def _party_names(
+    requests: Sequence[SwapRequest], team: TeamDirectory
+) -> dict[uuid.UUID, str]:
+    """The display name of everyone the requests involve."""
+    return await team.display_names(
+        {
+            member_id
+            for request in requests
+            for member_id in (request.requester_member_id, request.replacement_member_id)
+        }
+    )
+
+
 async def _view(request: SwapRequest, team: TeamDirectory) -> SwapRequestView:
-    names = await team.display_names((request.requester_member_id, request.replacement_member_id))
+    names = await _party_names([request], team)
     return _named(request, names[request.requester_member_id], names[request.replacement_member_id])
 
 
@@ -495,13 +509,7 @@ async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[Swa
     requests = await ports.requests.requests(
         involving=involving, statuses=query.statuses, limit=query.limit, offset=query.offset
     )
-    names = await ports.team.display_names(
-        {
-            member_id
-            for request in requests
-            for member_id in (request.requester_member_id, request.replacement_member_id)
-        }
-    )
+    names = await _party_names(requests, ports.team)
     views = [
         _named(request, names[request.requester_member_id], names[request.replacement_member_id])
         for request in requests
@@ -755,6 +763,25 @@ async def cancel_swap(decision: SwapDecisionInput, ports: SwapPorts) -> SwapRequ
         reason=decision.reason,
     )
     return view
+
+
+async def expire_swaps(today: date, ports: SwapExpiryPorts) -> int:
+    """Close every open request whose earliest day has passed, and say how
+    many. Such a request can no longer be accepted or approved
+    (`_reject_past`), so left alone it would wait for ever and keep its later
+    slots from any new request. It is cancelled with a fixed note, like the
+    other automatic cancellations, and nobody is written to."""
+    requests = await ports.requests.take_expired(today)
+    names = await _party_names(requests, ports.team)
+    for request in requests:
+        closed = replace(request, status=SwapStatus.cancelled, decision_note=SWAP_EXPIRED_NOTE)
+        await ports.requests.record_decision(closed)
+        await ports.journal.expired(
+            closed,
+            requester_name=names[request.requester_member_id],
+            replacement_name=names[request.replacement_member_id],
+        )
+    return len(requests)
 
 
 async def approve_swap(

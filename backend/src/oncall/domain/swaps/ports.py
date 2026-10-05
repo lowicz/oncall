@@ -47,6 +47,11 @@ class SwapRequestStore(Protocol):
         """Newest first; `involving` limits them to one member's requests."""
         ...
 
+    async def take_expired(self, today: date) -> list[SwapRequest]:
+        """The open requests with a slot before `today`, in either direction,
+        oldest first and each held until its closing is stored."""
+        ...
+
 
 class SwapJournal(Protocol):
     """What the rest of the team learns about a swap: notifications and the
@@ -109,6 +114,13 @@ class SwapJournal(Protocol):
         approval. `self_approved` only means something for a coordinator."""
         ...
 
+    async def expired(
+        self, request: SwapRequest, *, requester_name: str, replacement_name: str
+    ) -> None:
+        """The request was closed because its day passed. Audit only: nobody
+        is written to about a duty that is already over."""
+        ...
+
 
 @dataclass(frozen=True)
 class SwapPorts:
@@ -120,3 +132,13 @@ class SwapPorts:
     requests: SwapRequestStore
     journal: SwapJournal
     fairness: FairnessHistory
+
+
+@dataclass(frozen=True)
+class SwapExpiryPorts:
+    """What closing the requests whose day has passed needs. There is no
+    actor: the worker does it."""
+
+    team: TeamDirectory
+    requests: SwapRequestStore
+    journal: SwapJournal

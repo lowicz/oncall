@@ -166,6 +166,10 @@ paczek na tabelę w jednym przebiegu. Co zostało, jest po prostu starsze w
 następnym przebiegu: baza, która rosła latami, jest sprzątana stopniowo, a
 przerwany przebieg niczego nie psuje.
 
+W tym samym rytmie proces roboczy zamyka wnioski o zamianę, których dzień
+minął bez decyzji (patrz [Termin minął](../uzytkownik/zamiany.md#termin-minął)).
+To nie retencja: wniosek zostaje w bazie jako zamknięty.
+
 | Dane | Domyślnie | Czego retencja nie rusza |
 | --- | --- | --- |
 | audyt: operacje (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 dni | niczego; kogo zastąpiła korekta grafiku, ponowna publikacja odczytuje z samego dyżuru, nie z dziennika |

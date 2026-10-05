@@ -672,10 +672,14 @@ describe('SwapPanel stages and sheets', () => {
         { rule: 'weekend_block', message: 'Dzieli blok weekendowy.', member_name: 'Anna Kowalska', days: [] },
       ],
     })])
-    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />, { route: '/zamiany?skrzynka=zamkniete' })
 
+    // It waits for nobody any more: it is counted and listed as closed, not in the inbox of the person it was addressed to.
+    expect(await screen.findByText('0 czeka na Twoją decyzję · 0 czeka na drugą stronę · 1 zamknięta')).toBeInTheDocument()
+    expect(inbox(/^Do mnie/)).toHaveAccessibleName('Do mnie: 0 spraw')
     const row = await screen.findByRole('row', { name: /wt 8 wrz/ })
     expect(row).toHaveTextContent('2 sloty · termin minął')
+    expect(row).not.toHaveTextContent('czeka na Ciebie')
     // A request past its date can no longer be decided, only read.
     fireEvent.click(within(row).getByRole('button', { name: 'Podgląd: wt 8 wrz PRIMARY' }))
     const sheet = await screen.findByRole('dialog', { name: 'Zamiana · wt 8 wrz PRIMARY' })
@@ -1458,7 +1462,7 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
   it('closes the decision once either day of an exchange has passed', async () => {
     // The duty given is still ahead; the one that comes back was two days ago.
     stub([exchange({ return_slots: [{ service_date: '2026-09-08', role: 'secondary' }] })])
-    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />, { route: '/zamiany?skrzynka=zamkniete' })
 
     const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
     expect(within(row).getByRole('rowheader')).toHaveTextContent('wymiana · 3 sloty · termin minął')
@@ -1466,5 +1470,8 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Wymiana · pon 14 wrz ⇄ wt 8 wrz' })
     expect(within(sheet).getByText('Termin dyżuru minął.')).toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: 'Akceptuję' })).not.toBeInTheDocument()
+    // Nothing is left to weigh: no verdict on the rules and no projected balance.
+    expect(within(sheet).queryByText('Ta wymiana nie łamie żadnej reguły')).not.toBeInTheDocument()
+    expect(within(sheet).queryByText('Wpływ na bilans')).not.toBeInTheDocument()
   })
 })

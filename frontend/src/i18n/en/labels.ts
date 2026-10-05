@@ -62,6 +62,7 @@ export const labels: Messages['labels'] = {
     'swap.rejected': 'Swap rejected',
     'swap.cancelled': 'Swap withdrawn',
     'swap.approved': 'Swap approved',
+    'swap.expired': 'Swap closed after its date',
     'schedule.generated': 'Draft generated',
     'schedule.proposed': 'Submitted for approval',
     'schedule.published': 'Schedule published',
