@@ -489,6 +489,8 @@ class ApprovedSwap:
     """The slots an approved swap moved one way, within one schedule: what
     the requester gave, or what the replacement gave back in an exchange."""
 
+    #: The request; both directions of an exchange share it.
+    swap_id: uuid.UUID
     schedule_id: uuid.UUID
     #: Who held the slots before the swap; the name is None when it cannot
     #: be told any more.

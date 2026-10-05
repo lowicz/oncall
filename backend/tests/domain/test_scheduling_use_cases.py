@@ -854,6 +854,7 @@ async def test_a_swap_whose_requester_is_unknown_cannot_be_carried(world) -> Non
     world.roster.assign(MONDAY, AssignmentRole.primary, world.dawid)
     world.swaps.approved.append(
         ApprovedSwap(
+            swap_id=uuid.uuid4(),
             schedule_id=world.roster.schedule_ref.id,
             original_member_id=world.anna.id,
             original_name=None,

@@ -20,12 +20,14 @@ def _on(schedule_ids: list[uuid.UUID]) -> ColumnElement[bool]:
 
 
 def _one_way(
+    swap: SwapRequest,
     rows: Sequence[SwapRequestSlot],
     original_member_id: uuid.UUID,
     names: dict[uuid.UUID, str],
 ) -> ApprovedSwap:
     """One direction of a swap."""
     return ApprovedSwap(
+        swap_id=swap.id,
         schedule_id=rows[0].schedule_id,
         original_member_id=original_member_id,
         original_name=names.get(original_member_id),
@@ -65,9 +67,9 @@ class SqlAlchemyPublicationSwaps:
             given, returned = slots_by_direction(swap.slots)
             # Each direction has its own original holder: the requester for
             # what was given, the replacement for what came back.
-            approved.append(_one_way(given, swap.requester_member_id, names))
+            approved.append(_one_way(swap, given, swap.requester_member_id, names))
             if returned:
-                approved.append(_one_way(returned, swap.replacement_member_id, names))
+                approved.append(_one_way(swap, returned, swap.replacement_member_id, names))
         return approved
 
     async def pending_on(self, schedule_ids: Iterable[uuid.UUID]) -> list[PendingSwap]:

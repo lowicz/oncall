@@ -816,3 +816,28 @@ async def test_a_republish_knows_each_direction_of_an_exchange_by_its_own_holder
             "Dariusz Zieliński",
         )
     ]
+
+
+async def test_a_republish_carries_both_directions_of_an_exchange_as_one(
+    client, db, team
+) -> None:
+    """Handing the Tuesday back to Bartosz alone is a fourth duty in his week,
+    which giving back his Wednesday undoes: the two directions are judged as
+    one batch and carried together, never one without the other."""
+    swap_id = await _ask(client, team)
+    assert (await _decide(client, "bartek", swap_id, "accept")).status_code == 200
+    assert (await _decide(client, "koord", swap_id, "approve")).status_code == 200
+    proposal = await _propose(db, team, 0)
+
+    preview = await publication_preview(proposal.id, team["koord"], publication_ports(db))
+
+    assert preview.lost_changes == []
+    assert [
+        (item.service_date.day, item.role, item.previous_assignee_name)
+        for item in preview.carried_changes
+    ] == [
+        (6, AssignmentRole.late_shift, "Bartosz Nowak"),
+        (6, AssignmentRole.secondary, "Bartosz Nowak"),
+        (7, AssignmentRole.late_shift, "Anna Kowalska"),
+        (7, AssignmentRole.secondary, "Anna Kowalska"),
+    ]
