@@ -409,7 +409,8 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         if own.id not in (requester.id, replacement.id):
             raise OnlyOwnSwapsPreview()
 
-    days = [query.service_date] + ([query.in_return[0]] if query.in_return is not None else [])
+    return_day = query.in_return[0] if query.in_return is not None else None
+    days = [query.service_date] + ([return_day] if return_day else [])
     roster = await _roster_around(days, ports)
     # A correction carries 11-19 along only from its anchor role
     # (`override_duty`); a swap couples the pair from either slot.
@@ -466,10 +467,8 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         window_end=window_end,
         requester=requester_side,
         replacement=replacement_side,
-        return_date=query.in_return[0] if query.in_return is not None else None,
-        return_points=(
-            day_weight(query.in_return[0], polish_days) if query.in_return is not None else None
-        ),
+        return_date=return_day,
+        return_points=day_weight(return_day, polish_days) if return_day else None,
     )
 
 
@@ -583,17 +582,17 @@ async def request_swap(
     # stays put and the anchor split is a tolerated exception.
     moves, anchor_exception = roster.moves(slot, requester, replacement)
     exception_days = {swap.service_date} if anchor_exception else set()
-    in_return = None
+    in_return, returned = None, []
     if swap.in_return is not None:
         in_return, return_exception = await _duty_in_return(
             swap.in_return, swap.service_date, requester, replacement, roster, ports.roster
         )
+        returned = list(in_return.slots)
         if return_exception:
             exception_days.add(swap.in_return[0])
     for move in moves:
         if await _takes_opposite_oncall(ports.roster, schedule.id, move, replacement):
             raise ReplacementAlreadyOnCall()
-    returned = list(in_return.slots) if in_return is not None else []
     # In date order, so two requests that cross each other's days wait for
     # one another instead of each holding the day the other needs.
     for move in sorted(moves + returned):

@@ -55,7 +55,7 @@ class SwapReturn:
     it. The two days of an exchange may lie in different publications."""
 
     schedule_id: uuid.UUID
-    #: The duty asked for first, then the 11-19 slot that travels with it.
+    #: The duty and the 11-19 slot that travels with it.
     slots: tuple[Slot, ...]
 
 
