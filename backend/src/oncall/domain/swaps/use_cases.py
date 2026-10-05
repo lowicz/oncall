@@ -5,7 +5,7 @@ two ways, the first failing rule is the one the person is told about.
 """
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import date
 
@@ -111,12 +111,18 @@ def _require_reason(reason: str | None) -> None:
         raise DecisionReasonRequired()
 
 
-def _named(request: SwapRequest, requester_name: str, replacement_name: str) -> SwapRequestView:
+def _named(
+    request: SwapRequest,
+    requester_name: str,
+    replacement_name: str,
+    warnings: Sequence[RuleViolation] = (),
+) -> SwapRequestView:
     """The request as a person reads it, with the violations it keeps."""
     return SwapRequestView(
         request=request,
         requester_name=requester_name,
         replacement_name=replacement_name,
+        warnings=tuple(warnings),
         rule_violations=request.named_violations(requester_name, replacement_name),
     )
 
@@ -364,7 +370,13 @@ async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[Swa
         _refusing, to_acknowledge, warnings = tiers(
             view.request, view.requester_name, view.replacement_name
         )
-        return replace(view, warnings=tuple(warnings), rule_violations=tuple(to_acknowledge))
+        return SwapRequestView(
+            request=view.request,
+            requester_name=view.requester_name,
+            replacement_name=view.replacement_name,
+            warnings=tuple(warnings),
+            rule_violations=tuple(to_acknowledge),
+        )
 
     return [as_it_stands(view) if view.request.active else view for view in views]
 
@@ -467,10 +479,7 @@ async def request_swap(
         warnings=warnings,
         violations=to_acknowledge,
     )
-    return replace(
-        _named(request, requester.display_name, replacement.display_name),
-        warnings=tuple(warnings),
-    )
+    return _named(request, requester.display_name, replacement.display_name, warnings)
 
 
 async def accept_swap(
