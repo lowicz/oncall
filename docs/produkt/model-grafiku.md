@@ -130,7 +130,7 @@ stawek ani raportów** i nie wpływają na solver.
   reguły odpoczynku i powiązania 11–19 (`max_consecutive`, `three_in_seven`,
   `rest_after_run`, `late_shift_anchor`): wnioskodawca, zastępca i - gdy
   zatwierdza - koordynator potwierdzają to każdy z osobna polem
-  `acknowledge_rule_violations: true`, a wnioskodawca podaje powód; bez
+  `acknowledge_rule_violations: true` (powód jest opcjonalny); bez
   potwierdzenia żądanie kończy się odpowiedzią `409` z listą naruszeń.
   Pozostałe reguły twarde blokują zamianę bezwarunkowo. Przebieg opisuje
   [Zamiana łamiąca reguły](../uzytkownik/zamiany.md#zamiana-łamiąca-reguły).
