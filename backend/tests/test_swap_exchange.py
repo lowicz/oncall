@@ -291,7 +291,8 @@ async def test_one_acceptance_and_one_approval_write_both_directions(client, db,
         ("swap.approved", "Zatwierdzono zamianę 2026-10-06 · SECONDARY: "),
     ):
         summary = (await _audit(db, action)).summary
-        assert summary.startswith(start) and summary.endswith(IN_RETURN), summary
+        assert summary.startswith(start), summary
+        assert summary.endswith(IN_RETURN), summary
     decided = await _mails(db, "swap_approved")
     assert {mail.recipient for mail in decided} == {"ania@example.com", "bartek@example.com"}
     for mail in decided:
@@ -492,7 +493,8 @@ async def test_the_requester_has_to_be_available_on_the_day_taken_in_return(
         "Autor prośby jest niedostępny w dniu dyżuru branego w zamian"
     )
     offered = {option["service_date"] for option in await _return_options(client, team)}
-    assert "2026-10-07" not in offered and "2026-10-10" in offered
+    assert "2026-10-07" not in offered
+    assert "2026-10-10" in offered
 
 
 async def test_a_duty_with_a_swap_in_progress_cannot_be_taken_in_return(client, db, team) -> None:
@@ -526,7 +528,8 @@ async def test_a_duty_with_a_swap_in_progress_cannot_be_taken_in_return(client, 
     assert refused.json()["detail"] == "Dla tego slotu istnieje aktywna zamiana"
     # What cannot be taken is not offered either.
     offered = {option["service_date"] for option in await _return_options(client, team)}
-    assert "2026-10-07" not in offered and "2026-10-10" in offered
+    assert "2026-10-07" not in offered
+    assert "2026-10-10" in offered
 
 
 async def test_a_slot_in_return_is_reserved_like_the_slot_given(client, team) -> None:

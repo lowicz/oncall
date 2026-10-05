@@ -167,12 +167,9 @@ async def test_a_schedule_retired_before_the_approval_stops_both_directions(worl
         MONDAY, AssignmentRole.primary, world.dawid.id, "Dawid", False, world.roster.schedule_ref.id
     )
 
+    approval = SwapDecisionInput(actor(UserRole.coordinator), view.request.id)
     with pytest.raises(errors.ScheduleChangedSinceRequest):
-        await approve_swap(
-            SwapDecisionInput(actor(UserRole.coordinator), view.request.id),
-            world.swaps,
-            today=TODAY,
-        )
+        await approve_swap(approval, world.swaps, today=TODAY)
 
     assert world.roster.handed_over == []
     assert world.requests.by_id[view.request.id].status == SwapStatus.pending_coordinator
@@ -225,10 +222,9 @@ async def test_an_anchor_split_tolerated_on_one_day_does_not_excuse_the_other(wo
     assert view.request.in_return.slots == ((FRIDAY, AssignmentRole.late_shift),)
     assert {(item.rule, item.days) for item in view.warnings} == {("late_shift_anchor", (DAY,))}
     # The same split, read again from the stored request when it is accepted.
+    acceptance = SwapDecisionInput(account(yan), view.request.id)
     with pytest.raises(errors.SwapRuleViolationsNotAcknowledged) as unaccepted:
-        await accept_swap(
-            SwapDecisionInput(account(yan), view.request.id), world.swaps, today=TODAY
-        )
+        await accept_swap(acceptance, world.swaps, today=TODAY)
     assert {item.days for item in unaccepted.value.violations} == {(FRIDAY,)}
 
 
@@ -279,7 +275,7 @@ async def test_impact_moves_the_late_shift_that_travels_with_its_role(world) -> 
         world.swaps,
     )
 
-    assert impact.return_date is None and impact.return_points is None
+    assert (impact.return_date, impact.return_points) == (None, None)
     for lens in ("secondary", "late_shift"):
         before = getattr(impact.requester.before, lens).actual
         assert getattr(impact.requester.after, lens).actual == before - 1, lens
