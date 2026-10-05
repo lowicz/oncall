@@ -64,6 +64,7 @@ export const labels = {
     'swap.rejected': 'Odrzucono zamianę',
     'swap.cancelled': 'Wycofano zamianę',
     'swap.approved': 'Zatwierdzono zamianę',
+    'swap.expired': 'Zamknięto zamianę po terminie',
     'schedule.generated': 'Wygenerowano szkic',
     'schedule.proposed': 'Przekazano do akceptacji',
     'schedule.published': 'Opublikowano grafik',

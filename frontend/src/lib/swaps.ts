@@ -1,5 +1,5 @@
 import { AssignmentRole, RuleViolation, SwapRequest, SwapSlot, SwapStatus, UserRole, api } from '../api'
-import { formatDayShort } from './dates'
+import { formatDayShort, warsawDate } from './dates'
 import { roleLabels } from './labels'
 
 export const OPEN_STATUSES: SwapStatus[] = ['pending_replacement', 'pending_coordinator']
@@ -11,14 +11,31 @@ export interface SwapViewer {
 
 export const canCoordinate = (role: UserRole) => role === 'coordinator' || role === 'admin'
 
+/** What the requester gives: the duty and the 11-19 that travels with it. */
+export const slotsOf = (item: SwapRequest): SwapSlot[] => (item.slots?.length ? item.slots : [item])
+/** What comes back in an exchange; nothing for a one-way hand-over. */
+export const returnSlotsOf = (item: SwapRequest) => item.return_slots ?? []
+
+/** True once a day of the request has passed, in either direction: nobody can decide on it any more. */
+export const isExpired = (item: SwapRequest) =>
+  [...slotsOf(item), ...returnSlotsOf(item)].some((slot) => slot.service_date < warsawDate())
+
+/**
+ * Still waiting for a decision somebody can give. A request past its day is
+ * not, whatever its status says: the worker closes it within the hour, and
+ * until then the screens already count and list it as closed.
+ */
+export const isOpen = (item: SwapRequest) => OPEN_STATUSES.includes(item.status) && !isExpired(item)
+
+/** Past its day with nobody having decided: closed in all but its status, which the worker changes within the hour. */
+export const isLapsed = (item: SwapRequest) => OPEN_STATUSES.includes(item.status) && isExpired(item)
+
 /** True when this request is waiting on *this* person specifically. */
 export function needsMyDecision(item: SwapRequest, viewer: SwapViewer) {
+  if (!isOpen(item)) return false
   if (item.status === 'pending_replacement') return item.replacement_name === viewer.displayName
-  if (item.status === 'pending_coordinator') return canCoordinate(viewer.role)
-  return false
+  return canCoordinate(viewer.role)
 }
-
-export const isOpen = (item: SwapRequest) => OPEN_STATUSES.includes(item.status)
 
 /**
  * The hard rules a request breaks: on the roster as it is now while it is

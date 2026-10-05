@@ -13,9 +13,10 @@ independent loops in one event loop:
 * the **metrics loop** samples how much work is waiting in each and reports it
   through ``oncall.metrics``, which is also where a finished run says what it
   cost and why it ended;
-* the **retention loop** deletes, once an hour and in bounded batches, the
+* the **maintenance loop** deletes, once an hour and in bounded batches, the
   rows past their configured age (``oncall.retention``), and reports what it
-  removed through the same channel.
+  removed through the same channel; it then closes the swap requests whose
+  day has passed with nobody deciding on them.
 
 The loops are independent so a generation that takes a minute no longer holds
 back a swap notification behind it. The solve itself runs in
@@ -45,13 +46,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.config import get_settings
 from oncall.database import SessionFactory, SqlAlchemyUnitOfWork
-from oncall.domain.clock import as_utc, utc_now
+from oncall.domain.clock import as_utc, business_today, utc_now
 from oncall.domain.handover import remind_of_handover
 from oncall.domain.scheduling import generation
 from oncall.domain.scheduling.errors import GenerationFailed
 from oncall.domain.scheduling.models import GenerationRequest, GenerationRun, RunOutcome
 from oncall.domain.scheduling.ports import StoredSchedule
 from oncall.domain.scheduling.solver import ProgressCallback
+from oncall.domain.swaps.use_cases import expire_swaps
 from oncall.domain.team import Actor
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.handover import handover_ports
@@ -60,6 +62,7 @@ from oncall.infrastructure.sqlalchemy.scheduling_generation import (
     SqlAlchemyGenerationQueue,
     SqlAlchemyRunClaims,
 )
+from oncall.infrastructure.sqlalchemy.swaps import swap_expiry_ports
 from oncall.metrics import emit
 from oncall.notifications.email import default_providers
 from oncall.notifications.service import drain_outbox, outbox_health
@@ -501,13 +504,22 @@ async def retention_cycle(factory: Sessions) -> RetentionReport:
     return report
 
 
-async def _retention_loop(factory: Sessions) -> None:
-    """Prune on a timer, starting immediately.
+async def swap_expiry_cycle(factory: Sessions) -> int:
+    """Close the swap requests whose day has passed, in one unit of work;
+    returns how many. Each closing leaves its own audit entry, and a pass with
+    nothing to close writes nothing."""
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        return await expire_swaps(business_today(), swap_expiry_ports(db))
+
+
+async def _maintenance_loop(factory: Sessions) -> None:
+    """Prune, then close expired swap requests, on a timer, starting
+    immediately.
 
     A loop of its own like the others: a pass over a large backlog must not
-    delay a notification or a metrics sample, and a pass that fails (the
-    database away, a lock timeout) is logged and simply tried again next
-    interval, since it left nothing half-done to repair.
+    delay a notification or a metrics sample. A step that fails (the database
+    away, a lock timeout) is logged and simply tried again next interval,
+    since it left nothing half-done to repair, and the other step still runs.
     """
     settings = get_settings()
     while True:
@@ -515,6 +527,10 @@ async def _retention_loop(factory: Sessions) -> None:
             await retention_cycle(factory)
         except Exception:
             logger.exception("Retention cycle failed")
+        try:
+            await swap_expiry_cycle(factory)
+        except Exception:
+            logger.exception("Swap expiry cycle failed")
         await asyncio.sleep(settings.retention_interval_seconds)
 
 
@@ -543,7 +559,7 @@ async def worker_main(factory: Sessions) -> None:
     async with asyncio.TaskGroup() as group:
         group.create_task(_notification_loop(factory))
         group.create_task(_metrics_loop(factory))
-        group.create_task(_retention_loop(factory))
+        group.create_task(_maintenance_loop(factory))
         for _ in range(settings.generation_concurrency):
             group.create_task(_generation_loop(factory))
 

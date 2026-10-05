@@ -14,7 +14,7 @@ filter - how many there are:
 | **To me** | requests in which it is you who is to accept or decline the replacement |
 | **Mine** | your own, still open requests |
 | **For approval** (for a team member: **In progress**) | the remaining open requests; for a coordinator the counter covers only requests accepted by the replacement and waiting for their approval. When swap approval is switched off (see [Coordinator approval](#coordinator-approval)), a coordinator also sees the ordinary **In progress** here |
-| **Closed** | approved, rejected and withdrawn |
+| **Closed** | approved, rejected and withdrawn, including those the application closed [after their date](#date-passed) |
 
 The screen opens on the inbox in which something is waiting for you; the
 address `/zamiany?skrzynka=moje` opens the named one. The total of requests
@@ -200,6 +200,7 @@ request ──► Awaiting replacement ──► Awaiting coordinator ──► 
                  │                        │
                  └── Rejected             └── Rejected
  author at any time: Withdrawn
+ the application, once the duty day passes with no decision: Withdrawn
 ```
 
 ## Coordinator approval
@@ -249,7 +250,19 @@ acceptance:
 ## Date passed
 
 A request concerning a day that has already been gets the note **“date
-passed”** in the table and loses its decision buttons; for an exchange it is
-enough that the earlier of the two days has passed. A replacement cannot be
-accepted retroactively - such a day is fixed by the coordinator with a
-correction on the matrix.
+passed”** in the table and loses its decision and withdrawal buttons; for an
+exchange it is enough that the earlier of the two days has passed. Such a
+request no longer waits for anybody's decision: it is counted and listed
+among the **Closed** ones at once, so it leaves the **To me** inbox, the count
+of requests waiting for your decision and the badge next to the “Swaps” item
+in the navigation.
+
+The application closes it on its own, usually within the hour: the request
+gets the status “Withdrawn” and the reason “Termin dyżuru minął” (the duty
+date has passed; recorded text stays Polish). Nobody gets a message about it;
+the audit log keeps an entry **Swap closed after its date** whose author is
+“system”. For an exchange this frees the later of the two duties, so it can
+be asked for again.
+
+A replacement cannot be accepted retroactively - such a day is fixed by the
+coordinator with a correction on the matrix.

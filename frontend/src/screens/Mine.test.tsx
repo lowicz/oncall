@@ -146,6 +146,21 @@ describe('MineScreen points and swaps', () => {
     expect(screen.queryByText(/Ola/)).not.toBeInTheDocument()
   })
 
+  it('says the date passed on a pending swap whose day is over, whichever side of it I am on', async () => {
+    stub()
+    vi.spyOn(api, 'swaps').mockResolvedValue([
+      swap({ id: 'l1', service_date: '2026-09-09' }),
+      swap({ id: 'l2', service_date: '2026-09-08', requester_name: 'Julia Nowak', replacement_name: 'Marek Nowak' }),
+    ])
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+    const incoming = (await screen.findByText('Piotr → Ty · śr 9 wrz PRIMARY')).closest('.list-row') as HTMLElement
+    expect(within(incoming).getByText('termin minął')).toBeInTheDocument()
+    expect(within(incoming).queryByRole('link', { name: 'Zdecyduj' })).not.toBeInTheDocument()
+    expect(within(incoming).getByText('oczekuje')).toBeInTheDocument()
+    const outgoing = screen.getByText('Ty → Marek · wt 8 wrz PRIMARY').closest('.list-row') as HTMLElement
+    expect(within(outgoing).getByText('termin minął')).toBeInTheDocument()
+  })
+
   it('names both duties of an exchange, whichever side of it I am on', async () => {
     stub()
     const taken = [{ service_date: '2026-09-30', role: 'secondary' as const }]

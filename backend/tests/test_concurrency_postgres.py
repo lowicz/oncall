@@ -26,12 +26,14 @@ from oncall import effective
 from oncall.auth import token_hash
 from oncall.config import get_settings
 from oncall.database import SqlAlchemyUnitOfWork, get_db
+from oncall.domain.clock import business_today
 from oncall.domain.scheduling.generation import (
     ABANDONED_RUN_ERROR,
     queue_health,
     recover_abandoned_runs,
 )
 from oncall.domain.scheduling.models import RunState
+from oncall.domain.swaps.models import SWAP_EXPIRED_NOTE
 from oncall.domain.vocabulary import (
     AccountTokenKind,
     AssignmentRole,
@@ -61,7 +63,7 @@ from oncall.notifications.base import NotificationMessage
 from oncall.notifications.service import drain_outbox, enqueue_notification, outbox_health
 from oncall.policy import load_policy
 from oncall.workdays import is_working_day, polish_holidays
-from oncall.worker import CLAIMED_PROGRESS, _claim_run, process_schedule_run
+from oncall.worker import CLAIMED_PROGRESS, _claim_run, process_schedule_run, swap_expiry_cycle
 from tests.conftest import (
     create_member,
     create_published_schedule,
@@ -372,6 +374,65 @@ async def test_two_exchanges_crossing_two_publications_are_both_approved(pg, mon
         await pg.scalars(select(Schedule.version).where(Schedule.id.in_((first.id, second.id))))
     ).all()
     assert versions == [3, 3]
+
+
+async def _swap_past_its_day(pg: AsyncSession, roster: dict) -> SwapRequest:
+    """Yesterday's duty, still waiting for the replacement. No request can be
+    filed for a day already past, so the row is written as the night left it."""
+    swap = SwapRequest(
+        schedule_id=roster["schedule"].id,
+        service_date=business_today() - timedelta(days=1),
+        role=AssignmentRole.primary,
+        requester_member_id=roster["members"]["anna"].id,
+        replacement_member_id=roster["members"]["dawid"].id,
+        status=SwapStatus.pending_replacement,
+        schedule_version=1,
+    )
+    pg.add(swap)
+    await pg.commit()
+    return swap
+
+
+async def _endings(pg: AsyncSession) -> list[str]:
+    actions = ("swap.cancelled", "swap.expired")
+    return list(await pg.scalars(select(AuditEvent.action).where(AuditEvent.action.in_(actions))))
+
+
+async def test_two_workers_expiring_at_once_close_each_request_once(
+    pg, pg_factory, monkeypatch
+) -> None:
+    """The second pass waits on the first one's row lock, reads the request
+    again and finds it closed: one closing and one audit entry, not two."""
+    await _swap_past_its_day(pg, await _roster(pg))
+    _hold_commits(monkeypatch)
+
+    closed = await asyncio.gather(swap_expiry_cycle(pg_factory), swap_expiry_cycle(pg_factory))
+
+    assert sorted(closed) == [0, 1]
+    assert await _endings(pg) == ["swap.expired"]
+
+
+async def test_a_withdrawal_racing_the_expiry_ends_the_request_once(
+    pg, pg_factory, monkeypatch
+) -> None:
+    """Whichever takes the request first decides how it ended; the other
+    reads that ending instead of writing a second one over it."""
+    swap = await _swap_past_its_day(pg, await _roster(pg))
+    anna = await _client("anna")
+    _hold_commits(monkeypatch)
+    try:
+        withdrawn, closed = await asyncio.gather(
+            anna.post(f"/api/v1/swaps/{swap.id}/cancel", json={"reason": "Już nieaktualne"}),
+            swap_expiry_cycle(pg_factory),
+        )
+    finally:
+        await anna.aclose()
+
+    assert (withdrawn.status_code, closed) in {(200, 0), (409, 1)}, withdrawn.text
+    assert await _endings(pg) == ["swap.expired" if closed else "swap.cancelled"]
+    await pg.refresh(swap)
+    assert swap.status == SwapStatus.cancelled
+    assert swap.decision_note == (SWAP_EXPIRED_NOTE if closed else "Już nieaktualne")
 
 
 async def test_two_overlapping_declarations_store_one_entry(pg, monkeypatch) -> None:
