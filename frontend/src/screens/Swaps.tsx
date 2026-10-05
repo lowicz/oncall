@@ -1,12 +1,24 @@
 import { Fragment, ReactNode, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapStatus, UserRole, api } from '../api'
+import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapSlot, SwapStatus, UserRole, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { formatDecimal, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
-import { RULE_BREAK_REASON_LENGTH, SwapViewer, brokenRules, canCoordinate, canWithdraw, isOpen, needsMyDecision } from '../lib/swaps'
+import {
+  RULE_BREAK_REASON_LENGTH,
+  SwapViewer,
+  brokenRules,
+  canCoordinate,
+  canWithdraw,
+  dayRole,
+  isOpen,
+  needsMyDecision,
+  returnOf,
+  swapHeadline,
+  swapImpactQuery,
+} from '../lib/swaps'
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
 import {
   AvailabilityMark,
@@ -51,8 +63,11 @@ function inboxOf(item: SwapRequest, me: string): Inbox {
   return 'w-toku'
 }
 
-const slotsOf = (item: SwapRequest) => (item.slots?.length ? item.slots : [item])
-const isExpired = (item: SwapRequest) => slotsOf(item).some((slot) => slot.service_date < warsawDate())
+const slotsOf = (item: SwapRequest): SwapSlot[] => (item.slots?.length ? item.slots : [item])
+/** What comes back in an exchange; nothing for a one-way hand-over. */
+const returnSlotsOf = (item: SwapRequest) => item.return_slots ?? []
+const isExpired = (item: SwapRequest) => [...slotsOf(item), ...returnSlotsOf(item)].some((slot) => slot.service_date < warsawDate())
+const slotKey = (slot: SwapSlot) => `${slot.service_date}|${slot.role}`
 
 /** What an acknowledgement was given for: each rule, whose it is and on which days. */
 const rulesKey = (violations: RuleViolation[]) =>
@@ -87,12 +102,66 @@ function ViolationList({ violations, title, tone = 'warn', me, children }: {
   )
 }
 
-function slotSummary(slots: { service_date: string; role: AssignmentRole }[]): string {
-  return slots.map((slot) => `${formatDayShort(slot.service_date)} · ${roleLabels()[slot.role]}`).join(' + ')
+/** "pon 14 wrz · SECONDARY + 11–19": the slots one direction of a swap moves, all on one day. */
+function slotSummary(slots: SwapSlot[]): string {
+  return `${formatDayShort(slots[0].service_date)} · ${slots.map((slot) => roleLabels()[slot.role]).join(' + ')}`
 }
 
-/** "pon 14 wrz PRIMARY" - the day and role that name a request in a title. */
-const dayRole = (slot: { service_date: string; role: AssignmentRole }) => `${formatDayShort(slot.service_date)} ${roleLabels()[slot.role]}`
+/** What a move breaks or bends: a hand-over to a candidate, or a whole exchange. */
+type Verdict = Pick<SwapOption, 'blocking_violations' | 'rule_violations' | 'warning_violations'>
+
+/**
+ * One choice of the "in return" step: nothing, or a duty of the replacement.
+ * It says what the request would break or bend with that choice, so a clean
+ * exchange is seen before a rule is acknowledged.
+ */
+function ReturnChoice({ no, title, detail, verdict, selected, best, onSelect }: {
+  no: ReactNode
+  title: string
+  detail?: string
+  verdict: Verdict
+  selected: boolean
+  best?: boolean
+  onSelect: () => void
+}) {
+  const t = useMessages().swaps.compose
+  const blockedBy = verdict.blocking_violations?.[0]
+  const breaks = blockedBy ? undefined : verdict.rule_violations?.[0]
+  const bends = blockedBy || breaks ? undefined : verdict.warning_violations?.[0]
+  const facts = [
+    detail,
+    blockedBy && <span className="who-out">{t.blocked(blockedBy.message)}</span>,
+    breaks && <span className="who-out">{t.breaksRule(breaks.message)}</span>,
+    bends?.message,
+  ].filter(Boolean)
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      disabled={Boolean(blockedBy)}
+      className={cx('rank-c', best && 'rank-best', selected && 'rank-sel', blockedBy && 'rank-blocked')}
+      onClick={onSelect}
+    >
+      <span className="rank-no">{blockedBy ? '–' : no}</span>
+      <span className="rank-nm">
+        {title}
+        {facts.length > 0 && (
+          <small>{facts.map((fact, index) => <Fragment key={index}>{index > 0 && ' · '}{fact}</Fragment>)}</small>
+        )}
+      </span>
+      <span className="rank-facts">
+        {blockedBy
+          ? <span className="rank-fact-bad">{t.hardRule}</span>
+          : breaks
+            ? <span className="rank-fact-warn">{t.needsAcknowledgement}</span>
+            : bends
+              ? <span>{t.warning}</span>
+              : <span className="rank-fact-ok">{t.noViolations}</span>}
+      </span>
+    </button>
+  )
+}
 
 /**
  * Where a request stands: filed, replacement, coordinator, in the schedule.
@@ -139,11 +208,16 @@ function stageDetail(item: SwapRequest, viewer: SwapViewer): string {
  * rows; a settled request no longer has a projection to show.
  */
 function Effect({ impact }: { impact: SwapImpact | undefined }) {
+  const t = useMessages().swaps.table
   if (!impact) return <span className="muted">–</span>
-  const gained = impact.replacement.after.total_points - impact.replacement.before.total_points
+  // An exchange may leave the points with the requester, or where they were.
+  const gainer = [impact.replacement, impact.requester]
+    .map((side) => ({ name: side.display_name, gained: side.after.total_points - side.before.total_points }))
+    .find((side) => side.gained > 0)
+  if (!gainer) return <span className="mono muted">{t.noEffect}</span>
   return (
     <span className="mono">
-      {firstName(impact.replacement.display_name)} {signedPoints(gained)}
+      {firstName(gainer.name)} {signedPoints(gainer.gained)}
     </span>
   )
 }
@@ -158,6 +232,43 @@ function decisionOf(item: SwapRequest, viewer: SwapViewer) {
     mustDecide: needsMyDecision(item, viewer) && !expired,
     withdrawable: canWithdraw(item, viewer),
   }
+}
+
+/**
+ * The two directions of an exchange: the day and roles of each, and who they
+ * pass between. The two people read what they get and what they give; anyone
+ * else reads the duty and what comes back for it.
+ */
+function ExchangeRows({ item, viewer }: { item: SwapRequest; viewer: SwapViewer }) {
+  const t = useMessages().swaps.sheet
+  const roles = roleLabels()
+  const directions = [
+    { slots: slotsOf(item), giver: item.requester_name, taker: item.replacement_name, name: t.duty, tone: 'role-r-p' },
+    { slots: returnSlotsOf(item), giver: item.replacement_name, taker: item.requester_name, name: t.inReturn, tone: 'role-r-s' },
+  ]
+  return (
+    <div className="roles">
+      {directions.map(({ slots, giver, taker, name, tone }) => {
+        const [label, labelTone, parties] = giver === viewer.displayName
+          ? [t.youGive, 'role-r-p', t.forPerson(taker)]
+          : taker === viewer.displayName
+            ? [t.youGet, 'role-r-s', t.fromPerson(giver)]
+            : [name, tone, t.between(giver, taker)]
+        return (
+          <div className="role-row" key={name}>
+            <span className={cx('role-r', labelTone)}>{label}</span>
+            {/* The day names the duty: with its roles beside it the line would not fit the sheet. */}
+            <span className="role-n">
+              {formatDayShort(slots[0].service_date)}
+              <small>{slots.map((slot) => roles[slot.role]).join(' + ')}</small>
+              <small>{parties}</small>
+            </span>
+            <span className="role-x">{relativeDay(slots[0].service_date)}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /**
@@ -182,9 +293,11 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
   const rules = useMessages().swaps.rules
   const { expired, pending, mustDecide, withdrawable } = decisionOf(item, viewer)
   const reasonLabel = mustDecide ? t.rejectionReason : t.withdrawalReason
+  const exchange = Boolean(returnOf(item))
   return (
     <>
       <SwapSteps status={item.status} approvalRequired={approvalRequired} />
+      {exchange ? <ExchangeRows item={item} viewer={viewer} /> : (
       <div className="roles">
         <div className="role-row">
           <span className="role-r role-r-p">{t.gives}</span>
@@ -197,8 +310,9 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
           <span className="role-x">{item.status === 'pending_coordinator' ? t.agreed : item.replacement_name === viewer.displayName ? t.thatIsYou : ''}</span>
         </div>
       </div>
+      )}
       <dl className="kv">
-        <div className="kv-row"><dt>{t.duty}</dt><dd>{slotSummary(slotsOf(item))}</dd></div>
+        {!exchange && <div className="kv-row"><dt>{t.duty}</dt><dd>{slotSummary(slotsOf(item))}</dd></div>}
         <div className="kv-row"><dt>{t.filed}</dt><dd className="mono">{formatDayShort(item.created_at.slice(0, 10))}</dd></div>
       </dl>
       {item.note && <Box title={t.reasonFrom(item.requester_name)}>{t.quoted(item.note)}</Box>}
@@ -211,9 +325,10 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
           </>
         )}
       </ViolationList>
+      {exchange && pending && brokenRules(item).length === 0 && <Box tone="ok" title={rules.exchangeClean} />}
       <ViolationList violations={item.warnings ?? []} title={t.warnings} />
       {item.replacement_member_id && pending && (
-        <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} />
+        <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} inReturn={returnOf(item)} />
       )}
       {expired && pending && <Box tone="warn" title={t.expired} />}
       {!approvalRequired && mustDecide && item.status === 'pending_replacement' && (
@@ -265,7 +380,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // so it is taken back when those change or another request is in front.
   const [composeAcknowledgedFor, setComposeAcknowledgedFor] = useState<string | null>(null)
   const [sheetAcknowledgedFor, setSheetAcknowledgedFor] = useState<string | null>(null)
-  const pickReplacement = (memberId: string) => { setReplacementId(memberId); setComposeAcknowledgedFor(null) }
+  // The duty of the replacement taken in exchange, as `slotKey` names it;
+  // empty for a one-way hand-over.
+  const [inReturn, setInReturn] = useState('')
+  const pickReturn = (key: string) => { setInReturn(key); setComposeAcknowledgedFor(null) }
+  const pickReplacement = (memberId: string) => { setReplacementId(memberId); pickReturn('') }
   const [composing, setComposing] = useState(Boolean(linkedSlot) && hasTeamMember)
   const [openId, setOpenId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
@@ -282,10 +401,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   })
   const optionImpacts = useQueries({
     queries: (options.data ?? []).map((option) => ({
-      queryKey: ['swap-impact', serviceDate, assignmentRole, option.member_id],
-      queryFn: () => api.swapImpact(serviceDate, assignmentRole, option.member_id),
+      ...swapImpactQuery(serviceDate, assignmentRole, option.member_id),
       enabled: Boolean(serviceDate && assignmentRole),
     })),
+  })
+  const returnOptions = useQuery({
+    queryKey: ['swap-return-options', serviceDate, assignmentRole, replacementId],
+    queryFn: () => api.swapReturnOptions(serviceDate, assignmentRole, replacementId),
+    enabled: Boolean(serviceDate && assignmentRole && replacementId),
   })
   // The balance shown next to a name comes from the impact the screen already
   // fetches for every option, not from a second fairness computation (MED5-09).
@@ -318,14 +441,19 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     return rightBenefit - leftBenefit || left.display_name.localeCompare(right.display_name, locale())
   })
   const selectedOption = options.data?.find((option) => option.member_id === replacementId)
+  const selectedReturn = returnOptions.data?.find((option) => slotKey(option) === inReturn)
+  // An exchange is judged as one move, so its verdict replaces the hand-over's.
+  const verdict: Verdict | undefined = selectedReturn ?? selectedOption
   // The hard rules the request being written breaks: it is sent only
   // acknowledged, and with a reason long enough to be one.
-  const composeRules = selectedOption?.rule_violations ?? []
+  const composeRules = verdict?.rule_violations ?? []
+  const composeWarnings = verdict?.warning_violations ?? []
   const breaksRules = composeRules.length > 0
   const composeAcknowledged = composeAcknowledgedFor === rulesKey(composeRules)
   const noteLength = note.trim().length
-  // The slots a replacement takes when the day couples more than one.
-  const bothSlots = selectedOption?.slots && selectedOption.slots.length > 1 ? selectedOption.slots : null
+  const returnDecided = Boolean(replacementId) && (Boolean(selectedReturn) || noteLength > 0)
+  // What the replacement takes: two slots when the day couples them.
+  const givenSlots: SwapSlot[] = selectedOption?.slots?.length ? selectedOption.slots : [{ service_date: serviceDate, role: assignmentRole }]
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['swaps'] })
     queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
@@ -351,7 +479,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       toast.success(name ? t.swaps.toasts.sentTo(name) : t.swaps.toasts.sent)
     },
     // A refusal may mean the roster moved under the list of candidates.
-    onError: () => queryClient.invalidateQueries({ queryKey: ['swap-options'] }),
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['swap-options'] })
+      queryClient.invalidateQueries({ queryKey: ['swap-return-options'] })
+    },
   })
   const settle = (message: string) => ({
     onSuccess: () => {
@@ -406,10 +537,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // One projection per open row, for the "effect" column.
   const projected = visible.filter((item) => isOpen(item) && item.replacement_member_id && !isExpired(item))
   const rowImpacts = useQueries({
-    queries: projected.map((item) => ({
-      queryKey: ['swap-impact', item.service_date, item.role, item.replacement_member_id],
-      queryFn: () => api.swapImpact(item.service_date, item.role, item.replacement_member_id as string),
-    })),
+    queries: projected.map((item) => swapImpactQuery(item.service_date, item.role, item.replacement_member_id as string, returnOf(item))),
   })
   const impactOfRow = (item: SwapRequest) => {
     const index = projected.indexOf(item)
@@ -422,11 +550,17 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     zamkniete: t.swaps.inbox.closed,
   }
   const openItem = openId ? items.find((entry) => entry.id === openId) : undefined
+  const sheetTitle = (item: SwapRequest) => {
+    const returned = returnOf(item)
+    return returned
+      ? t.swaps.sheet.exchangeTitle(formatDayShort(item.service_date), formatDayShort(returned.service_date))
+      : t.swaps.sheet.title(dayRole(item))
+  }
   const decision = openItem ? decisionOf(openItem, viewer) : null
   const openRules = openItem ? brokenRules(openItem) : []
   const sheetAcknowledged = sheetAcknowledgedFor === rulesKey(openRules)
   const submitDisabled = create.isPending || !schedule?.id || !serviceDate || !replacementId
-    || (selectedOption?.blocking_violations?.length ?? 0) > 0
+    || (verdict?.blocking_violations?.length ?? 0) > 0
     || (breaksRules && (!composeAcknowledged || noteLength < RULE_BREAK_REASON_LENGTH))
   const subtitle = swaps.data && [
     t.swaps.summary.awaitingMe(actionable),
@@ -504,14 +638,18 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                     const pending = item.status.startsWith('pending_')
                     const decide = needsMyDecision(item, viewer) && !expired
                     const verb = decide ? t.swaps.table.decide : t.swaps.table.preview
+                    const returned = returnOf(item)
                     return (
                       <tr key={item.id} className={openId === item.id ? 'on' : undefined}>
                         <th scope="row">
                           <b>{formatDayShort(item.service_date)}</b> {roles[item.role]}
+                          {returned && <> ⇄ <b>{formatDayShort(returned.service_date)}</b> {roles[returned.role]}</>}
                           {brokenRules(item).length > 0 && <> <Tag tone="late">{t.swaps.rules.tag}</Tag></>}
                           <small>
                             {relativeDay(item.service_date)}
-                            {(item.slots?.length ?? 0) > 1 && ` · ${t.swaps.table.twoSlots}`}
+                            {returned
+                              ? ` · ${t.swaps.table.exchange(slotsOf(item).length + returnSlotsOf(item).length)}`
+                              : (item.slots?.length ?? 0) > 1 && ` · ${t.swaps.table.twoSlots}`}
                             {expired && pending && ` · ${t.swaps.table.expired}`}
                           </small>
                         </th>
@@ -523,7 +661,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                           {stageDetail(item, viewer) && <small>{stageDetail(item, viewer)}</small>}
                         </td>
                         <td className="td-actions">
-                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, dayRole(item))}>
+                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, swapHeadline(item))}>
                             {verb}
                           </Button>
                         </td>
@@ -541,7 +679,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       <Panel
         open={Boolean(openItem)}
         onClose={() => openSheet(null)}
-        title={openItem ? t.swaps.sheet.title(dayRole(openItem)) : ''}
+        title={openItem ? sheetTitle(openItem) : ''}
+        // Wide enough for both names of an exchange row and the approval's three buttons.
+        wide
         meta={openItem && (
           <>
             <StatusBadge tone={statusTone[openItem.status]}>{statuses[openItem.status]}</StatusBadge>
@@ -614,6 +754,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 replacement_member_id: replacementId,
                 note,
                 acknowledge_rule_violations: breaksRules,
+                in_return: selectedReturn && { service_date: selectedReturn.service_date, role: selectedReturn.role },
               })
             }
           }}
@@ -623,11 +764,13 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             steps={[
               { label: t.swaps.compose.stepDuty, state: slot ? 'done' : 'on' },
               { label: t.swaps.compose.stepCandidate, state: replacementId ? 'done' : slot ? 'on' : 'todo' },
-              { label: t.swaps.compose.stepReason, state: replacementId ? 'on' : 'todo' },
+              // Optional: settled by a pick, or by moving on to the reason.
+              { label: t.swaps.compose.stepReturn, state: returnDecided ? 'done' : replacementId ? 'on' : 'todo' },
+              { label: t.swaps.compose.stepReason, state: returnDecided ? 'on' : 'todo' },
             ]}
           />
           {serviceDate && assignmentRole && (
-            <p className="muted small">{t.swaps.compose.giving(slotSummary([{ service_date: serviceDate, role: assignmentRole }]))}</p>
+            <p className="muted small">{t.swaps.compose.giving(slotSummary(givenSlots))}</p>
           )}
           <Field label={t.swaps.compose.myDuty} id="swap-slot" required hint={t.swaps.compose.myDutyHint}>
             {({ id }) => (
@@ -704,13 +847,47 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               </div>
             )}
           </div>
-          {bothSlots && (
+          {selectedOption && (
+            <div className="stack-sm" role="radiogroup" aria-label={t.swaps.compose.inReturn}>
+              <SectionHeading as="h3" title={t.swaps.compose.inReturn} meta={t.swaps.compose.inReturnMeta(firstName(selectedOption.display_name))} />
+              {returnOptions.isLoading && <LoadingBlock label={t.swaps.compose.returnSearching} rows={2} />}
+              {returnOptions.error && <ErrorState error={returnOptions.error} onRetry={() => returnOptions.refetch()} />}
+              {returnOptions.data?.length === 0 && (
+                <div className="muted small">{t.swaps.compose.noReturnDuties(firstName(selectedOption.display_name))}</div>
+              )}
+              {returnOptions.data && returnOptions.data.length > 0 && (
+                <div className="rank">
+                  <ReturnChoice no="–" title={t.swaps.compose.nothingInReturn} verdict={selectedOption} selected={!selectedReturn} onSelect={() => pickReturn('')} />
+                  {returnOptions.data.map((option, index) => (
+                    <ReturnChoice
+                      key={slotKey(option)}
+                      no={index + 1}
+                      // The day names the duty; its roles would not fit beside the verdict.
+                      title={formatDayShort(option.service_date)}
+                      detail={`${option.slots.map((slot) => roles[slot.role]).join(' + ')} · ${relativeDay(option.service_date)}`}
+                      verdict={option}
+                      selected={option === selectedReturn}
+                      // The first exchange that spares the request an acknowledgement.
+                      best={index === 0 && Boolean(selectedOption.rule_violations?.length) && option.rule_violations.length + option.blocking_violations.length === 0}
+                      onSelect={() => pickReturn(slotKey(option))}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {selectedOption && selectedReturn ? (
+            <Box tone="sig" title={t.swaps.compose.exchangeTitle(formatDayShort(serviceDate), formatDayShort(selectedReturn.service_date))}>
+              {approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval} {t.swaps.compose.exchangeTogether}
+            </Box>
+          ) : givenSlots.length > 1 && (
             <Box tone="sig" title={t.swaps.compose.bothSlotsTitle}>
-              {slotSummary(bothSlots)}. {approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval}
+              {slotSummary(givenSlots)}. {approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval}
             </Box>
           )}
           {selectedOption && (
             <>
+              {selectedReturn && !breaksRules && <Box tone="ok" title={t.swaps.rules.exchangeClean}>{t.swaps.compose.exchangeCleanBody}</Box>}
               <ViolationList violations={composeRules} title={t.swaps.rules.breaks}>
                 <div className="box-next">
                   {(approvalRequired ? t.swaps.compose.seenWithApproval : t.swaps.compose.seenWithoutApproval)(firstName(selectedOption.display_name))}
@@ -723,13 +900,13 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 />
               </ViolationList>
               <ViolationList
-                violations={selectedOption.warning_violations ?? []}
+                violations={composeWarnings}
                 title={approvalRequired ? t.swaps.compose.warningsWithApproval : t.swaps.compose.warningsWithoutApproval}
               />
             </>
           )}
           {serviceDate && assignmentRole && replacementId && (
-            <SwapImpactPreview serviceDate={serviceDate} role={assignmentRole} replacementId={replacementId} />
+            <SwapImpactPreview serviceDate={serviceDate} role={assignmentRole} replacementId={replacementId} inReturn={selectedReturn} />
           )}
           <Field
             label={t.swaps.compose.note}

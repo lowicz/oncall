@@ -105,8 +105,9 @@ export const mine = {
       rejected: 'odrzucona',
       cancelled: 'wycofana',
     },
-    youTo: (name: string) => `Ty → ${name}`,
-    toYou: (name: string) => `${name} → Ty`,
+    /** `arrow` points one way for a hand-over and both ways for an exchange. */
+    youTo: (name: string, arrow: string) => `Ty ${arrow} ${name}`,
+    toYou: (name: string, arrow: string) => `${name} ${arrow} Ty`,
     askedYou: 'prośba do Ciebie · odpowiedz',
     waitingFor: (name: string, since: string) => `czeka na: ${name} · ${since}`,
     waitingForYourApproval: 'czeka na Twoje zatwierdzenie',

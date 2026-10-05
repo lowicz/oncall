@@ -22,8 +22,10 @@ that need your action also appears as a badge next to the “Swaps” item in th
 navigation.
 
 A table row gives the day and role, who hands over, who takes over, the
-**effect** (the person who gains points, and how many) and the **stage** - who
-is next. The **“breaks rules”** tag marks a request described in
+**effect** (the person who gains points, and how many; “no change” when nobody
+does) and the **stage** - who is next. An
+[exchange](#exchanging-a-duty-for-a-duty) has both days in the first column.
+The **“breaks rules”** tag marks a request described in
 [A swap that breaks the rules](#a-swap-that-breaks-the-rules). The **Decide**
 button (when the decision is yours) or **Preview** opens the request sheet.
 
@@ -32,8 +34,10 @@ button (when the decision is yours) or **Preview** opens the request sheet.
 The sheet shows both people, the duty, the requester's reason, the stage bar
 (filed → replacement → coordinator → in the schedule; the “coordinator” stage
 disappears when swap approval is switched off), the **Effect on the balance**
-of both people, the rules the swap breaks and warnings. You make the decision
-in the same place:
+of both people, the rules the swap breaks and warnings. For an
+[exchange](#exchanging-a-duty-for-a-duty) it shows two duties instead of two
+people: the one given and the one taken in return. You make the decision in
+the same place:
 
 - The **replacement** clicks “Accept” or “Reject”. With approval switched off,
   the sheet announces that acceptance will write the swap into the schedule
@@ -51,8 +55,8 @@ in the audit. The “Reject” button is inactive as long as the reason is empty
 
 The **New swap** button in the screen header opens the form in a panel; the
 **Request a swap** button on the Mine screen opens it with the duty already
-chosen. The form leads through three steps: duty, candidate, reason and
-sending.
+chosen. The form leads through four steps: duty, candidate, in return, reason
+and sending.
 
 1. In the **My duty** field pick your upcoming duty. The list gives the date,
    the role and how far away the day is. A duty colliding with your
@@ -73,11 +77,15 @@ sending.
      inequality,
    - the **“splits a block of days off”** mark announces a warning for the
      coordinator.
-3. Under the list you see the **Effect on the balance**: how many points move
-   between the two of you.
-4. Optionally add a **Reason**; the replacement and the coordinator will see
+3. Optionally pick, in the **In return I take** list, a duty of that person
+   that you take in exchange (see
+   [Exchanging a duty for a duty](#exchanging-a-duty-for-a-duty)). With no
+   pick the request only gives your duty away.
+4. Under the list you see the **Effect on the balance**: how many points move
+   between the two of you, counted over every slot that moves.
+5. Optionally add a **Reason**; the replacement and the coordinator will see
    it. The reason is required when the swap breaks rules.
-5. “Send request”. The screen confirms the sending with the message “Sent
+6. “Send request”. The screen confirms the sending with the message “Sent
    to: …” and moves to the **Mine** inbox.
 
 If the “11–19 anchor” setting makes both roles belong to one person that day,
@@ -89,11 +97,60 @@ When the swap violates a soft rule (for example it splits a block of days
 off), you will see the warning “You can still send it - the coordinator will
 see the warning”. Sending is still possible.
 
+## Exchanging a duty for a duty
+
+A duty handed over adds one day to the replacement's week, so in a full
+schedule a rest rule is easily broken. An exchange only moves it: you give
+your duty and take one of the replacement's duties in return. Each of the two
+people then has as many duties as before, so usually no rule is broken.
+
+After you pick the candidate, the form shows the **In return I take** list
+with their duties of the next 90 days. The first item, “Nothing, I only give
+the duty away”, is the ordinary one-way request. Every item carries a verdict
+computed for the whole exchange, both directions at once:
+
+- **“no rule violations”** - the exchange breaks nothing; when giving the duty
+  away alone would need an acknowledgement, the first such item is
+  highlighted,
+- **“warning”** - the exchange violates a soft rule; sending is possible,
+- **“needs confirmation”** - the exchange breaks a rest or anchor rule and
+  takes the path described in
+  [A swap that breaks the rules](#a-swap-that-breaks-the-rules),
+- **“hard rule”** with the note “not possible: …” - this item cannot be
+  picked.
+
+The rules of an exchange:
+
+- one duty moves in each direction, and the duty taken in return is on another
+  day than the one given,
+- the 11–19 anchor works on both sides: SECONDARY and 11–19 travel together,
+  and when the person taking over cannot work the 11–19 shift, the shift stays
+  with the person who has it,
+- you need eligibility for the role taken in return and must have no
+  “Unavailable” entry that day,
+- no other open request may cover the duty taken in return,
+- the two duties may belong to different published schedules.
+
+An exchange is indivisible: **one acceptance** by the replacement (and one
+approval by the coordinator, when it is switched on) covers both sides, and
+both duties move together or not at all. If either of them changed owner
+before the decision, the request is cancelled.
+
+In the inbox an exchange has both days in the first column (for example “Tue
+6 Oct SECONDARY ⇄ Wed 7 Oct SECONDARY”) and the note “exchange · 4 slots”. The
+decision sheet shows the replacement the rows **You get** and **You give**,
+the author **You give** and **You get**, and everyone else **Duty** and **In
+return** - each with the day, the roles and the other person. When an open
+exchange breaks nothing, the sheet says so outright. The e-mails name both
+duties, and the reminder to switch the phone number over gives both days.
+
 ## A swap that breaks the rules
 
 Sometimes the only person who can stand in for you already has too many
 duties - for example everyone else is on leave. Such a swap can be requested,
-but everyone who moves it forward has to do so knowingly.
+but everyone who moves it forward has to do so knowingly. Before you do, check
+the “In return I take” list: an [exchange](#exchanging-a-duty-for-a-duty)
+often breaks no rule at all.
 
 Breaking four rest and anchor rules can be acknowledged:
 
@@ -112,7 +169,8 @@ How it goes:
    breaks the schedule rules” with a list: who, which rule and on which days.
    The “Send request” button works only after ticking “I understand and
    knowingly break these rules” and writing a **reason** (at least 10
-   characters). Picking another candidate takes the tick back.
+   characters). Picking another candidate, or another duty in return, takes
+   the tick back.
 2. The **replacement** sees the same list in the decision sheet - next to
    their own name with the note “(you)”, because it is most often their rest
    the swap cuts into. “Accept” works only after ticking the acknowledgement.
@@ -180,7 +238,8 @@ request ──► Awaiting replacement ──► Approved (in the schedule right
 The coordinator's approval - or, with approval switched off, the replacement's
 acceptance:
 
-- creates a correction (override) only on the chosen day and the chosen role,
+- creates a correction (override) only on the slots the request covers - for
+  an exchange in both directions, in one step,
 - **does not recompute** the other days of the schedule,
 - raises the version of the published schedule,
 - sends out notifications and updates the ICS feeds,
@@ -190,6 +249,7 @@ acceptance:
 ## Date passed
 
 A request concerning a day that has already been gets the note **“date
-passed”** in the table and loses its decision buttons. A replacement cannot be
+passed”** in the table and loses its decision buttons; for an exchange it is
+enough that the earlier of the two days has passed. A replacement cannot be
 accepted retroactively - such a day is fixed by the coordinator with a
 correction on the matrix.

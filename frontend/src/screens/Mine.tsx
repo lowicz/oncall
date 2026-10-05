@@ -18,7 +18,7 @@ import { availabilityLabels, firstName, roleLabels, shortRoleLabels, swapStatusL
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
 import { formatPoints } from '../lib/numbers'
-import { isOpen, needsMyDecision } from '../lib/swaps'
+import { isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -554,7 +554,6 @@ const swapTone: Record<SwapRequest['status'], StatusTone> = {
 /** The swaps this person is part of, decided with one click; the rest is on the swaps screen. */
 function SwapsSection({ displayName, role }: { displayName: string; role: UserRole }) {
   const t = useMessages().mine.swaps
-  const roles = roleLabels()
   const statuses = swapStatusLabels()
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps() })
   const viewer = { displayName, role }
@@ -563,6 +562,7 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
     ...mine.filter(isOpen).sort((a, b) => a.service_date.localeCompare(b.service_date)),
     ...mine.filter((item) => !isOpen(item)).sort((a, b) => b.created_at.localeCompare(a.created_at)),
   ].slice(0, 5)
+  const arrow = (item: SwapRequest) => (returnOf(item) ? '⇄' : '→')
   const stage = (item: SwapRequest) => {
     if (item.status === 'pending_replacement') {
       return item.replacement_name === displayName
@@ -596,8 +596,10 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
                   : <StatusBadge tone={swapTone[item.status]}>{t.short[item.status]}</StatusBadge>}
               >
                 <b>
-                  {item.requester_name === displayName ? t.youTo(firstName(item.replacement_name)) : t.toYou(firstName(item.requester_name))}
-                  {' · '}{formatDayShort(item.service_date)} {roles[item.role]}
+                  {item.requester_name === displayName
+                    ? t.youTo(firstName(item.replacement_name), arrow(item))
+                    : t.toYou(firstName(item.requester_name), arrow(item))}
+                  {' · '}{swapHeadline(item)}
                 </b>
                 <small>{stage(item)}</small>
               </ListRow>

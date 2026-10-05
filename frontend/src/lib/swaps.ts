@@ -1,4 +1,6 @@
-import { RuleViolation, SwapRequest, SwapStatus, UserRole } from '../api'
+import { AssignmentRole, RuleViolation, SwapRequest, SwapSlot, SwapStatus, UserRole, api } from '../api'
+import { formatDayShort } from './dates'
+import { roleLabels } from './labels'
 
 export const OPEN_STATUSES: SwapStatus[] = ['pending_replacement', 'pending_coordinator']
 
@@ -25,6 +27,28 @@ export const isOpen = (item: SwapRequest) => OPEN_STATUSES.includes(item.status)
  */
 export const brokenRules = (item: SwapRequest): RuleViolation[] =>
   (isOpen(item) || item.status === 'approved' ? item.rule_violations ?? [] : [])
+
+/** The duty an exchange takes back, by its headline slot; nothing for a one-way hand-over. */
+export const returnOf = (item: SwapRequest): SwapSlot | undefined => item.return_slots?.[0]
+
+/** "pon 14 wrz PRIMARY" - the day and role that name a duty in a title. */
+export const dayRole = (slot: SwapSlot) => `${formatDayShort(slot.service_date)} ${roleLabels()[slot.role]}`
+
+/** What names a request: its duty and, for an exchange, the one that comes back. */
+export function swapHeadline(item: SwapRequest) {
+  const returned = returnOf(item)
+  return returned ? `${dayRole(item)} ⇄ ${dayRole(returned)}` : dayRole(item)
+}
+
+/**
+ * The projected balances of one move, as a query every place that shows them
+ * shares. `inReturn` makes it an exchange; `correction` a coordinator's
+ * correction instead of a swap.
+ */
+export const swapImpactQuery = (serviceDate: string, role: AssignmentRole, replacementId: string, inReturn?: SwapSlot, correction = false) => ({
+  queryKey: ['swap-impact', serviceDate, role, replacementId, inReturn?.service_date, inReturn?.role, correction],
+  queryFn: () => api.swapImpact(serviceDate, role, replacementId, { inReturn, correction }),
+})
 
 /** The shortest reason a rule-breaking request may carry, as the API has it. */
 export const RULE_BREAK_REASON_LENGTH = 10
