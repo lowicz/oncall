@@ -226,13 +226,12 @@ class SwapRequestView:
 
     @property
     def slots(self) -> list[Slot]:
-        return sorted(self.request.slots, key=lambda slot: (slot[0], slot[1].value)) or [
-            (self.request.service_date, self.request.role)
-        ]
+        """What the requester gives, the on-call role before its 11-19."""
+        return self.request.moves
 
     @property
     def return_slots(self) -> list[Slot]:
-        """What the requester takes in exchange, the duty asked for first."""
+        """What the requester takes in exchange, in the same order."""
         return self.request.return_moves
 
 

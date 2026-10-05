@@ -112,9 +112,10 @@ class SwapRequestResponse(BaseModel):
     note: str | None
     decision_note: str | None
     created_at: datetime
+    #: What the requester gives, the on-call role before its 11-19.
     slots: list[SwapSlotResponse] = []
-    #: What the requester takes in exchange, the duty asked for first; empty
-    #: for a one-way hand-over.
+    #: What the requester takes in exchange, in the same order; empty for a
+    #: one-way hand-over.
     return_slots: list[SwapSlotResponse] = []
     #: Rules the swap bends: when it is created and while it is open.
     warnings: list[RuleViolationResponse] = []

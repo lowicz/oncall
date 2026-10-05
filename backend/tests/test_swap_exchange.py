@@ -235,8 +235,8 @@ async def test_an_exchange_needs_no_acknowledgement_where_the_hand_over_alone_do
     body = created.json()
     assert body["status"] == "pending_replacement"
     assert (body["rule_violations"], body["warnings"]) == ([], [])
-    assert body["slots"] == _slots(("2026-10-06", "late_shift"), ("2026-10-06", "secondary"))
-    # The duty asked for first, then the 11-19 that travels with it.
+    # Each direction names the on-call role first, then the 11-19 that travels with it.
+    assert body["slots"] == _slots(("2026-10-06", "secondary"), ("2026-10-06", "late_shift"))
     assert body["return_slots"] == _slots(("2026-10-07", "secondary"), ("2026-10-07", "late_shift"))
     rows = (await db.scalars(select(SwapRequestSlot))).all()
     assert {(row.service_date.day, row.role, row.direction) for row in rows} == {
