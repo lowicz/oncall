@@ -211,4 +211,3 @@ class SwapImpact:
     window_end: date
     requester: SwapImpactSide
     replacement: SwapImpactSide
-    warnings: tuple[RuleViolation, ...]

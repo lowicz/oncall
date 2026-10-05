@@ -183,7 +183,6 @@ async def swap_impact(
         window_end=impact.window_end,
         requester=side(impact.requester),
         replacement=side(impact.replacement),
-        warnings=rule_violation_responses(impact.warnings),
     )
 
 

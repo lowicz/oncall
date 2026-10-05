@@ -3332,13 +3332,6 @@
             "title": "Service Date",
             "type": "string"
           },
-          "warnings": {
-            "items": {
-              "$ref": "#/components/schemas/RuleViolationResponse"
-            },
-            "title": "Warnings",
-            "type": "array"
-          },
           "window_end": {
             "format": "date",
             "title": "Window End",

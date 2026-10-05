@@ -120,7 +120,6 @@ class SwapImpactResponse(BaseModel):
     window_end: date
     requester: SwapImpactMemberResponse
     replacement: SwapImpactMemberResponse
-    warnings: list[RuleViolationResponse] = Field(default_factory=list)
 
 
 def swap_response(view: SwapRequestView) -> SwapRequestResponse:

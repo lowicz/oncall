@@ -11,7 +11,6 @@ from datetime import date
 
 from oncall.domain.clock import business_today
 from oncall.domain.errors import NotATeamMember
-from oncall.domain.hard_rules import substitution_check
 from oncall.domain.overrides.models import MIN_REASON_LENGTH
 from oncall.domain.ports import PublishedRoster, TeamDirectory
 from oncall.domain.roster import OPPOSITE_ONCALL, Slot, holder_names, rule_window
@@ -285,26 +284,6 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         replacement.display_name,
         replacement.id,
     )
-    # A request on the anchor role (or on 11-19 itself) moves both slots as one
-    # decision (decision D1); checking only the clicked slot would make a
-    # tolerated anchor split look like a fresh rule break.
-    context_start, context_end = rule_window([query.service_date])
-    in_force = await ports.roster.duties_in_force(context_start, context_end)
-    anchor = await ports.policy.late_shift_anchor()
-    moves, _anchor_exception = moves_for(
-        service_date=query.service_date,
-        role=query.role,
-        requester=requester,
-        replacement=replacement,
-        duties=in_force,
-        anchor=anchor,
-        holidays=polish_holidays(context_start, context_end),
-    )
-    # Every violation the move set creates, blocking or merely tolerated: the
-    # preview has no submit gate of its own to hide a blocking one behind.
-    impact_warnings = await substitution_check(
-        ports.roster, ports.policy, moves, requester.display_name, replacement.display_name
-    )
     before = compute_fairness(
         members, duties, holidays=polish_days, window_start=window_start, window_end=window_end
     )
@@ -340,7 +319,6 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         window_end=window_end,
         requester=requester_side,
         replacement=replacement_side,
-        warnings=tuple(impact_warnings),
     )
 
 

@@ -588,7 +588,6 @@ export interface SwapImpact {
   window_end: string
   requester: SwapImpactMember
   replacement: SwapImpactMember
-  warnings?: RuleViolation[]
 }
 
 export interface FairnessDuty {
