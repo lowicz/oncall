@@ -109,6 +109,9 @@ async def test_swaps_are_cancelled_for_a_publication_with_the_reason_recorded(db
         replacement_member_id=people[1].id,
         status=SwapStatus.pending_coordinator,
         schedule_version=1,
+        slots=[
+            SwapRequestSlot(service_date=DAY, role=AssignmentRole.primary, schedule_id=schedule.id)
+        ],
     )
     db.add(swap)
     await db.commit()

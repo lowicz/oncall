@@ -15,20 +15,16 @@ from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 
 
 def _on(schedule_ids: list[uuid.UUID]) -> ColumnElement[bool]:
-    """Swaps with a slot in one of these schedules. A request stored before
-    slots were rows has only its own schedule to go by."""
-    return SwapRequest.schedule_id.in_(schedule_ids) | SwapRequest.slots.any(
-        SwapRequestSlot.schedule_id.in_(schedule_ids)
-    )
+    """Swaps with a slot in one of these schedules."""
+    return SwapRequest.slots.any(SwapRequestSlot.schedule_id.in_(schedule_ids))
 
 
 def _one_way(
-    rows: Sequence[SwapRequest | SwapRequestSlot],
+    rows: Sequence[SwapRequestSlot],
     original_member_id: uuid.UUID,
     names: dict[uuid.UUID, str],
 ) -> ApprovedSwap:
-    """One direction of a swap; a request without slot rows moved the slot it
-    names itself."""
+    """One direction of a swap."""
     return ApprovedSwap(
         schedule_id=rows[0].schedule_id,
         original_member_id=original_member_id,
@@ -69,7 +65,7 @@ class SqlAlchemyPublicationSwaps:
             given, returned = slots_by_direction(swap.slots)
             # Each direction has its own original holder: the requester for
             # what was given, the replacement for what came back.
-            approved.append(_one_way(given or [swap], swap.requester_member_id, names))
+            approved.append(_one_way(given, swap.requester_member_id, names))
             if returned:
                 approved.append(_one_way(returned, swap.replacement_member_id, names))
         return approved
@@ -93,15 +89,13 @@ class SqlAlchemyPublicationSwaps:
             pending.append(
                 PendingSwap(
                     id=swap.id,
-                    schedule_ids=frozenset(
-                        {swap.schedule_id, *(slot.schedule_id for slot in swap.slots)}
-                    ),
+                    schedule_ids=frozenset(slot.schedule_id for slot in swap.slots),
                     service_date=swap.service_date,
                     role=swap.role,
                     status=swap.status.value,
                     requester_member_id=swap.requester_member_id,
                     replacement_member_id=swap.replacement_member_id,
-                    slots=tuple((item.service_date, item.role) for item in given or [swap]),
+                    slots=tuple((item.service_date, item.role) for item in given),
                     return_slots=tuple((item.service_date, item.role) for item in returned),
                 )
             )
