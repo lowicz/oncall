@@ -231,6 +231,15 @@ class FakeSwapRequests:
     async def has_active_request_for(self, slot):
         return any(item.active and slot in item.all_moves for item in self.by_id.values())
 
+    async def active_slots(self, first, last):
+        return {
+            slot
+            for item in self.by_id.values()
+            if item.active
+            for slot in item.all_moves
+            if first <= slot[0] <= last
+        }
+
     async def add(self, request: NewSwapRequest):
         stored = SwapRequest(
             id=uuid.uuid4(),

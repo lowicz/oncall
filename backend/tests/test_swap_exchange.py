@@ -524,6 +524,9 @@ async def test_a_duty_with_a_swap_in_progress_cannot_be_taken_in_return(client, 
 
     assert refused.status_code == 409, refused.text
     assert refused.json()["detail"] == "Dla tego slotu istnieje aktywna zamiana"
+    # What cannot be taken is not offered either.
+    offered = {option["service_date"] for option in await _return_options(client, team)}
+    assert "2026-10-07" not in offered and "2026-10-10" in offered
 
 
 async def test_a_slot_in_return_is_reserved_like_the_slot_given(client, team) -> None:

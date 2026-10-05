@@ -331,6 +331,7 @@ async def list_return_options(
     horizon = today + RETURN_HORIZON
     roster = await _roster_around([today, query.service_date, horizon], ports)
     given, given_exception = roster.moves((query.service_date, query.role), requester, replacement)
+    in_other_requests = await ports.requests.active_slots(today, horizon)
     options: dict[frozenset[Slot], ReturnOption] = {}
     # The on-call role of a day before its 11-19: a pair that travels together
     # is offered once, under the role that names the duty.
@@ -347,7 +348,7 @@ async def list_return_options(
         ):
             continue
         returned, return_exception = roster.moves(slot, replacement, requester)
-        if frozenset(returned) in options:
+        if frozenset(returned) in options or in_other_requests.intersection(returned):
             continue
         blocking, to_acknowledge, warnings = roster.tiers(
             given,

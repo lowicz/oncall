@@ -140,6 +140,17 @@ class SqlAlchemySwapRequests:
         )
         return clash is not None
 
+    async def active_slots(self, first: date, last: date) -> set[Slot]:
+        rows = await self._session.execute(
+            select(SwapRequestSlot.service_date, SwapRequestSlot.role)
+            .join(SwapRequestRow, SwapRequestSlot.swap_request_id == SwapRequestRow.id)
+            .where(
+                SwapRequestRow.status.in_(ACTIVE_SWAP_STATUSES),
+                SwapRequestSlot.service_date.between(first, last),
+            )
+        )
+        return {(service_date, role) for service_date, role in rows}
+
     async def add(self, request: NewSwapRequest) -> SwapRequest:
         row = SwapRequestRow(
             schedule_id=request.schedule_id,
