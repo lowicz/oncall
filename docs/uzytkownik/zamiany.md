@@ -117,7 +117,8 @@ Reguły są sprawdzane na nowo przy każdym kroku, na grafiku takim, jaki jest w
 danej chwili: lista w arkuszu otwartego wniosku pokazuje stan bieżący, a nie
 ten z dnia złożenia prośby. Jeśli grafik zmienił się tak, że zamiana zaczęła
 łamać regułę, następna osoba zobaczy listę i będzie musiała ją potwierdzić;
-jeśli przestała - potwierdzenie nie jest potrzebne.
+jeśli przestała - potwierdzenie nie jest potrzebne. Gdy lista zmieni się na
+ekranie, który masz otwarty, zaznaczenie się cofa i trzeba je dać od nowa.
 
 Złamane reguły wymieniają wiadomości e-mail o zamianie i wpisy w dzienniku
 audytu („świadome naruszenie reguł” z identyfikatorami reguł), a wniosek już

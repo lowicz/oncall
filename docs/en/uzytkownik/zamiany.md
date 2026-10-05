@@ -126,7 +126,9 @@ The rules are checked anew at every step, against the schedule as it is at
 that moment: the list in the sheet of an open request shows the current state,
 not the one from the day the request was filed. If the schedule has changed so
 that the swap started breaking a rule, the next person sees the list and has
-to acknowledge it; if it stopped - no acknowledgement is needed.
+to acknowledge it; if it stopped - no acknowledgement is needed. When the
+list changes on the screen you have open, the tick is taken back and has to be
+given again.
 
 The broken rules are named in the e-mails about the swap and in the audit log
 entries (“deliberate rule violation” with the rule identifiers), and a request
