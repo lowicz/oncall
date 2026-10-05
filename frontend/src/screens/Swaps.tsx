@@ -54,6 +54,10 @@ function inboxOf(item: SwapRequest, me: string): Inbox {
 const slotsOf = (item: SwapRequest) => (item.slots?.length ? item.slots : [item])
 const isExpired = (item: SwapRequest) => slotsOf(item).some((slot) => slot.service_date < warsawDate())
 
+/** What an acknowledgement was given for: each rule, whose it is and on which days. */
+const rulesKey = (violations: RuleViolation[]) =>
+  JSON.stringify(violations.map(({ rule, member_name, days }) => [rule, member_name, days]))
+
 /**
  * Who breaks or bends which rule, on which days. `me` marks the reader's own
  * line; `children` follow the list inside the box, which is where a broken
@@ -257,15 +261,15 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const [replacementId, setReplacementId] = useState('')
   const [note, setNote] = useState('')
   // "I knowingly break these rules": one tick for the request being written,
-  // one for the request being decided. Either is taken back when what it was
-  // given for changes.
-  const [composeAcknowledged, setComposeAcknowledged] = useState(false)
-  const [sheetAcknowledged, setSheetAcknowledged] = useState(false)
-  const pickReplacement = (memberId: string) => { setReplacementId(memberId); setComposeAcknowledged(false) }
+  // one for the request being decided. Each holds the rules it was given for,
+  // so it is taken back when those change or another request is in front.
+  const [composeAcknowledgedFor, setComposeAcknowledgedFor] = useState<string | null>(null)
+  const [sheetAcknowledgedFor, setSheetAcknowledgedFor] = useState<string | null>(null)
+  const pickReplacement = (memberId: string) => { setReplacementId(memberId); setComposeAcknowledgedFor(null) }
   const [composing, setComposing] = useState(Boolean(linkedSlot) && hasTeamMember)
   const [openId, setOpenId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
-  const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setSheetAcknowledged(false) }
+  const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setSheetAcknowledgedFor(null) }
   const [serviceDate, assignmentRole] = slot.split('|') as [string, AssignmentRole]
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps() })
   const publishedSchedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
@@ -318,6 +322,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // acknowledged, and with a reason long enough to be one.
   const composeRules = selectedOption?.rule_violations ?? []
   const breaksRules = composeRules.length > 0
+  const composeAcknowledged = composeAcknowledgedFor === rulesKey(composeRules)
   const noteLength = note.trim().length
   // The slots a replacement takes when the day couples more than one.
   const bothSlots = selectedOption?.slots && selectedOption.slots.length > 1 ? selectedOption.slots : null
@@ -419,6 +424,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const openItem = openId ? items.find((entry) => entry.id === openId) : undefined
   const decision = openItem ? decisionOf(openItem, viewer) : null
   const openRules = openItem ? brokenRules(openItem) : []
+  const sheetAcknowledged = sheetAcknowledgedFor === rulesKey(openRules)
   const submitDisabled = create.isPending || !schedule?.id || !serviceDate || !replacementId
     || (selectedOption?.blocking_violations?.length ?? 0) > 0
     || (breaksRules && (!composeAcknowledged || noteLength < RULE_BREAK_REASON_LENGTH))
@@ -575,7 +581,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             reason={reason}
             onReason={setReason}
             acknowledged={sheetAcknowledged}
-            onAcknowledged={setSheetAcknowledged}
+            onAcknowledged={(value) => setSheetAcknowledgedFor(value ? rulesKey(openRules) : null)}
             busy={busy}
           />
         )}
@@ -712,7 +718,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 <Checkbox
                   label={t.swaps.rules.acknowledge}
                   checked={composeAcknowledged}
-                  onChange={(event) => setComposeAcknowledged(event.target.checked)}
+                  onChange={(event) => setComposeAcknowledgedFor(event.target.checked ? rulesKey(composeRules) : null)}
                   disabled={create.isPending}
                 />
               </ViolationList>

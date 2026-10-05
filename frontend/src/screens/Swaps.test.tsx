@@ -588,6 +588,28 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     expect(sendButton()).toBeDisabled()
   })
 
+  it('takes the acknowledgement back when the candidates read again after a refusal break other rules', async () => {
+    stubSchedule()
+    vi.spyOn(api, 'swapImpact').mockRejectedValue(new Error('no impact needed'))
+    vi.spyOn(api, 'swapOptions')
+      .mockResolvedValueOnce([breaking()])
+      .mockResolvedValue([breaking({ rule_violations: [{ ...THREE_IN_SEVEN, days: ['2099-09-14', '2099-09-15', '2099-09-16', '2099-09-18'] }] })])
+    vi.spyOn(api, 'createSwap').mockRejectedValue(new ApiError('Zamiana złamie inne reguły', 409))
+    await openForm()
+    fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
+    fireEvent.change(screen.getByLabelText(/Powód/), { target: { value: 'Urlop, nikt inny nie może' } })
+    const tick = await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
+    fireEvent.click(tick)
+    fireEvent.click(tick)
+    expect(sendButton()).toBeDisabled()
+    fireEvent.click(tick)
+    fireEvent.click(sendButton())
+
+    expect(await screen.findByText(/16-09-2099/)).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeChecked()
+    expect(sendButton()).toBeDisabled()
+  })
+
   it('warns before sending when the 11-19 anchor couples two slots', async () => {
     stubSchedule()
     vi.spyOn(api, 'swapImpact').mockRejectedValue(new Error('no impact needed'))
@@ -733,6 +755,27 @@ describe('SwapPanel stages and sheets', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Zatwierdź i wpisz do grafiku' }))
     await waitFor(() => expect(approve).toHaveBeenCalled())
     expect(approve.mock.calls[0][0]).toEqual({ id: '1', acknowledge: true })
+  })
+
+  it('takes the tick back when the request read again after a refused decision breaks other rules', async () => {
+    stub([swap({ id: '1', rule_violations: BROKEN })])
+    vi.mocked(api.swaps)
+      .mockResolvedValueOnce([swap({ id: '1', rule_violations: BROKEN })])
+      .mockResolvedValue([swap({ id: '1', rule_violations: [...BROKEN, { ...BROKEN[0], rule: 'rest_after_run', message: 'Brak odpoczynku po serii.' }] })])
+    vi.spyOn(api, 'acceptSwap').mockRejectedValue(new ApiError('Zamiana złamie inne reguły', 409))
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
+    fireEvent.click(acknowledgement(sheet))
+    fireEvent.click(acknowledgement(sheet))
+    expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeDisabled()
+    fireEvent.click(acknowledgement(sheet))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
+
+    expect(await within(sheet).findByText(/Brak odpoczynku po serii/)).toBeInTheDocument()
+    expect(acknowledgement(sheet)).not.toBeChecked()
+    expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeDisabled()
   })
 
   it('shows the requester what their open request breaks, with nothing to tick', async () => {
