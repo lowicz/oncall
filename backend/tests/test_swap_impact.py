@@ -182,44 +182,6 @@ async def test_viewer_cannot_see_points(client: AsyncClient, db: AsyncSession) -
     assert response.status_code == 403
 
 
-@pytest.mark.anyio
-async def test_impact_does_not_invent_an_anchor_split_for_a_fully_coupled_swap(
-    client: AsyncClient, db: AsyncSession
-) -> None:
-    """QA7 par. 8, D2 review: `/swaps/impact` used to check only the clicked
-    slot, so a secondary-role swap that in reality moves 11-19 along with it
-    (decision D1, both people eligible for both roles) looked like it split
-    the anchor from its role - a violation `replacement_options` never
-    reported for the very same request, next to the "moves both slots" note."""
-    magda = await create_user(db, "magda", display_name="Magdalena Woźniak")
-    marek = await create_user(db, "marek", display_name="Marek Nowak")
-    await create_user(db, "ola", display_name="Ola Zalewska")
-    await create_member(db, magda, display_name="Magdalena Woźniak")
-    marek_member = await create_member(db, marek, display_name="Marek Nowak")
-    await create_published_schedule(
-        db,
-        starts_on=START,
-        days=7,
-        primary=["Ola Zalewska"],
-        secondary=["Magdalena Woźniak"],
-        late_shift=["Magdalena Woźniak"],
-    )
-    service_date = START + timedelta(days=1)
-    await login(client, "magda")
-
-    response = await client.get(
-        "/api/v1/swaps/impact",
-        params={
-            "service_date": service_date.isoformat(),
-            "role": "secondary",
-            "replacement_member_id": str(marek_member.id),
-        },
-    )
-    assert response.status_code == 200, response.text
-    rules = {item["rule"] for item in response.json()["warnings"]}
-    assert "late_shift_anchor" not in rules, response.json()["warnings"]
-
-
 def test_reassign_moves_only_the_named_slot() -> None:
     day = date(2026, 9, 14)
     duties = [

@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from oncall.domain.access import errors as AccessErrors
 from oncall.domain.availability.models import NewAvailabilityEntry
 from oncall.domain.overrides.models import OverrideMove
-from oncall.domain.swaps.models import NewSwapRequest
+from oncall.domain.swaps.models import AcknowledgedViolation, NewSwapRequest
 from oncall.domain.vocabulary import (
     AssignmentRole,
     AvailabilityKind,
@@ -185,6 +185,37 @@ async def test_swap_store_round_trip_without_committing(db, people) -> None:
     assert await _count(db, SwapRequest) == 0
 
 
+async def test_swap_store_keeps_the_acknowledged_violations_by_side(db, people) -> None:
+    """The record names each person by their side of the request, never by
+    name, and an ordinary swap keeps none at all."""
+    store = SqlAlchemySwapRequests(db)
+    broken = (
+        AcknowledgedViolation("three_in_seven", "replacement", (DAY, DAY + timedelta(days=1))),
+    )
+
+    stored = await store.add(_new_request(people, rule_violations=broken))
+    assert stored.rule_violations == broken
+    row = await db.get(SwapRequest, stored.id)
+    assert row.rule_violations == [
+        {
+            "rule": "three_in_seven",
+            "party": "replacement",
+            "days": [DAY.isoformat(), (DAY + timedelta(days=1)).isoformat()],
+        }
+    ]
+    assert (await store.take_for_decision(stored.id)).rule_violations == broken
+
+    # The next step's acknowledgement replaces the list; an empty one is null.
+    later = (AcknowledgedViolation("rest_after_run", "requester", (DAY,)),)
+    await store.record_decision(replace(stored, rule_violations=later))
+    (listed,) = await store.requests(involving=None, statuses=(), limit=10, offset=0)
+    assert listed.rule_violations == later
+    await store.record_decision(replace(stored, rule_violations=()))
+    assert row.rule_violations is None
+
+    await db.rollback()
+
+
 async def test_swap_journal_writes_the_audit_entry_in_the_actors_name(db, people) -> None:
     store = SqlAlchemySwapRequests(db)
     stored = await store.add(_new_request(people))
@@ -195,6 +226,7 @@ async def test_swap_journal_writes_the_audit_entry_in_the_actors_name(db, people
         requester_name="Bartek",
         replacement_name="Anna",
         warnings=[RuleViolation("day_off_block", "Anna", (DAY,))],
+        violations=[],
     )
     await db.commit()
 
@@ -203,6 +235,54 @@ async def test_swap_journal_writes_the_audit_entry_in_the_actors_name(db, people
     assert event.entity_id == str(stored.id)
     assert event.summary == (f"Prośba o zamianę [{DAY} · SECONDARY, {DAY} · 11–19]: Bartek → Anna")
     assert event.details == {"warnings": ["day_off_block"]}
+
+
+async def test_swap_journal_records_the_rules_acknowledged_at_each_step(db, people) -> None:
+    """Request, acceptance and hand-over each name the hard rules the person
+    acting there acknowledged, in the summary and in the details, the way a
+    coordinator's correction does; without any the entries read as before."""
+    store = SqlAlchemySwapRequests(db)
+    stored = await store.add(_new_request(people))
+    journal = SqlAlchemySwapJournal(db, people["anna_user"])
+    names = {"requester_name": "Bartek", "replacement_name": "Anna"}
+    broken = [RuleViolation("three_in_seven", "Anna", (DAY,))]
+    detail = [{"rule": "three_in_seven", "member_name": "Anna", "days": [DAY.isoformat()]}]
+    suffix = " · świadome naruszenie reguł: three_in_seven"
+
+    await journal.requested(stored, **names, warnings=[], violations=broken)
+    await journal.accepted(stored, **names, violations=broken)
+    await journal.approved(
+        stored, **names, by_coordinator=True, self_approved=False, violations=broken
+    )
+    await journal.accepted(stored, **names, violations=[])
+    await journal.approved(
+        stored, **names, by_coordinator=False, self_approved=False, violations=[]
+    )
+    await db.commit()
+
+    events = (await db.scalars(select(AuditEvent).order_by(AuditEvent.occurred_at))).all()
+    by_action: dict[str, list[AuditEvent]] = {}
+    for event in events:
+        by_action.setdefault(event.action, []).append(event)
+    (created,) = by_action["swap.created"]
+    assert created.summary.endswith(f"Bartek → Anna{suffix}")
+    assert created.details == {"rule_violations": detail}
+    breaking, ordinary = sorted(by_action["swap.accepted"], key=lambda item: item.details is None)
+    assert breaking.summary.endswith(suffix)
+    assert breaking.details == {"rule_violations": detail}
+    assert "naruszenie" not in ordinary.summary
+    assert ordinary.details is None
+    breaking, ordinary = sorted(
+        by_action["swap.approved"], key=lambda item: "rule_violations" not in item.details
+    )
+    assert breaking.summary.endswith(suffix)
+    assert breaking.details == {
+        "self_approved": False,
+        "by_coordinator": True,
+        "rule_violations": detail,
+    }
+    assert "naruszenie" not in ordinary.summary
+    assert ordinary.details == {"self_approved": False, "by_coordinator": False}
 
 
 async def test_availability_ledger_records_and_lists_entries(db, people) -> None:

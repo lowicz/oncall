@@ -112,8 +112,11 @@ export interface SwapOption {
   on_duty_that_day: boolean
   /** Slots the request would move - two when the 11-19 anchor couples them. */
   slots?: SwapSlot[]
-  /** Hard rules picking this candidate breaks; when set, it is not selectable. */
+  /** Rules that rule this candidate out; when set, it is not selectable. */
   blocking_violations?: RuleViolation[]
+  /** Hard rules a request to this candidate breaks: it stays selectable, and
+   *  the request has to acknowledge them and say why. */
+  rule_violations?: RuleViolation[]
   /** Rules the swap bends but does not break; the candidate stays selectable. */
   warning_violations?: RuleViolation[]
   /** What to do instead, set when blocking_violations is non-empty. */
@@ -134,8 +137,11 @@ export interface SwapRequest {
   decision_note: string | null
   created_at: string
   slots?: SwapSlot[]
-  /** Rules the swap bent (surfaced at creation only). */
+  /** Rules the swap bends: at creation, and while the request is open. */
   warnings?: RuleViolation[]
+  /** Hard rules the swap breaks: on the roster as it is now while the request
+   *  is open, as last acknowledged once it is decided. */
+  rule_violations?: RuleViolation[]
 }
 
 export type AvailabilityKind = 'unavailable' | 'prefer_not' | 'prefer'
@@ -582,7 +588,6 @@ export interface SwapImpact {
   window_end: string
   requester: SwapImpactMember
   replacement: SwapImpactMember
-  warnings?: RuleViolation[]
 }
 
 export interface FairnessDuty {
@@ -922,9 +927,13 @@ export const api = {
     role: AssignmentRole
     replacement_member_id: string
     note?: string
+    acknowledge_rule_violations?: boolean
   }) => send<SwapRequest>('POST', '/api/v1/swaps', input),
-  acceptSwap: (id: string) => send<SwapRequest>('POST', `/api/v1/swaps/${id}/accept`),
-  approveSwap: (id: string) => send<SwapRequest>('POST', `/api/v1/swaps/${id}/approve`),
+  /** `acknowledge`: the person deciding has seen the hard rules the swap breaks. */
+  acceptSwap: ({ id, acknowledge }: { id: string; acknowledge: boolean }) =>
+    send<SwapRequest>('POST', `/api/v1/swaps/${id}/accept`, { acknowledge_rule_violations: acknowledge }),
+  approveSwap: ({ id, acknowledge }: { id: string; acknowledge: boolean }) =>
+    send<SwapRequest>('POST', `/api/v1/swaps/${id}/approve`, { acknowledge_rule_violations: acknowledge }),
   rejectSwap: ({ id, reason }: { id: string; reason: string }) =>
     send<SwapRequest>('POST', `/api/v1/swaps/${id}/reject`, { reason }),
   cancelSwap: ({ id, reason }: { id: string; reason: string }) =>

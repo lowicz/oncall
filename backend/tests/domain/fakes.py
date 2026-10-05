@@ -245,6 +245,7 @@ class FakeSwapRequests:
             decision_note=None,
             created_at=datetime.now(UTC),
             slots=request.slots,
+            rule_violations=request.rule_violations,
         )
         self.by_id[stored.id] = stored
         return stored

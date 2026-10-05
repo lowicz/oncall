@@ -2,8 +2,10 @@
 
 import uuid
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -57,6 +59,11 @@ class SwapRequest(Base):
     schedule_version: Mapped[int] = mapped_column()
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     decision_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    #: The hard rules the swap breaks knowingly, as last acknowledged: a list
+    #: of `{rule, party, days}`, the person named by their side of the request
+    #: so the record outlives the audit trail without holding a name. Null
+    #: when the swap breaks nothing.
+    rule_violations: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now()
     )

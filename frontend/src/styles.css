@@ -447,8 +447,9 @@ button.role-row:hover { background: var(--s2); }
 .avail-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .impact { border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; display: grid; gap: 8px; background: var(--s2); }
 .impact-h { font: 600 12px/16px var(--label); color: var(--muted); }
-.impact-row { display: grid; grid-template-columns: minmax(0, 1fr) 100px auto; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; }
-.impact-row .dev { grid-template-columns: 1fr; }
+.impact-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; }
+.impact-row > :first-child { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 4px; }
+.impact-row .muted { white-space: nowrap; }
 .impact-d { font: 12px/16px var(--mono); text-align: right; white-space: nowrap; }
 .impact-d-ok { color: var(--ok); } .impact-d-warn { color: var(--warn); }
 .rank { display: grid; gap: 6px; }

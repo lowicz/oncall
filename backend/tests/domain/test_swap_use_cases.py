@@ -11,6 +11,7 @@ from oncall.domain.roster import ScheduleRef
 from oncall.domain.swaps import errors
 from oncall.domain.swaps.models import (
     SLOT_CHANGED_OWNER_NOTE,
+    AcknowledgedViolation,
     ReplacementOptionsQuery,
     SwapAutoCancelled,
     SwapDecisionInput,
@@ -46,6 +47,11 @@ DAY = date(2030, 3, 13)
 TODAY = DAY - timedelta(days=7)
 
 BLOCKED_NEXT_STEP = "Wybierz inny dzień albo poproś koordynatora o korektę grafiku."
+ACKNOWLEDGE_NEXT_STEP = (
+    "Potwierdź świadome naruszenie reguł twardych albo zrezygnuj z tej zamiany;"
+    " potwierdzenie trafi do dziennika audytu."
+)
+REASON = "Urlop, nikt inny nie może"
 
 
 def account(person, role: UserRole = UserRole.member) -> Actor:
@@ -64,17 +70,42 @@ def world() -> World:
     return world
 
 
-def ask(world: World, replacement, *, role=AssignmentRole.primary, day=DAY, requester=None):
+def ask(
+    world: World,
+    replacement,
+    *,
+    role=AssignmentRole.primary,
+    day=DAY,
+    requester=None,
+    note=None,
+    acknowledge=False,
+):
     return request_swap(
         SwapRequestInput(
             actor=account(requester or world.anna),
             service_date=day,
             role=role,
             replacement_member_id=replacement.id,
+            note=note,
+            acknowledge_rule_violations=acknowledge,
         ),
         world.swaps,
         today=TODAY,
     )
+
+
+def dawid_served_the_three_days_before(world: World) -> None:
+    """Taking `DAY` as well is then a fourth day in a row for Dawid."""
+    for offset in (1, 2, 3):
+        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+
+
+#: What that fourth day breaks, one entry per rule over the days of every
+#: overlapping window.
+FOURTH_DAY_IN_A_ROW = {
+    "max_consecutive": tuple(DAY - timedelta(days=offset) for offset in (3, 2, 1, 0)),
+    "three_in_seven": tuple(DAY - timedelta(days=offset) for offset in (3, 2, 1, 0)),
+}
 
 
 async def test_request_is_stored_waiting_for_the_replacement(world) -> None:
@@ -150,15 +181,80 @@ async def test_a_slot_carries_one_active_request_at_a_time(world) -> None:
         await ask(world, other)
 
 
-async def test_a_request_breaking_hard_rules_is_refused_with_the_violations(world) -> None:
-    for offset in (1, 2, 3):
-        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+async def test_a_request_breaking_a_rest_rule_is_refused_until_it_is_acknowledged(world) -> None:
+    dawid_served_the_three_days_before(world)
+
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged) as refused:
+        await ask(world, world.dawid, note=REASON)
+
+    assert {item.rule: (item.member_name, item.days) for item in refused.value.violations} == {
+        rule: ("Dawid", days) for rule, days in FOURTH_DAY_IN_A_ROW.items()
+    }
+    assert refused.value.reason == "RULE_VIOLATIONS"
+    assert refused.value.next_step == ACKNOWLEDGE_NEXT_STEP
+    assert world.journal.events == []
+    assert world.requests.by_id == {}
+
+
+@pytest.mark.parametrize("note", [None, "", "   krótko   "])
+async def test_a_request_breaking_a_rest_rule_has_to_say_why(world, note) -> None:
+    """The bar of a coordinator's own correction: ten characters of reason."""
+    dawid_served_the_three_days_before(world)
+
+    with pytest.raises(errors.RuleBreakingSwapNeedsReason):
+        await ask(world, world.dawid, note=note, acknowledge=True)
+
+    assert world.requests.by_id == {}
+
+
+async def test_an_acknowledged_request_keeps_the_rules_it_breaks(world) -> None:
+    dawid_served_the_three_days_before(world)
+
+    view = await ask(world, world.dawid, note=REASON, acknowledge=True)
+
+    assert view.request.status == SwapStatus.pending_replacement
+    assert view.request.note == REASON
+    # Kept by side of the request, shown by name.
+    assert set(view.request.rule_violations) == {
+        AcknowledgedViolation(rule, "replacement", days)
+        for rule, days in FOURTH_DAY_IN_A_ROW.items()
+    }
+    assert {(item.rule, item.member_name) for item in view.rule_violations} == {
+        (rule, "Dawid") for rule in FOURTH_DAY_IN_A_ROW
+    }
+    (requested,) = world.journal.events
+    assert requested[1]["violations"] == list(view.rule_violations)
+
+
+async def test_an_acknowledgement_changes_nothing_for_a_request_that_breaks_no_rule(world) -> None:
+    view = await ask(world, world.dawid, acknowledge=True)
+
+    assert view.request.rule_violations == ()
+    assert view.rule_violations == ()
+    assert world.journal.events[0][1]["violations"] == []
+
+
+async def test_a_rule_nobody_may_break_refuses_the_request_whatever_is_acknowledged(
+    world,
+) -> None:
+    """11-19 exists on working days only, for a coordinator's correction too,
+    so no acknowledgement moves one that strayed onto a Saturday."""
+    saturday = DAY + timedelta(days=3)
+    world.roster.assign(saturday, AssignmentRole.late_shift, world.anna)
 
     with pytest.raises(errors.SwapBreaksHardRules) as refused:
-        await ask(world, world.dawid)
+        await ask(
+            world,
+            world.dawid,
+            role=AssignmentRole.late_shift,
+            day=saturday,
+            note=REASON,
+            acknowledge=True,
+        )
 
-    assert {item.rule for item in refused.value.violations} >= {"max_consecutive"}
-    assert all(item.member_name == "Dawid" for item in refused.value.violations)
+    assert [(item.rule, item.member_name) for item in refused.value.violations] == [
+        ("late_shift_on_day_off", "Dawid")
+    ]
     assert refused.value.next_step == BLOCKED_NEXT_STEP
     assert world.journal.events == []
 
@@ -201,6 +297,105 @@ async def test_accepting_hands_the_request_to_a_coordinator(world) -> None:
     )
     assert view.request.status == SwapStatus.pending_coordinator
     assert world.journal.names == ["accepted"]
+    assert world.journal.events[0][1]["violations"] == []
+
+
+async def test_the_replacement_acknowledges_the_rules_the_swap_breaks_now(world) -> None:
+    """The request was filed clean; the roster moved, and it is the roster as
+    it is now that the replacement accepts on. Their acknowledgement, not the
+    requester's, is what the request keeps from here on."""
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    dawid_served_the_three_days_before(world)
+
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged) as refused:
+        await accept_swap(
+            SwapDecisionInput(account(world.dawid), request.id), world.swaps, today=TODAY
+        )
+    assert {item.rule for item in refused.value.violations} == set(FOURTH_DAY_IN_A_ROW)
+    assert world.requests.decisions == []
+    assert world.journal.events == []
+
+    view = await accept_swap(
+        SwapDecisionInput(account(world.dawid), request.id, acknowledge_rule_violations=True),
+        world.swaps,
+        today=TODAY,
+    )
+
+    assert view.request.status == SwapStatus.pending_coordinator
+    assert {item.rule for item in view.request.rule_violations} == set(FOURTH_DAY_IN_A_ROW)
+    assert {item.member_name for item in view.rule_violations} == {"Dawid"}
+    assert world.journal.events[0][1]["violations"] == list(view.rule_violations)
+
+
+async def test_a_violation_gone_by_the_acceptance_is_no_longer_kept(world) -> None:
+    """Filed as rule-breaking, but the roster moved the other way: there is
+    nothing left to acknowledge and the request goes on as an ordinary one."""
+    request = world.requests.put(
+        replace(
+            pending_swap(
+                world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+            ),
+            rule_violations=(AcknowledgedViolation("three_in_seven", "replacement", (DAY,)),),
+        )
+    )
+
+    view = await accept_swap(
+        SwapDecisionInput(account(world.dawid), request.id), world.swaps, today=TODAY
+    )
+
+    assert view.request.status == SwapStatus.pending_coordinator
+    assert view.request.rule_violations == ()
+    assert view.rule_violations == ()
+
+
+async def test_accepting_needs_the_requester_still_on_the_team(world) -> None:
+    request = replace(
+        pending_swap(world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement),
+        requester_member_id=uuid.uuid4(),
+    )
+    world.requests.put(request)
+    with pytest.raises(errors.SwapPartiesGone):
+        await accept_swap(
+            SwapDecisionInput(account(world.dawid), request.id), world.swaps, today=TODAY
+        )
+
+
+async def test_without_coordinator_approval_the_acknowledged_acceptance_writes_the_schedule(
+    world,
+) -> None:
+    """The team switched the approval off, so a swap that breaks a rest rule
+    takes the road every swap takes: the replacement, who acknowledges the
+    violation, is the last person to decide."""
+    world.policy.coordinator_approval = False
+    request = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    dawid_served_the_three_days_before(world)
+
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged):
+        await accept_swap(
+            SwapDecisionInput(account(world.dawid), request.id), world.swaps, today=TODAY
+        )
+    assert world.roster.handed_over == []
+    assert world.roster.schedule_ref.version == 1
+    assert world.journal.events == []
+
+    view = await accept_swap(
+        SwapDecisionInput(account(world.dawid), request.id, acknowledge_rule_violations=True),
+        world.swaps,
+        today=TODAY,
+    )
+
+    assert isinstance(view, SwapRequestView)
+    assert view.request.status == SwapStatus.approved
+    assert world.roster.handed_over == [((DAY, AssignmentRole.primary), world.dawid.id)]
+    assert {item.rule for item in view.request.rule_violations} == set(FOURTH_DAY_IN_A_ROW)
+    (approved,) = world.journal.events
+    assert approved[0] == "approved"
+    assert approved[1]["by_coordinator"] is False
+    assert approved[1]["violations"] == list(view.rule_violations)
 
 
 async def test_without_coordinator_approval_the_acceptance_is_the_hand_over(world) -> None:
@@ -434,10 +629,9 @@ async def test_the_candidate_list_takes_the_rotation_into_account(world) -> None
     """The list says why a candidate cannot be picked, so it must ask the same
     question the request will: under weekly rotation, a long run is no reason
     to grey somebody out."""
-    for offset in (1, 2, 3):
-        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+    dawid_served_the_three_days_before(world)
 
-    blocked = await list_replacement_options(
+    breaking = await list_replacement_options(
         ReplacementOptionsQuery(account(world.anna), DAY, AssignmentRole.primary),
         world.swaps,
         today=TODAY,
@@ -449,11 +643,12 @@ async def test_the_candidate_list_takes_the_rotation_into_account(world) -> None
         today=TODAY,
     )
 
-    assert {item.rule for item in blocked[0].blocking_violations} == {
-        "max_consecutive",
-        "three_in_seven",
-    }
-    assert offered[0].blocking_violations == ()
+    # A rest rule no longer rules the candidate out: it is what a request to
+    # them has to acknowledge.
+    assert {item.rule: item.days for item in breaking[0].rule_violations} == FOURTH_DAY_IN_A_ROW
+    assert breaking[0].blocking_violations == ()
+    assert breaking[0].next_step is None
+    assert offered[0].rule_violations == ()
 
 
 async def test_options_leave_out_whoever_cannot_take_the_slot(world) -> None:
@@ -529,6 +724,52 @@ async def test_impact_of_a_slot_nobody_on_the_team_holds_is_a_conflict(world) ->
             SwapImpactQuery(coordinator(), DAY, AssignmentRole.primary, world.dawid.id),
             world.swaps,
         )
+
+
+async def test_an_open_request_is_listed_against_the_roster_as_it_is_now(world) -> None:
+    """Whoever decides sees what the swap breaks and bends today; a request
+    already decided shows what was acknowledged when it was."""
+    ewa = world.team.add(member("Ewa", roles=(AssignmentRole.primary, AssignmentRole.secondary)))
+    filed_clean = pending_swap(
+        world, world.anna, world.dawid, DAY, status=SwapStatus.pending_replacement
+    )
+    anchor_split = replace(
+        pending_swap(world, world.bartek, ewa, DAY, role=AssignmentRole.secondary),
+        created_at=filed_clean.created_at - timedelta(minutes=1),
+    )
+    world.requests.put(anchor_split)
+    decided = replace(
+        pending_swap(world, world.anna, world.dawid, DAY, status=SwapStatus.approved),
+        created_at=filed_clean.created_at - timedelta(minutes=2),
+        rule_violations=(AcknowledgedViolation("rest_after_run", "requester", (DAY,)),),
+    )
+    world.requests.put(decided)
+    dawid_served_the_three_days_before(world)
+
+    clean, split, approved = await list_swap_requests(SwapListQuery(coordinator()), world.swaps)
+
+    assert clean.request.id == filed_clean.id
+    assert clean.request.rule_violations == ()
+    assert {item.rule: item.days for item in clean.rule_violations} == FOURTH_DAY_IN_A_ROW
+    assert clean.warnings == ()
+    assert split.rule_violations == ()
+    assert [(item.rule, item.member_name) for item in split.warnings] == [
+        ("late_shift_anchor", "Bartek"),
+        ("late_shift_anchor", "Ewa"),
+    ]
+    assert [(item.rule, item.member_name, item.days) for item in approved.rule_violations] == [
+        ("rest_after_run", "Anna", (DAY,))
+    ]
+    assert approved.warnings == ()
+
+
+async def test_a_list_of_decided_requests_reads_no_roster(world) -> None:
+    pending_swap(world, world.anna, world.dawid, DAY, status=SwapStatus.rejected)
+    world.roster = None
+
+    (view,) = await list_swap_requests(SwapListQuery(coordinator()), world.swaps)
+
+    assert view.rule_violations == ()
 
 
 async def test_members_list_only_the_requests_they_take_part_in(world) -> None:
@@ -706,15 +947,38 @@ async def test_the_anchor_role_alone_moves_to_whoever_already_holds_the_late_shi
 async def test_a_late_shift_cannot_leave_its_anchor_for_someone_without_that_role(
     world,
 ) -> None:
-    """Only the anchor role may leave 11-19 behind; the late shift alone moving
-    away from its anchor is a split the swap is not allowed to make."""
+    """Only the anchor role may leave 11-19 behind as a tolerated exception;
+    the late shift alone moving away from its anchor is a split the swap makes
+    knowingly or not at all, and it is a broken rule on both sides of it."""
     ewa = world.team.add(member("Ewa", roles=(AssignmentRole.late_shift,)))
 
-    with pytest.raises(errors.SwapBreaksHardRules) as refused:
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged) as refused:
         await ask(world, ewa, role=AssignmentRole.late_shift, requester=world.bartek)
 
-    assert "late_shift_anchor" in {item.rule for item in refused.value.violations}
+    assert {(item.rule, item.member_name) for item in refused.value.violations} == {
+        ("late_shift_anchor", "Bartek"),
+        ("late_shift_anchor", "Ewa"),
+    }
     assert world.requests.by_id == {}
+
+    view = await ask(
+        world,
+        ewa,
+        role=AssignmentRole.late_shift,
+        requester=world.bartek,
+        note=REASON,
+        acknowledge=True,
+    )
+
+    assert view.request.slots == ((DAY, AssignmentRole.late_shift),)
+    assert set(view.request.rule_violations) == {
+        AcknowledgedViolation("late_shift_anchor", "requester", (DAY,)),
+        AcknowledgedViolation("late_shift_anchor", "replacement", (DAY,)),
+    }
+    assert {(item.rule, item.member_name) for item in view.rule_violations} == {
+        ("late_shift_anchor", "Bartek"),
+        ("late_shift_anchor", "Ewa"),
+    }
 
 
 async def test_an_anchor_split_is_tolerated_from_the_request_to_the_approval(world) -> None:
@@ -764,15 +1028,52 @@ async def test_only_an_accepted_request_is_approved(world) -> None:
 
 async def test_approval_rechecks_the_hard_rules_against_the_roster_as_it_is_now(world) -> None:
     request = pending_swap(world, world.anna, world.dawid, DAY)
-    for offset in (1, 2, 3):
-        world.roster.assign(DAY - timedelta(days=offset), AssignmentRole.primary, world.dawid)
+    dawid_served_the_three_days_before(world)
 
-    with pytest.raises(errors.SwapBreaksHardRules) as refused:
+    with pytest.raises(errors.SwapRuleViolationsNotAcknowledged) as refused:
         await approve_swap(SwapDecisionInput(coordinator(), request.id), world.swaps, today=TODAY)
 
-    assert "max_consecutive" in {item.rule for item in refused.value.violations}
+    assert {item.rule for item in refused.value.violations} == set(FOURTH_DAY_IN_A_ROW)
     assert world.roster.handed_over == []
     assert world.roster.schedule_ref.version == 1
+    assert world.journal.events == []
+
+
+async def test_a_coordinator_approves_a_rule_breaking_swap_by_acknowledging_it(world) -> None:
+    """As in a correction of their own: the violations are theirs to accept,
+    and the request keeps what they acknowledged."""
+    request = pending_swap(world, world.anna, world.dawid, DAY)
+    dawid_served_the_three_days_before(world)
+
+    view = await approve_swap(
+        SwapDecisionInput(coordinator(), request.id, acknowledge_rule_violations=True),
+        world.swaps,
+        today=TODAY,
+    )
+
+    assert isinstance(view, SwapRequestView)
+    assert view.request.status == SwapStatus.approved
+    assert world.roster.handed_over == [((DAY, AssignmentRole.primary), world.dawid.id)]
+    assert {item.rule for item in view.request.rule_violations} == set(FOURTH_DAY_IN_A_ROW)
+    (approved,) = world.journal.events
+    assert approved[1]["by_coordinator"] is True
+    assert approved[1]["violations"] == list(view.rule_violations)
+
+
+async def test_approval_refuses_a_rule_nobody_may_break_whatever_is_acknowledged(world) -> None:
+    saturday = DAY + timedelta(days=3)
+    world.roster.assign(saturday, AssignmentRole.late_shift, world.anna)
+    request = pending_swap(world, world.anna, world.dawid, saturday, role=AssignmentRole.late_shift)
+
+    with pytest.raises(errors.SwapBreaksHardRules) as refused:
+        await approve_swap(
+            SwapDecisionInput(coordinator(), request.id, acknowledge_rule_violations=True),
+            world.swaps,
+            today=TODAY,
+        )
+
+    assert {item.rule for item in refused.value.violations} == {"late_shift_on_day_off"}
+    assert world.roster.handed_over == []
 
 
 async def test_late_shift_options_have_no_opposite_role_to_leave_out(world) -> None:

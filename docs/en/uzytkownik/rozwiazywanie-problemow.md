@@ -92,7 +92,9 @@ else's change.
 **I cannot pick a replacement**
 The list contains only people who are eligible, available and do not hold
 the opposite role that day. A person marked “not possible: …” is blocked by a
-hard rule.
+rule a swap may not break. A person marked “breaks a rule: …” can be picked
+after an acknowledgement and a reason - see
+[A swap that breaks the rules](zamiany.md#a-swap-that-breaks-the-rules).
 
 **“Date passed”**
 The day of the request is already past. A decision cannot be made

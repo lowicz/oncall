@@ -170,7 +170,7 @@ async def test_day_off_block_split_warns_but_does_not_block(
 
 
 @pytest.mark.anyio
-async def test_options_mark_a_blocked_candidate_instead_of_hiding_them(
+async def test_options_keep_a_rule_breaking_candidate_and_say_what_it_breaks(
     client: AsyncClient, db: AsyncSession, frozen_clock: FrozenClock
 ) -> None:
     # The frozen clock keeps the swapped duty ahead; it moves on between the
@@ -179,7 +179,8 @@ async def test_options_mark_a_blocked_candidate_instead_of_hiding_them(
     await _roster(db)
     frozen_clock.advance(timedelta(minutes=1))
     # Julia already serves secondary on 21, 22, 24 elsewhere, so taking 25 too
-    # is a four-in-seven break - she must stay visible with a reason.
+    # is a four-in-seven break - she stays on the list, with the rule a request
+    # to her would have to acknowledge.
     await create_published_schedule(
         db,
         starts_on=START,
@@ -197,10 +198,11 @@ async def test_options_mark_a_blocked_candidate_instead_of_hiding_them(
         )
     ).json()
     julia = next(o for o in options if o["display_name"] == "Julia Kowal")
-    assert julia["blocking_violations"], julia
-    assert julia["next_step"]
-    assert "three_in_seven" in {v["rule"] for v in julia["blocking_violations"]}
+    assert "three_in_seven" in {v["rule"] for v in julia["rule_violations"]}
+    assert julia["blocking_violations"] == []
+    assert julia["next_step"] is None
     marek = next(o for o in options if o["display_name"] == "Marek Nowak")
+    assert marek["rule_violations"] == []
     assert marek["blocking_violations"] == []
 
 

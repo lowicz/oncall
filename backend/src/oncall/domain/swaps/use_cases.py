@@ -5,12 +5,13 @@ two ways, the first failing rule is the one the person is told about.
 """
 
 import uuid
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import date
 
 from oncall.domain.clock import business_today
 from oncall.domain.errors import NotATeamMember
-from oncall.domain.hard_rules import substitution_check
+from oncall.domain.overrides.models import MIN_REASON_LENGTH
 from oncall.domain.ports import PublishedRoster, TeamDirectory
 from oncall.domain.roster import OPPOSITE_ONCALL, Slot, holder_names, rule_window
 from oncall.domain.swaps.coupling import (
@@ -36,6 +37,7 @@ from oncall.domain.swaps.errors import (
     ReplacementNotFound,
     ReplacementOnCallSinceRequest,
     ReplacementUnavailable,
+    RuleBreakingSwapNeedsReason,
     ScheduleChangedSinceRequest,
     SelfApprovalNotAllowed,
     SlotHasActiveSwap,
@@ -51,6 +53,7 @@ from oncall.domain.swaps.errors import (
     SwapNotAwaitingReplacement,
     SwapNotFound,
     SwapPartiesGone,
+    SwapRuleViolationsNotAcknowledged,
 )
 from oncall.domain.swaps.models import (
     SLOT_CHANGED_OWNER_NOTE,
@@ -67,6 +70,7 @@ from oncall.domain.swaps.models import (
     SwapRequest,
     SwapRequestInput,
     SwapRequestView,
+    acknowledged_violations,
 )
 from oncall.domain.swaps.ports import SwapPorts
 from oncall.domain.team import Actor, Member
@@ -107,13 +111,58 @@ def _require_reason(reason: str | None) -> None:
         raise DecisionReasonRequired()
 
 
-async def _view(request: SwapRequest, team: TeamDirectory) -> SwapRequestView:
-    names = await team.display_names((request.requester_member_id, request.replacement_member_id))
+def _named(
+    request: SwapRequest,
+    requester_name: str,
+    replacement_name: str,
+    warnings: Sequence[RuleViolation] = (),
+) -> SwapRequestView:
+    """The request as a person reads it, with the violations it keeps."""
     return SwapRequestView(
         request=request,
-        requester_name=names[request.requester_member_id],
-        replacement_name=names[request.replacement_member_id],
+        requester_name=requester_name,
+        replacement_name=replacement_name,
+        warnings=tuple(warnings),
+        rule_violations=request.named_violations(requester_name, replacement_name),
     )
+
+
+async def _view(request: SwapRequest, team: TeamDirectory) -> SwapRequestView:
+    names = await team.display_names((request.requester_member_id, request.replacement_member_id))
+    return _named(request, names[request.requester_member_id], names[request.replacement_member_id])
+
+
+#: A request and the names of its requester and replacement, to the rules it
+#: is refused by, the ones it breaks only with an acknowledgement and the ones
+#: it bends (`partition_violations`).
+RuleTiers = Callable[
+    [SwapRequest, str, str],
+    tuple[list[RuleViolation], list[RuleViolation], list[RuleViolation]],
+]
+
+
+async def _rule_tiers(requests: list[SwapRequest], ports: SwapPorts) -> RuleTiers:
+    """How these requests stand against the hard rules on the roster as it is
+    now. One read of the roster covers all of them."""
+    window_start, window_end = rule_window(
+        [day for request in requests for day, _role in request.moves]
+    )
+    holders = holder_names(await ports.roster.duties_in_force(window_start, window_end))
+    anchor = await ports.policy.late_shift_anchor()
+    mode = await ports.policy.rotation_mode()
+    holidays = polish_holidays(window_start, window_end)
+
+    def tiers(
+        request: SwapRequest, requester_name: str, replacement_name: str
+    ) -> tuple[list[RuleViolation], list[RuleViolation], list[RuleViolation]]:
+        violations = substitution_violations(
+            holders, request.moves, requester_name, replacement_name, anchor, holidays, mode
+        )
+        return partition_violations(
+            violations, anchor_exception=has_anchor_exception(request.moves, anchor, holidays)
+        )
+
+    return tiers
 
 
 async def list_replacement_options(
@@ -174,7 +223,9 @@ async def list_replacement_options(
             holidays,
             await ports.policy.rotation_mode(),
         )
-        blocking, warnings = partition_violations(violations, anchor_exception=anchor_exception)
+        blocking, to_acknowledge, warnings = partition_violations(
+            violations, anchor_exception=anchor_exception
+        )
         # A coupled swap can hand the candidate a second on-call role the
         # clicked-slot filter never saw; `request_swap` refuses that, so the
         # option must say so rather than be offered and then refused.
@@ -189,6 +240,7 @@ async def list_replacement_options(
                 on_duty_that_day=member.id in on_duty,
                 slots=tuple(moves),
                 blocking_violations=tuple(blocking),
+                rule_violations=tuple(to_acknowledge),
                 warning_violations=tuple(warnings),
                 next_step=translate("swaps.blocked_next_step") if blocking else None,
             )
@@ -238,26 +290,6 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         replacement.display_name,
         replacement.id,
     )
-    # A request on the anchor role (or on 11-19 itself) moves both slots as one
-    # decision (decision D1); checking only the clicked slot would make a
-    # tolerated anchor split look like a fresh rule break.
-    context_start, context_end = rule_window([query.service_date])
-    in_force = await ports.roster.duties_in_force(context_start, context_end)
-    anchor = await ports.policy.late_shift_anchor()
-    moves, _anchor_exception = moves_for(
-        service_date=query.service_date,
-        role=query.role,
-        requester=requester,
-        replacement=replacement,
-        duties=in_force,
-        anchor=anchor,
-        holidays=polish_holidays(context_start, context_end),
-    )
-    # Every violation the move set creates, blocking or merely tolerated: the
-    # preview has no submit gate of its own to hide a blocking one behind.
-    impact_warnings = await substitution_check(
-        ports.roster, ports.policy, moves, requester.display_name, replacement.display_name
-    )
     before = compute_fairness(
         members, duties, holidays=polish_days, window_start=window_start, window_end=window_end
     )
@@ -293,7 +325,6 @@ async def preview_swap_impact(query: SwapImpactQuery, ports: SwapPorts) -> SwapI
         window_end=window_end,
         requester=requester_side,
         replacement=replacement_side,
-        warnings=tuple(impact_warnings),
     )
 
 
@@ -307,7 +338,12 @@ async def swap_policy(ports: SwapPorts) -> SwapPolicy:
 
 async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[SwapRequestView]:
     """Newest first. Members see the requests they take part in; coordinators
-    see every request."""
+    see every request.
+
+    A request still open is read against the roster as it is now, so whoever
+    decides on it sees the rules it would break today, not the ones it broke
+    when it was filed.
+    """
     involving = None
     if not query.actor.coordinates:
         involving = (await _member_for(query.actor, ports.team)).id
@@ -321,14 +357,28 @@ async def list_swap_requests(query: SwapListQuery, ports: SwapPorts) -> list[Swa
             for member_id in (request.requester_member_id, request.replacement_member_id)
         }
     )
-    return [
-        SwapRequestView(
-            request=request,
-            requester_name=names[request.requester_member_id],
-            replacement_name=names[request.replacement_member_id],
-        )
+    views = [
+        _named(request, names[request.requester_member_id], names[request.replacement_member_id])
         for request in requests
     ]
+    open_requests = [request for request in requests if request.active]
+    if not open_requests:
+        return views
+    tiers = await _rule_tiers(open_requests, ports)
+
+    def as_it_stands(view: SwapRequestView) -> SwapRequestView:
+        _refusing, to_acknowledge, warnings = tiers(
+            view.request, view.requester_name, view.replacement_name
+        )
+        return SwapRequestView(
+            request=view.request,
+            requester_name=view.requester_name,
+            replacement_name=view.replacement_name,
+            warnings=tuple(warnings),
+            rule_violations=tuple(to_acknowledge),
+        )
+
+    return [as_it_stands(view) if view.request.active else view for view in views]
 
 
 async def request_swap(
@@ -381,8 +431,8 @@ async def request_swap(
         if await ports.requests.has_active_request_for(move):
             raise SlotHasActiveSwap()
 
-    # Up-front validation (decision D3): a request that would be rejected at
-    # approval must not come into existence at all. `day_off_block` and the
+    # Up-front validation (decision D3): a request no decision could let
+    # through must not come into existence at all. `day_off_block` and the
     # anchor exception only warn (decisions D1, D2).
     violations = substitution_violations(
         holder_names(duties),
@@ -393,9 +443,20 @@ async def request_swap(
         holidays,
         await ports.policy.rotation_mode(),
     )
-    blocking, warnings = partition_violations(violations, anchor_exception=anchor_exception)
+    blocking, to_acknowledge, warnings = partition_violations(
+        violations, anchor_exception=anchor_exception
+    )
     if blocking:
         raise SwapBreaksHardRules(blocking)
+    # A member may ask for what a coordinator's correction may do: break a
+    # rest or anchor rule knowingly. Asking takes having seen the violations
+    # and saying why; the replacement, and a coordinator where the policy asks
+    # for one, acknowledge them again when they decide.
+    if to_acknowledge:
+        if not swap.acknowledge_rule_violations:
+            raise SwapRuleViolationsNotAcknowledged(to_acknowledge)
+        if len((swap.note or "").strip()) < MIN_REASON_LENGTH:
+            raise RuleBreakingSwapNeedsReason()
     request = await ports.requests.add(
         NewSwapRequest(
             schedule_id=schedule.id,
@@ -406,6 +467,9 @@ async def request_swap(
             schedule_version=schedule.version,
             note=swap.note,
             slots=tuple(moves),
+            rule_violations=acknowledged_violations(
+                to_acknowledge, requester_name=requester.display_name
+            ),
         )
     )
     await ports.journal.requested(
@@ -413,13 +477,9 @@ async def request_swap(
         requester_name=requester.display_name,
         replacement_name=replacement.display_name,
         warnings=warnings,
+        violations=to_acknowledge,
     )
-    return SwapRequestView(
-        request=request,
-        requester_name=requester.display_name,
-        replacement_name=replacement.display_name,
-        warnings=tuple(warnings),
-    )
+    return _named(request, requester.display_name, replacement.display_name, warnings)
 
 
 async def accept_swap(
@@ -430,6 +490,9 @@ async def accept_swap(
     The request then goes to a coordinator, or, when the policy asks for no
     coordinator's approval, straight into the schedule: the acceptance is then
     the hand-over, with the same checks and the same outcomes as an approval.
+    Either way a hard rule the swap breaks on the roster as it is now has to
+    be acknowledged here: the replacement is usually the one whose rest it
+    cuts into.
     """
     member = await _member_for(decision.actor, ports.team)
     request = await ports.requests.take_for_decision(decision.swap_id)
@@ -440,17 +503,33 @@ async def accept_swap(
     if request.status != SwapStatus.pending_replacement:
         raise SwapNotAwaitingReplacement()
     _reject_past(request, today or business_today())
-    if await ports.policy.coordinator_swap_approval_required():
-        accepted = replace(request, status=SwapStatus.pending_coordinator)
-        await ports.requests.record_decision(accepted)
-        view = await _view(accepted, ports.team)
-        await ports.journal.accepted(
-            accepted, requester_name=view.requester_name, replacement_name=view.replacement_name
-        )
-        return view
     requester = await ports.team.member(request.requester_member_id)
     if requester is None:
         raise SwapPartiesGone()
+    if await ports.policy.coordinator_swap_approval_required():
+        # A rule that refuses the swap outright is left to the approval,
+        # which answers for the hand-over.
+        tiers = await _rule_tiers([request], ports)
+        _refusing, to_acknowledge, _warnings = tiers(
+            request, requester.display_name, member.display_name
+        )
+        if to_acknowledge and not decision.acknowledge_rule_violations:
+            raise SwapRuleViolationsNotAcknowledged(to_acknowledge)
+        accepted = replace(
+            request,
+            status=SwapStatus.pending_coordinator,
+            rule_violations=acknowledged_violations(
+                to_acknowledge, requester_name=requester.display_name
+            ),
+        )
+        await ports.requests.record_decision(accepted)
+        await ports.journal.accepted(
+            accepted,
+            requester_name=requester.display_name,
+            replacement_name=member.display_name,
+            violations=to_acknowledge,
+        )
+        return _named(accepted, requester.display_name, member.display_name)
     return await _hand_over(
         request,
         ports,
@@ -458,6 +537,7 @@ async def accept_swap(
         replacement=member,
         by_coordinator=False,
         self_approved=False,
+        acknowledged=decision.acknowledge_rule_violations,
     )
 
 
@@ -541,6 +621,7 @@ async def approve_swap(
         replacement=replacement,
         by_coordinator=True,
         self_approved=self_approved,
+        acknowledged=decision.acknowledge_rule_violations,
     )
 
 
@@ -552,21 +633,18 @@ async def _hand_over(
     replacement: Member,
     by_coordinator: bool,
     self_approved: bool,
+    acknowledged: bool,
 ) -> SwapRequestView | SwapAutoCancelled:
     """Write the swap into the schedule: the deciding checks against the
     roster as it is now, the version step, the hand-over of every slot and
     the approved transition. Shared by the coordinator's approval and by an
-    acceptance the policy lets stand on its own.
+    acceptance the policy lets stand on its own; `acknowledged` is that
+    person's word that they have seen the hard rules the swap breaks.
 
     Returns `SwapAutoCancelled` when a slot changed owner since the request:
     the request is then cancelled, and that cancellation is meant to be kept.
     """
     moves = request.moves
-    window_start, window_end = rule_window([request.service_date])
-    anchor = await ports.policy.late_shift_anchor()
-    anchor_exception = has_anchor_exception(
-        moves, anchor, polish_holidays(window_start, window_end)
-    )
     for move in moves:
         duty = await ports.roster.duty_for_handover(request.schedule_id, move)
         if duty is None:
@@ -585,26 +663,35 @@ async def _hand_over(
             raise ReplacementOnCallSinceRequest()
 
     # Deciding validation (decision D3): the roster may have moved between the
-    # request and the hand-over, so the hard rules are checked again here.
-    violations = await substitution_check(
-        ports.roster, ports.policy, moves, requester.display_name, replacement.display_name
+    # request and the hand-over, so the hard rules are checked again here and
+    # acknowledged by whoever decides now.
+    tiers = await _rule_tiers([request], ports)
+    blocking, to_acknowledge, _warnings = tiers(
+        request, requester.display_name, replacement.display_name
     )
-    blocking, _warnings = partition_violations(violations, anchor_exception=anchor_exception)
     if blocking:
         raise SwapBreaksHardRules(blocking)
+    if to_acknowledge and not acknowledged:
+        raise SwapRuleViolationsNotAcknowledged(to_acknowledge)
     if not await ports.roster.advance_version(
         request.schedule_id, expected_version=None, only_if_published=True
     ):
         raise ScheduleChangedSinceRequest()
     await ports.roster.hand_over(request.schedule_id, moves, replacement)
-    approved = replace(request, status=SwapStatus.approved)
+    approved = replace(
+        request,
+        status=SwapStatus.approved,
+        rule_violations=acknowledged_violations(
+            to_acknowledge, requester_name=requester.display_name
+        ),
+    )
     await ports.requests.record_decision(approved)
-    view = await _view(approved, ports.team)
     await ports.journal.approved(
         approved,
-        requester_name=view.requester_name,
-        replacement_name=view.replacement_name,
+        requester_name=requester.display_name,
+        replacement_name=replacement.display_name,
         by_coordinator=by_coordinator,
         self_approved=self_approved,
+        violations=to_acknowledge,
     )
-    return view
+    return _named(approved, requester.display_name, replacement.display_name)

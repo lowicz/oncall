@@ -24,6 +24,7 @@ from oncall.i18n import translate
 from oncall.permissions import Coordinator, require_roles
 from oncall.presentation.rules import rule_violation_responses
 from oncall.presentation.swaps import (
+    SwapAcknowledgementRequest,
     SwapDecisionRequest,
     SwapImpactMemberResponse,
     SwapImpactResponse,
@@ -59,6 +60,8 @@ SWAP_ERROR_STATUSES = {
     errors.ReplacementOnCallSinceRequest: status.HTTP_409_CONFLICT,
     errors.SlotHasActiveSwap: status.HTTP_409_CONFLICT,
     errors.SwapBreaksHardRules: status.HTTP_409_CONFLICT,
+    errors.SwapRuleViolationsNotAcknowledged: status.HTTP_409_CONFLICT,
+    errors.RuleBreakingSwapNeedsReason: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.SwapNotFound: status.HTTP_404_NOT_FOUND,
     errors.OnlyNamedReplacementMayAccept: status.HTTP_403_FORBIDDEN,
     errors.OnlyNamedReplacementMayReject: status.HTTP_403_FORBIDDEN,
@@ -82,23 +85,28 @@ SWAP_ERROR_STATUSES = {
 }
 
 
-def _rule_violations_detail(error: errors.SwapBreaksHardRules) -> dict:
+def _rule_violations_detail(
+    error: errors.SwapBreaksHardRules | errors.SwapRuleViolationsNotAcknowledged,
+) -> dict:
     return {
         "message": str(error),
         "next_step": error.next_step,
         "violations": [
-            {
-                "rule": violation.rule,
-                "message": violation.message,
-                "member_name": violation.member_name,
-                "days": [day.isoformat() for day in violation.days],
-            }
-            for violation in error.violations
+            item.model_dump(mode="json") for item in rule_violation_responses(error.violations)
         ],
     }
 
 
-SWAP_ERROR_DETAILS = {errors.SwapBreaksHardRules: _rule_violations_detail}
+def _unacknowledged_violations_detail(error: errors.SwapRuleViolationsNotAcknowledged) -> dict:
+    """The same body a coordinator's unacknowledged correction answers with,
+    `reason` included, so one client reads both."""
+    return {**_rule_violations_detail(error), "reason": error.reason}
+
+
+SWAP_ERROR_DETAILS = {
+    errors.SwapBreaksHardRules: _rule_violations_detail,
+    errors.SwapRuleViolationsNotAcknowledged: _unacknowledged_violations_detail,
+}
 
 
 def _swap_errors_as_http():
@@ -175,7 +183,6 @@ async def swap_impact(
         window_end=impact.window_end,
         requester=side(impact.requester),
         replacement=side(impact.replacement),
-        warnings=rule_violation_responses(impact.warnings),
     )
 
 
@@ -211,18 +218,33 @@ async def create_swap(
                 role=payload.role,
                 replacement_member_id=payload.replacement_member_id,
                 note=payload.note,
+                acknowledge_rule_violations=payload.acknowledge_rule_violations,
             ),
             ports,
         )
     return swap_response(view)
 
 
+def _acknowledged(payload: SwapAcknowledgementRequest | None) -> bool:
+    """An acceptance or approval sent without a body acknowledges nothing."""
+    return payload is not None and payload.acknowledge_rule_violations
+
+
 @router.post("/{swap_id}/accept", response_model=SwapRequestResponse)
 async def accept_swap(
-    swap_id: uuid.UUID, user: CurrentUser, ports: SwapProvider, _: CsrfGuard
+    swap_id: uuid.UUID,
+    user: CurrentUser,
+    ports: SwapProvider,
+    _: CsrfGuard,
+    payload: SwapAcknowledgementRequest | None = None,
 ) -> SwapRequestResponse:
     with _swap_errors_as_http():
-        outcome = await use_cases.accept_swap(SwapDecisionInput(actor_from(user), swap_id), ports)
+        outcome = await use_cases.accept_swap(
+            SwapDecisionInput(
+                actor_from(user), swap_id, acknowledge_rule_violations=_acknowledged(payload)
+            ),
+            ports,
+        )
     return _handed_over(outcome)
 
 
@@ -258,8 +280,17 @@ async def cancel_swap(
 
 @router.post("/{swap_id}/approve", response_model=SwapRequestResponse)
 async def approve_swap(
-    swap_id: uuid.UUID, user: Coordinator, ports: SwapProvider, __: CsrfGuard
+    swap_id: uuid.UUID,
+    user: Coordinator,
+    ports: SwapProvider,
+    __: CsrfGuard,
+    payload: SwapAcknowledgementRequest | None = None,
 ) -> SwapRequestResponse:
     with _swap_errors_as_http():
-        outcome = await use_cases.approve_swap(SwapDecisionInput(actor_from(user), swap_id), ports)
+        outcome = await use_cases.approve_swap(
+            SwapDecisionInput(
+                actor_from(user), swap_id, acknowledge_rule_violations=_acknowledged(payload)
+            ),
+            ports,
+        )
     return _handed_over(outcome)

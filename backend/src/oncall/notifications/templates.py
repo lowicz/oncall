@@ -12,6 +12,7 @@ Dates are written the way the screens write them (``frontend/src/lib/dates.ts``)
 ``DD-MM-RRRR – DD-MM-RRRR`` for a range.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -33,6 +34,7 @@ from oncall.notifications.layout import (
     strong,
     text,
 )
+from oncall.rules import RuleViolation, summarise
 
 #: The advice every mail about a PRIMARY hand-over repeats, in the interface's
 #: warning colour.
@@ -126,6 +128,25 @@ def _render(
     return RenderedEmail(subject=subject, text=body, html=html)
 
 
+def _broken_rules(violations: Sequence[RuleViolation]) -> list[str]:
+    """One sentence per person and hard rule a swap breaks knowingly: in the
+    language e-mails are written in, whatever the request that sends them."""
+    return summarise(list(violations), "pl")
+
+
+def _broken_rules_text(violations: Sequence[RuleViolation]) -> str:
+    """The plain-text paragraph naming those rules; nothing for the ordinary
+    swap that breaks none."""
+    lines = _broken_rules(violations)
+    if not lines:
+        return ""
+    return "Zamiana łamie reguły grafiku:\n" + "".join(f"- {line}\n" for line in lines) + "\n"
+
+
+def _broken_rules_facts(violations: Sequence[RuleViolation]) -> list[Fact]:
+    return [Fact("Łamie regułę", text(line)) for line in _broken_rules(violations)]
+
+
 def _swaps_action(app: Brand, label: str = "Zobacz zamiany") -> Action:
     return Action(label=label, url=f"{app.url}/#zamiany")
 
@@ -135,13 +156,19 @@ def _schedule_action(app: Brand) -> Action:
 
 
 def swap_requested(
-    *, service_date: date, role: AssignmentRole, requester_name: str, app: Brand
+    *,
+    service_date: date,
+    role: AssignmentRole,
+    requester_name: str,
+    violations: Sequence[RuleViolation],
+    app: Brand,
 ) -> RenderedEmail:
     day = format_day(service_date)
     subject = f"Prośba o zamianę: {day} · {ROLE_LABELS[role]}"
     body = (
         f"{requester_name} prosi o przejęcie dyżuru {ROLE_LABELS[role]} w dniu {day}.\n\n"
-        f"Odpowiedz w aplikacji: {app.url}/#zamiany\n"
+        + _broken_rules_text(violations)
+        + f"Odpowiedz w aplikacji: {app.url}/#zamiany\n"
     )
     return _render(
         app=app,
@@ -161,6 +188,7 @@ def swap_requested(
             Fact("Dzień", _day(service_date)),
             Fact("Rola", _role(role)),
             Fact("Prosi", text(requester_name)),
+            *_broken_rules_facts(violations),
         ],
         action=_swaps_action(app, "Odpowiedz w aplikacji"),
     )
@@ -207,6 +235,7 @@ def swap_pending_coordinator(
     role: AssignmentRole,
     requester_name: str,
     replacement_name: str,
+    violations: Sequence[RuleViolation],
     app: Brand,
 ) -> RenderedEmail:
     """The coordinator's copy of an accepted swap: the same facts, with the
@@ -216,7 +245,9 @@ def swap_pending_coordinator(
     )
     body = (
         f"{requester_name} i {replacement_name} uzgodnili zamianę. "
-        "Otwórz zakładkę Zamiany, aby podjąć decyzję.\n\n" + accepted.text
+        "Otwórz zakładkę Zamiany, aby podjąć decyzję.\n\n"
+        + _broken_rules_text(violations)
+        + accepted.text
     )
     return _render(
         app=app,
@@ -240,6 +271,7 @@ def swap_pending_coordinator(
             Fact("Oddaje", text(requester_name)),
             Fact("Przejmuje", text(replacement_name)),
             Fact("Status", status_tag("Oczekuje na koordynatora", Tone.sig)),
+            *_broken_rules_facts(violations),
         ],
         action=_swaps_action(app, "Podejmij decyzję"),
     )
@@ -344,6 +376,7 @@ def swap_approved(
     role: AssignmentRole,
     requester_name: str,
     replacement_name: str,
+    violations: Sequence[RuleViolation],
     app: Brand,
 ) -> RenderedEmail:
     day = format_day(service_date)
@@ -351,7 +384,8 @@ def swap_approved(
     body = (
         f"Koordynator zatwierdził zamianę dyżuru {ROLE_LABELS[role]} w dniu {day}.\n"
         f"Dyżur przejmuje: {replacement_name} (zamiast: {requester_name}).\n\n"
-        f"{_SWITCH_NUMBER}\n"
+        + _broken_rules_text(violations)
+        + f"{_SWITCH_NUMBER}\n"
         f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
@@ -373,6 +407,7 @@ def swap_approved(
             Fact("Dyżur przejmuje", strong(replacement_name)),
             Fact("Zamiast", text(requester_name)),
             Fact("Status", status_tag("Zatwierdzona", Tone.ok)),
+            *_broken_rules_facts(violations),
         ],
         note=Note(_SWITCH_NUMBER),
         action=_schedule_action(app),
@@ -385,6 +420,7 @@ def swap_recorded(
     role: AssignmentRole,
     requester_name: str,
     replacement_name: str,
+    violations: Sequence[RuleViolation],
     app: Brand,
 ) -> RenderedEmail:
     """Both parties' copy of a swap the replacement's acceptance alone wrote
@@ -395,8 +431,7 @@ def swap_recorded(
     body = (
         f"{replacement_name} przyjął(ęła) dyżur {ROLE_LABELS[role]} w dniu {day} "
         f"(zamiast: {requester_name}). Zamiana jest już w grafiku i nie wymaga "
-        "zatwierdzenia koordynatora.\n\n"
-        f"{_SWITCH_NUMBER}\n"
+        "zatwierdzenia koordynatora.\n\n" + _broken_rules_text(violations) + f"{_SWITCH_NUMBER}\n"
         f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
@@ -419,6 +454,7 @@ def swap_recorded(
             Fact("Dyżur przejmuje", strong(replacement_name)),
             Fact("Zamiast", text(requester_name)),
             Fact("Status", status_tag("W grafiku", Tone.ok)),
+            *_broken_rules_facts(violations),
         ],
         note=Note(_SWITCH_NUMBER),
         action=_schedule_action(app),
@@ -431,16 +467,19 @@ def swap_recorded_for_coordinator(
     role: AssignmentRole,
     requester_name: str,
     replacement_name: str,
+    violations: Sequence[RuleViolation],
     app: Brand,
 ) -> RenderedEmail:
     """The coordinator's copy of the same swap: for their information only,
-    with nothing to decide."""
+    with nothing to decide. It is also how a coordinator learns that two
+    members broke a hard rule between themselves."""
     day = format_day(service_date)
     subject = f"Do wiadomości: zamiana wpisana do grafiku {day} · {ROLE_LABELS[role]}"
     body = (
         f"{requester_name} i {replacement_name} zamienili się dyżurem {ROLE_LABELS[role]} "
         f"w dniu {day}. Dyżur przejmuje: {replacement_name}.\n\n"
-        "Zamiana jest już w grafiku; zgodnie z ustawieniami nie wymaga Twojego "
+        + _broken_rules_text(violations)
+        + "Zamiana jest już w grafiku; zgodnie z ustawieniami nie wymaga Twojego "
         "zatwierdzenia. Ta wiadomość jest tylko informacyjna.\n\n"
         f"Aktualny grafik: {app.url}/\n"
     )
@@ -466,6 +505,7 @@ def swap_recorded_for_coordinator(
             Fact("Oddaje", text(requester_name)),
             Fact("Przejmuje", text(replacement_name)),
             Fact("Status", status_tag("W grafiku", Tone.ok)),
+            *_broken_rules_facts(violations),
         ],
         note=Note(
             "Zamiana jest już w grafiku; zgodnie z ustawieniami nie wymaga Twojego "

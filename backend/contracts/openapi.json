@@ -3253,6 +3253,19 @@
         "title": "ShareSessionInfo",
         "type": "object"
       },
+      "SwapAcknowledgementRequest": {
+        "additionalProperties": false,
+        "description": "The optional body of an acceptance or an approval.",
+        "properties": {
+          "acknowledge_rule_violations": {
+            "default": false,
+            "title": "Acknowledge Rule Violations",
+            "type": "boolean"
+          }
+        },
+        "title": "SwapAcknowledgementRequest",
+        "type": "object"
+      },
       "SwapDecisionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3318,13 +3331,6 @@
             "format": "date",
             "title": "Service Date",
             "type": "string"
-          },
-          "warnings": {
-            "items": {
-              "$ref": "#/components/schemas/RuleViolationResponse"
-            },
-            "title": "Warnings",
-            "type": "array"
           },
           "window_end": {
             "format": "date",
@@ -3395,6 +3401,14 @@
             "title": "On Duty That Day",
             "type": "boolean"
           },
+          "rule_violations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Rule Violations",
+            "type": "array"
+          },
           "slots": {
             "default": [],
             "items": {
@@ -3436,6 +3450,11 @@
       "SwapRequestCreate": {
         "additionalProperties": false,
         "properties": {
+          "acknowledge_rule_violations": {
+            "default": false,
+            "title": "Acknowledge Rule Violations",
+            "type": "boolean"
+          },
           "note": {
             "anyOf": [
               {
@@ -3530,6 +3549,14 @@
           },
           "role": {
             "$ref": "#/components/schemas/AssignmentRole"
+          },
+          "rule_violations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Rule Violations",
+            "type": "array"
           },
           "schedule_id": {
             "format": "uuid",
@@ -9013,6 +9040,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SwapAcknowledgementRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -9088,6 +9132,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SwapAcknowledgementRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {

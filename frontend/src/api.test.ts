@@ -214,8 +214,10 @@ const CASES: Case[] = [
   }), 'POST', '/api/v1/swaps', {
     schedule_id: 's1', service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2', note: 'urlop',
   }),
-  send('acceptSwap', () => api.acceptSwap('w1'), 'POST', '/api/v1/swaps/w1/accept'),
-  send('approveSwap', () => api.approveSwap('w1'), 'POST', '/api/v1/swaps/w1/approve'),
+  send('acceptSwap', () => api.acceptSwap({ id: 'w1', acknowledge: true }),
+    'POST', '/api/v1/swaps/w1/accept', { acknowledge_rule_violations: true }),
+  send('approveSwap', () => api.approveSwap({ id: 'w1', acknowledge: false }),
+    'POST', '/api/v1/swaps/w1/approve', { acknowledge_rule_violations: false }),
   send('rejectSwap', () => api.rejectSwap({ id: 'w1', reason: 'brak' }), 'POST', '/api/v1/swaps/w1/reject', { reason: 'brak' }),
   send('cancelSwap', () => api.cancelSwap({ id: 'w1', reason: 'zmiana' }), 'POST', '/api/v1/swaps/w1/cancel', { reason: 'zmiana' }),
   send('createShareLink', () => api.createShareLink({

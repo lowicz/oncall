@@ -46,14 +46,13 @@ describe('SwapImpactPreview', () => {
     expect(screen.getByText('Marek Nowak · traci dyżur')).toBeInTheDocument()
   })
 
-  it('says which side moves away from balance, which stays, and warns before the decision', async () => {
+  it('says which side moves away from balance and which stays', async () => {
     vi.spyOn(api, 'swapImpact').mockResolvedValue({
       ...impact,
       points: 2,
       // The requester moves from +1 to -1: as far from balance as before.
       requester: { member_id: 'm1', display_name: 'Marek Nowak', before: member(category(14, 1)), after: member(category(12, -1)) },
       replacement: { member_id: 'm2', display_name: 'Tomek Lis', before: member(category(12, 0.5)), after: member(category(14, 2.5)) },
-      warnings: [{ rule: 'rest', message: 'Brak odpoczynku po dyżurze', member_name: 'Tomek Lis', days: [] }],
     })
     renderScreen(<SwapImpactPreview serviceDate="2026-09-26" role="primary" replacementId="m2" />)
 
@@ -62,16 +61,13 @@ describe('SwapImpactPreview', () => {
     expect(screen.getByText('Tomek Lis · przejmuje dyżur')).toBeInTheDocument()
     expect(screen.getByText('bez zmiany')).toBeInTheDocument()
     expect(screen.getByText('dalej od równowagi').parentElement).toHaveClass('impact-d-warn')
-    expect(screen.getByText('Ostrzeżenia przed decyzją')).toBeInTheDocument()
-    expect(screen.getByText('Brak odpoczynku po dyżurze (Tomek Lis)')).toBeInTheDocument()
   })
 
   it('says so when a side keeps its balance', async () => {
-    vi.spyOn(api, 'swapImpact').mockResolvedValue({ ...impact, replacement: { ...impact.replacement, after: impact.replacement.before }, warnings: [] })
+    vi.spyOn(api, 'swapImpact').mockResolvedValue({ ...impact, replacement: { ...impact.replacement, after: impact.replacement.before } })
     renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m2" />)
 
     expect(await screen.findByText('Saldo tej osoby się nie zmienia.')).toBeInTheDocument()
-    expect(screen.queryByText('Ostrzeżenia przed decyzją')).not.toBeInTheDocument()
   })
 
   it('shows progress, then the refusal of the projection', async () => {

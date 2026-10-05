@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
+from typing import Literal
 
 from oncall.domain.roster import Slot
 from oncall.domain.team import Actor, Member
@@ -14,6 +15,35 @@ ACTIVE_SWAP_STATUSES = (SwapStatus.pending_replacement, SwapStatus.pending_coord
 #: so it is written in the recorded language.
 SLOT_CHANGED_OWNER_NOTE = "Slot zmienił właściciela przed zatwierdzeniem"
 
+#: The two people of a request, by the side they are on.
+SwapParty = Literal["requester", "replacement"]
+
+
+@dataclass(frozen=True)
+class AcknowledgedViolation:
+    """A hard rule a swap breaks knowingly, as the request keeps it. The
+    person is named by their side of the request, so the record carries no
+    name of its own and outlives the audit trail."""
+
+    rule: str
+    party: SwapParty
+    days: tuple[date, ...]
+
+
+def acknowledged_violations(
+    violations: list[RuleViolation], *, requester_name: str
+) -> tuple[AcknowledgedViolation, ...]:
+    """The violations as a request keeps them. A swap's rule check reports
+    its two people only, so whoever is not the requester is the replacement."""
+    return tuple(
+        AcknowledgedViolation(
+            item.rule,
+            "requester" if item.member_name == requester_name else "replacement",
+            item.days,
+        )
+        for item in violations
+    )
+
 
 @dataclass(frozen=True)
 class SwapRequestInput:
@@ -21,7 +51,9 @@ class SwapRequestInput:
     service_date: date
     role: AssignmentRole
     replacement_member_id: uuid.UUID
+    #: Why the swap is needed; required once it breaks a hard rule.
     note: str | None = None
+    acknowledge_rule_violations: bool = False
 
 
 @dataclass(frozen=True)
@@ -30,6 +62,9 @@ class SwapDecisionInput:
     swap_id: uuid.UUID
     #: Why the request is rejected or withdrawn; unused on accept and approve.
     reason: str | None = None
+    #: Accept and approve only: the person deciding has seen the hard rules
+    #: the swap breaks on the roster as it is now.
+    acknowledge_rule_violations: bool = False
 
 
 @dataclass(frozen=True)
@@ -66,6 +101,7 @@ class NewSwapRequest:
     note: str | None
     slots: tuple[Slot, ...]
     status: SwapStatus = SwapStatus.pending_replacement
+    rule_violations: tuple[AcknowledgedViolation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -84,10 +120,22 @@ class SwapRequest:
     #: The stored slots, as stored. Requests made before slots existed have
     #: none and move only their headline slot.
     slots: tuple[Slot, ...] = ()
+    #: The hard rules acknowledged at the latest step that asked for it: the
+    #: request, the acceptance, the approval.
+    rule_violations: tuple[AcknowledgedViolation, ...] = ()
 
     @property
     def moves(self) -> list[Slot]:
         return list(self.slots) or [(self.service_date, self.role)]
+
+    def named_violations(
+        self, requester_name: str, replacement_name: str
+    ) -> tuple[RuleViolation, ...]:
+        """The acknowledged violations with each side's name put back."""
+        names: dict[SwapParty, str] = {"requester": requester_name, "replacement": replacement_name}
+        return tuple(
+            RuleViolation(item.rule, names[item.party], item.days) for item in self.rule_violations
+        )
 
     @property
     def active(self) -> bool:
@@ -101,8 +149,12 @@ class SwapRequestView:
     request: SwapRequest
     requester_name: str
     replacement_name: str
-    #: Rules the swap bends without breaking; reported when it is created.
+    #: Rules the swap bends without breaking: reported when it is created
+    #: and, for a request still open, on the roster as it is now.
     warnings: tuple[RuleViolation, ...] = ()
+    #: Hard rules the swap breaks: on the roster as it is now while the
+    #: request is open, as last acknowledged once it is decided.
+    rule_violations: tuple[RuleViolation, ...] = ()
 
     @property
     def slots(self) -> list[Slot]:
@@ -134,7 +186,10 @@ class ReplacementOption:
     availability: AvailabilityKind | None
     on_duty_that_day: bool
     slots: tuple[Slot, ...]
+    #: Rules that rule the candidate out.
     blocking_violations: tuple[RuleViolation, ...]
+    #: Rules a request to this candidate breaks and has to acknowledge.
+    rule_violations: tuple[RuleViolation, ...]
     warning_violations: tuple[RuleViolation, ...]
     next_step: str | None
 
@@ -156,4 +211,3 @@ class SwapImpact:
     window_end: date
     requester: SwapImpactSide
     replacement: SwapImpactSide
-    warnings: tuple[RuleViolation, ...]

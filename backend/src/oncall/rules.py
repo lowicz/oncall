@@ -3,7 +3,7 @@
 The solver states these rules as CP-SAT constraints, which makes them
 unusable anywhere but inside the model - and every path after publication
 needs to ask the same questions. This module is the one implementation the
-swap path (block, decision D3), the coordinator override (warning plus audit)
+swap path and the coordinator override (both: an acknowledgement plus audit)
 and the draft warnings all read from, so the three can never disagree about
 what a rule says. Nothing here
 touches the database or raises HTTPException: functions return violations
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, LateShiftAnchor, RotationMode
-from oncall.i18n import translate
+from oncall.i18n import Language, translate
 from oncall.workdays import is_working_day
 
 #: Imported back by the solver, so the constant also lives in exactly one place.
@@ -43,43 +43,50 @@ class RuleViolation:
 LISTED_DAYS = 6
 
 
-def _day_list(days: list[date]) -> str:
+def _day_list(days: list[date], language: Language | None) -> str:
     shown = ", ".join(day.strftime("%d-%m-%Y") for day in days[:LISTED_DAYS])
     rest = len(days) - LISTED_DAYS
-    return translate("rules.more_days", shown=shown, rest=rest) if rest > 0 else shown
+    return translate("rules.more_days", language, shown=shown, rest=rest) if rest > 0 else shown
 
 
-def describe(violation: RuleViolation) -> str:
+def describe(violation: RuleViolation, language: Language | None = None) -> str:
     """The violation as one sentence naming who and when.
 
     `RuleViolation.message` states the rule alone, which is enough for an
     audit entry keyed by `rule` and `member_name`, but a warning on screen has
     no such key: without the name and the days it tells the coordinator that
-    something is wrong somewhere.
+    something is wrong somewhere. `language` fixes the language for text that
+    is sent rather than answered; without it the request's language is used.
     """
     return translate(
         "rules.described",
+        language,
         member=violation.member_name,
-        message=violation.message,
-        days=_day_list(list(violation.days)),
+        message=translate(f"rules.{violation.rule}", language),
+        days=_day_list(list(violation.days), language),
     )
 
 
-def summarise(violations: list[RuleViolation]) -> list[str]:
-    """One sentence per person and rule, over the union of the days involved.
+def merged(violations: list[RuleViolation]) -> list[RuleViolation]:
+    """One violation per person and rule, over the union of the days involved.
 
     `oncall_rest_violations` reports one violation per starting day, so a
     single over-loaded fortnight yields a dozen overlapping windows. That is
-    right for a check, which counts breaches, and unreadable as a warning
-    list, which is read by a person.
+    right for a check, which counts breaches, and unreadable as a list a
+    person reads or acknowledges.
     """
     grouped: dict[tuple[str, str], set[date]] = {}
     for violation in violations:
         grouped.setdefault((violation.member_name, violation.rule), set()).update(violation.days)
     return [
-        describe(RuleViolation(rule, name, tuple(sorted(days))))
+        RuleViolation(rule, name, tuple(sorted(days)))
         for (name, rule), days in sorted(grouped.items())
     ]
+
+
+def summarise(violations: list[RuleViolation], language: Language | None = None) -> list[str]:
+    """`merged`, as one sentence per person and rule."""
+    return [describe(violation, language) for violation in merged(violations)]
 
 
 def _day_off_blocks(days: list[date], holidays: set[date]) -> list[tuple[date, ...]]:
@@ -250,11 +257,12 @@ def _state_violations(
     holidays: set[date],
     mode: RotationMode | None,
 ) -> list[RuleViolation]:
-    """Every hard-rule violation involving any of `names` in one slot state."""
+    """Every hard-rule violation involving any of `names` in one slot state,
+    person by person in name order, so one roster always reads the same."""
     days = sorted({day for day, _role in slots})
     exempt = exempt_days(days, holidays)
     violations: list[RuleViolation] = []
-    for name in names:
+    for name in sorted(names):
         oncall_days = {
             day for (day, role), holder in slots.items() if holder == name and role in ONCALL_ROLES
         }
@@ -281,6 +289,39 @@ def _state_violations(
     return violations
 
 
+def _created(
+    before: list[RuleViolation], after: list[RuleViolation], moved_days: set[date]
+) -> list[RuleViolation]:
+    """The violations of `after` that a move made more numerous.
+
+    Only a surplus counts: a roster already containing an accepted exception
+    (for example somebody eligible for the anchor role but not for 11-19, or a
+    deliberate override the coordinator was warned about) must not block
+    unrelated edits of the same people. Matching is per (rule, person), so a
+    pre-existing violation that merely moves to different days is not reported
+    as new either.
+
+    Which instances stand for the surplus matters to whoever reads them: the
+    ones that did not exist before come first, and among them the ones on a
+    moved day, so a person who already broke a rule elsewhere is shown the
+    days this move adds rather than the days they were over the limit already.
+    """
+    surplus = Counter((violation.rule, violation.member_name) for violation in after)
+    surplus.subtract((violation.rule, violation.member_name) for violation in before)
+    existing = set(before)
+    ranked = sorted(
+        range(len(after)),
+        key=lambda index: (after[index] in existing, moved_days.isdisjoint(after[index].days)),
+    )
+    created: set[int] = set()
+    for index in ranked:
+        key = (after[index].rule, after[index].member_name)
+        if surplus[key] > 0:
+            surplus[key] -= 1
+            created.add(index)
+    return [after[index] for index in sorted(created)]
+
+
 def substitution_violations(
     slots: Slots,
     moves: list[tuple[date, AssignmentRole]],
@@ -290,35 +331,20 @@ def substitution_violations(
     holidays: set[date],
     mode: RotationMode | None = None,
 ) -> list[RuleViolation]:
-    """Hard-rule violations that moving these slots would create.
+    """Hard-rule violations that moving these slots would create (`_created`).
 
     `moves` is one `(day, role)` for a plain swap and two when the 11-19 anchor
     couples the shift to its role (decision D1); every listed slot goes to
     `to_name` in the projected state.
-
-    Only violations the move makes *more numerous* count: a roster already
-    containing an accepted exception (for example somebody eligible for the
-    anchor role but not for 11-19, or a deliberate override the coordinator
-    was warned about) must not block unrelated edits of the same people.
-    Matching is per (rule, person), so a pre-existing violation that merely
-    moves to different days is not reported as new either.
     """
-    names = {from_name, to_name}
-    before = Counter(
-        (violation.rule, violation.member_name)
-        for violation in _state_violations(slots, names, anchor, holidays, mode)
+    return batch_substitution_violations(
+        slots,
+        [(day, role, to_name) for day, role in moves],
+        anchor,
+        holidays,
+        mode,
+        names={from_name, to_name},
     )
-    projected = dict(slots)
-    for day, role in moves:
-        projected[(day, role)] = to_name
-    created: list[RuleViolation] = []
-    for violation in _state_violations(projected, names, anchor, holidays, mode):
-        key = (violation.rule, violation.member_name)
-        if before[key] > 0:
-            before[key] -= 1
-        else:
-            created.append(violation)
-    return created
 
 
 def batch_substitution_violations(
@@ -327,26 +353,26 @@ def batch_substitution_violations(
     anchor: LateShiftAnchor,
     holidays: set[date],
     mode: RotationMode | None = None,
+    *,
+    names: set[str] | None = None,
 ) -> list[RuleViolation]:
-    """Violations created by an atomic batch containing different recipients."""
-    names = {
-        name
-        for day, role, replacement in moves
-        for name in (slots.get((day, role)), replacement)
-        if name is not None
-    }
-    before = Counter(
-        (violation.rule, violation.member_name)
-        for violation in _state_violations(slots, names, anchor, holidays, mode)
-    )
+    """Violations created by an atomic batch containing different recipients.
+
+    `names` are the people the violations are reported for; by default
+    whoever gives or takes one of the moved slots.
+    """
+    if names is None:
+        names = {
+            name
+            for day, role, replacement in moves
+            for name in (slots.get((day, role)), replacement)
+            if name is not None
+        }
     projected = dict(slots)
     for day, role, replacement in moves:
         projected[(day, role)] = replacement
-    created: list[RuleViolation] = []
-    for violation in _state_violations(projected, names, anchor, holidays, mode):
-        key = (violation.rule, violation.member_name)
-        if before[key] > 0:
-            before[key] -= 1
-        else:
-            created.append(violation)
-    return created
+    return _created(
+        _state_violations(slots, names, anchor, holidays, mode),
+        _state_violations(projected, names, anchor, holidays, mode),
+        {day for day, _role, _replacement in moves},
+    )

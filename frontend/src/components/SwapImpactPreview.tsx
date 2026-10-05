@@ -4,7 +4,7 @@ import { useMessages } from '../i18n'
 import { formatDate, formatDay } from '../lib/dates'
 import { lensLabels } from '../lib/labels'
 import { formatDecimal, signed } from '../lib/numbers'
-import { Box, InlineError, LoadingBlock, cx } from '../ui'
+import { InlineError, LoadingBlock, cx } from '../ui'
 
 type Lens = keyof Pick<FairnessMember, 'primary' | 'secondary' | 'late_shift' | 'weekends' | 'holidays'>
 
@@ -55,6 +55,10 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
  * `mode` only swaps the wording of the two sides: a swap is something the
  * on-call person hands over (their own choice), a coordinator override is
  * something they lose (it is done to them).
+ *
+ * The preview is about points only. The rules the move breaks or bends are
+ * listed by the screen around it, which is also where they are acknowledged;
+ * repeating them here showed every violation twice.
  */
 export function SwapImpactPreview({ serviceDate, role, replacementId, mode = 'swap' }: {
   serviceDate: string
@@ -83,15 +87,6 @@ export function SwapImpactPreview({ serviceDate, role, replacementId, mode = 'sw
       </div>
       <Side side={impact.data.requester} direction={fromDirection} />
       <Side side={impact.data.replacement} direction={t.takes} />
-      {(impact.data.warnings?.length ?? 0) > 0 && (
-        <Box tone="warn" title={t.warnings}>
-          <ul className="plain-list">
-            {impact.data.warnings?.map((warning, index) => (
-              <li key={`${warning.rule}-${index}`}>{warning.message} ({warning.member_name})</li>
-            ))}
-          </ul>
-        </Box>
-      )}
     </div>
   )
 }

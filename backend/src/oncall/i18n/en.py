@@ -248,6 +248,16 @@ MESSAGES: dict[str, str] = {
     "swaps.slot_has_active_swap": "An active swap exists for this slot",
     "swaps.breaks_hard_rules": "The operation breaks the schedule's hard rules",
     "swaps.blocked_next_step": "Choose another day or ask the coordinator to correct the schedule.",
+    "swaps.rule_violations_not_acknowledged": (
+        "The swap would break the schedule's hard rules; confirm the deliberate violation"
+    ),
+    "swaps.acknowledge_next_step": (
+        "Confirm a deliberate violation of the hard rules or give up this swap;"
+        " the confirmation will be recorded in the audit log."
+    ),
+    "swaps.rule_breaking_swap_needs_reason": (
+        "A swap that breaks the hard rules requires a reason (at least 10 characters)"
+    ),
     "swaps.not_found": "Swap not found",
     "swaps.only_named_replacement_may_accept": "Only the named replacement can accept",
     "swaps.only_named_replacement_may_reject": "Only the named replacement can decline the request",

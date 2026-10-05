@@ -32,7 +32,11 @@ class SwapOptionResponse(BaseModel):
     availability: AvailabilityKind | None = None
     on_duty_that_day: bool = False
     slots: list[SwapSlotResponse] = []
+    #: Rules that rule the candidate out.
     blocking_violations: list[RuleViolationResponse] = []
+    #: Hard rules a request to this candidate breaks; it has to acknowledge
+    #: them and say why.
+    rule_violations: list[RuleViolationResponse] = []
     warning_violations: list[RuleViolationResponse] = []
     next_step: str | None = None
 
@@ -45,12 +49,25 @@ class SwapRequestCreate(BaseModel):
     role: AssignmentRole
     replacement_member_id: uuid.UUID
     note: str | None = Field(default=None, max_length=500)
+    #: The requester has seen the hard rules the swap breaks; `note` then has
+    #: to say why it is needed.
+    acknowledge_rule_violations: bool = False
 
 
 class SwapDecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     reason: str = Field(min_length=1, max_length=500, pattern=r"\S")
+
+
+class SwapAcknowledgementRequest(BaseModel):
+    """The optional body of an acceptance or an approval."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: The person deciding has seen the hard rules the swap breaks on the
+    #: roster as it is now.
+    acknowledge_rule_violations: bool = False
 
 
 class SwapRequestResponse(BaseModel):
@@ -67,7 +84,11 @@ class SwapRequestResponse(BaseModel):
     decision_note: str | None
     created_at: datetime
     slots: list[SwapSlotResponse] = []
+    #: Rules the swap bends: when it is created and while it is open.
     warnings: list[RuleViolationResponse] = []
+    #: Hard rules the swap breaks: on the roster as it is now while the
+    #: request is open, as last acknowledged once it is decided.
+    rule_violations: list[RuleViolationResponse] = []
 
 
 class SwapPolicyResponse(BaseModel):
@@ -99,7 +120,6 @@ class SwapImpactResponse(BaseModel):
     window_end: date
     requester: SwapImpactMemberResponse
     replacement: SwapImpactMemberResponse
-    warnings: list[RuleViolationResponse] = Field(default_factory=list)
 
 
 def swap_response(view: SwapRequestView) -> SwapRequestResponse:
@@ -119,6 +139,7 @@ def swap_response(view: SwapRequestView) -> SwapRequestResponse:
         created_at=request.created_at,
         slots=[SwapSlotResponse(service_date=day, role=role) for day, role in view.slots],
         warnings=rule_violation_responses(view.warnings),
+        rule_violations=rule_violation_responses(view.rule_violations),
     )
 
 
@@ -130,6 +151,7 @@ def swap_option_response(option: ReplacementOption) -> SwapOptionResponse:
         on_duty_that_day=option.on_duty_that_day,
         slots=[SwapSlotResponse(service_date=day, role=role) for day, role in option.slots],
         blocking_violations=rule_violation_responses(option.blocking_violations),
+        rule_violations=rule_violation_responses(option.rule_violations),
         warning_violations=rule_violation_responses(option.warning_violations),
         next_step=option.next_step,
     )

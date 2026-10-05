@@ -129,6 +129,15 @@ schedule, the rates nor the reports** and do not affect the solver.
   cover one role and day, both roles of a day, a range or a whole week. Writing
   a swap into the schedule creates an override and **does not regenerate the
   other days**, and the points go to the person who actually serves the duty.
+  A swap can deliberately break the rest rules and the 11–19 anchor
+  (`max_consecutive`, `three_in_seven`, `rest_after_run`,
+  `late_shift_anchor`): the requester, the replacement and - when they
+  approve - the coordinator each acknowledge it with the field
+  `acknowledge_rule_violations: true`, and the requester gives a reason;
+  without the acknowledgement the request ends with a `409` response listing
+  the violations. The other hard rules block a swap unconditionally. The flow
+  is described in
+  [A swap that breaks the rules](../uzytkownik/zamiany.md#a-swap-that-breaks-the-rules).
 
 Publishing a new schedule is serialised in the database, checks full coverage
 and supersedes only those published schedules that fit entirely within the new

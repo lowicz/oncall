@@ -377,6 +377,7 @@ async def test_a_request_naming_nobody_enqueues_nothing(db) -> None:
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",
         replacement_name="",
+        violations=[],
     )
     await db.commit()
 
@@ -407,6 +408,7 @@ async def test_a_coordinator_who_is_a_party_gets_no_coordinator_copy(db) -> None
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",
         replacement_name="Kasia Koordynator",
+        violations=[],
     )
     await db.commit()
 

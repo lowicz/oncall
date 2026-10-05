@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,9 +8,15 @@ from sqlalchemy.orm import selectinload
 
 from oncall.audit import record_audit
 from oncall.domain.roster import Slot
-from oncall.domain.swaps.models import ACTIVE_SWAP_STATUSES, NewSwapRequest, SwapRequest
+from oncall.domain.swaps.models import (
+    ACTIVE_SWAP_STATUSES,
+    AcknowledgedViolation,
+    NewSwapRequest,
+    SwapRequest,
+)
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus
 from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.overrides import acknowledged_suffix, violations_detail
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest as SwapRequestRow
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequestSlot
 from oncall.notifications import triggers
@@ -26,6 +33,17 @@ ROLE_AUDIT_LABELS = {
 }
 
 
+def _stored_violations(
+    violations: tuple[AcknowledgedViolation, ...],
+) -> list[dict[str, Any]] | None:
+    """The column's shape; null rather than an empty list for the ordinary
+    swap that breaks nothing."""
+    return [
+        {"rule": item.rule, "party": item.party, "days": [day.isoformat() for day in item.days]}
+        for item in violations
+    ] or None
+
+
 def _to_request(row: SwapRequestRow, slots: list[Slot]) -> SwapRequest:
     return SwapRequest(
         id=row.id,
@@ -40,6 +58,12 @@ def _to_request(row: SwapRequestRow, slots: list[Slot]) -> SwapRequest:
         decision_note=row.decision_note,
         created_at=row.created_at,
         slots=tuple(slots),
+        rule_violations=tuple(
+            AcknowledgedViolation(
+                item["rule"], item["party"], tuple(date.fromisoformat(day) for day in item["days"])
+            )
+            for item in row.rule_violations or ()
+        ),
     )
 
 
@@ -86,6 +110,7 @@ class SqlAlchemySwapRequests:
             status=request.status,
             schedule_version=request.schedule_version,
             note=request.note,
+            rule_violations=_stored_violations(request.rule_violations),
             slots=[
                 SwapRequestSlot(service_date=service_date, role=role)
                 for service_date, role in request.slots
@@ -122,6 +147,7 @@ class SqlAlchemySwapRequests:
             raise LookupError(f"swap request {request.id} is not loaded")
         row.status = request.status
         row.decision_note = request.decision_note
+        row.rule_violations = _stored_violations(request.rule_violations)
 
     async def requests(
         self,
@@ -153,6 +179,14 @@ def _headline(request: SwapRequest) -> str:
     return f"{request.service_date} · {ROLE_AUDIT_LABELS[request.role]}"
 
 
+def _rule_details(violations: list[RuleViolation], details: dict[str, Any]) -> dict | None:
+    """An audit entry's details, with the hard rules acknowledged at that step
+    when there were any; an entry with nothing to say keeps none."""
+    if violations:
+        details = {**details, "rule_violations": violations_detail(violations)}
+    return details or None
+
+
 class SqlAlchemySwapJournal:
     """Queues the e-mails and writes the audit entries in the acting account's
     name, inside the caller's unit of work."""
@@ -168,6 +202,7 @@ class SqlAlchemySwapJournal:
         requester_name: str,
         replacement_name: str,
         warnings: list[RuleViolation],
+        violations: list[RuleViolation],
     ) -> None:
         await triggers.notify_swap_requested(
             self._session,
@@ -175,6 +210,7 @@ class SqlAlchemySwapJournal:
             role=request.role,
             requester_name=requester_name,
             replacement_name=replacement_name,
+            violations=violations,
         )
         slot_summary = ", ".join(
             f"{move_date} · {ROLE_AUDIT_LABELS[move_role]}"
@@ -186,12 +222,22 @@ class SqlAlchemySwapJournal:
             action="swap.created",
             entity_type="swap",
             entity_id=request.id,
-            summary=f"Prośba o zamianę [{slot_summary}]: {requester_name} → {replacement_name}",
-            details={"warnings": [item.rule for item in warnings]} if warnings else None,
+            summary=(
+                f"Prośba o zamianę [{slot_summary}]: {requester_name} → {replacement_name}"
+                + acknowledged_suffix(violations)
+            ),
+            details=_rule_details(
+                violations, {"warnings": [item.rule for item in warnings]} if warnings else {}
+            ),
         )
 
     async def accepted(
-        self, request: SwapRequest, *, requester_name: str, replacement_name: str
+        self,
+        request: SwapRequest,
+        *,
+        requester_name: str,
+        replacement_name: str,
+        violations: list[RuleViolation],
     ) -> None:
         await triggers.notify_swap_accepted(
             self._session,
@@ -199,6 +245,7 @@ class SqlAlchemySwapJournal:
             role=request.role,
             requester_name=requester_name,
             replacement_name=replacement_name,
+            violations=violations,
         )
         record_audit(
             self._session,
@@ -208,8 +255,9 @@ class SqlAlchemySwapJournal:
             entity_id=request.id,
             summary=(
                 f"Zastępca zaakceptował zamianę {_headline(request)}: "
-                f"{requester_name} → {replacement_name}"
+                f"{requester_name} → {replacement_name}" + acknowledged_suffix(violations)
             ),
+            details=_rule_details(violations, {}),
         )
 
     async def rejected(
@@ -278,6 +326,7 @@ class SqlAlchemySwapJournal:
         replacement_name: str,
         by_coordinator: bool,
         self_approved: bool,
+        violations: list[RuleViolation],
     ) -> None:
         if by_coordinator:
             await triggers.notify_swap_approved(
@@ -286,6 +335,7 @@ class SqlAlchemySwapJournal:
                 role=request.role,
                 requester_name=requester_name,
                 replacement_name=replacement_name,
+                violations=violations,
             )
             summary = (
                 f"Zatwierdzono zamianę {_headline(request)}: "
@@ -299,6 +349,7 @@ class SqlAlchemySwapJournal:
                 requester_name=requester_name,
                 replacement_name=replacement_name,
                 swap_id=request.id,
+                violations=violations,
             )
             summary = (
                 f"Zastępca przyjął zamianę {_headline(request)}, wpisana do grafiku "
@@ -313,6 +364,8 @@ class SqlAlchemySwapJournal:
             action="swap.approved",
             entity_type="swap",
             entity_id=request.id,
-            summary=summary,
-            details={"self_approved": self_approved, "by_coordinator": by_coordinator},
+            summary=summary + acknowledged_suffix(violations),
+            details=_rule_details(
+                violations, {"self_approved": self_approved, "by_coordinator": by_coordinator}
+            ),
         )
