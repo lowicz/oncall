@@ -53,6 +53,18 @@ export const swaps = {
     inSchedule: 'wpisana do grafiku',
     reason: (note: string) => `powód: „${note}”`,
   },
+  /** A swap that breaks a hard rule: what the form, the sheet and the inbox call it. */
+  rules: {
+    tag: 'łamie reguły',
+    breaks: 'Ta zamiana łamie reguły grafiku',
+    /** The same list on a swap already in the schedule. */
+    broken: 'Świadomie złamane reguły',
+    /** After the name of the person reading, in the list of who breaks what. */
+    you: 'Ty',
+    acknowledge: 'Rozumiem i świadomie łamię te reguły',
+    acceptanceAcknowledges: 'Twoja akceptacja potwierdza to naruszenie i trafia do dziennika audytu.',
+    approvalAcknowledges: 'Twoje zatwierdzenie potwierdza to naruszenie i trafia do dziennika audytu.',
+  },
   steps: {
     label: 'Etap wniosku',
     filed: 'złożona',
@@ -116,6 +128,11 @@ export const swaps = {
     takesBothSlots: 'obejmie oba sloty dnia',
     splitsDaysOff: 'dzieli blok dni wolnych',
     blocked: (message: string) => `nie można: ${message}`,
+    breaksRule: (message: string) => `łamie regułę: ${message}`,
+    needsAcknowledgement: 'wymaga potwierdzenia',
+    /** Who else learns of the violation, under the list of rules the request breaks. */
+    seenWithApproval: (name: string) => `Naruszenie zobaczą ${name} i koordynator, który zatwierdza zamianę. Trafi do dziennika audytu.`,
+    seenWithoutApproval: (name: string) => `Naruszenie zobaczy ${name}; po akceptacji zamiana od razu trafi do grafiku, a koordynator dostanie o niej powiadomienie. Trafi do dziennika audytu.`,
     aboveShare: (points: string) => `${points} pkt powyżej udziału`,
     belowShare: (points: string) => `${points} pkt poniżej udziału`,
     improvesBalance: 'poprawia bilans',
@@ -127,6 +144,7 @@ export const swaps = {
     warningsWithoutApproval: 'Wyślesz mimo to - zamiana nie wymaga zatwierdzenia koordynatora',
     note: 'Powód',
     noteHint: 'Zobaczą zastępca i koordynator.',
+    noteRequiredHint: (minLength: number) => `Wymagany, gdy zamiana łamie reguły (min. ${minLength} znaków). Zobaczą zastępca i koordynator.`,
   },
   /** The points preview (`src/components/SwapImpactPreview.tsx`). */
   impact: {
@@ -146,6 +164,5 @@ export const swaps = {
     further: 'dalej od równowagi',
     unchanged: 'bez zmiany',
     noChange: 'Saldo tej osoby się nie zmienia.',
-    warnings: 'Ostrzeżenia przed decyzją',
   },
 }

@@ -20,16 +20,17 @@ Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres
 akcji pojawia się także jako znacznik przy pozycji „Zamiany” w nawigacji.
 
 Wiersz tabeli podaje dzień i rolę, kto oddaje, kto przejmuje, **skutek** (osoba,
-która zyska punkty, i ile) oraz **etap** - kto jest następny. Przycisk
-**Zdecyduj** (gdy decyzja należy do Ciebie) albo **Podgląd** otwiera arkusz
-sprawy.
+która zyska punkty, i ile) oraz **etap** - kto jest następny. Znacznik
+**„łamie reguły”** oznacza wniosek opisany w części
+[Zamiana łamiąca reguły](#zamiana-łamiąca-reguły). Przycisk **Zdecyduj** (gdy
+decyzja należy do Ciebie) albo **Podgląd** otwiera arkusz sprawy.
 
 ## Arkusz decyzji
 
 Arkusz pokazuje obie osoby, dyżur, powód wnioskodawcy, pasek etapów
 (złożona → zastępca → koordynator → w grafiku; etap „koordynator” znika, gdy
-zatwierdzanie zamian jest wyłączone), **Wpływ na bilans** obu osób i
-ostrzeżenia. Decyzję podejmujesz w tym samym miejscu:
+zatwierdzanie zamian jest wyłączone), **Wpływ na bilans** obu osób, reguły,
+które zamiana łamie, i ostrzeżenia. Decyzję podejmujesz w tym samym miejscu:
 
 - **Zastępca** klika „Akceptuję” albo „Odrzuć”. Przy wyłączonym zatwierdzaniu
   arkusz zapowiada, że akceptacja od razu wpisze zamianę do grafiku.
@@ -55,14 +56,19 @@ prowadzi przez trzy kroki: dyżur, kandydat, powód i wysłanie.
    Przy każdej widać jej dostępność, odchylenie od należnego udziału i to, czy
    ma już tego dnia dyżur - dzięki temu dwóch kandydatów porównasz bez
    otwierania każdego z osobna. Kliknięcie wybiera osobę.
-   - osoba oznaczona **„nie można: …”** jest zablokowana regułą twardą i nie da
-     się jej wybrać,
+   - osoba oznaczona **„nie można: …”** jest zablokowana regułą, której
+     zamiana nie może złamać, i nie da się jej wybrać,
+   - osoba oznaczona **„łamie regułę: …”** i **„wymaga potwierdzenia”** jest do
+     wyboru, ale prośba wymaga wtedy potwierdzenia i powodu (patrz
+     [Zamiana łamiąca reguły](#zamiana-łamiąca-reguły)); takie osoby są na
+     liście za tymi, które żadnej reguły nie łamią,
    - oznaczenie **„poprawia bilans”** mówi, że zamiana zmniejszy nierówność,
    - oznaczenie **„dzieli blok dni wolnych”** zapowiada ostrzeżenie dla
      koordynatora.
 3. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
    Wami.
-4. Opcjonalnie dopisz **Powód**; zobaczą go zastępca i koordynator.
+4. Opcjonalnie dopisz **Powód**; zobaczą go zastępca i koordynator. Powód jest
+   wymagany, gdy zamiana łamie reguły.
 5. „Wyślij prośbę”. Ekran potwierdza wysłanie komunikatem „Wysłano do: …” i
    przechodzi do skrzynki **Moje**.
 
@@ -73,6 +79,50 @@ akceptacja zastępcy i jedno zatwierdzenie koordynatora załatwiają całość.
 Gdy zamiana narusza regułę miękką (na przykład dzieli blok dni wolnych),
 zobaczysz ostrzeżenie „Wyślesz mimo to - koordynator zobaczy ostrzeżenie”.
 Wysłanie jest nadal możliwe.
+
+## Zamiana łamiąca reguły
+
+Czasem jedyna osoba, która może Cię zastąpić, ma już za dużo dyżurów - na
+przykład wszyscy pozostali są na urlopie. Prośbę o taką zamianę można złożyć,
+ale każdy, kto ją popycha dalej, musi to zrobić świadomie.
+
+Potwierdzić można złamanie czterech reguł odpoczynku i powiązania:
+
+- więcej niż 3 kolejne dni dyżuru on-call,
+- więcej niż 3 dyżury on-call w okresie 7 dni,
+- mniej niż 2 dni przerwy po serii dyżurów on-call,
+- zmiana 11–19 i rola kotwicząca u różnych osób.
+
+Pozostałe reguły twarde blokują zamianę bez wyjątku: ta sama osoba nie
+obejmie obu dyżurów on-call jednego dnia, a zmiana 11–19 nie trafi na dzień
+wolny od pracy. Takiego kandydata lista oznacza „nie można: …”.
+
+Jak to przebiega:
+
+1. **Wnioskodawca** po wybraniu kandydata widzi ramkę „Ta zamiana łamie reguły
+   grafiku” z listą: kto, którą regułę i w które dni. Przycisk „Wyślij prośbę”
+   działa dopiero po zaznaczeniu „Rozumiem i świadomie łamię te reguły” i
+   wpisaniu **powodu** (co najmniej 10 znaków). Wybranie innego kandydata
+   cofa zaznaczenie.
+2. **Zastępca** widzi tę samą listę w arkuszu decyzji - przy własnym nazwisku
+   z dopiskiem „(Ty)”, bo to najczęściej jego odpoczynek zamiana skraca.
+   „Akceptuję” działa dopiero po zaznaczeniu potwierdzenia.
+3. **Koordynator** - gdy zatwierdzanie zamian jest włączone - potwierdza
+   naruszenie tak samo, zanim kliknie „Zatwierdź i wpisz do grafiku”. Przy
+   wyłączonym zatwierdzaniu zamianę wpisuje do grafiku akceptacja zastępcy, a
+   koordynatorzy dostają wiadomość informacyjną, która wymienia złamane
+   reguły.
+
+Reguły są sprawdzane na nowo przy każdym kroku, na grafiku takim, jaki jest w
+danej chwili: lista w arkuszu otwartego wniosku pokazuje stan bieżący, a nie
+ten z dnia złożenia prośby. Jeśli grafik zmienił się tak, że zamiana zaczęła
+łamać regułę, następna osoba zobaczy listę i będzie musiała ją potwierdzić;
+jeśli przestała - potwierdzenie nie jest potrzebne.
+
+Złamane reguły wymieniają wiadomości e-mail o zamianie i wpisy w dzienniku
+audytu („świadome naruszenie reguł” z identyfikatorami reguł), a wniosek już
+wpisany do grafiku pokazuje je w arkuszu pod nagłówkiem „Świadomie złamane
+reguły”.
 
 ## Ścieżka decyzji
 
@@ -96,7 +146,8 @@ Po jego **wyłączeniu**:
 - zamianę załatwia sama akceptacja zastępcy: „Akceptuję” od razu wpisuje ją do
   grafiku, z tymi samymi sprawdzeniami reguł twardych, jakie wykonuje
   zatwierdzenie (jeśli w międzyczasie slot zmienił właściciela, prośba jest
-  anulowana),
+  anulowana); zamianę łamiącą reguły zastępca potwierdza sam, a wiadomość do
+  koordynatorów wymienia naruszenie,
 - status „Oczekuje na koordynatora” nie występuje, a koordynator nie ma czego
   zatwierdzać ani odrzucać,
 - **koordynatorzy dostają wiadomość „Do wiadomości: zamiana wpisana do

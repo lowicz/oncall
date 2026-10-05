@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SwapRequest, SwapStatus } from '../api'
-import { canWithdraw, groupSwaps, needsMyDecision } from './swaps'
+import { brokenRules, canWithdraw, groupSwaps, needsMyDecision } from './swaps'
 
 const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   schedule_id: 's1',
@@ -34,6 +34,26 @@ describe('needsMyDecision', () => {
       expect(needsMyDecision(swap({ id: '1', status }), { displayName: 'Piotr', role: 'admin' }))
         .toBe(false)
     }
+  })
+})
+
+describe('brokenRules', () => {
+  const rule_violations = [{ rule: 'three_in_seven', message: 'Więcej niż 3 dyżury.', member_name: 'Piotr', days: ['2026-09-14'] }]
+
+  it('names the rules of a request still open or already in the schedule', () => {
+    for (const status of ['pending_replacement', 'pending_coordinator', 'approved'] as SwapStatus[]) {
+      expect(brokenRules(swap({ id: '1', status, rule_violations }))).toEqual(rule_violations)
+    }
+  })
+
+  it('names none for a request that was turned down or withdrawn: it broke nothing', () => {
+    for (const status of ['rejected', 'cancelled'] as SwapStatus[]) {
+      expect(brokenRules(swap({ id: '1', status, rule_violations }))).toEqual([])
+    }
+  })
+
+  it('names none when the API sends none', () => {
+    expect(brokenRules(swap({ id: '1' }))).toEqual([])
   })
 })
 

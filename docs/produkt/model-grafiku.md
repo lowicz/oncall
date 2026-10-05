@@ -126,7 +126,14 @@ stawek ani raportów** i nie wpływają na solver.
   w [Zamiany](../uzytkownik/zamiany.md#zatwierdzenie-koordynatora)). Może objąć
   jedną rolę i dzień, obie role dnia, zakres albo cały tydzień. Wpisanie zamiany
   do grafiku tworzy override i **nie regeneruje pozostałych dni**, a punkty
-  trafiają do osoby faktycznie dyżurującej.
+  trafiają do osoby faktycznie dyżurującej. Zamiana może świadomie złamać
+  reguły odpoczynku i powiązania 11–19 (`max_consecutive`, `three_in_seven`,
+  `rest_after_run`, `late_shift_anchor`): wnioskodawca, zastępca i - gdy
+  zatwierdza - koordynator potwierdzają to każdy z osobna polem
+  `acknowledge_rule_violations: true`, a wnioskodawca podaje powód; bez
+  potwierdzenia żądanie kończy się odpowiedzią `409` z listą naruszeń.
+  Pozostałe reguły twarde blokują zamianę bezwarunkowo. Przebieg opisuje
+  [Zamiana łamiąca reguły](../uzytkownik/zamiany.md#zamiana-łamiąca-reguły).
 
 Publikacja nowego grafiku jest serializowana w bazie, sprawdza pełne pokrycie i
 zastępuje tylko te opublikowane grafiki, które w całości mieszczą się w nowym

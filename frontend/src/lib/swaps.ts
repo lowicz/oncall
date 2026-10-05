@@ -1,4 +1,4 @@
-import { SwapRequest, SwapStatus, UserRole } from '../api'
+import { RuleViolation, SwapRequest, SwapStatus, UserRole } from '../api'
 
 export const OPEN_STATUSES: SwapStatus[] = ['pending_replacement', 'pending_coordinator']
 
@@ -17,6 +17,17 @@ export function needsMyDecision(item: SwapRequest, viewer: SwapViewer) {
 }
 
 export const isOpen = (item: SwapRequest) => OPEN_STATUSES.includes(item.status)
+
+/**
+ * The hard rules a request breaks: on the roster as it is now while it is
+ * open, as acknowledged once it is in the schedule. A request turned down or
+ * withdrawn broke nothing, whatever it was filed with.
+ */
+export const brokenRules = (item: SwapRequest): RuleViolation[] =>
+  (isOpen(item) || item.status === 'approved' ? item.rule_violations ?? [] : [])
+
+/** The shortest reason a rule-breaking request may carry, as the API has it. */
+export const RULE_BREAK_REASON_LENGTH = 10
 
 export interface SwapGroups {
   actionable: SwapRequest[]

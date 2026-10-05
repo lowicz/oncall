@@ -49,6 +49,15 @@ export const swaps: Messages['swaps'] = {
     inSchedule: 'written into the schedule',
     reason: (note: string) => `reason: “${note}”`,
   },
+  rules: {
+    tag: 'breaks rules',
+    breaks: 'This swap breaks the schedule rules',
+    broken: 'Rules broken knowingly',
+    you: 'you',
+    acknowledge: 'I understand and knowingly break these rules',
+    acceptanceAcknowledges: 'Your acceptance confirms this violation and goes to the audit log.',
+    approvalAcknowledges: 'Your approval confirms this violation and goes to the audit log.',
+  },
   steps: {
     label: 'Request stage',
     filed: 'filed',
@@ -112,6 +121,10 @@ export const swaps: Messages['swaps'] = {
     takesBothSlots: 'will take both slots of the day',
     splitsDaysOff: 'splits a block of days off',
     blocked: (message: string) => `not possible: ${message}`,
+    breaksRule: (message: string) => `breaks a rule: ${message}`,
+    needsAcknowledgement: 'needs confirmation',
+    seenWithApproval: (name: string) => `${name} and the coordinator, who approves the swap, will see the violation. It goes to the audit log.`,
+    seenWithoutApproval: (name: string) => `${name} will see the violation; once accepted, the swap goes straight into the schedule and the coordinator is notified of it. It goes to the audit log.`,
     aboveShare: (points: string) => `${points} pts above share`,
     belowShare: (points: string) => `${points} pts below share`,
     improvesBalance: 'improves the balance',
@@ -123,6 +136,7 @@ export const swaps: Messages['swaps'] = {
     warningsWithoutApproval: 'You can still send it - the swap needs no coordinator approval',
     note: 'Reason',
     noteHint: 'The replacement and the coordinator will see it.',
+    noteRequiredHint: (minLength: number) => `Required when the swap breaks rules (at least ${minLength} characters). The replacement and the coordinator will see it.`,
   },
   impact: {
     loading: 'Recalculating the effect of the swap',
@@ -139,6 +153,5 @@ export const swaps: Messages['swaps'] = {
     further: 'further from balance',
     unchanged: 'no change',
     noChange: 'This person’s balance does not change.',
-    warnings: 'Warnings before the decision',
   },
 }

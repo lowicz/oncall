@@ -46,7 +46,7 @@ describe('SwapImpactPreview', () => {
     expect(screen.getByText('Marek Nowak · traci dyżur')).toBeInTheDocument()
   })
 
-  it('says which side moves away from balance, which stays, and warns before the decision', async () => {
+  it('says which side moves away from balance and which stays, and leaves the rules to the screen around it', async () => {
     vi.spyOn(api, 'swapImpact').mockResolvedValue({
       ...impact,
       points: 2,
@@ -62,8 +62,9 @@ describe('SwapImpactPreview', () => {
     expect(screen.getByText('Tomek Lis · przejmuje dyżur')).toBeInTheDocument()
     expect(screen.getByText('bez zmiany')).toBeInTheDocument()
     expect(screen.getByText('dalej od równowagi').parentElement).toHaveClass('impact-d-warn')
-    expect(screen.getByText('Ostrzeżenia przed decyzją')).toBeInTheDocument()
-    expect(screen.getByText('Brak odpoczynku po dyżurze (Tomek Lis)')).toBeInTheDocument()
+    // The form, the sheet and the correction dialog list what the move breaks
+    // and take the acknowledgement; the preview repeating it showed it twice.
+    expect(screen.queryByText(/Brak odpoczynku po dyżurze/)).not.toBeInTheDocument()
   })
 
   it('says so when a side keeps its balance', async () => {
@@ -71,7 +72,6 @@ describe('SwapImpactPreview', () => {
     renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m2" />)
 
     expect(await screen.findByText('Saldo tej osoby się nie zmienia.')).toBeInTheDocument()
-    expect(screen.queryByText('Ostrzeżenia przed decyzją')).not.toBeInTheDocument()
   })
 
   it('shows progress, then the refusal of the projection', async () => {

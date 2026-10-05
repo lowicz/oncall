@@ -1,17 +1,18 @@
-import { Fragment, useState } from 'react'
+import { Fragment, ReactNode, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapRequest, SwapStatus, UserRole, api } from '../api'
+import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapStatus, UserRole, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { formatDecimal, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
-import { SwapViewer, canCoordinate, canWithdraw, isOpen, needsMyDecision } from '../lib/swaps'
+import { RULE_BREAK_REASON_LENGTH, SwapViewer, brokenRules, canCoordinate, canWithdraw, isOpen, needsMyDecision } from '../lib/swaps'
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
 import {
   AvailabilityMark,
   Box,
   Button,
+  Checkbox,
   EmptyState,
   ErrorState,
   Field,
@@ -53,22 +54,31 @@ function inboxOf(item: SwapRequest, me: string): Inbox {
 const slotsOf = (item: SwapRequest) => (item.slots?.length ? item.slots : [item])
 const isExpired = (item: SwapRequest) => slotsOf(item).some((slot) => slot.service_date < warsawDate())
 
-function ViolationList({ violations, title, tone = 'warn' }: {
+/**
+ * Who breaks or bends which rule, on which days. `me` marks the reader's own
+ * line; `children` follow the list inside the box, which is where a broken
+ * rule is acknowledged.
+ */
+function ViolationList({ violations, title, tone = 'warn', me, children }: {
   violations: RuleViolation[]
   title: string
   tone?: 'warn' | 'bad'
+  me?: string
+  children?: ReactNode
 }) {
+  const t = useMessages().swaps.rules
   if (violations.length === 0) return null
   return (
     <Box tone={tone} title={title}>
       <ul className="box-list">
         {violations.map((violation, index) => (
           <li key={`${violation.rule}-${index}`}>
-            <b>{violation.member_name}</b>: {violation.message}
+            <b>{violation.member_name}{violation.member_name === me && ` (${t.you})`}</b>: {violation.message}
             {violation.days.length > 0 && <span className="mono muted"> ({violation.days.map(formatDate).join(', ')})</span>}
           </li>
         ))}
       </ul>
+      {children}
     </Box>
   )
 }
@@ -149,18 +159,23 @@ function decisionOf(item: SwapRequest, viewer: SwapViewer) {
 /**
  * The decision sheet: who gives, who takes, the requester's reason, the
  * stage, the effect on both balances, and the reason for a rejection or a
- * withdrawal, typed here and visible to both sides. The buttons sit in the
- * panel footer, rendered by the screen.
+ * withdrawal, typed here and visible to both sides. A request that breaks a
+ * hard rule names it, and whoever decides acknowledges it here. The buttons
+ * sit in the panel footer, rendered by the screen.
  */
-function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason }: {
+function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, acknowledged, onAcknowledged, busy }: {
   item: SwapRequest
   viewer: SwapViewer
   approvalRequired: boolean
   error: Error | null
   reason: string
   onReason: (value: string) => void
+  acknowledged: boolean
+  onAcknowledged: (value: boolean) => void
+  busy: boolean
 }) {
   const t = useMessages().swaps.sheet
+  const rules = useMessages().swaps.rules
   const { expired, pending, mustDecide, withdrawable } = decisionOf(item, viewer)
   const reasonLabel = mustDecide ? t.rejectionReason : t.withdrawalReason
   return (
@@ -184,6 +199,14 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason }: 
       </dl>
       {item.note && <Box title={t.reasonFrom(item.requester_name)}>{t.quoted(item.note)}</Box>}
       {item.decision_note && <Box tone={item.status === 'rejected' ? 'bad' : 'muted'} title={t.decisionReason}>{t.quoted(item.decision_note)}</Box>}
+      <ViolationList violations={brokenRules(item)} title={item.status === 'approved' ? rules.broken : rules.breaks} me={viewer.displayName}>
+        {mustDecide && (
+          <>
+            <div className="box-next">{item.status === 'pending_replacement' ? rules.acceptanceAcknowledges : rules.approvalAcknowledges}</div>
+            <Checkbox label={rules.acknowledge} checked={acknowledged} onChange={(event) => onAcknowledged(event.target.checked)} disabled={busy} />
+          </>
+        )}
+      </ViolationList>
       <ViolationList violations={item.warnings ?? []} title={t.warnings} />
       {item.replacement_member_id && pending && (
         <SwapImpactPreview serviceDate={item.service_date} role={item.role} replacementId={item.replacement_member_id} />
@@ -233,10 +256,16 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const [slot, setSlot] = useState(linkedSlot)
   const [replacementId, setReplacementId] = useState('')
   const [note, setNote] = useState('')
+  // "I knowingly break these rules": one tick for the request being written,
+  // one for the request being decided. Either is taken back when what it was
+  // given for changes.
+  const [composeAcknowledged, setComposeAcknowledged] = useState(false)
+  const [sheetAcknowledged, setSheetAcknowledged] = useState(false)
+  const pickReplacement = (memberId: string) => { setReplacementId(memberId); setComposeAcknowledged(false) }
   const [composing, setComposing] = useState(Boolean(linkedSlot) && hasTeamMember)
   const [openId, setOpenId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
-  const openSheet = (id: string | null) => { setOpenId(id); setReason('') }
+  const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setSheetAcknowledged(false) }
   const [serviceDate, assignmentRole] = slot.split('|') as [string, AssignmentRole]
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps() })
   const publishedSchedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
@@ -270,11 +299,13 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     const after = impact.replacement.after[assignmentRole]
     return Math.abs(before.deviation) - Math.abs(after.deviation)
   }
+  // Candidates who break no rule first, then those a request has to
+  // acknowledge a rule for, and last the ones the backend would refuse: shown
+  // with a reason, not hidden (BLK6-01), but not the ones to pick.
+  const tierOf = (option: SwapOption) => ((option.blocking_violations?.length ?? 0) > 0 ? 2 : (option.rule_violations?.length ?? 0) > 0 ? 1 : 0)
   const orderedOptions = [...(options.data ?? [])].sort((left, right) => {
-    // Candidates the backend would refuse sink to the bottom - they are shown
-    // with a reason, not hidden (BLK6-01), but they are not the ones to pick.
-    const blockedDelta = Number((left.blocking_violations?.length ?? 0) > 0) - Number((right.blocking_violations?.length ?? 0) > 0)
-    if (blockedDelta !== 0) return blockedDelta
+    const tierDelta = tierOf(left) - tierOf(right)
+    if (tierDelta !== 0) return tierDelta
     const leftBenefit = optionBenefit(left.member_id)
     const rightBenefit = optionBenefit(right.member_id)
     if (leftBenefit === null && rightBenefit === null) return left.display_name.localeCompare(right.display_name, locale())
@@ -283,6 +314,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     return rightBenefit - leftBenefit || left.display_name.localeCompare(right.display_name, locale())
   })
   const selectedOption = options.data?.find((option) => option.member_id === replacementId)
+  // The hard rules the request being written breaks: it is sent only
+  // acknowledged, and with a reason long enough to be one.
+  const composeRules = selectedOption?.rule_violations ?? []
+  const breaksRules = composeRules.length > 0
+  const noteLength = note.trim().length
   // The slots a replacement takes when the day couples more than one.
   const bothSlots = selectedOption?.slots && selectedOption.slots.length > 1 ? selectedOption.slots : null
   const refresh = () => {
@@ -302,13 +338,15 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     onSuccess: (_result, input) => {
       const name = options.data?.find((option) => option.member_id === input.replacement_member_id)?.display_name
       setSlot('')
-      setReplacementId('')
+      pickReplacement('')
       setNote('')
       setComposing(false)
       setInbox('moje')
       refresh()
       toast.success(name ? t.swaps.toasts.sentTo(name) : t.swaps.toasts.sent)
     },
+    // A refusal may mean the roster moved under the list of candidates.
+    onError: () => queryClient.invalidateQueries({ queryKey: ['swap-options'] }),
   })
   const settle = (message: string) => ({
     onSuccess: () => {
@@ -316,6 +354,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       refresh()
       toast.success(message)
     },
+    // A refusal may mean the request or the roster moved: read both again, so
+    // the sheet shows what the decision is about now.
+    onError: refresh,
   })
   const accept = useMutation({ mutationFn: api.acceptSwap, ...settle(approvalRequired ? t.swaps.toasts.dutyTaken : t.swaps.toasts.inSchedule) })
   const approve = useMutation({ mutationFn: api.approveSwap, ...settle(t.swaps.toasts.inSchedule) })
@@ -377,8 +418,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   }
   const openItem = openId ? items.find((entry) => entry.id === openId) : undefined
   const decision = openItem ? decisionOf(openItem, viewer) : null
+  const openRules = openItem ? brokenRules(openItem) : []
   const submitDisabled = create.isPending || !schedule?.id || !serviceDate || !replacementId
     || (selectedOption?.blocking_violations?.length ?? 0) > 0
+    || (breaksRules && (!composeAcknowledged || noteLength < RULE_BREAK_REASON_LENGTH))
   const subtitle = swaps.data && [
     t.swaps.summary.awaitingMe(actionable),
     t.swaps.summary.awaitingOthers(otherOpen),
@@ -459,6 +502,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                       <tr key={item.id} className={openId === item.id ? 'on' : undefined}>
                         <th scope="row">
                           <b>{formatDayShort(item.service_date)}</b> {roles[item.role]}
+                          {brokenRules(item).length > 0 && <> <Tag tone="late">{t.swaps.rules.tag}</Tag></>}
                           <small>
                             {relativeDay(item.service_date)}
                             {(item.slots?.length ?? 0) > 1 && ` · ${t.swaps.table.twoSlots}`}
@@ -492,7 +536,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         open={Boolean(openItem)}
         onClose={() => openSheet(null)}
         title={openItem ? t.swaps.sheet.title(dayRole(openItem)) : ''}
-        meta={openItem && <StatusBadge tone={statusTone[openItem.status]}>{statuses[openItem.status]}</StatusBadge>}
+        meta={openItem && (
+          <>
+            <StatusBadge tone={statusTone[openItem.status]}>{statuses[openItem.status]}</StatusBadge>
+            {openRules.length > 0 && <Tag tone="late">{t.swaps.rules.tag}</Tag>}
+          </>
+        )}
         footer={openItem && decision && (
           <>
             <Button size="sm" variant="ghost" onClick={() => openSheet(null)}>{t.common.close}</Button>
@@ -506,9 +555,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 <Button
                   size="sm"
                   variant="primary"
-                  disabled={busy}
+                  disabled={busy || (openRules.length > 0 && !sheetAcknowledged)}
                   loading={busy}
-                  onClick={() => (openItem.status === 'pending_replacement' ? accept.mutate(openItem.id) : approve.mutate(openItem.id))}
+                  onClick={() => (openItem.status === 'pending_replacement' ? accept : approve).mutate({ id: openItem.id, acknowledge: openRules.length > 0 })}
                 >
                   {openItem.status === 'pending_replacement' ? t.swaps.sheet.accept : t.swaps.sheet.approve}
                 </Button>
@@ -518,7 +567,17 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         )}
       >
         {openItem && (
-          <SwapSheet item={openItem} viewer={viewer} approvalRequired={approvalRequired} error={decisionError} reason={reason} onReason={setReason} />
+          <SwapSheet
+            item={openItem}
+            viewer={viewer}
+            approvalRequired={approvalRequired}
+            error={decisionError}
+            reason={reason}
+            onReason={setReason}
+            acknowledged={sheetAcknowledged}
+            onAcknowledged={setSheetAcknowledged}
+            busy={busy}
+          />
         )}
       </Panel>
 
@@ -542,7 +601,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           onSubmit={(event) => {
             event.preventDefault()
             if (schedule?.id && serviceDate && assignmentRole && replacementId) {
-              create.mutate({ schedule_id: schedule.id, service_date: serviceDate, role: assignmentRole, replacement_member_id: replacementId, note })
+              create.mutate({
+                schedule_id: schedule.id,
+                service_date: serviceDate,
+                role: assignmentRole,
+                replacement_member_id: replacementId,
+                note,
+                acknowledge_rule_violations: breaksRules,
+              })
             }
           }}
         >
@@ -559,7 +625,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           )}
           <Field label={t.swaps.compose.myDuty} id="swap-slot" required hint={t.swaps.compose.myDutyHint}>
             {({ id }) => (
-              <Select id={id} name="slot" value={slot} onChange={(event) => { setSlot(event.target.value); setReplacementId('') }} required>
+              <Select id={id} name="slot" value={slot} onChange={(event) => { setSlot(event.target.value); pickReplacement('') }} required>
                 <option value="" disabled>{ownAssignments.length === 0 ? t.swaps.compose.noUpcomingDuties : t.swaps.compose.pickDuty}</option>
                 {ownAssignments.map((item) => (
                   <option key={`${item.service_date}-${item.role}`} value={`${item.service_date}|${item.role}`}>
@@ -583,9 +649,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 {orderedOptions.map((option, index) => {
                   const blockedBy = option.blocking_violations?.[0]
                   const blocked = Boolean(blockedBy)
+                  // What a request to this person would have to acknowledge.
+                  const breaks = blocked ? undefined : option.rule_violations?.[0]
                   const deviation = optionDeviation(option.member_id)
                   const benefit = optionBenefit(option.member_id)
-                  const best = index === 0 && !blocked && (benefit ?? 0) > 0
+                  const best = index === 0 && tierOf(option) === 0 && (benefit ?? 0) > 0
                   return (
                     <button
                       type="button"
@@ -594,7 +662,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                       aria-checked={replacementId === option.member_id}
                       disabled={blocked}
                       className={cx('rank-c', best && 'rank-best', replacementId === option.member_id && 'rank-sel', blocked && 'rank-blocked')}
-                      onClick={() => setReplacementId(option.member_id)}
+                      onClick={() => pickReplacement(option.member_id)}
                     >
                       <span className="rank-no">{blocked ? '–' : index + 1}</span>
                       <span className="rank-nm">
@@ -605,10 +673,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                             option.on_duty_that_day && t.swaps.compose.onDutyThatDay,
                             (option.slots?.length ?? 0) > 1 && t.swaps.compose.takesBothSlots,
                             !blocked && (option.warning_violations?.length ?? 0) > 0 && t.swaps.compose.splitsDaysOff,
+                            blockedBy && <span key="blocked" className="who-out">{t.swaps.compose.blocked(blockedBy.message)}</span>,
+                            breaks && <span key="breaks" className="who-out">{t.swaps.compose.breaksRule(breaks.message)}</span>,
                           ].filter(Boolean).map((fact, index) => (
                             <Fragment key={index}>{index > 0 && ' · '}{fact}</Fragment>
                           ))}
-                          {blockedBy && <span className="who-out"> {t.swaps.compose.blocked(blockedBy.message)}</span>}
                         </small>
                       </span>
                       <span className="rank-facts">
@@ -621,6 +690,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                         )}
                         {!blocked && (benefit ?? 0) > 0 && <span className="rank-fact-ok">{t.swaps.compose.improvesBalance}</span>}
                         {blocked && <span className="rank-fact-bad">{t.swaps.compose.hardRule}</span>}
+                        {breaks && <span className="rank-fact-warn">{t.swaps.compose.needsAcknowledgement}</span>}
                       </span>
                     </button>
                   )
@@ -634,16 +704,37 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             </Box>
           )}
           {selectedOption && (
-            <ViolationList
-              violations={selectedOption.warning_violations ?? []}
-              title={approvalRequired ? t.swaps.compose.warningsWithApproval : t.swaps.compose.warningsWithoutApproval}
-            />
+            <>
+              <ViolationList violations={composeRules} title={t.swaps.rules.breaks}>
+                <div className="box-next">
+                  {(approvalRequired ? t.swaps.compose.seenWithApproval : t.swaps.compose.seenWithoutApproval)(firstName(selectedOption.display_name))}
+                </div>
+                <Checkbox
+                  label={t.swaps.rules.acknowledge}
+                  checked={composeAcknowledged}
+                  onChange={(event) => setComposeAcknowledged(event.target.checked)}
+                  disabled={create.isPending}
+                />
+              </ViolationList>
+              <ViolationList
+                violations={selectedOption.warning_violations ?? []}
+                title={approvalRequired ? t.swaps.compose.warningsWithApproval : t.swaps.compose.warningsWithoutApproval}
+              />
+            </>
           )}
           {serviceDate && assignmentRole && replacementId && (
             <SwapImpactPreview serviceDate={serviceDate} role={assignmentRole} replacementId={replacementId} />
           )}
-          <Field label={t.swaps.compose.note} id="swap-note" hint={t.swaps.compose.noteHint}>
-            {({ id }) => <Textarea id={id} name="note" rows={2} value={note} onChange={(event) => setNote(event.target.value)} />}
+          <Field
+            label={t.swaps.compose.note}
+            id="swap-note"
+            required={breaksRules}
+            hint={breaksRules ? t.swaps.compose.noteRequiredHint(RULE_BREAK_REASON_LENGTH) : t.swaps.compose.noteHint}
+            error={breaksRules && noteLength > 0 && noteLength < RULE_BREAK_REASON_LENGTH ? t.common.reasonTooShort(RULE_BREAK_REASON_LENGTH) : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
+              <Textarea id={id} name="note" rows={2} value={note} required={breaksRules} invalid={invalid} aria-describedby={describedBy} onChange={(event) => setNote(event.target.value)} />
+            )}
           </Field>
           {create.error instanceof ApiError && create.error.violations.length > 0 ? (
             <>
