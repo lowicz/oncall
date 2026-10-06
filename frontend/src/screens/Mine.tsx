@@ -13,8 +13,8 @@ import {
   UserRole,
   api,
 } from '../api'
-import { useMessages } from '../i18n'
-import { availabilityLabels, firstName, roleLabels, shortRoleLabels, swapStatusLabels } from '../lib/labels'
+import { messages, useMessages } from '../i18n'
+import { availabilityLabels, firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
 import { formatPoints } from '../lib/numbers'
@@ -81,7 +81,7 @@ interface DutyDay {
 
 function dutyDays(calendar: CalendarData | undefined, displayName: string, from: string, to: string): DutyDay[] {
   if (!calendar) return []
-  const shortRoles = shortRoleLabels()
+  const { partnerRoles } = messages().mine.duties
   const byDate = new Map<string, Day>(calendar.days.map((day) => [day.service_date, day]))
   const own = calendar.assignments.filter((item) => item.assignee_name === displayName && item.service_date >= from && item.service_date <= to)
   const dates = [...new Set(own.map((item) => item.service_date))].sort((a, b) => a.localeCompare(b))
@@ -95,7 +95,7 @@ function dutyDays(calendar: CalendarData | undefined, displayName: string, from:
       roles: ROLE_ORDER.filter((role) => mine.some((item) => item.role === role)),
       changed: mine.some((item) => item.change_kind || item.is_override),
       partners: others
-        .map((item) => `${shortRoles[item.role]} ${firstName(item.assignee_name)}`)
+        .map((item) => `${partnerRoles[item.role]}: ${firstName(item.assignee_name)}`)
         .join(', '),
     }
   })

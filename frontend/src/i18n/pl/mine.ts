@@ -19,6 +19,8 @@ export const mine = {
     details: 'Szczegóły',
     swap: 'Zamień',
     ongoing: 'trwa',
+    /** The duty a colleague holds on the same day, spelled out in full. */
+    partnerRoles: { primary: 'Primary', secondary: 'Secondary', late_shift: '11–19' },
     afterCorrection: 'po korekcie',
     collidesWithUnavailability: 'koliduje z Twoją niedostępnością',
   },

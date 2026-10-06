@@ -17,7 +17,7 @@ availability** button, calendar, swaps.
 The list of duties in the next 60 days, one row per day: the day and the role
 (two roles on the same day are in one row, for example `SECONDARY + 11–19`),
 and underneath the coverage window, the rate (`1X` or `2X`) and who else is
-on duty that day (`S Marek`). A duty under way today is highlighted and has a
+on duty that day (`Secondary: Marek`). A duty under way today is highlighted and has a
 **Details** button (opens that day on the Schedule); every other one has a
 **Swap** button, which opens the Swaps screen with that duty already selected.
 A day that collides with a filed “Unavailable” has an amber edge and the note

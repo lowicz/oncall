@@ -376,9 +376,9 @@ table.lg th button[aria-sort] { color: var(--fg); }
 .tabs-indicator { display: none; }
 .tab-panel { outline: none; }
 .toasts { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); }
-.toast { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border-radius: var(--r); background: var(--s3); border: 1px solid var(--line2); font-size: 12px; line-height: 16px; box-shadow: var(--shadow-sm); transition: transform 0.2s, opacity 0.2s; }
+.toast { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--r); background: var(--s3); border: 1px solid var(--line2); font-size: 12px; line-height: 16px; box-shadow: var(--shadow-sm); transition: transform 0.2s, opacity 0.2s; }
 .toast[data-starting-style], .toast[data-ending-style] { opacity: 0; transform: translateY(8px); }
-.toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sig); flex: 0 0 auto; margin-top: 4px; }
+.toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sig); flex: 0 0 auto; }
 .toast-ok .toast-dot { background: var(--ok); }
 .toast-warn .toast-dot { background: var(--warn); }
 .toast-bad .toast-dot { background: var(--bad); }
