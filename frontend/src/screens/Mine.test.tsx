@@ -95,7 +95,7 @@ describe('MineScreen duties', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     // Saturday: round-the-clock cover (coverage.py), 2X, the SECONDARY partner named.
     const saturday = (await screen.findByText('sob 19 wrz · PRIMARY')).closest('.list-row') as HTMLElement
-    expect(within(saturday).getByText(/całodobowo · 2X · S Marek/)).toBeInTheDocument()
+    expect(within(saturday).getByText(/całodobowo · 2X · Secondary: Marek/)).toBeInTheDocument()
     expect(within(saturday).getByText(/koliduje z Twoją niedostępnością/)).toBeInTheDocument()
     expect(within(saturday).getByRole('link', { name: 'Zamień' })).toHaveAttribute('href', '/zamiany?data=2026-09-19&rola=primary')
     // Two roles on one day are one row, with both windows.
@@ -407,7 +407,7 @@ describe('MineScreen duty rows', () => {
 
     const today = (await screen.findByText('dziś, czw 10 wrz · PRIMARY')).closest('.list-row') as HTMLElement
     expect(within(today).getByText('dziś, czw 10 wrz · PRIMARY')).toHaveClass('who-you')
-    expect(within(today).getByText(/^trwa · całodobowo · 2X · S Marek, 11–19 Ola · Święto zakładowe/)).toBeInTheDocument()
+    expect(within(today).getByText(/^trwa · całodobowo · 2X · Secondary: Marek, 11–19: Ola · Święto zakładowe/)).toBeInTheDocument()
     expect(within(today).getByText('po korekcie')).toBeInTheDocument()
     expect(within(today).getByRole('link', { name: 'Szczegóły' })).toHaveAttribute('href', '/grafik?dzien=2026-09-10')
 

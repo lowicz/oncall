@@ -16,7 +16,7 @@ dyżury, punkty z przyciskiem **Zgłoś dostępność**, kalendarz, zamiany.
 Lista dyżurów z najbliższych 60 dni, jeden wiersz na dzień: dzień i rola
 (dwie role tego samego dnia są w jednym wierszu, na przykład
 `SECONDARY + 11–19`), a pod spodem okno pokrycia, stawka (`1X` albo `2X`) i
-kto jeszcze ma tego dnia dyżur (`S Marek`). Dyżur trwający dziś jest
+kto jeszcze ma tego dnia dyżur (`Secondary: Marek`). Dyżur trwający dziś jest
 podświetlony i ma przycisk **Szczegóły** (otwiera ten dzień na Grafiku);
 każdy inny ma przycisk **Zamień**, który otwiera ekran Zamiany z tym dyżurem
 już wybranym. Dzień, który koliduje ze zgłoszonym „nie mogę”, ma bursztynową

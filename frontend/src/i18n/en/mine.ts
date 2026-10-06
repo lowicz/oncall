@@ -19,6 +19,8 @@ export const mine: Messages['mine'] = {
     details: 'Details',
     swap: 'Swap',
     ongoing: 'ongoing',
+    /** The duty a colleague holds on the same day, spelled out in full. */
+    partnerRoles: { primary: 'Primary', secondary: 'Secondary', late_shift: '11–19' },
     afterCorrection: 'after a correction',
     collidesWithUnavailability: 'collides with your unavailability',
   },
