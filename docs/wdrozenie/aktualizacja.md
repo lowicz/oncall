@@ -61,8 +61,9 @@ Skrypt nie zakłada wdrożenia od zera: pierwszy start opisują
 ## Co robi
 
 1. Sprawdza katalog, `.env`, polecenia i zainstalowaną jednostkę.
-2. Pobiera z tagu `vX.Y.Z` trzy pliki Compose (`docker-compose.yml`,
-   `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`), `.env.example` i
+2. Pobiera z tagu `vX.Y.Z` cztery pliki Compose (`docker-compose.yml`,
+   `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`,
+   `docker-compose.smtp-ca.yml`), `.env.example` i
    pliki `deploy/systemd/` i `deploy/backup/`. Gdy katalog jest checkoutem git, robi zamiast tego
    `git fetch --tags` i `git checkout` tagu.
 3. Buduje nowy `.env` - patrz [niżej](#jak-zmienia-się-env).

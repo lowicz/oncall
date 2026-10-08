@@ -139,6 +139,10 @@ class Settings(BaseSettings):
     #: is refused at startup.
     smtp_use_tls: bool = False
     smtp_starttls: bool = True
+    #: PEM bundle of the CAs that sign the SMTP server's certificate, for an
+    #: internal CA the image does not trust. Added to the image's public
+    #: roots, which alone decide when it is unset.
+    smtp_ca_file: str | None = None
     email_from: str = "On-call <oncall@example.com>"
 
     public_base_url: str = "http://localhost:8080"
@@ -230,11 +234,12 @@ class Settings(BaseSettings):
             raise ValueError("ONCALL_SWITCH_URL must start with https:// or http://")
         return url
 
-    @field_validator("smtp_host", "smtp_local_hostname")
+    @field_validator("smtp_host", "smtp_local_hostname", "smtp_ca_file")
     @classmethod
     def _blank_smtp_host_is_unset(cls, value: str | None) -> str | None:
         """Blank is unset, as Compose passes an unset variable: no host turns
-        e-mail off, no local hostname lets the EHLO carry the system's FQDN."""
+        e-mail off, no local hostname lets the EHLO carry the system's FQDN,
+        no CA file leaves the image's public roots alone."""
         return (value or "").strip() or None
 
     @field_validator("smtp_username", "smtp_password")

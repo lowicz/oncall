@@ -1,0 +1,29 @@
+# The SMTP server's CA for the API and the worker. Use it as an overlay on the
+# base file when the mail server's certificate comes from an internal CA that
+# the image does not trust:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.smtp-ca.yml up -d
+#   podman compose -f docker-compose.yml -f docker-compose.smtp-ca.yml up -d
+#
+# The worker sends the notifications and the api the backup alert
+# (deploy/backup/oncall-backup.sh), so both get the bundle. It combines with
+# the TLS and LDAP CA overlays. ONCALL_SMTP_CA_FILE names the PEM bundle on
+# the host; the default is the organisation bundle the TLS overlay mounts for
+# nginx. Its CAs are added to the image's public roots, so the overlay never
+# takes trust away. The file must exist, readable by the image's user, before
+# the containers start: a bind source that does not exist is created as an
+# empty directory, and every send then fails with `Plik CA serwera SMTP jest
+# niedostępny`.
+#
+# Full guide: docs/wdrozenie/uruchomienie.md, "Serwer SMTP".
+services:
+  api:
+    environment:
+      ONCALL_SMTP_CA_FILE: /etc/oncall/smtp-ca.pem
+    volumes:
+      - ${ONCALL_SMTP_CA_FILE:-./tls/ca.pem}:/etc/oncall/smtp-ca.pem:ro
+  worker:
+    environment:
+      ONCALL_SMTP_CA_FILE: /etc/oncall/smtp-ca.pem
+    volumes:
+      - ${ONCALL_SMTP_CA_FILE:-./tls/ca.pem}:/etc/oncall/smtp-ca.pem:ro

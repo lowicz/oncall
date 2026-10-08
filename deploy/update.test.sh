@@ -251,7 +251,7 @@ chmod +x "$stubs/curl" "$stubs/podman" "$stubs/systemctl"
 # The release the stubs serve: this checkout's files with a new .env.example
 # key and changed units, and a backup script that logs how it was called.
 release=$work/release
-for file in docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml .env.example \
+for file in docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml .env.example \
   deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh \
   deploy/backup/setup.sh deploy/backup/oncall-backup.service deploy/backup/oncall-backup-alert.service \
   deploy/backup/oncall-backup.timer; do

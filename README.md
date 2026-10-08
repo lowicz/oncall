@@ -239,7 +239,9 @@ the outbox row's id as a fixed `Message-ID`, so a repeat is recognisable. SMTP
 is external, configured with `ONCALL_SMTP_HOST`, `ONCALL_SMTP_PORT`,
 `ONCALL_SMTP_USERNAME`, `ONCALL_SMTP_PASSWORD`, `ONCALL_SMTP_USE_TLS` /
 `ONCALL_SMTP_STARTTLS`, `ONCALL_EMAIL_FROM` and, when the server insists on a
-client name, `ONCALL_SMTP_LOCAL_HOSTNAME`; without `ONCALL_SMTP_HOST` messages
+client name, `ONCALL_SMTP_LOCAL_HOSTNAME`; the server's certificate is always
+verified (`ONCALL_SMTP_CA_FILE` with the `docker-compose.smtp-ca.yml` overlay
+for an internal CA); without `ONCALL_SMTP_HOST` messages
 are marked `skipped` with the reason in the outbox. The username and password
 go together: both log in with SMTP AUTH, neither sends to a relay that trusts
 the EHLO name, and one alone stops the application at startup. Addresses come

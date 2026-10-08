@@ -4,10 +4,10 @@ For the stack to come up on its own after a machine reboot and after an unattend
 The unit is of type `oneshot` with `RemainAfterExit=yes` and calls the script `deploy/systemd/oncall-stack.sh`, not a pasted-in `podman compose` command.
 The script is the only entry point to the stack: the Compose files remain the definition of the services.
 
-The default, production path starts all three files:
+The default, production path starts all four files:
 
 ```bash
-podman compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml up -d
+podman compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml -f docker-compose.smtp-ca.yml up -d
 ```
 
 This is not Quadlet and it does not change the behaviour of the images, TLS or LDAP.
@@ -19,7 +19,7 @@ The unit's job is to create the stack when the user's systemd starts.
 
 A checkout of the release with the Compose files and a filled-in `.env` - see [Running the stack](uruchomienie.md).
 Podman with `podman compose` and the user socket (`podman.socket`).
-The default path also requires the TLS and directory CA overlays - see [TLS](tls.md) and [LDAP](ldap.md).
+The default path also requires the TLS, directory CA and SMTP server CA overlays - see [TLS](tls.md), [LDAP](ldap.md) and [SMTP server](uruchomienie.md#smtp-server).
 
 ## Installation
 
@@ -40,7 +40,7 @@ In order, it:
 
 ## Without an overlay
 
-A host that needs neither TLS nor the directory CA skips that file **without editing the unit**.
+A host that needs neither TLS, the directory CA nor the SMTP server CA skips that file **without editing the unit**.
 Pass the Compose file names to the setup script:
 
 ```bash

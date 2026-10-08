@@ -49,7 +49,7 @@ unit=oncall.service
 # checkout. .env and tls/ are the host's own and are never in this list.
 # Releases before deploy/systemd or deploy/backup existed lack unit_files;
 # the host keeps its own.
-release_files="docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml .env.example"
+release_files="docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml .env.example"
 unit_files="deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh \
 deploy/backup/oncall-backup.sh deploy/backup/setup.sh deploy/backup/oncall-backup.service \
 deploy/backup/oncall-backup-alert.service deploy/backup/oncall-backup.timer"

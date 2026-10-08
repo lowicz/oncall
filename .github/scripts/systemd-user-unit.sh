@@ -38,8 +38,8 @@ absent "$unit: does not set WorkingDirectory" "$unit" '^WorkingDirectory='
 absent "$unit: does not load EnvironmentFile" "$unit" '^EnvironmentFile='
 absent "$unit: is not a system service" "$unit" 'multi-user\.target'
 
-present "$stack: default is the three production files" "$stack" \
-  'docker-compose\.yml docker-compose\.tls\.yml docker-compose\.ldap-ca\.yml'
+present "$stack: default is the four production files" "$stack" \
+  'docker-compose\.yml docker-compose\.tls\.yml docker-compose\.ldap-ca\.yml docker-compose\.smtp-ca\.yml'
 present "$stack: down is compose down" "$stack" 'compose_action=\(down\)'
 absent "$stack: down does not pass --volumes" "$stack" '--volumes|down -v'
 absent "$stack: does not source .env" "$stack" '(^|[[:space:]])(\.|source)[[:space:]]+[^[:space:]]*\.env'
@@ -52,4 +52,4 @@ if [ "$failed" -ne 0 ]; then
   echo "Keep the user unit as a oneshot that calls oncall-stack.sh; do not paste compose into the unit or delete volumes on stop." >&2
   exit 1
 fi
-echo "systemd user unit: oneshot calls oncall-stack.sh; production path is the three compose files"
+echo "systemd user unit: oneshot calls oncall-stack.sh; production path is the four compose files"

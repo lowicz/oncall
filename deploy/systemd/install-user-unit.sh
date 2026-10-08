@@ -6,7 +6,7 @@
 # Usage: install-user-unit.sh CHECKOUT_DIR [compose-file ...]
 # CHECKOUT_DIR is the deploy checkout (compose files and .env). It is not
 # guessed from the home directory. With no compose-file arguments the shipped
-# production path is all three files. Extra names omit an overlay without
+# production path is all four files. Extra names omit an overlay without
 # editing the unit (written as ONCALL_COMPOSE_FILES on the drop-in).
 # The script does not read .env.
 set -euo pipefail
@@ -68,7 +68,7 @@ fi
 
 compose_files=()
 if [ "$#" -eq 0 ]; then
-  compose_files=(docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml)
+  compose_files=(docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml)
 else
   for file in "$@"; do
     case $file in
