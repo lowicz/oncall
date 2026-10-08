@@ -4,10 +4,10 @@
 Jednostka jest typu `oneshot` z `RemainAfterExit=yes` i woła skrypt `deploy/systemd/oncall-stack.sh`, a nie wklejone polecenie `podman compose`.
 Skrypt jest jedynym wejściem na stos: pliki Compose zostają definicją usług.
 
-Domyślna, produkcyjna ścieżka startuje wszystkie trzy pliki:
+Domyślna, produkcyjna ścieżka startuje wszystkie cztery pliki:
 
 ```bash
-podman compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml up -d
+podman compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml -f docker-compose.smtp-ca.yml up -d
 ```
 
 To nie jest Quadlet i nie zmienia zachowania obrazów, TLS ani LDAP.
@@ -19,7 +19,7 @@ Zadaniem jednostki jest utworzyć stos, gdy startuje systemd użytkownika.
 
 Checkout wydania z plikami Compose i uzupełnionym `.env` - patrz [Uruchomienie](uruchomienie.md).
 Podman z `podman compose` oraz gniazdem użytkownika (`podman.socket`).
-Domyślna ścieżka wymaga też nakładek TLS i CA katalogu - patrz [TLS](tls.md) i [LDAP](ldap.md).
+Domyślna ścieżka wymaga też nakładek TLS, CA katalogu i CA serwera SMTP - patrz [TLS](tls.md), [LDAP](ldap.md) i [Serwer SMTP](uruchomienie.md#serwer-smtp).
 
 ## Instalacja
 
@@ -40,7 +40,7 @@ Kolejno:
 
 ## Bez nakładki
 
-Host, który nie potrzebuje TLS albo CA katalogu, pomija plik **bez edycji jednostki**.
+Host, który nie potrzebuje TLS, CA katalogu albo CA serwera SMTP, pomija plik **bez edycji jednostki**.
 Podaj nazwy plików Compose skryptowi setupu:
 
 ```bash

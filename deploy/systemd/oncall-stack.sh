@@ -4,7 +4,7 @@
 # (WorkingDirectory). Compose files stay the stack definition; this script
 # does not duplicate them as Quadlet.
 #
-# The shipped production path starts all three files. A host that does not
+# The shipped production path starts all four files. A host that does not
 # need an overlay sets ONCALL_COMPOSE_FILES (colon-separated, relative to
 # the checkout) in the systemd drop-in - not by editing the unit. This
 # script does not read .env; compose reads it from the working directory.
@@ -42,7 +42,7 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-default_files=(docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml)
+default_files=(docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml)
 compose_files=()
 if [ -n "${ONCALL_COMPOSE_FILES:-}" ]; then
   IFS=':' read -r -a compose_files <<< "$ONCALL_COMPOSE_FILES"

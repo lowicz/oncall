@@ -62,8 +62,9 @@ described in [Running the stack](uruchomienie.md) and [Systemd](systemd.md).
 ## What it does
 
 1. Checks the directory, `.env`, the commands and the installed unit.
-2. Fetches from the `vX.Y.Z` tag the three Compose files (`docker-compose.yml`,
-   `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`), `.env.example` and
+2. Fetches from the `vX.Y.Z` tag the four Compose files (`docker-compose.yml`,
+   `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`,
+   `docker-compose.smtp-ca.yml`), `.env.example` and
    the `deploy/systemd/` and `deploy/backup/` files. When the directory is a git checkout, it does
    `git fetch --tags` and a `git checkout` of the tag instead.
 3. Builds the new `.env` - see [below](#how-env-changes).

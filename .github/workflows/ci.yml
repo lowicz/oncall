@@ -227,6 +227,10 @@ jobs:
         run: |
           docker compose -f docker-compose.yml -f docker-compose.ldap-ca.yml config --quiet
           docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml config --quiet
+      - name: Production file with the SMTP CA overlay, alone and with every other overlay
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.smtp-ca.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml -f docker-compose.smtp-ca.yml config --quiet
       - name: Development overlay, with and without TLS
         run: |
           docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet

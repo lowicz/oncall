@@ -147,6 +147,31 @@ ONCALL_SMTP_STARTTLS=false
 ONCALL_EMAIL_FROM="Dyżury <oncall@firma.example>"
 ```
 
+Certyfikat serwera przy STARTTLS i TLS od pierwszego bajtu jest zawsze
+weryfikowany. Serwer z certyfikatem wewnętrznego CA, którego obraz nie zna,
+kończy każdą wysyłkę błędem `certificate verify failed: self-signed
+certificate in certificate chain` (albo `unable to get local issuer
+certificate`). Pakiet PEM z tym CA wskazuje `ONCALL_SMTP_CA_FILE`, a do `api`
+(alarm o kopii) i `worker` (powiadomienia) montuje go nakładka
+`docker-compose.smtp-ca.yml`:
+
+```bash
+# w .env; domyślnie ./tls/ca.pem, pakiet nakładki TLS
+ONCALL_SMTP_CA_FILE=/etc/pki/tls/certs/firma-ca.pem
+```
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.smtp-ca.yml up -d
+```
+
+CA z pliku dochodzą do publicznych CA obrazu, nie zastępują ich, więc ten
+sam pakiet obsłuży serwer w sieci wewnętrznej i publiczny. Domyślna ścieżka
+[systemd](systemd.md) startuje tę nakładkę razem z nakładkami TLS i CA
+katalogu. Plik musi istnieć i być czytelny dla użytkownika obrazu przed
+startem kontenerów: brakujące źródło montowania Compose tworzy jako pusty
+katalog, a każda wysyłka kończy się wtedy błędem `Plik CA serwera SMTP jest
+niedostępny`.
+
 Zmiana działa po ponownym uruchomieniu `api` i `worker`. Czy poczta dochodzi,
 sprawdza próbny alarm `./deploy/backup/oncall-backup.sh alert --test`, patrz
 [Sprawdzenie](kopie-zapasowe.md#sprawdzenie).

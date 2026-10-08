@@ -1,5 +1,7 @@
 import base64
+import ssl
 from dataclasses import replace
+from pathlib import Path
 
 import aiosmtplib
 import pytest
@@ -12,7 +14,7 @@ from oncall.notifications.base import (
     TemporaryNotificationError,
 )
 from oncall.notifications.email import SmtpEmailProvider
-from tests.smtp_relay import Relay, serving
+from tests.smtp_relay import Relay, private_ca, serving
 
 
 def settings_with(**overrides) -> Settings:
@@ -305,3 +307,46 @@ async def test_a_refused_login_is_permanent() -> None:
 
     assert not isinstance(refused.value, TemporaryNotificationError)
     assert relay.messages == []
+
+
+async def test_a_server_on_an_internal_pki_is_trusted_through_its_ca_file(tmp_path: Path) -> None:
+    """A certificate from an internal CA fails verification against the
+    image's public roots, as the deployment that reported it saw; with that
+    CA in `smtp_ca_file` the same STARTTLS session carries the message."""
+    ca_file, server_tls = private_ca(tmp_path)
+    with serving(Relay(tls=server_tls)) as relay:
+        with pytest.raises(
+            TemporaryNotificationError, match="self-signed certificate in certificate chain"
+        ):
+            await through(relay, smtp_starttls=True).send(message())
+        assert relay.messages == []
+
+        await through(relay, smtp_starttls=True, smtp_ca_file=str(ca_file)).send(message())
+
+    refused, delivered = ["EHLO", "STARTTLS"], ["EHLO", "MAIL", "RCPT", "DATA", "QUIT"]
+    assert relay.verbs == refused + refused + delivered
+    assert len(relay.messages) == 1
+
+
+def test_the_ca_file_is_added_to_the_public_roots(tmp_path: Path) -> None:
+    ca_file, _ = private_ca(tmp_path)
+    public = SmtpEmailProvider(settings_with()).tls_context().cert_store_stats()["x509_ca"]
+
+    context = SmtpEmailProvider(settings_with(smtp_ca_file=str(ca_file))).tls_context()
+
+    assert context.cert_store_stats()["x509_ca"] == public + 1
+    assert context.verify_mode is ssl.CERT_REQUIRED
+    assert context.check_hostname
+
+
+@pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
+def test_a_blank_ca_file_leaves_the_public_roots_alone(blank) -> None:
+    assert settings_with(smtp_ca_file=blank).smtp_ca_file is None
+
+
+async def test_an_unreadable_ca_file_is_a_temporary_failure_naming_it(tmp_path: Path) -> None:
+    """Compose creates a missing bind source as an empty directory; the
+    message waits for the operator to mount the file instead of being lost."""
+    provider = SmtpEmailProvider(settings_with(smtp_ca_file=str(tmp_path)))
+    with pytest.raises(TemporaryNotificationError, match=f"Plik CA serwera SMTP.*{tmp_path}"):
+        await provider.send(message())

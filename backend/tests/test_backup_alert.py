@@ -5,13 +5,14 @@ settings."""
 import io
 import runpy
 import sys
+from pathlib import Path
 
 import aiosmtplib
 import pytest
 
 from oncall import backup_alert, config
 from oncall.config import Settings
-from tests.smtp_relay import Relay, serving
+from tests.smtp_relay import Relay, private_ca, serving
 
 ARGS = [
     "--to",
@@ -145,3 +146,21 @@ def test_the_alert_goes_out_with_or_without_an_smtp_login(monkeypatch, credentia
     assert relay.commands[0] == "EHLO oncall-prod.example.com"
     assert relay.verbs.count("AUTH") == (2 if credentials else 0)
     assert [b"pg_dump: connection refused" in mail for mail in relay.messages] == [True, True]
+
+
+def test_the_alert_reaches_a_server_on_an_internal_pki_through_its_ca_file(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """`oncall-backup.sh alert --test` against a STARTTLS server whose
+    certificate an internal CA issued: refused without the CA, sent with it."""
+    ca_file, server_tls = private_ca(tmp_path)
+    with serving(Relay(tls=server_tls)) as relay:
+        for ca in (None, str(ca_file)):
+            configured = settings(smtp_host="127.0.0.1", smtp_port=relay.port, smtp_ca_file=ca)
+            monkeypatch.setattr(backup_alert, "get_settings", lambda c=configured: c)
+            assert run(monkeypatch, [*ARGS[:2], *ARGS[4:], "--test"], "") == (0 if ca else 1)
+
+    output = capsys.readouterr()
+    assert "certificate verify failed: self-signed certificate in certificate chain" in output.err
+    assert "backup alert sent to admin@example.com" in output.out
+    assert len(relay.messages) == 1

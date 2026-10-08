@@ -3,17 +3,22 @@
 It speaks just enough of RFC 5321 for aiosmtplib to hand over a message and
 records what the client said, so a test sees the conversation a real server
 would: the EHLO name, whether the client logged in, the envelope and the
-message. It serves from a thread of its own, so a test that runs an event
-loop of its own (`asyncio.run` in `oncall.backup_alert`) reaches it as well
-as an async test does.
+message. Given a server context it offers STARTTLS, and `private_ca` issues
+the certificate for one from a CA of its own, as an internal PKI does. It
+serves from a thread of its own, so a test that runs an event loop of its own
+(`asyncio.run` in `oncall.backup_alert`) reaches it as well as an async test
+does.
 """
 
 import base64
 import socketserver
+import ssl
+import subprocess
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
@@ -25,6 +30,9 @@ class Relay:
     #: client - how a relay that trusts the application's identity decides.
     #: None lets every client send.
     trusted_client: str | None = None
+    #: Offer STARTTLS and upgrade the connection with this server context.
+    #: None is a relay that speaks plain text only.
+    tls: ssl.SSLContext | None = None
     port: int = 0
     #: Every command line the client sent, in order.
     commands: list[str] = field(default_factory=list)
@@ -60,7 +68,16 @@ class _Session(socketserver.StreamRequestHandler):
                 case "EHLO":
                     client = argument
                     offers = ["AUTH PLAIN"] if relay.credentials else []
+                    if relay.tls and not isinstance(self.request, ssl.SSLSocket):
+                        offers.append("STARTTLS")
                     self.reply(250, "relay.test", "8BITMIME", *offers, "SIZE 10240000")
+                case "STARTTLS" if relay.tls:
+                    self.reply(220, "2.0.0 Ready to start TLS")
+                    try:
+                        self.request = relay.tls.wrap_socket(self.request, server_side=True)
+                    except ssl.SSLError:
+                        return  # the client refused the certificate
+                    self.setup()
                 case "AUTH":
                     logged_in = self.authenticate(argument)
                 case "MAIL" if relay.credentials and not logged_in:
@@ -105,6 +122,33 @@ class _Server(socketserver.ThreadingTCPServer):
     def __init__(self, relay: Relay) -> None:
         super().__init__(("127.0.0.1", 0), _Session)
         self.relay = relay
+
+
+def private_ca(directory: Path) -> tuple[Path, ssl.SSLContext]:
+    """A CA of its own and a server context with a certificate it issued
+    for 127.0.0.1; returns the CA's PEM and that context. The server sends
+    its chain with the root, so a client that does not trust the CA reads
+    "self-signed certificate in certificate chain"."""
+
+    def openssl(*args: str) -> None:
+        subprocess.run(["openssl", *args], cwd=directory, check=True, capture_output=True)
+
+    key = ["-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes"]
+    ca = ["-subj", "/CN=Internal Test CA", "-addext", "keyUsage=critical,keyCertSign"]
+    openssl("req", "-x509", *key, *ca, "-keyout", "ca.key", "-out", "ca.pem", "-days", "1")
+    openssl("req", *key, "-subj", "/CN=relay", "-keyout", "server.key", "-out", "server.csr")
+    (directory / "server.ext").write_text(
+        "subjectAltName=IP:127.0.0.1\nbasicConstraints=CA:FALSE\n"
+        "keyUsage=digitalSignature\nextendedKeyUsage=serverAuth\n"
+        "subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid\n"
+    )
+    issue = ["-CA", "ca.pem", "-CAkey", "ca.key", "-extfile", "server.ext", "-days", "1"]
+    openssl("x509", "-req", *issue, "-in", "server.csr", "-out", "server.pem")
+    chain = directory / "chain.pem"
+    chain.write_text((directory / "server.pem").read_text() + (directory / "ca.pem").read_text())
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain(chain, directory / "server.key")
+    return directory / "ca.pem", context
 
 
 @contextmanager

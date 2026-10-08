@@ -17,6 +17,8 @@ combinations=(
   "docker-compose.yml docker-compose.tls.yml"
   "docker-compose.yml docker-compose.ldap-ca.yml"
   "docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml"
+  "docker-compose.yml docker-compose.smtp-ca.yml"
+  "docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml"
   "docker-compose.yml docker-compose.dev.yml"
   "docker-compose.yml docker-compose.dev.yml docker-compose.tls.yml"
 )
