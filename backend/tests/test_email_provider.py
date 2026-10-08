@@ -335,7 +335,8 @@ def test_the_ca_file_is_added_to_the_public_roots(tmp_path: Path) -> None:
     context = SmtpEmailProvider(settings_with(smtp_ca_file=str(ca_file))).tls_context()
 
     assert context.cert_store_stats()["x509_ca"] == public + 1
-    assert context.verify_mode is ssl.CERT_REQUIRED and context.check_hostname
+    assert context.verify_mode is ssl.CERT_REQUIRED
+    assert context.check_hostname
 
 
 @pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
