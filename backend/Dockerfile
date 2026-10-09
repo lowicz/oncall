@@ -17,7 +17,7 @@ ARG PYTHON_IMAGE=python:3.14.8-slim
 FROM ${PYTHON_IMAGE} AS build
 # The uv release pyproject.toml pins ([tool.uv] required-version); `uv sync`
 # below refuses to run under any other.
-COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /bin/uv
 WORKDIR /app
 # Use the interpreter of this image, never a downloaded one, and leave no
 # cache in the layer.
