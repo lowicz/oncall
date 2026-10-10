@@ -16,7 +16,7 @@ dependencies = [
   "aiosmtplib==5.1.3",
   "alembic==1.20.0",
   "argon2-cffi==25.1.0",
-  "asyncpg==0.31.0",
+  "asyncpg==0.32.0",
   "email-validator==2.3.0",
   "fastapi==0.142.2",
   "holidays==0.106",
