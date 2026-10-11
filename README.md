@@ -227,11 +227,12 @@ instead. Rejection and withdrawal need a reason, and writing the swap in
 changes only the selected slot and increments the published version.
 [Swaps](docs/uzytkownik/zamiany.md) · [EN](docs/en/uzytkownik/zamiany.md).
 
-**E-mail notifications.** Swap events, publications, coordinator overrides and
+**E-mail notifications.** Swap events, publications, coordinator overrides,
 rotation notices (whoever starts a role hears about it on the last Polish
 working day before and on the first day, with a link to `ONCALL_SWITCH_URL`
-when PRIMARY starts) enqueue rows in `notification_outbox` inside the
-business transaction; the `worker` service (`python -m oncall.worker`) drains them with exponential
+when PRIMARY starts) and the daily digest telling every coordinator and admin
+who is on duty today (`ONCALL_COORDINATOR_DIGEST_HOUR`, default 8) enqueue
+rows in `notification_outbox` inside the business transaction; the `worker` service (`python -m oncall.worker`) drains them with exponential
 backoff through channel providers (`email` today, more can plug into the same
 outbox). Delivery is at-least-once under a lease
 (`ONCALL_NOTIFICATION_LEASE_SECONDS`, default 300), and every message carries

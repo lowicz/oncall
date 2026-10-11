@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from oncall.domain.calendar.models import WEEKDAYS
+from oncall.domain.digest import Gap
 from oncall.domain.vocabulary import ONCALL_ROLES, ROLE_LABELS, AssignmentRole
 from oncall.notifications import layout
 from oncall.notifications.layout import (
@@ -941,6 +942,64 @@ def rotation_same_day(
         note=Note(_SWITCH_NUMBER) if primary else None,
         action=action,
         app=app,
+    )
+
+
+#: The months as a date names them: "11 października".
+_MONTHS = (
+    "stycznia",
+    "lutego",
+    "marca",
+    "kwietnia",
+    "maja",
+    "czerwca",
+    "lipca",
+    "sierpnia",
+    "września",
+    "października",
+    "listopada",
+    "grudnia",
+)
+
+_GAPS = {Gap.unstaffed: "brak obsady", Gap.day_off: "brak dyżuru (dzień wolny)"}
+
+
+def _holder(holder: str | Gap) -> Html:
+    """Who holds a role today. Nobody where somebody should be is a status in
+    the interface's alarm colour; no shift on a day off is only said."""
+    if holder is Gap.unstaffed:
+        return status_tag(_GAPS[holder], Tone.bad)
+    return text(_GAPS[holder]) if isinstance(holder, Gap) else strong(holder)
+
+
+def duty_digest(
+    *, day: date, holders: list[tuple[AssignmentRole, str | Gap]], app: Brand
+) -> RenderedEmail:
+    """Sent to every coordinator and admin on `day`: who holds each role
+    today, in role order, or why nobody does. A day with nobody at all is a
+    day no schedule in force reaches, and the mail says so."""
+    lead = f"Dziś ({format_day(day)}) na dyżurze:"
+    lines = "\n".join(
+        f"- {ROLE_LABELS[role]}: {_GAPS[holder] if isinstance(holder, Gap) else holder}"
+        for role, holder in holders
+    )
+    note = None
+    if all(isinstance(holder, Gap) for _, holder in holders):
+        note = Note("Na dziś nie ma opublikowanego grafiku.", Tone.bad)
+    elif any(holder is Gap.unstaffed for _, holder in holders):
+        note = Note("Nie wszystkie dyżury są dziś obsadzone.", Tone.bad)
+    warning = f"{note.body}\n" if note else ""
+    action = _schedule_action(app)
+    return _render(
+        app=app,
+        subject=f"Dyżury na dziś, {day.day} {_MONTHS[day.month - 1]}",
+        body=f"{lead}\n{lines}\n\n{warning}{action.label}: {action.url}\n",
+        eyebrow="Dyżury",
+        title="Dyżury na dziś",
+        lead=text(lead),
+        slots=[_slot(day, role, _holder(holder)) for role, holder in holders],
+        note=note,
+        action=action,
     )
 
 

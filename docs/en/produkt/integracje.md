@@ -2,9 +2,9 @@
 
 ## E-mail notifications
 
-Swap lifecycle events, schedule publications, coordinator's corrections and
-duty-start notices **write a row to the `notification_outbox`
-table in the same transaction as the business change**. A separate worker
+Swap lifecycle events, schedule publications, coordinator's corrections,
+duty-start notices and the coordinators' daily message **write a row to the
+`notification_outbox` table in the same transaction as the business change**. A separate worker
 process drains the queue with exponential back-off and delivers the messages
 through channel providers.
 
@@ -66,6 +66,18 @@ When PRIMARY is among the roles starting, the first-day reminder asks for the
 on-call number to be switched and, if `ONCALL_SWITCH_URL` is set, its button
 leads to the switching page. Each of the two messages goes to a person at most
 once, so further worker passes during the day duplicate nothing.
+
+Every coordinator and administrator gets a daily message, at
+`ONCALL_COORDINATOR_DIGEST_HOUR` (Warsaw time, 8 by default), titled “Dyżury
+na dziś” (today's duties): who holds PRIMARY, SECONDARY and 11–19 today,
+without phone numbers. It also goes out at weekends and on holidays, because
+PRIMARY and SECONDARY run every day, and it cannot be switched off. A role
+nobody holds is described as “brak obsady” (unstaffed), and 11–19 on a day off
+as “brak dyżuru (dzień wolny)” (no duty, day off). When no schedule is
+published for the day, the message still goes out and says so plainly. If the
+worker was not running at that hour, the message goes out later the same day;
+each person gets it at most once a day, including a coordinator added after
+that hour.
 
 ## ICS feeds
 

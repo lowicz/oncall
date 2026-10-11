@@ -7,7 +7,8 @@ independent loops in one event loop:
 * the **notification loop** drains a batch of pending outbox rows through the
   registered channel providers and, after the configured hour in
   Europe/Warsaw, enqueues the notices owed today to whoever starts a
-  rotation role (`oncall.domain.handover`);
+  rotation role (`oncall.domain.handover`) and, after an hour of its own,
+  the coordinators' digest of who is on duty today (`oncall.domain.digest`);
 * one or more **generation lanes** claim queued ``ScheduleRun`` rows with
   ``SELECT ... FOR UPDATE SKIP LOCKED`` and solve them;
 * the **metrics loop** samples how much work is waiting in each and reports it
@@ -21,8 +22,8 @@ independent loops in one event loop:
 The loops are independent so a generation that takes a minute no longer holds
 back a swap notification behind it. The solve itself runs in
 a worker thread, so the notification loop keeps its rhythm while a lane is
-busy. Notices are deduplicated per timing, first day and person, so the scan
-can repeat safely within the day.
+busy. Notices are deduplicated per timing, first day and person, and the
+digest per day and account, so the scans can repeat safely within the day.
 
 Every database step opens exactly one `SqlAlchemyUnitOfWork` on the session
 factory the process was started with, and that unit of work is the only thing
@@ -47,6 +48,7 @@ import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # register
 from oncall.config import get_settings
 from oncall.database import SessionFactory, SqlAlchemyUnitOfWork
 from oncall.domain.clock import as_utc, business_today, utc_now
+from oncall.domain.digest import send_daily_digest
 from oncall.domain.handover import remind_of_handover
 from oncall.domain.scheduling import generation
 from oncall.domain.scheduling.errors import GenerationFailed
@@ -56,6 +58,7 @@ from oncall.domain.scheduling.solver import ProgressCallback
 from oncall.domain.swaps.use_cases import expire_swaps
 from oncall.domain.team import Actor
 from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.digest import digest_ports
 from oncall.infrastructure.sqlalchemy.handover import handover_ports
 from oncall.infrastructure.sqlalchemy.scheduling import generation_ports
 from oncall.infrastructure.sqlalchemy.scheduling_generation import (
@@ -119,13 +122,22 @@ async def scan_handover(db: AsyncSession, *, now_warsaw: datetime) -> int:
     )
 
 
+async def scan_digest(db: AsyncSession, *, now_warsaw: datetime) -> int:
+    """Enqueue today's digest for the coordinators who have not had it;
+    returns the number enqueued."""
+    return await send_daily_digest(
+        now_warsaw, get_settings().coordinator_digest_hour, digest_ports(db)
+    )
+
+
 async def notification_cycle(factory: Sessions) -> dict[str, int]:
-    """One outbox drain plus one rotation-notice scan.
+    """One outbox drain, one rotation-notice scan and one digest scan.
 
     Runs on a fixed rhythm in the worker, independent of any generation in
     flight, so a notification enqueued mid-generation is delivered within two
     of these cycles rather than waiting out the solve. The drain owns its own
-    units of work (see `drain_outbox`); the scan is one more.
+    units of work (see `drain_outbox`); each scan is one more, so a digest
+    that fails leaves the rotation notices queued.
     """
     settings = get_settings()
     stats = await drain_outbox(
@@ -135,8 +147,11 @@ async def notification_cycle(factory: Sessions) -> dict[str, int]:
         max_attempts=settings.notification_max_attempts,
         lease=timedelta(seconds=settings.notification_lease_seconds),
     )
+    now_warsaw = utc_now().astimezone(WARSAW)
     async with SqlAlchemyUnitOfWork(factory) as db:
-        stats["handover"] = await scan_handover(db, now_warsaw=utc_now().astimezone(WARSAW))
+        stats["handover"] = await scan_handover(db, now_warsaw=now_warsaw)
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        stats["digest"] = await scan_digest(db, now_warsaw=now_warsaw)
     return stats
 
 

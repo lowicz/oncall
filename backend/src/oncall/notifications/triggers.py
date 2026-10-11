@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
+from oncall.domain.digest import DutyDigest, Gap
 from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import ScheduledDuty
@@ -657,3 +658,33 @@ async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> i
         dedup_key=f"rotation:{notice.timing.value}:{notice.starts_on.isoformat()}:{member_id}",
     )
     return 0 if queued is None else 1
+
+
+async def enqueue_duty_digest(db: AsyncSession, digest: DutyDigest) -> int:
+    """Queue the day's digest for every coordinator and admin, at most once
+    per day and account; answers how many were queued."""
+    rendered = templates.duty_digest(
+        day=digest.day,
+        holders=list(digest.holders),
+        app=Brand.from_settings(get_settings()),
+    )
+    context = {
+        "event": "duty_digest",
+        "day": digest.day.isoformat(),
+        "holders": [
+            {
+                "role": role.value,
+                **({"gap": holder.value} if isinstance(holder, Gap) else {"holder": holder}),
+            }
+            for role, holder in digest.holders
+        ],
+    }
+    queued = 0
+    for coordinator in await _active_coordinators(db):
+        row = await enqueue_notification(
+            db,
+            _message(coordinator.email or "", rendered, context),
+            dedup_key=f"digest:{digest.day.isoformat()}:{coordinator.id}",
+        )
+        queued += row is not None
+    return queued

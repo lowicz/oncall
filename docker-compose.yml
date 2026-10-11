@@ -130,6 +130,7 @@ services:
       ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-On-call <oncall@example.com>}
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
+      ONCALL_COORDINATOR_DIGEST_HOUR: ${ONCALL_COORDINATOR_DIGEST_HOUR:-8}
       # The API never prunes; it states the two audit ages on the Audit
       # screen, so it must see the same values the worker deletes by.
       ONCALL_RETENTION_AUDIT_DAYS: ${ONCALL_RETENTION_AUDIT_DAYS:-365}
@@ -180,6 +181,7 @@ services:
       ONCALL_EMAIL_FROM: ${ONCALL_EMAIL_FROM:-On-call <oncall@example.com>}
       ONCALL_PUBLIC_BASE_URL: ${ONCALL_PUBLIC_BASE_URL:-http://localhost:8080}
       ONCALL_HANDOVER_REMINDER_HOUR: ${ONCALL_HANDOVER_REMINDER_HOUR:-9}
+      ONCALL_COORDINATOR_DIGEST_HOUR: ${ONCALL_COORDINATOR_DIGEST_HOUR:-8}
       ONCALL_SWITCH_URL: ${ONCALL_SWITCH_URL:-}
       # Empty leaves the count to the application: this container's CPU quota
       # or affinity, capped at eight.
