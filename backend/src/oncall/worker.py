@@ -7,8 +7,9 @@ independent loops in one event loop:
 * the **notification loop** drains a batch of pending outbox rows through the
   registered channel providers and, after the configured hour in
   Europe/Warsaw, enqueues the notices owed today to whoever starts a
-  rotation role (`oncall.domain.handover`) and, after an hour of its own,
-  the coordinators' digest of who is on duty today (`oncall.domain.digest`);
+  rotation role (`oncall.domain.handover`) and, after an hour of its own on
+  a working day, the coordinators' digest of who is on duty today and on the
+  days off that follow (`oncall.domain.digest`);
 * one or more **generation lanes** claim queued ``ScheduleRun`` rows with
   ``SELECT ... FOR UPDATE SKIP LOCKED`` and solve them;
 * the **metrics loop** samples how much work is waiting in each and reports it
@@ -123,8 +124,8 @@ async def scan_handover(db: AsyncSession, *, now_warsaw: datetime) -> int:
 
 
 async def scan_digest(db: AsyncSession, *, now_warsaw: datetime) -> int:
-    """Enqueue today's digest for the coordinators who have not had it;
-    returns the number enqueued."""
+    """Enqueue a working day's digest for the coordinators who have not had
+    it; returns the number enqueued."""
     return await send_daily_digest(
         now_warsaw, get_settings().coordinator_digest_hour, digest_ports(db)
     )

@@ -661,25 +661,25 @@ async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> i
 
 
 async def enqueue_duty_digest(db: AsyncSession, digest: DutyDigest) -> int:
-    """Queue the day's digest for every coordinator and admin, at most once
-    per day and account; answers how many were queued. None while e-mail is
-    off: a digest is worth nothing after its day, and a queued one would
-    wait for the day SMTP is configured."""
+    """Queue a working day's digest for every coordinator and admin, at most
+    once per working day and account; answers how many were queued. None
+    while e-mail is off: a digest is worth nothing after its day, and a
+    queued one would wait for the day SMTP is configured."""
     settings = get_settings()
     if not settings.smtp_host:
         return 0
     rendered = templates.duty_digest(
-        day=digest.day,
-        holders=list(digest.holders),
+        days=[(duties.day, duties.holders) for duties in digest.days],
         app=Brand.from_settings(settings),
     )
-    context = {"event": "duty_digest", "day": digest.day.isoformat()}
+    sent_on = digest.sent_on.isoformat()
+    context = {"event": "duty_digest", "day": sent_on}
     queued = 0
     for coordinator in await _active_coordinators(db):
         row = await enqueue_notification(
             db,
             _message(coordinator.email or "", rendered, context),
-            dedup_key=f"digest:{digest.day.isoformat()}:{coordinator.id}",
+            dedup_key=f"digest:{sent_on}:{coordinator.id}",
         )
         queued += row is not None
     return queued

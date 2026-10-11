@@ -230,8 +230,9 @@ changes only the selected slot and increments the published version.
 **E-mail notifications.** Swap events, publications, coordinator overrides,
 rotation notices (whoever starts a role hears about it on the last Polish
 working day before and on the first day, with a link to `ONCALL_SWITCH_URL`
-when PRIMARY starts) and the daily digest telling every coordinator and admin
-who is on duty today (`ONCALL_COORDINATOR_DIGEST_HOUR`, default 8) enqueue
+when PRIMARY starts) and the working-day digest telling every coordinator and
+admin who is on duty today and on the days off that follow
+(`ONCALL_COORDINATOR_DIGEST_HOUR`, default 8) enqueue
 rows in `notification_outbox` inside the business transaction; the `worker`
 service (`python -m oncall.worker`) drains them with exponential backoff through channel providers (`email`
 today, more can plug into the same outbox). Delivery is at-least-once under a lease
@@ -243,7 +244,7 @@ is external, configured with `ONCALL_SMTP_HOST`, `ONCALL_SMTP_PORT`,
 client name, `ONCALL_SMTP_LOCAL_HOSTNAME`; the server's certificate is always
 verified (`ONCALL_SMTP_CA_FILE` with the `docker-compose.smtp-ca.yml` overlay
 for an internal CA); without `ONCALL_SMTP_HOST` messages
-are marked `skipped` with the reason in the outbox, except the daily digest,
+are marked `skipped` with the reason in the outbox, except the working-day digest,
 which is not queued at all. The username and password
 go together: both log in with SMTP AUTH, neither sends to a relay that trusts
 the EHLO name, and one alone stops the application at startup. Addresses come

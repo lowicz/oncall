@@ -279,16 +279,24 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         app=APP,
     ),
     "duty_digest": lambda: templates.duty_digest(
-        day=DAY,
-        holders=[
-            (AssignmentRole.primary, "Anna Kowalska"),
-            (AssignmentRole.secondary, Gap.unstaffed),
-            (AssignmentRole.late_shift, Gap.day_off),
+        days=[
+            (
+                DAY,
+                [
+                    (AssignmentRole.primary, "Anna Kowalska"),
+                    (AssignmentRole.secondary, Gap.unstaffed),
+                    (AssignmentRole.late_shift, Gap.day_off),
+                ],
+            )
         ],
         app=APP,
     ),
+    "duty_digest_of_a_series": lambda: templates.duty_digest(
+        days=[(day, [(role, "Anna Kowalska") for role in AssignmentRole]) for day in (DAY, NEXT)],
+        app=APP,
+    ),
     "duty_digest_without_a_schedule": lambda: templates.duty_digest(
-        day=DAY, holders=[(role, Gap.unstaffed) for role in AssignmentRole], app=APP
+        days=[(DAY, [(role, Gap.unstaffed) for role in AssignmentRole])], app=APP
     ),
     "backup_failed": lambda: templates.backup_failed(
         host="oncall-prod",

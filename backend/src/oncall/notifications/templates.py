@@ -963,36 +963,66 @@ _MONTHS = (
 
 
 def _holder(holder: str | Gap) -> Html:
-    """Who holds a role today. Nobody where somebody should be is a status in
-    the interface's alarm colour; no shift on a day off is only said."""
+    """Who holds a role on a day. Nobody where somebody should be is a status
+    in the interface's alarm colour; no shift on a day off is only said."""
     if holder is Gap.unstaffed:
         return status_tag(holder, Tone.bad)
     return text(holder) if holder is Gap.day_off else strong(holder)
 
 
+def _day_of_month(day: date) -> str:
+    return f"{day.day} {_MONTHS[day.month - 1]}"
+
+
 def duty_digest(
-    *, day: date, holders: list[tuple[AssignmentRole, str | Gap]], app: Brand
+    *,
+    days: Sequence[tuple[date, Sequence[tuple[AssignmentRole, str | Gap]]]],
+    app: Brand,
 ) -> RenderedEmail:
-    """Sent to every coordinator and admin on `day`: who holds each role
-    today, in role order, or why nobody does. A day with nobody at all is a
-    day no schedule in force reaches, and the mail says so."""
-    lead = f"Dziś ({format_day(day)}) na dyżurze:"
-    lines = "\n".join(f"- {ROLE_LABELS[role]}: {holder}" for role, holder in holders)
+    """Sent to every coordinator and admin on a working day. `days` are that
+    day and the days off that follow it, in date order, each with who holds
+    every role, in role order, or why nobody does. With nobody at all, no
+    schedule in force reaches these days, and the mail says so."""
+    first, last = days[0][0], days[-1][0]
+    series = len(days) > 1
+    if series:
+        since = str(first.day) if first.month == last.month else _day_of_month(first)
+        title = f"Dyżury od {since} do {_day_of_month(last)}"
+        subject = title
+        lead = f"Dyżury od {format_day(first)} do {format_day(last)}:"
+    else:
+        title = "Dyżury na dziś"
+        subject = f"{title}, {_day_of_month(first)}"
+        lead = f"Dziś ({format_day(first)}) na dyżurze:"
+    # One block per day; a single day needs no heading over its own.
+    blocks = "\n\n".join(
+        (f"{format_day(day)}:\n" if series else "")
+        + "\n".join(f"- {ROLE_LABELS[role]}: {holder}" for role, holder in holders)
+        for day, holders in days
+    )
+    may_change = "Grafik na kolejne dni może się jeszcze zmienić." if series else None
+    everybody = [holder for _, holders in days for _, holder in holders]
     note = None
-    if all(isinstance(holder, Gap) for _, holder in holders):
-        note = Note("Na dziś nie ma opublikowanego grafiku.", Tone.bad)
-    elif any(holder is Gap.unstaffed for _, holder in holders):
-        note = Note("Nie wszystkie dyżury są dziś obsadzone.", Tone.bad)
-    warning = f"{note.body}\n" if note else ""
+    if all(isinstance(holder, Gap) for holder in everybody):
+        when = "te dni" if series else "dziś"
+        note = Note(f"Na {when} nie ma opublikowanego grafiku.", Tone.bad)
+    elif any(holder is Gap.unstaffed for holder in everybody):
+        note = Note("Nie wszystkie dyżury są obsadzone.", Tone.bad)
+    closing = "".join(f"{line}\n" for line in (may_change, note and note.body) if line)
     action = _schedule_action(app)
     return _render(
         app=app,
-        subject=f"Dyżury na dziś, {day.day} {_MONTHS[day.month - 1]}",
-        body=f"{lead}\n{lines}\n\n{warning}{action.label}: {action.url}\n",
+        subject=subject,
+        body=(
+            f"{lead}\n{'\n' if series else ''}{blocks}\n\n{closing}{action.label}: {action.url}\n"
+        ),
         eyebrow="Dyżury",
-        title="Dyżury na dziś",
+        title=title,
         lead=text(lead),
-        slots=[_slot(day, role, _holder(holder)) for role, holder in holders],
+        slots=[
+            _slot(day, role, _holder(holder)) for day, holders in days for role, holder in holders
+        ],
+        paragraphs=[text(may_change)] if may_change else None,
         note=note,
         action=action,
     )
