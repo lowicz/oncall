@@ -26,7 +26,7 @@ const row = (name: string, points: number, memberId = name): MonthlyReportPrevie
 })
 
 // The clock is pinned to September 2026 (`src/test/setup.ts`), so the screen
-// opens on that month and the fixture describes it.
+// opens on August whatever month the preview fixture describes.
 const preview: MonthlyReportPreview = {
   month: '2026-09',
   days_in_month: 30,
@@ -39,13 +39,23 @@ afterEach(() => {
 })
 
 describe('MonthlyReportsPanel', () => {
-  it('opens on the current month', async () => {
+  it('opens on the previous month', async () => {
     const spy = vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
 
-    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
-    expect(screen.getByLabelText('Miesiąc rozliczenia')).toHaveValue('2026-09')
-    expect(spy).toHaveBeenCalledWith('2026-09')
+    await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
+    expect(screen.getByLabelText('Miesiąc rozliczenia')).toHaveValue('2026-08')
+    expect(spy).toHaveBeenCalledWith('2026-08')
+  })
+
+  it('opens on December of the previous year in January', async () => {
+    vi.setSystemTime(new Date('2027-01-05T09:00:00+01:00'))
+    const spy = vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
+    renderScreen(<MonthlyReportsPanel />)
+
+    await screen.findByRole('table', { name: 'Raport za grudzień 2026' })
+    expect(screen.getByLabelText('Miesiąc rozliczenia')).toHaveValue('2026-12')
+    expect(spy).toHaveBeenCalledWith('2026-12')
   })
 
   it('lists two members who share a name as two rows', async () => {
@@ -56,7 +66,7 @@ describe('MonthlyReportsPanel', () => {
     })
     renderScreen(<MonthlyReportsPanel />)
 
-    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    const table = await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
     expect(within(table).getAllByRole('row', { name: /^Jan Nowak/ })).toHaveLength(2)
     expect(errors.mock.calls.flat().join(' ')).not.toContain('same key')
   })
@@ -64,7 +74,7 @@ describe('MonthlyReportsPanel', () => {
   it('follows the month the coordinator picks', async () => {
     const spy = vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({ ...preview, month: '2026-07' })
     renderScreen(<MonthlyReportsPanel />)
-    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
 
     fireEvent.change(screen.getByLabelText('Miesiąc rozliczenia'), { target: { value: '2026-07' } })
 
@@ -76,7 +86,7 @@ describe('MonthlyReportsPanel', () => {
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
 
-    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    const table = await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
     expect(within(table).getByRole('columnheader', { name: 'Dni dyżurowe primary + secondary' })).toHaveClass('key')
     const [firstGroup] = within(table).getAllByRole('columnheader', { name: 'robocze' })
     expect(firstGroup).toHaveClass('key')
@@ -96,8 +106,8 @@ describe('MonthlyReportsPanel', () => {
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
 
-    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
-    expect(screen.getByRole('region', { name: 'Raport za wrzesień 2026' })).toContainElement(table)
+    const table = await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
+    expect(screen.getByRole('region', { name: 'Raport za sierpień 2026' })).toContainElement(table)
     const total = within(table).getByRole('row', { name: /^Razem/ })
     expect(within(total).getByRole('rowheader')).toHaveClass('person')
     const cells = within(total).getAllByRole('cell')
@@ -114,7 +124,7 @@ describe('MonthlyReportsPanel', () => {
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
 
-    const region = await screen.findByRole('region', { name: 'Raport za wrzesień 2026' })
+    const region = await screen.findByRole('region', { name: 'Raport za sierpień 2026' })
     expect(screen.getByText(/przewiń ją w bok, aby zobaczyć wszystkie kolumny, w tym punkty/)).toBeInTheDocument()
     expect(region).toHaveAttribute('tabindex', '0')
   })
@@ -131,7 +141,7 @@ describe('MonthlyReportsPanel', () => {
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
 
-    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    const table = await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
     const lateShift = within(table).getByRole('columnheader', { name: '11–19' })
     const [dataCell] = within(table).getAllByRole('cell', { name: '5' })
 
@@ -150,7 +160,7 @@ describe('MonthlyReportsPanel', () => {
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
 
-    const table = await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    const table = await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
     const person = within(table).getByRole('columnheader', { name: 'Osoba' })
     const lateShift = within(table).getByRole('columnheader', { name: '11–19' })
     const [dutyDaysGroup] = within(table).getAllByRole('columnheader', { name: /Dni dyżurowe/ })
@@ -209,7 +219,7 @@ describe('MonthlyReportsPanel coverage warnings', () => {
     expect(await screen.findByText('Serwer niedostępny')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }))
 
-    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
     expect(spy).toHaveBeenCalledTimes(2)
   })
 })
@@ -228,17 +238,17 @@ describe('MonthlyReportsPanel download', () => {
       clicked.push({ download: this.download, href: this.href, attached: document.body.contains(this) })
     })
     renderScreen(<MonthlyReportsPanel />)
-    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Pobierz CSV' }))
     const pending = await screen.findByRole('button', { name: /Przygotowuję…/ })
     expect(pending).toBeDisabled()
-    expect(report).toHaveBeenCalledWith('2026-09')
+    expect(report).toHaveBeenCalledWith('2026-08')
     resolve(blob)
 
     expect(await screen.findByRole('status')).toHaveTextContent('Raport został pobrany.')
     expect(createObjectURL).toHaveBeenCalledWith(blob)
-    expect(clicked).toEqual([{ download: 'oncall-2026-09.csv', href: 'blob:report', attached: true }])
+    expect(clicked).toEqual([{ download: 'oncall-2026-08.csv', href: 'blob:report', attached: true }])
     expect(document.querySelector('a[download]')).toBeNull()
     await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:report'))
   })
@@ -247,7 +257,7 @@ describe('MonthlyReportsPanel download', () => {
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     vi.spyOn(api, 'monthlyReport').mockRejectedValue(new Error('Brak opublikowanego grafiku'))
     renderScreen(<MonthlyReportsPanel />)
-    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Pobierz CSV' }))
 

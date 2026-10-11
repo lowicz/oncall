@@ -562,7 +562,7 @@ describe('the Polish interface', () => {
 
   it('monthly report', async () => {
     renderScreen(<MonthlyReportsPanel />)
-    await screen.findByRole('table', { name: 'Raport za wrzesień 2026' })
+    await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
     await snapshotOf('reports')
   })
 

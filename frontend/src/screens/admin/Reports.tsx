@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '../../api'
 import { useMessages } from '../../i18n'
-import { formatMonth, warsawDate } from '../../lib/dates'
+import { formatMonth, shiftMonth, warsawDate } from '../../lib/dates'
 import { downloadBlob } from '../../lib/download'
 import { formatDecimal } from '../../lib/numbers'
 import { MonthField } from '../../components/MonthField'
@@ -24,7 +24,7 @@ const cellClass = (key: Column) => ((DUTY_DAY_COLUMNS as readonly Column[]).incl
 
 export function MonthlyReportsPanel() {
   const t = useMessages()
-  const [month, setMonth] = useState(warsawDate().slice(0, 7))
+  const [month, setMonth] = useState(shiftMonth(warsawDate().slice(0, 7), -1))
   const preview = useQuery({
     queryKey: ['monthly-report-preview', month],
     queryFn: () => api.monthlyReportPreview(month),
