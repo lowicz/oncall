@@ -14,6 +14,7 @@ from oncall.notifications.base import (
     TemporaryNotificationError,
 )
 from oncall.notifications.email import SmtpEmailProvider
+from oncall.notifications.layout import LOGO_CID
 from tests.smtp_relay import Relay, private_ca, serving
 
 
@@ -191,6 +192,42 @@ def test_an_html_body_goes_out_as_an_alternative_to_the_text() -> None:
     assert parts["text/plain"].strip() == "Treść wiadomości"
     assert parts["text/html"].strip() == html
     assert built.get_body(("html",)).get_content().strip() == html
+
+
+def test_the_logo_travels_inline_in_the_html_part() -> None:
+    """The mark named by `cid:` rides in a `multipart/related` HTML part, inline
+    and nameless, so it shows in the body and is not listed as an attachment."""
+    provider = SmtpEmailProvider(settings_with())
+    html = f'<html><body><img src="cid:{LOGO_CID}"><p>Treść</p></body></html>'
+
+    built = provider.build_message(replace(message(), html_body=html))
+
+    assert built.get_content_type() == "multipart/alternative"
+    text_part, html_part = built.iter_parts()
+    assert text_part.get_content_type() == "text/plain"
+    assert text_part.get_content().strip() == "Treść wiadomości"
+    assert html_part.get_content_type() == "multipart/related"
+    body, logo = html_part.iter_parts()
+    assert body.get_content().strip() == html
+    assert logo.get_content_type() == "image/png"
+    assert logo["Content-ID"] == f"<{LOGO_CID}>"
+    assert logo.get_content_disposition() == "inline"
+    assert logo.get_filename() is None
+    assert logo.get_content().startswith(b"\x89PNG")
+    assert list(built.iter_attachments()) == []
+
+
+def test_a_legacy_html_body_with_a_url_logo_gets_no_image_part() -> None:
+    """A row queued before the logo moved into the mail keeps its HTML and goes
+    out as it was composed."""
+    provider = SmtpEmailProvider(settings_with())
+    html = '<html><body><img src="https://oncall.example.com/icon.png"></body></html>'
+
+    built = provider.build_message(replace(message(), html_body=html))
+
+    assert [part.get_content_type() for part in built.iter_parts()] == ["text/plain", "text/html"]
+    assert built.get_body(("html",)).get_content().strip() == html
+    assert list(built.iter_attachments()) == []
 
 
 def test_a_message_without_html_stays_plain_text() -> None:

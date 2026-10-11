@@ -25,7 +25,7 @@ from oncall.domain.digest import Gap
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import reset_request_language, set_request_language
 from oncall.notifications import templates
-from oncall.notifications.layout import Brand, Tone, status_tag
+from oncall.notifications.layout import LOGO_CID, Brand, Tone, status_tag
 from oncall.notifications.templates import RenderedEmail, format_day, format_range
 from oncall.rules import RuleViolation
 
@@ -360,7 +360,8 @@ def test_the_html_and_the_text_say_the_same_thing(rendered: RenderedEmail) -> No
 def test_the_html_brands_the_mail_like_the_interface(rendered: RenderedEmail) -> None:
     assert "On-call" in rendered.html
     assert "Zespół wsparcia" in rendered.html, "the subtitle, sentence case like `.brand-sub`"
-    assert '<img src="https://oncall.example.com/icon.png" width="26" height="26"' in rendered.html
+    assert f'<img src="cid:{LOGO_CID}" width="26" height="26"' in rendered.html
+    assert "icon.png" not in rendered.html, "the mark travels in the mail, not by URL"
     assert 'alt="" style="display:block;border:0;"' in rendered.html
     assert 'href="https://oncall.example.com"' in rendered.html
     assert "Nie odpowiadaj na nią." in rendered.html
@@ -422,8 +423,7 @@ def test_data_is_escaped_in_the_html() -> None:
     )
     assert "<script>" not in rendered.html
     assert re.findall(r"<img[^>]*>", rendered.html) == [
-        '<img src="https://oncall.example.com/icon.png" width="26" height="26" '
-        'alt="" style="display:block;border:0;">'
+        f'<img src="cid:{LOGO_CID}" width="26" height="26" alt="" style="display:block;border:0;">'
     ]
     assert "&lt;script&gt;" in rendered.html
     assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in rendered.html

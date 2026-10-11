@@ -190,6 +190,10 @@ class Action:
     url: str
 
 
+# Content-ID of the mark; `SmtpEmailProvider` attaches the image when the HTML names it.
+LOGO_CID = "oncall-logo@oncall.invalid"
+
+
 @dataclass(frozen=True)
 class Brand:
     """What every mail says about the application: its name, subtitle and address."""
@@ -211,7 +215,9 @@ _BODY_TEXT = f"font-family:{FONT};font-size:14px;line-height:21px;color:{FG};"
 
 
 def _brand_row(brand: Brand) -> Html:
-    """The name remains readable even when the client blocks the raster mark."""
+    """The name remains readable even when the client blocks the raster mark.
+    The mark travels inside the mail (`email.py` attaches `logo.png` under
+    `LOGO_CID`), so a reader outside the installation's network still sees it."""
     subtitle = (
         f'<span style="display:block;font-family:{FONT};font-size:12px;line-height:16px;'
         f'color:{DIM};">{text(brand.subtitle)}</span>'
@@ -222,7 +228,7 @@ def _brand_row(brand: Brand) -> Html:
         '<tr><td style="padding:0 4px 12px;">'
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
         '<td width="26" height="26" align="center" valign="middle">'
-        f'<img src="{text(brand.url.rstrip("/"))}/icon.png" width="26" height="26" '
+        f'<img src="cid:{LOGO_CID}" width="26" height="26" '
         'alt="" style="display:block;border:0;"></td>'
         f'<td valign="middle" style="padding-left:9px;font-family:{FONT};">'
         f'<a href="{text(brand.url)}" style="text-decoration:none;color:{FG};">'

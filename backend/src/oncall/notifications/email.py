@@ -8,6 +8,7 @@ import logging
 import ssl
 from email.message import EmailMessage
 from email.utils import parseaddr
+from pathlib import Path
 from uuid import uuid4
 
 import aiosmtplib
@@ -20,8 +21,11 @@ from oncall.notifications.base import (
     NotificationProvider,
     TemporaryNotificationError,
 )
+from oncall.notifications.layout import LOGO_CID
 
 logger = logging.getLogger(__name__)
+
+_LOGO = Path(__file__).with_name("logo.png")
 
 
 class SmtpEmailProvider:
@@ -48,6 +52,13 @@ class SmtpEmailProvider:
         email.set_content(message.body)
         if message.html_body:
             email.add_alternative(message.html_body, subtype="html")
+            # The mark rides inside the HTML part (multipart/related), inline and
+            # nameless so a client shows it in the body, not in the attachment
+            # list. A row queued before this carried a URL and gets no image.
+            if f"cid:{LOGO_CID}" in message.html_body:
+                email.get_payload()[-1].add_related(
+                    _LOGO.read_bytes(), "image", "png", cid=f"<{LOGO_CID}>", disposition="inline"
+                )
         return email
 
     def message_id(self, message: NotificationMessage) -> str:
