@@ -97,15 +97,7 @@ async def test_every_coordinator_and_admin_is_told_who_is_on_duty_today(db) -> N
     assert "100 200" not in row.body + row.html_body
     assert row.dedup_key == f"digest:2026-10-12:{koord.id}"
     assert rows["szef@example.com"].dedup_key == f"digest:2026-10-12:{admin.id}"
-    assert row.context == {
-        "event": "duty_digest",
-        "day": "2026-10-12",
-        "holders": [
-            {"role": "primary", "holder": "Anna Kowalska"},
-            {"role": "secondary", "holder": "Marek Nowak"},
-            {"role": "late_shift", "holder": "Ola Wiśniewska"},
-        ],
-    }
+    assert row.context == {"event": "duty_digest", "day": "2026-10-12"}
 
 
 async def test_nobody_is_told_before_the_digest_hour(db) -> None:
@@ -191,10 +183,6 @@ async def test_a_role_nobody_holds_is_named_as_a_gap(db) -> None:
     )
     assert row.html_body.count("brak obsady") == 2
     assert "Nie wszystkie dyżury są dziś obsadzone." in row.html_body
-    assert row.context["holders"][1:] == [
-        {"role": "secondary", "gap": "unstaffed"},
-        {"role": "late_shift", "gap": "unstaffed"},
-    ]
 
 
 async def test_the_late_shift_has_no_duty_on_a_day_off(db) -> None:
@@ -220,7 +208,6 @@ async def test_the_late_shift_has_no_duty_on_a_day_off(db) -> None:
     assert "brak dyżuru (dzień wolny)" in sunday.html_body
     assert "brak obsady" not in sunday.html_body
     assert "Ola" not in sunday.body + sunday.html_body
-    assert sunday.context["holders"][2] == {"role": "late_shift", "gap": "day_off"}
     assert holiday.subject == "Dyżury na dziś, 11 listopada"
     assert "- 11–19: brak dyżuru (dzień wolny)\n" in holiday.body
 

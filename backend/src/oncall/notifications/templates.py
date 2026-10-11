@@ -961,15 +961,13 @@ _MONTHS = (
     "grudnia",
 )
 
-_GAPS = {Gap.unstaffed: "brak obsady", Gap.day_off: "brak dyżuru (dzień wolny)"}
-
 
 def _holder(holder: str | Gap) -> Html:
     """Who holds a role today. Nobody where somebody should be is a status in
     the interface's alarm colour; no shift on a day off is only said."""
     if holder is Gap.unstaffed:
-        return status_tag(_GAPS[holder], Tone.bad)
-    return text(_GAPS[holder]) if isinstance(holder, Gap) else strong(holder)
+        return status_tag(holder, Tone.bad)
+    return text(holder) if holder is Gap.day_off else strong(holder)
 
 
 def duty_digest(
@@ -979,10 +977,7 @@ def duty_digest(
     today, in role order, or why nobody does. A day with nobody at all is a
     day no schedule in force reaches, and the mail says so."""
     lead = f"Dziś ({format_day(day)}) na dyżurze:"
-    lines = "\n".join(
-        f"- {ROLE_LABELS[role]}: {_GAPS[holder] if isinstance(holder, Gap) else holder}"
-        for role, holder in holders
-    )
+    lines = "\n".join(f"- {ROLE_LABELS[role]}: {holder}" for role, holder in holders)
     note = None
     if all(isinstance(holder, Gap) for _, holder in holders):
         note = Note("Na dziś nie ma opublikowanego grafiku.", Tone.bad)

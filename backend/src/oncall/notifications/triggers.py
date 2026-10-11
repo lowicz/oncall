@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
-from oncall.domain.digest import DutyDigest, Gap
+from oncall.domain.digest import DutyDigest
 from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import ScheduledDuty
@@ -673,17 +673,7 @@ async def enqueue_duty_digest(db: AsyncSession, digest: DutyDigest) -> int:
         holders=list(digest.holders),
         app=Brand.from_settings(settings),
     )
-    context = {
-        "event": "duty_digest",
-        "day": digest.day.isoformat(),
-        "holders": [
-            {
-                "role": role.value,
-                **({"gap": holder.value} if isinstance(holder, Gap) else {"holder": holder}),
-            }
-            for role, holder in digest.holders
-        ],
-    }
+    context = {"event": "duty_digest", "day": digest.day.isoformat()}
     queued = 0
     for coordinator in await _active_coordinators(db):
         row = await enqueue_notification(

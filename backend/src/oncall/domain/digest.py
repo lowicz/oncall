@@ -19,13 +19,13 @@ from oncall.workdays import is_polish_working_day
 
 
 class Gap(StrEnum):
-    """Why a role has nobody today."""
+    """Why a role has nobody today, in the words the mail says it in."""
 
     #: The role serves today and no duty in force names anybody.
-    unstaffed = "unstaffed"
+    unstaffed = "brak obsady"
     #: 11–19 on a day that is not a Polish working day: there is no shift,
     #: and the duties in force never name one.
-    day_off = "day_off"
+    day_off = "brak dyżuru (dzień wolny)"
 
 
 @dataclass(frozen=True)
