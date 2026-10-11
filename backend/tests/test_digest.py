@@ -8,6 +8,7 @@ Wednesday that is a Polish holiday.
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import pytest
 from sqlalchemy import select
 
 from oncall.config import get_settings
@@ -29,6 +30,11 @@ PRIMARY, SECONDARY, LATE = (
     AssignmentRole.secondary,
     AssignmentRole.late_shift,
 )
+
+
+@pytest.fixture(autouse=True)
+def _email_is_on(monkeypatch) -> None:
+    monkeypatch.setattr(get_settings(), "smtp_host", "smtp.example.com")
 
 
 def warsaw(day: date, hour: int | None = None) -> datetime:
@@ -248,14 +254,42 @@ async def test_without_a_coordinator_nothing_is_queued(db) -> None:
     assert await _outbox(db) == []
 
 
-async def test_the_worker_cycle_sends_the_digest_once_a_day(db, db_factory, frozen_clock) -> None:
+async def test_no_digest_is_queued_while_email_is_off(db, monkeypatch) -> None:
+    """A digest queued without SMTP would be delivered, stale, on the day
+    SMTP is configured: none is queued until then, and that day's is."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "smtp_host", None)
+    await _coordinator(db)
+    await _publish(db, SUNDAY, {PRIMARY: "Anna Kowalska"})
+    await _publish(db, MONDAY, {PRIMARY: "Anna Kowalska"})
+
+    assert await scan_digest(db, now_warsaw=warsaw(SUNDAY)) == 0
+    assert await scan_digest(db, now_warsaw=warsaw(MONDAY)) == 0
+    assert await _outbox(db) == []
+
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    assert await scan_digest(db, now_warsaw=warsaw(MONDAY, 15)) == 1
+    assert [row.subject for row in await _outbox(db)] == ["Dyżury na dziś, 12 października"]
+
+
+async def test_the_worker_cycle_sends_the_digest_once_a_day(
+    db, db_factory, frozen_clock, monkeypatch
+) -> None:
     """The clock stands at noon in Warsaw: the cycle queues the digest and
     commits it, the next cycle queues nothing, and the next day's waits for
     the hour."""
+    sent: list[str] = []
+
+    class Mailbox:
+        async def send(self, message) -> None:
+            sent.append(message.subject)
+
+    monkeypatch.setattr("oncall.worker.default_providers", lambda settings: {"email": Mailbox()})
     await _coordinator(db)
 
     assert (await notification_cycle(db_factory))["digest"] == 1
     assert (await notification_cycle(db_factory))["digest"] == 0
+    assert sent == ["Dyżury na dziś, 15 września"]
     async with db_factory() as fresh:
         assert [row.subject for row in await _outbox(fresh)] == ["Dyżury na dziś, 15 września"]
 

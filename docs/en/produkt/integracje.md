@@ -77,7 +77,8 @@ as “brak dyżuru (dzień wolny)” (no duty, day off). When no schedule is
 published for the day, the message still goes out and says so plainly. If the
 worker was not running at that hour, the message goes out later the same day;
 each person gets it at most once a day, including a coordinator added after
-that hour.
+that hour. Without a configured SMTP host this message is not queued at all,
+so turning mail on sends no overdue messages for days gone by.
 
 ## ICS feeds
 

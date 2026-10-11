@@ -77,7 +77,9 @@ opisana jako „brak obsady”, a 11–19 w dzień wolny od pracy jako „brak d
 (dzień wolny)”. Gdy na dany dzień nie ma opublikowanego grafiku, wiadomość
 i tak wychodzi i mówi o tym wprost. Jeśli proces roboczy nie działał o tej
 godzinie, wiadomość wychodzi później tego samego dnia; każda osoba dostaje ją
-najwyżej raz dziennie, także koordynator dodany już po tej godzinie.
+najwyżej raz dziennie, także koordynator dodany już po tej godzinie. Bez
+skonfigurowanego hosta SMTP ta wiadomość w ogóle nie trafia do kolejki, więc
+po włączeniu poczty nie wychodzą zaległe wiadomości z minionych dni.
 
 ## Kanały ICS
 

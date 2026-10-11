@@ -662,11 +662,16 @@ async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> i
 
 async def enqueue_duty_digest(db: AsyncSession, digest: DutyDigest) -> int:
     """Queue the day's digest for every coordinator and admin, at most once
-    per day and account; answers how many were queued."""
+    per day and account; answers how many were queued. None while e-mail is
+    off: a digest is worth nothing after its day, and a queued one would
+    wait for the day SMTP is configured."""
+    settings = get_settings()
+    if not settings.smtp_host:
+        return 0
     rendered = templates.duty_digest(
         day=digest.day,
         holders=list(digest.holders),
-        app=Brand.from_settings(get_settings()),
+        app=Brand.from_settings(settings),
     )
     context = {
         "event": "duty_digest",
