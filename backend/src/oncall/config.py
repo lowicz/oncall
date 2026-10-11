@@ -175,6 +175,9 @@ class Settings(BaseSettings):
     #: the message delivered anyway if the worker holding it dies.
     notification_lease_seconds: float = Field(default=300.0, ge=30, le=3600)
     handover_reminder_hour: int = 9  # Europe/Warsaw local time
+    #: When coordinators and admins are told who is on duty today. Its own
+    #: hour, Europe/Warsaw local time like the one above and independent of it.
+    coordinator_digest_hour: int = Field(default=8, ge=0, le=23)
     #: The page the team switches the on-call number on. The notice on the
     #: first day of a PRIMARY segment links to it; unset or empty, that notice
     #: asks for the switch without a link. The page is outside this application,

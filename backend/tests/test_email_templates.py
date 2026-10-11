@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from oncall.domain.digest import Gap
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import reset_request_language, set_request_language
 from oncall.notifications import templates
@@ -276,6 +277,26 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         segments=[(AssignmentRole.secondary, END), (AssignmentRole.late_shift, NEXT)],
         switch_url=SWITCH_URL,
         app=APP,
+    ),
+    "duty_digest": lambda: templates.duty_digest(
+        days=[
+            (
+                DAY,
+                [
+                    (AssignmentRole.primary, "Anna Kowalska"),
+                    (AssignmentRole.secondary, Gap.unstaffed),
+                    (AssignmentRole.late_shift, Gap.day_off),
+                ],
+            )
+        ],
+        app=APP,
+    ),
+    "duty_digest_of_a_series": lambda: templates.duty_digest(
+        days=[(day, [(role, "Anna Kowalska") for role in AssignmentRole]) for day in (DAY, NEXT)],
+        app=APP,
+    ),
+    "duty_digest_without_a_schedule": lambda: templates.duty_digest(
+        days=[(DAY, [(role, Gap.unstaffed) for role in AssignmentRole])], app=APP
     ),
     "backup_failed": lambda: templates.backup_failed(
         host="oncall-prod",

@@ -34,6 +34,7 @@ RECORDED_LANGUAGE = {
     "infrastructure/sqlalchemy/swaps.py",
     "domain/admin/models.py",  # the display name of an erased member
     "domain/availability/models.py",  # availability kinds as the audit log names them
+    "domain/digest.py",  # why a role has nobody today, as the digest mail says it
     "domain/scheduling/drafts.py",  # the kind of schedule an audit entry says was deleted
     "domain/scheduling/generation.py",  # the draft's name and an abandoned run's error
     "domain/swaps/models.py",  # the decision note of an automatic cancellation

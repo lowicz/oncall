@@ -2,9 +2,10 @@
 
 ## Powiadomienia e-mail
 
-Zdarzenia cyklu zamian, publikacje grafiku, korekty koordynatora i
-powiadomienia o rozpoczęciu dyżuru **zapisują wiersz w tabeli
-`notification_outbox` w tej samej transakcji co zmiana biznesowa**. Osobny
+Zdarzenia cyklu zamian, publikacje grafiku, korekty koordynatora,
+powiadomienia o rozpoczęciu dyżuru i wiadomość dla koordynatorów z dni roboczych
+**zapisują wiersz w tabeli `notification_outbox` w tej samej transakcji co
+zmiana biznesowa**. Osobny
 proces roboczy opróżnia kolejkę z wykładniczym wycofaniem i dostarcza wiadomości
 przez dostawców kanałów.
 
@@ -66,6 +67,24 @@ o przełączenie numeru on-call, a jeśli ustawiono `ONCALL_SWITCH_URL`, jego
 przycisk prowadzi na stronę przełączania. Każda z dwóch wiadomości wychodzi do
 osoby najwyżej raz, więc kolejne przebiegi procesu roboczego w ciągu dnia
 niczego nie dublują.
+
+Każdy koordynator i administrator dostaje w każdy polski dzień roboczy,
+o godzinie `ONCALL_COORDINATOR_DIGEST_HOUR` (czasu warszawskiego, domyślnie 8),
+wiadomość „Dyżury na dziś”: kto ma dziś PRIMARY, SECONDARY i 11–19, bez
+numerów telefonów. Nie da się z niej zrezygnować. Gdy po tym dniu następują dni
+wolne od pracy - weekend, święto - wiadomość obejmuje także je, dzień po dniu,
+aż do następnego dnia roboczego: piątkowa mówi o piątku, sobocie i niedzieli,
+a czwartkowa przed świątecznym piątkiem o czterech dniach. Ma wtedy temat
+w rodzaju „Dyżury od 9 do 11 października” i dopisek, że grafik na kolejne dni
+może się jeszcze zmienić. W dzień wolny od pracy wiadomość nie wychodzi,
+także zaległa. Rola, której nikt nie ma, jest opisana jako „brak obsady”,
+a 11–19 w dzień wolny od pracy jako „brak dyżuru (dzień wolny)”. Gdy na te dni
+nie ma opublikowanego grafiku, wiadomość i tak wychodzi i mówi o tym wprost.
+Jeśli proces roboczy nie działał o tej godzinie, wiadomość wychodzi później
+tego samego dnia roboczego; każda osoba dostaje ją najwyżej raz w danym dniu
+roboczym, także koordynator dodany już po tej godzinie. Bez
+skonfigurowanego hosta SMTP ta wiadomość w ogóle nie trafia do kolejki, więc
+po włączeniu poczty nie wychodzą zaległe wiadomości z minionych dni.
 
 ## Kanały ICS
 

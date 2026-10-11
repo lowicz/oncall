@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
+from oncall.domain.digest import DutyDigest
 from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import ScheduledDuty
@@ -657,3 +658,28 @@ async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> i
         dedup_key=f"rotation:{notice.timing.value}:{notice.starts_on.isoformat()}:{member_id}",
     )
     return 0 if queued is None else 1
+
+
+async def enqueue_duty_digest(db: AsyncSession, digest: DutyDigest) -> int:
+    """Queue a working day's digest for every coordinator and admin, at most
+    once per working day and account; answers how many were queued. None
+    while e-mail is off: a digest is worth nothing after its day, and a
+    queued one would wait for the day SMTP is configured."""
+    settings = get_settings()
+    if not settings.smtp_host:
+        return 0
+    rendered = templates.duty_digest(
+        days=[(duties.day, duties.holders) for duties in digest.days],
+        app=Brand.from_settings(settings),
+    )
+    sent_on = digest.sent_on.isoformat()
+    context = {"event": "duty_digest", "day": sent_on}
+    queued = 0
+    for coordinator in await _active_coordinators(db):
+        row = await enqueue_notification(
+            db,
+            _message(coordinator.email or "", rendered, context),
+            dedup_key=f"digest:{sent_on}:{coordinator.id}",
+        )
+        queued += row is not None
+    return queued
