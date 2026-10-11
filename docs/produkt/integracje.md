@@ -34,9 +34,11 @@ jako zwykły tekst, który mówi wszystko sam, i jako HTML w jasnym motywie
 aplikacji - z tym samym oznaczeniem ról (PRIMARY, SECONDARY, 11–19), tymi
 samymi kolorami i datami w postaci `czw 24-09-2026`, jaką pokazują ekrany.
 Wersja HTML jest pisana pod Outlook 365: układ na tabelach, style wpisane w
-elementy, bez czcionek webowych, obrazków i przezroczystości. Nazwa i podtytuł
-w nagłówku wiadomości pochodzą z `ONCALL_APP_NAME` i `ONCALL_APP_SUBTITLE`, a
-przyciski prowadzą pod `ONCALL_PUBLIC_BASE_URL`.
+elementy, bez czcionek webowych i przezroczystości. Jedyny obrazek, logo w
+nagłówku, podróżuje w samej wiadomości (obraz osadzony, `cid:`), więc widać je
+także poza siecią instalacji i nie ma go na liście załączników. Nazwa i
+podtytuł w nagłówku wiadomości pochodzą z `ONCALL_APP_NAME` i
+`ONCALL_APP_SUBTITLE`, a przyciski prowadzą pod `ONCALL_PUBLIC_BASE_URL`.
 
 Korekta koordynatora - pojedyncza albo wsadowa (np. przy zakończeniu rotacji) -
 powiadamia obie strony każdego przepisanego slotu: osobę zdejmowaną i

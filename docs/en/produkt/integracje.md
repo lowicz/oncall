@@ -33,9 +33,12 @@ plain text, which says everything on its own, and as HTML in the application's
 light theme - with the same role marking (PRIMARY, SECONDARY, 11–19), the
 same colours and dates in the form `czw 24-09-2026` that the screens show.
 The HTML version is written for Outlook 365: a table layout, styles inlined
-into the elements, no web fonts, images or transparency. The name and subtitle
-in the message header come from `ONCALL_APP_NAME` and `ONCALL_APP_SUBTITLE`,
-and the buttons lead to `ONCALL_PUBLIC_BASE_URL`.
+into the elements, no web fonts or transparency. The only image, the logo in
+the header, travels inside the message itself (an inline `cid:` image), so it
+shows outside the installation's network too and is not in the list of
+attachments. The name and subtitle in the message header come from
+`ONCALL_APP_NAME` and `ONCALL_APP_SUBTITLE`, and the buttons lead to
+`ONCALL_PUBLIC_BASE_URL`.
 
 A coordinator's correction - single or batch (e.g. when ending a rotation) -
 notifies both sides of every rewritten slot: the person taken off and the one
