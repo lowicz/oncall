@@ -133,7 +133,7 @@ Import zasila historię, z której liczą raport sprawiedliwości i generator.
 
 ## Raport miesięczny (`/raporty`, koordynator)
 
-1. Wybierz miesiąc rozliczenia (`MM-RRRR`); ekran otwiera się na bieżącym
+1. Wybierz miesiąc rozliczenia (`MM-RRRR`); ekran otwiera się na poprzednim
    miesiącu.
 2. Obejrzyj podgląd - jeden wiersz na osobę. Pierwsze, wyróżnione kolumny to
    dni dyżurowe (primary i secondary razem): w dni robocze, w weekendy i święta
