@@ -26,11 +26,11 @@ const row = (name: string, points: number, memberId = name): MonthlyReportPrevie
 })
 
 // The clock is pinned to September 2026 (`src/test/setup.ts`), so the screen
-// opens on the month before it, August, and the fixture describes it.
+// opens on August whatever month the preview fixture describes.
 const preview: MonthlyReportPreview = {
-  month: '2026-08',
-  days_in_month: 31,
-  staffed_days: 31,
+  month: '2026-09',
+  days_in_month: 30,
+  staffed_days: 30,
   rows: [row('Małgorzata Wiśniewska-Kowalczyk', 9), row('Marek Nowak', 11)],
 }
 
@@ -50,7 +50,7 @@ describe('MonthlyReportsPanel', () => {
 
   it('opens on December of the previous year in January', async () => {
     vi.setSystemTime(new Date('2027-01-05T09:00:00+01:00'))
-    const spy = vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({ ...preview, month: '2026-12' })
+    const spy = vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
     renderScreen(<MonthlyReportsPanel />)
 
     await screen.findByRole('table', { name: 'Raport za grudzień 2026' })
@@ -205,7 +205,7 @@ describe('MonthlyReportsPanel coverage warnings', () => {
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue({ ...preview, staffed_days: 12 })
     renderScreen(<MonthlyReportsPanel />)
 
-    expect(await screen.findByText('Opublikowany grafik pokrywa 12 z 31 dni tego miesiąca.')).toBeInTheDocument()
+    expect(await screen.findByText('Opublikowany grafik pokrywa 12 z 30 dni tego miesiąca.')).toBeInTheDocument()
     expect(screen.getByText('Raport uwzględnia tylko dni z pełną obsadą.')).toBeInTheDocument()
     expect(screen.queryByText('Wybrany miesiąc nie ma żadnych opublikowanych dyżurów.')).not.toBeInTheDocument()
   })
