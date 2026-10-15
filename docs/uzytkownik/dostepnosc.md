@@ -8,8 +8,9 @@ akcje: **Eksport ICS (tylko moje)** i **Zaproponuj zamianę** (otwiera
 Zamiany z najbliższym dyżurem już wybranym).
 
 Na szerokim ekranie lewa kolumna to dyżury i kalendarz dostępności, prawa to
-punkty i zamiany, które Cię dotyczą. Na telefonie sekcje idą jedna pod drugą:
-dyżury, punkty z przyciskiem **Zgłoś dostępność**, kalendarz, zamiany.
+punkty, zamiany, które Cię dotyczą, i Twój telefon. Na telefonie sekcje idą
+jedna pod drugą: dyżury, punkty z przyciskiem **Zgłoś dostępność**,
+kalendarz, zamiany, telefon.
 
 ## Najbliższe dyżury
 
@@ -100,6 +101,21 @@ Skrót zamian z Twoim udziałem: kto komu oddaje, dzień i rola, a pod spodem,
 na kogo zamiana czeka. Prośba skierowana do Ciebie ma przycisk **Zdecyduj**,
 który otwiera skrzynkę „Do mnie” na ekranie Zamiany; **Wszystkie** otwiera
 cały ekran.
+
+## Mój telefon
+
+Sekcja **Mój telefon** pokazuje numer zapisany na Twoim koncie - ten, który
+zalogowane osoby widzą na pasku „Dyżur teraz” i na karcie dyżurnego. Wpisz
+numer w dowolnej postaci (`600 100 200`, `48600100200`, `+48 600-100-200`) i
+kliknij **Zapisz numer**: aplikacja zapisuje go jako `+48` i dziewięć cyfr i
+pokazuje tę postać w polu. Numer zagraniczny nie jest przyjmowany - pole
+mówi „Popraw numer”, a osoba w rotacji bez numeru widzi „Wymagany dla osób w
+rotacji”. Puste pole usuwa numer.
+
+Przy logowaniu z katalogu (LDAP / Active Directory) administrator może
+włączyć pobieranie numeru z katalogu: wypełnia ono tylko puste pole, więc
+numer wpisany tu albo przez administratora zostaje, nawet jeśli katalog
+zna inny. Kto chce wrócić do numeru z katalogu, wpisuje go.
 
 ## Subskrypcja kalendarza (ICS)
 

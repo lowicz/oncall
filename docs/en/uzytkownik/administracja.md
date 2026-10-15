@@ -27,7 +27,11 @@ Clicking a person (or **Open**) opens a panel with three tabs:
 
 - **Account** - first name, last name, username (not editable), personnel
   number, e-mail and phone; the phone is required for people in the rotation,
-  because the “On duty now” strip and the on-call card show it,
+  because the “On duty now” strip and the on-call card show it. The number
+  is stored as `+48` and nine digits (bare digits get the prefix, spaces and
+  dashes are dropped); a foreign number, or one stored before this rule, is
+  marked “fix the number” in the table and in the field. Everyone can also
+  change their own number on the [Mine](dostepnosc.md#my-phone) screen,
 - **Rotation** - the rotation state, **duty qualifications** as chips
   (removing a chip ends the role's period as of yesterday, so the published
   schedule stays and the generator skips the role from the next run; adding

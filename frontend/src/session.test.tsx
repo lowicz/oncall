@@ -13,6 +13,7 @@ const ADMIN: CurrentUser = {
   role: 'admin',
   has_team_member: false,
   email: null,
+  phone: null,
   share: null,
   avatar_url: null,
 }

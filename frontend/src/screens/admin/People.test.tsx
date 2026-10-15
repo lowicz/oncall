@@ -410,6 +410,19 @@ describe('PeoplePanel table states and export', () => {
     expect(screen.getByText('olek', { selector: 'td' })).toBeInTheDocument()
   })
 
+  it('flags a stored number that is not a Polish one in the table and on the account tab', async () => {
+    mockData([user({ id: 'u1', phone: '+49 170 1234567' })], [member({ id: 'm1' })])
+    renderScreen(<PeoplePanel />)
+
+    const anna = await rowOf('anna')
+    expect(within(anna).getByText('popraw numer')).toBeInTheDocument()
+    const dialog = await openRow('anna')
+    expect(within(dialog).getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
+    fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '600 100 200' } })
+    expect(within(dialog).queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/^Format: \+48 i dziewięć cyfr/)).toBeInTheDocument()
+  })
+
   it('says a member in the rotation has no qualifications', async () => {
     mockData([user({ id: 'u1', role: 'viewer', phone: '+48 1' })], [member({ id: 'm1', eligibility: [] })])
     renderScreen(<PeoplePanel />)

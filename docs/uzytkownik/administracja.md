@@ -24,7 +24,11 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
 
 - **Konto** - imię, nazwisko, login (bez zmian), numer pracownika, e-mail i
   telefon; telefon jest wymagany dla osób w rotacji, bo pokazuje go pasek
-  „Dyżur teraz” i karta dyżurnego,
+  „Dyżur teraz” i karta dyżurnego. Numer jest zapisywany jako `+48` i
+  dziewięć cyfr (same cyfry dostają prefiks, spacje i kreski są pomijane);
+  numer zagraniczny albo zapisany przed tą regułą ma dopisek „popraw numer”
+  w tabeli i w polu. Każda osoba może też zmienić swój numer sama na ekranie
+  [Moje](dostepnosc.md#mój-telefon),
 - **Rotacja** - stan rotacji, **kwalifikacje dyżurowe** jako chipy (zdjęcie
   chipa kończy okres roli z dniem wczorajszym, więc opublikowany grafik
   zostaje, a generator pomija rolę od następnego uruchomienia; dodanie chipa

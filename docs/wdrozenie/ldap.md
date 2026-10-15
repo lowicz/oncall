@@ -37,6 +37,7 @@ Powiązanie z kontem lokalnym opisuje [Role i dostęp](../produkt/role-i-dostep.
 | `ONCALL_LDAP_ATTRIBUTE_FIRST_NAME` | `givenName` | imię, wymagane |
 | `ONCALL_LDAP_ATTRIBUTE_LAST_NAME` | `sn` | nazwisko, może być puste |
 | `ONCALL_LDAP_ATTRIBUTE_EMAIL` | `mail` | e-mail, może być pusty |
+| `ONCALL_LDAP_ATTRIBUTE_PHONE` | puste | numer telefonu (`mobile` w Active Directory); wypełnia tylko puste pole konta, nigdy nie zastępuje numeru wpisanego ręcznie - patrz [Numer telefonu](#numer-telefonu); puste nie czyta numeru |
 | `ONCALL_LDAP_ATTRIBUTE_PHOTO` | `thumbnailPhoto` | zdjęcie użytkownika pokazywane jako awatar - patrz [Zdjęcie użytkownika](#zdjęcie-użytkownika); puste wyłącza |
 
 Wielkość liter w nazwach atrybutów nie ma znaczenia (`employeeID` i
@@ -44,8 +45,21 @@ Wielkość liter w nazwach atrybutów nie ma znaczenia (`employeeID` i
 samą nazwą konta (`anna`), nie `anna@firma.example` ani `FIRMA\anna`.
 
 Minimalne prawa konta serwisowego: odczyt kont w `ONCALL_LDAP_BASE_DN` i
-pięciu atrybutów powyżej. Hasło użytkownika sprawdza sam katalog - aplikacja
-go nie przechowuje.
+atrybutów powyżej. Hasło użytkownika sprawdza sam katalog - aplikacja go nie
+przechowuje.
+
+## Numer telefonu
+
+Z `ONCALL_LDAP_ATTRIBUTE_PHONE` aplikacja czyta przy każdym logowaniu numer
+telefonu z katalogu i zapisuje go na koncie, **tylko gdy konto nie ma
+numeru** - przy założeniu konta, przy dowiązaniu konta lokalnego bez numeru i
+przy kolejnym logowaniu konta, któremu numer usunięto. Numer wpisany na
+ekranie Moje albo przez administratora zostaje, nawet gdy katalog zna inny;
+kto chce wrócić do numeru z katalogu, wpisuje go sam. Numer jest zapisywany
+jak każdy inny w aplikacji: `+48` i dziewięć cyfr, same cyfry dostają
+prefiks, spacje i kreski są pomijane. Wartość, która nie jest polskim numerem
+(inny kraj, numer z nawiasami), jest pomijana i odnotowana w logu jako
+`reason=phone_invalid` z nazwą atrybutu; logowanie przebiega normalnie.
 
 ## Zdjęcie użytkownika
 
@@ -133,7 +147,7 @@ Udane logowanie to jeden wiersz `INFO`:
 | --- | --- |
 | `attempt` | identyfikator jednej próby logowania |
 | `login` | login wpisany przez użytkownika |
-| `outcome` | `event=login`: `signed_in`, `rejected`, `throttled`, `directory_unavailable`, `identity_conflict`; `event=ldap_auth`: `rejected`, `unavailable`, `invalid_identity`; `event=ldap_photo`: `skipped`, `unavailable` |
+| `outcome` | `event=login`: `signed_in`, `rejected`, `throttled`, `directory_unavailable`, `identity_conflict`; `event=ldap_auth`: `rejected`, `unavailable`, `invalid_identity`, `skipped`; `event=ldap_photo`: `skipped`, `unavailable` |
 | `phase` | krok, na którym próba się zatrzymała |
 | `reason` | powód - tabela poniżej; kod wyniku LDAP (np. `invalidCredentials`) albo nazwa nadana przez aplikację |
 | `detail` | krótkie uzupełnienie, np. komunikat weryfikacji certyfikatu |
@@ -172,6 +186,7 @@ Udane logowanie to jeden wiersz `INFO`:
 | `user_bind` | `invalidCredentials` | (`rejected`) `ad_reason`: `invalid_credentials` - złe hasło; `account_locked`, `password_expired`, `password_must_change`, `account_disabled`, `account_expired` - stan konta w AD |
 | `attributes` | `personnel_number_missing`, `personnel_number_not_numeric` | atrybut z `attribute=` jest pusty albo nie same cyfry; w wielu domenach numer jest w `employeeID` - wskaż go w [konfiguracji](#konfiguracja) |
 | `attributes` | `first_name_missing`, `email_invalid`, `attribute_too_long`, `attribute_not_text` | popraw wartość atrybutu w AD albo wskaż inny atrybut |
+| `attributes` | `phone_invalid` | (`skipped`) wartość atrybutu z `attribute=` nie jest polskim numerem (`+48` i dziewięć cyfr, także bez prefiksu); logowanie się udało, numer pozostał pusty - popraw go w AD albo wpisz na ekranie Moje |
 | `attributes` | `photo_too_large`, `photo_format_unsupported` | (`ldap_photo`, `skipped`) zdjęcie w atrybucie z `attribute=` jest większe niż `limit=` bajtów albo nie jest plikiem JPEG ani PNG; wgraj mniejsze zdjęcie do katalogu |
 | `search` | `user_not_found` | (`ldap_photo`, `skipped`) zalogowane konto zniknęło z katalogu od czasu logowania |
 | dowolna | `unexpected_error` | błąd w aplikacji albo bibliotece LDAP: zgłoś go z polami `error` i `at` |

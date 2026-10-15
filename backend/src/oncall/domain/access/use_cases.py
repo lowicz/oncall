@@ -144,20 +144,26 @@ async def synchronize_directory_account(identity: DirectoryIdentity, ports: Sign
         # The directory verified the person's credentials and vouches for the
         # personnel number, so the account converts: from now on the directory
         # is the only way in and the local password stops working.
-        linked = await ports.accounts.link_to_directory(account.id, login, identity)
-        await ports.journal.linked(linked, login=login)
-        return linked
-    # Otherwise the account already signs in through the directory.
-    changes = {
-        field: value
-        for field, value in (
-            ("username", login),
-            ("first_name", identity.first_name),
-            ("last_name", identity.last_name),
-            ("email", identity.email),
-        )
-        if getattr(account, field) != value
-    }
+        account = await ports.accounts.link_to_directory(account.id, login, identity)
+        await ports.journal.linked(account, login=login)
+        changes: dict[str, str | None] = {}
+    else:
+        # Otherwise the account already signs in through the directory.
+        changes = {
+            field: value
+            for field, value in (
+                ("username", login),
+                ("first_name", identity.first_name),
+                ("last_name", identity.last_name),
+                ("email", identity.email),
+            )
+            if getattr(account, field) != value
+        }
+    if account.phone is None and identity.phone is not None:
+        # The directory fills an empty number only: one typed by the person or
+        # an administrator stays, so a private number outside the directory
+        # survives every sign-in.
+        changes["phone"] = identity.phone
     if not changes:
         return account
     synced = await ports.accounts.update_from_directory(account.id, changes)

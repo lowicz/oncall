@@ -129,6 +129,61 @@ async def test_a_directory_account_follows_the_directory(world) -> None:
     assert (name, call["fields"]) == ("synced", ["first_name", "last_name", "email"])
 
 
+async def test_the_directory_s_number_arrives_with_a_provisioned_account(world) -> None:
+    world.directory = FakeDirectory(identity(phone="+48600100200"))
+
+    signed_in = await sign_in(world)
+
+    assert signed_in.account.phone == "+48600100200"
+    assert world.journal.names == ["provisioned", "signed_in"]
+
+
+@pytest.mark.parametrize("auth_source", [AuthSource.local, AuthSource.ldap])
+async def test_the_directory_fills_an_empty_number(world, auth_source) -> None:
+    """Whether the sign-in links a local account or follows a directory one,
+    an account without a number takes the directory's."""
+    ola = world.accounts.put(
+        account(
+            "ola",
+            personnel_number="42",
+            auth_source=auth_source,
+            last_name="Nowak",
+            email="ola@example.com",
+        )
+    )
+    world.directory = FakeDirectory(identity(phone="+48600100200"))
+
+    signed_in = await sign_in(world, password="directory-password")
+
+    assert signed_in.account.phone == "+48600100200"
+    assert world.accounts.by_id[ola.id].phone == "+48600100200"
+    synced = [call for name, call in world.journal.events if name == "synced"]
+    assert [call["fields"] for call in synced] == [["phone"]]
+
+
+@pytest.mark.parametrize("auth_source", [AuthSource.local, AuthSource.ldap])
+async def test_a_number_typed_by_hand_is_never_replaced_by_the_directory(world, auth_source):
+    """A private number that is not in the directory survives every sign-in;
+    whoever wants the directory's number back types it."""
+    ola = world.accounts.put(
+        account(
+            "ola",
+            personnel_number="42",
+            auth_source=auth_source,
+            last_name="Nowak",
+            email="ola@example.com",
+            phone="+48700800900",
+        )
+    )
+    world.directory = FakeDirectory(identity(phone="+48600100200"))
+
+    signed_in = await sign_in(world, password="directory-password")
+
+    assert signed_in.account.phone == "+48700800900"
+    assert world.accounts.by_id[ola.id].phone == "+48700800900"
+    assert "synced" not in world.journal.names
+
+
 async def test_nothing_to_sync_writes_nothing(world) -> None:
     world.accounts.put(
         account(

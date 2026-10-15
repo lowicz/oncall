@@ -294,6 +294,10 @@ const CONFIG = { ldap_enabled: true, app_name: 'On-call', app_subtitle: 'Zespó�
 /** Every query any screen makes, answered with the fixtures above. */
 function stubApi() {
   vi.spyOn(api, 'publicConfig').mockResolvedValue(CONFIG)
+  vi.spyOn(api, 'me').mockResolvedValue({
+    username: 'anna', display_name: 'Anna Kowalska', role: 'member', has_team_member: true,
+    email: 'anna@example.com', phone: '+48600100200', share: null, avatar_url: null,
+  })
   vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
   vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
   vi.spyOn(api, 'calendarEvents').mockResolvedValue([
@@ -492,7 +496,7 @@ describe('the Polish interface', () => {
   it('my duties and availability of a member', async () => {
     renderScreen(<MineScreen role="member" hasTeamMember displayName="Anna Kowalska" />)
     await screen.findByText('Najbliższe dyżury')
-    for (const call of [api.availability, api.fairnessDuties, api.calendar, api.swaps]) {
+    for (const call of [api.availability, api.fairnessDuties, api.calendar, api.swaps, api.me]) {
       await waitFor(() => expect(call).toHaveBeenCalled())
     }
     await snapshotOf('mine-member')
@@ -501,7 +505,7 @@ describe('the Polish interface', () => {
   it('availability filed by a coordinator on behalf of someone', async () => {
     renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Ewa Maj" />)
     await screen.findByText('Najbliższe dyżury')
-    for (const call of [api.team, api.availability, api.calendar, api.swaps]) {
+    for (const call of [api.team, api.availability, api.calendar, api.swaps, api.me]) {
       await waitFor(() => expect(call).toHaveBeenCalled())
     }
     await snapshotOf('mine-coordinator')

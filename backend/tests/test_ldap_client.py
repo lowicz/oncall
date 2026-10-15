@@ -386,6 +386,57 @@ def test_attribute_names_match_without_regard_to_case(lab, configured) -> None:
     assert (identity.personnel_number, identity.first_name) == ("000043", "Anna")
 
 
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [
+        ("600 100 200", "+48600100200"),
+        ("+48 600-100-200", "+48600100200"),
+        (None, None),
+    ],
+)
+def test_the_phone_attribute_is_read_in_the_stored_form_when_configured(
+    lab, diagnostics, stored, expected
+) -> None:
+    lab.add_anna(mobile=stored)
+
+    identity = lab.authenticator(ldap_attribute_phone="mobile")._authenticate_sync(
+        "anna", ANNA_PASSWORD
+    )
+
+    assert identity is not None and identity.phone == expected
+    assert records(diagnostics) == []
+
+
+def test_a_phone_attribute_the_directory_holds_is_ignored_until_configured(lab) -> None:
+    lab.add_anna(mobile="600 100 200")
+
+    identity = lab.authenticator()._authenticate_sync("anna", ANNA_PASSWORD)
+
+    assert identity is not None and identity.phone is None
+
+
+def test_a_number_that_is_not_a_polish_one_is_dropped_and_named_not_quoted(
+    lab, diagnostics
+) -> None:
+    """The sign-in succeeds without a number; the log says which attribute to
+    look at, since the empty field would otherwise be the only trace."""
+    lab.add_anna(mobile="+49 170 1234567")
+
+    identity = lab.authenticator(ldap_attribute_phone="mobile")._authenticate_sync(
+        "anna", ANNA_PASSWORD
+    )
+
+    assert identity is not None and identity.phone is None
+    [record] = records(diagnostics)
+    assert (record["outcome"], record["phase"], record["reason"], record["attribute"]) == (
+        "skipped",
+        "attributes",
+        "phone_invalid",
+        "mobile",
+    )
+    assert "1234567" not in diagnostics.text
+
+
 def test_an_account_without_optional_attributes_still_signs_in(lab, diagnostics) -> None:
     """Many Active Directory accounts have no `mail` and some no `sn`: they
     are optional here, and an absent value is empty - not the text '[]'."""

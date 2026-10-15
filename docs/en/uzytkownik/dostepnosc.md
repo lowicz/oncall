@@ -8,9 +8,9 @@ right are two actions: **ICS export (mine only)** and **Propose a swap**
 (opens Swaps with your nearest duty already selected).
 
 On a wide screen the left column holds the duties and the availability
-calendar, the right one the points and the swaps that involve you. On a phone
-the sections follow one another: duties, points with the **File
-availability** button, calendar, swaps.
+calendar, the right one the points, the swaps that involve you and your phone.
+On a phone the sections follow one another: duties, points with the **File
+availability** button, calendar, swaps, phone.
 
 ## Upcoming duties
 
@@ -102,6 +102,21 @@ A summary of the swaps you take part in: who hands over to whom, the day and
 role, and underneath, whom the swap is waiting for. A request addressed to you
 has a **Decide** button, which opens the “To me” inbox on the Swaps screen;
 **All** opens the whole screen.
+
+## My phone
+
+The **My phone** section shows the number stored on your account - the one
+signed-in people see on the “On duty now” strip and on the on-call card. Type
+the number in any form (`600 100 200`, `48600100200`, `+48 600-100-200`) and
+click **Save number**: the application stores it as `+48` and nine digits and
+shows that form in the field. A foreign number is not accepted - the field
+says “Fix the number”, and a person in the rotation without a number sees
+“Required for people in the rotation”. An empty field removes the number.
+
+With directory sign-in (LDAP / Active Directory) an administrator can turn on
+reading the number from the directory: it fills an empty field only, so a
+number typed here or by an administrator stays, even when the directory knows
+a different one. Whoever wants the directory's number back types it.
 
 ## Calendar subscription (ICS)
 

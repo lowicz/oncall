@@ -130,6 +130,18 @@ async def test_ldap_login_synchronizes_identity_but_keeps_local_authorization(cl
     assert "auth.ldap_synced" in set(await db.scalars(select(AuditEvent.action)))
 
 
+async def test_a_provisioned_account_takes_the_directory_s_phone(client, db) -> None:
+    """The fill rule itself is the domain's (test_access_use_cases); this is
+    the adapter copying the number onto the new row."""
+    use_directory(FakeDirectory(directory_identity(phone="+48600100200")))
+
+    me = await directory_login(client)
+
+    assert me["phone"] == "+48600100200"
+    user = await db.scalar(select(User).where(User.personnel_number == "000042"))
+    assert user.phone == "+48600100200"
+
+
 @pytest.mark.parametrize("username", ["bad-password", "outside-directory"])
 async def test_rejected_directory_login_does_not_create_an_account(client, db, username) -> None:
     directory = FakeDirectory(None)

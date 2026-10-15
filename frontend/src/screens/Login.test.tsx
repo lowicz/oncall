@@ -34,7 +34,7 @@ describe('Login', () => {
   it('hands the signed-in person to the shell after a successful sign-in', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue(CONFIG)
     const login = vi.spyOn(api, 'login').mockResolvedValue({
-      username: 'anna', display_name: 'Anna Kowalska', role: 'member', has_team_member: true, email: null, share: null, avatar_url: null,
+      username: 'anna', display_name: 'Anna Kowalska', role: 'member', has_team_member: true, email: null, phone: null, share: null, avatar_url: null,
     })
     renderScreen(<><Login /><SignedInProbe /></>)
     fireEvent.change(screen.getByLabelText('Login'), { target: { value: 'anna' } })

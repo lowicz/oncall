@@ -98,6 +98,7 @@ class FakeAccessAccounts:
                 first_name=identity.first_name,
                 last_name=identity.last_name,
                 email=identity.email,
+                phone=identity.phone,
                 auth_source=AuthSource.ldap,
                 role=UserRole.viewer,
             ),

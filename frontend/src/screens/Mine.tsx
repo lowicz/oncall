@@ -14,6 +14,8 @@ import {
   api,
 } from '../api'
 import { messages, useMessages } from '../i18n'
+import { meKey } from '../session'
+import { isPolishPhone } from '../lib/phone'
 import { availabilityLabels, firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
@@ -699,6 +701,47 @@ function FeedsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 /**
+ * The person's own number: what the "Now" strip and the on-call card show and
+ * what the call forwarding dials. The API stores `+48` and nine digits and
+ * normalises what is typed, so the field shows the stored form back after a
+ * save; the rule is mirrored here only to say "popraw numer" early.
+ */
+function PhoneSection({ inRotation }: { inRotation: boolean }) {
+  const t = useMessages().mine.phone
+  const toast = useToast()
+  const queryClient = useQueryClient()
+  const me = useQuery({ queryKey: meKey, queryFn: api.me })
+  const [draft, setDraft] = useState<string | null>(null)
+  const value = draft ?? me.data?.phone ?? ''
+  const typed = value.trim()
+  const save = useMutation({
+    mutationFn: () => api.updateMyPhone(typed || null),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(meKey, updated)
+      setDraft(null)
+      toast.success(t.saved)
+    },
+  })
+  // No verdict on a value that has not arrived yet.
+  const verdict = typed ? (isPolishPhone(typed) ? undefined : t.fix) : inRotation ? t.required : undefined
+  const error = me.data ? verdict : undefined
+  return (
+    <section className="stack-sm" aria-labelledby="moj-telefon">
+      <SectionHeading id="moj-telefon" title={t.heading} />
+      <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); save.mutate() }}>
+        <Field label={t.label} id="my-phone" hint={t.hint} error={error}>
+          {({ id, describedBy, invalid }) => (
+            <Input id={id} type="tel" mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onChange={(event) => setDraft(event.target.value)} />
+          )}
+        </Field>
+        {save.error && <Box tone="bad" role="alert" title={save.error.message} />}
+        <div><Button type="submit" size="sm" loading={save.isPending} disabled={draft === null}>{t.save}</Button></div>
+      </form>
+    </section>
+  )
+}
+
+/**
  * The member's screen: when is my duty, what have I declared, how do I stand
  * against the team. Duties and the availability calendar on the left, the
  * points and the swaps that concern me on the right; on a phone the points
@@ -764,6 +807,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
     </section>
   )
   const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} />
+  const phone = <PhoneSection inRotation={inRotation} />
 
   return (
     <div className="page">
@@ -787,12 +831,18 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
           </>
         )}
       />
-      {!inRotation ? availability : narrow ? (
+      {!inRotation ? (
+        <>
+          {availability}
+          {phone}
+        </>
+      ) : narrow ? (
         <>
           {duties}
           <PointsSection displayName={displayName} compact onAvailability={scrollToAvailability} />
           {availability}
           <SwapsSection displayName={displayName} role={role} />
+          {phone}
         </>
       ) : (
         <div className="split split-md">
@@ -803,6 +853,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
           <div className="stack">
             <PointsSection displayName={displayName} />
             <SwapsSection displayName={displayName} role={role} />
+            {phone}
           </div>
         </div>
       )}
