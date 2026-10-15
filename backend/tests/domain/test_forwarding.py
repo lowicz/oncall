@@ -115,7 +115,8 @@ async def test_the_desired_target_maps_the_primary_phone_to_wco_unchanged() -> N
 
     assert target == ForwardingTarget(day, member_id, "Anna Kowalska", "+48500500500")
     assert target.missing is None
-    assert target.alert_token == f"{day.isoformat()}:+48500500500"
+    assert target.alert_token.startswith(f"{day.isoformat()}:")
+    assert "+48500500500" not in target.alert_token
     assert wco_number(target) == "+48500500500"
     assert contacts.asked == [member_id]
 
@@ -134,8 +135,8 @@ async def test_a_missing_or_imported_primary_has_no_target_number() -> None:
     no_account = await desired_target(now, 9, _Roster(imported), _Contacts("unused"))
 
     assert no_primary.missing is ForwardingFailure.no_primary
-    assert no_primary.alert_token.endswith(":none")
     assert no_account.missing is ForwardingFailure.no_phone
+    assert no_primary.alert_token != no_account.alert_token
     assert "Osoba z importu" not in no_account.alert_token
     with pytest.raises(ValueError, match="no number"):
         wco_number(no_account)

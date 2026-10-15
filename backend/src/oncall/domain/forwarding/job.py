@@ -57,31 +57,21 @@ class ForwardingTarget:
 
     @property
     def alert_token(self) -> str:
-        """A compact identity for one daily target, safe for a dedup key."""
-        if self.number is not None:
-            target = self.number
-        elif self.member_id is not None:
-            target = str(self.member_id)
-        elif self.member_name is not None:
-            target = hashlib.sha256(self.member_name.encode()).hexdigest()[:16]
-        else:
-            target = "none"
-        return f"{self.day.isoformat()}:{target}"
+        """One daily target as a short dedup key that carries no number."""
+        identity = f"{self.number}|{self.member_id}|{self.member_name}".encode()
+        return f"{self.day.isoformat()}:{hashlib.sha256(identity).hexdigest()[:16]}"
 
 
 @dataclass(frozen=True)
 class ForwardingAccount:
     """One consistent snapshot of the WCO settings and decrypted passwords."""
 
-    settings_id: uuid.UUID
     mode: ForwardingMode
     base_url: str
     vpbx_number: str
     username: str
     wco_user_id: str
     passwords: Passwords = field(repr=False)
-    current_token: str = field(repr=False, default="")
-    pending_token: str | None = field(repr=False, default=None)
     credentials_invalid_since: datetime | None = None
 
 

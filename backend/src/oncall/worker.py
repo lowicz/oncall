@@ -178,10 +178,6 @@ def _open_wco(account: ForwardingAccount) -> WcoClient:
 
 def _wco_failure(exc: WcoError, refused: ForwardingFailure) -> _ForwardingAttemptFailed:
     """Classify a response without copying its body into persisted state."""
-    if isinstance(exc, WcoConfigurationError):
-        return _ForwardingAttemptFailed(
-            ForwardingFailure.settings_invalid, str(exc), permanent=True
-        )
     transient = exc.status is None or exc.status >= 500
     return _ForwardingAttemptFailed(
         ForwardingFailure.connection if transient else refused,
@@ -231,30 +227,14 @@ async def _change_pending_password(
             if exc.status == 400 and attempt_number < PASSWORD_CHANGE_ATTEMPTS:
                 attempt = await _stage_pending(factory, attempt, generate_password())
                 continue
-            failure = _wco_failure(exc, ForwardingFailure.password_rotation_failed)
-            raise _ForwardingAttemptFailed(
-                ForwardingFailure.password_rotation_failed,
-                failure.detail,
-                permanent=failure.permanent,
-            ) from exc
+            raise _wco_failure(exc, ForwardingFailure.password_rotation_failed) from exc
         attempt = await _renew_attempt(factory, attempt)
         try:
             await wco.login(account.vpbx_number, account.username, pending)
-        except WcoLoginRefused as exc:
-            # Keep both stored passwords. The next pass tries pending and then
-            # current, and stops the account only if WCO refuses both.
-            raise _ForwardingAttemptFailed(
-                ForwardingFailure.password_rotation_failed,
-                str(exc),
-                permanent=True,
-            ) from exc
         except WcoError as exc:
-            failure = _wco_failure(exc, ForwardingFailure.password_rotation_failed)
-            raise _ForwardingAttemptFailed(
-                ForwardingFailure.password_rotation_failed,
-                failure.detail,
-                permanent=failure.permanent,
-            ) from exc
+            # A refused login keeps both stored passwords: the next pass tries
+            # pending and then current, and stops only if WCO refuses both.
+            raise _wco_failure(exc, ForwardingFailure.password_rotation_failed) from exc
         return await _promote_pending(factory, attempt)
 
 
@@ -372,7 +352,9 @@ async def _reconcile_wco(
                     )
                 return attempt, desired, ForwardingOutcome.applied, rotated
     except WcoConfigurationError as exc:
-        raise _wco_failure(exc, ForwardingFailure.settings_invalid) from exc
+        raise _ForwardingAttemptFailed(
+            ForwardingFailure.settings_invalid, str(exc), permanent=True
+        ) from exc
 
 
 async def _prepare_forwarding(
@@ -452,15 +434,9 @@ async def scan_forwarding(factory: Sessions, *, now_warsaw: datetime) -> int:
             )
     else:
         async with SqlAlchemyUnitOfWork(factory) as db:
-            recorder = SqlAlchemyForwardingAttempts(db)
-            if outcome is ForwardingOutcome.dry_run:
-                recorded = await recorder.record_dry_run(
-                    active, current, rotated=rotated, now=utc_now()
-                )
-            else:
-                recorded = await recorder.record_success(
-                    active, current, outcome, rotated=rotated, now=utc_now()
-                )
+            recorded = await SqlAlchemyForwardingAttempts(db).record_success(
+                active, current, outcome, rotated=rotated, now=utc_now()
+            )
     if recorded is None:
         return 0
     _emit_forwarding(recorded, started=started)

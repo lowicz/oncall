@@ -725,7 +725,7 @@ async def test_a_lost_lease_discards_both_success_and_failure_results(
 
 async def test_configuration_rotation_guards_missing_rows(db, frozen_clock, forwarding_key) -> None:
     fake = FakeWco()
-    row = await _settings(db, fake, ForwardingMode.live)
+    await _settings(db, fake, ForwardingMode.live)
     configuration = SqlAlchemyForwardingConfiguration(db)
     account = await configuration.account(SettingsCipher(worker.get_settings()))
     target = ForwardingTarget(frozen_clock.instant.date(), None, "Anna", "+48500500500")
@@ -735,13 +735,14 @@ async def test_configuration_rotation_guards_missing_rows(db, frozen_clock, forw
         frozen_clock.instant + worker.FORWARDING_LEASE,
         0,
     )
-    db.add(CallForwardingState(lease_until=attempt.lease_until))
+    state = CallForwardingState(lease_until=attempt.lease_until)
+    db.add(state)
     await db.commit()
 
     with pytest.raises(RuntimeError, match="pending WCO password disappeared"):
         await configuration.promote_pending(attempt, now=frozen_clock.instant)
 
-    await db.delete(row)
+    state.lease_until = None
     await db.commit()
     with pytest.raises(worker.ForwardingClaimLost, match="superseded"):
         await configuration.stage_pending(
@@ -771,8 +772,12 @@ async def test_attempt_recorders_ignore_a_foreign_lease(db, frozen_clock, forwar
     foreign = replace(attempt, lease_until=attempt.lease_until + timedelta(seconds=1))
 
     assert (
-        await attempts.record_dry_run(
-            foreign, "+48600600600", rotated=False, now=frozen_clock.instant
+        await attempts.record_success(
+            foreign,
+            "+48600600600",
+            ForwardingOutcome.dry_run,
+            rotated=False,
+            now=frozen_clock.instant,
         )
         is None
     )
@@ -780,7 +785,6 @@ async def test_attempt_recorders_ignore_a_foreign_lease(db, frozen_clock, forwar
 
 async def test_change_requires_a_pending_password(db_factory, frozen_clock) -> None:
     account = worker.ForwardingAccount(
-        uuid.uuid4(),
         ForwardingMode.live,
         "https://wco.test",
         "221234567",
@@ -857,21 +861,29 @@ async def test_lease_is_renewed_during_a_rotation_longer_than_the_initial_lease(
     assert decrypt(worker.get_settings(), stored.password_ciphertext or "") == fake.password
 
 
-async def test_renew_rejects_changed_settings_and_an_expired_lease(
+async def test_renew_rejects_a_lease_revoked_by_a_settings_change_or_expired(
     db, db_factory, frozen_clock, forwarding_key, monkeypatch
 ) -> None:
     fake = FakeWco()
     _use_fake(monkeypatch, fake)
-    await _primary(db, frozen_clock)
+    admin, _member = await _primary(db, frozen_clock)
     await _settings(db, fake, ForwardingMode.live)
     attempt = await worker._prepare_forwarding(db_factory, now_warsaw=_now(frozen_clock))
     assert isinstance(attempt, worker.ForwardingAttempt)
 
     async with SqlAlchemyUnitOfWork(db_factory) as session:
-        settings = await session.get(CallForwardingSettings, attempt.account.settings_id)
-        assert settings is not None
-        settings.username = "replacement-login"
-        with pytest.raises(worker.ForwardingClaimLost, match="settings changed"):
+        await SqlAlchemyForwardingSettings(session).change(
+            SettingsChange(
+                ForwardingMode.live,
+                "https://wco.test",
+                fake.vpbx_number,
+                "replacement-login",
+                fake.user_id,
+                admin.id,
+            ),
+            None,
+        )
+        with pytest.raises(worker.ForwardingClaimLost, match="replaced"):
             await SqlAlchemyForwardingAttempts(session).renew(
                 attempt,
                 now=frozen_clock.instant,
