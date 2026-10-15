@@ -46,9 +46,10 @@ def test_a_token_no_key_opens_is_refused_without_echoing_it() -> None:
     """The old key dropped too early: the error names the variable, never the
     token or the keys."""
     token = secrets.encrypt(keyed(OLD_KEY), "sekret")
+    rotated = keyed(NEW_KEY)
 
     with pytest.raises(secrets.SecretsUnavailable) as refused:
-        secrets.decrypt(keyed(NEW_KEY), token)
+        secrets.decrypt(rotated, token)
 
     assert "ONCALL_SECRETS_KEY" in str(refused.value)
     assert token not in str(refused.value)
