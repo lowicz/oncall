@@ -15,7 +15,7 @@ diff like any other change to what a reader sees.
 import os
 import re
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from html import escape
 from pathlib import Path
 
@@ -291,7 +291,7 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
         cause=ForwardingFailure.password_rotation_failed,
         applied_number="+48600600600",
-        applied_at=datetime(2026, 9, 24, 8, 55),
+        applied_at=datetime(2026, 9, 24, 6, 55, tzinfo=UTC),
         switch_url=SWITCH_URL,
         app=APP,
     ),
@@ -351,6 +351,9 @@ def test_forwarding_mail_masks_every_phone_number() -> None:
         assert "+48 500 *** 500" in rendered.text
         assert "+48 500 *** 500" in rendered.html
     assert "+48600600600" not in failed.text + failed.html
+    # WCO's confirmation is stored in UTC and read in Warsaw time.
+    assert "+48 600 *** 600; 24-09-2026 08:55" in failed.text
+    assert "24-09-2026 08:55" in failed.html
     assert "+48 600 *** 600" in failed.text
     assert templates.masked_phone(None) == "brak"
     assert templates.masked_phone("extension-12") == "numer ukryty"

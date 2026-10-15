@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from oncall.domain.calendar.models import WEEKDAYS
+from oncall.domain.clock import BUSINESS_TIMEZONE
 from oncall.domain.digest import Gap
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
 from oncall.domain.vocabulary import ONCALL_ROLES, ROLE_LABELS, AssignmentRole
@@ -1094,10 +1095,9 @@ def forwarding_failed(
     lead_text = "Automatyczne przełączenie numeru on-call nie powiodło się."
     desired = masked_phone(target.number)
     current = masked_phone(applied_number)
+    local = applied_at.astimezone(BUSINESS_TIMEZONE) if applied_at is not None else None
     when = (
-        f"{format_date(applied_at.date())} {applied_at:%H:%M}"
-        if applied_at is not None
-        else "brak potwierdzenia"
+        f"{format_date(local.date())} {local:%H:%M}" if local is not None else "brak potwierdzenia"
     )
     reason = FORWARDING_FAILURES[cause]
     fill_phone = (
