@@ -34,7 +34,7 @@ async def change_settings(
         raise errors.SettingsIncomplete()
     token = None if password is None else ports.cipher.encrypt(password)
     settings = await ports.settings.change(change, token)
-    await ports.journal.settings_updated(settings, password_changed=token is not None)
+    ports.journal.settings_updated(settings, password_changed=token is not None)
     return settings
 
 

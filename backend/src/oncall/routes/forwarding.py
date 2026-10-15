@@ -26,14 +26,14 @@ FORWARDING_ERROR_STATUSES = {
 }
 
 
-@router.get("/settings", response_model=ForwardingSettingsResponse)
+@router.get("/settings")
 async def forwarding_settings(
     _: Admin, store: ForwardingSettingsReader
 ) -> ForwardingSettingsResponse:
     return ForwardingSettingsResponse.model_validate(await use_cases.current_settings(store))
 
 
-@router.put("/settings", response_model=ForwardingSettingsResponse)
+@router.put("/settings")
 async def change_forwarding_settings(
     payload: ForwardingSettingsUpdate,
     admin: Admin,
@@ -56,6 +56,6 @@ async def change_forwarding_settings(
     return ForwardingSettingsResponse.model_validate(settings)
 
 
-@router.get("/state", response_model=ForwardingStateResponse)
+@router.get("/state")
 async def forwarding_state(_: Admin, store: ForwardingStateReader) -> ForwardingStateResponse:
     return ForwardingStateResponse.model_validate(await use_cases.current_state(store))

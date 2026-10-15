@@ -37,9 +37,7 @@ class PasswordCipher(Protocol):
 class SettingsJournal(Protocol):
     """The audit entry of a settings change, in the name of the administrator."""
 
-    async def settings_updated(
-        self, settings: ForwardingSettings, *, password_changed: bool
-    ) -> None: ...
+    def settings_updated(self, settings: ForwardingSettings, *, password_changed: bool) -> None: ...
 
 
 @dataclass(frozen=True)

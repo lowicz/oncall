@@ -86,9 +86,7 @@ class SqlAlchemyForwardingJournal:
         self._session = session
         self._actor = actor
 
-    async def settings_updated(
-        self, settings: ForwardingSettings, *, password_changed: bool
-    ) -> None:
+    def settings_updated(self, settings: ForwardingSettings, *, password_changed: bool) -> None:
         record_audit(
             self._session,
             actor=self._actor,
