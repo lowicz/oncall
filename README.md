@@ -242,7 +242,7 @@ is external, configured with `ONCALL_SMTP_HOST`, `ONCALL_SMTP_PORT`,
 `ONCALL_SMTP_USERNAME`, `ONCALL_SMTP_PASSWORD`, `ONCALL_SMTP_USE_TLS` /
 `ONCALL_SMTP_STARTTLS`, `ONCALL_EMAIL_FROM` and, when the server insists on a
 client name, `ONCALL_SMTP_LOCAL_HOSTNAME`; the server's certificate is always
-verified (`ONCALL_SMTP_CA_FILE` with the `docker-compose.smtp-ca.yml` overlay
+verified (`ONCALL_CA_FILE` with the `docker-compose.ca.yml` overlay
 for an internal CA); without `ONCALL_SMTP_HOST` messages
 are marked `skipped` with the reason in the outbox, except the working-day digest,
 which is not queued at all. The username and password
@@ -303,7 +303,7 @@ bind, search base and filter (which must contain `{username}`) and the
 attribute mapping (`employeeNumber`, `givenName`, `sn`, `mail` by default). A
 service bind finds exactly one entry, a bind as that entry proves the
 password, `ldap://` uses StartTLS and `ldaps://` TLS, always with certificate
-validation (`ONCALL_LDAP_CA_FILE` with the `docker-compose.ldap-ca.yml`
+validation (`ONCALL_CA_FILE` with the `docker-compose.ca.yml`
 overlay for an internal CA). The first directory login creates an active
 `viewer` keyed by the personnel number and later logins sync the name and
 e-mail while the local role, status, rotation and eligibility stay; an account

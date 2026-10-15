@@ -7,7 +7,8 @@ password and whether it expired, and the one user whose `number` the on-call
 line forwards to. Like WCO it answers 403 to the user calls while the password
 is expired, takes the passwords of `change-password` URL-encoded, and ends
 every session once the password changed. Every request is kept in `requests`,
-so a test reads the exact calls and payloads.
+so a test reads the exact calls and payloads. `https_wco` is the one WCO
+on a real TLS socket, for the tests of whom the client trusts.
 
 All credentials here are dummies.
 """
@@ -15,8 +16,13 @@ All credentials here are dummies.
 import json
 import re
 import secrets
+import ssl
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from http.cookies import SimpleCookie
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import quote, unquote
 
@@ -127,3 +133,33 @@ class FakeWco:
         self.password_expired = False
         self.sessions.clear()
         return httpx.Response(200)
+
+
+@contextmanager
+def https_wco(server_tls: ssl.SSLContext) -> Iterator[str]:
+    """A WCO on the loopback that opens a session for anyone."""
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Set-Cookie", "XSRF-TOKEN=token; Path=/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def do_POST(self) -> None:
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        server.socket = server_tls.wrap_socket(server.socket, server_side=True)
+        thread = threading.Thread(target=server.serve_forever, args=(0.01,), daemon=True)
+        thread.start()
+        try:
+            yield f"https://127.0.0.1:{server.server_address[1]}"
+        finally:
+            server.shutdown()

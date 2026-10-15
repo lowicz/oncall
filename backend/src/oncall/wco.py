@@ -15,11 +15,11 @@ user calls answer 403, which is `WcoPasswordExpired`; a refused login is
 WCO answered may echo what was sent, so neither ends up in an error or a log,
 and the client logs nothing of its own (httpx logs the method and the URL).
 
-TLS is always verified, against the image's public roots plus the CAs of an
-optional CA file, for a TLS proxy that re-signs the traffic. A redirect is
-followed, `MAX_REDIRECTS` hops at most, only while it keeps the configured
-scheme, host and port; one to another origin is an error before anything is
-sent there.
+TLS is always verified, against the context the caller passes: the image's
+public roots plus `ONCALL_CA_FILE` (`oncall.trust`), for a TLS proxy that
+re-signs the traffic. A redirect is followed, `MAX_REDIRECTS` hops at most,
+only while it keeps the configured scheme, host and port; one to another
+origin is an error before anything is sent there.
 """
 
 import ssl
@@ -63,20 +63,6 @@ _REFUSED: dict[int, type[WcoError]] = {401: WcoLoginRefused, 403: WcoLoginRefuse
 _EXPIRED: dict[int, type[WcoError]] = {403: WcoPasswordExpired}
 
 
-def tls_context(ca_file: str | None) -> ssl.SSLContext:
-    """The public roots, plus the CAs of `ca_file` when one is set: added to
-    them, not put in their place, as for the SMTP relay."""
-    context = ssl.create_default_context()
-    if ca_file:
-        try:
-            context.load_verify_locations(cafile=ca_file)
-        except OSError as exc:
-            raise WcoConfigurationError(
-                f"the WCO CA file is unreadable ({ca_file}): {exc}"
-            ) from exc
-    return context
-
-
 def _same_origin(url: httpx.URL, base: httpx.URL) -> bool:
     return (url.scheme, url.host, url.port) == (base.scheme, base.host, base.port)
 
@@ -90,12 +76,12 @@ class WcoClient:
         self,
         base_url: str,
         *,
-        ca_file: str | None = None,
+        verify: ssl.SSLContext,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._http = httpx.AsyncClient(
             base_url=base_url,
-            verify=tls_context(ca_file),
+            verify=verify,
             transport=transport,
             timeout=TIMEOUT_SECONDS,
             # Followed by `_call`, and only on the configured origin, so the

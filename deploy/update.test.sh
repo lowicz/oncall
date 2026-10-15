@@ -63,7 +63,7 @@ ONCALL_DATABASE_URL=postgresql+asyncpg://oncall:oncall@db:5432/oncall
 # A new setting in this release.
 ONCALL_NEW_SETTING=42
 # CA bundle, off by default:
-# ONCALL_LDAP_CA_FILE=./tls/ca.pem
+# ONCALL_CA_FILE=./tls/ca.pem
 # Example of an https base URL:
 #   ONCALL_PUBLIC_BASE_URL=https://oncall.example:8443
 ONCALL_PUBLIC_BASE_URL=http://localhost:8080
@@ -78,7 +78,7 @@ ONCALL_APP_NAME="Dyżury IT # zespół"
 ONCALL_APP_SUBTITLE=
 ONCALL_DATABASE_URL=postgresql+asyncpg://oncall:p=ss#w0rd@db:5432/oncall
 export ONCALL_PUBLIC_BASE_URL=https://oncall.firma.example:8443
-ONCALL_LDAP_CA_FILE=/etc/pki/ad-ca.pem
+ONCALL_CA_FILE=/etc/pki/ad-ca.pem
 POSTGRES_PASSWORD='line one
 line = two'
 # Removed from the example, still set here.
@@ -123,9 +123,9 @@ lacks_line "$work/merged" '# Brand.'
 has_line "$work/merged" '#   ONCALL_PUBLIC_BASE_URL=https://oncall.example:8443'
 
 check "merge puts a key in place of its commented example line"
-lacks_line "$work/merged" '# ONCALL_LDAP_CA_FILE=./tls/ca.pem'
-grep -A1 -Fx '# CA bundle, off by default:' "$work/merged" | grep -Fqx 'ONCALL_LDAP_CA_FILE=/etc/pki/ad-ca.pem' ||
-  fail "ONCALL_LDAP_CA_FILE is not in place of its example line"
+lacks_line "$work/merged" '# ONCALL_CA_FILE=./tls/ca.pem'
+grep -A1 -Fx '# CA bundle, off by default:' "$work/merged" | grep -Fqx 'ONCALL_CA_FILE=/etc/pki/ad-ca.pem' ||
+  fail "ONCALL_CA_FILE is not in place of its example line"
 
 check "merge keeps both lines of a key assigned twice, in their order"
 grep -A1 -Fx 'ONCALL_APP_SUBTITLE=' "$work/merged" | grep -Fqx 'ONCALL_APP_SUBTITLE=Infrastruktura' ||
@@ -165,12 +165,12 @@ check "merge against the repository .env.example keeps a filled-in .env"
 sed -e 's/^ONCALL_VERSION=$/ONCALL_VERSION=0.9.0/' \
   -e 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=f00d/' \
   -e 's/^ONCALL_TLS_CERT_FILE=.*/ONCALL_TLS_CERT_FILE=\/etc\/pki\/cert.pem/' \
-  -e 's/^# ONCALL_LDAP_CA_FILE=.*/ONCALL_LDAP_CA_FILE=\/etc\/pki\/ca.pem/' \
+  -e 's/^# ONCALL_CA_FILE=.*/ONCALL_CA_FILE=\/etc\/pki\/ca.pem/' \
   "$repo_root/.env.example" | grep -v '^ONCALL_LDAP_ATTRIBUTE_PHOTO=' >"$work/real-current"
 merge "$work/real-current" "$repo_root/.env.example" 1.0.0 >"$work/real-merged"
 has_line "$work/real-merged" 'POSTGRES_PASSWORD=f00d'
 has_line "$work/real-merged" 'ONCALL_TLS_CERT_FILE=/etc/pki/cert.pem'
-has_line "$work/real-merged" 'ONCALL_LDAP_CA_FILE=/etc/pki/ca.pem'
+has_line "$work/real-merged" 'ONCALL_CA_FILE=/etc/pki/ca.pem'
 has_line "$work/real-merged" 'ONCALL_LDAP_ATTRIBUTE_PHOTO=thumbnailPhoto'
 has_line "$work/real-merged" 'ONCALL_VERSION=1.0.0'
 lacks_line "$work/real-merged" '# Kept from the previous .env: not in .env.example.'
@@ -234,6 +234,7 @@ case $1 in
     case $3 in
       LoadState) echo "${TEST_LOAD_STATE:-loaded}" ;;
       WorkingDirectory) echo "$TEST_WORKING_DIRECTORY" ;;
+      DropInPaths) echo "${TEST_DROP_INS:-}" ;;
       FragmentPath)
         case $5 in
           oncall.service) echo "$TEST_UNIT_FILE" ;;
@@ -251,7 +252,7 @@ chmod +x "$stubs/curl" "$stubs/podman" "$stubs/systemctl"
 # The release the stubs serve: this checkout's files with a new .env.example
 # key and changed units, and a backup script that logs how it was called.
 release=$work/release
-for file in docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml docker-compose.wco-ca.yml .env.example \
+for file in docker-compose.yml docker-compose.tls.yml docker-compose.ca.yml .env.example \
   deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh \
   deploy/backup/setup.sh deploy/backup/oncall-backup.service deploy/backup/oncall-backup-alert.service \
   deploy/backup/oncall-backup.timer; do
@@ -274,7 +275,7 @@ new_deployment() {
   deploy=$work/$1
   rm -rf "$deploy" "${work:?}/home"
   mkdir -p "$deploy/deploy/systemd" "$deploy/tls" "$work/home/.config/systemd/user"
-  for file in docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml .env.example \
+  for file in docker-compose.yml docker-compose.tls.yml docker-compose.ca.yml .env.example \
     deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh; do
     cp "$repo_root/$file" "$deploy/$file"
   done
@@ -566,6 +567,18 @@ on_postgres_17 "$deploy/docker-compose.yml"
 TEST_DUMP_FAIL=1 TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the move failed"
 has_text "$work/out" 'and oncall.service did not start again; see journalctl --user -u oncall.service. No file was changed'
 
+check "a failed move whose restart trips over the CA overlay the drop-in already names says how to undo it"
+new_deployment postgres-upgrade-before-ca-overlay
+on_postgres_17 "$deploy/docker-compose.yml"
+rm "$deploy/docker-compose.ca.yml"
+drop_ins=$work/home/.config/systemd/user/oncall.service.d
+mkdir -p "$drop_ins"
+printf '[Service]\nEnvironment=ONCALL_COMPOSE_FILES=docker-compose.yml:docker-compose.ca.yml\n' >"$drop_ins/files.conf"
+TEST_DROP_INS="$drop_ins/files.conf" TEST_DUMP_FAIL=1 TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 &&
+  fail "succeeded although the move failed"
+has_text "$work/out" 'and oncall.service did not start again: its drop-in names docker-compose.ca.yml, which 1.0.0 does not have. Put back the overlays that line named before'
+[ ! -e "$deploy/docker-compose.ca.yml" ] || fail "the CA overlay was installed"
+
 check "a PostgreSQL image that cannot be pulled stops the move with nothing changed"
 new_deployment postgres-pull-fails
 on_postgres_17 "$deploy/docker-compose.yml"
@@ -598,6 +611,65 @@ new_deployment postgres-upgrade-then-restart-fails
 on_postgres_17 "$deploy/docker-compose.yml"
 TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the restart failed"
 has_text "$work/out" "The database is in PostgreSQL $stack_major now, so this script cannot go back to 1.0.0"
+
+check "a per-feature CA name in .env is refused with the rename, before any change"
+for key in ONCALL_LDAP_CA_FILE ONCALL_SMTP_CA_FILE ONCALL_WCO_CA_FILE ONCALL_TLS_CA_FILE; do
+  new_deployment "retired-$key"
+  printf '%s=./tls/ca.pem\n' "$key" >>"$deploy/.env"
+  cp -p "$deploy/.env" "$work/env-retired"
+  run_update --dir "$deploy" 9.9.9 && fail "succeeded with $key in .env"
+  has_text "$work/out" "sets $key, which ONCALL_CA_FILE replaced: rename it to ONCALL_CA_FILE"
+  has_text "$work/out" 'nothing was changed'
+  same_file "$deploy/.env" "$work/env-retired"
+  [ "$(backups)" = 0 ] || fail "a backup was made"
+  if grep -Fq 'curl' "$work/log"; then
+    fail "downloaded the release before refusing"
+  fi
+done
+
+check "a unit running a per-feature CA overlay is refused with the drop-in edit, before any change"
+new_deployment retired-drop-in
+drop_ins=$work/home/.config/systemd/user/oncall.service.d
+mkdir -p "$drop_ins"
+printf '[Service]\nWorkingDirectory=%s\n' "$deploy" >"$drop_ins/checkout.conf"
+printf '[Service]\nEnvironment=ONCALL_COMPOSE_FILES=docker-compose.yml:docker-compose.ldap-ca.yml:docker-compose.wco-ca.yml\n' \
+  >"$drop_ins/files.conf"
+cp -p "$drop_ins/files.conf" "$work/files-before"
+TEST_DROP_INS="$drop_ins/checkout.conf $drop_ins/files.conf" run_update --dir "$deploy" 9.9.9 &&
+  fail "succeeded with a retired overlay in the unit"
+has_text "$work/out" 'oncall.service runs per-feature CA overlays that docker-compose.ca.yml replaced; nothing was changed'
+fix=$(sed -n "s/.*cannot start): //p" "$work/out")
+[ "$fix" = "sed -i 's|^Environment=ONCALL_COMPOSE_FILES=.*|Environment=ONCALL_COMPOSE_FILES=docker-compose.yml:docker-compose.ca.yml|' '$drop_ins/files.conf' && systemctl --user daemon-reload" ] ||
+  fail "unexpected fix: $fix"
+same_file "$drop_ins/files.conf" "$work/files-before"
+same_file "$deploy/.env" "$work/env-before"
+[ "$(backups)" = 0 ] || fail "a backup was made"
+sh -c "${fix%% && *}"
+has_line "$drop_ins/files.conf" 'Environment=ONCALL_COMPOSE_FILES=docker-compose.yml:docker-compose.ca.yml'
+TEST_DROP_INS="$drop_ins/checkout.conf $drop_ins/files.conf" run_update --dir "$deploy" 9.9.9 ||
+  fail "the edited drop-in is still refused: $(cat "$work/out")"
+
+check "the per-feature CA overlays of a release directory move into the backup"
+new_deployment retired-overlays
+for file in docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml docker-compose.wco-ca.yml; do
+  printf '# %s\n' "$file" >"$deploy/$file"
+done
+run_update --dir "$deploy" 9.9.9 || fail "exited $?: $(cat "$work/out")"
+backup=$(find "$deploy/.backup" -mindepth 1 -maxdepth 1)
+for file in docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml docker-compose.wco-ca.yml; do
+  [ ! -e "$deploy/$file" ] || fail "$file is still in the deployment"
+  has_line "$backup/$file" "# $file"
+  has_text "$work/out" "Removed $file, replaced by docker-compose.ca.yml"
+done
+same_file "$deploy/docker-compose.ca.yml" "$release/docker-compose.ca.yml"
+
+check "a failed restart across one CA file says to restore the backup"
+new_deployment restart-fails-ca
+rm "$deploy/docker-compose.ca.yml"
+TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the restart failed"
+backup=$(find "$deploy/.backup" -mindepth 1 -maxdepth 1)
+has_text "$work/out" "1.0.0 has no docker-compose.ca.yml, so this script cannot go back to it: copy .env, docker-compose*.yml and deploy/ back from $TEST_WORKING_DIRECTORY/.backup/"
+has_line "$backup/.env" 'ONCALL_VERSION=1.0.0'
 
 check "ONCALL_DIR names the directory"
 new_deployment env-dir

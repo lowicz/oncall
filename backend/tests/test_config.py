@@ -304,13 +304,13 @@ def test_a_malformed_secrets_key_is_refused_by_position_without_echoing_it(monke
 
 
 @pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
-def test_blank_wco_ca_file_is_unset(monkeypatch, blank) -> None:
-    monkeypatch.setenv("ONCALL_WCO_CA_FILE", blank)
+def test_blank_ca_file_is_unset(monkeypatch, blank) -> None:
+    monkeypatch.setenv("ONCALL_CA_FILE", blank)
 
-    assert Settings().wco_ca_file is None
+    assert Settings().ca_file is None
 
 
-def test_wco_ca_file_is_trimmed(monkeypatch) -> None:
-    monkeypatch.setenv("ONCALL_WCO_CA_FILE", " /etc/oncall/wco-ca.pem ")
+def test_ca_file_is_trimmed(monkeypatch) -> None:
+    monkeypatch.setenv("ONCALL_CA_FILE", " /etc/oncall/ca.pem ")
 
-    assert Settings().wco_ca_file == "/etc/oncall/wco-ca.pem"
+    assert Settings().ca_file == "/etc/oncall/ca.pem"

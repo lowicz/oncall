@@ -1,18 +1,10 @@
 """The WCO client against the fake WCO in `tests/wco_fake.py`, and the
 password rotation driven through both as the forwarding pass will drive it.
-
-The TLS tests at the end serve HTTPS on the loopback, because certificate
-verification lives in the socket layer the fake replaces.
 """
 
 import logging
 import ssl
-import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import replace
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from urllib.parse import quote
 
 import httpx
@@ -25,16 +17,21 @@ from oncall.wco import (
     WcoError,
     WcoLoginRefused,
     WcoPasswordExpired,
-    tls_context,
 )
-from tests.smtp_relay import private_ca
-from tests.wco_fake import BASE_URL, CHANGE_PASSWORD, LOGIN, PERFORM_LOGIN, USER, FakeWco
+from tests.wco_fake import (
+    BASE_URL,
+    CHANGE_PASSWORD,
+    LOGIN,
+    PERFORM_LOGIN,
+    USER,
+    FakeWco,
+)
 
 TARGET = "+48500500500"
 
 
 def client(fake: FakeWco) -> WcoClient:
-    return WcoClient(BASE_URL, transport=fake.transport())
+    return WcoClient(BASE_URL, verify=ssl.create_default_context(), transport=fake.transport())
 
 
 async def signed_in(wco: WcoClient, fake: FakeWco, password: str | None = None) -> None:
@@ -352,63 +349,3 @@ async def test_no_secret_reaches_a_log_record_or_an_error(caplog: pytest.LogCapt
     written = [record.getMessage() for record in caplog.records] + errors
     assert len(errors) == 2
     assert [secret for secret in secrets for line in written if secret in line] == []
-
-
-@contextmanager
-def https_wco(server_tls: ssl.SSLContext) -> Iterator[str]:
-    """A WCO on the loopback that opens a session for anyone."""
-
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            self.send_response(200)
-            self.send_header("Set-Cookie", "XSRF-TOKEN=token; Path=/")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-
-        def do_POST(self) -> None:
-            self.rfile.read(int(self.headers["Content-Length"]))
-            self.send_response(200)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-
-        def log_message(self, format: str, *args: object) -> None:
-            pass
-
-    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
-        server.socket = server_tls.wrap_socket(server.socket, server_side=True)
-        thread = threading.Thread(target=server.serve_forever, args=(0.01,), daemon=True)
-        thread.start()
-        try:
-            yield f"https://127.0.0.1:{server.server_address[1]}"
-        finally:
-            server.shutdown()
-
-
-async def test_a_wco_behind_an_internal_ca_is_trusted_only_through_the_ca_file(
-    tmp_path: Path,
-) -> None:
-    ca_file, server_tls = private_ca(tmp_path)
-    with https_wco(server_tls) as base_url:
-        async with WcoClient(base_url) as wco:
-            with pytest.raises(WcoError, match="CERTIFICATE_VERIFY_FAILED") as refused:
-                await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
-        async with WcoClient(base_url, ca_file=str(ca_file)) as wco:
-            await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
-
-    assert refused.value.status is None
-
-
-def test_the_ca_file_is_added_to_the_verified_public_roots(tmp_path: Path) -> None:
-    ca_file, _ = private_ca(tmp_path)
-    public = tls_context(None).cert_store_stats()["x509_ca"]
-
-    context = tls_context(str(ca_file))
-
-    assert context.cert_store_stats()["x509_ca"] == public + 1
-    assert context.verify_mode is ssl.CERT_REQUIRED
-    assert context.check_hostname
-
-
-def test_an_unreadable_ca_file_is_an_error(tmp_path: Path) -> None:
-    with pytest.raises(WcoError, match="the WCO CA file is unreadable"):
-        WcoClient(BASE_URL, ca_file=str(tmp_path / "missing.pem"))

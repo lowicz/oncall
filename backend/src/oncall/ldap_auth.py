@@ -22,7 +22,6 @@ import asyncio
 import contextlib
 import logging
 import math
-import os
 import re
 import ssl
 import time
@@ -46,7 +45,7 @@ from ldap3.core.exceptions import (
 )
 from ldap3.utils.conv import escape_filter_chars
 
-from oncall import login_log
+from oncall import login_log, trust
 from oncall.config import Settings, get_settings
 
 # Declared by the domain, which decides what a directory identity may sign in
@@ -218,23 +217,24 @@ class LdapAuthenticator:
                 reason="server_uri_invalid",
             )
         scheme, host, port = endpoint
-        ca_file = self.settings.ldap_ca_file or None
-        if ca_file is not None and not (Path(ca_file).is_file() and os.access(ca_file, os.R_OK)):
+        try:
+            ca_file = trust.ca_file(self.settings)
+        except trust.CaFileUnreadable as exc:
             raise DirectoryUnavailableError(
                 "Plik CA katalogu LDAP jest niedostępny",
                 phase="config",
                 reason="ca_file_unreadable",
-                detail=ca_file,
-            )
+                detail=exc.path,
+            ) from exc
         return Server(
             host,
             port=port,
             use_ssl=scheme == "ldaps",
             get_info=NONE,
             connect_timeout=self.settings.ldap_connect_timeout_seconds,
-            # Without a CA file the image's public roots decide, and an
-            # enterprise CA (Active Directory Certificate Services) is not
-            # among them.
+            # With a CA file ldap3 trusts that bundle alone; without one the
+            # image's public roots decide, and an enterprise CA (Active
+            # Directory Certificate Services) is not among them.
             tls=Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=ca_file),
         )
 

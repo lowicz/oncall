@@ -20,8 +20,9 @@ services:
       - ${ONCALL_TLS_CERT_FILE:-./tls/cert.pem}:/etc/nginx/tls/cert.pem:ro
       # Its private key, unencrypted.
       - ${ONCALL_TLS_KEY_FILE:-./tls/privkey.pem}:/etc/nginx/tls/privkey.pem:ro
-      # The complete CA trust bundle this deployment must trust.
-      - ${ONCALL_TLS_CA_FILE:-./tls/ca.pem}:/etc/nginx/tls/ca.pem:ro
+      # The complete CA trust bundle this deployment must trust, the same
+      # ONCALL_CA_FILE the CA overlay gives the API and the worker.
+      - ${ONCALL_CA_FILE:-./tls/ca.pem}:/etc/nginx/tls/ca.pem:ro
 
   # Enabling HTTPS must also make the session cookie Secure, or the browser
   # would send it in cleartext on the pre-redirect port-80 request. This

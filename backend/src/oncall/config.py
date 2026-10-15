@@ -98,6 +98,12 @@ class Settings(BaseSettings):
         "fc00::/7",
     ]
 
+    #: PEM bundle of the CAs this deployment trusts beyond the image's public
+    #: roots (`oncall.trust`): SMTP and Orange WCO add it to those roots, the
+    #: directory trusts it alone. Unset, the public roots decide; certificate
+    #: verification is never turned off.
+    ca_file: str | None = None
+
     # Optional Active Directory / LDAP authentication. Local accounts remain
     # available regardless of this switch or the directory's availability.
     ldap_enabled: bool = False
@@ -107,10 +113,6 @@ class Settings(BaseSettings):
     ldap_base_dn: str | None = None
     ldap_user_filter: str | None = None
     ldap_start_tls: bool = True
-    #: PEM bundle of the CAs that sign the directory's certificate, for an
-    #: enterprise CA the image does not trust. Unset, the image's public roots
-    #: decide.
-    ldap_ca_file: str | None = None
     ldap_connect_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
     ldap_attribute_personnel_number: str = "employeeNumber"
     ldap_attribute_first_name: str = "givenName"
@@ -144,10 +146,6 @@ class Settings(BaseSettings):
     #: is refused at startup.
     smtp_use_tls: bool = False
     smtp_starttls: bool = True
-    #: PEM bundle of the CAs that sign the SMTP server's certificate, for an
-    #: internal CA the image does not trust. Added to the image's public
-    #: roots, which alone decide when it is unset.
-    smtp_ca_file: str | None = None
     email_from: str = "On-call <oncall@example.com>"
 
     #: Fernet keys that encrypt the secrets the database keeps (`oncall.secrets`),
@@ -155,10 +153,6 @@ class Settings(BaseSettings):
     #: put first and the old one dropped once nothing is encrypted under it.
     #: Unset, nothing can be stored encrypted and whatever needs it stays off.
     secrets_key: SecretStr | None = None
-    #: PEM bundle of a corporate CA that fronts the Orange WCO service, added to
-    #: the image's public roots like `smtp_ca_file`. Unset, the public roots
-    #: alone decide; certificate verification is never turned off.
-    wco_ca_file: str | None = None
 
     public_base_url: str = "http://localhost:8080"
 
@@ -252,7 +246,7 @@ class Settings(BaseSettings):
             raise ValueError("ONCALL_SWITCH_URL must start with https:// or http://")
         return url
 
-    @field_validator("smtp_host", "smtp_local_hostname", "smtp_ca_file", "wco_ca_file")
+    @field_validator("smtp_host", "smtp_local_hostname", "ca_file")
     @classmethod
     def _blank_is_unset(cls, value: str | None) -> str | None:
         """Blank is unset, as Compose passes an unset variable: no host turns

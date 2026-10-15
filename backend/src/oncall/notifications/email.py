@@ -5,7 +5,6 @@ variables. No mail server is hosted by this project.
 """
 
 import logging
-import ssl
 from email.message import EmailMessage
 from email.utils import parseaddr
 from pathlib import Path
@@ -13,6 +12,7 @@ from uuid import uuid4
 
 import aiosmtplib
 
+from oncall import trust
 from oncall.config import Settings
 from oncall.notifications.base import (
     NotificationDisabled,
@@ -67,26 +67,16 @@ class SmtpEmailProvider:
         _, _, domain = address.partition("@")
         return f"<{message.idempotency_key or uuid4()}@{domain or 'oncall.invalid'}>"
 
-    def tls_context(self) -> ssl.SSLContext:
-        """The image's public roots, plus the CAs of `smtp_ca_file` when one
-        is set: an internal CA is added to them, not put in their place, so
-        the same bundle serves a relay on the internal PKI and a public one."""
-        context = ssl.create_default_context()
-        ca_file = self._settings.smtp_ca_file
-        if ca_file is not None:
-            try:
-                context.load_verify_locations(cafile=ca_file)
-            except OSError as exc:
-                raise TemporaryNotificationError(
-                    f"Plik CA serwera SMTP jest niedostępny ({ca_file}): {exc}"
-                ) from exc
-        return context
-
     async def send(self, message: NotificationMessage) -> None:
         settings = self._settings
         if not settings.smtp_host:
             raise NotificationDisabled("SMTP nie jest skonfigurowany (brak ONCALL_SMTP_HOST)")
-        tls_context = self.tls_context()
+        try:
+            tls_context = trust.tls_context(settings)
+        except trust.CaFileUnreadable as exc:
+            raise TemporaryNotificationError(
+                f"Plik CA jest niedostępny ({exc.path}): {exc.detail or 'brak czytelnego pliku'}"
+            ) from exc
         try:
             await aiosmtplib.send(
                 self.build_message(message),

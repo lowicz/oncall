@@ -1,6 +1,7 @@
 """The WCO forwarding worker, driven through its database and fake WCO."""
 
 import logging
+import ssl
 import uuid
 from dataclasses import replace
 from datetime import timedelta
@@ -33,9 +34,10 @@ from oncall.infrastructure.sqlalchemy.notification_models import NotificationOut
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.notifications.triggers import enqueue_rotation_notice, notify_assignment_overridden
 from oncall.secrets import SettingsCipher, decrypt, encrypt
-from oncall.wco import WcoClient
+from oncall.wco import WcoClient, WcoError
 from tests.conftest import create_member, create_published_schedule, create_user
-from tests.wco_fake import CHANGE_PASSWORD, PERFORM_LOGIN, USER, FakeWco
+from tests.smtp_relay import private_ca
+from tests.wco_fake import CHANGE_PASSWORD, PERFORM_LOGIN, USER, FakeWco, https_wco
 
 
 @pytest.fixture
@@ -104,7 +106,9 @@ def _use_fake(monkeypatch, fake: FakeWco) -> None:
     monkeypatch.setattr(
         worker,
         "_open_wco",
-        lambda account: WcoClient(account.base_url, transport=fake.transport()),
+        lambda account: WcoClient(
+            account.base_url, verify=ssl.create_default_context(), transport=fake.transport()
+        ),
     )
 
 
@@ -768,19 +772,42 @@ async def test_an_update_not_confirmed_by_readback_is_a_permanent_failure(
     assert state.next_attempt_at == frozen_clock.instant.replace(tzinfo=None) + timedelta(hours=1)
 
 
+async def test_the_wco_client_trusts_a_wco_behind_the_deployment_ca_file(
+    monkeypatch, tmp_path
+) -> None:
+    bundle, server_tls = private_ca(tmp_path)
+    with https_wco(server_tls) as base_url:
+        account = worker.ForwardingAccount(
+            ForwardingMode.live,
+            base_url,
+            "221234567",
+            "oncall",
+            "1001",
+            Passwords("Dummy-Passw0rd!"),
+            Passwords("dummy-token"),
+        )
+        monkeypatch.setattr(worker.get_settings(), "ca_file", None)
+        async with worker._open_wco(account) as wco:
+            with pytest.raises(WcoError, match="CERTIFICATE_VERIFY_FAILED"):
+                await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
+        monkeypatch.setattr(worker.get_settings(), "ca_file", str(bundle))
+        async with worker._open_wco(account) as wco:
+            await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
+
+
 async def test_unreadable_ca_is_recorded_without_opening_a_network_connection(
     db, db_factory, frozen_clock, forwarding_key, monkeypatch
 ) -> None:
     fake = FakeWco()
     await _primary(db, frozen_clock)
     await _settings(db, fake, ForwardingMode.live)
-    monkeypatch.setattr(worker.get_settings(), "wco_ca_file", "/missing/wco-ca.pem")
+    monkeypatch.setattr(worker.get_settings(), "ca_file", "/missing/ca.pem")
 
     assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
 
     state = await _one(db_factory, CallForwardingState)
     assert state.last_outcome is ForwardingOutcome.failed
-    assert "CA file is unreadable" in (state.last_error or "")
+    assert "ONCALL_CA_FILE is unreadable (/missing/ca.pem)" in (state.last_error or "")
 
 
 async def test_a_lost_lease_discards_both_success_and_failure_results(
@@ -958,7 +985,9 @@ async def test_change_requires_a_pending_password(db_factory, frozen_clock) -> N
         Passwords("dummy-token"),
     )
     fake = FakeWco()
-    async with WcoClient("https://wco.test", transport=fake.transport()) as wco:
+    async with WcoClient(
+        "https://wco.test", verify=ssl.create_default_context(), transport=fake.transport()
+    ) as wco:
         attempt = worker.ForwardingAttempt(
             account,
             ForwardingTarget(frozen_clock.instant.date(), None, "Anna", "+48500500500"),

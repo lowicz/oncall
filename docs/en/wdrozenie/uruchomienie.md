@@ -95,7 +95,7 @@ The full list with comments is in `.env.example`.
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | finished generator runs |
 | `ONCALL_SMTP_HOST` | empty | the outgoing mail server; empty disables e-mail sending, see [SMTP server](#smtp-server) |
 | `ONCALL_SECRETS_KEY` | empty | the Fernet key `api` and `worker` encrypt the secrets kept in the database with (the Orange WCO password of the automatic on-call number forwarding); several comma-separated keys rotate it: the first encrypts, every one decrypts; empty turns off the features that need it; `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` prints a new key |
-| `ONCALL_WCO_CA_FILE` | empty | the PEM bundle of the CA of a corporate TLS proxy in front of Orange WCO, added to the image's public CAs, never in their place; the `docker-compose.wco-ca.yml` overlay mounts it into `api` and `worker`, by default `./tls/ca.pem` |
+| `ONCALL_CA_FILE` | `./tls/ca.pem` | the one PEM bundle of the CAs the deployment trusts: for LDAP, SMTP, Orange WCO and nginx - see [CA file](#ca-file) |
 | `ONCALL_LDAP_ENABLED` | `false` | directory sign-in - see [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS on nginx - see [TLS](tls.md) |
 
@@ -105,6 +105,45 @@ PostgreSQL's `max_connections`.
 In Compose the worker process has an allocation of 2 CPUs, and the default
 number of solver threads follows from it. Changing the allocation changes that
 number automatically.
+
+## CA file
+
+A deployment names its certificate authorities in **one** PEM file,
+`ONCALL_CA_FILE` (`./tls/ca.pem` by default): the organisation's root and
+intermediate CAs, or the host's whole system bundle, e.g.
+`/etc/pki/tls/certs/ca-bundle.crt`. It is read by:
+
+- `api` and `worker` through the `docker-compose.ca.yml` overlay: the
+  [LDAP](ldap.md#directory-certificate) directory, the [SMTP server](#smtp-server)
+  and Orange WCO, when their certificate comes from an internal CA (AD CS, a
+  corporate TLS proxy) the image does not know,
+- nginx through the [TLS](tls.md#complete-system-trust-bundle) overlay.
+
+```bash
+# in .env; a path on the host
+ONCALL_CA_FILE=/etc/pki/tls/certs/company-ca.pem
+```
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ca.yml up -d
+# together with HTTPS
+docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ca.yml up -d
+```
+
+SMTP and WCO add the CAs from the file to the image's public CAs rather than
+replacing them, so the same bundle serves a server on the internal network
+and a public one. The LDAP directory trusts this bundle **alone**, so it must
+hold the domain controllers' CA. Certificate verification cannot be turned
+off.
+
+The file must exist and be readable by the image's user (`0644` permissions)
+before the containers start: Compose creates a missing mount source as an
+empty directory. The start does not notice that, the first connection of each
+feature does: a directory sign-in (`reason=ca_file_unreadable`), an e-mail
+send (`Plik CA jest niedostępny`) or a WCO number switch
+(`ONCALL_CA_FILE is unreadable`). Sign-in with local accounts keeps working.
+The default [systemd](systemd.md) path starts this overlay. A changed file
+takes effect after `api` and `worker` restart.
 
 ## SMTP server
 
@@ -157,26 +196,10 @@ The server's certificate is always verified, with STARTTLS and with TLS from
 the first byte. A server with a certificate from an internal CA the image
 does not know fails every send with `certificate verify failed: self-signed
 certificate in certificate chain` (or `unable to get local issuer
-certificate`). `ONCALL_SMTP_CA_FILE` names the PEM bundle with that CA, and
-the `docker-compose.smtp-ca.yml` overlay mounts it into `api` (the backup
-alert) and `worker` (the notifications):
-
-```bash
-# in .env; ./tls/ca.pem by default, the TLS overlay's bundle
-ONCALL_SMTP_CA_FILE=/etc/pki/tls/certs/company-ca.pem
-```
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.smtp-ca.yml up -d
-```
-
-The CAs from the file are added to the image's public CAs rather than
-replacing them, so the same bundle serves a server on the internal network
-and a public one. The default [systemd](systemd.md) path starts this overlay
-together with the TLS and directory CA overlays. The file must exist and be
-readable by the image's user before the containers start: Compose creates a
-missing mount source as an empty directory, and every send then fails with
-`Plik CA serwera SMTP jest niedostępny`.
+certificate`). That CA goes into the deployment's [CA file](#ca-file),
+which the `docker-compose.ca.yml` overlay mounts into `api` (the backup
+alert) and `worker` (the notifications). When the file cannot be read, every
+send fails with `Plik CA jest niedostępny`.
 
 The change takes effect after `api` and `worker` restart. Whether mail gets
 through is checked by the test alert `./deploy/backup/oncall-backup.sh alert --test`,

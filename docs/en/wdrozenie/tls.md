@@ -17,7 +17,7 @@ pointed at by its own variable:
 | --- | --- | --- |
 | `/etc/nginx/tls/cert.pem` | `ONCALL_TLS_CERT_FILE` | **the server certificate alone, without the chain** |
 | `/etc/nginx/tls/privkey.pem` | `ONCALL_TLS_KEY_FILE` | the private key, without a passphrase |
-| `/etc/nginx/tls/ca.pem` | `ONCALL_TLS_CA_FILE` | **the complete system CA trust bundle** |
+| `/etc/nginx/tls/ca.pem` | `ONCALL_CA_FILE` | **the complete system CA trust bundle** |
 
 Why three files and not one directory:
 
@@ -54,7 +54,9 @@ format does not change, its contents do.
 ### Complete system trust bundle
 
 `ca.pem` is the full set of authorities this deployment is to trust. nginx
-reads it directly as `ssl_trusted_certificate`.
+reads it directly as `ssl_trusted_certificate`. It is the same
+[CA file](uruchomienie.md#ca-file) `api` and `worker` verify the LDAP
+directory, the SMTP server and Orange WCO against.
 
 The same file is ready as `proxy_ssl_trusted_certificate`, should the API ever
 be proxied over HTTPS - the relevant lines are in
@@ -82,7 +84,7 @@ default host paths are `./tls/cert.pem`, `./tls/privkey.pem` and
 # .env
 ONCALL_TLS_CERT_FILE=/etc/pki/oncall/oncall.crt
 ONCALL_TLS_KEY_FILE=/etc/pki/oncall/oncall.key
-ONCALL_TLS_CA_FILE=/etc/pki/tls/certs/ca-bundle.crt
+ONCALL_CA_FILE=/etc/pki/tls/certs/ca-bundle.crt
 ONCALL_WEB_HTTP_PORT=8080     # HTTP -> HTTPS redirect
 ONCALL_WEB_HTTPS_PORT=8443
 ```

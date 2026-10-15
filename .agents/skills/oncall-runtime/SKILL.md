@@ -35,10 +35,10 @@ metadata:
   `docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d`. The
   base file mounts nothing from the host so it comes up on a machine with no
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
-  The directory's CA for LDAP and the SMTP server's CA are the same kind of
-  overlay (`docker-compose.ldap-ca.yml`, `docs/wdrozenie/ldap.md`;
-  `docker-compose.smtp-ca.yml`, `docs/wdrozenie/uruchomienie.md`), and so is a
-  corporate proxy's CA in front of Orange WCO (`docker-compose.wco-ca.yml`).
+  The deployment's one CA bundle, `ONCALL_CA_FILE`, is the same kind of
+  overlay (`docker-compose.ca.yml`): LDAP, SMTP and Orange WCO in `api` and
+  `worker` verify against it, and the TLS overlay gives it to nginx
+  (`docs/wdrozenie/uruchomienie.md`, "Plik CA").
 - Every Compose service is `read_only` with `cap_drop: [ALL]` and
   `no-new-privileges`; only `db` adds back what the postgres entrypoint needs.
   `.github/scripts/compose-hardening.sh` (CI) enforces it, so a new runtime

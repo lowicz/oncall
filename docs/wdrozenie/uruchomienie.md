@@ -93,7 +93,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | zakończone uruchomienia generatora |
 | `ONCALL_SMTP_HOST` | puste | serwer poczty wychodzącej; puste wyłącza wysyłkę e-maili, patrz [Serwer SMTP](#serwer-smtp) |
 | `ONCALL_SECRETS_KEY` | puste | klucz Fernet, którym `api` i `worker` szyfrują sekrety trzymane w bazie (hasło Orange WCO automatycznego przekierowania numeru on-call); kilka kluczy po przecinku to rotacja: pierwszy szyfruje, każdy odszyfrowuje; puste wyłącza funkcje, które go potrzebują; nowy klucz wypisuje `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
-| `ONCALL_WCO_CA_FILE` | puste | pakiet PEM z CA firmowego proxy TLS przed Orange WCO, dodawany do publicznych CA obrazu, nigdy w ich miejsce; montuje go do `api` i `worker` nakładka `docker-compose.wco-ca.yml`, domyślnie `./tls/ca.pem` |
+| `ONCALL_CA_FILE` | `./tls/ca.pem` | jeden pakiet PEM z CA, którym ufa wdrożenie: dla LDAP, SMTP, Orange WCO i nginx - patrz [Plik CA](#plik-ca) |
 | `ONCALL_LDAP_ENABLED` | `false` | logowanie z katalogu - patrz [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS na nginx - patrz [TLS](tls.md) |
 
@@ -102,6 +102,44 @@ Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej
 
 Proces roboczy ma w Compose przydział 2 CPU i z niego wynika domyślna liczba
 wątków solvera. Zmiana przydziału zmienia tę liczbę automatycznie.
+
+## Plik CA
+
+Wdrożenie wskazuje swoje urzędy certyfikacji **jednym** plikiem PEM,
+`ONCALL_CA_FILE` (domyślnie `./tls/ca.pem`): korzeń i pośrednie CA
+organizacji albo cały systemowy pakiet hosta, np.
+`/etc/pki/tls/certs/ca-bundle.crt`. Czytają go:
+
+- `api` i `worker` przez nakładkę `docker-compose.ca.yml`: katalog
+  [LDAP](ldap.md#certyfikat-katalogu), [serwer SMTP](#serwer-smtp) i
+  Orange WCO, gdy ich certyfikat wystawiło wewnętrzne CA (AD CS, firmowe
+  proxy TLS), którego obraz nie zna,
+- nginx przez nakładkę [TLS](tls.md#kompletny-systemowy-pakiet-zaufania).
+
+```bash
+# w .env; ścieżka na hoście
+ONCALL_CA_FILE=/etc/pki/tls/certs/firma-ca.pem
+```
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ca.yml up -d
+# razem z HTTPS
+docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ca.yml up -d
+```
+
+SMTP i WCO dokładają CA z pliku do publicznych CA obrazu, nie zastępują ich,
+więc ten sam pakiet obsłuży serwer w sieci wewnętrznej i publiczny. Katalog
+LDAP ufa **wyłącznie** temu pakietowi, więc musi on zawierać CA kontrolerów
+domeny. Certyfikatów nie da się nie weryfikować.
+
+Plik musi istnieć i być czytelny dla użytkownika obrazu (prawa `0644`) przed
+startem kontenerów: brakujące źródło montowania Compose tworzy jako pusty
+katalog. Takiego pliku nie wykrywa start, tylko pierwsze połączenie danej
+funkcji: logowanie z katalogu (`reason=ca_file_unreadable`), wysyłka e-maila
+(`Plik CA jest niedostępny`) albo przełączenie numeru w WCO
+(`ONCALL_CA_FILE is unreadable`). Logowanie kontami lokalnymi działa dalej.
+Domyślna ścieżka [systemd](systemd.md) startuje tę nakładkę. Zmiana pliku
+działa po ponownym uruchomieniu `api` i `worker`.
 
 ## Serwer SMTP
 
@@ -154,26 +192,10 @@ Certyfikat serwera przy STARTTLS i TLS od pierwszego bajtu jest zawsze
 weryfikowany. Serwer z certyfikatem wewnętrznego CA, którego obraz nie zna,
 kończy każdą wysyłkę błędem `certificate verify failed: self-signed
 certificate in certificate chain` (albo `unable to get local issuer
-certificate`). Pakiet PEM z tym CA wskazuje `ONCALL_SMTP_CA_FILE`, a do `api`
-(alarm o kopii) i `worker` (powiadomienia) montuje go nakładka
-`docker-compose.smtp-ca.yml`:
-
-```bash
-# w .env; domyślnie ./tls/ca.pem, pakiet nakładki TLS
-ONCALL_SMTP_CA_FILE=/etc/pki/tls/certs/firma-ca.pem
-```
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.smtp-ca.yml up -d
-```
-
-CA z pliku dochodzą do publicznych CA obrazu, nie zastępują ich, więc ten
-sam pakiet obsłuży serwer w sieci wewnętrznej i publiczny. Domyślna ścieżka
-[systemd](systemd.md) startuje tę nakładkę razem z nakładkami TLS i CA
-katalogu. Plik musi istnieć i być czytelny dla użytkownika obrazu przed
-startem kontenerów: brakujące źródło montowania Compose tworzy jako pusty
-katalog, a każda wysyłka kończy się wtedy błędem `Plik CA serwera SMTP jest
-niedostępny`.
+certificate`). To CA trafia do [pliku CA](#plik-ca) wdrożenia, który
+nakładka `docker-compose.ca.yml` montuje do `api` (alarm o kopii) i `worker`
+(powiadomienia). Gdy pliku nie da się przeczytać, każda wysyłka kończy się
+błędem `Plik CA jest niedostępny`.
 
 Zmiana działa po ponownym uruchomieniu `api` i `worker`. Czy poczta dochodzi,
 sprawdza próbny alarm `./deploy/backup/oncall-backup.sh alert --test`, patrz
