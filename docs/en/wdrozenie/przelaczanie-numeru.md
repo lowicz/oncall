@@ -243,9 +243,13 @@ From then on the first-day reminder of a PRIMARY duty says „Numer on-call
 jest przełączany automatycznie o 09:00. Jeśli połączenia nie docierają,
 skontaktuj się z koordynatorem.” (the number switches automatically; tell a
 coordinator when calls do not arrive) instead of „Pamiętaj o przełączeniu
-numeru on-call.” (remember to switch the number). A number changed by hand
-in the WCO panel to one other than the PRIMARY's is overwritten by the
-worker's next pass.
+numeru on-call.” (remember to switch the number). After a successful switch
+the worker reads WCO again only when the number to set changes: at the next
+reminder hour, after a schedule correction or swap that changes the person
+on PRIMARY or their number, and after the forwarding settings are saved. A
+number changed by hand in the WCO panel to one other than the PRIMARY's
+stays until then, and the worker overwrites it at that point. To keep a
+manual number, set the mode to **Off**.
 
 ## Alert e-mail
 
@@ -327,4 +331,4 @@ Rolling back the release is not needed for this.
 | **Cause**: „WCO odrzuciło zmianę numeru” (number change refused) | wrong **WCO user id**, or a number WCO does not accept | check the id and the person's number; switch by hand |
 | **Cause**: „Konfiguracja WCO jest niekompletna lub niedostępna” | key missing, password unreadable, or CA file | the rows above about the key and the CA file |
 | no alert arrived | SMTP off, or a recipient without an e-mail address | [Before the update](#before-the-update); **Dry run** sends no alerts |
-| a number set by hand goes back to the schedule's number | **On** mode overwrites manual changes | set **Off** if the manual number has to stay |
+| a number set by hand goes back to the schedule's number | **On** mode overwrites manual changes at the next switch: at the reminder hour, after a schedule correction or swap, and after a settings save | set **Off** if the manual number has to stay |

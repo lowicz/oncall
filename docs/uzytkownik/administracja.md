@@ -244,8 +244,11 @@ panelu WCO. Potrzebujesz do tego hasła konta WCO, które zna tylko aplikacja,
 bo w trybie **Włączone** proces zmienia je sam, gdy wygaśnie.
 
 1. Jeśli ręcznie ustawiony numer ma zostać, ustaw tryb **Wyłączone** i
-   zapisz: w trybie **Włączone** najbliższy udany przebieg nadpisze numer
-   inny niż numer osoby na PRIMARY. Przełączenie na numer tej właśnie osoby
+   zapisz: w trybie **Włączone** proces nadpisze numer inny niż numer osoby
+   na PRIMARY przy najbliższym przełączeniu - o godzinie przypomnienia, po
+   korekcie grafiku lub zamianie, która zmienia osobę na PRIMARY albo jej
+   numer, albo po zapisaniu ustawień przełączania; do tej chwili ręczny numer
+   zostaje. Przełączenie na numer tej właśnie osoby
    jest nieszkodliwe - proces zobaczy, że numer już jest ustawiony, i
    zapisze „bez zmian”.
 2. Kliknij **Pokaż hasło** i w oknie wpisz **swoje hasło do aplikacji**

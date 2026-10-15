@@ -262,8 +262,11 @@ application knows, because in **On** mode the worker changes it itself when
 it expires.
 
 1. If a number set by hand is to stay, set the mode to **Off** and save: in
-   **On** mode the next successful pass overwrites a number other than that
-   of the person on PRIMARY. Switching to that person's own number is
+   **On** mode the worker overwrites a number other than that of the person
+   on PRIMARY at the next switch - at the reminder hour, after a schedule
+   correction or swap that changes the person on PRIMARY or their number, or
+   after the forwarding settings are saved; until then the manual number
+   stays. Switching to that person's own number is
    harmless - the worker sees the number already set and records
    "unchanged".
 2. Click **Show password** and enter **your own application password** in

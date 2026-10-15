@@ -239,8 +239,13 @@ on-call i upewnij się, że dzwoni telefon tej osoby.
 Od tej chwili przypomnienie z pierwszego dnia dyżuru PRIMARY mówi „Numer
 on-call jest przełączany automatycznie o 09:00. Jeśli połączenia nie
 docierają, skontaktuj się z koordynatorem.” zamiast „Pamiętaj o przełączeniu
-numeru on-call.”. Numer zmieniony ręcznie w panelu WCO na inny niż numer
-osoby na PRIMARY proces nadpisze przy najbliższym przebiegu.
+numeru on-call.”. Po udanym przełączeniu proces czyta WCO ponownie dopiero
+wtedy, gdy zmieni się numer do ustawienia: o najbliższej godzinie
+przypomnienia, po korekcie grafiku lub zamianie, która zmienia osobę na
+PRIMARY albo jej numer, i po zapisaniu ustawień przełączania. Numer zmieniony
+ręcznie w panelu WCO na inny niż numer osoby na PRIMARY zostaje do tej chwili
+i wtedy proces go nadpisze. Żeby ręczny numer został, ustaw tryb
+**Wyłączone**.
 
 ## Alarm e-mail
 
@@ -316,4 +321,4 @@ tego potrzebne.
 | **Przyczyna**: „WCO odrzuciło zmianę numeru” | zły **Identyfikator użytkownika WCO** albo numer, którego WCO nie przyjmuje | sprawdź identyfikator i numer osoby; przełącz ręcznie |
 | **Przyczyna**: „Konfiguracja WCO jest niekompletna lub niedostępna” | brak klucza, nieczytelne hasło albo plik CA | wiersze wyżej o kluczu i pliku CA |
 | alarm nie przyszedł | SMTP wyłączony albo odbiorca bez adresu e-mail | [Przed aktualizacją](#przed-aktualizacją); w trybie **Próbny** alarmów nie ma |
-| ręcznie ustawiony numer wraca do numeru z grafiku | tryb **Włączone** nadpisuje ręczne zmiany | ustaw **Wyłączone**, jeśli ręczny numer ma zostać |
+| ręcznie ustawiony numer wraca do numeru z grafiku | tryb **Włączone** nadpisuje ręczne zmiany przy najbliższym przełączeniu: o godzinie przypomnienia, po korekcie grafiku lub zamianie i po zapisaniu ustawień | ustaw **Wyłączone**, jeśli ręczny numer ma zostać |
