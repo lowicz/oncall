@@ -14,7 +14,7 @@ from sqlalchemy import select
 from oncall import worker
 from oncall.database import SqlAlchemyUnitOfWork
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
-from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome
+from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome, SettingsChange
 from oncall.domain.forwarding.passwords import Passwords
 from oncall.domain.handover import NoticeTiming, RotationNotice, Segment
 from oncall.domain.vocabulary import AssignmentRole, UserRole
@@ -22,6 +22,7 @@ from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.forwarding import (
     SqlAlchemyForwardingAttempts,
     SqlAlchemyForwardingConfiguration,
+    SqlAlchemyForwardingSettings,
 )
 from oncall.infrastructure.sqlalchemy.forwarding_models import (
     CallForwardingSettings,
@@ -707,7 +708,7 @@ async def test_a_lost_lease_discards_both_success_and_failure_results(
             state = await session.scalar(select(CallForwardingState))
             assert state is not None
             state.lease_until = attempt.lease_until + timedelta(seconds=1)
-        return "+48500500500", ForwardingOutcome.applied, False
+        return attempt, "+48500500500", ForwardingOutcome.applied, False
 
     monkeypatch.setattr(worker, "_reconcile_wco", lose_lease)
     assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 0
@@ -727,15 +728,24 @@ async def test_configuration_rotation_guards_missing_rows(db, frozen_clock, forw
     row = await _settings(db, fake, ForwardingMode.live)
     configuration = SqlAlchemyForwardingConfiguration(db)
     account = await configuration.account(SettingsCipher(worker.get_settings()))
+    target = ForwardingTarget(frozen_clock.instant.date(), None, "Anna", "+48500500500")
+    attempt = worker.ForwardingAttempt(
+        account,
+        target,
+        frozen_clock.instant + worker.FORWARDING_LEASE,
+        0,
+    )
+    db.add(CallForwardingState(lease_until=attempt.lease_until))
+    await db.commit()
 
     with pytest.raises(RuntimeError, match="pending WCO password disappeared"):
-        await configuration.promote_pending(account, now=frozen_clock.instant)
+        await configuration.promote_pending(attempt, now=frozen_clock.instant)
 
     await db.delete(row)
     await db.commit()
-    with pytest.raises(RuntimeError, match="settings disappeared"):
+    with pytest.raises(worker.ForwardingClaimLost, match="superseded"):
         await configuration.stage_pending(
-            account,
+            attempt,
             "New-Dummy2!",
             SettingsCipher(worker.get_settings()),
             now=frozen_clock.instant,
@@ -780,8 +790,248 @@ async def test_change_requires_a_pending_password(db_factory, frozen_clock) -> N
     )
     fake = FakeWco()
     async with WcoClient("https://wco.test", transport=fake.transport()) as wco:
+        attempt = worker.ForwardingAttempt(
+            account,
+            ForwardingTarget(frozen_clock.instant.date(), None, "Anna", "+48500500500"),
+            frozen_clock.instant + worker.FORWARDING_LEASE,
+            0,
+        )
         with pytest.raises(RuntimeError, match="without a pending password"):
-            await worker._change_pending_password(db_factory, wco, account)
+            await worker._change_pending_password(db_factory, wco, attempt)
+
+
+async def test_admin_credentials_saved_during_rotation_are_never_overwritten(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco(password_expired=True)
+    _use_fake(monkeypatch, fake)
+    admin, _member = await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    promote = worker._promote_pending
+    replacement = "Admin-Replacement9!"
+
+    async def admin_changes_account_before_promotion(factory, attempt):
+        async with SqlAlchemyUnitOfWork(factory) as session:
+            await SqlAlchemyForwardingSettings(session).change(
+                SettingsChange(
+                    ForwardingMode.live,
+                    "https://wco.test",
+                    fake.vpbx_number,
+                    "replacement-login",
+                    fake.user_id,
+                    admin.id,
+                ),
+                encrypt(worker.get_settings(), replacement),
+            )
+        return await promote(factory, attempt)
+
+    monkeypatch.setattr(worker, "_promote_pending", admin_changes_account_before_promotion)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 0
+
+    stored = await _one(db_factory, CallForwardingSettings)
+    assert stored.username == "replacement-login"
+    assert decrypt(worker.get_settings(), stored.password_ciphertext or "") == replacement
+    assert stored.pending_password_ciphertext is None
+
+
+async def test_lease_is_renewed_during_a_rotation_longer_than_the_initial_lease(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    class AdvancingWco(FakeWco):
+        def handle(self, request):
+            frozen_clock.advance(timedelta(seconds=15))
+            return super().handle(request)
+
+    fake = AdvancingWco(password_expired=True)
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    started = frozen_clock.instant
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert frozen_clock.instant - started > worker.FORWARDING_LEASE
+    assert fake.user["number"] == "+48500500500"
+    stored = await _one(db_factory, CallForwardingSettings)
+    assert decrypt(worker.get_settings(), stored.password_ciphertext or "") == fake.password
+
+
+async def test_renew_rejects_changed_settings_and_an_expired_lease(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    attempt = await worker._prepare_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+    assert isinstance(attempt, worker.ForwardingAttempt)
+
+    async with SqlAlchemyUnitOfWork(db_factory) as session:
+        settings = await session.get(CallForwardingSettings, attempt.account.settings_id)
+        assert settings is not None
+        settings.username = "replacement-login"
+        with pytest.raises(worker.ForwardingClaimLost, match="settings changed"):
+            await SqlAlchemyForwardingAttempts(session).renew(
+                attempt,
+                now=frozen_clock.instant,
+                lease_until=frozen_clock.instant + worker.FORWARDING_LEASE,
+            )
+        await session.rollback()
+
+    frozen_clock.advance(worker.FORWARDING_LEASE + timedelta(seconds=1))
+    async with SqlAlchemyUnitOfWork(db_factory) as session:
+        with pytest.raises(worker.ForwardingClaimLost, match="lease expired"):
+            await SqlAlchemyForwardingAttempts(session).renew(
+                attempt,
+                now=frozen_clock.instant,
+                lease_until=frozen_clock.instant + worker.FORWARDING_LEASE,
+            )
+
+
+async def test_unclaimed_failure_does_not_revoke_an_active_lease(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    settings = await _settings(db, fake, ForwardingMode.live)
+    attempt = await worker._prepare_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+    assert isinstance(attempt, worker.ForwardingAttempt)
+
+    settings.password_ciphertext = "not-a-valid-token"
+    await db.commit()
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 0
+
+    state = await _one(db_factory, CallForwardingState)
+    assert state.lease_until == attempt.lease_until.replace(tzinfo=None)
+
+
+async def test_skipped_target_does_not_revoke_an_active_lease(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    primary, _member = await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    attempt = await worker._prepare_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+    assert isinstance(attempt, worker.ForwardingAttempt)
+
+    primary.phone = None
+    await db.commit()
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 0
+
+    state = await _one(db_factory, CallForwardingState)
+    assert state.lease_until == attempt.lease_until.replace(tzinfo=None)
+
+
+async def test_changing_wco_user_invalidates_a_cached_success(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    admin, _member = await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    first_calls = len(fake.calls)
+
+    fake.user_id = "2002"
+    fake.user["number"] = "+48600600600"
+    async with SqlAlchemyUnitOfWork(db_factory) as session:
+        await SqlAlchemyForwardingSettings(session).change(
+            SettingsChange(
+                ForwardingMode.live,
+                "https://wco.test",
+                fake.vpbx_number,
+                fake.username,
+                fake.user_id,
+                admin.id,
+            ),
+            None,
+        )
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    assert len(fake.calls) > first_calls
+    assert fake.user["number"] == "+48500500500"
+
+
+async def test_a_corrected_target_does_not_inherit_obsolete_backoff(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco(faults={f"{USER}/1001": 500})
+    _use_fake(monkeypatch, fake)
+    primary, _member = await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    primary.phone = "+48700700700"
+    await db.commit()
+    fake.faults.clear()
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.user["number"] == "+48700700700"
+
+
+async def test_dry_run_does_not_finish_a_pending_remote_password_change(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    settings = await _settings(db, fake, ForwardingMode.dry_run)
+    settings.pending_password_ciphertext = encrypt(worker.get_settings(), "Pending-Dummy2!")
+    await db.commit()
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.password == "Dummy-Passw0rd!"
+    assert f"POST {CHANGE_PASSWORD}" not in fake.calls
+    assert await _all(db_factory, NotificationOutbox) == []
+    stored = await _one(db_factory, CallForwardingSettings)
+    assert stored.pending_password_ciphertext is not None
+
+
+async def test_dry_run_never_rotates_an_expired_password_or_sends_an_alert(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco(password_expired=True)
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.dry_run)
+    old = fake.password
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.password == old
+    assert f"POST {CHANGE_PASSWORD}" not in fake.calls
+    assert await _all(db_factory, NotificationOutbox) == []
+    stored = await _one(db_factory, CallForwardingSettings)
+    assert stored.pending_password_ciphertext is None
+
+
+async def test_transient_failure_after_an_alert_keeps_the_recovery_notification(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    primary, _member = await _primary(db, frozen_clock, phone=None)
+    await create_user(db, "admin", role=UserRole.admin, email="admin@example.com")
+    await _settings(db, fake, ForwardingMode.live)
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    alerted_for = (await _one(db_factory, CallForwardingState)).alerted_for
+    assert alerted_for is not None
+
+    primary.phone = "+48500500500"
+    await db.commit()
+    fake.faults[f"{USER}/1001"] = 500
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    assert (await _one(db_factory, CallForwardingState)).alerted_for == alerted_for
+
+    fake.faults.clear()
+    frozen_clock.advance(timedelta(minutes=2))
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    rows = await _all(db_factory, NotificationOutbox)
+    assert any(row.context["event"] == "forwarding_recovered" for row in rows)
 
 
 async def test_missing_primary_recipient_is_ignored(db, frozen_clock) -> None:

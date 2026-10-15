@@ -19,6 +19,10 @@ from oncall.domain.ports import PublishedRoster
 from oncall.domain.vocabulary import AssignmentRole
 
 
+class ForwardingClaimLost(RuntimeError):
+    """The attempt no longer owns the lease or its settings snapshot."""
+
+
 class ForwardingFailure(StrEnum):
     """A fixed, safe category for state, audit and failure mail.
 
@@ -76,10 +80,12 @@ class ForwardingAccount:
     username: str
     wco_user_id: str
     passwords: Passwords = field(repr=False)
+    current_token: str = field(repr=False, default="")
+    pending_token: str | None = field(repr=False, default=None)
     credentials_invalid_since: datetime | None = None
 
 
-@dataclass(frozen=True)
+@dataclass
 class ForwardingAttempt:
     """A claimed network attempt, copied out of its database transaction."""
 

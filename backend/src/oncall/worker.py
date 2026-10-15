@@ -53,6 +53,7 @@ from oncall.domain.digest import send_daily_digest
 from oncall.domain.forwarding.job import (
     ForwardingAccount,
     ForwardingAttempt,
+    ForwardingClaimLost,
     ForwardingFailure,
     RecordedForwarding,
     desired_target,
@@ -160,12 +161,14 @@ class _ForwardingAttemptFailed(Exception):
         *,
         permanent: bool,
         invalidate_credentials: bool = False,
+        notify: bool = True,
     ) -> None:
         super().__init__(detail)
         self.cause = cause
         self.detail = detail
         self.permanent = permanent
         self.invalidate_credentials = invalidate_credentials
+        self.notify = notify
 
 
 def _open_wco(account: ForwardingAccount) -> WcoClient:
@@ -189,36 +192,46 @@ def _wco_failure(exc: WcoError, refused: ForwardingFailure) -> _ForwardingAttemp
     )
 
 
-async def _stage_pending(
-    factory: Sessions, account: ForwardingAccount, password: str
-) -> ForwardingAccount:
+async def _renew_attempt(factory: Sessions, attempt: ForwardingAttempt) -> ForwardingAttempt:
+    now = utc_now()
     async with SqlAlchemyUnitOfWork(factory) as db:
-        return await SqlAlchemyForwardingConfiguration(db).stage_pending(
-            account, password, SettingsCipher(get_settings()), now=utc_now()
+        return await SqlAlchemyForwardingAttempts(db).renew(
+            attempt, now=now, lease_until=now + FORWARDING_LEASE
         )
 
 
-async def _promote_pending(factory: Sessions, account: ForwardingAccount) -> ForwardingAccount:
+async def _stage_pending(
+    factory: Sessions, attempt: ForwardingAttempt, password: str
+) -> ForwardingAttempt:
     async with SqlAlchemyUnitOfWork(factory) as db:
-        return await SqlAlchemyForwardingConfiguration(db).promote_pending(account, now=utc_now())
+        return await SqlAlchemyForwardingConfiguration(db).stage_pending(
+            attempt, password, SettingsCipher(get_settings()), now=utc_now()
+        )
+
+
+async def _promote_pending(factory: Sessions, attempt: ForwardingAttempt) -> ForwardingAttempt:
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        return await SqlAlchemyForwardingConfiguration(db).promote_pending(attempt, now=utc_now())
 
 
 async def _change_pending_password(
-    factory: Sessions, wco: WcoClient, account: ForwardingAccount
-) -> ForwardingAccount:
+    factory: Sessions, wco: WcoClient, attempt: ForwardingAttempt
+) -> ForwardingAttempt:
     """Ask WCO to take the committed pending password, retrying a policy
     rejection with a newly committed candidate at most three times."""
     attempt_number = 0
     while True:
+        account = attempt.account
         pending = account.passwords.pending
         if pending is None:
             raise RuntimeError("password change started without a pending password")
+        attempt = await _renew_attempt(factory, attempt)
         try:
             await wco.change_password(account.passwords.current, pending)
         except WcoError as exc:
             attempt_number += 1
             if exc.status == 400 and attempt_number < PASSWORD_CHANGE_ATTEMPTS:
-                account = await _stage_pending(factory, account, generate_password())
+                attempt = await _stage_pending(factory, attempt, generate_password())
                 continue
             failure = _wco_failure(exc, ForwardingFailure.password_rotation_failed)
             raise _ForwardingAttemptFailed(
@@ -226,6 +239,7 @@ async def _change_pending_password(
                 failure.detail,
                 permanent=failure.permanent,
             ) from exc
+        attempt = await _renew_attempt(factory, attempt)
         try:
             await wco.login(account.vpbx_number, account.username, pending)
         except WcoLoginRefused as exc:
@@ -243,14 +257,16 @@ async def _change_pending_password(
                 failure.detail,
                 permanent=failure.permanent,
             ) from exc
-        return await _promote_pending(factory, account)
+        return await _promote_pending(factory, attempt)
 
 
 async def _authenticate(
-    factory: Sessions, wco: WcoClient, account: ForwardingAccount
-) -> tuple[ForwardingAccount, bool]:
+    factory: Sessions, wco: WcoClient, attempt: ForwardingAttempt
+) -> tuple[ForwardingAttempt, bool]:
+    account = attempt.account
     accepted: str | None = None
     for password in account.passwords.login_order():
+        attempt = await _renew_attempt(factory, attempt)
         try:
             await wco.login(account.vpbx_number, account.username, password)
         except WcoLoginRefused:
@@ -268,39 +284,55 @@ async def _authenticate(
             invalidate_credentials=True,
         )
     if step is AfterLogin.promote:
-        return await _promote_pending(factory, account), True
+        return await _promote_pending(factory, attempt), True
     if step is AfterLogin.change:
-        return await _change_pending_password(factory, wco, account), True
-    return account, False
+        if account.mode is ForwardingMode.dry_run:
+            raise _ForwardingAttemptFailed(
+                ForwardingFailure.password_rotation_failed,
+                "the pending WCO password still needs to be changed",
+                permanent=True,
+                notify=False,
+            )
+        return await _change_pending_password(factory, wco, attempt), True
+    return attempt, False
 
 
 async def _rotate_expired_password(
-    factory: Sessions, wco: WcoClient, account: ForwardingAccount
-) -> ForwardingAccount:
-    account = await _stage_pending(factory, account, generate_password())
-    return await _change_pending_password(factory, wco, account)
+    factory: Sessions, wco: WcoClient, attempt: ForwardingAttempt
+) -> ForwardingAttempt:
+    attempt = await _stage_pending(factory, attempt, generate_password())
+    return await _change_pending_password(factory, wco, attempt)
 
 
 async def _reconcile_wco(
     factory: Sessions, attempt: ForwardingAttempt
-) -> tuple[str, ForwardingOutcome, bool]:
+) -> tuple[ForwardingAttempt, str, ForwardingOutcome, bool]:
     """Log in, recover or rotate the password, and reconcile the WCO number."""
-    account = attempt.account
+    attempt = await _renew_attempt(factory, attempt)
     try:
-        async with _open_wco(account) as wco:
-            account, rotated = await _authenticate(factory, wco, account)
+        async with _open_wco(attempt.account) as wco:
+            attempt, rotated = await _authenticate(factory, wco, attempt)
             expiration_rotated = False
             while True:
+                attempt = await _renew_attempt(factory, attempt)
+                account = attempt.account
                 try:
                     user = await wco.get_user(account.wco_user_id)
                 except WcoPasswordExpired as exc:
+                    if account.mode is ForwardingMode.dry_run:
+                        raise _ForwardingAttemptFailed(
+                            ForwardingFailure.password_rotation_failed,
+                            str(exc),
+                            permanent=True,
+                            notify=False,
+                        ) from exc
                     if expiration_rotated:
                         raise _ForwardingAttemptFailed(
                             ForwardingFailure.password_rotation_failed,
                             str(exc),
                             permanent=True,
                         ) from exc
-                    account = await _rotate_expired_password(factory, wco, account)
+                    attempt = await _rotate_expired_password(factory, wco, attempt)
                     rotated = expiration_rotated = True
                     continue
                 except WcoError as exc:
@@ -314,14 +346,16 @@ async def _reconcile_wco(
                         permanent=True,
                     )
                 if account.mode is ForwardingMode.dry_run:
-                    return current, ForwardingOutcome.dry_run, rotated
+                    return attempt, current, ForwardingOutcome.dry_run, rotated
                 desired = wco_number(attempt.target)
                 if current == desired:
-                    return current, ForwardingOutcome.unchanged, rotated
+                    return attempt, current, ForwardingOutcome.unchanged, rotated
                 user["number"] = desired
+                attempt = await _renew_attempt(factory, attempt)
                 try:
                     await wco.update_user(user)
-                    confirmed = await wco.get_user(account.wco_user_id)
+                    attempt = await _renew_attempt(factory, attempt)
+                    confirmed = await wco.get_user(attempt.account.wco_user_id)
                 except WcoPasswordExpired as exc:
                     if expiration_rotated:
                         raise _ForwardingAttemptFailed(
@@ -329,7 +363,7 @@ async def _reconcile_wco(
                             str(exc),
                             permanent=True,
                         ) from exc
-                    account = await _rotate_expired_password(factory, wco, account)
+                    attempt = await _rotate_expired_password(factory, wco, attempt)
                     rotated = expiration_rotated = True
                     continue
                 except WcoError as exc:
@@ -340,7 +374,7 @@ async def _reconcile_wco(
                         "PUT /admin_api/functionalities/user was not confirmed by GET",
                         permanent=True,
                     )
-                return desired, ForwardingOutcome.applied, rotated
+                return attempt, desired, ForwardingOutcome.applied, rotated
     except WcoConfigurationError as exc:
         raise _wco_failure(exc, ForwardingFailure.settings_invalid) from exc
 
@@ -407,7 +441,9 @@ async def scan_forwarding(factory: Sessions, *, now_warsaw: datetime) -> int:
         _emit_forwarding(prepared, started=started)
         return 1
     try:
-        current, outcome, rotated = await _reconcile_wco(factory, prepared)
+        active, current, outcome, rotated = await _reconcile_wco(factory, prepared)
+    except ForwardingClaimLost:
+        return 0
     except _ForwardingAttemptFailed as exc:
         async with SqlAlchemyUnitOfWork(factory) as db:
             recorded = await SqlAlchemyForwardingAttempts(db).record_failure(
@@ -417,17 +453,18 @@ async def scan_forwarding(factory: Sessions, *, now_warsaw: datetime) -> int:
                 permanent=exc.permanent,
                 invalidate_credentials=exc.invalidate_credentials,
                 now=utc_now(),
+                notify=exc.notify,
             )
     else:
         async with SqlAlchemyUnitOfWork(factory) as db:
             recorder = SqlAlchemyForwardingAttempts(db)
             if outcome is ForwardingOutcome.dry_run:
                 recorded = await recorder.record_dry_run(
-                    prepared, current, rotated=rotated, now=utc_now()
+                    active, current, rotated=rotated, now=utc_now()
                 )
             else:
                 recorded = await recorder.record_success(
-                    prepared, current, outcome, rotated=rotated, now=utc_now()
+                    active, current, outcome, rotated=rotated, now=utc_now()
                 )
     if recorded is None:
         return 0
