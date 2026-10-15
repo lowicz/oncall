@@ -49,5 +49,6 @@ def test_a_pending_password_is_stored_beside_the_current_one_until_promoted() ->
     stored = replace(Passwords(current="old"), pending="second")
 
     assert stored.promoted() == Passwords(current="second")
+    unchanged = Passwords(current="old")
     with pytest.raises(ValueError, match="no pending password"):
-        Passwords(current="old").promoted()
+        unchanged.promoted()

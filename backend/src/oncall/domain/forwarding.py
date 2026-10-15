@@ -44,7 +44,9 @@ def generate_password() -> str:
     ]
     every = "".join(PASSWORD_CLASSES)
     chars += [secrets.choice(every) for _ in range(PASSWORD_LENGTH - len(chars))]
-    secrets.SystemRandom().shuffle(chars)
+    for i in range(len(chars) - 1, 0, -1):  # Fisher-Yates on the system's source
+        j = secrets.randbelow(i + 1)
+        chars[i], chars[j] = chars[j], chars[i]
     return "".join(chars)
 
 
