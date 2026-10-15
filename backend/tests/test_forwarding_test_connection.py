@@ -143,7 +143,8 @@ async def test_every_stored_password_refused_is_an_outcome_not_an_error(
     assert [body["password"] for body in fake.bodies(PERFORM_LOGIN)] == [PENDING, PASSWORD]
     [event] = await _tests(db)
     assert event.summary == "Sprawdzono połączenie z WCO: WCO odrzuciło dane logowania"
-    assert PASSWORD not in str(event.details) and PENDING not in str(event.details)
+    assert PASSWORD not in str(event.details)
+    assert PENDING not in str(event.details)
 
 
 async def test_an_expired_password_is_reported_and_left_for_the_worker(

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, api } from '../../api'
+import { ConnectionTest, ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
 import { messages, useMessages } from '../../i18n'
 import { formatDate, formatMoment, warsawDate } from '../../lib/dates'
@@ -62,7 +62,7 @@ export function ForwardingPanel() {
 
 const blankToNull = (value: string) => value.trim() || null
 
-function SettingsForm({ saved }: { saved: ForwardingSettings }) {
+function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
   const t = useMessages().forwarding
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -96,6 +96,10 @@ function SettingsForm({ saved }: { saved: ForwardingSettings }) {
   })
   const complete = Boolean(saved.vpbx_number && saved.username && saved.wco_user_id && saved.password_set)
   const result = test.data
+  const resultTitle = ({ outcome, number }: ConnectionTest) => {
+    if (outcome !== 'ok') return t.test.outcomes[outcome]
+    return number ? t.test.outcomes.ok(number) : t.test.outcomes.okNoNumber
+  }
 
   // The dialog is a sibling of the form, not a child: React bubbles a
   // submit through the component tree, so a dialog nested in the form would
@@ -165,11 +169,7 @@ function SettingsForm({ saved }: { saved: ForwardingSettings }) {
         {save.error && <Box tone="bad" role="alert" title={save.error.message} />}
         {test.error && <Box tone="bad" role="alert" title={test.error.message} />}
         {result && (
-          <Box
-            tone={testTone[result.outcome]}
-            role="status"
-            title={result.outcome !== 'ok' ? t.test.outcomes[result.outcome] : result.number ? t.test.outcomes.ok(result.number) : t.test.outcomes.okNoNumber}
-          >
+          <Box tone={testTone[result.outcome]} role="status" title={resultTitle(result)}>
             {result.detail && <span className="mono">{result.detail}</span>}
           </Box>
         )}
@@ -179,19 +179,18 @@ function SettingsForm({ saved }: { saved: ForwardingSettings }) {
   )
 }
 
-function StateCard({ settings, state }: { settings: ForwardingSettings; state: ForwardingState }) {
+function StateCard({ settings, state }: Readonly<{ settings: ForwardingSettings; state: ForwardingState }>) {
   const t = useMessages().forwarding.state
   const none = messages().common.none
-  const desired = state.desired_for_day === null
-    ? none
-    : state.desired_member_name === null
-      ? t.noPrimary(formatDate(state.desired_for_day))
-      : t.desiredValue(state.desired_member_name, state.desired_number ?? t.noNumber, formatDate(state.desired_for_day))
-  const applied = state.applied_number === null
-    ? none
-    : state.applied_member_name === null
-      ? state.applied_number
-      : t.appliedBy(state.applied_number, state.applied_member_name)
+  let desired = none
+  if (state.desired_for_day !== null) {
+    const day = formatDate(state.desired_for_day)
+    desired = state.desired_member_name === null ? t.noPrimary(day) : t.desiredValue(state.desired_member_name, state.desired_number ?? t.noNumber, day)
+  }
+  let applied = none
+  if (state.applied_number !== null) {
+    applied = state.applied_member_name === null ? state.applied_number : t.appliedBy(state.applied_number, state.applied_member_name)
+  }
   const items = [
     { key: t.desired, value: desired, mono: true },
     { key: t.applied, value: applied, mono: true },
@@ -230,12 +229,15 @@ function NumbersOverview() {
   const users = useQuery({ queryKey: ['admin-users'], queryFn: api.adminUsers })
   const error = team.error ?? users.error
   const phones = new Map((users.data ?? []).map((user) => [user.id, user.phone]))
+  const problemOf = (phone: string | null) => {
+    if (phone === null) return t.missing
+    return isPolishPhone(phone) ? null : t.fix
+  }
   const rows = (team.data ?? [])
     .filter((member) => member.active_from <= today && (!member.active_until || member.active_until >= today))
     .map((member) => {
       const phone = member.user_id === null ? null : phones.get(member.user_id) ?? null
-      const problem = phone === null ? t.missing : isPolishPhone(phone) ? null : t.fix
-      return { member, phone, problem }
+      return { member, phone, problem: problemOf(phone) }
     })
     .sort((a, b) => Number(b.problem !== null) - Number(a.problem !== null) || a.member.display_name.localeCompare(b.member.display_name))
   const problems = rows.filter((row) => row.problem !== null).length
@@ -270,7 +272,7 @@ function NumbersOverview() {
 }
 
 /** One revealed value: masked until the eye opens it, copied as it is. */
-function Secret({ value }: { value: string }) {
+function Secret({ value }: Readonly<{ value: string }>) {
   const t = useMessages().auth
   const [visible, setVisible] = useState(false)
   return (
@@ -287,7 +289,7 @@ function Secret({ value }: { value: string }) {
  * only in this dialog's mutation: never a query, and with no `gcTime` the
  * mutation cache drops it once `REVEAL_SECONDS` pass or the dialog closes.
  */
-function RevealDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function RevealDialog({ open, onClose }: Readonly<{ open: boolean; onClose: () => void }>) {
   const t = useMessages().forwarding.reveal
   const common = useMessages().common
   const [confirmation, setConfirmation] = useState('')
@@ -338,7 +340,7 @@ function RevealDialog({ open, onClose }: { open: boolean; onClose: () => void })
             <p className="small">{t.current}</p>
           )}
           <Secret value={revealed.current} />
-          <p className="muted small" role="status">{t.hidesIn(left)}</p>
+          <output className="muted small">{t.hidesIn(left)}</output>
         </div>
       ) : (
         <form id="forwarding-reveal" className="stack-sm" onSubmit={(event) => { event.preventDefault(); reveal.mutate(confirmation) }}>
