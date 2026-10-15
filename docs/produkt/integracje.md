@@ -66,7 +66,10 @@ SECONDARY i 11–19), są w jednej wiadomości, każda z własnym ostatnim dniem
 
 Gdy wśród zaczynanych ról jest PRIMARY, przypomnienie z pierwszego dnia prosi
 o przełączenie numeru on-call, a jeśli ustawiono `ONCALL_SWITCH_URL`, jego
-przycisk prowadzi na stronę przełączania. Każda z dwóch wiadomości wychodzi do
+przycisk prowadzi na stronę przełączania. Gdy automatyczne przekierowanie
+przez Orange WCO działa w trybie `live`, ta wiadomość i korekta zmieniająca
+PRIMARY mówią zamiast tego, że numer przełącza się sam o godzinie
+`ONCALL_HANDOVER_REMINDER_HOUR`. Każda z dwóch wiadomości wychodzi do
 osoby najwyżej raz, więc kolejne przebiegi procesu roboczego w ciągu dnia
 niczego nie dublują.
 
@@ -197,6 +200,7 @@ roboczego, więc warto je zbierać.
 | `generation` | `run`, `outcome`, `queued_seconds`, `run_seconds` |
 | `generation_abandoned` | `runs` - ile uruchomień zwolniono po procesie, który zginął (ostrzeżenie) |
 | `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens` - ile wierszy usunął przebieg; `capped` - ile tabel doszło do limitu paczek i ma jeszcze zaległość; `seconds` |
+| `forwarding` | `outcome` (`applied`, `unchanged`, `failed`, `skipped_no_primary`, `skipped_no_phone`, `dry_run`), `rotated` - `1`, gdy przebieg zmienił wygasłe hasło Orange WCO; `seconds`, `attempts` - kolejne nieudane próby; przebieg, który nic nie zrobił, nie emituje rekordu |
 
 `queue` i `outbox` są próbkowane na zegarze (`ONCALL_METRICS_INTERVAL_SECONDS`,
 domyślnie 60) niezależnie od tego, czy cokolwiek się dzieje - **luka w nich
