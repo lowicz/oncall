@@ -166,6 +166,22 @@ describe('PeoplePanel person panel', () => {
     expect(save.mock.calls[0][0].input).toMatchObject({ role: 'viewer', is_active: true })
   })
 
+  it('shows the number as the server stored it, so a saved panel is not left unsaved', async () => {
+    mockData()
+    const saved = user({ id: 'u1', phone: '+48600100200' })
+    const save = vi.spyOn(api, 'updateAdminUser').mockImplementation(async () => {
+      vi.mocked(api.adminUsers).mockResolvedValue([saved])
+      return saved
+    })
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '600100200' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz \(1\)/ }))
+    await waitFor(() => expect(save).toHaveBeenCalled())
+    await waitFor(() => expect(within(dialog).getByLabelText(/^Telefon/)).toHaveValue('+48600100200'))
+    expect(within(dialog).queryByText(/Niezapisane/)).not.toBeInTheDocument()
+  })
+
   it('shows the qualifications as chips and ends a period when one is taken off', async () => {
     mockData([user({ id: 'u1' })], [member({ id: 'm1' })])
     const end = vi.spyOn(api, 'updateEligibility').mockResolvedValue({ id: 'e2', role: 'late_shift', starts_on: '2025-09-02', ends_on: '2026-09-09' })

@@ -320,6 +320,7 @@ export function PeoplePanel() {
     mutationFn: async () => {
       if (!selectedRow) throw new Error(t.errors.noAccountSelected)
       const tasks: Array<Promise<unknown>> = []
+      let updated: AdminUser | undefined
       if (accountChanges.length > 0) {
         // Phone travels even for an LDAP account: unlike name/email it is not
         // an AD-managed identity field (decision D8). An untouched number stays
@@ -328,7 +329,7 @@ export function PeoplePanel() {
           ? { role: accountForm.role, is_active: accountForm.is_active, phone: accountForm.phone }
           : accountForm
         const input: AdminUserUpdate = phone === selectedRow.user.phone ? rest : { ...rest, phone }
-        tasks.push(api.updateAdminUser({ id: selectedRow.user.id, input }))
+        tasks.push(api.updateAdminUser({ id: selectedRow.user.id, input }).then((user) => { updated = user }))
       }
       if (rotationChanges.length > 0 && selectedRow.member) {
         tasks.push(api.updateTeamMember({ id: selectedRow.member.id, input: { active_from: rotationFrom, active_until: rotationUntil || null } }))
@@ -341,8 +342,11 @@ export function PeoplePanel() {
         tasks.push(api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } }))
       }
       await Promise.all(tasks)
+      return updated
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // The API stores the number in its +48 form, so the form follows it.
+      if (updated) setAccountForm((form) => ({ ...form, phone: updated.phone }))
       setConfirmation(false)
       setEligibilityEdits({})
       setEditingPeriod(null)
