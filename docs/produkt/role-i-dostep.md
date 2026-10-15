@@ -7,7 +7,7 @@
 | `viewer` | Podgląd | wyłącznie opublikowany grafik |
 | `member` | Członek zespołu | podgląd oraz własna dostępność, zamiany i bilans |
 | `coordinator` | Koordynator | generowanie, korekty, publikacja, zatwierdzanie zamian, raporty, import |
-| `admin` | Administrator | wszystko powyżej oraz konta, eligibility, wydarzenia, udostępnienia i audyt |
+| `admin` | Administrator | wszystko powyżej oraz konta, eligibility, wydarzenia, udostępnienia, przełączanie numeru i audyt |
 
 Role są kumulatywne: administrator widzi wszystko, co koordynator.
 
@@ -26,6 +26,7 @@ Role są kumulatywne: administrator widzi wszystko, co koordynator.
 | Osoby (`/osoby`) | nie | nie | nie | tak |
 | Wydarzenia (`/wydarzenia`) | nie | nie | nie | tak |
 | Udostępnienia (`/udostepnienia`) | nie | nie | nie | tak |
+| Przełączanie numeru (`/przelaczanie`) | nie | nie | nie | tak |
 | Audyt (`/audyt`) | nie | nie | nie | tak |
 
 Pozycje nawigacji niedostępne dla roli po prostu się nie pokazują. Wejście

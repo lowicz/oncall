@@ -7,7 +7,7 @@
 | `viewer` | Viewer | only the published schedule |
 | `member` | Team member | viewing plus own availability, swaps and balance |
 | `coordinator` | Coordinator | generation, corrections, publication, swap approval, reports, import |
-| `admin` | Administrator | everything above plus accounts, eligibility, events, share links and audit |
+| `admin` | Administrator | everything above plus accounts, eligibility, events, share links, number forwarding and audit |
 
 The roles are cumulative: an administrator sees everything a coordinator does.
 
@@ -26,6 +26,7 @@ The roles are cumulative: an administrator sees everything a coordinator does.
 | People (`/osoby`) | no | no | no | yes |
 | Events (`/wydarzenia`) | no | no | no | yes |
 | Share links (`/udostepnienia`) | no | no | no | yes |
+| Number forwarding (`/przelaczanie`) | no | no | no | yes |
 | Audit (`/audyt`) | no | no | no | yes |
 
 Navigation items unavailable to a role simply do not appear. Entering the

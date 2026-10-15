@@ -42,6 +42,9 @@ const PeoplePanel = lazy(() =>
 const CalendarEventsPanel = lazy(() =>
   import('./screens/admin/CalendarEvents').then((m) => ({ default: m.CalendarEventsPanel })),
 )
+const ForwardingPanel = lazy(() =>
+  import('./screens/admin/Forwarding').then((m) => ({ default: m.ForwardingPanel })),
+)
 
 function RouteFallback() {
   const t = useMessages()
@@ -137,6 +140,14 @@ function Dashboard({ displayName, avatar, role, hasTeamMember, share }: {
           element={(
             <Guarded allowed={isAdmin}>
               <Suspense fallback={<RouteFallback />}><CalendarEventsPanel /></Suspense>
+            </Guarded>
+          )}
+        />
+        <Route
+          path="przelaczanie"
+          element={(
+            <Guarded allowed={isAdmin}>
+              <Suspense fallback={<RouteFallback />}><ForwardingPanel /></Suspense>
             </Guarded>
           )}
         />

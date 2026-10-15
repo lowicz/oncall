@@ -92,7 +92,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | wysłane, nieudane i pominięte e-maile |
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | zakończone uruchomienia generatora |
 | `ONCALL_SMTP_HOST` | puste | serwer poczty wychodzącej; puste wyłącza wysyłkę e-maili, patrz [Serwer SMTP](#serwer-smtp) |
-| `ONCALL_SECRETS_KEY` | puste | klucz Fernet, którym `api` i `worker` szyfrują sekrety trzymane w bazie (hasło Orange WCO automatycznego przekierowania numeru on-call); kilka kluczy po przecinku to rotacja: pierwszy szyfruje, każdy odszyfrowuje; puste wyłącza funkcje, które go potrzebują; nowy klucz wypisuje `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `ONCALL_SECRETS_KEY` | puste | klucz Fernet, którym `api` i `worker` szyfrują sekrety trzymane w bazie (hasło Orange WCO automatycznego przekierowania numeru on-call); kilka kluczy po przecinku to rotacja: pierwszy szyfruje, każdy odszyfrowuje; puste wyłącza funkcje, które go potrzebują; klucz chroni wartość, którą administrator może odsłonić na ekranie przełączania numeru, więc jego granica jest taka sama jak konta administratora; nowy klucz wypisuje `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `ONCALL_CA_FILE` | `./tls/ca.pem` | jeden pakiet PEM z CA, którym ufa wdrożenie: dla LDAP, SMTP, Orange WCO i nginx - patrz [Plik CA](#plik-ca) |
 | `ONCALL_LDAP_ENABLED` | `false` | logowanie z katalogu - patrz [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS na nginx - patrz [TLS](tls.md) |

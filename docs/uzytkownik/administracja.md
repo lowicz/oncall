@@ -2,7 +2,8 @@
 
 Ekrany używane od czasu do czasu są w listwie nawigacji w sekcjach
 **Koordynacja** (import historii, raport miesięczny) i **Administracja**
-(osoby, wydarzenia, udostępnienia, audyt); na telefonie pod zakładką
+(osoby, wydarzenia, udostępnienia, przełączanie numeru, audyt); na
+telefonie pod zakładką
 **Więcej**. Widoczność pozycji zależy od roli - patrz
 [Role i dostęp](../produkt/role-i-dostep.md).
 
@@ -170,6 +171,119 @@ linku przestają działać, a odwołanego linku nie da się przywrócić.
 
 Stałą formą dostępu dla osoby spoza rotacji jest imienne konto `viewer`; link
 czasowy jest wyjątkiem.
+
+## Przełączanie numeru (`/przelaczanie`, administrator)
+
+Automatyczne przekierowanie numeru on-call przez Orange WCO na telefon osoby,
+która ma dyżur PRIMARY; jak to działa, opisują
+[Integracje](../produkt/integracje.md#przełączanie-numeru-on-call-orange-wco).
+Ekran ma trzy części: konto WCO, stan i numery osób w rotacji. Czasy są w
+strefie `Europe/Warsaw`.
+
+### Konto WCO
+
+Formularz **Konto WCO** zapisuje dane, którymi proces roboczy loguje się do
+panelu WCO:
+
+- **Tryb** - **Wyłączone** (domyślnie; proces nie łączy się z WCO, numer
+  przełączasz ręcznie), **Próbny** (proces loguje się, odczytuje numer i
+  zapisuje w audycie, co by ustawił, ale niczego w WCO nie zmienia) albo
+  **Włączone** (proces przełącza numer i sam zmienia wygasłe hasło WCO).
+  Pod polem jest opis wybranego trybu.
+- **Adres WCO** - tylko `https`, domyślnie `https://wco.orange.pl`. Zmiana
+  adresu wymaga ponownego wpisania hasła, żeby zapisane hasło nie trafiło na
+  inny serwer.
+- **Numer centrali**, **Login** i **Identyfikator użytkownika WCO** - dane
+  logowania do panelu oraz użytkownik WCO, którego numer jest celem
+  przekierowania.
+- **Hasło WCO** - zapisywane zaszyfrowane kluczem `ONCALL_SECRETS_KEY`
+  ([Uruchomienie](../wdrozenie/uruchomienie.md)). Zapisane hasło nie wraca
+  do formularza: w jego miejscu jest data ostatniej zmiany oraz przyciski
+  **Zmień hasło** i **Pokaż hasło** (patrz [Ręczne przełączenie
+  numeru](#ręczne-przełączenie-numeru)). Bez klucza w środowisku nie da się
+  zapisać hasła ani włączyć przełączania; ekran mówi wtedy, którą zmienną
+  ustawić.
+
+Tryb próbny i włączony wymagają kompletu: numeru centrali, loginu,
+identyfikatora i hasła. Zapis trafia do audytu jako „Zmieniono przełączanie
+numeru” (bez hasła) i kasuje zaległe niepowodzenia procesu, więc po
+poprawieniu ustawień proces próbuje od razu.
+
+**Sprawdź połączenie** loguje się do WCO zapisanymi danymi i odczytuje numer,
+na który WCO teraz przekierowuje, niczego nie zmieniając; działa w każdym
+trybie, także **Wyłączone**, i wymaga zapisanego kompletu danych. Wynik to
+jedno z: połączenie działa (z numerem, który WCO trzyma); hasło wygasło
+(logowanie działa, ale WCO wymaga zmiany hasła - w trybie **Włączone**
+proces zrobi to sam); WCO odrzuciło dane logowania; nie udało się połączyć
+(z nazwą nieudanego wywołania i kodem HTTP, nigdy z treścią odpowiedzi WCO);
+konfiguracja niedostępna (`ONCALL_CA_FILE` nie wskazuje czytelnego pliku).
+Każde sprawdzenie trafia do audytu jako „Sprawdzono przełączanie numeru”.
+
+Nad formularzem pojawiają się dwa ostrzeżenia: **trwa automatyczna zmiana
+hasła** (proces zapisał nowe hasło i czeka, aż WCO je przyjmie; zapisane są
+oba) oraz **WCO odrzuciło zapisane hasła** (proces przestał się logować, żeby
+nie zablokować konta WCO; wpisanie nowego hasła w polu **Hasło WCO** zdejmuje
+blokadę).
+
+### Stan
+
+Karta **Stan** pokazuje, co proces roboczy zostawił po ostatnim przebiegu:
+cel (osoba na PRIMARY, jej numer i dzień dyżuru), numer, na który WCO
+przekierowuje według ostatniego potwierdzenia, i kiedy je potwierdzono,
+ostatnią próbę i jej wynik (przełączono, bez zmian, niepowodzenie, pominięto
+z braku osoby na PRIMARY albo z braku numeru, próba bez zmian), treść błędu,
+od kiedy trwają niepowodzenia, liczbę nieudanych prób i czas następnej, a
+także datę ostatniej zmiany hasła WCO, trwającą zmianę hasła i odrzucenie
+haseł. Historia przebiegów jest w [Audycie](#audyt-audyt-administrator) pod
+akcjami „Przełączono numer on-call”, „Nie udało się przełączyć numeru”,
+„Pominięto przełączenie numeru” i „Zmieniono hasło WCO”.
+
+### Numery osób w rotacji
+
+Lista osób będących dziś w rotacji z numerem telefonu z ich konta; osoby bez
+numeru albo z numerem w złym formacie są na górze i oznaczone („brak numeru”,
+„popraw numer”). Przekierowanie trafia na numer z konta osoby: osoba zmienia
+go na ekranie [Moje](dostepnosc.md#mój-telefon), administrator na ekranie
+[Osoby](#osoby-osoby-administrator).
+
+### Ręczne przełączenie numeru
+
+Gdy automatyczne przełączanie zawiedzie - przyjdzie alarm e-mail „Numer
+on-call” albo karta Stan pokaże niepowodzenie - numer przełączasz ręcznie w
+panelu WCO. Potrzebujesz do tego hasła konta WCO, które zna tylko aplikacja,
+bo w trybie **Włączone** proces zmienia je sam, gdy wygaśnie.
+
+1. Jeśli ręcznie ustawiony numer ma zostać, ustaw tryb **Wyłączone** i
+   zapisz: w trybie **Włączone** najbliższy udany przebieg nadpisze numer
+   inny niż numer osoby na PRIMARY. Przełączenie na numer tej właśnie osoby
+   jest nieszkodliwe - proces zobaczy, że numer już jest ustawiony, i
+   zapisze „przełączono” bez zmiany.
+2. Kliknij **Pokaż hasło** i w oknie wpisz **swoje hasło do aplikacji**
+   (konto z katalogu LDAP / AD potwierdza je w katalogu). Błędne hasło liczy
+   się jak nieudane logowanie i podlega tej samej blokadzie co ekran
+   logowania. Odsłonięcie trafia do audytu jako „Odsłonięto hasło WCO”: kto
+   i kiedy, nigdy wartość.
+3. Hasło jest zamaskowane; ikona oka je odsłania, **Kopiuj** kopiuje je do
+   schowka. Znika z ekranu po 60 sekundach albo po zamknięciu okna i nie
+   jest nigdzie zapisywane w przeglądarce.
+4. Zaloguj się w panelu WCO numerem centrali, loginem i tym hasłem i ustaw
+   numer użytkownika WCO wskazanego w ustawieniach.
+
+Gdy trwa automatyczna zmiana hasła, okno pokazuje dwa hasła: najpierw nowe
+(„Najpierw spróbuj”), potem dotychczasowe („Jeśli WCO go nie przyjmie”), w
+tej samej kolejności, w jakiej próbuje ich proces. Gdy WCO odrzuciło
+zapisane hasła, okno ostrzega, że hasło prawdopodobnie zmieniono poza
+aplikacją; po ustaleniu właściwego wpisz je w polu **Hasło WCO**.
+
+Jeśli panel WCO wymusi zmianę hasła przy ręcznym logowaniu, zapisane hasło
+staje się nieaktualne: proces przy następnym logowaniu dostanie odmowę,
+zapisze odrzucenie haseł i wyśle alarm. Dlatego nie zmieniaj hasła w WCO,
+jeśli nie musisz, a jeśli musisz, od razu wpisz nowe w polu **Hasło WCO**.
+
+Administrator z katalogu potwierdza swoje hasło w katalogu, więc gdy LDAP i
+przełączanie zawiodą naraz, hasło WCO odsłoni tylko lokalny administrator.
+Warto zachować konto z `python -m oncall.seed_admin`, z hasłem w sejfie
+organizacji.
 
 ## Audyt (`/audyt`, administrator)
 

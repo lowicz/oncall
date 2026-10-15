@@ -94,7 +94,7 @@ The full list with comments is in `.env.example`.
 | `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | sent, failed and skipped e-mails |
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | finished generator runs |
 | `ONCALL_SMTP_HOST` | empty | the outgoing mail server; empty disables e-mail sending, see [SMTP server](#smtp-server) |
-| `ONCALL_SECRETS_KEY` | empty | the Fernet key `api` and `worker` encrypt the secrets kept in the database with (the Orange WCO password of the automatic on-call number forwarding); several comma-separated keys rotate it: the first encrypts, every one decrypts; empty turns off the features that need it; `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` prints a new key |
+| `ONCALL_SECRETS_KEY` | empty | the Fernet key `api` and `worker` encrypt the secrets kept in the database with (the Orange WCO password of the automatic on-call number forwarding); several comma-separated keys rotate it: the first encrypts, every one decrypts; empty turns off the features that need it; the key protects a value an administrator can reveal on the number forwarding screen, so its boundary is the same as an administrator account's; `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` prints a new key |
 | `ONCALL_CA_FILE` | `./tls/ca.pem` | the one PEM bundle of the CAs the deployment trusts: for LDAP, SMTP, Orange WCO and nginx - see [CA file](#ca-file) |
 | `ONCALL_LDAP_ENABLED` | `false` | directory sign-in - see [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS on nginx - see [TLS](tls.md) |

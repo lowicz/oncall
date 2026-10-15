@@ -13,6 +13,7 @@ export const nav: Messages['nav'] = {
     people: 'People',
     events: 'Events',
     shareLinks: 'Share links',
+    forwarding: 'Number forwarding',
     audit: 'Audit',
     more: 'More',
   },

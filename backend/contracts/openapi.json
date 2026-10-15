@@ -1076,6 +1076,55 @@
         "title": "CalendarResponse",
         "type": "object"
       },
+      "ConnectionTestOutcome": {
+        "description": "What an administrator's \"check the connection\" learned from WCO. It\nlogs in the way the forwarding pass does and reads the user whose number\nis forwarded to; it never writes.",
+        "enum": [
+          "ok",
+          "password_expired",
+          "login_refused",
+          "connection",
+          "configuration"
+        ],
+        "title": "ConnectionTestOutcome",
+        "type": "string"
+      },
+      "ConnectionTestResponse": {
+        "description": "What one read-only round trip to WCO with the stored settings\nlearned: `number` is what WCO forwards to when it could be read, and\n`detail` names the failed call or the configuration error.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ConnectionTestOutcome"
+          }
+        },
+        "required": [
+          "outcome",
+          "number",
+          "detail"
+        ],
+        "title": "ConnectionTestResponse",
+        "type": "object"
+      },
       "CurrentDutyResponse": {
         "description": "Today's duty, with what the dashboard needs to act on it.\n\nSeparate from AssignmentResponse so the shared schema stays lean: only this\nendpoint carries contact details and the coverage window.",
         "properties": {
@@ -5093,6 +5142,72 @@
           }
         },
         "summary": "Forwarding State",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/forwarding/test": {
+      "post": {
+        "description": "Log in to WCO with the stored settings and read the number it forwards\nto, writing nothing there. A refusal by WCO is an outcome, not an error,\nso it is recorded in the audit trail like a success.",
+        "operationId": "test_forwarding_connection_api_v1_admin_forwarding_test_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionTestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Forwarding Connection",
         "tags": [
           "admin"
         ]

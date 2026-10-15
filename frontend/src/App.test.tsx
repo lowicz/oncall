@@ -72,6 +72,7 @@ vi.mock('./screens/admin/Reports', () => ({ MonthlyReportsPanel: marker('Reports
 vi.mock('./screens/admin/Audit', () => ({ AuditPanel: marker('Audit') }))
 vi.mock('./screens/admin/People', () => ({ PeoplePanel: marker('People') }))
 vi.mock('./screens/admin/CalendarEvents', () => ({ CalendarEventsPanel: marker('CalendarEvents') }))
+vi.mock('./screens/admin/Forwarding', () => ({ ForwardingPanel: marker('Forwarding') }))
 
 const user = (role: UserRole, overrides: Partial<CurrentUser> = {}): CurrentUser => ({
   username: 'jkowal',
@@ -177,7 +178,7 @@ describe('the dashboard', () => {
 describe('what each account may reach', () => {
   const ROTATION = ['/moje', '/zamiany', '/sprawiedliwosc']
   const COORDINATION = ['/generator', '/import', '/raporty']
-  const ADMINISTRATION = ['/udostepnienia', '/osoby', '/wydarzenia', '/audyt']
+  const ADMINISTRATION = ['/udostepnienia', '/osoby', '/wydarzenia', '/przelaczanie', '/audyt']
   const SCREENS: Record<string, string> = {
     '/moje': 'Mine',
     '/zamiany': 'Swaps',
@@ -188,6 +189,7 @@ describe('what each account may reach', () => {
     '/udostepnienia': 'ShareLinks',
     '/osoby': 'People',
     '/wydarzenia': 'CalendarEvents',
+    '/przelaczanie': 'Forwarding',
     '/audyt': 'Audit',
   }
 

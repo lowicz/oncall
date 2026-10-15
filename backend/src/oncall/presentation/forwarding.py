@@ -4,7 +4,12 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from oncall.domain.forwarding.models import DEFAULT_BASE_URL, ForwardingMode, ForwardingOutcome
+from oncall.domain.forwarding.models import (
+    DEFAULT_BASE_URL,
+    ConnectionTestOutcome,
+    ForwardingMode,
+    ForwardingOutcome,
+)
 
 
 class ForwardingSettingsResponse(BaseModel):
@@ -63,6 +68,18 @@ class PasswordRevealResponse(BaseModel):
     pending_since: datetime | None
     credentials_invalid_since: datetime | None
     password_changed_at: datetime | None
+
+
+class ConnectionTestResponse(BaseModel):
+    """What one read-only round trip to WCO with the stored settings
+    learned: `number` is what WCO forwards to when it could be read, and
+    `detail` names the failed call or the configuration error."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    outcome: ConnectionTestOutcome
+    number: str | None
+    detail: str | None
 
 
 class ForwardingStateResponse(BaseModel):

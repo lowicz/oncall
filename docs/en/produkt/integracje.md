@@ -91,6 +91,55 @@ it at most once per working day, including a coordinator added after that
 hour. Without a configured SMTP host this message is not queued at all,
 so turning mail on sends no overdue messages for days gone by.
 
+## On-call number forwarding (Orange WCO)
+
+The on-call number is forwarded in the Orange WCO switchboard to the phone
+of the person on PRIMARY duty. Every few seconds the worker process compares
+the number the schedule calls for with the number WCO last confirmed, and
+changes it when they differ. The duty day changes at the duty reminder hour
+(`ONCALL_HANDOVER_REMINDER_HOUR`, 9 Warsaw time by default): before it the
+number belongs to yesterday's PRIMARY, from it to today's, so the switch
+lands in the same minute as the "you are on call today" reminder, and a
+correction or a swap during the day changes the number on the next pass.
+
+The number comes from the phone on the person's account (`+48` and nine
+digits), sent to WCO unchanged. The WCO account (address, switchboard
+number, login, WCO user id, password) and the mode (off, dry run, on) are
+set by an administrator on the
+[Number forwarding](../uzytkownik/administracja.md#number-forwarding-przelaczanie-administrator)
+screen. The password sits in the database encrypted under
+`ONCALL_SECRETS_KEY`; without the key the feature cannot be turned on. A dry
+run logs in, reads the number and records in the audit trail what it would
+set, but changes nothing in WCO - it is the gate before turning it on.
+
+When WCO reports an expired password, the worker in on mode sets a new one
+itself (20 characters, four character classes), storing it first as pending
+and only after a successful login with it as current, so an interrupted
+pass never leaves WCO with a password the application does not know. When
+WCO refuses every stored password, the worker stops logging in until an
+administrator enters a new password, so as not to lock the WCO account.
+
+Failures: a permanent error (a refused login, a refused number change,
+nobody on PRIMARY, no number) at once, and a transient one (the network, a
+server error) after 10 minutes of retries sends the "Numer on-call" e-mail to
+the active coordinators and administrators and to the person on PRIMARY,
+once a day per target: who should be receiving calls, what WCO forwards to,
+what failed and what to do. When the switch succeeds after an alert, the
+coordinators and administrators get a short recovery message. In dry run
+mode no alerts go out. No message, audit entry or state carries a password,
+a cookie or WCO's response body, only the name of the call and the HTTP
+status.
+
+The connection to WCO is always verified; a corporate CA is added from the
+`ONCALL_CA_FILE` file ([Getting started](../wdrozenie/uruchomienie.md#ca-file)).
+The history is in the audit trail under the `forwarding.*` actions
+(switched, failed, skipped, password change, password reveal, connection
+check, settings change), and the administrator's screen shows the current
+state. Audit entries are subject to retention, which is why state needed
+for ever sits on rows of its own. When the automation fails, an
+administrator reveals the WCO password and switches the number themselves:
+[Switching the number by hand](../uzytkownik/administracja.md#switching-the-number-by-hand).
+
 ## ICS feeds
 
 Calendar applications subscribe to revocable token addresses under `/calendar`.

@@ -19,8 +19,8 @@ wygląda. Czytaj, zanim zaczniesz z kimś ustalać zasady dyżurów.
 - [Generator grafiku](produkt/generator.md) - reguły twarde, wagi miękkie,
   tryby rotacji i kryterium odbioru.
 - [Sprawiedliwość](produkt/sprawiedliwosc.md) - jak liczone są punkty i udział.
-- [Integracje](produkt/integracje.md) - powiadomienia e-mail, kanały ICS,
-  linki podglądowe i raport miesięczny.
+- [Integracje](produkt/integracje.md) - powiadomienia e-mail, przełączanie
+  numeru on-call, kanały ICS, linki podglądowe i raport miesięczny.
 
 ## Dokumentacja użytkownika
 
@@ -34,7 +34,7 @@ Instrukcja ekran po ekranie, zadanie po zadaniu.
 - [Zamiany](uzytkownik/zamiany.md) - prośba, akceptacja, zatwierdzenie.
 - [Generowanie grafiku](uzytkownik/generowanie-grafiku.md) - dla koordynatora.
 - [Administracja](uzytkownik/administracja.md) - osoby, wydarzenia, import,
-  raporty, udostępnienia i audyt.
+  raporty, udostępnienia, przełączanie numeru i audyt.
 - [Rozwiązywanie problemów](uzytkownik/rozwiazywanie-problemow.md) - komunikaty
   i co z nimi zrobić.
 

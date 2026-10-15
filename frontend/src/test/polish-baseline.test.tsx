@@ -46,6 +46,7 @@ import { PeoplePanel } from '../screens/admin/People'
 import { MonthlyReportsPanel } from '../screens/admin/Reports'
 import { ShareLinksPanel } from '../screens/admin/ShareLinks'
 import { CalendarEventsPanel } from '../screens/admin/CalendarEvents'
+import { ForwardingPanel } from '../screens/admin/Forwarding'
 import { HistoryImportPanel } from '../screens/admin/HistoryImport'
 import { AuditPanel } from '../screens/admin/Audit'
 import { MoreScreen } from '../screens/More'
@@ -368,6 +369,17 @@ function stubApi() {
     ],
   })
   vi.spyOn(api, 'auditEvents').mockResolvedValue(AUDIT)
+  vi.spyOn(api, 'forwardingSettings').mockResolvedValue({
+    mode: 'dry_run', base_url: 'https://wco.orange.pl', vpbx_number: '221234567', username: 'oncall-bot', wco_user_id: '4711',
+    password_set: true, password_changed_at: '2026-09-01T07:00:00Z', rotation_pending_since: null, credentials_invalid_since: null,
+    updated_at: '2026-09-01T07:05:00Z',
+  })
+  vi.spyOn(api, 'forwardingState').mockResolvedValue({
+    applied_number: '+48601220118', applied_member_name: 'Anna Kowalska', applied_at: '2026-09-09T07:00:00Z',
+    desired_number: null, desired_member_name: 'Marek Nowak', desired_for_day: '2026-09-10',
+    last_attempt_at: '2026-09-10T07:00:30Z', last_outcome: 'skipped_no_phone', last_error: 'Osoba na dyżurze PRIMARY nie ma zapisanego numeru telefonu',
+    failing_since: '2026-09-10T07:00:30Z', attempts: 0, next_attempt_at: null,
+  })
   vi.spyOn(api, 'passwordTokenInfo').mockResolvedValue({ username: 'marek', display_name: 'Marek Nowak' })
   vi.spyOn(api, 'exchangeShare').mockRejectedValue(new Error('Link wygasł lub został odwołany'))
 }
@@ -574,6 +586,13 @@ describe('the Polish interface', () => {
     renderScreen(<ShareLinksPanel />)
     await screen.findByText('dyspozytornia', { exact: false })
     await snapshotOf('share-links')
+  })
+
+  it('number forwarding', async () => {
+    renderScreen(<ForwardingPanel />)
+    await screen.findByText('Marek Nowak · brak numeru', { exact: false })
+    await screen.findByText('Ola Wiśniewska')
+    await snapshotOf('forwarding')
   })
 
   it('calendar events', async () => {

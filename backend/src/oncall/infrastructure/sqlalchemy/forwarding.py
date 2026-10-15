@@ -19,6 +19,8 @@ from oncall.domain.forwarding.job import (
     RecordedForwarding,
 )
 from oncall.domain.forwarding.models import (
+    ConnectionTest,
+    ConnectionTestOutcome,
     ForwardingMode,
     ForwardingOutcome,
     ForwardingSettings,
@@ -45,6 +47,14 @@ from oncall.notifications.triggers import (
 
 PERMANENT_BACKOFF = timedelta(hours=1)
 TRANSIENT_ALERT_AFTER = timedelta(minutes=10)
+#: What a connection test learned, as the audit trail says it.
+CONNECTION_TEST_WORDS = {
+    ConnectionTestOutcome.ok: "połączenie działa",
+    ConnectionTestOutcome.password_expired: "hasło WCO wygasło",
+    ConnectionTestOutcome.login_refused: "WCO odrzuciło dane logowania",
+    ConnectionTestOutcome.connection: "nie udało się połączyć z WCO",
+    ConnectionTestOutcome.configuration: "konfiguracja WCO jest niedostępna",
+}
 
 
 async def _require_claim(
@@ -179,6 +189,21 @@ class SqlAlchemyForwardingJournal:
                 "username": settings.username,
                 "wco_user_id": settings.wco_user_id,
                 "password_changed": password_changed,
+            },
+        )
+
+    def connection_tested(self, settings: ForwardingSettings, result: ConnectionTest) -> None:
+        record_audit(
+            self._session,
+            actor=self._actor,
+            action="forwarding.test",
+            entity_type="call_forwarding_settings",
+            entity_id=settings.id,
+            summary=f"Sprawdzono połączenie z WCO: {CONNECTION_TEST_WORDS[result.outcome]}",
+            details={
+                "outcome": result.outcome.value,
+                "number": result.number,
+                "detail": result.detail,
             },
         )
 

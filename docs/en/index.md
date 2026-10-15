@@ -20,8 +20,8 @@ way it does. Read it before you start agreeing duty rules with anyone.
 - [Schedule generator](produkt/generator.md) - hard rules, soft weights,
   rotation modes and the acceptance criterion.
 - [Fairness](produkt/sprawiedliwosc.md) - how points and share are calculated.
-- [Integrations](produkt/integracje.md) - e-mail notifications, ICS feeds,
-  share links and the monthly report.
+- [Integrations](produkt/integracje.md) - e-mail notifications, on-call
+  number forwarding, ICS feeds, share links and the monthly report.
 
 ## User documentation
 
@@ -35,7 +35,7 @@ A guide screen by screen, task by task.
 - [Swaps](uzytkownik/zamiany.md) - request, acceptance, approval.
 - [Generating a schedule](uzytkownik/generowanie-grafiku.md) - for the coordinator.
 - [Administration](uzytkownik/administracja.md) - people, events, import,
-  reports, share links and audit.
+  reports, share links, number forwarding and audit.
 - [Troubleshooting](uzytkownik/rozwiazywanie-problemow.md) - messages
   and what to do about them.
 

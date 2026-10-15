@@ -1,5 +1,6 @@
 """Reading and changing the forwarding settings, revealing the stored
-password to an administrator, and reading the state."""
+password to an administrator, checking the connection to WCO, and reading
+the state."""
 
 from datetime import datetime
 
@@ -8,13 +9,17 @@ from oncall.domain.access.use_cases import verify_own_password
 from oncall.domain.accounts import Account
 from oncall.domain.forwarding import errors
 from oncall.domain.forwarding.models import (
+    ConnectionTest,
     ForwardingMode,
     ForwardingSettings,
     ForwardingState,
     RevealedPasswords,
     SettingsChange,
+    WcoAccount,
 )
+from oncall.domain.forwarding.passwords import Passwords
 from oncall.domain.forwarding.ports import (
+    ConnectionTestPorts,
     CurrentSettings,
     CurrentState,
     PasswordReader,
@@ -79,6 +84,29 @@ async def reveal_password(
     )
     ports.journal.password_revealed(settings, pending_included=pending is not None)
     return revealed
+
+
+async def test_connection(ports: ConnectionTestPorts) -> ConnectionTest:
+    """Log in to WCO with the stored settings and read the number it forwards
+    to, writing nothing there, so an administrator learns before turning
+    forwarding on whether the settings work. Every test is audited."""
+    settings = await ports.settings.current()
+    tokens = await ports.settings.tokens()
+    if tokens is None or not (settings.vpbx_number and settings.username and settings.wco_user_id):
+        raise errors.SettingsIncomplete()
+    if not ports.cipher.available():
+        raise errors.SecretsKeyMissing()
+    pending = None if tokens.pending is None else _read(tokens.pending, ports.cipher)
+    account = WcoAccount(
+        base_url=settings.base_url,
+        vpbx_number=settings.vpbx_number,
+        username=settings.username,
+        wco_user_id=settings.wco_user_id,
+        passwords=Passwords(_read(tokens.current, ports.cipher), pending),
+    )
+    result = await ports.probe(account)
+    ports.journal.connection_tested(settings, result)
+    return result
 
 
 def _read(token: str, cipher: PasswordReader) -> str:

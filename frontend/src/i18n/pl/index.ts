@@ -6,6 +6,7 @@ import { common } from './common'
 import { dates } from './dates'
 import { duty } from './duty'
 import { fairness } from './fairness'
+import { forwarding } from './forwarding'
 import { generator } from './generator'
 import { historyImport } from './historyImport'
 import { labels } from './labels'
@@ -33,6 +34,7 @@ export const pl = {
   dates,
   duty,
   fairness,
+  forwarding,
   generator,
   historyImport,
   labels,

@@ -91,6 +91,55 @@ roboczym, także koordynator dodany już po tej godzinie. Bez
 skonfigurowanego hosta SMTP ta wiadomość w ogóle nie trafia do kolejki, więc
 po włączeniu poczty nie wychodzą zaległe wiadomości z minionych dni.
 
+## Przełączanie numeru on-call (Orange WCO)
+
+Numer on-call jest przekierowywany w centrali Orange WCO na telefon osoby,
+która ma dyżur PRIMARY. Proces roboczy co kilka sekund porównuje numer
+wynikający z grafiku z numerem, który WCO potwierdziło ostatnio, i zmienia
+go, gdy się różnią. Dzień dyżuru zmienia się o godzinie przypomnienia o
+dyżurze (`ONCALL_HANDOVER_REMINDER_HOUR`, domyślnie 9 czasu warszawskiego):
+przed nią numer należy do wczorajszej osoby na PRIMARY, od niej do
+dzisiejszej, więc przełączenie następuje w tej samej minucie co
+przypomnienie „masz dziś dyżur”, a korekta albo zamiana w ciągu dnia zmienia
+numer przy najbliższym przebiegu.
+
+Źródłem numeru jest telefon z konta osoby (`+48` i dziewięć cyfr), wysyłany
+do WCO bez zmian. Dane konta WCO (adres, numer centrali, login,
+identyfikator użytkownika WCO, hasło) i tryb (wyłączone, próbny, włączone)
+ustawia administrator na ekranie
+[Przełączanie numeru](../uzytkownik/administracja.md#przełączanie-numeru-przelaczanie-administrator).
+Hasło leży w bazie zaszyfrowane kluczem `ONCALL_SECRETS_KEY`; bez klucza
+funkcji nie da się włączyć. Tryb próbny loguje się, odczytuje numer i
+zapisuje w audycie, co by ustawił, ale niczego w WCO nie zmienia - to brama
+przed włączeniem.
+
+Gdy WCO zgłosi wygaśnięcie hasła, proces w trybie włączonym sam ustawia nowe
+(20 znaków, cztery klasy znaków), zapisując je najpierw jako oczekujące, a
+dopiero po udanym logowaniu nim jako bieżące, więc przerwany przebieg nigdy
+nie zostawia WCO z hasłem, którego aplikacja nie zna. Gdy WCO odrzuci każde
+zapisane hasło, proces przestaje się logować do czasu wpisania nowego hasła
+przez administratora, żeby nie zablokować konta WCO.
+
+Niepowodzenia: błąd trwały (odrzucone logowanie, odrzucona zmiana numeru,
+brak osoby na PRIMARY, brak numeru) od razu, a przejściowy (sieć, błąd
+serwera) po 10 minutach prób wysyła e-mail „Numer on-call” do aktywnych
+koordynatorów i administratorów oraz do osoby na PRIMARY, raz dziennie na
+cel: kto ma odbierać, na co WCO przekierowuje, co zawiodło i co zrobić. Gdy
+przełączenie uda się po alarmie, koordynatorzy i administratorzy dostają
+krótką wiadomość o powrocie. W trybie próbnym alarmy nie wychodzą. Żadna
+wiadomość, wpis audytu ani stan nie zawiera hasła, ciasteczek ani treści
+odpowiedzi WCO, tylko nazwę wywołania i kod HTTP.
+
+Połączenie z WCO jest zawsze weryfikowane; firmowe CA dochodzi z pliku
+`ONCALL_CA_FILE` ([Uruchomienie](../wdrozenie/uruchomienie.md#plik-ca)).
+Historia jest w audycie pod akcjami `forwarding.*` (przełączono,
+niepowodzenie, pominięto, zmiana hasła, odsłonięcie hasła, sprawdzenie
+połączenia, zmiana ustawień), a bieżący stan pokazuje ekran administratora.
+Wpisy audytu podlegają retencji, dlatego stan potrzebny na zawsze leży na
+własnych wierszach. Gdy automat zawiedzie, administrator odsłania hasło WCO
+i przełącza numer sam: [Ręczne przełączenie
+numeru](../uzytkownik/administracja.md#ręczne-przełączenie-numeru).
+
 ## Kanały ICS
 
 Aplikacje kalendarzowe subskrybują odwoływalne adresy tokenowe pod `/calendar`.
