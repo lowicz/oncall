@@ -10,9 +10,17 @@ from oncall.trust import CaFileUnreadable, ca_file, tls_context
 from tests.smtp_relay import private_ca
 
 
-def test_without_a_ca_file_the_public_roots_alone_decide() -> None:
+def test_without_a_ca_file_the_public_roots_alone_decide(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The roots come from OpenSSL's default bundle, pinned here: a hashed
+    directory, the runner's default, loads lazily and counts as none."""
+    roots, _ = private_ca(tmp_path)
+    monkeypatch.setenv("SSL_CERT_FILE", str(roots))
+    monkeypatch.setenv("SSL_CERT_DIR", str(tmp_path / "no-such-dir"))
+
     assert ca_file(Settings(ca_file=None)) is None
-    assert tls_context(Settings(ca_file=None)).cert_store_stats()["x509_ca"] > 0
+    assert tls_context(Settings(ca_file=None)).cert_store_stats()["x509_ca"] == 1
 
 
 def test_the_ca_file_is_added_to_the_verified_public_roots(tmp_path: Path) -> None:
