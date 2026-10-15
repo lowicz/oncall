@@ -281,6 +281,45 @@ async def _rotate_expired_password(
     return await _change_pending_password(factory, wco, attempt)
 
 
+async def _sync_wco_number(
+    factory: Sessions, wco: WcoClient, attempt: ForwardingAttempt
+) -> tuple[ForwardingAttempt, str, ForwardingOutcome]:
+    """GET the WCO user and, unless in a dry run, PUT and read back the
+    desired number. An expired password reaches the caller as it is."""
+    attempt = await _renew_attempt(factory, attempt)
+    account = attempt.account
+    try:
+        user = await wco.get_user(account.wco_user_id)
+        current = user.get("number")
+        if not isinstance(current, str):
+            raise _ForwardingAttemptFailed(
+                ForwardingFailure.update_refused,
+                "GET /admin_api/functionalities/user answered no number",
+                permanent=True,
+            )
+        if account.mode is ForwardingMode.dry_run:
+            return attempt, current, ForwardingOutcome.dry_run
+        desired = wco_number(attempt.target)
+        if current == desired:
+            return attempt, current, ForwardingOutcome.unchanged
+        user["number"] = desired
+        attempt = await _renew_attempt(factory, attempt)
+        await wco.update_user(user)
+        attempt = await _renew_attempt(factory, attempt)
+        confirmed = await wco.get_user(account.wco_user_id)
+    except WcoPasswordExpired:
+        raise
+    except WcoError as exc:
+        raise _wco_failure(exc, ForwardingFailure.update_refused) from exc
+    if confirmed.get("number") != desired:
+        raise _ForwardingAttemptFailed(
+            ForwardingFailure.update_refused,
+            "PUT /admin_api/functionalities/user was not confirmed by GET",
+            permanent=True,
+        )
+    return attempt, desired, ForwardingOutcome.applied
+
+
 async def _reconcile_wco(
     factory: Sessions, attempt: ForwardingAttempt
 ) -> tuple[ForwardingAttempt, str, ForwardingOutcome, bool]:
@@ -291,18 +330,10 @@ async def _reconcile_wco(
             attempt, rotated = await _authenticate(factory, wco, attempt)
             expiration_rotated = False
             while True:
-                attempt = await _renew_attempt(factory, attempt)
-                account = attempt.account
                 try:
-                    user = await wco.get_user(account.wco_user_id)
+                    return (*await _sync_wco_number(factory, wco, attempt), rotated)
                 except WcoPasswordExpired as exc:
-                    if account.mode is ForwardingMode.dry_run:
-                        raise _ForwardingAttemptFailed(
-                            ForwardingFailure.password_rotation_failed,
-                            str(exc),
-                            permanent=True,
-                        ) from exc
-                    if expiration_rotated:
+                    if attempt.account.mode is ForwardingMode.dry_run or expiration_rotated:
                         raise _ForwardingAttemptFailed(
                             ForwardingFailure.password_rotation_failed,
                             str(exc),
@@ -310,47 +341,6 @@ async def _reconcile_wco(
                         ) from exc
                     attempt = await _rotate_expired_password(factory, wco, attempt)
                     rotated = expiration_rotated = True
-                    continue
-                except WcoError as exc:
-                    raise _wco_failure(exc, ForwardingFailure.update_refused) from exc
-
-                current = user.get("number")
-                if not isinstance(current, str):
-                    raise _ForwardingAttemptFailed(
-                        ForwardingFailure.update_refused,
-                        "GET /admin_api/functionalities/user answered no number",
-                        permanent=True,
-                    )
-                if account.mode is ForwardingMode.dry_run:
-                    return attempt, current, ForwardingOutcome.dry_run, rotated
-                desired = wco_number(attempt.target)
-                if current == desired:
-                    return attempt, current, ForwardingOutcome.unchanged, rotated
-                user["number"] = desired
-                attempt = await _renew_attempt(factory, attempt)
-                try:
-                    await wco.update_user(user)
-                    attempt = await _renew_attempt(factory, attempt)
-                    confirmed = await wco.get_user(attempt.account.wco_user_id)
-                except WcoPasswordExpired as exc:
-                    if expiration_rotated:
-                        raise _ForwardingAttemptFailed(
-                            ForwardingFailure.password_rotation_failed,
-                            str(exc),
-                            permanent=True,
-                        ) from exc
-                    attempt = await _rotate_expired_password(factory, wco, attempt)
-                    rotated = expiration_rotated = True
-                    continue
-                except WcoError as exc:
-                    raise _wco_failure(exc, ForwardingFailure.update_refused) from exc
-                if confirmed.get("number") != desired:
-                    raise _ForwardingAttemptFailed(
-                        ForwardingFailure.update_refused,
-                        "PUT /admin_api/functionalities/user was not confirmed by GET",
-                        permanent=True,
-                    )
-                return attempt, desired, ForwardingOutcome.applied, rotated
     except WcoConfigurationError as exc:
         raise _ForwardingAttemptFailed(
             ForwardingFailure.settings_invalid, str(exc), permanent=True

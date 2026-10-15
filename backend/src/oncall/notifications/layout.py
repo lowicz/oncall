@@ -156,6 +156,12 @@ def mono(value: object) -> Html:
     )
 
 
+def link(url: str) -> Html:
+    return Html(
+        f'<a href="{text(url)}" style="color:{LINK};text-decoration:underline;">{text(url)}</a>'
+    )
+
+
 @dataclass(frozen=True)
 class Fact:
     """One row of the key/value list under the lead: a `.field-label` and a value."""
@@ -331,7 +337,7 @@ def _action(action: Action) -> Html:
             f"{text(action.label)}</a></td></tr></table>"
             f'<div style="padding-top:10px;font-family:{FONT};font-size:12px;line-height:16px;'
             f'color:{MUTED};word-break:break-all;">'
-            f'<a href="{url}" style="color:{LINK};text-decoration:underline;">{url}</a></div>'
+            f"{link(action.url)}</div>"
         ),
         style="padding:22px 24px 24px;",
     )

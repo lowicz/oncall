@@ -30,6 +30,7 @@ from oncall.notifications.layout import (
     Slot,
     Tone,
     join,
+    link,
     mono,
     role_tag,
     status_tag,
@@ -1089,18 +1090,19 @@ def forwarding_failed(
         if cause is ForwardingFailure.no_phone
         else ""
     )
-    action = (
-        Action("Przełącz numer ręcznie", switch_url)
-        if switch_url
-        else Action("Sprawdź przełączanie", f"{app.url}/przelaczanie")
-    )
+    status = Action("Sprawdź przełączanie", f"{app.url}/przelaczanie")
+    action = Action("Przełącz numer ręcznie", switch_url) if switch_url else status
+    paragraphs = [text(fill_phone.strip())] if fill_phone else []
+    if action is not status:
+        paragraphs.append(join(text(f"{status.label}: "), link(status.url)))
+    links = "".join(f"{each.label}: {each.url}\n" for each in dict.fromkeys((action, status)))
     body = (
         f"{lead_text}\n"
         f"Dyżur PRIMARY: {target.member_name or 'brak'} ({desired}).\n"
         f"Ostatni potwierdzony numer WCO: {current}; {when}.\n"
         f"Przyczyna: {reason}.{fill_phone}\n\n"
         "Przełącz numer ręcznie i sprawdź ustawienia przełączania.\n"
-        f"{action.label}: {action.url}\n"
+        f"{links}"
     )
     return _render(
         app=app,
@@ -1117,7 +1119,7 @@ def forwarding_failed(
             Fact("Potwierdzony", text(when)),
             Fact("Przyczyna", text(reason)),
         ],
-        paragraphs=[text(fill_phone.strip())] if fill_phone else None,
+        paragraphs=paragraphs,
         note=Note("Przełącz numer ręcznie i sprawdź ustawienia przełączania.", Tone.bad),
         action=action,
     )

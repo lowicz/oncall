@@ -739,7 +739,7 @@ async def test_configuration_rotation_guards_missing_rows(db, frozen_clock, forw
     db.add(state)
     await db.commit()
 
-    with pytest.raises(RuntimeError, match="pending WCO password disappeared"):
+    with pytest.raises(ValueError, match="no pending password to promote"):
         await configuration.promote_pending(attempt, now=frozen_clock.instant)
 
     state.lease_until = None
@@ -751,6 +751,46 @@ async def test_configuration_rotation_guards_missing_rows(db, frozen_clock, forw
             SettingsCipher(worker.get_settings()),
             now=frozen_clock.instant,
         )
+
+
+async def test_password_writes_lose_to_an_admin_save_after_the_lease_check(
+    db, frozen_clock, forwarding_key
+) -> None:
+    fake = FakeWco()
+    await _settings(db, fake, ForwardingMode.live)
+    configuration = SqlAlchemyForwardingConfiguration(db)
+    cipher = SettingsCipher(worker.get_settings())
+    attempt = worker.ForwardingAttempt(
+        await configuration.account(cipher),
+        ForwardingTarget(frozen_clock.instant.date(), None, "Anna", "+48500500500"),
+        frozen_clock.instant + worker.FORWARDING_LEASE,
+        0,
+    )
+    db.add(CallForwardingState(lease_until=attempt.lease_until))
+    await db.commit()
+    staged = await configuration.stage_pending(
+        replace(attempt), "New-Dummy2!", cipher, now=frozen_clock.instant
+    )
+    await db.commit()
+    replacement = encrypt(worker.get_settings(), "Admin-Replacement9!")
+    stored = await db.scalar(select(CallForwardingSettings))
+    assert stored is not None
+    stored.password_ciphertext = replacement
+    stored.pending_password_ciphertext = None
+    await db.commit()
+
+    with pytest.raises(worker.ForwardingClaimLost, match="changed meanwhile"):
+        await configuration.stage_pending(
+            attempt, "Other-Dummy3!", cipher, now=frozen_clock.instant
+        )
+    with pytest.raises(worker.ForwardingClaimLost, match="changed meanwhile"):
+        await configuration.promote_pending(staged, now=frozen_clock.instant)
+    await db.rollback()
+
+    stored = await db.scalar(select(CallForwardingSettings))
+    assert stored is not None
+    assert stored.password_ciphertext == replacement
+    assert stored.pending_password_ciphertext is None
 
 
 async def test_attempt_recorders_ignore_a_foreign_lease(db, frozen_clock, forwarding_key) -> None:
@@ -791,6 +831,7 @@ async def test_change_requires_a_pending_password(db_factory, frozen_clock) -> N
         "oncall",
         "1001",
         Passwords("Dummy-Passw0rd!"),
+        Passwords("dummy-token"),
     )
     fake = FakeWco()
     async with WcoClient("https://wco.test", transport=fake.transport()) as wco:

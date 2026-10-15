@@ -200,6 +200,7 @@ class SqlAlchemyForwardingConfiguration:
             username=row.username or "",
             wco_user_id=row.wco_user_id or "",
             passwords=Passwords(cipher.decrypt(row.password_ciphertext or ""), pending),
+            stored=Passwords(row.password_ciphertext or "", row.pending_password_ciphertext),
             credentials_invalid_since=row.credentials_invalid_since,
         )
 
@@ -218,41 +219,74 @@ class SqlAlchemyForwardingConfiguration:
         *,
         now: datetime,
     ) -> ForwardingAttempt:
-        await _require_claim(self._session, attempt, now=now)
-        row = await load_singleton(self._session, CallForwardingSettings)
-        row.pending_password_ciphertext = cipher.encrypt(password)
-        row.pending_since = now
+        token = cipher.encrypt(password)
+        await self._write_passwords(
+            attempt,
+            now=now,
+            pending_password_ciphertext=token,
+            pending_since=now,
+        )
+        account = attempt.account
         attempt.account = replace(
-            attempt.account, passwords=Passwords(attempt.account.passwords.current, password)
+            account,
+            passwords=Passwords(account.passwords.current, password),
+            stored=Passwords(account.stored.current, token),
         )
         return attempt
 
     async def promote_pending(
         self, attempt: ForwardingAttempt, *, now: datetime
     ) -> ForwardingAttempt:
-        await _require_claim(self._session, attempt, now=now)
-        row = await load_singleton(self._session, CallForwardingSettings)
-        if row.pending_password_ciphertext is None:
-            raise RuntimeError("the pending WCO password disappeared before promotion")
-        row.password_ciphertext = row.pending_password_ciphertext
-        row.password_changed_at = now
-        row.pending_password_ciphertext = None
-        row.pending_since = None
-        row.credentials_invalid_since = None
+        account = attempt.account
+        stored = account.stored.promoted()
+        settings_id = await self._write_passwords(
+            attempt,
+            now=now,
+            password_ciphertext=stored.current,
+            password_changed_at=now,
+            pending_password_ciphertext=None,
+            pending_since=None,
+            credentials_invalid_since=None,
+        )
         record_audit(
             self._session,
             actor=None,
             action="forwarding.password_rotated",
             entity_type="call_forwarding_settings",
-            entity_id=row.id,
+            entity_id=settings_id,
             summary="Hasło WCO zostało zmienione automatycznie",
         )
         attempt.account = replace(
-            attempt.account,
-            passwords=attempt.account.passwords.promoted(),
+            account,
+            passwords=account.passwords.promoted(),
+            stored=stored,
             credentials_invalid_since=None,
         )
         return attempt
+
+    async def _write_passwords(
+        self, attempt: ForwardingAttempt, *, now: datetime, **values: object
+    ) -> uuid.UUID:
+        """Write the settings row only while it still holds the passwords the
+        attempt read, so an administrator's save in between always wins."""
+        await _require_claim(self._session, attempt, now=now)
+        stored = attempt.account.stored
+        written = await self._session.execute(
+            update(CallForwardingSettings)
+            .where(
+                CallForwardingSettings.password_ciphertext == stored.current,
+                CallForwardingSettings.pending_password_ciphertext.is_not_distinct_from(
+                    stored.pending
+                ),
+            )
+            .values(**values)
+            .returning(CallForwardingSettings.id)
+            .execution_options(synchronize_session=False)
+        )
+        settings_id = written.scalar_one_or_none()
+        if settings_id is None:
+            raise ForwardingClaimLost("the WCO passwords were changed meanwhile")
+        return settings_id
 
 
 class SqlAlchemyForwardingAttempts:

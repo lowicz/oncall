@@ -356,6 +356,25 @@ def test_forwarding_mail_masks_every_phone_number() -> None:
     assert templates.masked_phone("extension-12") == "numer ukryty"
 
 
+@pytest.mark.parametrize("switch_url", [SWITCH_URL, None])
+def test_the_forwarding_alert_always_links_the_forwarding_screen(switch_url: str | None) -> None:
+    failed = templates.forwarding_failed(
+        target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
+        cause=ForwardingFailure.connection,
+        applied_number=None,
+        applied_at=None,
+        switch_url=switch_url,
+        app=APP,
+    )
+
+    status = f"{APP.url}/przelaczanie"
+    assert failed.text.count(f"Sprawdź przełączanie: {status}") == 1
+    assert f'href="{status}"' in failed.html
+    if switch_url:
+        assert f"Przełącz numer ręcznie: {switch_url}" in failed.text
+        assert f'href="{escape(switch_url)}"' in failed.html
+
+
 def test_dates_read_as_the_screens_print_them() -> None:
     """`frontend/src/lib/dates.ts`: DD-MM-RRRR, the weekday in front of one day."""
     assert format_day(DAY) == "czw 24-09-2026"

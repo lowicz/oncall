@@ -72,6 +72,9 @@ class ForwardingAccount:
     username: str
     wco_user_id: str
     passwords: Passwords = field(repr=False)
+    #: The same passwords as stored, encrypted: what the row must still hold
+    #: when the pass writes a password back.
+    stored: Passwords = field(repr=False)
     credentials_invalid_since: datetime | None = None
 
 
