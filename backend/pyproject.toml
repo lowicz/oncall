@@ -20,6 +20,7 @@ dependencies = [
   "email-validator==2.3.0",
   "fastapi==0.143.0",
   "holidays==0.106",
+  "httpx==0.28.1",
   "ldap3==2.9.1",
   "ortools==9.15.6755",
   "pydantic-settings==2.15.0",
@@ -31,7 +32,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "aiosqlite==0.22.1",
-  "httpx==0.28.1",
   "mypy==2.4.0",
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
@@ -109,6 +109,7 @@ files = [
   "src/oncall/database.py",
   "src/oncall/metrics.py",
   "src/oncall/login_log.py",
+  "src/oncall/wco.py",
   # The composition roots. Adapters satisfy the consumer-owned ports
   # structurally, without naming them, so this is where a missing or
   # mistyped method is caught; mypy follows the imports into every adapter.
