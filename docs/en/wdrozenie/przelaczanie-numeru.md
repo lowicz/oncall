@@ -118,11 +118,7 @@ podman compose exec api python -c "from cryptography.fernet import Fernet; print
 Put it in `.env` and restart the stack:
 
 ```bash
-# in .env
-ONCALL_SECRETS_KEY=<the key printed above>
-```
-
-```bash
+# in .env: ONCALL_SECRETS_KEY=<the key printed above>
 systemctl --user restart oncall
 ```
 
@@ -268,29 +264,19 @@ in Polish):
   (when set) and a **Sprawdź przełączanie** link to `/przelaczanie`.
 
 It goes to the active coordinators and administrators with an e-mail
-address and to the person on PRIMARY. A permanent error (refused login,
-refused number change, no person or no number, unavailable configuration)
-sends it at once, a transient one (network, WCO server error) after 10
-minutes of failed attempts. One message goes out per day and target. When a
-switch succeeds after an alert, the coordinators and administrators get
-„Numer on-call został przełączony po awarii” (switched after a failure). The
-message never holds a password or a WCO response body.
+address and to the person on PRIMARY. When it goes out, and when the
+recovery message follows, is in
+[Integrations](../produkt/integracje.md#on-call-number-forwarding-orange-wco).
 
 ## Switching by hand
 
 When the automation fails, an administrator reveals the WCO password and
 switches the number in the WCO panel - the full procedure:
 [Switching the number by hand](../uzytkownik/administracja.md#switching-the-number-by-hand).
-In short:
 
-1. If the manual number has to stay, set mode **Off** and save.
-2. **Show password**, confirmed with your own application password. The
-   Audit trail gets “WCO password revealed” (who and when, never the value).
-3. Log in to the WCO panel with the switchboard number, the login and that
-   password, and set the number of the WCO user.
-
-Before going live do one reveal end to end, including the login to the WCO
-panel without changing the number, and find the entry in the Audit trail.
+Before going live do one reveal (**Show password**) end to end, including
+the login to the WCO panel without changing the number, and find the “WCO
+password revealed” entry in the Audit trail.
 Do it with the local administrator account, to test the path for an LDAP
 outage.
 

@@ -116,11 +116,7 @@ podman compose exec api python -c "from cryptography.fernet import Fernet; print
 Wpisz go do `.env` i uruchom stos ponownie:
 
 ```bash
-# w .env
-ONCALL_SECRETS_KEY=<klucz wypisany wyżej>
-```
-
-```bash
+# w .env: ONCALL_SECRETS_KEY=<klucz wypisany wyżej>
 systemctl --user restart oncall
 ```
 
@@ -261,29 +257,18 @@ Gdy przełączenie zawiedzie w trybie **Włączone**, proces wysyła wiadomość
   `/przelaczanie`.
 
 Dostają ją aktywni koordynatorzy i administratorzy z adresem e-mail oraz
-osoba na PRIMARY. Błąd trwały (odrzucone logowanie, odrzucona zmiana numeru,
-brak osoby albo numeru, niedostępna konfiguracja) wysyła ją od razu, a
-przejściowy (sieć, błąd serwera WCO) po 10 minutach nieudanych prób. Na
-jeden dzień i cel wychodzi jedna wiadomość. Gdy przełączenie uda się po
-alarmie, koordynatorzy i administratorzy dostają „Numer on-call został
-przełączony po awarii”. Wiadomość nigdy nie zawiera hasła ani treści
-odpowiedzi WCO.
+osoba na PRIMARY. Kiedy wychodzi i kiedy przychodzi wiadomość o powrocie,
+opisują [Integracje](../produkt/integracje.md#przełączanie-numeru-on-call-orange-wco).
 
 ## Ręczne przełączenie
 
 Gdy automat zawiedzie, administrator odsłania hasło WCO i przełącza numer w
 panelu WCO - pełna procedura:
 [Ręczne przełączenie numeru](../uzytkownik/administracja.md#ręczne-przełączenie-numeru).
-W skrócie:
 
-1. Jeśli ręczny numer ma zostać, ustaw tryb **Wyłączone** i zapisz.
-2. **Pokaż hasło**, potwierdzenie własnym hasłem do aplikacji. Audyt dostaje
-   „Odsłonięto hasło WCO” (kto i kiedy, nigdy wartość).
-3. Zaloguj się w panelu WCO numerem centrali, loginem i tym hasłem i ustaw
-   numer użytkownika WCO.
-
-Przed włączeniem zrób jedno odsłonięcie od początku do końca, także
-zalogowanie w panelu WCO bez zmiany numeru, i znajdź wpis w Audycie. Zrób to
+Przed włączeniem zrób jedno odsłonięcie (**Pokaż hasło**) od początku do
+końca, także zalogowanie w panelu WCO bez zmiany numeru, i znajdź w Audycie
+wpis „Odsłonięto hasło WCO”. Zrób to
 lokalnym kontem administratora, żeby sprawdzić drogę na wypadek awarii LDAP.
 
 ## Zmiana hasła WCO
