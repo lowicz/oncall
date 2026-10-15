@@ -322,10 +322,12 @@ export function PeoplePanel() {
       const tasks: Array<Promise<unknown>> = []
       if (accountChanges.length > 0) {
         // Phone travels even for an LDAP account: unlike name/email it is not
-        // an AD-managed identity field (decision D8).
-        const input: AdminUserUpdate = selectedRow.user.auth_source === 'ldap'
+        // an AD-managed identity field (decision D8). An untouched number stays
+        // home, so a legacy value the stricter rule refuses blocks no other edit.
+        const { phone, ...rest } = selectedRow.user.auth_source === 'ldap'
           ? { role: accountForm.role, is_active: accountForm.is_active, phone: accountForm.phone }
           : accountForm
+        const input: AdminUserUpdate = phone === selectedRow.user.phone ? rest : { ...rest, phone }
         tasks.push(api.updateAdminUser({ id: selectedRow.user.id, input }))
       }
       if (rotationChanges.length > 0 && selectedRow.member) {

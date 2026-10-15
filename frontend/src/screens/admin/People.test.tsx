@@ -138,16 +138,32 @@ describe('PeoplePanel person panel', () => {
     const dialog = await openRow('anna')
     expect(within(dialog).getByText(/pochodzą z AD/)).toBeInTheDocument()
     expect(within(dialog).getByLabelText(/^Imię/)).toBeDisabled()
+    fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '+48500100200' } })
     fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
     expect(within(dialog).queryByRole('button', { name: /reset hasła/i })).not.toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Podgląd' }))
-    fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz \(1\)/ }))
+    fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz \(2\)/ }))
     const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
     await waitFor(() => expect(save).toHaveBeenCalled())
     // Phone travels even for an LDAP account (decision D8): unlike name/email
     // it is not an AD-managed identity field.
-    expect(save.mock.calls[0][0].input).toEqual({ role: 'viewer', is_active: true, phone: null })
+    expect(save.mock.calls[0][0].input).toEqual({ role: 'viewer', is_active: true, phone: '+48500100200' })
+  })
+
+  it('leaves an untouched legacy number out of an access change', async () => {
+    mockData([user({ id: 'u1', phone: '+49170123456' })])
+    const save = vi.spyOn(api, 'updateAdminUser').mockResolvedValue(user({ id: 'u1', role: 'viewer', phone: '+49170123456' }))
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Podgląd' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz \(1\)/ }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
+    await waitFor(() => expect(save).toHaveBeenCalled())
+    expect(save.mock.calls[0][0].input).not.toHaveProperty('phone')
+    expect(save.mock.calls[0][0].input).toMatchObject({ role: 'viewer', is_active: true })
   })
 
   it('shows the qualifications as chips and ends a period when one is taken off', async () => {
