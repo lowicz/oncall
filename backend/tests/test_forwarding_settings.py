@@ -18,6 +18,7 @@ from oncall import secrets
 from oncall.config import get_settings
 from oncall.domain.forwarding.models import ForwardingOutcome
 from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.forwarding_models import (
     CallForwardingSettings,
@@ -173,6 +174,46 @@ async def test_a_new_password_clears_a_half_done_rotation_and_a_refused_login(
     row = await _row(db)
     assert row.pending_password_ciphertext is None
     assert row.pending_since is None
+
+
+async def test_the_row_names_the_administrator_who_saved_it_last(client, db, admin) -> None:
+    response = await client.put(SETTINGS, json={"mode": "off", **ACCOUNT})
+
+    assert response.status_code == 200, response.text
+    administrator = await db.scalar(select(User.id).where(User.username == "admin"))
+    assert (await _row(db)).updated_by_user_id == administrator
+
+
+async def test_a_new_address_keeps_no_stored_password(client, db, admin, key) -> None:
+    """A stored password is sent only to the address it was entered for."""
+    saved = await client.put(SETTINGS, json={"mode": "dry_run", **ACCOUNT, "password": PASSWORD})
+    assert saved.status_code == 200, saved.text
+    elsewhere = {"mode": "dry_run", **ACCOUNT, "base_url": "https://wco.example.test"}
+
+    refused = await client.put(SETTINGS, json=elsewhere)
+
+    assert refused.status_code == 422, refused.text
+    assert "WCO" in refused.json()["detail"]
+    assert (await client.get(SETTINGS)).json()["base_url"] == "https://wco.orange.pl"
+    token = (await _row(db)).password_ciphertext
+    assert secrets.decrypt(get_settings(), token) == PASSWORD
+    assert len(await _audit(db)) == 1
+
+    accepted = await client.put(SETTINGS, json=elsewhere | {"password": "Dummy-Nowe-WCO!3"})
+
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["base_url"] == "https://wco.example.test"
+    row = await _row(db)
+    assert secrets.decrypt(get_settings(), row.password_ciphertext) == "Dummy-Nowe-WCO!3"
+
+
+async def test_without_a_stored_password_the_address_changes_freely(client, admin) -> None:
+    response = await client.put(
+        SETTINGS, json={"mode": "off", "base_url": "https://wco.example.test"}
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["base_url"] == "https://wco.example.test"
 
 
 @pytest.mark.parametrize(

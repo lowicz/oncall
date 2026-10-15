@@ -47,6 +47,7 @@ class SqlAlchemyForwardingSettings:
         row.username = change.username
         row.wco_user_id = change.wco_user_id
         row.updated_at = now
+        row.updated_by_user_id = change.updated_by_user_id
         if password_token is not None:
             # The administrator set the password WCO holds, so a rotation
             # left half done and a refused login no longer apply.

@@ -19,15 +19,18 @@ async def change_settings(
 ) -> ForwardingSettings:
     """Save the settings; `password` replaces the stored one, None keeps it.
 
-    A password is stored only encrypted, and forwarding is turned on only
-    with a key to decrypt it and everything a login to WCO needs.
+    A password is stored only encrypted, a stored one is kept only for the
+    address it was entered for, and forwarding is turned on only with a key
+    to decrypt it and everything a login to WCO needs.
     """
     enabling = change.mode is not ForwardingMode.off
     if (password is not None or enabling) and not ports.cipher.available():
         raise errors.SecretsKeyMissing()
-    if enabling and not (
-        change.complete and (password is not None or (await ports.settings.current()).password_set)
-    ):
+    current = await ports.settings.current()
+    keeps_password = password is None and current.password_set
+    if keeps_password and change.base_url != current.base_url:
+        raise errors.NewAddressNeedsPassword()
+    if enabling and not (change.complete and (password is not None or current.password_set)):
         raise errors.SettingsIncomplete()
     token = None if password is None else ports.cipher.encrypt(password)
     settings = await ports.settings.change(change, token)

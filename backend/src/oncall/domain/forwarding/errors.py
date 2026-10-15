@@ -14,3 +14,11 @@ class SettingsIncomplete(DomainError):
 
     def __init__(self) -> None:
         super().__init__("forwarding.settings_incomplete")
+
+
+class NewAddressNeedsPassword(DomainError):
+    """The WCO address changes while a stored password would be kept, which
+    would send that password to a host it was not entered for."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.new_address_needs_password")

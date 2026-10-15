@@ -114,6 +114,10 @@ MESSAGES: dict[str, str] = {
         "Aby włączyć przełączanie, podaj numer centrali, login, identyfikator "
         "użytkownika WCO i hasło."
     ),
+    "forwarding.new_address_needs_password": (
+        "Zmiana adresu WCO wymaga ponownego podania hasła, aby zapisane hasło "
+        "nie trafiło na inny serwer."
+    ),
     # --- history import (oncall.domain.history, oncall.history_import) -------
     "history.rejected": "Import historii zawiera błędy",
     "history.file_not_utf8": "Plik musi być zapisany jako UTF-8",

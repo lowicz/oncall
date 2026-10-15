@@ -63,6 +63,7 @@ class SettingsChange:
     vpbx_number: str | None
     username: str | None
     wco_user_id: str | None
+    updated_by_user_id: uuid.UUID
 
     @property
     def complete(self) -> bool:

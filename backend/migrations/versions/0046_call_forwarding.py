@@ -57,6 +57,12 @@ def upgrade() -> None:
         sa.Column(
             "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
+        sa.Column(
+            "updated_by_user_id",
+            sa.Uuid(),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
     )
     op.create_table(
         "call_forwarding_state",

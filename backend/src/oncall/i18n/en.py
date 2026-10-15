@@ -112,6 +112,10 @@ MESSAGES: dict[str, str] = {
         "To turn forwarding on, enter the switchboard number, the login, the WCO "
         "user id and the password."
     ),
+    "forwarding.new_address_needs_password": (
+        "Changing the WCO address requires entering the password again, so the "
+        "stored password is not sent to another server."
+    ),
     # --- history import (oncall.domain.history, oncall.history_import) -------
     "history.rejected": "The history import contains errors",
     "history.file_not_utf8": "The file must be saved as UTF-8",

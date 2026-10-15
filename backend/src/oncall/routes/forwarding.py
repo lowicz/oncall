@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/v1/admin/forwarding", tags=["admin"])
 FORWARDING_ERROR_STATUSES = {
     errors.SecretsKeyMissing: status.HTTP_409_CONFLICT,
     errors.SettingsIncomplete: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    errors.NewAddressNeedsPassword: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 
@@ -35,7 +36,7 @@ async def forwarding_settings(
 @router.put("/settings", response_model=ForwardingSettingsResponse)
 async def change_forwarding_settings(
     payload: ForwardingSettingsUpdate,
-    _: Admin,
+    admin: Admin,
     ports: ForwardingSettingsWriter,
     __: CsrfGuard,
 ) -> ForwardingSettingsResponse:
@@ -47,6 +48,7 @@ async def change_forwarding_settings(
                 vpbx_number=payload.vpbx_number,
                 username=payload.username,
                 wco_user_id=payload.wco_user_id,
+                updated_by_user_id=admin.id,
             ),
             payload.password,
             ports,
