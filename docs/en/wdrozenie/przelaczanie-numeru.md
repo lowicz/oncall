@@ -192,7 +192,7 @@ You read the result in two places:
   duty day), **WCO forwards to** (the number WCO holds now) and **Outcome**
   “dry run, nothing changed”;
 - the **Audit** trail, action “Number forwarding checked”, actor `system`:
-  „Próba przełączenia numeru na <person>” (a forwarding attempt to the
+  „Próba przełączenia numeru na \<person>” (a forwarding attempt to the
   person; summaries are recorded in Polish), and under **Details** `day`,
   `desired_number` (what the worker would set) and `current_number` (what WCO
   holds). Entries of the same action with an administrator as the actor are
@@ -233,7 +233,7 @@ previous mode, so the worker acts within a few seconds:
   “unchanged” and there is no Audit entry;
 - otherwise the worker changes the number, reads it back from WCO as
   confirmation, **Outcome** is “switched”, and the Audit trail gets “On-call
-  number forwarded” („Numer on-call przełączono na <person>”).
+  number forwarded” („Numer on-call przełączono na \<person>”).
 
 At the reminder hour the worker switches the number to today's person on
 PRIMARY. Check the **State** card and the Audit trail then, and call the

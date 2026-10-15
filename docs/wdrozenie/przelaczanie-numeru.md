@@ -190,7 +190,7 @@ Wynik czytasz w dwóch miejscach:
   **WCO przekierowuje na** (numer, który WCO trzyma teraz) i **Wynik**
   „próba, bez zmian”;
 - **Audyt**, akcja „Sprawdzono przełączanie numeru”, aktor `system`:
-  „Próba przełączenia numeru na <osoba>”, a w **Szczegóły** `day`,
+  „Próba przełączenia numeru na \<osoba>”, a w **Szczegóły** `day`,
   `desired_number` (co proces by ustawił) i `current_number` (co WCO
   trzyma). Wpisy tej samej akcji z administratorem jako aktorem to ręczne
   **Sprawdź połączenie**.
@@ -230,7 +230,7 @@ poprzedniego trybu, więc proces działa w ciągu kilku sekund:
   Audycie nie ma;
 - w przeciwnym razie proces zmienia numer, odczytuje go z WCO dla
   potwierdzenia, **Wynik** to „przełączono”, a Audyt dostaje „Przełączono
-  numer on-call” („Numer on-call przełączono na <osoba>”).
+  numer on-call” („Numer on-call przełączono na \<osoba>”).
 
 O godzinie przypomnienia proces przełącza numer na dzisiejszą osobę na
 PRIMARY. Sprawdź wtedy kartę **Stan** i Audyt, a potem zadzwoń na numer
