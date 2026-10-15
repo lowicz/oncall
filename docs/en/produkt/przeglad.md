@@ -74,8 +74,10 @@ two people will not silently overwrite each other.
 
 ## What the application does not do
 
-- It does not place calls or switch phone numbers - it only sends a reminder
-  to switch.
+- It does not place calls. It switches the on-call number only through
+  Orange WCO, once an administrator turns that on
+  ([Integrations](integracje.md#on-call-number-forwarding-orange-wco));
+  by default it only sends a reminder to switch.
 - It does not replace working time records; the monthly report is an input to them.
 - It does not integrate with Slack or Teams; e-mail is the notification channel,
   and the notification model is ready for further channels.

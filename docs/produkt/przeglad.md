@@ -74,8 +74,9 @@ dwie osoby nie nadpiszą się nawzajem po cichu.
 
 ## Czego aplikacja nie robi
 
-- Nie dzwoni i nie przełącza numerów telefonu - wysyła tylko przypomnienie
-  o przełączeniu.
+- Nie dzwoni. Numer on-call przełącza tylko przez Orange WCO, gdy
+  administrator to włączy ([Integracje](integracje.md#przełączanie-numeru-on-call-orange-wco));
+  domyślnie wysyła tylko przypomnienie o przełączeniu.
 - Nie zastępuje ewidencji czasu pracy; raport miesięczny jest wejściem do niej.
 - Nie integruje się z Slackiem ani Teams; kanałem powiadomień jest e-mail,
   a model powiadomień jest przygotowany na kolejne kanały.
