@@ -6,6 +6,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.auth import CurrentUser
+from oncall.config import get_settings
 from oncall.database import get_db
 from oncall.domain.access.ports import (
     AccountLinks,
@@ -24,6 +25,7 @@ from oncall.domain.admin.ports import (
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.balance.ports import BalancePorts
 from oncall.domain.calendar.ports import CalendarPorts
+from oncall.domain.forwarding.ports import CurrentSettings, CurrentState, SettingsPorts
 from oncall.domain.history.ports import HistoryPorts
 from oncall.domain.overrides.ports import OverridePorts
 from oncall.domain.reports.ports import ReportPorts
@@ -62,6 +64,11 @@ from oncall.infrastructure.sqlalchemy.calendar import (
     SqlAlchemyCalendarEvents,
     SqlAlchemyCalendarRoster,
 )
+from oncall.infrastructure.sqlalchemy.forwarding import (
+    SqlAlchemyForwardingJournal,
+    SqlAlchemyForwardingSettings,
+    SqlAlchemyForwardingState,
+)
 from oncall.infrastructure.sqlalchemy.history import SqlAlchemyHistory
 from oncall.infrastructure.sqlalchemy.overrides import SqlAlchemyOverrideJournal
 from oncall.infrastructure.sqlalchemy.reports import SqlAlchemyReportRoster
@@ -83,6 +90,7 @@ from oncall.infrastructure.sqlalchemy.sharing import SqlAlchemyCalendarFeeds, Sq
 from oncall.infrastructure.sqlalchemy.swaps import SqlAlchemySwapJournal, SqlAlchemySwapRequests
 from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
 from oncall.ldap_auth import LdapAuthenticator, get_directory_authenticator
+from oncall.secrets import SettingsCipher
 
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
 DirectoryAuth = Annotated[LdapAuthenticator, Depends(get_directory_authenticator)]
@@ -101,6 +109,22 @@ def policy_writer(db: DbSession, actor: CurrentUser) -> PolicyPorts:
         policy=SqlAlchemyPolicyStore(db),
         journal=SqlAlchemySchedulingJournal(db, actor),
     )
+
+
+def forwarding_settings_reader(db: DbSession) -> CurrentSettings:
+    return SqlAlchemyForwardingSettings(db)
+
+
+def forwarding_settings_writer(db: DbSession, actor: CurrentUser) -> SettingsPorts:
+    return SettingsPorts(
+        settings=SqlAlchemyForwardingSettings(db),
+        cipher=SettingsCipher(get_settings()),
+        journal=SqlAlchemyForwardingJournal(db, actor),
+    )
+
+
+def forwarding_state_reader(db: DbSession) -> CurrentState:
+    return SqlAlchemyForwardingState(db)
 
 
 def generation_requests(db: DbSession) -> GenerationRequestPorts:
@@ -329,6 +353,9 @@ def calendar_subscription(db: DbSession) -> CalendarSubscriptionPorts:
 ScheduleQueryProvider = Annotated[ScheduleQueryPorts, Depends(schedule_queries)]
 PolicyReader = Annotated[CurrentPolicy, Depends(policy_reader)]
 PolicyWriter = Annotated[PolicyPorts, Depends(policy_writer)]
+ForwardingSettingsReader = Annotated[CurrentSettings, Depends(forwarding_settings_reader)]
+ForwardingSettingsWriter = Annotated[SettingsPorts, Depends(forwarding_settings_writer)]
+ForwardingStateReader = Annotated[CurrentState, Depends(forwarding_state_reader)]
 GenerationRequestProvider = Annotated[GenerationRequestPorts, Depends(generation_requests)]
 DraftWriter = Annotated[DraftPorts, Depends(draft_writer)]
 PublicationReader = Annotated[PublicationPorts, Depends(publication_reader)]

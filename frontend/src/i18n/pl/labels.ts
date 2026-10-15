@@ -103,5 +103,6 @@ export const labels = {
     'schedule.override_batch': 'Wsadowa korekta grafiku',
     'schedule.override_carried': 'Przeniesiono korektę',
     'schedule.withdrawn': 'Cofnięto do szkicu',
+    'forwarding.settings_updated': 'Zmieniono przełączanie numeru',
   },
 }

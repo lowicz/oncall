@@ -13,6 +13,7 @@ import oncall.infrastructure.sqlalchemy.access_models  # noqa: F401
 import oncall.infrastructure.sqlalchemy.audit_model  # noqa: F401
 import oncall.infrastructure.sqlalchemy.availability_model  # noqa: F401
 import oncall.infrastructure.sqlalchemy.calendar_model  # noqa: F401
+import oncall.infrastructure.sqlalchemy.forwarding_models  # noqa: F401
 import oncall.infrastructure.sqlalchemy.notification_models  # noqa: F401
 import oncall.infrastructure.sqlalchemy.scheduling_models  # noqa: F401
 import oncall.infrastructure.sqlalchemy.sharing_models  # noqa: F401

@@ -2023,6 +2023,350 @@
         "title": "FeedTokenResponse",
         "type": "object"
       },
+      "ForwardingMode": {
+        "description": "How far the forwarding pass goes.",
+        "enum": [
+          "off",
+          "dry_run",
+          "live"
+        ],
+        "title": "ForwardingMode",
+        "type": "string"
+      },
+      "ForwardingOutcome": {
+        "description": "What the last forwarding pass did.",
+        "enum": [
+          "applied",
+          "unchanged",
+          "failed",
+          "skipped_no_primary",
+          "skipped_no_phone",
+          "dry_run"
+        ],
+        "title": "ForwardingOutcome",
+        "type": "string"
+      },
+      "ForwardingSettingsResponse": {
+        "description": "The settings without the password, which no response carries.",
+        "properties": {
+          "base_url": {
+            "title": "Base Url",
+            "type": "string"
+          },
+          "credentials_invalid_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credentials Invalid Since"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ForwardingMode"
+          },
+          "password_changed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password Changed At"
+          },
+          "password_set": {
+            "title": "Password Set",
+            "type": "boolean"
+          },
+          "rotation_pending_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Pending Since"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "vpbx_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vpbx Number"
+          },
+          "wco_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wco User Id"
+          }
+        },
+        "required": [
+          "mode",
+          "base_url",
+          "vpbx_number",
+          "username",
+          "wco_user_id",
+          "password_set",
+          "password_changed_at",
+          "rotation_pending_since",
+          "credentials_invalid_since",
+          "updated_at"
+        ],
+        "title": "ForwardingSettingsResponse",
+        "type": "object"
+      },
+      "ForwardingSettingsUpdate": {
+        "additionalProperties": false,
+        "description": "The whole settings form. `password` is write-only: null keeps the\nstored one.",
+        "properties": {
+          "base_url": {
+            "default": "https://wco.orange.pl",
+            "maxLength": 200,
+            "pattern": "^https://\\S+$",
+            "title": "Base Url",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ForwardingMode",
+            "default": "off"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "vpbx_number": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vpbx Number"
+          },
+          "wco_user_id": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wco User Id"
+          }
+        },
+        "title": "ForwardingSettingsUpdate",
+        "type": "object"
+      },
+      "ForwardingStateResponse": {
+        "properties": {
+          "applied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "applied_member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Member Name"
+          },
+          "applied_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Number"
+          },
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "desired_for_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired For Day"
+          },
+          "desired_member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired Member Name"
+          },
+          "desired_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desired Number"
+          },
+          "failing_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failing Since"
+          },
+          "last_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attempt At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ForwardingOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_attempt_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Attempt At"
+          }
+        },
+        "required": [
+          "applied_number",
+          "applied_member_name",
+          "applied_at",
+          "desired_number",
+          "desired_member_name",
+          "desired_for_day",
+          "last_attempt_at",
+          "last_outcome",
+          "last_error",
+          "failing_since",
+          "attempts",
+          "next_attempt_at"
+        ],
+        "title": "ForwardingStateResponse",
+        "type": "object"
+      },
       "GenerateScheduleRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4420,6 +4764,177 @@
           }
         },
         "summary": "Update Eligibility",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/forwarding/settings": {
+      "get": {
+        "operationId": "forwarding_settings_api_v1_admin_forwarding_settings_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForwardingSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forwarding Settings",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "change_forwarding_settings_api_v1_admin_forwarding_settings_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForwardingSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForwardingSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Forwarding Settings",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/forwarding/state": {
+      "get": {
+        "operationId": "forwarding_state_api_v1_admin_forwarding_state_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForwardingStateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forwarding State",
         "tags": [
           "admin"
         ]

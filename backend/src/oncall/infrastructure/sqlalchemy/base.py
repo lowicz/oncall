@@ -2,7 +2,9 @@
 
 from typing import Any
 
-from sqlalchemy import Connection, MetaData, String, event, text
+from sqlalchemy import Connection, MetaData, String, event, select, text
+from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
 #: ICU's Polish collation, which the PostgreSQL image ships: a letter with a
@@ -14,6 +16,24 @@ POLISH_COLLATION = "pl-PL-x-icu"
 
 class Base(DeclarativeBase):
     pass
+
+
+async def load_singleton[Row: Base](db: AsyncSession, model: type[Row]) -> Row:
+    """The one row of a table that holds one at most, by its unique
+    `singleton` column, created with the model's defaults on first use.
+
+    A created row is written, not committed: it belongs to whichever unit of
+    work the caller is in. Of two callers creating it at once, the second
+    skips its insert and reads the first one's row.
+    """
+    row = await db.scalar(select(model).limit(1))
+    if row is not None:
+        return row
+    insert = postgresql.insert if db.get_bind().dialect.name == "postgresql" else sqlite.insert
+    await db.execute(
+        insert(model).values(singleton=True).on_conflict_do_nothing(index_elements=["singleton"])
+    )
+    return (await db.scalars(select(model).limit(1))).one()
 
 
 def polish_text(length: int) -> String:

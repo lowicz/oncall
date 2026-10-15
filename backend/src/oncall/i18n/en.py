@@ -103,6 +103,19 @@ MESSAGES: dict[str, str] = {
     "calendar.outside_share_range": "The requested range is outside the link's date range",
     "calendar.dashboard_range_reversed": "ends_on cannot be earlier than starts_on",
     "calendar.event_not_found": "Event not found",
+    # --- forwarding the on-call number (oncall.domain.forwarding) ------------
+    "forwarding.secrets_key_missing": (
+        "The WCO password is stored encrypted and the server has no key: "
+        "set ONCALL_SECRETS_KEY and restart the application."
+    ),
+    "forwarding.settings_incomplete": (
+        "To turn forwarding on, enter the switchboard number, the login, the WCO "
+        "user id and the password."
+    ),
+    "forwarding.new_address_needs_password": (
+        "Changing the WCO address requires entering the password again, so the "
+        "stored password is not sent to another server."
+    ),
     # --- history import (oncall.domain.history, oncall.history_import) -------
     "history.rejected": "The history import contains errors",
     "history.file_not_utf8": "The file must be saved as UTF-8",

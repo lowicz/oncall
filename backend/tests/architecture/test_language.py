@@ -26,6 +26,7 @@ RECORDED_LANGUAGE = {
     "infrastructure/sqlalchemy/admin.py",
     "infrastructure/sqlalchemy/availability.py",
     "infrastructure/sqlalchemy/calendar.py",
+    "infrastructure/sqlalchemy/forwarding.py",
     "infrastructure/sqlalchemy/history.py",
     "infrastructure/sqlalchemy/overrides.py",
     "infrastructure/sqlalchemy/scheduling_journal.py",

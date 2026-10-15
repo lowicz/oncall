@@ -117,6 +117,7 @@ files = [
   # mistyped method is caught; mypy follows the imports into every adapter.
   "src/oncall/bootstrap/providers.py",
   "src/oncall/infrastructure/sqlalchemy/handover.py",
+  "src/oncall/infrastructure/sqlalchemy/forwarding.py",
   # The worker and what it drives. Every transaction it opens is a unit of
   # work named after its step, and the run's state transitions live in the
   # generation queue adapter rather than in the worker.
@@ -137,6 +138,7 @@ files = [
   "src/oncall/infrastructure/sqlalchemy/audit_model.py",
   "src/oncall/infrastructure/sqlalchemy/availability_model.py",
   "src/oncall/infrastructure/sqlalchemy/calendar_model.py",
+  "src/oncall/infrastructure/sqlalchemy/forwarding_models.py",
   "src/oncall/infrastructure/sqlalchemy/notification_models.py",
   "src/oncall/infrastructure/sqlalchemy/scheduling_models.py",
   "src/oncall/infrastructure/sqlalchemy/sharing_models.py",
@@ -148,6 +150,7 @@ files = [
   "src/oncall/presentation/admin.py",
   "src/oncall/presentation/assignments.py",
   "src/oncall/presentation/availability.py",
+  "src/oncall/presentation/forwarding.py",
   "src/oncall/presentation/history.py",
   "src/oncall/presentation/overrides.py",
   "src/oncall/presentation/published.py",

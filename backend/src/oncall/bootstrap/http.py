@@ -16,6 +16,7 @@ from oncall.routes.availability import router as availability_router
 from oncall.routes.calendar import router as calendar_router
 from oncall.routes.fairness import router as fairness_router
 from oncall.routes.feeds import router as feeds_router
+from oncall.routes.forwarding import router as forwarding_router
 from oncall.routes.history import router as history_router
 from oncall.routes.published import router as published_router
 from oncall.routes.reports import router as reports_router
@@ -99,6 +100,7 @@ def create_app(app_settings: Settings | None = None) -> FastAPI:
         share_links_router,
         feeds_router,
         admin_router,
+        forwarding_router,
         fairness_router,
         reports_router,
         system_router,

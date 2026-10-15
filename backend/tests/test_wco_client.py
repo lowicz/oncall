@@ -18,7 +18,7 @@ from urllib.parse import quote
 import httpx
 import pytest
 
-from oncall.domain.forwarding import AfterLogin, Passwords, generate_password
+from oncall.domain.forwarding.passwords import AfterLogin, Passwords, generate_password
 from oncall.wco import WcoClient, WcoError, WcoLoginRefused, WcoPasswordExpired, tls_context
 from tests.smtp_relay import private_ca
 from tests.wco_fake import BASE_URL, CHANGE_PASSWORD, LOGIN, PERFORM_LOGIN, USER, FakeWco
