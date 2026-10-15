@@ -36,15 +36,17 @@ def test_the_ca_file_is_added_to_the_verified_public_roots(tmp_path: Path) -> No
 
 def test_a_missing_bind_source_is_unreadable_and_named(tmp_path: Path) -> None:
     """Compose creates a missing bind source as an empty directory."""
+    settings = Settings(ca_file=str(tmp_path))
     with pytest.raises(CaFileUnreadable, match=rf"ONCALL_CA_FILE is unreadable \({tmp_path}\)"):
-        ca_file(Settings(ca_file=str(tmp_path)))
+        ca_file(settings)
 
 
 def test_a_file_holding_no_certificate_is_unreadable(tmp_path: Path) -> None:
     bundle = tmp_path / "ca.pem"
     bundle.write_text("not a certificate\n")
+    settings = Settings(ca_file=str(bundle))
 
     with pytest.raises(CaFileUnreadable) as refused:
-        tls_context(Settings(ca_file=str(bundle)))
+        tls_context(settings)
 
     assert refused.value.path == str(bundle)
