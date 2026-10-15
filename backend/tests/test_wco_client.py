@@ -19,7 +19,14 @@ import httpx
 import pytest
 
 from oncall.domain.forwarding.passwords import AfterLogin, Passwords, generate_password
-from oncall.wco import WcoClient, WcoError, WcoLoginRefused, WcoPasswordExpired, tls_context
+from oncall.wco import (
+    MAX_REDIRECTS,
+    WcoClient,
+    WcoError,
+    WcoLoginRefused,
+    WcoPasswordExpired,
+    tls_context,
+)
 from tests.smtp_relay import private_ca
 from tests.wco_fake import BASE_URL, CHANGE_PASSWORD, LOGIN, PERFORM_LOGIN, USER, FakeWco
 
@@ -64,6 +71,53 @@ async def test_the_number_is_forwarded_through_a_session_carrying_the_xsrf_token
         token = request.headers["x-xsrf-token"]
         assert f"XSRF-TOKEN={token}" in request.headers["cookie"]
         assert request.headers["content-type"] == "application/json;charset=UTF-8"
+
+
+async def test_a_redirect_on_the_configured_origin_is_followed_with_the_session() -> None:
+    fake = FakeWco(redirects={PERFORM_LOGIN: [f"{BASE_URL}{PERFORM_LOGIN}"], USER: [USER]})
+    async with client(fake) as wco:
+        await signed_in(wco, fake)
+        user = await wco.get_user(fake.user_id)
+        await wco.update_user({**user, "number": TARGET})
+
+    assert fake.user["number"] == TARGET
+    assert fake.calls == [
+        f"GET {LOGIN}",
+        f"POST {PERFORM_LOGIN}",
+        f"POST {PERFORM_LOGIN}",
+        f"GET {USER}/1001",
+        f"PUT {USER}",
+        f"PUT {USER}",
+    ]
+    assert len(fake.bodies(PERFORM_LOGIN)) == 2
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "https://attacker.invalid/capture",
+        f"http://wco.test{PERFORM_LOGIN}",
+        "https://wco.test:8443/",
+    ],
+)
+async def test_a_redirect_to_another_origin_never_receives_the_password(location: str) -> None:
+    fake = FakeWco(redirects={PERFORM_LOGIN: [location]})
+    async with client(fake) as wco:
+        with pytest.raises(WcoError, match="redirected to another host") as refused:
+            await signed_in(wco, fake)
+
+    assert refused.value.status == 307
+    assert fake.calls == [f"GET {LOGIN}", f"POST {PERFORM_LOGIN}"]
+
+
+async def test_a_redirect_loop_stops_at_the_hop_limit() -> None:
+    fake = FakeWco(redirects={LOGIN: [LOGIN] * (MAX_REDIRECTS + 3)})
+    async with client(fake) as wco:
+        with pytest.raises(WcoError, match="HTTP 307") as looped:
+            await signed_in(wco, fake)
+
+    assert looped.value.status == 307
+    assert fake.calls == [f"GET {LOGIN}"] * (MAX_REDIRECTS + 1)
 
 
 async def test_a_second_login_opens_a_new_session() -> None:

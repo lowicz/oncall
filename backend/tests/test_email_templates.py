@@ -15,13 +15,14 @@ diff like any other change to what a reader sees.
 import os
 import re
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from html import escape
 from pathlib import Path
 
 import pytest
 
 from oncall.domain.digest import Gap
+from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import reset_request_language, set_request_language
 from oncall.notifications import templates
@@ -278,6 +279,26 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         switch_url=SWITCH_URL,
         app=APP,
     ),
+    "rotation_same_day_automatic": lambda: templates.rotation_same_day(
+        starts_on=DAY,
+        segments=[(AssignmentRole.primary, END)],
+        switch_url=SWITCH_URL,
+        app=APP,
+        automatic=True,
+        reminder_hour=9,
+    ),
+    "forwarding_failed": lambda: templates.forwarding_failed(
+        target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
+        cause=ForwardingFailure.password_rotation_failed,
+        applied_number="+48600600600",
+        applied_at=datetime(2026, 9, 24, 6, 55, tzinfo=UTC),
+        switch_url=SWITCH_URL,
+        app=APP,
+    ),
+    "forwarding_recovered": lambda: templates.forwarding_recovered(
+        target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
+        app=APP,
+    ),
     "duty_digest": lambda: templates.duty_digest(
         days=[
             (
@@ -319,6 +340,58 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
 @pytest.fixture(params=sorted(RENDERINGS), ids=sorted(RENDERINGS))
 def rendered(request) -> RenderedEmail:
     return RENDERINGS[request.param]()
+
+
+def test_forwarding_mail_masks_every_phone_number() -> None:
+    failed = RENDERINGS["forwarding_failed"]()
+    recovered = RENDERINGS["forwarding_recovered"]()
+
+    for rendered in (failed, recovered):
+        assert "+48500500500" not in rendered.text + rendered.html
+        assert "+48 500 *** 500" in rendered.text
+        assert "+48 500 *** 500" in rendered.html
+    assert "+48600600600" not in failed.text + failed.html
+    # WCO's confirmation is stored in UTC and read in Warsaw time.
+    assert "+48 600 *** 600; 24-09-2026 08:55" in failed.text
+    assert "24-09-2026 08:55" in failed.html
+    assert "+48 600 *** 600" in failed.text
+    assert templates.masked_phone(None) == "brak"
+    assert templates.masked_phone("extension-12") == "numer ukryty"
+
+
+@pytest.mark.parametrize("switch_url", [SWITCH_URL, None])
+def test_the_forwarding_alert_always_links_the_forwarding_screen(switch_url: str | None) -> None:
+    failed = templates.forwarding_failed(
+        target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
+        cause=ForwardingFailure.connection,
+        applied_number=None,
+        applied_at=None,
+        switch_url=switch_url,
+        app=APP,
+    )
+
+    status = f"{APP.url}/przelaczanie"
+    assert failed.text.count(f"Sprawdź przełączanie: {status}") == 1
+    assert f'href="{status}"' in failed.html
+    if switch_url:
+        assert f"Przełącz numer ręcznie: {switch_url}" in failed.text
+        assert f'href="{escape(switch_url)}"' in failed.html
+    # The instruction comes before the link to the screen it names.
+    instruction = "Przełącz numer ręcznie i sprawdź ustawienia przełączania."
+    assert failed.html.index(instruction) < failed.html.index(f'href="{status}"')
+
+
+def test_the_forwarding_alert_without_a_primary_says_brak_once() -> None:
+    failed = templates.forwarding_failed(
+        target=ForwardingTarget(DAY, None, None, None),
+        cause=ForwardingFailure.no_primary,
+        applied_number=None,
+        applied_at=None,
+        switch_url=None,
+        app=APP,
+    )
+
+    assert "Dyżur PRIMARY: brak.\n" in failed.text
 
 
 def test_dates_read_as_the_screens_print_them() -> None:

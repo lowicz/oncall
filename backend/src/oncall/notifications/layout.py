@@ -156,6 +156,12 @@ def mono(value: object) -> Html:
     )
 
 
+def link(url: str) -> Html:
+    return Html(
+        f'<a href="{text(url)}" style="color:{LINK};text-decoration:underline;">{text(url)}</a>'
+    )
+
+
 @dataclass(frozen=True)
 class Fact:
     """One row of the key/value list under the lead: a `.field-label` and a value."""
@@ -331,7 +337,7 @@ def _action(action: Action) -> Html:
             f"{text(action.label)}</a></td></tr></table>"
             f'<div style="padding-top:10px;font-family:{FONT};font-size:12px;line-height:16px;'
             f'color:{MUTED};word-break:break-all;">'
-            f'<a href="{url}" style="color:{LINK};text-decoration:underline;">{url}</a></div>'
+            f"{link(action.url)}</div>"
         ),
         style="padding:22px 24px 24px;",
     )
@@ -355,21 +361,22 @@ def render(
     facts: list[Fact] | None = None,
     slots: list[Slot] | None = None,
     slots_heading: str | None = None,
-    body: list[Html] | None = None,
+    body: list[Html | Note] | None = None,
     note: Note | None = None,
     action: Action,
 ) -> str:
     """One complete e-mail document.
 
     `preheader` is the line a client shows next to the subject in the list; it
-    is in the document but not on the page.
+    is in the document but not on the page. A `Note` in `body` is drawn in
+    its place among the paragraphs.
     """
     card = join(
         _heading(eyebrow, title),
         _paragraph(lead),
         _facts(facts) if facts else Html(""),
         _slots(slots_heading, slots) if slots else Html(""),
-        *(_paragraph(paragraph) for paragraph in body or []),
+        *(_note(each) if isinstance(each, Note) else _paragraph(each) for each in body or []),
         _note(note) if note else Html(""),
         _action(action),
     )

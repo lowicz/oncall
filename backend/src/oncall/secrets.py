@@ -52,3 +52,6 @@ class SettingsCipher:
 
     def encrypt(self, plaintext: str) -> str:
         return encrypt(self._settings, plaintext)
+
+    def decrypt(self, token: str) -> str:
+        return decrypt(self._settings, token)

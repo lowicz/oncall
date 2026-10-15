@@ -17,7 +17,9 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from oncall.domain.calendar.models import WEEKDAYS
+from oncall.domain.clock import BUSINESS_TIMEZONE
 from oncall.domain.digest import Gap
+from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
 from oncall.domain.vocabulary import ONCALL_ROLES, ROLE_LABELS, AssignmentRole
 from oncall.notifications import layout
 from oncall.notifications.layout import (
@@ -29,6 +31,7 @@ from oncall.notifications.layout import (
     Slot,
     Tone,
     join,
+    link,
     mono,
     role_tag,
     status_tag,
@@ -40,6 +43,15 @@ from oncall.rules import RuleViolation, summarise
 #: The advice every mail about a PRIMARY hand-over repeats, in the interface's
 #: warning colour.
 _SWITCH_NUMBER = "Pamiętaj o przełączeniu numeru on-call."
+
+
+def _automatic_switch(reminder_hour: int) -> str:
+    """What a PRIMARY reads instead of `_SWITCH_NUMBER` while the worker
+    switches the number."""
+    return (
+        f"Numer on-call jest przełączany automatycznie o {reminder_hour:02d}:00. "
+        "Jeśli połączenia nie docierają, skontaktuj się z koordynatorem."
+    )
 
 
 @dataclass(frozen=True)
@@ -106,7 +118,7 @@ def _render(
     facts: list[Fact] | None = None,
     slots: list[Slot] | None = None,
     slots_heading: str | None = None,
-    paragraphs: list[Html] | None = None,
+    paragraphs: list[Html | Note] | None = None,
     note: Note | None = None,
     action: Action,
 ) -> RenderedEmail:
@@ -769,13 +781,22 @@ def assignment_overridden(
     previous_name: str,
     new_name: str,
     app: Brand,
+    automatic: bool = False,
+    reminder_hour: int = 9,
 ) -> RenderedEmail:
+    """`automatic` while the worker switches the number: a changed PRIMARY is
+    then told so rather than asked to switch it."""
     day = format_day(service_date)
     subject = f"Zmiana przydziału: {day} · {ROLE_LABELS[role]}"
+    advice = (
+        _automatic_switch(reminder_hour)
+        if automatic and role is AssignmentRole.primary
+        else _SWITCH_NUMBER
+    )
     body = (
         f"Koordynator zmienił przydział {ROLE_LABELS[role]} w dniu {day}.\n"
         f"Dyżur: {new_name} (poprzednio: {previous_name}).\n\n"
-        f"{_SWITCH_NUMBER}\n"
+        f"{advice}\n"
         f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
@@ -797,7 +818,7 @@ def assignment_overridden(
             Fact("Dyżur", strong(new_name)),
             Fact("Poprzednio", text(previous_name)),
         ],
-        note=Note(_SWITCH_NUMBER),
+        note=Note(advice),
         action=_schedule_action(app),
     )
 
@@ -925,21 +946,29 @@ def rotation_same_day(
     segments: list[tuple[AssignmentRole, date]],
     switch_url: str | None,
     app: Brand,
+    automatic: bool = False,
+    reminder_hour: int = 9,
 ) -> RenderedEmail:
     """Sent on `starts_on` itself, with the same `segments` as the notice
-    ahead. With PRIMARY among them it asks for the number to be switched,
-    and with `switch_url` its link is the switching page."""
+    ahead. A PRIMARY is told whether the worker or the person switches the
+    number; the manual link is shown only in manual mode."""
     noun = _duties_noun(segments)
     primary = any(role is AssignmentRole.primary for role, _ in segments)
     action = (
-        Action("Przełącz numer on-call", switch_url) if primary and switch_url else _my_duties(app)
+        Action("Przełącz numer on-call", switch_url)
+        if primary and switch_url and not automatic
+        else _my_duties(app)
     )
+    if primary and automatic:
+        note = Note(_automatic_switch(reminder_hour))
+    else:
+        note = Note(_SWITCH_NUMBER) if primary else None
     return _rotation(
         starts_on=starts_on,
         segments=segments,
         title=f"Dziś zaczynasz {noun}",
         opening=("Dziś (", f") zaczynasz {noun}:"),
-        note=Note(_SWITCH_NUMBER) if primary else None,
+        note=note,
         action=action,
         app=app,
     )
@@ -1024,6 +1053,119 @@ def duty_digest(
         ],
         paragraphs=[text(may_change)] if may_change else None,
         note=note,
+        action=action,
+    )
+
+
+#: One sentence per failure, the same in the alert mail, the recorded state
+#: and the audit trail. Never the body WCO answered with.
+FORWARDING_FAILURES = {
+    ForwardingFailure.connection: "Nie udało się połączyć z WCO",
+    ForwardingFailure.login_refused: "WCO odrzuciło dane logowania",
+    ForwardingFailure.password_rotation_failed: (
+        "Hasło WCO wygasło, a jego automatyczna zmiana nie powiodła się"
+    ),
+    ForwardingFailure.update_refused: "WCO odrzuciło zmianę numeru",
+    ForwardingFailure.settings_invalid: "Konfiguracja WCO jest niekompletna lub niedostępna",
+    ForwardingFailure.no_primary: "W grafiku nie ma osoby na dyżurze PRIMARY",
+    ForwardingFailure.no_phone: "Osoba na dyżurze PRIMARY nie ma zapisanego numeru telefonu",
+}
+
+
+def masked_phone(number: str | None) -> str:
+    """A Polish E.164 number with its middle digits hidden for e-mail."""
+    if number is None:
+        return "brak"
+    if len(number) == 12 and number.startswith("+48") and number[1:].isdigit():
+        return f"+48 {number[3:6]} *** {number[-3:]}"
+    return "numer ukryty"
+
+
+def forwarding_failed(
+    *,
+    target: ForwardingTarget,
+    cause: ForwardingFailure,
+    applied_number: str | None,
+    applied_at: datetime | None,
+    switch_url: str | None,
+    app: Brand,
+) -> RenderedEmail:
+    """A critical alert that carries no unmasked phone or WCO response."""
+    subject = "Pilne: numer on-call nie został przełączony"
+    lead_text = "Automatyczne przełączenie numeru on-call nie powiodło się."
+    desired = masked_phone(target.number)
+    current = masked_phone(applied_number)
+    local = applied_at.astimezone(BUSINESS_TIMEZONE) if applied_at is not None else None
+    when = (
+        f"{format_date(local.date())} {local:%H:%M}" if local is not None else "brak potwierdzenia"
+    )
+    reason = FORWARDING_FAILURES[cause]
+    fill_phone = (
+        " Osoba pełniąca PRIMARY powinna uzupełnić numer w zakładce Moje."
+        if cause is ForwardingFailure.no_phone
+        else ""
+    )
+    status = Action("Sprawdź przełączanie", f"{app.url}/przelaczanie")
+    action = Action("Przełącz numer ręcznie", switch_url) if switch_url else status
+    instruction = "Przełącz numer ręcznie i sprawdź ustawienia przełączania."
+    paragraphs: list[Html | Note] = [text(fill_phone.strip())] if fill_phone else []
+    paragraphs.append(Note(instruction, Tone.bad))
+    if action is not status:
+        paragraphs.append(join(text(f"{status.label}: "), link(status.url)))
+    links = "".join(f"{each.label}: {each.url}\n" for each in dict.fromkeys((action, status)))
+    primary = f"{target.member_name} ({desired})" if target.member_name else "brak"
+    body = (
+        f"{lead_text}\n"
+        f"Dyżur PRIMARY: {primary}.\n"
+        f"Ostatni potwierdzony numer WCO: {current}; {when}.\n"
+        f"Przyczyna: {reason}.{fill_phone}\n\n"
+        f"{instruction}\n"
+        f"{links}"
+    )
+    return _render(
+        app=app,
+        subject=subject,
+        body=body,
+        eyebrow="Numer on-call",
+        title="Numer on-call wymaga pilnej interwencji",
+        lead=text(lead_text),
+        facts=[
+            Fact("Dzień dyżuru", _day(target.day)),
+            Fact("PRIMARY", strong(target.member_name or "brak")),
+            Fact("Numer docelowy", mono(desired)),
+            Fact("Ostatni numer WCO", mono(current)),
+            Fact("Potwierdzony", text(when)),
+            Fact("Przyczyna", text(reason)),
+        ],
+        paragraphs=paragraphs,
+        action=action,
+    )
+
+
+def forwarding_recovered(*, target: ForwardingTarget, app: Brand) -> RenderedEmail:
+    """The short all-clear after a critical forwarding alert."""
+    subject = "Numer on-call został przełączony po awarii"
+    lead_text = "Automatyczne przełączanie numeru on-call znów działa."
+    number = masked_phone(target.number)
+    action = Action("Sprawdź przełączanie", f"{app.url}/przelaczanie")
+    body = (
+        f"{lead_text}\n"
+        f"Dyżur PRIMARY: {target.member_name or 'brak'} ({number}), {format_day(target.day)}.\n\n"
+        f"{action.label}: {action.url}\n"
+    )
+    return _render(
+        app=app,
+        subject=subject,
+        body=body,
+        eyebrow="Numer on-call",
+        title="Przełączanie działa ponownie",
+        lead=text(lead_text),
+        facts=[
+            Fact("Dzień dyżuru", _day(target.day)),
+            Fact("PRIMARY", strong(target.member_name or "brak")),
+            Fact("Numer", mono(number)),
+            Fact("Status", status_tag("Przełączony", Tone.ok)),
+        ],
         action=action,
     )
 

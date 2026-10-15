@@ -67,7 +67,10 @@ one message, each with its own last day.
 
 When PRIMARY is among the roles starting, the first-day reminder asks for the
 on-call number to be switched and, if `ONCALL_SWITCH_URL` is set, its button
-leads to the switching page. Each of the two messages goes to a person at most
+leads to the switching page. When automatic forwarding through Orange WCO
+runs in `live` mode, this message and a correction that changes PRIMARY say
+instead that the number switches itself at `ONCALL_HANDOVER_REMINDER_HOUR`.
+Each of the two messages goes to a person at most
 once, so further worker passes during the day duplicate nothing.
 
 Every coordinator and administrator gets a message on every Polish working
@@ -199,6 +202,7 @@ worker process's logs, so they are worth collecting.
 | `generation` | `run`, `outcome`, `queued_seconds`, `run_seconds` |
 | `generation_abandoned` | `runs` - how many runs were released after a process that died (a warning) |
 | `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens` - how many rows the pass removed; `capped` - how many tables reached the batch limit and still have a backlog; `seconds` |
+| `forwarding` | `outcome` (`applied`, `unchanged`, `failed`, `skipped_no_primary`, `skipped_no_phone`, `dry_run`), `rotated` - `1` when the pass changed an expired Orange WCO password; `seconds`, `attempts` - consecutive failed attempts; a pass that did nothing emits no record |
 
 `queue` and `outbox` are sampled on a clock (`ONCALL_METRICS_INTERVAL_SECONDS`,
 60 by default) regardless of whether anything is happening - **a gap in them

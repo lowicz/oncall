@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -32,6 +33,17 @@ class PasswordCipher(Protocol):
         ...
 
     def encrypt(self, plaintext: str) -> str: ...
+
+    def decrypt(self, token: str) -> str: ...
+
+
+class ForwardingContacts(Protocol):
+    """Whether any roster was ever published, and the phone attached to a
+    roster identity."""
+
+    async def roster_published(self) -> bool: ...
+
+    async def phone(self, member_id: uuid.UUID) -> str | None: ...
 
 
 class SettingsJournal(Protocol):

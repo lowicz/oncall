@@ -3,18 +3,21 @@
 import logging
 import uuid
 from collections.abc import Iterable, Sequence
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
 from oncall.domain.digest import DutyDigest
+from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
+from oncall.domain.forwarding.models import ForwardingMode
 from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
+from oncall.infrastructure.sqlalchemy.forwarding_models import CallForwardingSettings
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications import templates
 from oncall.notifications.base import NotificationMessage
@@ -114,6 +117,79 @@ async def _enqueue_for_coordinators(
             _message(coordinator.email or "", rendered, context),
             dedup_key=f"{dedup_prefix}:{coordinator.id}",
         )
+
+
+async def enqueue_forwarding_alert(
+    db: AsyncSession,
+    target: ForwardingTarget,
+    *,
+    cause: ForwardingFailure,
+    applied_number: str | None,
+    applied_at: datetime | None,
+    dedup_prefix: str,
+) -> int:
+    """Queue one critical copy for every operator and the PRIMARY person."""
+    settings = get_settings()
+    rendered = templates.forwarding_failed(
+        target=target,
+        cause=cause,
+        applied_number=applied_number,
+        applied_at=applied_at,
+        switch_url=settings.oncall_switch_url,
+        app=Brand.from_settings(settings),
+    )
+    recipients = {user.id: user for user in await _active_coordinators(db)}
+    if target.member_id is not None:
+        primary = await db.scalar(
+            select(User)
+            .join(TeamMember, TeamMember.user_id == User.id)
+            .where(
+                TeamMember.id == target.member_id,
+                User.is_active.is_(True),
+                User.email.is_not(None),
+            )
+        )
+        if primary is not None:
+            recipients[primary.id] = primary
+    queued = 0
+    for recipient in recipients.values():
+        row = await enqueue_notification(
+            db,
+            _message(
+                recipient.email or "",
+                rendered,
+                {
+                    "event": "forwarding_failed",
+                    "day": target.day.isoformat(),
+                    "cause": cause.value,
+                },
+            ),
+            dedup_key=f"{dedup_prefix}:{recipient.id}",
+        )
+        queued += row is not None
+    return queued
+
+
+async def enqueue_forwarding_recovered(
+    db: AsyncSession, target: ForwardingTarget, *, alerted_for: str
+) -> int:
+    """Queue the all-clear for operators, not the PRIMARY recipient."""
+    rendered = templates.forwarding_recovered(
+        target=target, app=Brand.from_settings(get_settings())
+    )
+    queued = 0
+    for recipient in await _active_coordinators(db):
+        row = await enqueue_notification(
+            db,
+            _message(
+                recipient.email or "",
+                rendered,
+                {"event": "forwarding_recovered", "day": target.day.isoformat()},
+            ),
+            dedup_key=f"forwarding-recovered:{alerted_for}:{recipient.id}",
+        )
+        queued += row is not None
+    return queued
 
 
 async def notify_swap_requested(
@@ -510,6 +586,7 @@ async def notify_assignment_overridden(
 ) -> None:
     settings = get_settings()
     emails = await _emails_for_names(db, [previous_name, new_name])
+    mode = await db.scalar(select(CallForwardingSettings.mode).limit(1))
     await _enqueue_for(
         db,
         emails,
@@ -520,6 +597,8 @@ async def notify_assignment_overridden(
             previous_name=previous_name,
             new_name=new_name,
             app=Brand.from_settings(settings),
+            automatic=mode is ForwardingMode.live,
+            reminder_hour=settings.handover_reminder_hour,
         ),
         context={"event": "assignment_overridden", "service_date": service_date.isoformat()},
     )
@@ -633,11 +712,14 @@ async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> i
             starts_on=notice.starts_on, segments=segments, app=Brand.from_settings(settings)
         )
     else:
+        mode = await db.scalar(select(CallForwardingSettings.mode).limit(1))
         rendered = templates.rotation_same_day(
             starts_on=notice.starts_on,
             segments=segments,
             switch_url=settings.oncall_switch_url,
             app=Brand.from_settings(settings),
+            automatic=mode is ForwardingMode.live,
+            reminder_hour=settings.handover_reminder_hour,
         )
     queued = await enqueue_notification(
         db,
