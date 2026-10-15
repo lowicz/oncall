@@ -43,6 +43,10 @@ class WcoError(Exception):
         self.status = status
 
 
+class WcoConfigurationError(WcoError):
+    """The local TLS configuration prevents a safe WCO connection."""
+
+
 class WcoLoginRefused(WcoError):
     """WCO refused the switchboard number, login and password."""
 
@@ -63,7 +67,9 @@ def tls_context(ca_file: str | None) -> ssl.SSLContext:
         try:
             context.load_verify_locations(cafile=ca_file)
         except OSError as exc:
-            raise WcoError(f"the WCO CA file is unreadable ({ca_file}): {exc}") from exc
+            raise WcoConfigurationError(
+                f"the WCO CA file is unreadable ({ca_file}): {exc}"
+            ) from exc
     return context
 
 
@@ -84,7 +90,10 @@ class WcoClient:
             verify=tls_context(ca_file),
             transport=transport,
             timeout=TIMEOUT_SECONDS,
-            follow_redirects=True,
+            # A redirect to another origin must never receive the stored
+            # password. WCO's observed endpoints answer directly, so any 3xx
+            # is treated as an error instead of followed.
+            follow_redirects=False,
         )
         self._xsrf: str | None = None
 

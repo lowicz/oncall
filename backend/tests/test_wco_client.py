@@ -66,6 +66,25 @@ async def test_the_number_is_forwarded_through_a_session_carrying_the_xsrf_token
         assert request.headers["content-type"] == "application/json;charset=UTF-8"
 
 
+async def test_a_login_redirect_never_sends_the_password_to_another_host() -> None:
+    requests: list[httpx.Request] = []
+
+    def redirect(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == LOGIN:
+            return httpx.Response(200, headers={"Set-Cookie": "XSRF-TOKEN=dummy; Path=/"})
+        return httpx.Response(307, headers={"Location": "https://attacker.invalid/capture"})
+
+    fake = FakeWco()
+    async with WcoClient(BASE_URL, transport=httpx.MockTransport(redirect)) as wco:
+        with pytest.raises(WcoError, match="HTTP 307"):
+            await signed_in(wco, fake)
+
+    assert [request.url.host for request in requests] == ["wco.test", "wco.test"]
+    assert fake.password in requests[-1].content.decode()
+    assert all(request.url.host != "attacker.invalid" for request in requests)
+
+
 async def test_a_second_login_opens_a_new_session() -> None:
     fake = FakeWco()
     async with client(fake) as wco:

@@ -49,7 +49,7 @@ class FakeWco:
     password_expired: bool = False
     #: Answer every call to a path with this status, or raise this exception
     #: where the network would fail.
-    faults: dict[str, int | Exception] = field(default_factory=dict)
+    faults: dict[str, int | Exception | list[int | Exception | None]] = field(default_factory=dict)
     requests: list[httpx.Request] = field(default_factory=list)
     sessions: set[str] = field(default_factory=set)
 
@@ -67,6 +67,8 @@ class FakeWco:
         self.requests.append(request)
         path = request.url.path
         fault = self.faults.get(path)
+        if isinstance(fault, list):
+            fault = fault.pop(0)
         if isinstance(fault, Exception):
             raise fault
         if fault is not None:

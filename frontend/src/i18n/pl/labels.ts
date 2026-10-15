@@ -104,5 +104,10 @@ export const labels = {
     'schedule.override_carried': 'Przeniesiono korektę',
     'schedule.withdrawn': 'Cofnięto do szkicu',
     'forwarding.settings_updated': 'Zmieniono przełączanie numeru',
+    'forwarding.applied': 'Przełączono numer on-call',
+    'forwarding.failed': 'Nie udało się przełączyć numeru',
+    'forwarding.skipped': 'Pominięto przełączenie numeru',
+    'forwarding.password_rotated': 'Zmieniono hasło WCO',
+    'forwarding.test': 'Sprawdzono przełączanie numeru',
   },
 }

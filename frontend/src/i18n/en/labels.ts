@@ -102,5 +102,10 @@ export const labels: Messages['labels'] = {
     'schedule.override_carried': 'Correction carried over',
     'schedule.withdrawn': 'Returned to draft',
     'forwarding.settings_updated': 'Number forwarding changed',
+    'forwarding.applied': 'On-call number forwarded',
+    'forwarding.failed': 'Number forwarding failed',
+    'forwarding.skipped': 'Number forwarding skipped',
+    'forwarding.password_rotated': 'WCO password changed',
+    'forwarding.test': 'Number forwarding checked',
   },
 }

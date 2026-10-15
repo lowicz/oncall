@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from oncall.domain.digest import Gap
+from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import reset_request_language, set_request_language
 from oncall.notifications import templates
@@ -278,6 +279,26 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         switch_url=SWITCH_URL,
         app=APP,
     ),
+    "rotation_same_day_automatic": lambda: templates.rotation_same_day(
+        starts_on=DAY,
+        segments=[(AssignmentRole.primary, END)],
+        switch_url=SWITCH_URL,
+        app=APP,
+        automatic=True,
+        reminder_hour=9,
+    ),
+    "forwarding_failed": lambda: templates.forwarding_failed(
+        target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
+        cause=ForwardingFailure.password_rotation_failed,
+        applied_number="+48600600600",
+        applied_at=datetime(2026, 9, 24, 8, 55),
+        switch_url=SWITCH_URL,
+        app=APP,
+    ),
+    "forwarding_recovered": lambda: templates.forwarding_recovered(
+        target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
+        app=APP,
+    ),
     "duty_digest": lambda: templates.duty_digest(
         days=[
             (
@@ -319,6 +340,20 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
 @pytest.fixture(params=sorted(RENDERINGS), ids=sorted(RENDERINGS))
 def rendered(request) -> RenderedEmail:
     return RENDERINGS[request.param]()
+
+
+def test_forwarding_mail_masks_every_phone_number() -> None:
+    failed = RENDERINGS["forwarding_failed"]()
+    recovered = RENDERINGS["forwarding_recovered"]()
+
+    for rendered in (failed, recovered):
+        assert "+48500500500" not in rendered.text + rendered.html
+        assert "+48 500 *** 500" in rendered.text
+        assert "+48 500 *** 500" in rendered.html
+    assert "+48600600600" not in failed.text + failed.html
+    assert "+48 600 *** 600" in failed.text
+    assert templates.masked_phone(None) == "brak"
+    assert templates.masked_phone("extension-12") == "numer ukryty"
 
 
 def test_dates_read_as_the_screens_print_them() -> None:
