@@ -85,7 +85,6 @@ class ForwardingAttempt:
     account: ForwardingAccount
     target: ForwardingTarget
     lease_until: datetime
-    attempts: int
 
 
 @dataclass(frozen=True)
@@ -109,11 +108,14 @@ async def desired_target(
     reminder_hour: int,
     roster: PublishedRoster,
     contacts: ForwardingContacts,
-) -> ForwardingTarget:
-    """Map the PRIMARY in force now to their stored number."""
+) -> ForwardingTarget | None:
+    """Map the PRIMARY in force now to their stored number; None while no
+    roster was ever published, when there is nobody to switch to yet."""
     day = forwarding_day(now_local, reminder_hour)
     duty = (await roster.duties_in_force(day, day)).get((day, AssignmentRole.primary))
     if duty is None:
+        if not await contacts.roster_published():
+            return None
         return ForwardingTarget(day, None, None, None)
     number = await contacts.phone(duty.member_id) if duty.member_id is not None else None
     return ForwardingTarget(day, duty.member_id, duty.assignee_name, number)

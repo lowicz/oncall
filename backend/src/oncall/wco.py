@@ -16,7 +16,10 @@ WCO answered may echo what was sent, so neither ends up in an error or a log,
 and the client logs nothing of its own (httpx logs the method and the URL).
 
 TLS is always verified, against the image's public roots plus the CAs of an
-optional CA file, for a TLS proxy that re-signs the traffic.
+optional CA file, for a TLS proxy that re-signs the traffic. A redirect is
+followed, `MAX_REDIRECTS` hops at most, only while it keeps the configured
+scheme, host and port; one to another origin is an error before anything is
+sent there.
 """
 
 import ssl
@@ -27,6 +30,7 @@ from urllib.parse import quote
 import httpx
 
 TIMEOUT_SECONDS = 15.0
+MAX_REDIRECTS = 5
 _CONTENT_TYPE = "application/json;charset=UTF-8"
 _XSRF_COOKIE = "XSRF-TOKEN"
 _LOGIN = "/admin_api/login"
@@ -73,6 +77,10 @@ def tls_context(ca_file: str | None) -> ssl.SSLContext:
     return context
 
 
+def _same_origin(url: httpx.URL, base: httpx.URL) -> bool:
+    return (url.scheme, url.host, url.port) == (base.scheme, base.host, base.port)
+
+
 class WcoClient:
     """One WCO session; use it as `async with WcoClient(...) as wco`.
 
@@ -90,9 +98,8 @@ class WcoClient:
             verify=tls_context(ca_file),
             transport=transport,
             timeout=TIMEOUT_SECONDS,
-            # A redirect to another origin must never receive the stored
-            # password. WCO's observed endpoints answer directly, so any 3xx
-            # is treated as an error instead of followed.
+            # Followed by `_call`, and only on the configured origin, so the
+            # password and the session cookies never reach another host.
             follow_redirects=False,
         )
         self._xsrf: str | None = None
@@ -159,6 +166,16 @@ class WcoClient:
             headers["X-XSRF-TOKEN"] = self._xsrf
         try:
             response = await self._http.request(method, path, headers=headers, json=body)
+            for _ in range(MAX_REDIRECTS):
+                redirect = response.next_request
+                if redirect is None:
+                    break
+                if not _same_origin(redirect.url, self._http.base_url):
+                    raise WcoError(
+                        f"{method} {path} redirected to another host (HTTP {response.status_code})",
+                        response.status_code,
+                    )
+                response = await self._http.send(redirect)
         except httpx.RequestError as exc:
             raise WcoError(f"{method} {path} failed: {type(exc).__name__}: {exc}") from exc
         if not response.is_success:

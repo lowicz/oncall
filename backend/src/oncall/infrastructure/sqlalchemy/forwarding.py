@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, or_, select, update
+from sqlalchemy import CursorResult, exists, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
@@ -27,12 +27,14 @@ from oncall.domain.forwarding.models import (
 )
 from oncall.domain.forwarding.passwords import Passwords
 from oncall.domain.forwarding.ports import PasswordCipher
+from oncall.effective import RESOLVED_STATUSES
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.base import load_singleton
 from oncall.infrastructure.sqlalchemy.forwarding_models import (
     CallForwardingSettings,
     CallForwardingState,
 )
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications.service import retry_delay
 from oncall.notifications.templates import FORWARDING_FAILURES
@@ -112,7 +114,7 @@ class SqlAlchemyForwardingSettings:
             row.credentials_invalid_since = None
         if changed:
             # Invalidate both an old result and an in-flight snapshot. The old
-            # worker is fenced by `_require_claim`; the next scan reconciles
+            # worker is fenced by its lease; the next scan reconciles
             # the new account immediately instead of inheriting old backoff.
             state = await load_singleton(self._session, CallForwardingState)
             state.desired_number = None
@@ -204,6 +206,13 @@ class SqlAlchemyForwardingConfiguration:
             credentials_invalid_since=row.credentials_invalid_since,
         )
 
+    async def roster_published(self) -> bool:
+        return bool(
+            await self._session.scalar(
+                select(exists().where(Schedule.status.in_(RESOLVED_STATUSES)))
+            )
+        )
+
     async def phone(self, member_id: uuid.UUID) -> str | None:
         return await self._session.scalar(
             select(User.phone)
@@ -260,7 +269,6 @@ class SqlAlchemyForwardingConfiguration:
             account,
             passwords=account.passwords.promoted(),
             stored=stored,
-            credentials_invalid_since=None,
         )
         return attempt
 
@@ -343,7 +351,7 @@ class SqlAlchemyForwardingAttempts:
         )
         if cast(CursorResult[Any], claimed).rowcount != 1:
             return None
-        return ForwardingAttempt(account, target, lease_until, row.attempts if same_desired else 0)
+        return ForwardingAttempt(account, target, lease_until)
 
     async def renew(
         self, attempt: ForwardingAttempt, *, now: datetime, lease_until: datetime
@@ -424,10 +432,21 @@ class SqlAlchemyForwardingAttempts:
         permanent: bool,
         invalidate_credentials: bool,
         now: datetime,
-    ) -> RecordedForwarding | None:
-        row = await self._owned(attempt, now=now)
-        if row is None:
-            return None
+    ) -> RecordedForwarding:
+        if invalidate_credentials:
+            # No retry: WCO refused every stored password, and only an
+            # administrator's new one ends the stop. Written only over the
+            # password the attempt was refused with, before the state row,
+            # in the order an administrator's save takes the two rows.
+            invalidated = await self._session.execute(
+                update(CallForwardingSettings)
+                .where(CallForwardingSettings.password_ciphertext == attempt.account.stored.current)
+                .values(credentials_invalid_since=now)
+                .execution_options(synchronize_session=False)
+            )
+            if cast(CursorResult[Any], invalidated).rowcount != 1:
+                raise ForwardingClaimLost("the WCO passwords were changed meanwhile")
+        row = await self._release(attempt, now=now)
         return await self._write_failure(
             row,
             attempt.target,
@@ -446,12 +465,10 @@ class SqlAlchemyForwardingAttempts:
         *,
         rotated: bool,
         now: datetime,
-    ) -> RecordedForwarding | None:
+    ) -> RecordedForwarding:
         """The pass read `current_number` from WCO: applied, unchanged, or a
         dry run that only looked."""
-        row = await self._owned(attempt, now=now)
-        if row is None:
-            return None
+        row = await self._release(attempt, now=now)
         alerted_for = row.alerted_for
         reached = current_number == attempt.target.number
         self._desired(row, attempt.target)
@@ -465,7 +482,6 @@ class SqlAlchemyForwardingAttempts:
         row.failing_since = None
         row.attempts = 0
         row.next_attempt_at = None
-        row.lease_until = None
         if outcome is ForwardingOutcome.dry_run:
             record_audit(
                 self._session,
@@ -528,24 +544,29 @@ class SqlAlchemyForwardingAttempts:
         row.attempts = attempts
         row.lease_until = None
         if invalidate_credentials:
-            # No retry: WCO refused every stored password, and only an
-            # administrator's new one ends the stop.
             row.next_attempt_at = None
-            settings = await load_singleton(self._session, CallForwardingSettings)
-            settings.credentials_invalid_since = settings.credentials_invalid_since or now
         else:
             row.next_attempt_at = now + (PERMANENT_BACKOFF if permanent else retry_delay(attempts))
         await self._alert(row, target, cause, now=now, immediate=permanent)
         self._audit_failure(row, target, cause, action="forwarding.failed")
         return RecordedForwarding(ForwardingOutcome.failed, attempts)
 
-    async def _owned(
-        self, attempt: ForwardingAttempt, *, now: datetime
-    ) -> CallForwardingState | None:
-        try:
-            return await _require_claim(self._session, attempt, now=now)
-        except ForwardingClaimLost:
-            return None
+    async def _release(self, attempt: ForwardingAttempt, *, now: datetime) -> CallForwardingState:
+        """End the attempt's lease in one compare-and-set, which also holds the
+        state row until the unit of work ends: an administrator's save either
+        revoked the lease first, and the outcome is dropped, or waits for it."""
+        released = await self._session.execute(
+            update(CallForwardingState)
+            .where(
+                CallForwardingState.lease_until == attempt.lease_until,
+                CallForwardingState.lease_until > now,
+            )
+            .values(lease_until=None)
+            .execution_options(synchronize_session=False)
+        )
+        if cast(CursorResult[Any], released).rowcount != 1:
+            raise ForwardingClaimLost("the forwarding attempt was superseded")
+        return await load_singleton(self._session, CallForwardingState)
 
     async def _alert(
         self,

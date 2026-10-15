@@ -362,6 +362,8 @@ async def _prepare_forwarding(
             SqlAlchemyPublishedRoster(db),
             configuration,
         )
+        if target is None:
+            return None
         attempts = SqlAlchemyForwardingAttempts(db)
         if target.missing is not None:
             return await attempts.record_skipped(target, target.missing, now=now)
@@ -409,12 +411,21 @@ async def scan_forwarding(factory: Sessions, *, now_warsaw: datetime) -> int:
         _emit_forwarding(prepared, started=started)
         return 1
     try:
-        active, current, outcome, rotated = await _reconcile_wco(factory, prepared)
+        recorded = await _reconcile_and_record(factory, prepared)
     except ForwardingClaimLost:
         return 0
+    _emit_forwarding(recorded, started=started)
+    return 1
+
+
+async def _reconcile_and_record(
+    factory: Sessions, prepared: ForwardingAttempt
+) -> RecordedForwarding:
+    try:
+        active, current, outcome, rotated = await _reconcile_wco(factory, prepared)
     except _ForwardingAttemptFailed as exc:
         async with SqlAlchemyUnitOfWork(factory) as db:
-            recorded = await SqlAlchemyForwardingAttempts(db).record_failure(
+            return await SqlAlchemyForwardingAttempts(db).record_failure(
                 prepared,
                 exc.cause,
                 exc.detail,
@@ -422,15 +433,10 @@ async def scan_forwarding(factory: Sessions, *, now_warsaw: datetime) -> int:
                 invalidate_credentials=exc.invalidate_credentials,
                 now=utc_now(),
             )
-    else:
-        async with SqlAlchemyUnitOfWork(factory) as db:
-            recorded = await SqlAlchemyForwardingAttempts(db).record_success(
-                active, current, outcome, rotated=rotated, now=utc_now()
-            )
-    if recorded is None:
-        return 0
-    _emit_forwarding(recorded, started=started)
-    return 1
+    async with SqlAlchemyUnitOfWork(factory) as db:
+        return await SqlAlchemyForwardingAttempts(db).record_success(
+            active, current, outcome, rotated=rotated, now=utc_now()
+        )
 
 
 async def scan_digest(db: AsyncSession, *, now_warsaw: datetime) -> int:

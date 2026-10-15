@@ -84,9 +84,13 @@ class _Roster:
 
 
 class _Contacts:
-    def __init__(self, number: str | None) -> None:
+    def __init__(self, number: str | None, *, published: bool = True) -> None:
         self.number = number
+        self.published = published
         self.asked: list[uuid.UUID] = []
+
+    async def roster_published(self) -> bool:
+        return self.published
 
     async def phone(self, member_id: uuid.UUID) -> str | None:
         self.asked.append(member_id)
@@ -114,6 +118,7 @@ async def test_the_desired_target_maps_the_primary_phone_to_wco_unchanged() -> N
     )
 
     assert target == ForwardingTarget(day, member_id, "Anna Kowalska", "+48500500500")
+    assert target is not None
     assert target.missing is None
     assert target.alert_token.startswith(f"{day.isoformat()}:")
     assert "+48500500500" not in target.alert_token
@@ -134,9 +139,16 @@ async def test_a_missing_or_imported_primary_has_no_target_number() -> None:
     )
     no_account = await desired_target(now, 9, _Roster(imported), _Contacts("unused"))
 
+    assert no_primary is not None and no_account is not None
     assert no_primary.missing is ForwardingFailure.no_primary
     assert no_account.missing is ForwardingFailure.no_phone
     assert no_primary.alert_token != no_account.alert_token
     assert "Osoba z importu" not in no_account.alert_token
     with pytest.raises(ValueError, match="no number"):
         wco_number(no_account)
+
+
+async def test_before_the_first_publication_there_is_no_target_at_all() -> None:
+    now = datetime(2026, 9, 15, 12, 0, tzinfo=ZoneInfo("Europe/Warsaw"))
+
+    assert await desired_target(now, 9, _Roster(None), _Contacts(None, published=False)) is None

@@ -38,7 +38,10 @@ class PasswordCipher(Protocol):
 
 
 class ForwardingContacts(Protocol):
-    """The phone attached to a roster identity."""
+    """Whether any roster was ever published, and the phone attached to a
+    roster identity."""
+
+    async def roster_published(self) -> bool: ...
 
     async def phone(self, member_id: uuid.UUID) -> str | None: ...
 

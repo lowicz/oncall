@@ -50,6 +50,8 @@ class FakeWco:
     #: Answer every call to a path with this status, or raise this exception
     #: where the network would fail.
     faults: dict[str, int | Exception | list[int | Exception | None]] = field(default_factory=dict)
+    #: Answer the next calls to a path with a 307 to these locations, in turn.
+    redirects: dict[str, list[str]] = field(default_factory=dict)
     requests: list[httpx.Request] = field(default_factory=list)
     sessions: set[str] = field(default_factory=set)
 
@@ -66,6 +68,8 @@ class FakeWco:
     def handle(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         path = request.url.path
+        if self.redirects.get(path):
+            return httpx.Response(307, headers={"Location": self.redirects[path].pop(0)})
         fault = self.faults.get(path)
         if isinstance(fault, list):
             fault = fault.pop(0)
