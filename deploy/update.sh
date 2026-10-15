@@ -10,6 +10,8 @@
 # Without VERSION it takes the newest stable release. DIR defaults to
 # $ONCALL_DIR, then ~/oncall. In order, it:
 #   1. checks the directory, .env, podman and the installed oncall.service,
+#      and refuses, with nothing changed, while .env or the unit still names
+#      a per-feature CA file that ONCALL_CA_FILE replaced,
 #   2. fetches that release's Compose files, .env.example and deploy/systemd
 #      (git fetch + checkout of the tag when DIR is a git checkout); a release
 #      older than deploy/systemd leaves the host's copy in place,
@@ -28,8 +30,8 @@
 #      the old volume stays); a failure starts the stack again as it was, with
 #      nothing changed. A release with an older major version is refused,
 #      with nothing changed,
-#   6. backs up every file it is about to replace into DIR/.backup/<time>/,
-#      installs the files and the new .env,
+#   6. backs up every file it is about to replace or remove into
+#      DIR/.backup/<time>/, installs the files and the new .env,
 #   7. refreshes the installed unit files if the release changed them, then
 #      restarts oncall.service.
 # It never touches the drop-ins (WorkingDirectory, ONCALL_COMPOSE_FILES) or
@@ -49,7 +51,13 @@ unit=oncall.service
 # checkout. .env and tls/ are the host's own and are never in this list.
 # Releases before deploy/systemd or deploy/backup existed lack unit_files;
 # the host keeps its own.
-release_files="docker-compose.yml docker-compose.tls.yml docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml docker-compose.wco-ca.yml .env.example"
+release_files="docker-compose.yml docker-compose.tls.yml docker-compose.ca.yml .env.example"
+# What one CA file (ONCALL_CA_FILE, docker-compose.ca.yml) replaced: the update
+# is refused while .env assigns one of these names or the unit runs one of
+# these overlays, and the overlays left in a release directory are moved into
+# the update's backup.
+retired_ca_keys="ONCALL_LDAP_CA_FILE ONCALL_SMTP_CA_FILE ONCALL_WCO_CA_FILE ONCALL_TLS_CA_FILE"
+retired_files="docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml docker-compose.wco-ca.yml"
 unit_files="deploy/systemd/oncall.service deploy/systemd/oncall-stack.sh deploy/systemd/install-user-unit.sh \
 deploy/backup/oncall-backup.sh deploy/backup/setup.sh deploy/backup/oncall-backup.service \
 deploy/backup/oncall-backup-alert.service deploy/backup/oncall-backup.timer"
@@ -356,6 +364,36 @@ main() {
   [ "$unit_dir" = "$dir" ] ||
     die "$unit runs ${unit_dir:-no directory}, not $dir; pass that directory with --dir"
 
+  for key in $(env_keys "$dir/.env"); do
+    case " $retired_ca_keys " in
+      *" $key "*)
+        die "$dir/.env sets $key, which ONCALL_CA_FILE replaced: rename it to ONCALL_CA_FILE, concatenating the files into one PEM bundle if several such names point at different ones; nothing was changed"
+        ;;
+    esac
+  done
+  # The drop-in is the operator's (install-user-unit.sh writes it): the fix is
+  # printed, never applied. The edited list names docker-compose.ca.yml before
+  # this update installs it, so the unit cannot start until the update ran.
+  for drop_in in $(systemctl --user show -p DropInPaths --value "$unit"); do
+    listed=$(sed -n 's/^Environment=ONCALL_COMPOSE_FILES=//p' "$drop_in" 2>/dev/null | tail -n 1)
+    files=""
+    retired=false
+    for file in $(printf '%s' "$listed" | tr ':' ' '); do
+      case " $retired_files " in
+        *" $file "*)
+          retired=true
+          file=docker-compose.ca.yml
+          ;;
+      esac
+      case ":$files:" in
+        *":$file:"*) ;;
+        *) files=${files:+$files:}$file ;;
+      esac
+    done
+    [ "$retired" = false ] ||
+      die "$unit runs per-feature CA overlays that docker-compose.ca.yml replaced; nothing was changed. Point it at docker-compose.ca.yml, then run update.sh again right away (until then $unit cannot start): sed -i 's|^Environment=ONCALL_COMPOSE_FILES=.*|Environment=ONCALL_COMPOSE_FILES=$files|' '$drop_in' && systemctl --user daemon-reload"
+  done
+
   if [ -z "$version" ]; then
     version=$(latest_version)
   fi
@@ -518,6 +556,13 @@ main() {
       esac
       replace_file "$mode" "$stage/$file" "$dir/$file"
       say "Updated $file"
+    done
+    for file in $retired_files; do
+      if [ -f "$dir/$file" ]; then
+        backup "$file"
+        rm -f "$dir/$file"
+        say "Removed $file, replaced by docker-compose.ca.yml"
+      fi
     done
   fi
 

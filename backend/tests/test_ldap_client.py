@@ -332,7 +332,7 @@ def test_a_directory_failure_says_where_and_why(lab, diagnostics, setup, phase, 
     elif setup == "server_uri":
         overrides = {"ldap_server_uri": "dc1.corp.example.com"}
     elif setup == "ca_file":
-        overrides = {"ldap_ca_file": "/nonexistent/ca.pem"}
+        overrides = {"ca_file": "/nonexistent/ca.pem"}
 
     with pytest.raises(DirectoryUnavailableError) as failure:
         lab.authenticator(**overrides)._authenticate_sync("anna", ANNA_PASSWORD)
@@ -491,7 +491,7 @@ def test_the_ca_file_is_the_trust_anchor_for_the_directory(tmp_path: Path) -> No
     ca_file = tmp_path / "ldap-ca.pem"
     ca_file.write_text("-----BEGIN CERTIFICATE-----\n")
     authenticator = LdapAuthenticator(
-        Settings(ldap_server_uri="ldaps://dc1.corp.example.com", ldap_ca_file=str(ca_file))
+        Settings(ldap_server_uri="ldaps://dc1.corp.example.com", ca_file=str(ca_file))
     )
 
     server = authenticator._server()

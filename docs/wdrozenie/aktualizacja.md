@@ -60,10 +60,11 @@ Skrypt nie zakłada wdrożenia od zera: pierwszy start opisują
 
 ## Co robi
 
-1. Sprawdza katalog, `.env`, polecenia i zainstalowaną jednostkę.
-2. Pobiera z tagu `vX.Y.Z` pięć plików Compose (`docker-compose.yml`,
-   `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`,
-   `docker-compose.smtp-ca.yml`, `docker-compose.wco-ca.yml`), `.env.example` i
+1. Sprawdza katalog, `.env`, polecenia i zainstalowaną jednostkę. Odmawia,
+   niczego nie zmieniając, dopóki `.env` albo jednostka nazywa osobny plik CA
+   funkcji - patrz [Jeden plik CA](#jeden-plik-ca).
+2. Pobiera z tagu `vX.Y.Z` trzy pliki Compose (`docker-compose.yml`,
+   `docker-compose.tls.yml`, `docker-compose.ca.yml`), `.env.example` i
    pliki `deploy/systemd/` i `deploy/backup/`. Gdy katalog jest checkoutem git, robi zamiast tego
    `git fetch --tags` i `git checkout` tagu.
 3. Buduje nowy `.env` - patrz [niżej](#jak-zmienia-się-env).
@@ -82,7 +83,8 @@ Skrypt nie zakłada wdrożenia od zera: pierwszy start opisują
    [Nowa wersja główna PostgreSQL](#nowa-wersja-główna-postgresql).
 6. Robi [kopię zapasową](#kopia-zapasowa-i-cofnięcie) każdego pliku, który
    zmieni, i zapisuje nowe pliki. Plik identyczny z wydaniem zostaje
-   nietknięty.
+   nietknięty. Nakładki, które zastąpił `docker-compose.ca.yml`, przenosi do
+   kopii.
 7. Restartuje jednostkę - patrz [Restart jednostki](#restart-jednostki).
 
 Katalogu `tls/` ani drop-inów jednostek skrypt nie dotyka, żadnego wolumenu nie
@@ -103,7 +105,7 @@ restartuje jednostkę.
   `.env.example`; skrypt wypisuje jej nazwę (`added ...`), żeby można ją było
   przejrzeć.
 - Zmienna, którą `.env.example` pokazuje tylko jako komentarz, np.
-  `# ONCALL_LDAP_CA_FILE=./tls/ca.pem`, trafia w miejsce tej linii.
+  `# ONCALL_CA_FILE=./tls/ca.pem`, trafia w miejsce tej linii.
 - Zmienne, których `.env.example` nie ma (własne albo usunięte z wydania),
   zostają na końcu pliku pod nagłówkiem
   `# Kept from the previous .env: not in .env.example.`, razem z komentarzem
@@ -302,6 +304,36 @@ systemctl --user restart oncall
 
 Wolumen `oncall-postgres-18` zostaje; przed kolejną aktualizacją trzeba go
 usunąć, jak wyżej.
+
+## Jeden plik CA
+
+Wydanie z `docker-compose.ca.yml` czyta wszystkie zaufane CA z jednego
+[pliku CA](uruchomienie.md#plik-ca), `ONCALL_CA_FILE`. Zastąpił on
+`ONCALL_LDAP_CA_FILE`, `ONCALL_SMTP_CA_FILE`, `ONCALL_WCO_CA_FILE` i
+`ONCALL_TLS_CA_FILE` oraz nakładki `docker-compose.ldap-ca.yml`,
+`docker-compose.smtp-ca.yml` i `docker-compose.wco-ca.yml`. Starych nazw
+wydanie nie czyta, więc skrypt odmawia aktualizacji, niczego nie zmieniając,
+dopóki:
+
+- `.env` przypisuje którąś ze starych zmiennych. Zmień jej nazwę na
+  `ONCALL_CA_FILE`; gdy kilka wskazywało różne pliki, połącz je w jeden
+  pakiet PEM (`cat`). Wartość domyślną, `./tls/ca.pem`, można po prostu
+  usunąć.
+- Drop-in jednostki wymienia w `ONCALL_COMPOSE_FILES` starą nakładkę (host
+  zainstalowany z jawną listą plików). Skrypt wypisuje gotowe polecenie
+  `sed`, które w tej jednej linii zastępuje stare nakładki jednym
+  `docker-compose.ca.yml`, oraz `systemctl --user daemon-reload`.
+
+Po poprawce uruchom skrypt ponownie **od razu**. Poprawiony drop-in wskazuje
+`docker-compose.ca.yml`, którego katalog nie ma przed aktualizacją, więc
+restart maszyny albo jednostki pomiędzy nimi kończy się błędem
+`missing docker-compose.ca.yml`; działający stos zmiana nie dotyczy.
+
+W katalogu, który nie jest checkoutem git, skrypt przenosi stare nakładki do
+[kopii zapasowej](#kopia-zapasowa-i-cofnięcie); checkout traci je przy
+`git checkout`. Po aktualizacji sprawdź logowanie z katalogu, próbny alarm
+`./deploy/backup/oncall-backup.sh alert --test` i, gdy przekierowanie jest
+włączone, przełączenie numeru.
 
 ## Starsze wydania
 

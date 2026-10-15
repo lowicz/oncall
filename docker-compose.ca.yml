@@ -1,0 +1,29 @@
+# The organisation's CA bundle for the API and the worker: LDAP, SMTP and
+# Orange WCO verify their servers against it. Use it as an overlay on the base
+# file when one of them presents a certificate from an internal CA (Active
+# Directory Certificate Services, a TLS-inspecting proxy) the image does not
+# trust:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.ca.yml up -d
+#   podman compose -f docker-compose.yml -f docker-compose.ca.yml up -d
+#
+# It combines with the TLS overlay, whose nginx reads the same bundle.
+# ONCALL_CA_FILE names the PEM bundle on the host, by default ./tls/ca.pem.
+# SMTP and WCO add its CAs to the image's public roots; the directory trusts
+# the bundle alone, so it must hold the directory's CA. The file must exist,
+# readable by the image's user, before the containers start: a bind source
+# that does not exist is created as an empty directory, which each feature
+# reports when it next connects.
+#
+# Full guide: docs/wdrozenie/uruchomienie.md, "Najważniejsze zmienne".
+services:
+  api:
+    environment:
+      ONCALL_CA_FILE: /etc/oncall/ca.pem
+    volumes:
+      - ${ONCALL_CA_FILE:-./tls/ca.pem}:/etc/oncall/ca.pem:ro
+  worker:
+    environment:
+      ONCALL_CA_FILE: /etc/oncall/ca.pem
+    volumes:
+      - ${ONCALL_CA_FILE:-./tls/ca.pem}:/etc/oncall/ca.pem:ro

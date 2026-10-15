@@ -46,6 +46,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
+from oncall import trust
 from oncall.config import get_settings
 from oncall.database import SessionFactory, SqlAlchemyUnitOfWork
 from oncall.domain.clock import as_utc, business_today, utc_now
@@ -173,7 +174,11 @@ def _open_wco(account: ForwardingAccount) -> WcoClient:
     """Open a client pinned to the host from the same settings snapshot as
     the password. The client follows redirects only on the configured origin,
     so that password never reaches another host."""
-    return WcoClient(account.base_url, ca_file=get_settings().wco_ca_file)
+    try:
+        verify = trust.tls_context(get_settings())
+    except trust.CaFileUnreadable as exc:
+        raise WcoConfigurationError(str(exc)) from exc
+    return WcoClient(account.base_url, verify=verify)
 
 
 def _wco_failure(exc: WcoError, refused: ForwardingFailure) -> _ForwardingAttemptFailed:

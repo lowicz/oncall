@@ -62,7 +62,7 @@ require_file() {
 if [ "${ONCALL_TLS_ENABLED:-false}" = "true" ]; then
     require_file "$CERT_FILE" "the server certificate without its chain" ONCALL_TLS_CERT_FILE
     require_file "$KEY_FILE" "the private key" ONCALL_TLS_KEY_FILE
-    require_file "$CA_FILE" "the complete system trust CA bundle" ONCALL_TLS_CA_FILE
+    require_file "$CA_FILE" "the complete system trust CA bundle" ONCALL_CA_FILE
 
     cp /etc/nginx/presets/https.conf "$CONF_DIR/default.conf"
     echo "oncall: TLS enabled, serving HTTPS on container port 8443 and redirecting HTTP on 8080"

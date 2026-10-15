@@ -28,7 +28,6 @@ synchronise the data. Linking with a local account is described in
 | `ONCALL_LDAP_ENABLED` | `false` | enables directory sign-in |
 | `ONCALL_LDAP_SERVER_URI` | none | `ldap://name` or `ldaps://name` of the controller; the name as in its certificate, not an IP address |
 | `ONCALL_LDAP_START_TLS` | `true` | StartTLS for `ldap://`; Active Directory rejects password sign-in without encryption, so do not disable it |
-| `ONCALL_LDAP_CA_FILE` | empty | the bundle of the CA that issued the controller's certificate - see [Directory certificate](#directory-certificate) |
 | `ONCALL_LDAP_CONNECT_TIMEOUT_SECONDS` | `5` | the connection and response timeout |
 | `ONCALL_LDAP_BIND_DN` | none | the service account: a DN or `login@domain` |
 | `ONCALL_LDAP_BIND_PASSWORD` | none | the service account's password |
@@ -86,27 +85,18 @@ initials, and the reason is in the log as `event=ldap_photo`
 
 ## Directory certificate
 
-The API always verifies the domain controller's certificate. Without
-`ONCALL_LDAP_CA_FILE` it trusts only the public authorities from the image,
-and the certificates of Active Directory controllers are usually issued by an
-internal CA (AD CS). In that case point at the organisation's CA bundle with
-the `docker-compose.ldap-ca.yml` overlay:
+The API always verifies the domain controller's certificate. Without the
+`docker-compose.ca.yml` overlay it trusts only the public authorities from
+the image, and the certificates of Active Directory controllers are usually
+issued by an internal CA (AD CS). In that case add that CA to the
+deployment's [CA file](uruchomienie.md#ca-file) (`ONCALL_CA_FILE`,
+`./tls/ca.pem` by default, the same bundle the [TLS](tls.md) overlay mounts
+for nginx) and start the stack with that overlay.
 
-```bash
-# .env - a path on the host, a PEM file with the root and the intermediates
-ONCALL_LDAP_CA_FILE=/etc/pki/tls/certs/firma-ca.pem
-```
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.ldap-ca.yml up -d
-# together with HTTPS
-docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml up -d
-```
-
-The default path is `./tls/ca.pem` - the same bundle that the [TLS](tls.md)
-overlay mounts for nginx. The file must exist before the start and have
-`0644` permissions. Once the file is set, the directory is trusted **solely**
-according to it.
+With the overlay the directory is trusted **solely** according to that file,
+unlike the SMTP server and Orange WCO, for which the file's CAs are added to
+the public ones. A bundle without the controllers' CA therefore turns
+directory sign-in off.
 
 Checking the certificate from the host where Compose runs:
 
@@ -176,7 +166,7 @@ A successful sign-in is one `INFO` line:
 | `config` | `settings_missing` | the variables listed in `missing=` are empty (an empty service account password counts too) |
 | `config` | `server_uri_invalid` | `ONCALL_LDAP_SERVER_URI` must have the form `ldap://host[:port]` or `ldaps://host[:port]` |
 | `config` | `filter_without_username` | `ONCALL_LDAP_USER_FILTER` does not contain `{username}` |
-| `config` | `ca_file_unreadable` | the file from `detail=` is not in the container or cannot be read: the overlay, the path, `0644` permissions |
+| `config` | `ca_file_unreadable` | the file from `detail=` is not in the container or cannot be read: the `docker-compose.ca.yml` overlay, the `ONCALL_CA_FILE` path, `0644` permissions |
 | `connect` | `host_not_resolved` | the `api` container does not resolve the server name (DNS) |
 | `connect` | `connection_refused`, `unreachable`, `timeout` | the port and the firewall: `389` for `ldap://`, `636` for `ldaps://` |
 | `tls` | `certificate_verify_failed` | `detail=unable to get local issuer certificate`: no CA - [Directory certificate](#directory-certificate); `certificate has expired`: the controller's certificate has expired; `Missing Authority Key Identifier`: the certificate does not meet strict X.509 verification and has to be reissued |

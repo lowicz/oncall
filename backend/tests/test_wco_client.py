@@ -18,14 +18,15 @@ from urllib.parse import quote
 import httpx
 import pytest
 
+from oncall.config import Settings
 from oncall.domain.forwarding.passwords import AfterLogin, Passwords, generate_password
+from oncall.trust import tls_context
 from oncall.wco import (
     MAX_REDIRECTS,
     WcoClient,
     WcoError,
     WcoLoginRefused,
     WcoPasswordExpired,
-    tls_context,
 )
 from tests.smtp_relay import private_ca
 from tests.wco_fake import BASE_URL, CHANGE_PASSWORD, LOGIN, PERFORM_LOGIN, USER, FakeWco
@@ -34,7 +35,7 @@ TARGET = "+48500500500"
 
 
 def client(fake: FakeWco) -> WcoClient:
-    return WcoClient(BASE_URL, transport=fake.transport())
+    return WcoClient(BASE_URL, verify=ssl.create_default_context(), transport=fake.transport())
 
 
 async def signed_in(wco: WcoClient, fake: FakeWco, password: str | None = None) -> None:
@@ -389,26 +390,10 @@ async def test_a_wco_behind_an_internal_ca_is_trusted_only_through_the_ca_file(
 ) -> None:
     ca_file, server_tls = private_ca(tmp_path)
     with https_wco(server_tls) as base_url:
-        async with WcoClient(base_url) as wco:
+        async with WcoClient(base_url, verify=ssl.create_default_context()) as wco:
             with pytest.raises(WcoError, match="CERTIFICATE_VERIFY_FAILED") as refused:
                 await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
-        async with WcoClient(base_url, ca_file=str(ca_file)) as wco:
+        async with WcoClient(base_url, verify=tls_context(Settings(ca_file=str(ca_file)))) as wco:
             await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
 
     assert refused.value.status is None
-
-
-def test_the_ca_file_is_added_to_the_verified_public_roots(tmp_path: Path) -> None:
-    ca_file, _ = private_ca(tmp_path)
-    public = tls_context(None).cert_store_stats()["x509_ca"]
-
-    context = tls_context(str(ca_file))
-
-    assert context.cert_store_stats()["x509_ca"] == public + 1
-    assert context.verify_mode is ssl.CERT_REQUIRED
-    assert context.check_hostname
-
-
-def test_an_unreadable_ca_file_is_an_error(tmp_path: Path) -> None:
-    with pytest.raises(WcoError, match="the WCO CA file is unreadable"):
-        WcoClient(BASE_URL, ca_file=str(tmp_path / "missing.pem"))

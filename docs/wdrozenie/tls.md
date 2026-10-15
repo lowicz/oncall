@@ -17,7 +17,7 @@ własną zmienną:
 | --- | --- | --- |
 | `/etc/nginx/tls/cert.pem` | `ONCALL_TLS_CERT_FILE` | **sam certyfikat serwera, bez łańcucha** |
 | `/etc/nginx/tls/privkey.pem` | `ONCALL_TLS_KEY_FILE` | klucz prywatny, bez hasła |
-| `/etc/nginx/tls/ca.pem` | `ONCALL_TLS_CA_FILE` | **kompletny systemowy pakiet zaufania CA** |
+| `/etc/nginx/tls/ca.pem` | `ONCALL_CA_FILE` | **kompletny systemowy pakiet zaufania CA** |
 
 Dlaczego trzy pliki, a nie jeden katalog:
 
@@ -51,7 +51,9 @@ wraz z pośrednimi - format pliku nie zmienia się, zmienia się jego zawartoś�
 ### Kompletny systemowy pakiet zaufania
 
 `ca.pem` to pełny zestaw urzędów, którym ma ufać to wdrożenie. nginx czyta go
-bezpośrednio jako `ssl_trusted_certificate`.
+bezpośrednio jako `ssl_trusted_certificate`. To ten sam
+[plik CA](uruchomienie.md#plik-ca), według którego `api` i `worker`
+weryfikują katalog LDAP, serwer SMTP i Orange WCO.
 
 Ten sam plik jest gotowy jako `proxy_ssl_trusted_certificate`, gdyby API miało
 kiedyś być proxowane po HTTPS - odpowiednie linie są w
@@ -79,7 +81,7 @@ nich nadpisuje odpowiednia zmienna:
 # .env
 ONCALL_TLS_CERT_FILE=/etc/pki/oncall/oncall.crt
 ONCALL_TLS_KEY_FILE=/etc/pki/oncall/oncall.key
-ONCALL_TLS_CA_FILE=/etc/pki/tls/certs/ca-bundle.crt
+ONCALL_CA_FILE=/etc/pki/tls/certs/ca-bundle.crt
 ONCALL_WEB_HTTP_PORT=8080     # przekierowanie HTTP -> HTTPS
 ONCALL_WEB_HTTPS_PORT=8443
 ```

@@ -61,10 +61,11 @@ described in [Running the stack](uruchomienie.md) and [Systemd](systemd.md).
 
 ## What it does
 
-1. Checks the directory, `.env`, the commands and the installed unit.
-2. Fetches from the `vX.Y.Z` tag the five Compose files (`docker-compose.yml`,
-   `docker-compose.tls.yml`, `docker-compose.ldap-ca.yml`,
-   `docker-compose.smtp-ca.yml`, `docker-compose.wco-ca.yml`), `.env.example` and
+1. Checks the directory, `.env`, the commands and the installed unit. It
+   refuses, changing nothing, while `.env` or the unit still names a
+   per-feature CA file - see [One CA file](#one-ca-file).
+2. Fetches from the `vX.Y.Z` tag the three Compose files (`docker-compose.yml`,
+   `docker-compose.tls.yml`, `docker-compose.ca.yml`), `.env.example` and
    the `deploy/systemd/` and `deploy/backup/` files. When the directory is a git checkout, it does
    `git fetch --tags` and a `git checkout` of the tag instead.
 3. Builds the new `.env` - see [below](#how-env-changes).
@@ -84,6 +85,7 @@ described in [Running the stack](uruchomienie.md) and [Systemd](systemd.md).
    [A new PostgreSQL major version](#a-new-postgresql-major-version).
 6. Makes a [backup](#backup-and-rollback) of every file it will change and
    writes the new files. A file identical to the release's is left untouched.
+   The overlays `docker-compose.ca.yml` replaced move into the backup.
 7. Restarts the unit - see [Restarting the unit](#restarting-the-unit).
 
 The script does not touch the `tls/` directory or the units' drop-ins, removes
@@ -103,7 +105,7 @@ database and restarts the unit.
   `.env.example`; the script prints its name (`added ...`) so that it can be
   reviewed.
 - A variable that `.env.example` shows only as a comment, e.g.
-  `# ONCALL_LDAP_CA_FILE=./tls/ca.pem`, goes in place of that line.
+  `# ONCALL_CA_FILE=./tls/ca.pem`, goes in place of that line.
 - Variables that `.env.example` does not have (your own, or removed from the
   release) stay at the end of the file under the header
   `# Kept from the previous .env: not in .env.example.`, together with the
@@ -303,6 +305,35 @@ systemctl --user restart oncall
 
 The `oncall-postgres-18` volume stays; remove it before the next update, as
 above.
+
+## One CA file
+
+A release with `docker-compose.ca.yml` reads every trusted CA from one
+[CA file](uruchomienie.md#ca-file), `ONCALL_CA_FILE`. It replaced
+`ONCALL_LDAP_CA_FILE`, `ONCALL_SMTP_CA_FILE`, `ONCALL_WCO_CA_FILE` and
+`ONCALL_TLS_CA_FILE`, and the `docker-compose.ldap-ca.yml`,
+`docker-compose.smtp-ca.yml` and `docker-compose.wco-ca.yml` overlays. The
+release does not read the old names, so the script refuses to update,
+changing nothing, while:
+
+- `.env` assigns one of the old variables. Rename it to `ONCALL_CA_FILE`;
+  when several pointed at different files, join them into one PEM bundle
+  (`cat`). The default value, `./tls/ca.pem`, can simply be deleted.
+- The unit's drop-in lists an old overlay in `ONCALL_COMPOSE_FILES` (a host
+  installed with an explicit file list). The script prints a ready `sed`
+  command that replaces the old overlays in that one line with a single
+  `docker-compose.ca.yml`, and `systemctl --user daemon-reload`.
+
+After the fix, run the script again **right away**. The fixed drop-in names
+`docker-compose.ca.yml`, which the directory does not have before the update,
+so a restart of the machine or the unit in between fails with
+`missing docker-compose.ca.yml`; the running stack is not affected.
+
+In a directory that is not a git checkout, the script moves the old overlays
+into the [backup](#backup-and-rollback); a checkout loses them at
+`git checkout`. After the update, check a directory sign-in, the test alert
+`./deploy/backup/oncall-backup.sh alert --test` and, when forwarding is on,
+a number switch.
 
 ## Older releases
 

@@ -156,7 +156,7 @@ def test_the_alert_reaches_a_server_on_an_internal_pki_through_its_ca_file(
     ca_file, server_tls = private_ca(tmp_path)
     with serving(Relay(tls=server_tls)) as relay:
         for ca in (None, str(ca_file)):
-            configured = settings(smtp_host="127.0.0.1", smtp_port=relay.port, smtp_ca_file=ca)
+            configured = settings(smtp_host="127.0.0.1", smtp_port=relay.port, ca_file=ca)
             monkeypatch.setattr(backup_alert, "get_settings", lambda c=configured: c)
             assert run(monkeypatch, [*ARGS[:2], *ARGS[4:], "--test"], "") == (0 if ca else 1)
 

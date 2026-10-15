@@ -13,6 +13,7 @@ from uuid import uuid4
 
 import aiosmtplib
 
+from oncall import trust
 from oncall.config import Settings
 from oncall.notifications.base import (
     NotificationDisabled,
@@ -68,19 +69,11 @@ class SmtpEmailProvider:
         return f"<{message.idempotency_key or uuid4()}@{domain or 'oncall.invalid'}>"
 
     def tls_context(self) -> ssl.SSLContext:
-        """The image's public roots, plus the CAs of `smtp_ca_file` when one
-        is set: an internal CA is added to them, not put in their place, so
-        the same bundle serves a relay on the internal PKI and a public one."""
-        context = ssl.create_default_context()
-        ca_file = self._settings.smtp_ca_file
-        if ca_file is not None:
-            try:
-                context.load_verify_locations(cafile=ca_file)
-            except OSError as exc:
-                raise TemporaryNotificationError(
-                    f"Plik CA serwera SMTP jest niedostępny ({ca_file}): {exc}"
-                ) from exc
-        return context
+        """The image's public roots plus `ONCALL_CA_FILE` (`oncall.trust`)."""
+        try:
+            return trust.tls_context(self._settings)
+        except trust.CaFileUnreadable as exc:
+            raise TemporaryNotificationError(f"Plik CA jest niedostępny: {exc}") from exc
 
     async def send(self, message: NotificationMessage) -> None:
         settings = self._settings

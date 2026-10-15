@@ -27,7 +27,6 @@ Powiązanie z kontem lokalnym opisuje [Role i dostęp](../produkt/role-i-dostep.
 | `ONCALL_LDAP_ENABLED` | `false` | włącza logowanie z katalogu |
 | `ONCALL_LDAP_SERVER_URI` | brak | `ldap://nazwa` albo `ldaps://nazwa` kontrolera; nazwa taka jak w jego certyfikacie, nie adres IP |
 | `ONCALL_LDAP_START_TLS` | `true` | StartTLS dla `ldap://`; Active Directory odrzuca logowanie hasłem bez szyfrowania, więc nie wyłączaj |
-| `ONCALL_LDAP_CA_FILE` | puste | pakiet CA, które wystawiło certyfikat kontrolera - patrz [Certyfikat katalogu](#certyfikat-katalogu) |
 | `ONCALL_LDAP_CONNECT_TIMEOUT_SECONDS` | `5` | limit czasu połączenia i odpowiedzi |
 | `ONCALL_LDAP_BIND_DN` | brak | konto serwisowe: DN albo `login@domena` |
 | `ONCALL_LDAP_BIND_PASSWORD` | brak | hasło konta serwisowego |
@@ -82,25 +81,16 @@ powód jest w logu jako `event=ldap_photo` ([Diagnostyka](#diagnostyka)).
 
 ## Certyfikat katalogu
 
-API zawsze weryfikuje certyfikat kontrolera domeny. Bez `ONCALL_LDAP_CA_FILE`
-ufa tylko publicznym urzędom z obrazu, a certyfikaty kontrolerów Active
-Directory wystawia zwykle wewnętrzne CA (AD CS). Wtedy wskaż pakiet CA
-organizacji nakładką `docker-compose.ldap-ca.yml`:
+API zawsze weryfikuje certyfikat kontrolera domeny. Bez nakładki
+`docker-compose.ca.yml` ufa tylko publicznym urzędom z obrazu, a certyfikaty
+kontrolerów Active Directory wystawia zwykle wewnętrzne CA (AD CS). Wtedy
+dołóż to CA do [pliku CA](uruchomienie.md#plik-ca) wdrożenia
+(`ONCALL_CA_FILE`, domyślnie `./tls/ca.pem`, ten sam pakiet, który nakładka
+[TLS](tls.md) montuje dla nginx) i uruchom stos z tą nakładką.
 
-```bash
-# .env - ścieżka na hoście, plik PEM z korzeniem i pośrednimi
-ONCALL_LDAP_CA_FILE=/etc/pki/tls/certs/firma-ca.pem
-```
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.ldap-ca.yml up -d
-# razem z HTTPS
-docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ldap-ca.yml up -d
-```
-
-Domyślna ścieżka to `./tls/ca.pem` - ten sam pakiet, który nakładka
-[TLS](tls.md) montuje dla nginx. Plik musi istnieć przed startem i mieć prawa
-`0644`. Po ustawieniu pliku katalogowi ufa się **wyłącznie** według niego.
+Z nakładką katalogowi ufa się **wyłącznie** według tego pliku, inaczej niż
+serwerowi SMTP i Orange WCO, którym CA z pliku dochodzą do publicznych.
+Pakiet bez CA kontrolerów wyłącza więc logowanie z katalogu.
 
 Sprawdzenie certyfikatu z hosta, na którym działa Compose:
 
@@ -169,7 +159,7 @@ Udane logowanie to jeden wiersz `INFO`:
 | `config` | `settings_missing` | zmienne wymienione w `missing=` są puste (puste hasło konta serwisowego też) |
 | `config` | `server_uri_invalid` | `ONCALL_LDAP_SERVER_URI` musi mieć postać `ldap://host[:port]` albo `ldaps://host[:port]` |
 | `config` | `filter_without_username` | `ONCALL_LDAP_USER_FILTER` nie zawiera `{username}` |
-| `config` | `ca_file_unreadable` | pliku z `detail=` nie ma w kontenerze albo nie da się go czytać: nakładka, ścieżka, prawa `0644` |
+| `config` | `ca_file_unreadable` | pliku z `detail=` nie ma w kontenerze albo nie da się go czytać: nakładka `docker-compose.ca.yml`, ścieżka `ONCALL_CA_FILE`, prawa `0644` |
 | `connect` | `host_not_resolved` | kontener `api` nie rozwiązuje nazwy serwera (DNS) |
 | `connect` | `connection_refused`, `unreachable`, `timeout` | port i zapora: `389` dla `ldap://`, `636` dla `ldaps://` |
 | `tls` | `certificate_verify_failed` | `detail=unable to get local issuer certificate`: brak CA - [Certyfikat katalogu](#certyfikat-katalogu); `certificate has expired`: certyfikat kontrolera wygasł; `Missing Authority Key Identifier`: certyfikat nie spełnia ścisłej weryfikacji X.509, trzeba go wystawić ponownie |
