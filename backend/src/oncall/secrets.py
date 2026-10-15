@@ -42,7 +42,8 @@ def decrypt(settings: Settings, token: str) -> str:
 
 
 class SettingsCipher:
-    """`encrypt` under the process's settings, as a port takes it."""
+    """`encrypt` and `decrypt` under the process's settings, as a port takes
+    them."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -55,3 +56,10 @@ class SettingsCipher:
 
     def decrypt(self, token: str) -> str:
         return decrypt(self._settings, token)
+
+    def read(self, token: str) -> str | None:
+        """`decrypt`, None when no key opens the token."""
+        try:
+            return decrypt(self._settings, token)
+        except SecretsUnavailable:
+            return None

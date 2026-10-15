@@ -8,7 +8,7 @@ from starlette.requests import Request
 from oncall.database import SqlAlchemyUnitOfWork, get_db
 from oncall.domain.access.models import LOGIN_ATTEMPTS_PER_IP
 from oncall.main import app
-from oncall.routes.access import _client_ip, _peer_is_trusted
+from oncall.routes.access import _peer_is_trusted, client_ip
 
 
 def _request(peer: str | None, headers: dict[str, str] | None = None) -> Request:
@@ -23,20 +23,20 @@ def _request(peer: str | None, headers: dict[str, str] | None = None) -> Request
 
 def test_x_real_ip_is_honoured_from_a_trusted_proxy() -> None:
     request = _request("127.0.0.1", {"X-Real-IP": "203.0.113.9"})
-    assert _client_ip(request) == "203.0.113.9"
+    assert client_ip(request) == "203.0.113.9"
 
 
 def test_x_real_ip_is_ignored_from_an_untrusted_peer() -> None:
     request = _request("203.0.113.9", {"X-Real-IP": "10.0.0.5"})
-    assert _client_ip(request) == "203.0.113.9"
+    assert client_ip(request) == "203.0.113.9"
 
 
 def test_missing_x_real_ip_falls_back_to_the_socket_peer() -> None:
-    assert _client_ip(_request("172.16.0.4")) == "172.16.0.4"
+    assert client_ip(_request("172.16.0.4")) == "172.16.0.4"
 
 
 def test_a_request_without_a_client_is_unknown() -> None:
-    assert _client_ip(_request(None, {"X-Real-IP": "10.0.0.1"})) == "unknown"
+    assert client_ip(_request(None, {"X-Real-IP": "10.0.0.1"})) == "unknown"
 
 
 def test_private_ranges_are_trusted_and_public_ones_are_not() -> None:

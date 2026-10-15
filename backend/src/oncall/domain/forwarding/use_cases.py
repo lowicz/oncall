@@ -1,13 +1,26 @@
-"""Reading and changing the forwarding settings, and reading its state."""
+"""Reading and changing the forwarding settings, revealing the stored
+password to an administrator, and reading the state."""
 
+from datetime import datetime
+
+from oncall.domain.access.models import SignInRequest
+from oncall.domain.access.use_cases import verify_own_password
+from oncall.domain.accounts import Account
 from oncall.domain.forwarding import errors
 from oncall.domain.forwarding.models import (
     ForwardingMode,
     ForwardingSettings,
     ForwardingState,
+    RevealedPasswords,
     SettingsChange,
 )
-from oncall.domain.forwarding.ports import CurrentSettings, CurrentState, SettingsPorts
+from oncall.domain.forwarding.ports import (
+    CurrentSettings,
+    CurrentState,
+    PasswordReader,
+    RevealPorts,
+    SettingsPorts,
+)
 
 
 async def current_settings(settings: CurrentSettings) -> ForwardingSettings:
@@ -36,6 +49,43 @@ async def change_settings(
     settings = await ports.settings.change(change, token)
     ports.journal.settings_updated(settings, password_changed=token is not None)
     return settings
+
+
+async def reveal_password(
+    administrator: Account, confirmation: SignInRequest, ports: RevealPorts, *, now: datetime
+) -> RevealedPasswords:
+    """The stored WCO passwords in the clear, so the administrator can switch
+    the number by hand when the forwarding pass cannot.
+
+    The administrator first confirms it is them with their own sign-in
+    password (`confirmation`), and every reveal is audited without the value.
+    During a half-done rotation both passwords come back, the pending one
+    first, because nobody knows for sure which one WCO holds.
+    """
+    await verify_own_password(administrator, confirmation, ports.confirm, now=now)
+    settings = await ports.settings.current()
+    tokens = await ports.settings.tokens()
+    if tokens is None:
+        raise errors.PasswordNotSet()
+    if not ports.cipher.available():
+        raise errors.SecretsKeyMissing()
+    pending = None if tokens.pending is None else _read(tokens.pending, ports.cipher)
+    revealed = RevealedPasswords(
+        current=_read(tokens.current, ports.cipher),
+        pending=pending,
+        pending_since=settings.rotation_pending_since,
+        credentials_invalid_since=settings.credentials_invalid_since,
+        password_changed_at=settings.password_changed_at,
+    )
+    ports.journal.password_revealed(settings, pending_included=pending is not None)
+    return revealed
+
+
+def _read(token: str, cipher: PasswordReader) -> str:
+    plaintext = cipher.read(token)
+    if plaintext is None:
+        raise errors.StoredPasswordUnreadable()
+    return plaintext
 
 
 async def current_state(state: CurrentState) -> ForwardingState:

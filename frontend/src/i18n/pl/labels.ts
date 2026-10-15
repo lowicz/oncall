@@ -108,6 +108,7 @@ export const labels = {
     'forwarding.failed': 'Nie udało się przełączyć numeru',
     'forwarding.skipped': 'Pominięto przełączenie numeru',
     'forwarding.password_rotated': 'Zmieniono hasło WCO',
+    'forwarding.password_revealed': 'Odsłonięto hasło WCO',
     'forwarding.test': 'Sprawdzono przełączanie numeru',
   },
 }

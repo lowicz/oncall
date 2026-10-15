@@ -1,6 +1,6 @@
 """What the account owner's own operations need, one consumer at a time:
-signing in, choosing a password through a one-time link, the owner's own
-profile and their photo from the directory.
+signing in, confirming it is still them, choosing a password through a
+one-time link, the owner's own profile and their photo from the directory.
 """
 
 import uuid
@@ -109,6 +109,18 @@ class SignInPorts:
     directory: Directory
     sessions: AccountSessions
     journal: SignInJournal
+
+
+class PasswordHashes(Protocol):
+    async def password_hash(self, account_id: uuid.UUID) -> str | None: ...
+
+
+@dataclass(frozen=True)
+class ConfirmationPorts:
+    attempts: LoginAttempts
+    accounts: PasswordHashes
+    passwords: PasswordVerifier
+    directory: Directory
 
 
 class AccountLinks(Protocol):

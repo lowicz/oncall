@@ -106,6 +106,7 @@ export const labels: Messages['labels'] = {
     'forwarding.failed': 'Number forwarding failed',
     'forwarding.skipped': 'Number forwarding skipped',
     'forwarding.password_rotated': 'WCO password changed',
+    'forwarding.password_revealed': 'WCO password revealed',
     'forwarding.test': 'Number forwarding checked',
   },
 }

@@ -10,6 +10,7 @@ from oncall.config import get_settings
 from oncall.database import get_db
 from oncall.domain.access.ports import (
     AccountLinks,
+    ConfirmationPorts,
     DirectoryPhotos,
     OwnProfiles,
     PasswordPorts,
@@ -25,7 +26,12 @@ from oncall.domain.admin.ports import (
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.balance.ports import BalancePorts
 from oncall.domain.calendar.ports import CalendarPorts
-from oncall.domain.forwarding.ports import CurrentSettings, CurrentState, SettingsPorts
+from oncall.domain.forwarding.ports import (
+    CurrentSettings,
+    CurrentState,
+    RevealPorts,
+    SettingsPorts,
+)
 from oncall.domain.history.ports import HistoryPorts
 from oncall.domain.overrides.ports import OverridePorts
 from oncall.domain.reports.ports import ReportPorts
@@ -119,6 +125,22 @@ def forwarding_settings_writer(db: DbSession, actor: CurrentUser) -> SettingsPor
     return SettingsPorts(
         settings=SqlAlchemyForwardingSettings(db),
         cipher=SettingsCipher(get_settings()),
+        journal=SqlAlchemyForwardingJournal(db, actor),
+    )
+
+
+def forwarding_password_revealer(
+    db: DbSession, actor: CurrentUser, directory: DirectoryAuth
+) -> RevealPorts:
+    return RevealPorts(
+        settings=SqlAlchemyForwardingSettings(db),
+        cipher=SettingsCipher(get_settings()),
+        confirm=ConfirmationPorts(
+            attempts=SqlAlchemyLoginAttempts(db),
+            accounts=SqlAlchemyAccessAccounts(db),
+            passwords=Argon2Passwords(),
+            directory=DirectoryAuthentication(directory),
+        ),
         journal=SqlAlchemyForwardingJournal(db, actor),
     )
 
@@ -355,6 +377,7 @@ PolicyReader = Annotated[CurrentPolicy, Depends(policy_reader)]
 PolicyWriter = Annotated[PolicyPorts, Depends(policy_writer)]
 ForwardingSettingsReader = Annotated[CurrentSettings, Depends(forwarding_settings_reader)]
 ForwardingSettingsWriter = Annotated[SettingsPorts, Depends(forwarding_settings_writer)]
+ForwardingPasswordRevealer = Annotated[RevealPorts, Depends(forwarding_password_revealer)]
 ForwardingStateReader = Annotated[CurrentState, Depends(forwarding_state_reader)]
 GenerationRequestProvider = Annotated[GenerationRequestPorts, Depends(generation_requests)]
 DraftWriter = Annotated[DraftPorts, Depends(draft_writer)]

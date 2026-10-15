@@ -44,6 +44,27 @@ class ForwardingSettingsUpdate(BaseModel):
         return (value or "").strip() or None
 
 
+class PasswordRevealRequest(BaseModel):
+    """The administrator's own sign-in password, confirming it is them."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: str = Field(min_length=1, max_length=256)
+
+
+class PasswordRevealResponse(BaseModel):
+    """The stored WCO passwords in the clear. While a rotation is half done
+    `pending` is set and is the one to try first."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    current: str
+    pending: str | None
+    pending_since: datetime | None
+    credentials_invalid_since: datetime | None
+    password_changed_at: datetime | None
+
+
 class ForwardingStateResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

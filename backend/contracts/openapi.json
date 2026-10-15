@@ -2741,6 +2741,88 @@
         "title": "PasswordLinkResponse",
         "type": "object"
       },
+      "PasswordRevealRequest": {
+        "additionalProperties": false,
+        "description": "The administrator's own sign-in password, confirming it is them.",
+        "properties": {
+          "password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "PasswordRevealRequest",
+        "type": "object"
+      },
+      "PasswordRevealResponse": {
+        "description": "The stored WCO passwords in the clear. While a rotation is half done\n`pending` is set and is the one to try first.",
+        "properties": {
+          "credentials_invalid_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credentials Invalid Since"
+          },
+          "current": {
+            "title": "Current",
+            "type": "string"
+          },
+          "password_changed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password Changed At"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending"
+          },
+          "pending_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Since"
+          }
+        },
+        "required": [
+          "current",
+          "pending",
+          "pending_since",
+          "credentials_invalid_since",
+          "password_changed_at"
+        ],
+        "title": "PasswordRevealResponse",
+        "type": "object"
+      },
       "PendingActivationResponse": {
         "properties": {
           "link_expires_at": {
@@ -4764,6 +4846,82 @@
           }
         },
         "summary": "Update Eligibility",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/forwarding/password/reveal": {
+      "post": {
+        "description": "The stored WCO password in the clear, after the administrator enters\ntheir own sign-in password again. Audited, and never cached.",
+        "operationId": "reveal_forwarding_password_api_v1_admin_forwarding_password_reveal_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordRevealRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordRevealResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reveal Forwarding Password",
         "tags": [
           "admin"
         ]
