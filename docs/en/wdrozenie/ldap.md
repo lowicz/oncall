@@ -14,8 +14,8 @@ values of the `phase=` field in the log - see [Diagnostics](#diagnostics).
 3. Sign-in with the service account (`service_bind`).
 4. Search for **exactly one** account with the filter (`search`).
 5. Sign-in as that account with the password typed by the user (`user_bind`).
-6. Reading the personnel number, first name, last name and e-mail
-   (`attributes`) - only after the password has been checked.
+6. Reading the personnel number, first name, last name, e-mail and, when
+   turned on, phone (`attributes`) - only after the password has been checked.
 
 The first successful sign-in creates a `viewer` account; subsequent ones
 synchronise the data. Linking with a local account is described in

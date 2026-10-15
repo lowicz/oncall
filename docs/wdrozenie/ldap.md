@@ -14,8 +14,8 @@ Każda próba przechodzi te same kroki. Nazwy w nawiasach to wartości pola
 3. Logowanie kontem serwisowym (`service_bind`).
 4. Wyszukanie **dokładnie jednego** konta filtrem (`search`).
 5. Logowanie jako to konto hasłem wpisanym przez użytkownika (`user_bind`).
-6. Odczyt numeru kadrowego, imienia, nazwiska i e-maila (`attributes`) -
-   dopiero po sprawdzeniu hasła.
+6. Odczyt numeru kadrowego, imienia, nazwiska, e-maila i, gdy jest
+   włączony, telefonu (`attributes`) - dopiero po sprawdzeniu hasła.
 
 Pierwsze udane logowanie zakłada konto `viewer`, kolejne synchronizują dane.
 Powiązanie z kontem lokalnym opisuje [Role i dostęp](../produkt/role-i-dostep.md#konta-i-logowanie).
