@@ -5,7 +5,6 @@ variables. No mail server is hosted by this project.
 """
 
 import logging
-import ssl
 from email.message import EmailMessage
 from email.utils import parseaddr
 from pathlib import Path
@@ -68,18 +67,14 @@ class SmtpEmailProvider:
         _, _, domain = address.partition("@")
         return f"<{message.idempotency_key or uuid4()}@{domain or 'oncall.invalid'}>"
 
-    def tls_context(self) -> ssl.SSLContext:
-        """The image's public roots plus `ONCALL_CA_FILE` (`oncall.trust`)."""
-        try:
-            return trust.tls_context(self._settings)
-        except trust.CaFileUnreadable as exc:
-            raise TemporaryNotificationError(f"Plik CA jest niedostępny: {exc}") from exc
-
     async def send(self, message: NotificationMessage) -> None:
         settings = self._settings
         if not settings.smtp_host:
             raise NotificationDisabled("SMTP nie jest skonfigurowany (brak ONCALL_SMTP_HOST)")
-        tls_context = self.tls_context()
+        try:
+            tls_context = trust.tls_context(settings)
+        except trust.CaFileUnreadable as exc:
+            raise TemporaryNotificationError(f"Plik CA jest niedostępny: {exc}") from exc
         try:
             await aiosmtplib.send(
                 self.build_message(message),
