@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, RevealedPasswords, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
-import { Messages, useMessages } from '../../i18n'
+import { messages, useMessages } from '../../i18n'
 import { formatDate, formatMoment, warsawDate } from '../../lib/dates'
 import { isPolishPhone } from '../../lib/phone'
 import {
@@ -39,7 +39,7 @@ const REVEAL_SECONDS = 60
 const SETTINGS_KEY = ['forwarding-settings']
 const STATE_KEY = ['forwarding-state']
 /** A timestamp as the screen prints it, or the dash for one not recorded. */
-const moment = (value: string | null, none: string) => (value ? formatMoment(value) : none)
+const moment = (value: string | null) => (value ? formatMoment(value) : messages().common.none)
 
 export function ForwardingPanel() {
   const t = useMessages().forwarding
@@ -164,7 +164,11 @@ function SettingsForm({ saved }: { saved: ForwardingSettings }) {
         {save.error && <Box tone="bad" role="alert" title={save.error.message} />}
         {test.error && <Box tone="bad" role="alert" title={test.error.message} />}
         {result && (
-          <Box tone={testTone[result.outcome]} role="status" title={testOutcomeText(result, t.test.outcomes)}>
+          <Box
+            tone={testTone[result.outcome]}
+            role="status"
+            title={result.outcome !== 'ok' ? t.test.outcomes[result.outcome] : result.number ? t.test.outcomes.ok(result.number) : t.test.outcomes.okNoNumber}
+          >
             {result.detail && <span className="mono">{result.detail}</span>}
           </Box>
         )}
@@ -174,17 +178,9 @@ function SettingsForm({ saved }: { saved: ForwardingSettings }) {
   )
 }
 
-function testOutcomeText(
-  result: { outcome: ConnectionTestOutcome; number: string | null },
-  words: Messages['forwarding']['test']['outcomes'],
-) {
-  if (result.outcome !== 'ok') return words[result.outcome]
-  return result.number ? words.ok(result.number) : words.okNoNumber
-}
-
 function StateCard({ settings, state }: { settings: ForwardingSettings; state: ForwardingState }) {
   const t = useMessages().forwarding.state
-  const none = useMessages().common.none
+  const none = messages().common.none
   const desired = state.desired_for_day === null
     ? none
     : state.desired_member_name === null
@@ -198,8 +194,8 @@ function StateCard({ settings, state }: { settings: ForwardingSettings; state: F
   const items = [
     { key: t.desired, value: desired, mono: true },
     { key: t.applied, value: applied, mono: true },
-    { key: t.appliedAt, value: moment(state.applied_at, none), mono: true },
-    { key: t.lastAttempt, value: moment(state.last_attempt_at, none), mono: true },
+    { key: t.appliedAt, value: moment(state.applied_at), mono: true },
+    { key: t.lastAttempt, value: moment(state.last_attempt_at), mono: true },
     {
       key: t.lastOutcome,
       value: state.last_outcome
@@ -212,10 +208,10 @@ function StateCard({ settings, state }: { settings: ForwardingSettings; state: F
       ? [
         { key: t.failingSince, value: formatMoment(state.failing_since), mono: true },
         { key: t.attempts, value: `${state.attempts}`, mono: true },
-        { key: t.nextAttempt, value: moment(state.next_attempt_at, none), mono: true },
+        { key: t.nextAttempt, value: moment(state.next_attempt_at), mono: true },
       ]
       : []),
-    { key: t.passwordChangedAt, value: moment(settings.password_changed_at, none), mono: true },
+    { key: t.passwordChangedAt, value: moment(settings.password_changed_at), mono: true },
     ...(settings.rotation_pending_since
       ? [{ key: t.rotationPendingSince, value: formatMoment(settings.rotation_pending_since), mono: true }]
       : []),
@@ -332,7 +328,7 @@ function RevealDialog({ open, onClose }: { open: boolean; onClose: () => void })
           )}
           {revealed.pending ? (
             <>
-              <p className="small">{t.pendingFirst(moment(revealed.pending_since, common.none))}</p>
+              <p className="small">{t.pendingFirst(moment(revealed.pending_since))}</p>
               <Secret value={revealed.pending} />
               <p className="small">{t.thenCurrent}</p>
             </>
