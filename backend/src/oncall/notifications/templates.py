@@ -1040,16 +1040,18 @@ def duty_digest(
     )
 
 
-_FORWARDING_FAILURES = {
-    ForwardingFailure.connection: "Nie udało się połączyć z WCO.",
-    ForwardingFailure.login_refused: "WCO odrzuciło dane logowania.",
+#: One sentence per failure, the same in the alert mail, the recorded state
+#: and the audit trail. Never the body WCO answered with.
+FORWARDING_FAILURES = {
+    ForwardingFailure.connection: "Nie udało się połączyć z WCO",
+    ForwardingFailure.login_refused: "WCO odrzuciło dane logowania",
     ForwardingFailure.password_rotation_failed: (
-        "Hasło WCO wygasło, a jego automatyczna zmiana nie powiodła się."
+        "Hasło WCO wygasło, a jego automatyczna zmiana nie powiodła się"
     ),
-    ForwardingFailure.update_refused: "WCO odrzuciło zmianę numeru.",
-    ForwardingFailure.settings_invalid: "Konfiguracja WCO jest niekompletna lub niedostępna.",
-    ForwardingFailure.no_primary: "W grafiku nie ma osoby na dyżurze PRIMARY.",
-    ForwardingFailure.no_phone: "Osoba na dyżurze PRIMARY nie ma zapisanego numeru telefonu.",
+    ForwardingFailure.update_refused: "WCO odrzuciło zmianę numeru",
+    ForwardingFailure.settings_invalid: "Konfiguracja WCO jest niekompletna lub niedostępna",
+    ForwardingFailure.no_primary: "W grafiku nie ma osoby na dyżurze PRIMARY",
+    ForwardingFailure.no_phone: "Osoba na dyżurze PRIMARY nie ma zapisanego numeru telefonu",
 }
 
 
@@ -1081,7 +1083,7 @@ def forwarding_failed(
         if applied_at is not None
         else "brak potwierdzenia"
     )
-    reason = _FORWARDING_FAILURES[cause]
+    reason = FORWARDING_FAILURES[cause]
     fill_phone = (
         " Osoba pełniąca PRIMARY powinna uzupełnić numer w zakładce Moje."
         if cause is ForwardingFailure.no_phone
@@ -1096,7 +1098,7 @@ def forwarding_failed(
         f"{lead_text}\n"
         f"Dyżur PRIMARY: {target.member_name or 'brak'} ({desired}).\n"
         f"Ostatni potwierdzony numer WCO: {current}; {when}.\n"
-        f"Przyczyna: {reason}{fill_phone}\n\n"
+        f"Przyczyna: {reason}.{fill_phone}\n\n"
         "Przełącz numer ręcznie i sprawdź ustawienia przełączania.\n"
         f"{action.label}: {action.url}\n"
     )

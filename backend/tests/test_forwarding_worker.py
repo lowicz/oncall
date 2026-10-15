@@ -1009,6 +1009,30 @@ async def test_dry_run_never_rotates_an_expired_password_or_sends_an_alert(
     assert stored.pending_password_ciphertext is None
 
 
+async def test_dry_run_records_a_missing_phone_and_a_refused_login_without_an_alert(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    primary, _member = await _primary(db, frozen_clock, phone=None)
+    await create_user(db, "admin", role=UserRole.admin, email="admin@example.com")
+    await _settings(db, fake, ForwardingMode.dry_run)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    state = await _one(db_factory, CallForwardingState)
+    assert state.last_outcome is ForwardingOutcome.skipped_no_phone
+    assert state.alerted_for is None
+
+    primary.phone = "+48500500500"
+    await db.commit()
+    fake.faults[PERFORM_LOGIN] = 401
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    assert (await _one(db_factory, CallForwardingState)).last_outcome is ForwardingOutcome.failed
+    assert await _all(db_factory, NotificationOutbox) == []
+    events = await _all(db_factory, AuditEvent)
+    assert [event.action for event in events] == ["forwarding.skipped", "forwarding.failed"]
+
+
 async def test_transient_failure_after_an_alert_keeps_the_recovery_notification(
     db, db_factory, frozen_clock, forwarding_key, monkeypatch
 ) -> None:

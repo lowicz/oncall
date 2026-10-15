@@ -161,14 +161,12 @@ class _ForwardingAttemptFailed(Exception):
         *,
         permanent: bool,
         invalidate_credentials: bool = False,
-        notify: bool = True,
     ) -> None:
         super().__init__(detail)
         self.cause = cause
         self.detail = detail
         self.permanent = permanent
         self.invalidate_credentials = invalidate_credentials
-        self.notify = notify
 
 
 def _open_wco(account: ForwardingAccount) -> WcoClient:
@@ -291,7 +289,6 @@ async def _authenticate(
                 ForwardingFailure.password_rotation_failed,
                 "the pending WCO password still needs to be changed",
                 permanent=True,
-                notify=False,
             )
         return await _change_pending_password(factory, wco, attempt), True
     return attempt, False
@@ -324,7 +321,6 @@ async def _reconcile_wco(
                             ForwardingFailure.password_rotation_failed,
                             str(exc),
                             permanent=True,
-                            notify=False,
                         ) from exc
                     if expiration_rotated:
                         raise _ForwardingAttemptFailed(
@@ -453,7 +449,6 @@ async def scan_forwarding(factory: Sessions, *, now_warsaw: datetime) -> int:
                 permanent=exc.permanent,
                 invalidate_credentials=exc.invalidate_credentials,
                 now=utc_now(),
-                notify=exc.notify,
             )
     else:
         async with SqlAlchemyUnitOfWork(factory) as db:

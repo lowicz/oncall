@@ -35,6 +35,7 @@ from oncall.infrastructure.sqlalchemy.forwarding_models import (
 )
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications.service import retry_delay
+from oncall.notifications.templates import FORWARDING_FAILURES
 from oncall.notifications.triggers import (
     enqueue_forwarding_alert,
     enqueue_forwarding_recovered,
@@ -42,16 +43,6 @@ from oncall.notifications.triggers import (
 
 PERMANENT_BACKOFF = timedelta(hours=1)
 TRANSIENT_ALERT_AFTER = timedelta(minutes=10)
-
-_FAILURE_SUMMARY = {
-    ForwardingFailure.connection: "Nie udało się połączyć z WCO",
-    ForwardingFailure.login_refused: "WCO odrzuciło dane logowania",
-    ForwardingFailure.password_rotation_failed: "Nie udało się zmienić hasła WCO",
-    ForwardingFailure.update_refused: "WCO odrzuciło zmianę numeru",
-    ForwardingFailure.settings_invalid: "Konfiguracja WCO jest niekompletna",
-    ForwardingFailure.no_primary: "Brak osoby na dyżurze PRIMARY",
-    ForwardingFailure.no_phone: "Osoba na dyżurze PRIMARY nie ma numeru telefonu",
-}
 
 
 def _same_account(row: CallForwardingSettings, account: ForwardingAccount) -> bool:
@@ -380,7 +371,7 @@ class SqlAlchemyForwardingAttempts:
             return None
         self._start_episode(row, target, now=now)
         row.last_outcome = outcome
-        row.last_error = _FAILURE_SUMMARY[cause]
+        row.last_error = FORWARDING_FAILURES[cause]
         row.attempts = 0
         row.next_attempt_at = None
         row.lease_until = None
@@ -427,7 +418,6 @@ class SqlAlchemyForwardingAttempts:
         permanent: bool,
         invalidate_credentials: bool,
         now: datetime,
-        notify: bool = True,
     ) -> RecordedForwarding | None:
         row = await self._owned(attempt, now=now)
         if row is None:
@@ -440,7 +430,6 @@ class SqlAlchemyForwardingAttempts:
             permanent=permanent,
             invalidate_credentials=invalidate_credentials,
             now=now,
-            notify=notify,
         )
 
     async def record_success(
@@ -545,7 +534,6 @@ class SqlAlchemyForwardingAttempts:
         permanent: bool,
         invalidate_credentials: bool,
         now: datetime,
-        notify: bool = True,
     ) -> RecordedForwarding:
         same_episode = self._same_desired(row, target) and row.last_outcome in (
             ForwardingOutcome.failed,
@@ -569,8 +557,7 @@ class SqlAlchemyForwardingAttempts:
         if invalidate_credentials:
             settings = await load_singleton(self._session, CallForwardingSettings)
             settings.credentials_invalid_since = settings.credentials_invalid_since or now
-        if notify:
-            await self._alert(row, target, cause, now=now, immediate=permanent)
+        await self._alert(row, target, cause, now=now, immediate=permanent)
         self._audit_failure(row, target, cause, action="forwarding.failed")
         return RecordedForwarding(ForwardingOutcome.failed, attempts)
 
@@ -592,6 +579,10 @@ class SqlAlchemyForwardingAttempts:
         now: datetime,
         immediate: bool,
     ) -> None:
+        # A dry run writes nothing to WCO, so nobody is asked to act on it.
+        settings = await load_singleton(self._session, CallForwardingSettings)
+        if settings.mode is ForwardingMode.dry_run:
+            return
         failing_since = as_utc(row.failing_since or now)
         if not immediate and as_utc(now) - failing_since < TRANSIENT_ALERT_AFTER:
             return
@@ -621,7 +612,7 @@ class SqlAlchemyForwardingAttempts:
             action=action,
             entity_type="call_forwarding_state",
             entity_id=row.id,
-            summary=f"Przełączanie numeru: {_FAILURE_SUMMARY[cause]}",
+            summary=f"Przełączanie numeru: {FORWARDING_FAILURES[cause]}",
             details={
                 "day": target.day.isoformat(),
                 "member_id": str(target.member_id) if target.member_id else None,
