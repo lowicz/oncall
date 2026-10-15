@@ -544,6 +544,10 @@ main() {
     mkdir -m 700 "$backup_dir"
   fi
 
+  # A release directory cannot download docker-compose.ca.yml from a release
+  # before it, so going back across one CA file is a restore from the backup.
+  ca_rollback=false
+  [ "$git_checkout" = true ] || [ -f "$dir/docker-compose.ca.yml" ] || ca_rollback=true
   if [ "$git_checkout" = true ]; then
     git -C "$dir" checkout --quiet --detach "$tag" ||
       die "git checkout $tag failed in $dir (local changes to tracked files?); .env is unchanged"
@@ -622,6 +626,9 @@ main() {
   if [ "$postgres_upgrade" = true ]; then
     systemctl --user restart "$unit" ||
       die "$unit did not start; see journalctl --user -u $unit. The database is in PostgreSQL $release_major now, so this script cannot go back to $current; docs/wdrozenie/aktualizacja.md (going back after a PostgreSQL upgrade) says how"
+  elif [ "$ca_rollback" = true ]; then
+    systemctl --user restart "$unit" ||
+      die "$unit did not start; see journalctl --user -u $unit. $current has no docker-compose.ca.yml, so this script cannot go back to it: copy .env, docker-compose*.yml and deploy/ back from $backup_dir, then systemctl --user daemon-reload && systemctl --user restart $unit; docs/wdrozenie/aktualizacja.md (one CA file) says what else to undo"
   else
     systemctl --user restart "$unit" ||
       die "$unit did not start; see journalctl --user -u $unit. To roll back, run this script with the previous version ($current)"

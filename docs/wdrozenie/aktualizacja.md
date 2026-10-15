@@ -135,7 +135,8 @@ podkatalogu `unit/`. Przebieg, który niczego nie zmienia, nie zostawia
 katalogu. Kopie zawierają sekrety z `.env` - stare usuwaj ręcznie.
 
 Cofnięcie to ten sam skrypt z poprzednim numerem (poza powrotem sprzed
-[nowej wersji PostgreSQL](#powrót-sprzed-aktualizacji-postgresql)). Skrypt
+[nowej wersji PostgreSQL](#powrót-sprzed-aktualizacji-postgresql) albo sprzed
+[jednego pliku CA](#jeden-plik-ca)). Skrypt
 wypisuje go na początku każdego przebiegu (`On-call in ~/oncall: 1.2.3 -> 1.2.4`), a
 podpowiada też, gdy restart się nie uda:
 
@@ -339,6 +340,24 @@ W katalogu, który nie jest checkoutem git, skrypt przenosi stare nakładki do
 `git checkout`. Po aktualizacji sprawdź logowanie z katalogu, próbny alarm
 `./deploy/backup/oncall-backup.sh alert --test` i, gdy przekierowanie jest
 włączone, przełączenie numeru.
+
+W katalogu, który nie jest checkoutem git, cofnięcie przez tę zmianę nie
+idzie tym samym skryptem z poprzednim numerem: wydanie sprzed jednego pliku
+CA nie ma `docker-compose.ca.yml` do pobrania. Gdy restart się nie uda, skrypt to
+zgłasza i wypisuje katalog kopii. Przywróć z niego `.env`, pliki Compose i
+`deploy/`, w drop-inie przywróć linię `ONCALL_COMPOSE_FILES` sprzed poprawki,
+a w `.env` dawne nazwy zmiennych, jeśli wskazywały inny plik niż
+`./tls/ca.pem`, i zrestartuj jednostkę:
+
+```bash
+cd ~/oncall
+cp -pR .backup/<data>-<czas>/.env .backup/<data>-<czas>/docker-compose*.yml .backup/<data>-<czas>/deploy .
+systemctl --user daemon-reload
+systemctl --user restart oncall
+```
+
+Checkout git wraca tym samym skryptem z poprzednim numerem, po przywróceniu
+linii drop-inu i nazw zmiennych.
 
 ## Starsze wydania
 

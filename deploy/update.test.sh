@@ -663,6 +663,14 @@ for file in docker-compose.ldap-ca.yml docker-compose.smtp-ca.yml docker-compose
 done
 same_file "$deploy/docker-compose.ca.yml" "$release/docker-compose.ca.yml"
 
+check "a failed restart across one CA file says to restore the backup"
+new_deployment restart-fails-ca
+rm "$deploy/docker-compose.ca.yml"
+TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the restart failed"
+backup=$(find "$deploy/.backup" -mindepth 1 -maxdepth 1)
+has_text "$work/out" "1.0.0 has no docker-compose.ca.yml, so this script cannot go back to it: copy .env, docker-compose*.yml and deploy/ back from $TEST_WORKING_DIRECTORY/.backup/"
+has_line "$backup/.env" 'ONCALL_VERSION=1.0.0'
+
 check "ONCALL_DIR names the directory"
 new_deployment env-dir
 ONCALL_DIR=$deploy run_update 9.9.9 || fail "exited $?: $(cat "$work/out")"

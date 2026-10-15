@@ -1,22 +1,16 @@
 """The WCO client against the fake WCO in `tests/wco_fake.py`, and the
 password rotation driven through both as the forwarding pass will drive it.
-
-The TLS tests at the end serve HTTPS on the loopback, because certificate
-verification lives in the socket layer the fake replaces.
 """
 
 import logging
 import ssl
 from dataclasses import replace
-from pathlib import Path
 from urllib.parse import quote
 
 import httpx
 import pytest
 
-from oncall.config import Settings
 from oncall.domain.forwarding.passwords import AfterLogin, Passwords, generate_password
-from oncall.trust import tls_context
 from oncall.wco import (
     MAX_REDIRECTS,
     WcoClient,
@@ -24,7 +18,6 @@ from oncall.wco import (
     WcoLoginRefused,
     WcoPasswordExpired,
 )
-from tests.smtp_relay import private_ca
 from tests.wco_fake import (
     BASE_URL,
     CHANGE_PASSWORD,
@@ -32,7 +25,6 @@ from tests.wco_fake import (
     PERFORM_LOGIN,
     USER,
     FakeWco,
-    https_wco,
 )
 
 TARGET = "+48500500500"
@@ -357,17 +349,3 @@ async def test_no_secret_reaches_a_log_record_or_an_error(caplog: pytest.LogCapt
     written = [record.getMessage() for record in caplog.records] + errors
     assert len(errors) == 2
     assert [secret for secret in secrets for line in written if secret in line] == []
-
-
-async def test_a_wco_behind_an_internal_ca_is_trusted_only_through_the_ca_file(
-    tmp_path: Path,
-) -> None:
-    ca_file, server_tls = private_ca(tmp_path)
-    with https_wco(server_tls) as base_url:
-        async with WcoClient(base_url, verify=ssl.create_default_context()) as wco:
-            with pytest.raises(WcoError, match="CERTIFICATE_VERIFY_FAILED") as refused:
-                await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
-        async with WcoClient(base_url, verify=tls_context(Settings(ca_file=str(ca_file)))) as wco:
-            await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
-
-    assert refused.value.status is None

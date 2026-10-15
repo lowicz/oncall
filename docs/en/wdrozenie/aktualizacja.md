@@ -137,7 +137,8 @@ no directory. The backups contain the secrets from `.env` - delete old ones by
 hand.
 
 A rollback is the same script with the previous number (except going back
-before [a new PostgreSQL version](#going-back-after-a-postgresql-upgrade)).
+before [a new PostgreSQL version](#going-back-after-a-postgresql-upgrade) or
+before [one CA file](#one-ca-file)).
 The script prints it at the beginning of every run (`On-call in ~/oncall: 1.2.3 -> 1.2.4`) and also
 suggests it when the restart fails:
 
@@ -339,6 +340,24 @@ into the [backup](#backup-and-rollback); a checkout loses them at
 `git checkout`. After the update, check a directory sign-in, the test alert
 `./deploy/backup/oncall-backup.sh alert --test` and, when forwarding is on,
 a number switch.
+
+In a directory that is not a git checkout, going back across this boundary is
+not the same script with the previous number: a release before one CA file has
+no `docker-compose.ca.yml` to download. When the restart fails, the script
+says so and prints the backup directory. Restore `.env`, the Compose files and
+`deploy/` from it, put back the drop-in's `ONCALL_COMPOSE_FILES` line from
+before the fix and, in `.env`, the old variable names when they pointed at a
+file other than `./tls/ca.pem`, and restart the unit:
+
+```bash
+cd ~/oncall
+cp -pR .backup/<date>-<time>/.env .backup/<date>-<time>/docker-compose*.yml .backup/<date>-<time>/deploy .
+systemctl --user daemon-reload
+systemctl --user restart oncall
+```
+
+A git checkout goes back with the same script and the previous number, after
+putting back the drop-in line and the variable names.
 
 ## Older releases
 
