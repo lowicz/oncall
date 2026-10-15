@@ -328,6 +328,11 @@ After the fix, run the script again **right away**. The fixed drop-in names
 `docker-compose.ca.yml`, which the directory does not have before the update,
 so a restart of the machine or the unit in between fails with
 `missing docker-compose.ca.yml`; the running stack is not affected.
+That includes the restart after a failed [move to a new PostgreSQL
+version](#a-new-postgresql-major-version) in the same update: the script then says
+so, and the stack comes back once the drop-in line names the overlays it
+named before, after `systemctl --user daemon-reload` and
+`systemctl --user restart oncall`.
 
 In a directory that is not a git checkout, the script moves the old overlays
 into the [backup](#backup-and-rollback); a checkout loses them at

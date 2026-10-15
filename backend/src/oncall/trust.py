@@ -14,11 +14,16 @@ from oncall.config import Settings
 
 
 class CaFileUnreadable(Exception):
-    """`ONCALL_CA_FILE` names no readable PEM bundle; `path` is what it names."""
+    """`ONCALL_CA_FILE` names no readable PEM bundle; `path` is what it names,
+    `detail` the TLS library's objection to its content, None when no file
+    can be read there."""
 
-    def __init__(self, path: str, reason: str) -> None:
-        super().__init__(f"ONCALL_CA_FILE is unreadable ({path}): {reason}")
+    def __init__(self, path: str, detail: str | None = None) -> None:
+        super().__init__(
+            f"ONCALL_CA_FILE is unreadable ({path}): {detail or 'not a readable file'}"
+        )
         self.path = path
+        self.detail = detail
 
 
 def ca_file(settings: Settings) -> str | None:
@@ -27,7 +32,7 @@ def ca_file(settings: Settings) -> str | None:
     source reaches the container as an empty directory."""
     path = settings.ca_file
     if path is not None and not (Path(path).is_file() and os.access(path, os.R_OK)):
-        raise CaFileUnreadable(path, "not a readable file")
+        raise CaFileUnreadable(path)
     return path
 
 

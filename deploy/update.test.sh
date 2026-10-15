@@ -567,6 +567,18 @@ on_postgres_17 "$deploy/docker-compose.yml"
 TEST_DUMP_FAIL=1 TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 && fail "succeeded although the move failed"
 has_text "$work/out" 'and oncall.service did not start again; see journalctl --user -u oncall.service. No file was changed'
 
+check "a failed move whose restart trips over the CA overlay the drop-in already names says how to undo it"
+new_deployment postgres-upgrade-before-ca-overlay
+on_postgres_17 "$deploy/docker-compose.yml"
+rm "$deploy/docker-compose.ca.yml"
+drop_ins=$work/home/.config/systemd/user/oncall.service.d
+mkdir -p "$drop_ins"
+printf '[Service]\nEnvironment=ONCALL_COMPOSE_FILES=docker-compose.yml:docker-compose.ca.yml\n' >"$drop_ins/files.conf"
+TEST_DROP_INS="$drop_ins/files.conf" TEST_DUMP_FAIL=1 TEST_RESTART_FAIL=1 run_update --dir "$deploy" 9.9.9 &&
+  fail "succeeded although the move failed"
+has_text "$work/out" 'and oncall.service did not start again: its drop-in names docker-compose.ca.yml, which 1.0.0 does not have. Put back the overlays that line named before'
+[ ! -e "$deploy/docker-compose.ca.yml" ] || fail "the CA overlay was installed"
+
 check "a PostgreSQL image that cannot be pulled stops the move with nothing changed"
 new_deployment postgres-pull-fails
 on_postgres_17 "$deploy/docker-compose.yml"

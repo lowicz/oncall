@@ -370,6 +370,16 @@ async def test_an_unreadable_ca_file_is_a_temporary_failure_naming_it(tmp_path: 
     provider = SmtpEmailProvider(settings_with(ca_file=str(tmp_path)))
     with pytest.raises(
         TemporaryNotificationError,
-        match=f"Plik CA jest niedostępny: ONCALL_CA_FILE is unreadable \\({tmp_path}\\)",
+        match=rf"^Plik CA jest niedostępny \({tmp_path}\): brak czytelnego pliku$",
     ):
         await provider.send(message())
+
+
+async def test_a_ca_file_holding_no_certificate_names_the_tls_objection(tmp_path: Path) -> None:
+    bundle = tmp_path / "ca.pem"
+    bundle.write_text("not a certificate\n")
+    provider = SmtpEmailProvider(settings_with(ca_file=str(bundle)))
+    with pytest.raises(TemporaryNotificationError) as refused:
+        await provider.send(message())
+
+    assert str(refused.value).startswith(f"Plik CA jest niedostępny ({bundle}): [X509")

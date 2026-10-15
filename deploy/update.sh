@@ -517,8 +517,13 @@ main() {
     if ! ONCALL_BACKUP_WAIT_SECONDS=${ONCALL_BACKUP_WAIT_SECONDS:-60} bash "$release_backup_script" --dir "$dir" \
       upgrade-postgres --env-file "$stage/env" "$stage/docker-compose.yml"; then
       say "Starting $unit again on the release it ran"
-      systemctl --user restart "$unit" ||
+      if ! systemctl --user restart "$unit"; then
+        # shellcheck disable=SC2046 # one path per drop-in
+        [ -f "$dir/docker-compose.ca.yml" ] ||
+          ! grep -qs '^Environment=ONCALL_COMPOSE_FILES=.*docker-compose\.ca\.yml' $(systemctl --user show -p DropInPaths --value "$unit") ||
+          die "moving the database to PostgreSQL $release_major failed (see above), and $unit did not start again: its drop-in names docker-compose.ca.yml, which $current does not have. Put back the overlays that line named before, then systemctl --user daemon-reload && systemctl --user restart $unit. No file was changed"
         die "moving the database to PostgreSQL $release_major failed (see above), and $unit did not start again; see journalctl --user -u $unit. No file was changed"
+      fi
       die "moving the database to PostgreSQL $release_major failed (see above); $current runs again on its own database, unchanged, and no file was changed. Fix the cause and run this again"
     fi
   elif [ -n "$backup_script" ]; then

@@ -7,11 +7,7 @@ verification lives in the socket layer the fake replaces.
 
 import logging
 import ssl
-import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import replace
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote
 
@@ -29,7 +25,15 @@ from oncall.wco import (
     WcoPasswordExpired,
 )
 from tests.smtp_relay import private_ca
-from tests.wco_fake import BASE_URL, CHANGE_PASSWORD, LOGIN, PERFORM_LOGIN, USER, FakeWco
+from tests.wco_fake import (
+    BASE_URL,
+    CHANGE_PASSWORD,
+    LOGIN,
+    PERFORM_LOGIN,
+    USER,
+    FakeWco,
+    https_wco,
+)
 
 TARGET = "+48500500500"
 
@@ -353,36 +357,6 @@ async def test_no_secret_reaches_a_log_record_or_an_error(caplog: pytest.LogCapt
     written = [record.getMessage() for record in caplog.records] + errors
     assert len(errors) == 2
     assert [secret for secret in secrets for line in written if secret in line] == []
-
-
-@contextmanager
-def https_wco(server_tls: ssl.SSLContext) -> Iterator[str]:
-    """A WCO on the loopback that opens a session for anyone."""
-
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            self.send_response(200)
-            self.send_header("Set-Cookie", "XSRF-TOKEN=token; Path=/")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-
-        def do_POST(self) -> None:
-            self.rfile.read(int(self.headers["Content-Length"]))
-            self.send_response(200)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-
-        def log_message(self, format: str, *args: object) -> None:
-            pass
-
-    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
-        server.socket = server_tls.wrap_socket(server.socket, server_side=True)
-        thread = threading.Thread(target=server.serve_forever, args=(0.01,), daemon=True)
-        thread.start()
-        try:
-            yield f"https://127.0.0.1:{server.server_address[1]}"
-        finally:
-            server.shutdown()
 
 
 async def test_a_wco_behind_an_internal_ca_is_trusted_only_through_the_ca_file(

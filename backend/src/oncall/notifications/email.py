@@ -74,7 +74,9 @@ class SmtpEmailProvider:
         try:
             tls_context = trust.tls_context(settings)
         except trust.CaFileUnreadable as exc:
-            raise TemporaryNotificationError(f"Plik CA jest niedostępny: {exc}") from exc
+            raise TemporaryNotificationError(
+                f"Plik CA jest niedostępny ({exc.path}): {exc.detail or 'brak czytelnego pliku'}"
+            ) from exc
         try:
             await aiosmtplib.send(
                 self.build_message(message),

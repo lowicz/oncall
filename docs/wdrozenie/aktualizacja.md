@@ -328,6 +328,11 @@ Po poprawce uruchom skrypt ponownie **od razu**. Poprawiony drop-in wskazuje
 `docker-compose.ca.yml`, którego katalog nie ma przed aktualizacją, więc
 restart maszyny albo jednostki pomiędzy nimi kończy się błędem
 `missing docker-compose.ca.yml`; działający stos zmiana nie dotyczy.
+Dotyczy to też ponownego startu po nieudanym [przeniesieniu bazy na nową
+wersję PostgreSQL](#nowa-wersja-główna-postgresql) w tej samej aktualizacji: skrypt
+wtedy to zgłasza, a stos wraca po przywróceniu w drop-inie nakładek, które
+ta linia wymieniała wcześniej, `systemctl --user daemon-reload` i
+`systemctl --user restart oncall`.
 
 W katalogu, który nie jest checkoutem git, skrypt przenosi stare nakładki do
 [kopii zapasowej](#kopia-zapasowa-i-cofnięcie); checkout traci je przy

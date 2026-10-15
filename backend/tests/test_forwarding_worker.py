@@ -34,10 +34,10 @@ from oncall.infrastructure.sqlalchemy.notification_models import NotificationOut
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.notifications.triggers import enqueue_rotation_notice, notify_assignment_overridden
 from oncall.secrets import SettingsCipher, decrypt, encrypt
-from oncall.wco import WcoClient
+from oncall.wco import WcoClient, WcoError
 from tests.conftest import create_member, create_published_schedule, create_user
 from tests.smtp_relay import private_ca
-from tests.wco_fake import CHANGE_PASSWORD, PERFORM_LOGIN, USER, FakeWco
+from tests.wco_fake import CHANGE_PASSWORD, PERFORM_LOGIN, USER, FakeWco, https_wco
 
 
 @pytest.fixture
@@ -772,21 +772,27 @@ async def test_an_update_not_confirmed_by_readback_is_a_permanent_failure(
     assert state.next_attempt_at == frozen_clock.instant.replace(tzinfo=None) + timedelta(hours=1)
 
 
-async def test_the_wco_client_opens_with_the_deployment_ca_file(monkeypatch, tmp_path) -> None:
-    bundle, _ = private_ca(tmp_path)
-    monkeypatch.setattr(worker.get_settings(), "ca_file", str(bundle))
-    account = worker.ForwardingAccount(
-        ForwardingMode.live,
-        "https://wco.test",
-        "221234567",
-        "oncall",
-        "1001",
-        Passwords("Dummy-Passw0rd!"),
-        Passwords("dummy-token"),
-    )
-
-    async with worker._open_wco(account) as wco:
-        assert isinstance(wco, WcoClient)
+async def test_the_wco_client_trusts_a_wco_behind_the_deployment_ca_file(
+    monkeypatch, tmp_path
+) -> None:
+    bundle, server_tls = private_ca(tmp_path)
+    with https_wco(server_tls) as base_url:
+        account = worker.ForwardingAccount(
+            ForwardingMode.live,
+            base_url,
+            "221234567",
+            "oncall",
+            "1001",
+            Passwords("Dummy-Passw0rd!"),
+            Passwords("dummy-token"),
+        )
+        monkeypatch.setattr(worker.get_settings(), "ca_file", None)
+        async with worker._open_wco(account) as wco:
+            with pytest.raises(WcoError, match="CERTIFICATE_VERIFY_FAILED"):
+                await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
+        monkeypatch.setattr(worker.get_settings(), "ca_file", str(bundle))
+        async with worker._open_wco(account) as wco:
+            await wco.login("221234567", "oncall", "Dummy-Passw0rd!")
 
 
 async def test_unreadable_ca_is_recorded_without_opening_a_network_connection(
