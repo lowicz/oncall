@@ -526,15 +526,15 @@ class SqlAlchemyForwardingAttempts:
         row.last_outcome = ForwardingOutcome.failed
         row.last_error = detail[:500]
         row.attempts = attempts
-        row.next_attempt_at = (
-            None
-            if invalidate_credentials
-            else now + (PERMANENT_BACKOFF if permanent else retry_delay(attempts))
-        )
         row.lease_until = None
         if invalidate_credentials:
+            # No retry: WCO refused every stored password, and only an
+            # administrator's new one ends the stop.
+            row.next_attempt_at = None
             settings = await load_singleton(self._session, CallForwardingSettings)
             settings.credentials_invalid_since = settings.credentials_invalid_since or now
+        else:
+            row.next_attempt_at = now + (PERMANENT_BACKOFF if permanent else retry_delay(attempts))
         await self._alert(row, target, cause, now=now, immediate=permanent)
         self._audit_failure(row, target, cause, action="forwarding.failed")
         return RecordedForwarding(ForwardingOutcome.failed, attempts)

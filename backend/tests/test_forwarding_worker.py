@@ -390,8 +390,9 @@ async def test_a_crash_after_wco_changed_the_password_recovers_from_pending(
         raise RuntimeError("worker stopped")
 
     monkeypatch.setattr(worker, "_promote_pending", crash_before_promotion)
+    now_warsaw = _now(frozen_clock)
     with pytest.raises(RuntimeError, match="worker stopped"):
-        await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+        await worker.scan_forwarding(db_factory, now_warsaw=now_warsaw)
     stored = await _one(db_factory, CallForwardingSettings)
     assert stored.pending_password_ciphertext is not None
     changed_password = fake.password
@@ -601,8 +602,9 @@ async def test_pending_password_whose_change_never_ran_is_reused(
         raise RuntimeError("stopped before change")
 
     monkeypatch.setattr(worker, "_change_pending_password", stop_before_change)
+    now_warsaw = _now(frozen_clock)
     with pytest.raises(RuntimeError, match="stopped before change"):
-        await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+        await worker.scan_forwarding(db_factory, now_warsaw=now_warsaw)
     pending = (await _one(db_factory, CallForwardingSettings)).pending_password_ciphertext
     assert pending is not None
     assert fake.password_expired
@@ -756,7 +758,8 @@ async def test_configuration_rotation_guards_missing_rows(db, frozen_clock, forw
     fake = FakeWco()
     await _settings(db, fake, ForwardingMode.live)
     configuration = SqlAlchemyForwardingConfiguration(db)
-    account = await configuration.account(SettingsCipher(worker.get_settings()))
+    cipher = SettingsCipher(worker.get_settings())
+    account = await configuration.account(cipher)
     target = ForwardingTarget(frozen_clock.instant.date(), None, "Anna", "+48500500500")
     attempt = worker.ForwardingAttempt(
         account,
@@ -774,12 +777,7 @@ async def test_configuration_rotation_guards_missing_rows(db, frozen_clock, forw
     state.lease_until = None
     await db.commit()
     with pytest.raises(worker.ForwardingClaimLost, match="superseded"):
-        await configuration.stage_pending(
-            attempt,
-            "New-Dummy2!",
-            SettingsCipher(worker.get_settings()),
-            now=frozen_clock.instant,
-        )
+        await configuration.stage_pending(attempt, "New-Dummy2!", cipher, now=frozen_clock.instant)
 
 
 async def test_password_writes_lose_to_an_admin_save_after_the_lease_check(
@@ -953,22 +951,18 @@ async def test_renew_rejects_a_lease_revoked_by_a_settings_change_or_expired(
             ),
             None,
         )
+        attempts = SqlAlchemyForwardingAttempts(session)
+        now = frozen_clock.instant
         with pytest.raises(worker.ForwardingClaimLost, match="replaced"):
-            await SqlAlchemyForwardingAttempts(session).renew(
-                attempt,
-                now=frozen_clock.instant,
-                lease_until=frozen_clock.instant + worker.FORWARDING_LEASE,
-            )
+            await attempts.renew(attempt, now=now, lease_until=now + worker.FORWARDING_LEASE)
         await session.rollback()
 
     frozen_clock.advance(worker.FORWARDING_LEASE + timedelta(seconds=1))
     async with SqlAlchemyUnitOfWork(db_factory) as session:
+        attempts = SqlAlchemyForwardingAttempts(session)
+        now = frozen_clock.instant
         with pytest.raises(worker.ForwardingClaimLost, match="lease expired"):
-            await SqlAlchemyForwardingAttempts(session).renew(
-                attempt,
-                now=frozen_clock.instant,
-                lease_until=frozen_clock.instant + worker.FORWARDING_LEASE,
-            )
+            await attempts.renew(attempt, now=now, lease_until=now + worker.FORWARDING_LEASE)
 
 
 async def test_unclaimed_failure_does_not_revoke_an_active_lease(
