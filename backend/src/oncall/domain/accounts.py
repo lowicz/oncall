@@ -9,7 +9,7 @@ from oncall.domain.vocabulary import AuthSource, UserRole
 
 #: A Polish number as people type it; the stored form is `+48` and the nine
 #: digits, the shape the call forwarding sends to the switchboard unchanged.
-_POLISH_NUMBER = re.compile(r"^(?:\+?48)?([0-9]{9})$")
+_POLISH_NUMBER = re.compile(r"^(?:\+?48)?(\d{9})$", re.ASCII)
 
 
 def normalize_phone(value: str) -> str | None:

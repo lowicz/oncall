@@ -4,7 +4,7 @@
  * `backend/src/oncall/domain/accounts.py`). The same rule here lets a screen
  * say "popraw numer" about a stored value or a draft; the API stays the judge.
  */
-const POLISH_NUMBER = /^(\+?48)?[0-9]{9}$/
+const POLISH_NUMBER = /^(\+?48)?\d{9}$/
 
 export function isPolishPhone(value: string): boolean {
   return POLISH_NUMBER.test(value.trim().replace(/[ -]/g, ''))

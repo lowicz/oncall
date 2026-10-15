@@ -516,7 +516,10 @@ class LdapAuthenticator:
         # Only once the password is proven: an entry this application cannot
         # use must not answer differently from a wrong password.
         attempt.phase = "attributes"
-        return replace(self._identity(entry, username), phone=self._phone(attempt, entry))
+        identity: DirectoryIdentity = replace(
+            self._identity(entry, username), phone=self._phone(attempt, entry)
+        )
+        return identity
 
     def _phone(self, attempt: _Attempt, entry: Any) -> str | None:
         """The directory's number in the stored form, or None when no attribute
