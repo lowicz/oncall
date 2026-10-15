@@ -94,6 +94,8 @@ The full list with comments is in `.env.example`.
 | `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | sent, failed and skipped e-mails |
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | finished generator runs |
 | `ONCALL_SMTP_HOST` | empty | the outgoing mail server; empty disables e-mail sending, see [SMTP server](#smtp-server) |
+| `ONCALL_SECRETS_KEY` | empty | the Fernet key `api` and `worker` encrypt the secrets kept in the database with (the Orange WCO password of the automatic on-call number forwarding); several comma-separated keys rotate it: the first encrypts, every one decrypts; empty turns off the features that need it; `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` prints a new key |
+| `ONCALL_WCO_CA_FILE` | empty | the PEM bundle of the CA of a corporate TLS proxy in front of Orange WCO, added to the image's public CAs, never in their place; the `docker-compose.wco-ca.yml` overlay mounts it into `api` and `worker`, by default `./tls/ca.pem` |
 | `ONCALL_LDAP_ENABLED` | `false` | directory sign-in - see [LDAP / Active Directory](ldap.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS on nginx - see [TLS](tls.md) |
 

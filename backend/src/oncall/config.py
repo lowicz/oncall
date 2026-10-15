@@ -4,7 +4,8 @@ from math import ceil
 from pathlib import Path
 from typing import Self
 
-from pydantic import Field, field_validator, model_validator
+from cryptography.fernet import Fernet
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CGROUP_ROOT = Path("/sys/fs/cgroup")
@@ -145,6 +146,16 @@ class Settings(BaseSettings):
     smtp_ca_file: str | None = None
     email_from: str = "On-call <oncall@example.com>"
 
+    #: Fernet keys that encrypt the secrets the database keeps (`oncall.secrets`),
+    #: comma-separated: the first encrypts, every one decrypts, so a new key is
+    #: put first and the old one dropped once nothing is encrypted under it.
+    #: Unset, nothing can be stored encrypted and whatever needs it stays off.
+    secrets_key: SecretStr | None = None
+    #: PEM bundle of a corporate CA that fronts the Orange WCO service, added to
+    #: the image's public roots like `smtp_ca_file`. Unset, the public roots
+    #: alone decide; certificate verification is never turned off.
+    wco_ca_file: str | None = None
+
     public_base_url: str = "http://localhost:8080"
 
     worker_poll_seconds: float = 5.0
@@ -237,9 +248,9 @@ class Settings(BaseSettings):
             raise ValueError("ONCALL_SWITCH_URL must start with https:// or http://")
         return url
 
-    @field_validator("smtp_host", "smtp_local_hostname", "smtp_ca_file")
+    @field_validator("smtp_host", "smtp_local_hostname", "smtp_ca_file", "wco_ca_file")
     @classmethod
-    def _blank_smtp_host_is_unset(cls, value: str | None) -> str | None:
+    def _blank_is_unset(cls, value: str | None) -> str | None:
         """Blank is unset, as Compose passes an unset variable: no host turns
         e-mail off, no local hostname lets the EHLO carry the system's FQDN,
         no CA file leaves the image's public roots alone."""
@@ -252,6 +263,27 @@ class Settings(BaseSettings):
         which a relay without authentication refuses. Anything else is used
         exactly as written, since a password may begin or end with a space."""
         return value if value and value.strip() else None
+
+    @field_validator("secrets_key")
+    @classmethod
+    def _secrets_key_is_fernet_keys(cls, value: SecretStr | None) -> SecretStr | None:
+        """Blank is unset. Otherwise every comma-separated entry must be a
+        Fernet key, checked at startup rather than on the first save, and
+        named by its position only: the message lands in the container log."""
+        keys = [key.strip() for key in (value.get_secret_value() if value else "").split(",")]
+        keys = [key for key in keys if key]
+        if not keys:
+            return None
+        for position, key in enumerate(keys, start=1):
+            try:
+                Fernet(key)
+            except ValueError:
+                raise ValueError(
+                    f"ONCALL_SECRETS_KEY entry {position} is not a Fernet key; generate one with "
+                    '`python -c "from cryptography.fernet import Fernet; '
+                    'print(Fernet.generate_key().decode())"`.'
+                ) from None
+        return SecretStr(",".join(keys))
 
     @model_validator(mode="after")
     def _smtp_credentials_come_in_pairs(self) -> Self:

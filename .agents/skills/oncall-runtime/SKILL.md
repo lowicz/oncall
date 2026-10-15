@@ -37,7 +37,8 @@ metadata:
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
   The directory's CA for LDAP and the SMTP server's CA are the same kind of
   overlay (`docker-compose.ldap-ca.yml`, `docs/wdrozenie/ldap.md`;
-  `docker-compose.smtp-ca.yml`, `docs/wdrozenie/uruchomienie.md`).
+  `docker-compose.smtp-ca.yml`, `docs/wdrozenie/uruchomienie.md`), and so is a
+  corporate proxy's CA in front of Orange WCO (`docker-compose.wco-ca.yml`).
 - Every Compose service is `read_only` with `cap_drop: [ALL]` and
   `no-new-privileges`; only `db` adds back what the postgres entrypoint needs.
   `.github/scripts/compose-hardening.sh` (CI) enforces it, so a new runtime

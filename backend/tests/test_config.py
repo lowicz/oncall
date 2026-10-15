@@ -1,6 +1,7 @@
 import os
 
 import pytest
+from cryptography.fernet import Fernet
 from pydantic import ValidationError
 
 from oncall.config import Settings, available_cpu_count
@@ -268,3 +269,48 @@ def test_solver_workers_above_eight_is_refused(monkeypatch) -> None:
 
     with pytest.raises(ValidationError):
         Settings()
+
+
+@pytest.mark.parametrize("blank", ["", "   ", " , "], ids=["empty", "spaces", "commas"])
+def test_blank_secrets_key_is_unset(monkeypatch, blank) -> None:
+    """Compose passes an unset ONCALL_SECRETS_KEY as an empty string."""
+    monkeypatch.setenv("ONCALL_SECRETS_KEY", blank)
+
+    assert Settings().secrets_key is None
+
+
+def test_secrets_keys_are_trimmed_and_never_shown(monkeypatch) -> None:
+    first, second = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+    monkeypatch.setenv("ONCALL_SECRETS_KEY", f" {first} , {second} ")
+
+    settings = Settings()
+
+    assert settings.secrets_key is not None
+    assert settings.secrets_key.get_secret_value() == f"{first},{second}"
+    assert first not in repr(settings)
+
+
+def test_a_malformed_secrets_key_is_refused_by_position_without_echoing_it(monkeypatch) -> None:
+    """The refusal lands in the container log: it says which entry is wrong,
+    never what the entries are."""
+    good = Fernet.generate_key().decode()
+    monkeypatch.setenv("ONCALL_SECRETS_KEY", f"{good},not-a-fernet-key")
+
+    with pytest.raises(ValidationError, match="ONCALL_SECRETS_KEY entry 2") as refused:
+        Settings()
+
+    assert good not in str(refused.value)
+    assert "not-a-fernet-key" not in str(refused.value)
+
+
+@pytest.mark.parametrize("blank", ["", "   "], ids=["empty", "spaces"])
+def test_blank_wco_ca_file_is_unset(monkeypatch, blank) -> None:
+    monkeypatch.setenv("ONCALL_WCO_CA_FILE", blank)
+
+    assert Settings().wco_ca_file is None
+
+
+def test_wco_ca_file_is_trimmed(monkeypatch) -> None:
+    monkeypatch.setenv("ONCALL_WCO_CA_FILE", " /etc/oncall/wco-ca.pem ")
+
+    assert Settings().wco_ca_file == "/etc/oncall/wco-ca.pem"
