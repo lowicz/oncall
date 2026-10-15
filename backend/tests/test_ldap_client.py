@@ -845,7 +845,7 @@ def test_an_error_raised_in_the_application_is_located_from_the_package_down(
 ) -> None:
     lab.add_anna()
 
-    def broken_identity(_self, _entry, _username):
+    def broken_identity(_self, _entry, _username, _phone):
         return validate_phone("not a phone")
 
     monkeypatch.setattr(LdapAuthenticator, "_identity", broken_identity)

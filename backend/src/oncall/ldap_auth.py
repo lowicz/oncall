@@ -28,7 +28,6 @@ import ssl
 import time
 import traceback
 from collections.abc import Callable, Iterator
-from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -306,7 +305,7 @@ class LdapAuthenticator:
             return str(value).strip()
         return ""
 
-    def _identity(self, entry: Any, username: str) -> DirectoryIdentity:
+    def _identity(self, entry: Any, username: str, phone: str | None) -> DirectoryIdentity:
         settings = self.settings
         personnel_number = self._value(entry, settings.ldap_attribute_personnel_number)
         first_name = self._value(entry, settings.ldap_attribute_first_name)
@@ -359,7 +358,7 @@ class LdapAuthenticator:
                 reason="attribute_too_long",
                 attribute=too_long,
             )
-        return DirectoryIdentity(username, personnel_number, first_name, last_name, email)
+        return DirectoryIdentity(username, personnel_number, first_name, last_name, email, phone)
 
     def _search_settings(self, username: str) -> tuple[str, str, str, str]:
         """Bind DN, bind password, base DN and the filter for this login."""
@@ -516,10 +515,7 @@ class LdapAuthenticator:
         # Only once the password is proven: an entry this application cannot
         # use must not answer differently from a wrong password.
         attempt.phase = "attributes"
-        identity: DirectoryIdentity = replace(
-            self._identity(entry, username), phone=self._phone(attempt, entry)
-        )
-        return identity
+        return self._identity(entry, username, self._phone(attempt, entry))
 
     def _phone(self, attempt: _Attempt, entry: Any) -> str | None:
         """The directory's number in the stored form, or None when no attribute
