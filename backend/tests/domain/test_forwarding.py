@@ -139,7 +139,8 @@ async def test_a_missing_or_imported_primary_has_no_target_number() -> None:
     )
     no_account = await desired_target(now, 9, _Roster(imported), _Contacts("unused"))
 
-    assert no_primary is not None and no_account is not None
+    assert no_primary is not None
+    assert no_account is not None
     assert no_primary.missing is ForwardingFailure.no_primary
     assert no_account.missing is ForwardingFailure.no_phone
     assert no_primary.alert_token != no_account.alert_token
