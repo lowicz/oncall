@@ -247,6 +247,16 @@ const CASES: Case[] = [
   { name: 'exchangeShare', call: () => api.exchangeShare('abc'), method: 'POST', url: '/api/v1/share/exchange',
     headers: JSON_HEADERS, body: { token: 'abc' } },
   send('updateMyPhone', () => api.updateMyPhone('+48600100200'), 'PATCH', '/api/v1/auth/me', { phone: '+48600100200' }),
+  get('forwardingSettings', () => api.forwardingSettings(), '/api/v1/admin/forwarding/settings'),
+  send('updateForwardingSettings', () => api.updateForwardingSettings({
+    mode: 'dry_run', base_url: 'https://wco.orange.pl', vpbx_number: '221234567', username: 'oncall-bot', wco_user_id: '4711', password: null,
+  }), 'PUT', '/api/v1/admin/forwarding/settings', {
+    mode: 'dry_run', base_url: 'https://wco.orange.pl', vpbx_number: '221234567', username: 'oncall-bot', wco_user_id: '4711', password: null,
+  }),
+  get('forwardingState', () => api.forwardingState(), '/api/v1/admin/forwarding/state'),
+  send('testForwardingConnection', () => api.testForwardingConnection(), 'POST', '/api/v1/admin/forwarding/test'),
+  send('revealForwardingPassword', () => api.revealForwardingPassword('moje-haslo'),
+    'POST', '/api/v1/admin/forwarding/password/reveal', { password: 'moje-haslo' }),
   send('createFeed', () => api.createFeed('Telefon'), 'POST', '/api/v1/calendar/feeds', { label: 'Telefon' }),
   get('feeds', () => api.feeds(), '/api/v1/calendar/feeds'),
   send('revokeFeed', () => api.revokeFeed('f1'), 'DELETE', '/api/v1/calendar/feeds/f1'),

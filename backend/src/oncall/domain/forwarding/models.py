@@ -1,7 +1,9 @@
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
+
+from oncall.domain.forwarding.passwords import Passwords
 
 #: Where the WCO admin panel answers unless an administrator says otherwise.
 DEFAULT_BASE_URL = "https://wco.orange.pl"
@@ -29,6 +31,46 @@ class ForwardingOutcome(StrEnum):
     skipped_no_primary = "skipped_no_primary"
     skipped_no_phone = "skipped_no_phone"
     dry_run = "dry_run"
+
+
+class ConnectionTestOutcome(StrEnum):
+    """What an administrator's "check the connection" learned from WCO. It
+    logs in the way the forwarding pass does and reads the user whose number
+    is forwarded to; it never writes."""
+
+    #: Logged in and read the user: `number` is what WCO forwards to now.
+    ok = "ok"
+    #: The login succeeded, but WCO wants the password changed first; a pass
+    #: in `live` mode does that by itself.
+    password_expired = "password_expired"
+    #: WCO refused every stored password.
+    login_refused = "login_refused"
+    #: No usable answer came: the network, a 5xx, an unexpected response.
+    connection = "connection"
+    #: This deployment cannot open a verified connection: `ONCALL_CA_FILE`
+    #: names no readable bundle.
+    configuration = "configuration"
+
+
+@dataclass(frozen=True)
+class WcoAccount:
+    """Everything a login to WCO needs, the passwords in the clear."""
+
+    base_url: str
+    vpbx_number: str
+    username: str
+    wco_user_id: str
+    passwords: Passwords = field(repr=False)
+
+
+@dataclass(frozen=True)
+class ConnectionTest:
+    outcome: ConnectionTestOutcome
+    #: The number WCO forwards to, when it could be read.
+    number: str | None = None
+    #: The failed call and its HTTP status, or the operator's configuration
+    #: error: never what WCO answered with.
+    detail: str | None = None
 
 
 @dataclass(frozen=True)

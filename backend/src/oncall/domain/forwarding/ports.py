@@ -3,7 +3,13 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from oncall.domain.access.ports import ConfirmationPorts
-from oncall.domain.forwarding.models import ForwardingSettings, ForwardingState, SettingsChange
+from oncall.domain.forwarding.models import (
+    ConnectionTest,
+    ForwardingSettings,
+    ForwardingState,
+    SettingsChange,
+    WcoAccount,
+)
 from oncall.domain.forwarding.passwords import Passwords
 
 
@@ -99,6 +105,26 @@ class RevealPorts:
     cipher: PasswordReader
     confirm: ConfirmationPorts
     journal: RevealJournal
+
+
+class ConnectionProbe(Protocol):
+    """One read-only round trip to WCO with the account's stored passwords."""
+
+    async def __call__(self, account: WcoAccount) -> ConnectionTest: ...
+
+
+class TestJournal(Protocol):
+    """The audit entry of a connection test, in the name of the administrator."""
+
+    def connection_tested(self, settings: ForwardingSettings, result: ConnectionTest) -> None: ...
+
+
+@dataclass(frozen=True)
+class ConnectionTestPorts:
+    settings: StoredPasswords
+    cipher: PasswordReader
+    probe: ConnectionProbe
+    journal: TestJournal
 
 
 class CurrentState(Protocol):

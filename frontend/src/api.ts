@@ -438,6 +438,75 @@ export interface CalendarData {
   }>
 }
 
+export type ForwardingMode = 'off' | 'dry_run' | 'live'
+export type ForwardingOutcome = 'applied' | 'unchanged' | 'failed' | 'skipped_no_primary' | 'skipped_no_phone' | 'dry_run'
+
+/** The WCO account the worker forwards the on-call number with. The password
+ *  is never part of it: `password_set` says whether one is stored. */
+export interface ForwardingSettings {
+  mode: ForwardingMode
+  base_url: string
+  vpbx_number: string | null
+  username: string | null
+  wco_user_id: string | null
+  password_set: boolean
+  password_changed_at: string | null
+  /** Set while a password the worker generated waits for WCO to confirm it. */
+  rotation_pending_since: string | null
+  /** Set once WCO refused every stored password; the worker stops logging in
+   *  until an administrator enters a new one. */
+  credentials_invalid_since: string | null
+  updated_at: string
+}
+
+/** The whole settings form; `password` null keeps the stored one. */
+export interface ForwardingSettingsInput {
+  mode: ForwardingMode
+  base_url: string
+  vpbx_number: string | null
+  username: string | null
+  wco_user_id: string | null
+  password: string | null
+}
+
+/** Where forwarding stands, as the worker's last pass left it. */
+export interface ForwardingState {
+  applied_number: string | null
+  applied_member_name: string | null
+  applied_at: string | null
+  desired_number: string | null
+  desired_member_name: string | null
+  desired_for_day: string | null
+  last_attempt_at: string | null
+  last_outcome: ForwardingOutcome | null
+  last_error: string | null
+  failing_since: string | null
+  attempts: number
+  next_attempt_at: string | null
+}
+
+export type ConnectionTestOutcome = 'ok' | 'password_expired' | 'login_refused' | 'connection' | 'configuration'
+
+/** One read-only round trip to WCO with the stored settings. */
+export interface ConnectionTest {
+  outcome: ConnectionTestOutcome
+  /** The number WCO forwards to, when it could be read. */
+  number: string | null
+  /** The failed call and its status, or the configuration error. */
+  detail: string | null
+}
+
+/** The stored WCO passwords in the clear, answered once to an administrator
+ *  who confirmed it is them; `pending` is the one to try first while a
+ *  rotation is half done. */
+export interface RevealedPasswords {
+  current: string
+  pending: string | null
+  pending_since: string | null
+  credentials_invalid_since: string | null
+  password_changed_at: string | null
+}
+
 export type CalendarEventColor = 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'teal'
 
 export interface CalendarEventRef {
@@ -1071,6 +1140,14 @@ export const api = {
     request<AccountTokenInfo>(
       `/api/v1/auth/password-token?token=${encodeURIComponent(token)}&kind=${kind}`,
     ),
+  forwardingSettings: () => request<ForwardingSettings>('/api/v1/admin/forwarding/settings'),
+  updateForwardingSettings: (input: ForwardingSettingsInput) =>
+    send<ForwardingSettings>('PUT', '/api/v1/admin/forwarding/settings', input),
+  forwardingState: () => request<ForwardingState>('/api/v1/admin/forwarding/state'),
+  testForwardingConnection: () => send<ConnectionTest>('POST', '/api/v1/admin/forwarding/test'),
+  /** The administrator's own sign-in password confirms it is them. */
+  revealForwardingPassword: (password: string) =>
+    send<RevealedPasswords>('POST', '/api/v1/admin/forwarding/password/reveal', { password }),
   auditEvents: (params: {
     action?: string; actor?: string; q?: string; starts_on?: string; ends_on?: string
     include_logins?: boolean; limit?: number; offset?: number

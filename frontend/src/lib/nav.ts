@@ -40,11 +40,12 @@ export const coordinationNav: NavItem[] = [
   { path: '/import', label: 'historyImport', icon: 'upload', visible: isCoordinator },
 ]
 
-/** Administration: accounts, events, links, audit. */
+/** Administration: accounts, events, links, number forwarding, audit. */
 export const adminNav: NavItem[] = [
   { path: '/osoby', label: 'people', icon: 'people', visible: isAdmin },
   { path: '/wydarzenia', label: 'events', icon: 'event', visible: isAdmin },
   { path: '/udostepnienia', label: 'shareLinks', icon: 'link', visible: isAdmin },
+  { path: '/przelaczanie', label: 'forwarding', icon: 'phone', visible: isAdmin },
   { path: '/audyt', label: 'audit', icon: 'audit', visible: isAdmin },
 ]
 

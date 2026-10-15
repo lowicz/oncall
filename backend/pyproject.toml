@@ -118,6 +118,7 @@ files = [
   "src/oncall/bootstrap/providers.py",
   "src/oncall/infrastructure/sqlalchemy/handover.py",
   "src/oncall/infrastructure/sqlalchemy/forwarding.py",
+  "src/oncall/infrastructure/wco_probe.py",
   # The worker and what it drives. Every transaction it opens is a unit of
   # work named after its step, and the run's state transitions live in the
   # generation queue adapter rather than in the worker.

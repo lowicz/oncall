@@ -12,6 +12,7 @@ export const nav = {
     people: 'Osoby',
     events: 'Wydarzenia',
     shareLinks: 'Udostępnienia',
+    forwarding: 'Przełączanie numeru',
     audit: 'Audyt',
     more: 'Więcej',
   },

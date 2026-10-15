@@ -13,6 +13,8 @@ export const common = {
   saving: 'Zapisuję…',
   copy: 'Kopiuj',
   copied: 'Skopiowano',
+  /** A value that was not recorded. */
+  none: '-',
   reasonTooShort: (minLength: number) => `Wpisz co najmniej ${minLength} znaków`,
   httpError: (status: number) => `Błąd HTTP ${status}`,
   imageReadFailed: 'Nie udało się odczytać obrazu',

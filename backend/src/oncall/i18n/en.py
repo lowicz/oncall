@@ -117,6 +117,10 @@ MESSAGES: dict[str, str] = {
         "To turn forwarding on, enter the switchboard number, the login, the WCO "
         "user id and the password."
     ),
+    "forwarding.credentials_refused": (
+        "WCO refused the stored passwords; another attempt could lock the WCO "
+        "account. Enter a new WCO password first."
+    ),
     "forwarding.new_address_needs_password": (
         "Changing the WCO address requires entering the password again, so the "
         "stored password is not sent to another server."

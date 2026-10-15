@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Response, status
 
 from oncall.auth import CsrfGuard
 from oncall.bootstrap.providers import (
+    ForwardingConnectionTester,
     ForwardingPasswordRevealer,
     ForwardingSettingsReader,
     ForwardingSettingsWriter,
@@ -17,6 +18,7 @@ from oncall.domain.forwarding.models import SettingsChange
 from oncall.infrastructure.sqlalchemy.access import account_from_row
 from oncall.permissions import Admin
 from oncall.presentation.forwarding import (
+    ConnectionTestResponse,
     ForwardingSettingsResponse,
     ForwardingSettingsUpdate,
     ForwardingStateResponse,
@@ -29,6 +31,8 @@ from oncall.routes.domain_edge import domain_errors_as_http
 router = APIRouter(prefix="/api/v1/admin/forwarding", tags=["admin"])
 FORWARDING_ERROR_STATUSES = {
     errors.SecretsKeyMissing: status.HTTP_409_CONFLICT,
+    errors.StoredPasswordUnreadable: status.HTTP_409_CONFLICT,
+    errors.CredentialsRefused: status.HTTP_409_CONFLICT,
     errors.SettingsIncomplete: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.NewAddressNeedsPassword: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
@@ -95,6 +99,18 @@ async def reveal_forwarding_password(
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
     return PasswordRevealResponse.model_validate(revealed)
+
+
+@router.post("/test")
+async def test_forwarding_connection(
+    _: Admin, ports: ForwardingConnectionTester, __: CsrfGuard
+) -> ConnectionTestResponse:
+    """Log in to WCO with the stored settings and read the number it forwards
+    to, writing nothing there. A refusal by WCO is an outcome, not an error,
+    so it is recorded in the audit trail like a success."""
+    with domain_errors_as_http(FORWARDING_ERROR_STATUSES):
+        result = await use_cases.test_connection(ports)
+    return ConnectionTestResponse.model_validate(result)
 
 
 @router.get("/state")

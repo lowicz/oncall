@@ -31,7 +31,7 @@ Na szerokim ekranie po lewej jest **listwa nawigacji**, od góry:
 - sekcja **Koordynacja**: **Generator**, **Sprawiedliwość**, **Raport
   miesięczny**, **Import historii**,
 - sekcja **Administracja**: **Osoby**, **Wydarzenia**, **Udostępnienia**,
-  **Audyt**,
+  **Przełączanie numeru**, **Audyt**,
 - na dole link **Dokumentacja**, przycisk **Paleta** (`Ctrl K`) i numer
   wersji aplikacji.
 

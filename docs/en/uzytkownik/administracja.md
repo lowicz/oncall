@@ -2,8 +2,8 @@
 
 The screens used from time to time sit in the navigation rail under the
 **Coordination** (history import, monthly report) and **Administration**
-(people, events, share links, audit) sections; on a phone under the **More**
-tab. Which items are visible depends on the role - see
+(people, events, share links, number forwarding, audit) sections; on a
+phone under the **More** tab. Which items are visible depends on the role - see
 [Roles and access](../produkt/role-i-dostep.md).
 
 ## People (`/osoby`, administrator)
@@ -186,6 +186,114 @@ from that link stop working, and a revoked link cannot be restored.
 
 The permanent form of access for a person outside the rotation is a named
 `viewer` account; a temporary link is the exception.
+
+## Number forwarding (`/przelaczanie`, administrator)
+
+Automatic forwarding of the on-call number through Orange WCO to the phone
+of the person on PRIMARY duty; how it works is described in
+[Integrations](../produkt/integracje.md#on-call-number-forwarding-orange-wco).
+The screen has two parts: the WCO account and the state. Times are in
+`Europe/Warsaw`.
+
+### WCO account
+
+The **WCO account** form stores the details the worker process logs in to
+the WCO panel with:
+
+- **Mode** - **Off** (the default; the worker does not connect to WCO and
+  you switch the number by hand), **Dry run** (the worker logs in, reads the
+  number and records in the audit trail what it would set, but changes
+  nothing in WCO) or **On** (the worker switches the number and changes an
+  expired WCO password itself). The chosen mode is described under the
+  field.
+- **WCO address** - `https` only, `https://wco.orange.pl` by default.
+  Changing the address means entering the password again, so that a stored
+  password never reaches another server.
+- **Switchboard number**, **Login** and **WCO user id** - the panel's login
+  details and the WCO user whose number is the forwarding target.
+- **WCO password** - stored encrypted under `ONCALL_SECRETS_KEY`
+  ([Getting started](../wdrozenie/uruchomienie.md)). A stored password never
+  comes back into the form: in its place are the date of its last change and
+  the **Change password** and **Show password** buttons (see [Switching the
+  number by hand](#switching-the-number-by-hand)). Without the key in the
+  environment no password can be stored and forwarding cannot be turned on;
+  the screen then says which variable to set.
+
+Dry run and on need the full set: the switchboard number, the login, the
+user id and the password. A save goes to the audit trail as "Zmieniono
+przełączanie numeru" (without the password) and clears the worker's pending
+failures, so after corrected settings the worker tries at once.
+
+**Check connection** logs in to WCO with the stored details and reads the
+number WCO forwards to now, changing nothing; it works in every mode, **Off**
+included, and needs the full set of stored details. The result is one of:
+the connection works (with the number WCO holds); the password has expired
+(the login works, but WCO wants the password changed - in **On** mode the
+worker does that itself); WCO refused the login details; could not connect
+(with the name of the failed call and the HTTP status, never WCO's response
+body); configuration unavailable (`ONCALL_CA_FILE` names no readable file).
+Every check goes to the audit trail as "Sprawdzono przełączanie numeru".
+
+Once WCO has refused the stored passwords (the **State** card then shows
+"Passwords refused"), the worker stops logging in so as not to lock the WCO
+account, and **Check connection** is disabled for the same reason. Entering
+a new password in the **WCO password** field lifts the stop.
+
+### State
+
+The **State** card shows what the worker left after its last pass: the
+target (the person on PRIMARY, their number and the duty day), the number
+WCO forwards to as last confirmed and when it was confirmed, the last
+attempt and its outcome (switched, unchanged, failed, skipped for want of a
+person on PRIMARY or of a number, dry run with nothing changed), the error
+text, since when it has been failing, the number of failed attempts and the
+time of the next one, and also the date of the last WCO password change, a
+password change under way and refused passwords. The history of the passes
+is in the [Audit](#audit-audyt-administrator) under the actions "Przełączono
+numer on-call", "Nie udało się przełączyć numeru", "Pominięto przełączenie
+numeru" and "Zmieniono hasło WCO".
+
+### Switching the number by hand
+
+When automatic forwarding fails - the "Numer on-call" alert mail arrives or
+the State card shows a failure - you switch the number by hand in the WCO
+panel. For that you need the password of the WCO account, which only the
+application knows, because in **On** mode the worker changes it itself when
+it expires.
+
+1. If a number set by hand is to stay, set the mode to **Off** and save: in
+   **On** mode the next successful pass overwrites a number other than that
+   of the person on PRIMARY. Switching to that person's own number is
+   harmless - the worker sees the number already set and records
+   "unchanged".
+2. Click **Show password** and enter **your own application password** in
+   the dialog (a directory account, LDAP / AD, confirms it in the directory).
+   A wrong password counts as a failed sign-in and is subject to the same
+   throttle as the sign-in screen. The reveal goes to the audit trail as
+   "Odsłonięto hasło WCO": who and when, never the value.
+3. The password is masked; the eye icon reveals it and **Copy** puts it on
+   the clipboard. It leaves the screen after 60 seconds or when the dialog
+   closes, and is stored nowhere in the browser.
+4. Sign in to the WCO panel with the switchboard number, the login and that
+   password, and set the number of the WCO user named in the settings.
+
+While an automatic password change is under way the dialog shows two
+passwords: the new one first ("Try this one first"), then the previous one
+("If WCO does not accept it"), in the same order the worker tries them. Once
+WCO has refused the stored passwords the dialog warns that the password was
+probably changed outside the application; once you know the right one,
+enter it in the **WCO password** field.
+
+If the WCO panel forces a password change during a manual sign-in, the
+stored password goes stale: the worker's next login is refused, the
+refusal is recorded and an alert goes out. So do not change the password in
+WCO unless you must, and if you must, enter the new one in the **WCO
+password** field at once.
+
+A directory administrator confirms their password in the directory, so when
+LDAP and forwarding fail together only a local administrator can reveal the
+WCO password. Keep the account from `python -m oncall.seed_admin`, with its
+password in the organisation's vault.
 
 ## Audit (`/audyt`, administrator)
 

@@ -33,7 +33,7 @@ On a wide screen the **navigation rail** is on the left, from the top:
 - the **Coordination** section: **Generator**, **Fairness**, **Monthly
   report**, **History import**,
 - the **Administration** section: **People**, **Events**, **Share links**,
-  **Audit**,
+  **Number forwarding**, **Audit**,
 - at the bottom the **Documentation** link, the **Palette** button (`Ctrl K`)
   and the application version number.
 

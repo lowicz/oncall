@@ -27,6 +27,7 @@ from oncall.domain.availability.ports import AvailabilityReadPorts, Availability
 from oncall.domain.balance.ports import BalancePorts
 from oncall.domain.calendar.ports import CalendarPorts
 from oncall.domain.forwarding.ports import (
+    ConnectionTestPorts,
     CurrentSettings,
     CurrentState,
     RevealPorts,
@@ -95,6 +96,7 @@ from oncall.infrastructure.sqlalchemy.sessions import SqlAlchemySessions
 from oncall.infrastructure.sqlalchemy.sharing import SqlAlchemyCalendarFeeds, SqlAlchemyShareLinks
 from oncall.infrastructure.sqlalchemy.swaps import SqlAlchemySwapJournal, SqlAlchemySwapRequests
 from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
+from oncall.infrastructure.wco_probe import probe_wco
 from oncall.ldap_auth import LdapAuthenticator, get_directory_authenticator
 from oncall.secrets import SettingsCipher
 
@@ -141,6 +143,15 @@ def forwarding_password_revealer(
             passwords=Argon2Passwords(),
             directory=DirectoryAuthentication(directory),
         ),
+        journal=SqlAlchemyForwardingJournal(db, actor),
+    )
+
+
+def forwarding_connection_tester(db: DbSession, actor: CurrentUser) -> ConnectionTestPorts:
+    return ConnectionTestPorts(
+        settings=SqlAlchemyForwardingSettings(db),
+        cipher=SettingsCipher(get_settings()),
+        probe=probe_wco,
         journal=SqlAlchemyForwardingJournal(db, actor),
     )
 
@@ -378,6 +389,7 @@ PolicyWriter = Annotated[PolicyPorts, Depends(policy_writer)]
 ForwardingSettingsReader = Annotated[CurrentSettings, Depends(forwarding_settings_reader)]
 ForwardingSettingsWriter = Annotated[SettingsPorts, Depends(forwarding_settings_writer)]
 ForwardingPasswordRevealer = Annotated[RevealPorts, Depends(forwarding_password_revealer)]
+ForwardingConnectionTester = Annotated[ConnectionTestPorts, Depends(forwarding_connection_tester)]
 ForwardingStateReader = Annotated[CurrentState, Depends(forwarding_state_reader)]
 GenerationRequestProvider = Annotated[GenerationRequestPorts, Depends(generation_requests)]
 DraftWriter = Annotated[DraftPorts, Depends(draft_writer)]
