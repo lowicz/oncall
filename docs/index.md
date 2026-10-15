@@ -51,6 +51,8 @@ Instrukcja ekran po ekranie, zadanie po zadaniu.
 - [TLS](wdrozenie/tls.md) - certyfikat, klucz i CA jako trzy osobne pliki.
 - [Logowanie z katalogu](wdrozenie/ldap.md) - LDAP / Active Directory,
   certyfikat katalogu i diagnostyka logowania z logu API.
+- [Włączenie przełączania numeru](wdrozenie/przelaczanie-numeru.md) -
+  klucz, konto WCO, tryb próbny, włączenie, alarm i wycofanie.
 
 ## Dokumenty historyczne
 
