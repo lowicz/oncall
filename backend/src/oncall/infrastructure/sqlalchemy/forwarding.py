@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, or_, select, update
+from sqlalchemy import CursorResult, exists, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
@@ -27,13 +27,14 @@ from oncall.domain.forwarding.models import (
 )
 from oncall.domain.forwarding.passwords import Passwords
 from oncall.domain.forwarding.ports import PasswordCipher
-from oncall.fairness_data import latest_publish_end
+from oncall.effective import RESOLVED_STATUSES
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.base import load_singleton
 from oncall.infrastructure.sqlalchemy.forwarding_models import (
     CallForwardingSettings,
     CallForwardingState,
 )
+from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications.service import retry_delay
 from oncall.notifications.templates import FORWARDING_FAILURES
@@ -206,7 +207,11 @@ class SqlAlchemyForwardingConfiguration:
         )
 
     async def roster_published(self) -> bool:
-        return await latest_publish_end(self._session) is not None
+        return bool(
+            await self._session.scalar(
+                select(exists().where(Schedule.status.in_(RESOLVED_STATUSES)))
+            )
+        )
 
     async def phone(self, member_id: uuid.UUID) -> str | None:
         return await self._session.scalar(

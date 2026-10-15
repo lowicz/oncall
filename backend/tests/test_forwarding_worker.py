@@ -13,11 +13,12 @@ from sqlalchemy import select
 
 from oncall import worker
 from oncall.database import SqlAlchemyUnitOfWork
+from oncall.domain.clock import utc_now
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
 from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome, SettingsChange
 from oncall.domain.forwarding.passwords import Passwords
 from oncall.domain.handover import NoticeTiming, RotationNotice, Segment
-from oncall.domain.vocabulary import AssignmentRole, UserRole
+from oncall.domain.vocabulary import AssignmentRole, ScheduleOrigin, ScheduleStatus, UserRole
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.forwarding import (
     SqlAlchemyForwardingAttempts,
@@ -29,7 +30,7 @@ from oncall.infrastructure.sqlalchemy.forwarding_models import (
     CallForwardingState,
 )
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
-from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.notifications.triggers import enqueue_rotation_notice, notify_assignment_overridden
 from oncall.secrets import SettingsCipher, decrypt, encrypt
 from oncall.wco import WcoClient
@@ -273,6 +274,43 @@ async def test_nothing_happens_before_the_first_publication(
     assert await _all(db_factory, NotificationOutbox) == []
     assert await _all(db_factory, CallForwardingState) == []
     assert await _all(db_factory, AuditEvent) == []
+
+
+async def test_an_imported_history_alone_is_a_roster_to_switch_to(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    user = await create_user(db, "primary", email="primary@example.com", phone="+48500500500")
+    member = await create_member(db, user, display_name="Anna Kowalska")
+    day = _now(frozen_clock).date()
+    db.add(
+        Schedule(
+            name="Import",
+            starts_on=day - timedelta(days=1),
+            ends_on=day,
+            status=ScheduleStatus.superseded,
+            origin=ScheduleOrigin.imported,
+            published_at=utc_now(),
+            assignments=[
+                Assignment(
+                    service_date=service_date,
+                    role=AssignmentRole.primary,
+                    assignee_name=member.display_name,
+                    member_id=member.id,
+                )
+                for service_date in (day - timedelta(days=1), day)
+            ],
+        )
+    )
+    await db.commit()
+    await _settings(db, fake, ForwardingMode.live)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.user["number"] == "+48500500500"
+    state = await _one(db_factory, CallForwardingState)
+    assert state.last_outcome is ForwardingOutcome.applied
 
 
 async def test_no_primary_alert_is_deduplicated_for_the_day(
