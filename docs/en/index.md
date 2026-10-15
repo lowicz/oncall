@@ -52,6 +52,8 @@ A guide screen by screen, task by task.
 - [TLS](wdrozenie/tls.md) - certificate, key and CA as three separate files.
 - [Directory sign-in](wdrozenie/ldap.md) - LDAP / Active Directory,
   the directory certificate and sign-in diagnostics from the API log.
+- [Enabling number forwarding](wdrozenie/przelaczanie-numeru.md) - the
+  key, the WCO account, dry run, going live, the alert and rolling back.
 
 ## Historical documents
 
