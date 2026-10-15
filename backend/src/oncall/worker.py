@@ -171,8 +171,8 @@ class _ForwardingAttemptFailed(Exception):
 
 def _open_wco(account: ForwardingAccount) -> WcoClient:
     """Open a client pinned to the host from the same settings snapshot as
-    the password. The client follows no redirects, so that password cannot be
-    forwarded to another host."""
+    the password. The client follows redirects only on the configured origin,
+    so that password never reaches another host."""
     return WcoClient(account.base_url, ca_file=get_settings().wco_ca_file)
 
 
