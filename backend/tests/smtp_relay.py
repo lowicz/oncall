@@ -147,6 +147,7 @@ def private_ca(directory: Path) -> tuple[Path, ssl.SSLContext]:
     chain = directory / "chain.pem"
     chain.write_text((directory / "server.pem").read_text() + (directory / "ca.pem").read_text())
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(chain, directory / "server.key")
     return directory / "ca.pem", context
 
