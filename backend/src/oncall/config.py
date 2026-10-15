@@ -116,6 +116,10 @@ class Settings(BaseSettings):
     ldap_attribute_first_name: str = "givenName"
     ldap_attribute_last_name: str = "sn"
     ldap_attribute_email: str = "mail"
+    #: The person's phone number (`mobile` in Active Directory), read at
+    #: sign-in to fill an account that has none; a number typed by hand is
+    #: never replaced. Empty, the default, reads no number.
+    ldap_attribute_phone: str = ""
     #: The person's photo, shown as their avatar in the interface. Active
     #: Directory keeps a small JPEG in `thumbnailPhoto` (what Outlook and
     #: Teams show); an inetOrgPerson directory keeps one in `jpegPhoto`. Read

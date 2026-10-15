@@ -70,6 +70,10 @@ class DirectoryIdentity:
     first_name: str
     last_name: str
     email: str | None
+    #: In the stored form, or None when the directory holds none this
+    #: application would accept. It fills an empty number and never replaces
+    #: one a person typed.
+    phone: str | None = None
 
 
 @dataclass(frozen=True)

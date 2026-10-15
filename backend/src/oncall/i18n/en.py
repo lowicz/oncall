@@ -319,5 +319,7 @@ MESSAGES: dict[str, str] = {
     "validation.string_too_long": "The value is too long (at most {max_length} characters).",
     "validation.enum": "Invalid value. Allowed: {expected}.",
     "validation.string_pattern_mismatch": "The value has an invalid format.",
-    "validation.phone": "The phone number must have 9-15 digits, with an optional + prefix",
+    "validation.phone": (
+        "The phone number is +48 and nine digits (nine bare digits get the +48 prefix)"
+    ),
 }

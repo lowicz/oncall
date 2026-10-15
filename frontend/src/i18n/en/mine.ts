@@ -113,6 +113,15 @@ export const mine: Messages['mine'] = {
     inSchedule: 'written into the schedule',
     settledWithNote: (status: string, note: string) => `${status} · “${note}”`,
   },
+  phone: {
+    heading: 'My phone',
+    label: 'Phone number',
+    hint: 'Format: +48 and nine digits (bare digits get the prefix). Signed-in people see it on the “Now” strip and on the on-call card.',
+    fix: 'Fix the number: +48 and nine digits.',
+    required: 'Required for people in the rotation.',
+    save: 'Save number',
+    saved: 'Phone number saved',
+  },
   feeds: {
     title: 'Calendar subscription (ICS)',
     onlyYourDuties: 'your duties only',

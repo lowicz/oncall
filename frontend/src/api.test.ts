@@ -246,6 +246,7 @@ const CASES: Case[] = [
   send('createShareLinkFeed', () => api.createShareLinkFeed('l1'), 'POST', '/api/v1/admin/share-links/l1/feed'),
   { name: 'exchangeShare', call: () => api.exchangeShare('abc'), method: 'POST', url: '/api/v1/share/exchange',
     headers: JSON_HEADERS, body: { token: 'abc' } },
+  send('updateMyPhone', () => api.updateMyPhone('+48600100200'), 'PATCH', '/api/v1/auth/me', { phone: '+48600100200' }),
   send('createFeed', () => api.createFeed('Telefon'), 'POST', '/api/v1/calendar/feeds', { label: 'Telefon' }),
   get('feeds', () => api.feeds(), '/api/v1/calendar/feeds'),
   send('revokeFeed', () => api.revokeFeed('f1'), 'DELETE', '/api/v1/calendar/feeds/f1'),

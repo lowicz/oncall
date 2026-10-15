@@ -34,6 +34,8 @@ export interface CurrentUser {
   role: UserRole
   has_team_member: boolean
   email: string | null
+  /** In the stored form, `+48` and nine digits; the API normalises what is typed. */
+  phone: string | null
   share: ShareSession | null
   /** Where this person's own photo is served when the directory may hold
    *  one; null for a local account, a share link or a deployment that reads
@@ -759,6 +761,8 @@ async function followRun(
 
 export const api = {
   me: () => request<CurrentUser>('/api/v1/auth/me'),
+  /** The one detail a person edits themselves; null clears it. */
+  updateMyPhone: (phone: string | null) => send<CurrentUser>('PATCH', '/api/v1/auth/me', { phone }),
   /** The person's own photo from the directory as a data URL, or null when
    *  the directory holds none for them. A directory that cannot answer is an
    *  error, so the caller keeps its fallback either way. */

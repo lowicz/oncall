@@ -4,7 +4,7 @@ import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { MineScreen } from './Mine'
 import { api, ApiError } from '../api'
-import type { CalendarData, FairnessReport, SwapRequest } from '../api'
+import type { CalendarData, CurrentUser, FairnessReport, SwapRequest } from '../api'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -58,8 +58,14 @@ const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   ...over,
 })
 
+const ME: CurrentUser = {
+  username: 'julia', display_name: 'Julia Nowak', role: 'member', has_team_member: true,
+  email: 'julia@example.com', phone: '+48600100200', share: null, avatar_url: null,
+}
+
 /** Every query the screen makes, so a test only overrides what it is about. */
 function stub() {
+  vi.spyOn(api, 'me').mockResolvedValue(ME)
   vi.spyOn(api, 'calendar').mockResolvedValue(EMPTY_CALENDAR)
   vi.spyOn(api, 'availability').mockResolvedValue([])
   vi.spyOn(api, 'feeds').mockResolvedValue([])
@@ -386,6 +392,54 @@ afterEach(() => {
 
 const assignment = (service_date: string, role: 'primary' | 'secondary' | 'late_shift', assignee_name: string, over: Partial<CalendarData['assignments'][number]> = {}) => ({
   schedule_id: 's1', schedule_version: 1, service_date, role, assignee_name, member_id: assignee_name, is_override: false, change_kind: null, ...over,
+})
+
+describe('MineScreen phone', () => {
+  it('shows the stored number and, after a save, the form the API stored what was typed in', async () => {
+    stub()
+    const update = vi.spyOn(api, 'updateMyPhone').mockResolvedValue({ ...ME, phone: '+48600100300' })
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    const input = await screen.findByLabelText('Numer telefonu')
+    await waitFor(() => expect(input).toHaveValue('+48600100200'))
+    const save = screen.getByRole('button', { name: 'Zapisz numer' })
+    expect(save).toBeDisabled()
+    fireEvent.change(input, { target: { value: '600 100 300' } })
+    expect(save).toBeEnabled()
+    fireEvent.click(save)
+    await waitFor(() => expect(update).toHaveBeenCalledWith('600 100 300'))
+    await waitFor(() => expect(input).toHaveValue('+48600100300'))
+    expect(await screen.findByText('Zapisano numer telefonu')).toBeInTheDocument()
+    expect(save).toBeDisabled()
+  })
+
+  it('asks a rotation member for a number, flags one that is not Polish and shows the refusal', async () => {
+    stub()
+    vi.spyOn(api, 'me').mockResolvedValue({ ...ME, phone: null })
+    const update = vi.spyOn(api, 'updateMyPhone').mockRejectedValue(new ApiError('Numer telefonu to +48 i dziewięć cyfr', 422))
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    const input = await screen.findByLabelText('Numer telefonu')
+    expect(await screen.findByText('Wymagany dla osób w rotacji.')).toBeInTheDocument()
+    fireEvent.change(input, { target: { value: '+49 170 1234567' } })
+    expect(screen.getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
+    expect(screen.queryByText('Wymagany dla osób w rotacji.')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz numer' }))
+    expect(await screen.findByText('Numer telefonu to +48 i dziewięć cyfr')).toBeInTheDocument()
+    expect(update).toHaveBeenCalledWith('+49 170 1234567')
+  })
+
+  it('needs no number from an account outside the rotation and clears one with an empty field', async () => {
+    stub()
+    vi.spyOn(api, 'me').mockResolvedValue({ ...ME, role: 'viewer', has_team_member: false })
+    const update = vi.spyOn(api, 'updateMyPhone').mockResolvedValue({ ...ME, role: 'viewer', has_team_member: false, phone: null })
+    renderScreen(<MineScreen role="viewer" hasTeamMember={false} displayName="Julia Nowak" />)
+    const input = await screen.findByLabelText('Numer telefonu')
+    await waitFor(() => expect(input).toHaveValue('+48600100200'))
+    fireEvent.change(input, { target: { value: ' ' } })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz numer' }))
+    await waitFor(() => expect(update).toHaveBeenCalledWith(null))
+    await waitFor(() => expect(input).toHaveValue(''))
+  })
 })
 
 describe('MineScreen duty rows', () => {

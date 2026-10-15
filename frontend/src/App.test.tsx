@@ -79,6 +79,7 @@ const user = (role: UserRole, overrides: Partial<CurrentUser> = {}): CurrentUser
   role,
   has_team_member: false,
   email: null,
+  phone: null,
   share: null,
   avatar_url: null,
   ...overrides,

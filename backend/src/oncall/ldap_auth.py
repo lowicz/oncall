@@ -53,6 +53,7 @@ from oncall.config import Settings, get_settings
 # as; re-exported so callers of this client keep one import.
 from oncall.domain.access.models import DirectoryIdentity as DirectoryIdentity
 from oncall.domain.access.models import DirectoryPhoto as DirectoryPhoto
+from oncall.domain.accounts import normalize_phone
 
 DEFAULT_USER_FILTER = "(&(objectClass=user)(sAMAccountName={username}))"
 #: The largest photo served. Active Directory itself caps `thumbnailPhoto` at
@@ -304,7 +305,7 @@ class LdapAuthenticator:
             return str(value).strip()
         return ""
 
-    def _identity(self, entry: Any, username: str) -> DirectoryIdentity:
+    def _identity(self, entry: Any, username: str, phone: str | None) -> DirectoryIdentity:
         settings = self.settings
         personnel_number = self._value(entry, settings.ldap_attribute_personnel_number)
         first_name = self._value(entry, settings.ldap_attribute_first_name)
@@ -357,7 +358,7 @@ class LdapAuthenticator:
                 reason="attribute_too_long",
                 attribute=too_long,
             )
-        return DirectoryIdentity(username, personnel_number, first_name, last_name, email)
+        return DirectoryIdentity(username, personnel_number, first_name, last_name, email, phone)
 
     def _search_settings(self, username: str) -> tuple[str, str, str, str]:
         """Bind DN, bind password, base DN and the filter for this login."""
@@ -481,12 +482,15 @@ class LdapAuthenticator:
         server = self._server()
         attributes = list(
             dict.fromkeys(
-                (
+                name
+                for name in (
                     settings.ldap_attribute_personnel_number,
                     settings.ldap_attribute_first_name,
                     settings.ldap_attribute_last_name,
                     settings.ldap_attribute_email,
+                    settings.ldap_attribute_phone,
                 )
+                if name
             )
         )
         entry = self._lookup(attempt, server, username, attributes)
@@ -511,7 +515,23 @@ class LdapAuthenticator:
         # Only once the password is proven: an entry this application cannot
         # use must not answer differently from a wrong password.
         attempt.phase = "attributes"
-        return self._identity(entry, username)
+        return self._identity(entry, username, self._phone(attempt, entry))
+
+    def _phone(self, attempt: _Attempt, entry: Any) -> str | None:
+        """The directory's number in the stored form, or None when no attribute
+        is configured, the entry has none, or the value is not a Polish number;
+        that last case is logged, since the number then stays empty with no
+        other trace of why."""
+        attribute = self.settings.ldap_attribute_phone
+        value = self._value(entry, attribute) if attribute else ""
+        if not value:
+            return None
+        phone = normalize_phone(value)
+        if phone is None:
+            attempt.log(
+                "skipped", logging.INFO, "attributes", reason="phone_invalid", attribute=attribute
+            )
+        return phone
 
     def _photo(self, attempt: _Attempt, username: str) -> DirectoryPhoto | None:
         attribute = self.settings.ldap_attribute_photo

@@ -100,23 +100,27 @@ async def databases() -> AsyncIterator[tuple[URL, URL]]:
         await admin_engine.dispose()
 
 
-async def test_the_migrations_build_the_schema_the_models_describe(
-    databases: tuple[URL, URL],
-) -> None:
-    migrated, modelled = databases
+async def _upgrade(url: URL, revision: str = "head") -> None:
     upgrade = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
         "alembic",
         "upgrade",
-        "head",
+        revision,
         cwd=BACKEND,
-        env={**os.environ, "ONCALL_DATABASE_URL": migrated.render_as_string(hide_password=False)},
+        env={**os.environ, "ONCALL_DATABASE_URL": url.render_as_string(hide_password=False)},
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
     )
     output, _ = await upgrade.communicate()
     assert upgrade.returncode == 0, output.decode()
+
+
+async def test_the_migrations_build_the_schema_the_models_describe(
+    databases: tuple[URL, URL],
+) -> None:
+    migrated, modelled = databases
+    await _upgrade(migrated)
     engine = create_async_engine(modelled)
     try:
         async with engine.begin() as connection:
@@ -236,3 +240,39 @@ async def test_a_persons_periods_cannot_overlap(modelled_db: AsyncSession) -> No
         with pytest.raises(IntegrityError, match="no_overlap"):
             await modelled_db.flush()
         await attempt.rollback()
+
+
+async def test_stored_phone_numbers_take_the_e164_form_on_upgrade(
+    databases: tuple[URL, URL],
+) -> None:
+    """Migration 0045 prefixes the numbers the earlier rule stored bare and
+    leaves anything that is not a Polish number for the screens to flag."""
+    migrated, _ = databases
+    await _upgrade(migrated, "0044_swap_slot_direction")
+    #: username -> (stored before the upgrade, expected after it)
+    numbers = {
+        "bare": ("600100200", "+48600100200"),
+        "country": ("48600100200", "+48600100200"),
+        "e164": ("+48600100200", "+48600100200"),
+        "abroad": ("+49170123456", "+49170123456"),
+        "none": (None, None),
+    }
+    engine = create_async_engine(migrated)
+    try:
+        async with engine.begin() as connection:
+            for username, (before, _) in numbers.items():
+                await connection.execute(
+                    text(
+                        "INSERT INTO users (id, username, first_name, role, phone) "
+                        "VALUES (gen_random_uuid(), :username, 'Anna', 'member', :phone)"
+                    ),
+                    {"username": username, "phone": before},
+                )
+        await _upgrade(migrated)
+        async with engine.connect() as connection:
+            rows = await connection.execute(text("SELECT username, phone FROM users"))
+            after = dict(rows.all())
+    finally:
+        await engine.dispose()
+
+    assert after == {username: expected for username, (_, expected) in numbers.items()}

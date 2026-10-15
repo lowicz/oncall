@@ -309,5 +309,7 @@ MESSAGES: dict[str, str] = {
     "validation.string_too_long": "Wartość jest za długa (maksimum {max_length} znaków).",
     "validation.enum": "Nieprawidłowa wartość. Dozwolone: {expected}.",
     "validation.string_pattern_mismatch": "Wartość ma nieprawidłowy format.",
-    "validation.phone": "Numer telefonu musi mieć 9-15 cyfr, z opcjonalnym prefiksem +",
+    "validation.phone": (
+        "Numer telefonu to +48 i dziewięć cyfr (same dziewięć cyfr uzupełnimy prefiksem +48)"
+    ),
 }

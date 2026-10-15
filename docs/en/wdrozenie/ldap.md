@@ -14,8 +14,8 @@ values of the `phase=` field in the log - see [Diagnostics](#diagnostics).
 3. Sign-in with the service account (`service_bind`).
 4. Search for **exactly one** account with the filter (`search`).
 5. Sign-in as that account with the password typed by the user (`user_bind`).
-6. Reading the personnel number, first name, last name and e-mail
-   (`attributes`) - only after the password has been checked.
+6. Reading the personnel number, first name, last name, e-mail and, when
+   turned on, phone (`attributes`) - only after the password has been checked.
 
 The first successful sign-in creates a `viewer` account; subsequent ones
 synchronise the data. Linking with a local account is described in
@@ -38,6 +38,7 @@ synchronise the data. Linking with a local account is described in
 | `ONCALL_LDAP_ATTRIBUTE_FIRST_NAME` | `givenName` | first name, required |
 | `ONCALL_LDAP_ATTRIBUTE_LAST_NAME` | `sn` | last name, may be empty |
 | `ONCALL_LDAP_ATTRIBUTE_EMAIL` | `mail` | e-mail, may be empty |
+| `ONCALL_LDAP_ATTRIBUTE_PHONE` | empty | the phone number (`mobile` in Active Directory); fills an empty account field only, never replaces a number typed by hand - see [Phone number](#phone-number); empty reads no number |
 | `ONCALL_LDAP_ATTRIBUTE_PHOTO` | `thumbnailPhoto` | the user's photo shown as the avatar - see [User photo](#user-photo); empty disables it |
 
 The case of attribute names does not matter (`employeeID` and `employeeid`
@@ -45,8 +46,23 @@ are the same attribute). With the default filter the user signs in with the
 bare account name (`anna`), not `anna@firma.example` or `FIRMA\anna`.
 
 The minimum rights of the service account: reading the accounts in
-`ONCALL_LDAP_BASE_DN` and the five attributes above. The user's password is
+`ONCALL_LDAP_BASE_DN` and the attributes above. The user's password is
 checked by the directory itself - the application does not store it.
+
+## Phone number
+
+With `ONCALL_LDAP_ATTRIBUTE_PHONE` the application reads the phone number
+from the directory at every sign-in and stores it on the account **only when
+the account has no number** - when the account is created, when a local
+account without a number is linked, and at the next sign-in of an account
+whose number was removed. A number typed on the Mine screen or by an
+administrator stays, even when the directory knows a different one; whoever
+wants the directory's number back types it. The number is stored like every
+other one in the application: `+48` and nine digits, bare digits get the
+prefix, spaces and dashes are dropped. A value that is not a Polish number
+(another country, a number with brackets) is skipped and noted in the log as
+`reason=phone_invalid` with the attribute's name; the sign-in proceeds as
+usual.
 
 ## User photo
 
@@ -138,7 +154,7 @@ A successful sign-in is one `INFO` line:
 | --- | --- |
 | `attempt` | the identifier of one sign-in attempt |
 | `login` | the username typed by the user |
-| `outcome` | `event=login`: `signed_in`, `rejected`, `throttled`, `directory_unavailable`, `identity_conflict`; `event=ldap_auth`: `rejected`, `unavailable`, `invalid_identity`; `event=ldap_photo`: `skipped`, `unavailable` |
+| `outcome` | `event=login`: `signed_in`, `rejected`, `throttled`, `directory_unavailable`, `identity_conflict`; `event=ldap_auth`: `rejected`, `unavailable`, `invalid_identity`, `skipped`; `event=ldap_photo`: `skipped`, `unavailable` |
 | `phase` | the step at which the attempt stopped |
 | `reason` | the reason - table below; an LDAP result code (e.g. `invalidCredentials`) or a name given by the application |
 | `detail` | a short supplement, e.g. the certificate verification message |
@@ -177,6 +193,7 @@ A successful sign-in is one `INFO` line:
 | `user_bind` | `invalidCredentials` | (`rejected`) `ad_reason`: `invalid_credentials` - wrong password; `account_locked`, `password_expired`, `password_must_change`, `account_disabled`, `account_expired` - the account's state in AD |
 | `attributes` | `personnel_number_missing`, `personnel_number_not_numeric` | the attribute from `attribute=` is empty or not digits only; in many domains the number is in `employeeID` - point at it in the [configuration](#configuration) |
 | `attributes` | `first_name_missing`, `email_invalid`, `attribute_too_long`, `attribute_not_text` | fix the attribute's value in AD or point at a different attribute |
+| `attributes` | `phone_invalid` | (`skipped`) the value of the attribute from `attribute=` is not a Polish number (`+48` and nine digits, also without the prefix); the sign-in succeeded and the number stayed empty - fix it in AD or type it on the Mine screen |
 | `attributes` | `photo_too_large`, `photo_format_unsupported` | (`ldap_photo`, `skipped`) the photo in the attribute from `attribute=` is larger than `limit=` bytes or is not a JPEG or PNG file; upload a smaller photo to the directory |
 | `search` | `user_not_found` | (`ldap_photo`, `skipped`) the signed-in account has disappeared from the directory since sign-in |
 | any | `unexpected_error` | an error in the application or the LDAP library: report it with the `error` and `at` fields |

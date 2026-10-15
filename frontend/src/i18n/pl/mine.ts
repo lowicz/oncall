@@ -117,6 +117,16 @@ export const mine = {
     inSchedule: 'wpisana do grafiku',
     settledWithNote: (status: string, note: string) => `${status} · „${note}”`,
   },
+  /** The person's own number (`PhoneSection`): what the "Now" strip shows and what the call forwarding dials. */
+  phone: {
+    heading: 'Mój telefon',
+    label: 'Numer telefonu',
+    hint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby na pasku „Teraz” i na karcie dyżurnego.',
+    fix: 'Popraw numer: +48 i dziewięć cyfr.',
+    required: 'Wymagany dla osób w rotacji.',
+    save: 'Zapisz numer',
+    saved: 'Zapisano numer telefonu',
+  },
   feeds: {
     title: 'Subskrypcja kalendarza (ICS)',
     onlyYourDuties: 'tylko Twoje dyżury',

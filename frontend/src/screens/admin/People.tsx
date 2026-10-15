@@ -9,6 +9,7 @@ import { roleLabels as dutyRoleLabels, shortRoleLabels } from '../../lib/labels'
 import { roleLabels as accountRoleLabels } from '../../lib/nav'
 import { addDays, formatDate, formatMoment, formatShortDate, warsawDate } from '../../lib/dates'
 import { csvCell, downloadBlob } from '../../lib/download'
+import { isPolishPhone } from '../../lib/phone'
 import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
 import {
@@ -319,13 +320,16 @@ export function PeoplePanel() {
     mutationFn: async () => {
       if (!selectedRow) throw new Error(t.errors.noAccountSelected)
       const tasks: Array<Promise<unknown>> = []
+      let updated: AdminUser | undefined
       if (accountChanges.length > 0) {
         // Phone travels even for an LDAP account: unlike name/email it is not
-        // an AD-managed identity field (decision D8).
-        const input: AdminUserUpdate = selectedRow.user.auth_source === 'ldap'
+        // an AD-managed identity field (decision D8). An untouched number stays
+        // home, so a legacy value the stricter rule refuses blocks no other edit.
+        const { phone, ...rest } = selectedRow.user.auth_source === 'ldap'
           ? { role: accountForm.role, is_active: accountForm.is_active, phone: accountForm.phone }
           : accountForm
-        tasks.push(api.updateAdminUser({ id: selectedRow.user.id, input }))
+        const input: AdminUserUpdate = phone === selectedRow.user.phone ? rest : { ...rest, phone }
+        tasks.push(api.updateAdminUser({ id: selectedRow.user.id, input }).then((user) => { updated = user }))
       }
       if (rotationChanges.length > 0 && selectedRow.member) {
         tasks.push(api.updateTeamMember({ id: selectedRow.member.id, input: { active_from: rotationFrom, active_until: rotationUntil || null } }))
@@ -338,8 +342,11 @@ export function PeoplePanel() {
         tasks.push(api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } }))
       }
       await Promise.all(tasks)
+      return updated
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // The API stores the number in its +48 form, so the form follows it.
+      if (updated) setAccountForm((form) => ({ ...form, phone: updated.phone }))
       setConfirmation(false)
       setEligibilityEdits({})
       setEditingPeriod(null)
@@ -480,6 +487,7 @@ export function PeoplePanel() {
               {rows.map((row) => {
                 const state = rotationState(row.member, today)
                 const needsPhone = !row.user.phone && (state === 'active' || state === 'entering')
+                const phoneToFix = row.user.phone !== null && !isPolishPhone(row.user.phone)
                 const activation = activationState(row.user, now)
                 return (
                   <tr key={row.user.id} className={cx(selectedId === row.user.id && 'on', !row.user.is_active && 'row-off')}>
@@ -495,8 +503,9 @@ export function PeoplePanel() {
                     </td>
                     <td><StatusBadge tone={roleTone[row.user.role]}>{accountRoleLabels()[row.user.role]}</StatusBadge></td>
                     <td>{row.user.role === 'viewer' && !row.member ? <span className="muted">{t.row.notApplicable}</span> : <RotationCell member={row.member} today={today} />}</td>
-                    <td className={cx('mono', needsPhone && 'who-bad')}>
+                    <td className={cx('mono', (needsPhone || phoneToFix) && 'who-bad')}>
                       {row.user.phone ?? (needsPhone ? t.row.missing : <span className="muted">–</span>)}
+                      {phoneToFix && <small>{t.row.fixPhone}</small>}
                     </td>
                     <td>
                       <Tag>{t.authSources[row.user.auth_source]}</Tag>
@@ -652,7 +661,9 @@ export function PeoplePanel() {
                     label={t.fields.phone}
                     id="acc-phone"
                     hint={t.fields.phoneHint}
-                    error={!accountForm.phone && (selectedState === 'active' || selectedState === 'entering') ? t.fields.phoneRequired : undefined}
+                    error={!accountForm.phone
+                      ? (selectedState === 'active' || selectedState === 'entering' ? t.fields.phoneRequired : undefined)
+                      : (isPolishPhone(accountForm.phone) ? undefined : t.fields.phoneFix)}
                   >
                     {({ id, describedBy, invalid }) => <Input id={id} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
                   </Field>

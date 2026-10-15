@@ -176,6 +176,7 @@ class SqlAlchemyAccessAccounts:
             first_name=identity.first_name,
             last_name=identity.last_name,
             email=identity.email,
+            phone=identity.phone,
             auth_source=AuthSource.ldap,
             password_hash=None,
             role=UserRole.viewer,
