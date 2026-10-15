@@ -9,7 +9,7 @@ export function renderScreen(ui: ReactNode, { route = '/' }: { route?: string } 
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ToastProvider>
@@ -18,4 +18,5 @@ export function renderScreen(ui: ReactNode, { route = '/' }: { route?: string } 
       </TooltipProvider>
     </QueryClientProvider>,
   )
+  return { ...view, queryClient }
 }

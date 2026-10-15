@@ -14,7 +14,7 @@ export const common: Messages['common'] = {
   saving: 'Saving…',
   copy: 'Copy',
   copied: 'Copied',
-  none: '—',
+  none: '-',
   reasonTooShort: (minLength: number) => `Enter at least ${minLength} characters`,
   httpError: (status: number) => `HTTP error ${status}`,
   imageReadFailed: 'Could not read the image',

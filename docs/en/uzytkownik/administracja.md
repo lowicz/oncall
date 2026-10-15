@@ -274,8 +274,8 @@ it expires.
 1. If a number set by hand is to stay, set the mode to **Off** and save: in
    **On** mode the next successful pass overwrites a number other than that
    of the person on PRIMARY. Switching to that person's own number is
-   harmless - the worker sees the number already set and records "switched"
-   without a change.
+   harmless - the worker sees the number already set and records
+   "unchanged".
 2. Click **Show password** and enter **your own application password** in
    the dialog (a directory account, LDAP / AD, confirms it in the directory).
    A wrong password counts as a failed sign-in and is subject to the same

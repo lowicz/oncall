@@ -257,7 +257,7 @@ bo w trybie **Włączone** proces zmienia je sam, gdy wygaśnie.
    zapisz: w trybie **Włączone** najbliższy udany przebieg nadpisze numer
    inny niż numer osoby na PRIMARY. Przełączenie na numer tej właśnie osoby
    jest nieszkodliwe - proces zobaczy, że numer już jest ustawiony, i
-   zapisze „przełączono” bez zmiany.
+   zapisze „bez zmian”.
 2. Kliknij **Pokaż hasło** i w oknie wpisz **swoje hasło do aplikacji**
    (konto z katalogu LDAP / AD potwierdza je w katalogu). Błędne hasło liczy
    się jak nieudane logowanie i podlega tej samej blokadzie co ekran

@@ -109,10 +109,10 @@ describe('ForwardingPanel', () => {
     expect(within(form).queryByRole('button', { name: 'Zostaw zapisane' })).not.toBeInTheDocument()
     expect(within(form).getByRole('button', { name: 'Sprawdź połączenie' })).toBeDisabled()
     expect(within(form).getByText('Najpierw zapisz numer centrali, login, identyfikator użytkownika i hasło.')).toBeInTheDocument()
-    expect(row('Cel')).toHaveTextContent('—')
-    expect(row('WCO przekierowuje na')).toHaveTextContent('—')
-    expect(row('Wynik')).toHaveTextContent('—')
-    expect(row('Hasło WCO zmieniono')).toHaveTextContent('—')
+    expect(row('Cel')).toHaveTextContent('-')
+    expect(row('WCO przekierowuje na')).toHaveTextContent('-')
+    expect(row('Wynik')).toHaveTextContent('-')
+    expect(row('Hasło WCO zmieniono')).toHaveTextContent('-')
     expect(screen.queryByText('Błąd')).not.toBeInTheDocument()
     expect(screen.queryByText('Niepowodzenia od')).not.toBeInTheDocument()
   })
@@ -225,6 +225,19 @@ describe('ForwardingPanel', () => {
     expect(test).toHaveBeenCalledTimes(1)
   })
 
+  it('drops a connection check result once the settings are saved', async () => {
+    stub()
+    vi.spyOn(api, 'testForwardingConnection').mockResolvedValue({ outcome: 'login_refused', number: null, detail: null })
+    vi.spyOn(api, 'updateForwardingSettings').mockResolvedValue(SETTINGS)
+    renderScreen(<ForwardingPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sprawdź połączenie' }))
+    expect(await screen.findByText(/WCO odrzuciło zapisane dane logowania/)).toBeInTheDocument()
+    fireEvent.submit(await settingsForm())
+
+    await waitFor(() => expect(screen.queryByText(/WCO odrzuciło zapisane dane logowania/)).not.toBeInTheDocument())
+  })
+
   it('shows why a connection check could not run', async () => {
     stub()
     vi.spyOn(api, 'testForwardingConnection').mockRejectedValue(new Error('Żaden klucz z ONCALL_SECRETS_KEY nie odszyfrowuje zapisanego hasła WCO'))
@@ -274,7 +287,7 @@ describe('ForwardingPanel reveal dialog', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     const reveal = vi.spyOn(api, 'revealForwardingPassword').mockResolvedValue(REVEALED)
     const update = vi.spyOn(api, 'updateForwardingSettings')
-    renderScreen(<ForwardingPanel />)
+    const { queryClient } = renderScreen(<ForwardingPanel />)
 
     const dialog = await openReveal()
     expect(within(dialog).getByText('Odsłonięcie zostanie zapisane w dzienniku zdarzeń.')).toBeInTheDocument()
@@ -299,6 +312,7 @@ describe('ForwardingPanel reveal dialog', () => {
     expect(within(dialog).getByRole('status')).toHaveTextContent('Hasło zniknie z ekranu za 59 s.')
     act(() => { vi.advanceTimersByTime(59_000) })
     expect(within(dialog).queryByText('••••••••••••')).not.toBeInTheDocument()
+    await waitFor(() => expect(queryClient.getMutationCache().getAll()).toEqual([]))
     expect(within(dialog).getByLabelText('Twoje hasło do aplikacji')).toHaveValue('')
   })
 
@@ -307,7 +321,7 @@ describe('ForwardingPanel reveal dialog', () => {
     vi.spyOn(api, 'revealForwardingPassword').mockResolvedValue({
       ...REVEALED, pending: 'Dummy-Pending-WCO!2', pending_since: '2026-09-10T06:00:00Z', credentials_invalid_since: '2026-09-10T06:30:00Z',
     })
-    renderScreen(<ForwardingPanel />)
+    const { queryClient } = renderScreen(<ForwardingPanel />)
 
     const dialog = await openReveal()
     fireEvent.change(within(dialog).getByLabelText('Twoje hasło do aplikacji'), { target: { value: 'moje-haslo' } })
@@ -324,6 +338,7 @@ describe('ForwardingPanel reveal dialog', () => {
 
     fireEvent.click(within(dialog).getAllByRole('button', { name: 'Zamknij' }).at(-1)!)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(queryClient.getMutationCache().getAll()).toEqual([]))
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż hasło' }))
     const reopened = await screen.findByRole('dialog', { name: 'Pokaż hasło WCO' })
     expect(within(reopened).queryByText('••••••••••••')).not.toBeInTheDocument()

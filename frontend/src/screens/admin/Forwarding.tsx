@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, RevealedPasswords, api } from '../../api'
+import { ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
 import { messages, useMessages } from '../../i18n'
 import { formatDate, formatMoment, warsawDate } from '../../lib/dates'
@@ -76,6 +76,7 @@ function SettingsForm({ saved }: { saved: ForwardingSettings }) {
   // Null keeps the stored password; a string is a new one being typed.
   const [password, setPassword] = useState<string | null>(saved.password_set ? null : '')
   const [revealOpen, setRevealOpen] = useState(false)
+  const test = useMutation({ mutationFn: api.testForwardingConnection })
   const save = useMutation({
     mutationFn: () => api.updateForwardingSettings({
       mode: form.mode,
@@ -89,10 +90,10 @@ function SettingsForm({ saved }: { saved: ForwardingSettings }) {
       queryClient.setQueryData(SETTINGS_KEY, updated)
       queryClient.invalidateQueries({ queryKey: STATE_KEY })
       setPassword(updated.password_set ? null : '')
+      test.reset()
       toast.success(t.settings.saved)
     },
   })
-  const test = useMutation({ mutationFn: api.testForwardingConnection })
   const complete = Boolean(saved.vpbx_number && saved.username && saved.wco_user_id && saved.password_set)
   const result = test.data
 
@@ -283,27 +284,28 @@ function Secret({ value }: { value: string }) {
 
 /**
  * The stored WCO password for switching the number by hand. The value lives
- * only in this dialog's state: a mutation answers it, never a query, so it is
- * in no cache, and it is dropped after `REVEAL_SECONDS` or when the dialog
- * closes.
+ * only in this dialog's mutation: never a query, and with no `gcTime` the
+ * mutation cache drops it once `REVEAL_SECONDS` pass or the dialog closes.
  */
 function RevealDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useMessages().forwarding.reveal
   const common = useMessages().common
   const [confirmation, setConfirmation] = useState('')
-  const [revealed, setRevealed] = useState<RevealedPasswords | null>(null)
   const [left, setLeft] = useState(REVEAL_SECONDS)
   const reveal = useMutation({
     mutationFn: api.revealForwardingPassword,
-    onSuccess: (value) => { setRevealed(value); setConfirmation(''); setLeft(REVEAL_SECONDS) },
+    gcTime: 0,
+    onSuccess: () => { setConfirmation(''); setLeft(REVEAL_SECONDS) },
   })
+  const revealed = reveal.data
+  const { reset } = reveal
   useEffect(() => {
     if (!revealed) return
-    const hide = window.setTimeout(() => setRevealed(null), REVEAL_SECONDS * 1000)
+    const hide = window.setTimeout(reset, REVEAL_SECONDS * 1000)
     const tick = window.setInterval(() => setLeft((seconds) => Math.max(0, seconds - 1)), 1000)
     return () => { window.clearTimeout(hide); window.clearInterval(tick) }
-  }, [revealed])
-  const close = () => { setRevealed(null); setConfirmation(''); reveal.reset(); onClose() }
+  }, [revealed, reset])
+  const close = () => { setConfirmation(''); reset(); onClose() }
 
   return (
     <Dialog
