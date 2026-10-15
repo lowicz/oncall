@@ -110,6 +110,11 @@ MESSAGES: dict[str, str] = {
         "Hasło WCO jest przechowywane zaszyfrowane, a serwer nie ma klucza: "
         "ustaw ONCALL_SECRETS_KEY i uruchom aplikację ponownie."
     ),
+    "forwarding.stored_password_unreadable": (
+        "Żaden klucz z ONCALL_SECRETS_KEY nie odszyfrowuje zapisanego hasła WCO: "
+        "przywróć klucz, którym je zaszyfrowano, albo wpisz hasło ponownie."
+    ),
+    "forwarding.password_not_set": "Nie zapisano hasła WCO",
     "forwarding.settings_incomplete": (
         "Aby włączyć przełączanie, podaj numer centrali, login, identyfikator "
         "użytkownika WCO i hasło."

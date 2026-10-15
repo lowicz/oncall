@@ -85,6 +85,12 @@ class SqlAlchemyForwardingSettings:
     async def current(self) -> ForwardingSettings:
         return _to_settings(await load_singleton(self._session, CallForwardingSettings))
 
+    async def tokens(self) -> Passwords | None:
+        row = await load_singleton(self._session, CallForwardingSettings)
+        if row.password_ciphertext is None:
+            return None
+        return Passwords(row.password_ciphertext, row.pending_password_ciphertext)
+
     async def change(
         self, change: SettingsChange, password_token: str | None
     ) -> ForwardingSettings:
@@ -174,6 +180,17 @@ class SqlAlchemyForwardingJournal:
                 "wco_user_id": settings.wco_user_id,
                 "password_changed": password_changed,
             },
+        )
+
+    def password_revealed(self, settings: ForwardingSettings, *, pending_included: bool) -> None:
+        record_audit(
+            self._session,
+            actor=self._actor,
+            action="forwarding.password_revealed",
+            entity_type="call_forwarding_settings",
+            entity_id=settings.id,
+            summary="Odsłonięto hasło WCO",
+            details={"pending_included": pending_included},
         )
 
 

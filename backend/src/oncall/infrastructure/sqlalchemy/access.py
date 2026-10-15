@@ -151,6 +151,9 @@ class SqlAlchemyAccessAccounts:
         row = await self._session.scalar(select(User).where(User.username == login))
         return _credentials(row) if row is not None else None
 
+    async def password_hash(self, account_id: uuid.UUID) -> str | None:
+        return await self._session.scalar(select(User.password_hash).where(User.id == account_id))
+
     async def account_with_personnel_number(self, personnel_number: str) -> Account | None:
         row = await self._session.scalar(
             select(User)

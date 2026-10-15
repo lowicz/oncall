@@ -2,7 +2,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Protocol
 
+from oncall.domain.access.ports import ConfirmationPorts
 from oncall.domain.forwarding.models import ForwardingSettings, ForwardingState, SettingsChange
+from oncall.domain.forwarding.passwords import Passwords
 
 
 class CurrentSettings(Protocol):
@@ -57,6 +59,46 @@ class SettingsPorts:
     settings: SettingsStore
     cipher: PasswordCipher
     journal: SettingsJournal
+
+
+class StoredPasswords(Protocol):
+    async def current(self) -> ForwardingSettings:
+        """The one settings row, created with defaults on first use."""
+        ...
+
+    async def tokens(self) -> Passwords | None:
+        """The stored passwords as their encrypted tokens, None when no
+        password is stored."""
+        ...
+
+
+class PasswordReader(Protocol):
+    """Decryption of the stored WCO passwords for a reveal."""
+
+    def available(self) -> bool:
+        """Whether the process holds a key."""
+        ...
+
+    def read(self, token: str) -> str | None:
+        """The plaintext, or None when no key the process holds opens it."""
+        ...
+
+
+class RevealJournal(Protocol):
+    """The audit entry of a reveal, in the name of the administrator: who
+    and when, never the value."""
+
+    def password_revealed(
+        self, settings: ForwardingSettings, *, pending_included: bool
+    ) -> None: ...
+
+
+@dataclass(frozen=True)
+class RevealPorts:
+    settings: StoredPasswords
+    cipher: PasswordReader
+    confirm: ConfirmationPorts
+    journal: RevealJournal
 
 
 class CurrentState(Protocol):

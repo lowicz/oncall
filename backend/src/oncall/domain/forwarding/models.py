@@ -33,8 +33,9 @@ class ForwardingOutcome(StrEnum):
 
 @dataclass(frozen=True)
 class ForwardingSettings:
-    """The WCO account the forwarding pass uses. The password itself never
-    leaves the store: readers learn only whether one is set."""
+    """The WCO account the forwarding pass uses. The password itself is never
+    part of the settings, readers learn only whether one is set: only the
+    audited reveal decrypts it, for an administrator."""
 
     id: uuid.UUID
     mode: ForwardingMode
@@ -52,6 +53,20 @@ class ForwardingSettings:
     #: until an administrator enters a new one.
     credentials_invalid_since: datetime | None
     updated_at: datetime
+
+
+@dataclass(frozen=True)
+class RevealedPasswords:
+    """The stored WCO passwords in the clear, for an administrator who
+    confirmed it is them, to switch the number by hand in WCO's own panel."""
+
+    current: str
+    #: Set while a rotation is half done: WCO holds either this one or
+    #: `current`, so try it first, as the forwarding pass does.
+    pending: str | None
+    pending_since: datetime | None
+    credentials_invalid_since: datetime | None
+    password_changed_at: datetime | None
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,9 @@
 """The administrator's settings of forwarding the on-call number through WCO,
 and the state the forwarding pass leaves for them to read.
 
-The WCO password is write-only: it goes in encrypted and never comes back
-out, not in a response and not in the audit trail. Forwarding starts off and
+The WCO password goes in encrypted and is never part of the settings: no
+settings response and no audit entry carries it. Only the audited reveal
+decrypts it for an administrator (`tests/test_forwarding_reveal.py`). Forwarding starts off and
 is turned on only with a key to encrypt the password and everything a login
 to WCO needs.
 """

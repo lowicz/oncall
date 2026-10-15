@@ -9,6 +9,21 @@ class SecretsKeyMissing(DomainError):
         super().__init__("forwarding.secrets_key_missing")
 
 
+class StoredPasswordUnreadable(DomainError):
+    """No key the process holds opens the stored WCO password: the key it was
+    encrypted under was removed from the environment."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.stored_password_unreadable")
+
+
+class PasswordNotSet(DomainError):
+    """A reveal is asked for while no WCO password is stored."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.password_not_set")
+
+
 class SettingsIncomplete(DomainError):
     """Forwarding is turned on without everything a login to WCO needs."""
 

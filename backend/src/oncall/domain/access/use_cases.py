@@ -1,5 +1,6 @@
-"""Signing in, the directory link, one-time account links, the account
-owner's own details and their photo from the directory.
+"""Signing in, confirming it is still the signed-in person, the directory
+link, one-time account links, the account owner's own details and their
+photo from the directory.
 
 Signing in is guarded twice: a throttle keyed by login and by address, and a
 constant cost per refusal (one password verification, real or decoy), so a
@@ -28,7 +29,10 @@ from oncall.domain.access.models import (
 )
 from oncall.domain.access.ports import (
     AccountLinks,
+    ConfirmationPorts,
+    Directory,
     DirectoryPhotos,
+    LoginAttempts,
     OwnProfiles,
     PasswordPorts,
     SignInPorts,
@@ -46,7 +50,7 @@ async def sign_in(
     now: datetime,
     session_lifetime: timedelta,
 ) -> SignedIn:
-    await _enforce_throttle(request, ports, now)
+    await _enforce_throttle(request, ports.attempts, now)
     login = request.login
     found = await ports.accounts.credentials_for_login(login)
     # Whether a real verification against this account's own hash already ran
@@ -72,24 +76,41 @@ async def sign_in(
     # is refused before the directory is asked, so a disabled person cannot be
     # told apart from an unknown one by how long the answer takes.
     if found is not None and not found.account.is_active:
-        await _reject(request, ports, now, "account_inactive")
-    try:
-        identity = await ports.directory.authenticate(login, request.password)
-    except errors.DirectoryFailure as failure:
-        await ports.attempts.directory_unavailable(login, failure.reason)
-        raise errors.DirectoryLoginUnavailable() from failure
+        await _reject(request, ports.attempts, now, "account_inactive")
+    identity = await _directory_identity(request, ports.directory, ports.attempts)
     if identity is None:
         if not local_password_checked:
             await ports.passwords.verify_decoy(request.password)
-        await _reject(request, ports, now, "credentials_rejected")
+        await _reject(request, ports.attempts, now, "credentials_rejected")
     try:
         account = await synchronize_directory_account(identity, ports)
     except errors.DirectoryIdentityTaken as taken:
         await ports.attempts.identity_conflict(login)
         raise errors.DirectoryIdentityConflict(taken.cause) from taken
     if not account.is_active:
-        await _reject(request, ports, now, "account_inactive")
+        await _reject(request, ports.attempts, now, "account_inactive")
     return await _sign_in_as(account, ports, now=now, session_lifetime=session_lifetime)
+
+
+async def verify_own_password(
+    account: Account, request: SignInRequest, ports: ConfirmationPorts, *, now: datetime
+) -> None:
+    """Confirm that the signed-in person is still the one at the keyboard
+    before something sensitive: the password is checked the way signing in
+    checks it, the local hash or a bind to the directory that maps back to
+    this account, behind the same throttle, and a wrong one counts as a
+    failed sign-in. So a stolen session guesses no faster than the sign-in
+    form allows. `request` names the account's own login."""
+    await _enforce_throttle(request, ports.attempts, now)
+    if account.auth_source == AuthSource.local:
+        confirmed = await ports.passwords.verify(
+            await ports.accounts.password_hash(account.id), request.password
+        )
+    else:
+        identity = await _directory_identity(request, ports.directory, ports.attempts)
+        confirmed = identity is not None and identity.personnel_number == account.personnel_number
+    if not confirmed:
+        await _reject(request, ports.attempts, now, "credentials_rejected")
 
 
 async def _sign_in_as(
@@ -105,23 +126,33 @@ async def _sign_in_as(
     )
 
 
-async def _enforce_throttle(request: SignInRequest, ports: SignInPorts, now: datetime) -> None:
+async def _enforce_throttle(request: SignInRequest, attempts: LoginAttempts, now: datetime) -> None:
     since = now - LOGIN_THROTTLE_WINDOW
-    login_failures = await ports.attempts.failures_since(request.login_label, since)
-    ip_failures = await ports.attempts.failures_since(request.ip_label, since)
+    login_failures = await attempts.failures_since(request.login_label, since)
+    ip_failures = await attempts.failures_since(request.ip_label, since)
     if login_failures < LOGIN_ATTEMPTS_PER_USERNAME and ip_failures < LOGIN_ATTEMPTS_PER_IP:
         return
     label = (
         request.login_label if login_failures >= LOGIN_ATTEMPTS_PER_USERNAME else request.ip_label
     )
-    times = await ports.attempts.throttled(label, since)
+    times = await attempts.throttled(label, since)
     raise errors.LoginThrottled(retry_after_seconds(times))
 
 
+async def _directory_identity(
+    request: SignInRequest, directory: Directory, attempts: LoginAttempts
+) -> DirectoryIdentity | None:
+    try:
+        return await directory.authenticate(request.login, request.password)
+    except errors.DirectoryFailure as failure:
+        await attempts.directory_unavailable(request.login, failure.reason)
+        raise errors.DirectoryLoginUnavailable() from failure
+
+
 async def _reject(
-    request: SignInRequest, ports: SignInPorts, now: datetime, cause: errors.RejectionCause
+    request: SignInRequest, attempts: LoginAttempts, now: datetime, cause: errors.RejectionCause
 ) -> NoReturn:
-    await ports.attempts.failed(request, now - FAILED_LOGIN_SERIES_WINDOW)
+    await attempts.failed(request, now - FAILED_LOGIN_SERIES_WINDOW)
     raise errors.LoginRejected(cause)
 
 

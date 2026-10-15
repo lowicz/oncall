@@ -108,6 +108,11 @@ MESSAGES: dict[str, str] = {
         "The WCO password is stored encrypted and the server has no key: "
         "set ONCALL_SECRETS_KEY and restart the application."
     ),
+    "forwarding.stored_password_unreadable": (
+        "No key in ONCALL_SECRETS_KEY decrypts the stored WCO password: restore "
+        "the key it was encrypted under, or enter the password again."
+    ),
+    "forwarding.password_not_set": "No WCO password is stored",
     "forwarding.settings_incomplete": (
         "To turn forwarding on, enter the switchboard number, the login, the WCO "
         "user id and the password."

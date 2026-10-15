@@ -126,7 +126,7 @@ def _peer_is_trusted(peer: str | None) -> bool:
     return any(address in network for network in networks)
 
 
-def _client_ip(request: Request) -> str:
+def client_ip(request: Request) -> str:
     """The caller's address for the per-IP throttle and the security log.
 
     `X-Real-IP` is honoured only when the immediate TCP peer is a trusted
@@ -178,7 +178,7 @@ async def login(
     with domain_errors_as_http(ACCESS_ERROR_STATUSES, headers=ACCESS_ERROR_HEADERS):
         try:
             signed_in = await use_cases.sign_in(
-                SignInRequest(payload.username, payload.password, _client_ip(request)),
+                SignInRequest(payload.username, payload.password, client_ip(request)),
                 ports,
                 now=utc_now(),
                 session_lifetime=timedelta(hours=get_settings().session_ttl_hours),
