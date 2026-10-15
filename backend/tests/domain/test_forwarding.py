@@ -5,7 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from oncall.domain.forwarding import (
+from oncall.domain.forwarding.passwords import (
     PASSWORD_CLASS_MINIMUM,
     PASSWORD_CLASSES,
     PASSWORD_LENGTH,

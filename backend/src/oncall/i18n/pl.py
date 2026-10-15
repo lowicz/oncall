@@ -105,6 +105,15 @@ MESSAGES: dict[str, str] = {
     "calendar.outside_share_range": "Żądany zakres jest poza zakresem dat linku",
     "calendar.dashboard_range_reversed": ("Data ends_on nie może być wcześniejsza niż starts_on"),
     "calendar.event_not_found": "Nie znaleziono wydarzenia",
+    # --- forwarding the on-call number (oncall.domain.forwarding) ------------
+    "forwarding.secrets_key_missing": (
+        "Hasło WCO jest przechowywane zaszyfrowane, a serwer nie ma klucza: "
+        "ustaw ONCALL_SECRETS_KEY i uruchom aplikację ponownie."
+    ),
+    "forwarding.settings_incomplete": (
+        "Aby włączyć przełączanie, podaj numer centrali, login, identyfikator "
+        "użytkownika WCO i hasło."
+    ),
     # --- history import (oncall.domain.history, oncall.history_import) -------
     "history.rejected": "Import historii zawiera błędy",
     "history.file_not_utf8": "Plik musi być zapisany jako UTF-8",

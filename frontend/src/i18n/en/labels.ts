@@ -101,5 +101,6 @@ export const labels: Messages['labels'] = {
     'schedule.override_batch': 'Batch schedule correction',
     'schedule.override_carried': 'Correction carried over',
     'schedule.withdrawn': 'Returned to draft',
+    'forwarding.settings_updated': 'Number forwarding changed',
   },
 }

@@ -39,3 +39,16 @@ def decrypt(settings: Settings, token: str) -> str:
             "No key in ONCALL_SECRETS_KEY decrypts the stored secret; "
             "was the key it was encrypted under removed?"
         ) from None
+
+
+class SettingsCipher:
+    """`encrypt` under the process's settings, as a port takes it."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+
+    def available(self) -> bool:
+        return self._settings.secrets_key is not None
+
+    def encrypt(self, plaintext: str) -> str:
+        return encrypt(self._settings, plaintext)
