@@ -373,6 +373,22 @@ def test_the_forwarding_alert_always_links_the_forwarding_screen(switch_url: str
     if switch_url:
         assert f"Przełącz numer ręcznie: {switch_url}" in failed.text
         assert f'href="{escape(switch_url)}"' in failed.html
+    # The instruction comes before the link to the screen it names.
+    instruction = "Przełącz numer ręcznie i sprawdź ustawienia przełączania."
+    assert failed.html.index(instruction) < failed.html.index(f'href="{status}"')
+
+
+def test_the_forwarding_alert_without_a_primary_says_brak_once() -> None:
+    failed = templates.forwarding_failed(
+        target=ForwardingTarget(DAY, None, None, None),
+        cause=ForwardingFailure.no_primary,
+        applied_number=None,
+        applied_at=None,
+        switch_url=None,
+        app=APP,
+    )
+
+    assert "Dyżur PRIMARY: brak.\n" in failed.text
 
 
 def test_dates_read_as_the_screens_print_them() -> None:

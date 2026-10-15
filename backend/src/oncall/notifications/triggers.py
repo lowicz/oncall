@@ -586,6 +586,7 @@ async def notify_assignment_overridden(
 ) -> None:
     settings = get_settings()
     emails = await _emails_for_names(db, [previous_name, new_name])
+    mode = await db.scalar(select(CallForwardingSettings.mode).limit(1))
     await _enqueue_for(
         db,
         emails,
@@ -596,6 +597,8 @@ async def notify_assignment_overridden(
             previous_name=previous_name,
             new_name=new_name,
             app=Brand.from_settings(settings),
+            automatic=mode is ForwardingMode.live,
+            reminder_hour=settings.handover_reminder_hour,
         ),
         context={"event": "assignment_overridden", "service_date": service_date.isoformat()},
     )

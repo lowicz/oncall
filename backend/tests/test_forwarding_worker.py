@@ -30,7 +30,7 @@ from oncall.infrastructure.sqlalchemy.forwarding_models import (
 )
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment
-from oncall.notifications.triggers import enqueue_rotation_notice
+from oncall.notifications.triggers import enqueue_rotation_notice, notify_assignment_overridden
 from oncall.secrets import SettingsCipher, decrypt, encrypt
 from oncall.wco import WcoClient
 from tests.conftest import create_member, create_published_schedule, create_user
@@ -431,6 +431,35 @@ async def test_live_rotation_notice_says_the_number_is_automatic(
     (row,) = (await db.scalars(select(NotificationOutbox))).all()
     assert "przełączany automatycznie o 09:00" in row.body
     assert "Pamiętaj o przełączeniu" not in row.body
+
+
+@pytest.mark.parametrize(
+    ("mode", "role", "automatic"),
+    [
+        (ForwardingMode.live, AssignmentRole.primary, True),
+        (ForwardingMode.live, AssignmentRole.secondary, False),
+        (ForwardingMode.dry_run, AssignmentRole.primary, False),
+    ],
+)
+async def test_a_correction_mail_says_the_number_is_automatic_only_when_live(
+    db, frozen_clock, forwarding_key, mode, role, automatic
+) -> None:
+    fake = FakeWco()
+    _user, member = await _primary(db, frozen_clock)
+    await _settings(db, fake, mode)
+
+    await notify_assignment_overridden(
+        db,
+        service_date=_now(frozen_clock).date(),
+        role=role,
+        previous_name="Marek Nowak",
+        new_name=member.display_name,
+    )
+    await db.commit()
+
+    (row,) = (await db.scalars(select(NotificationOutbox))).all()
+    assert ("przełączany automatycznie o 09:00" in row.body) is automatic
+    assert ("Pamiętaj o przełączeniu" in row.body) is not automatic
 
 
 async def test_unchanged_wco_number_is_confirmed_without_a_put_or_audit(

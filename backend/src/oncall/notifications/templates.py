@@ -44,6 +44,15 @@ from oncall.rules import RuleViolation, summarise
 _SWITCH_NUMBER = "Pamiętaj o przełączeniu numeru on-call."
 
 
+def _automatic_switch(reminder_hour: int) -> str:
+    """What a PRIMARY reads instead of `_SWITCH_NUMBER` while the worker
+    switches the number."""
+    return (
+        f"Numer on-call jest przełączany automatycznie o {reminder_hour:02d}:00. "
+        "Jeśli połączenia nie docierają, skontaktuj się z koordynatorem."
+    )
+
+
 @dataclass(frozen=True)
 class RenderedEmail:
     subject: str
@@ -108,7 +117,7 @@ def _render(
     facts: list[Fact] | None = None,
     slots: list[Slot] | None = None,
     slots_heading: str | None = None,
-    paragraphs: list[Html] | None = None,
+    paragraphs: list[Html | Note] | None = None,
     note: Note | None = None,
     action: Action,
 ) -> RenderedEmail:
@@ -771,13 +780,22 @@ def assignment_overridden(
     previous_name: str,
     new_name: str,
     app: Brand,
+    automatic: bool = False,
+    reminder_hour: int = 9,
 ) -> RenderedEmail:
+    """`automatic` while the worker switches the number: a changed PRIMARY is
+    then told so rather than asked to switch it."""
     day = format_day(service_date)
     subject = f"Zmiana przydziału: {day} · {ROLE_LABELS[role]}"
+    advice = (
+        _automatic_switch(reminder_hour)
+        if automatic and role is AssignmentRole.primary
+        else _SWITCH_NUMBER
+    )
     body = (
         f"Koordynator zmienił przydział {ROLE_LABELS[role]} w dniu {day}.\n"
         f"Dyżur: {new_name} (poprzednio: {previous_name}).\n\n"
-        f"{_SWITCH_NUMBER}\n"
+        f"{advice}\n"
         f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
@@ -799,7 +817,7 @@ def assignment_overridden(
             Fact("Dyżur", strong(new_name)),
             Fact("Poprzednio", text(previous_name)),
         ],
-        note=Note(_SWITCH_NUMBER),
+        note=Note(advice),
         action=_schedule_action(app),
     )
 
@@ -941,10 +959,7 @@ def rotation_same_day(
         else _my_duties(app)
     )
     if primary and automatic:
-        note = Note(
-            f"Numer on-call jest przełączany automatycznie o {reminder_hour:02d}:00. "
-            "Jeśli połączenia nie docierają, skontaktuj się z koordynatorem."
-        )
+        note = Note(_automatic_switch(reminder_hour))
     else:
         note = Note(_SWITCH_NUMBER) if primary else None
     return _rotation(
@@ -1092,16 +1107,19 @@ def forwarding_failed(
     )
     status = Action("Sprawdź przełączanie", f"{app.url}/przelaczanie")
     action = Action("Przełącz numer ręcznie", switch_url) if switch_url else status
-    paragraphs = [text(fill_phone.strip())] if fill_phone else []
+    instruction = "Przełącz numer ręcznie i sprawdź ustawienia przełączania."
+    paragraphs: list[Html | Note] = [text(fill_phone.strip())] if fill_phone else []
+    paragraphs.append(Note(instruction, Tone.bad))
     if action is not status:
         paragraphs.append(join(text(f"{status.label}: "), link(status.url)))
     links = "".join(f"{each.label}: {each.url}\n" for each in dict.fromkeys((action, status)))
+    primary = f"{target.member_name} ({desired})" if target.member_name else "brak"
     body = (
         f"{lead_text}\n"
-        f"Dyżur PRIMARY: {target.member_name or 'brak'} ({desired}).\n"
+        f"Dyżur PRIMARY: {primary}.\n"
         f"Ostatni potwierdzony numer WCO: {current}; {when}.\n"
         f"Przyczyna: {reason}.{fill_phone}\n\n"
-        "Przełącz numer ręcznie i sprawdź ustawienia przełączania.\n"
+        f"{instruction}\n"
         f"{links}"
     )
     return _render(
@@ -1120,7 +1138,6 @@ def forwarding_failed(
             Fact("Przyczyna", text(reason)),
         ],
         paragraphs=paragraphs,
-        note=Note("Przełącz numer ręcznie i sprawdź ustawienia przełączania.", Tone.bad),
         action=action,
     )
 
