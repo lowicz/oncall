@@ -270,8 +270,8 @@ class Settings(BaseSettings):
         """Blank is unset. Otherwise every comma-separated entry must be a
         Fernet key, checked at startup rather than on the first save, and
         named by its position only: the message lands in the container log."""
-        keys = [key.strip() for key in (value.get_secret_value() if value else "").split(",")]
-        keys = [key for key in keys if key]
+        raw = value.get_secret_value() if value else ""
+        keys = [key.strip() for key in raw.split(",") if key.strip()]
         if not keys:
             return None
         for position, key in enumerate(keys, start=1):
