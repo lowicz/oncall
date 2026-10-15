@@ -1,23 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { ConnectionTest, ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
 import { messages, useMessages } from '../../i18n'
-import { formatDate, formatMoment, warsawDate } from '../../lib/dates'
-import { isPolishPhone } from '../../lib/phone'
+import { formatDate, formatMoment } from '../../lib/dates'
 import {
   Box,
   Button,
   Dialog,
-  EmptyState,
   ErrorState,
   Field,
   IconButton,
   Input,
   KeyValue,
-  List,
-  ListRow,
   LoadingBlock,
   PageHeader,
   SectionHeading,
@@ -55,7 +50,6 @@ export function ForwardingPanel() {
       {state.isLoading && <LoadingBlock label={t.state.loading} rows={3} />}
       {state.error && <ErrorState error={state.error} onRetry={() => state.refetch()} />}
       {state.data && settings.data && <StateCard settings={settings.data} state={state.data} />}
-      <NumbersOverview />
     </div>
   )
 }
@@ -95,6 +89,10 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
     },
   })
   const complete = Boolean(saved.vpbx_number && saved.username && saved.wco_user_id && saved.password_set)
+  const refused = saved.credentials_invalid_since !== null
+  let testHint = t.test.hint
+  if (!complete) testHint = t.test.incomplete
+  else if (refused) testHint = t.test.refused
   const result = test.data
   const resultTitle = ({ outcome, number }: ConnectionTest) => {
     if (outcome !== 'ok') return t.test.outcomes[outcome]
@@ -112,12 +110,6 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
         onSubmit={(event) => { event.preventDefault(); save.mutate() }}
       >
         <SectionHeading as="h3" title={t.settings.title} meta={t.settings.savedAt(formatMoment(saved.updated_at))} />
-        {saved.credentials_invalid_since && (
-          <Box tone="bad" role="alert" title={t.settings.credentialsInvalid(formatMoment(saved.credentials_invalid_since))} />
-        )}
-        {saved.rotation_pending_since && (
-          <Box tone="warn" title={t.settings.rotationPending(formatMoment(saved.rotation_pending_since))} />
-        )}
         <div className="frow">
           <Field label={t.settings.mode} id="forwarding-mode" hint={t.settings.modeHints[form.mode]}>
             {({ id, describedBy }) => (
@@ -163,8 +155,8 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
         )}
         <div className="row">
           <Button type="submit" variant="primary" loading={save.isPending}>{t.settings.save}</Button>
-          <Button icon="refresh" disabled={!complete} loading={test.isPending} onClick={() => test.mutate()}>{t.test.action}</Button>
-          <span className="muted small">{complete ? t.test.hint : t.test.incomplete}</span>
+          <Button icon="refresh" disabled={!complete || refused} loading={test.isPending} onClick={() => test.mutate()}>{t.test.action}</Button>
+          <span className="muted small">{testHint}</span>
         </div>
         {save.error && <Box tone="bad" role="alert" title={save.error.message} />}
         {test.error && <Box tone="bad" role="alert" title={test.error.message} />}
@@ -220,55 +212,6 @@ function StateCard({ settings, state }: Readonly<{ settings: ForwardingSettings;
       : []),
   ]
   return <div className="panel panel-padded"><KeyValue items={items} /></div>
-}
-
-function NumbersOverview() {
-  const t = useMessages().forwarding.numbers
-  const today = warsawDate()
-  const team = useQuery({ queryKey: ['team'], queryFn: api.team })
-  const users = useQuery({ queryKey: ['admin-users'], queryFn: api.adminUsers })
-  const error = team.error ?? users.error
-  const phones = new Map((users.data ?? []).map((user) => [user.id, user.phone]))
-  const problemOf = (phone: string | null) => {
-    if (phone === null) return t.missing
-    return isPolishPhone(phone) ? null : t.fix
-  }
-  const rows = (team.data ?? [])
-    .filter((member) => member.active_from <= today && (!member.active_until || member.active_until >= today))
-    .map((member) => {
-      const phone = member.user_id === null ? null : phones.get(member.user_id) ?? null
-      return { member, phone, problem: problemOf(phone) }
-    })
-    .sort((a, b) => Number(b.problem !== null) - Number(a.problem !== null) || a.member.display_name.localeCompare(b.member.display_name))
-  const problems = rows.filter((row) => row.problem !== null).length
-  const loaded = Boolean(team.data && users.data)
-  return (
-    <>
-      <SectionHeading
-        title={t.title}
-        meta={loaded ? t.count(rows.length, problems) : undefined}
-        controls={<Link to="/osoby" className="sech-link">{t.people}</Link>}
-      />
-      <p className="muted small">{t.hint}</p>
-      {!loaded && !error && <LoadingBlock label={t.loading} rows={2} />}
-      {error && <ErrorState error={error} onRetry={() => { team.refetch(); users.refetch() }} />}
-      {loaded && rows.length === 0 && <EmptyState compact icon="people" title={t.empty} />}
-      {rows.length > 0 && (
-        <List className="panel">
-          {rows.map(({ member, phone, problem }) => (
-            <ListRow
-              key={member.id}
-              tone={problem === null ? undefined : 'warn'}
-              aside={problem && <StatusBadge tone="warn">{problem}</StatusBadge>}
-            >
-              <b>{member.display_name}</b>
-              <small className="mono">{phone ?? t.missing}</small>
-            </ListRow>
-          ))}
-        </List>
-      )}
-    </>
-  )
 }
 
 /** One revealed value: masked until the eye opens it, copied as it is. */

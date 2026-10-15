@@ -32,13 +32,12 @@ export const forwarding: Messages['forwarding'] = {
     keepPassword: 'Keep the stored one',
     save: 'Save',
     saved: 'Forwarding settings saved',
-    rotationPending: (since: string) => `An automatic WCO password change is under way (since ${since}): two passwords are stored, and the worker tries the new one first.`,
-    credentialsInvalid: (since: string) => `WCO refused the stored passwords ${since}. The worker does not log in until you enter a new password.`,
   },
   test: {
     action: 'Check connection',
     hint: 'Logs in to WCO with the stored details and reads the number, changing nothing. The result goes to the audit trail.',
     incomplete: 'First save the switchboard number, the login, the user id and the password.',
+    refused: 'WCO refused the stored passwords. Enter a new WCO password first, so another attempt does not lock the account.',
     outcomes: {
       ok: (number: string) => `The connection works. WCO now forwards to ${number}.`,
       okNoNumber: 'The connection works, but WCO gave no number.',
@@ -75,16 +74,6 @@ export const forwarding: Messages['forwarding'] = {
     passwordChangedAt: 'WCO password changed',
     rotationPendingSince: 'Password change under way since',
     credentialsInvalidSince: 'Passwords refused',
-  },
-  numbers: {
-    title: 'Numbers of the people in the rotation',
-    hint: 'Forwarding goes to the number on the person\'s account. The person changes it on the Mine screen, an administrator on the People screen.',
-    loading: 'Loading people',
-    empty: 'Nobody is in the rotation.',
-    count: (people: number, problems: number) => `${people} in the rotation · ${problems} to fill in`,
-    missing: 'no number',
-    fix: 'fix the number',
-    people: 'People',
   },
   reveal: {
     action: 'Show password',

@@ -8,6 +8,7 @@ a log.
 
 import logging
 import ssl
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -275,6 +276,26 @@ async def test_a_password_under_a_removed_key_cannot_be_tried(
     assert "Żaden klucz" in response.json()["detail"]
     assert fake.calls == []
     assert await _tests(db) == []
+
+
+async def test_passwords_wco_refused_are_not_tried_again(client, db, stored, fake: FakeWco) -> None:
+    await db.execute(
+        update(CallForwardingSettings).values(credentials_invalid_since=datetime.now(UTC))
+    )
+    await db.commit()
+
+    response = await client.post(TEST)
+
+    assert response.status_code == 409
+    assert response.json()["detail"].startswith("WCO odrzuciło zapisane hasła")
+    assert fake.calls == []
+    assert await _tests(db) == []
+
+    saved = (await client.get(SETTINGS)).json()
+    fields = ("mode", "base_url", "vpbx_number", "username", "wco_user_id")
+    retyped = {field: saved[field] for field in fields} | {"password": PASSWORD}
+    assert (await client.put(SETTINGS, json=retyped)).status_code == 200
+    assert (await client.post(TEST)).json()["outcome"] == "ok"
 
 
 @pytest.mark.parametrize("role", [UserRole.coordinator, UserRole.member])

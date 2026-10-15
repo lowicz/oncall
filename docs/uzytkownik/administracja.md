@@ -177,8 +177,7 @@ czasowy jest wyjątkiem.
 Automatyczne przekierowanie numeru on-call przez Orange WCO na telefon osoby,
 która ma dyżur PRIMARY; jak to działa, opisują
 [Integracje](../produkt/integracje.md#przełączanie-numeru-on-call-orange-wco).
-Ekran ma trzy części: konto WCO, stan i numery osób w rotacji. Czasy są w
-strefie `Europe/Warsaw`.
+Ekran ma dwie części: konto WCO i stan. Czasy są w strefie `Europe/Warsaw`.
 
 ### Konto WCO
 
@@ -219,11 +218,10 @@ proces zrobi to sam); WCO odrzuciło dane logowania; nie udało się połączyć
 konfiguracja niedostępna (`ONCALL_CA_FILE` nie wskazuje czytelnego pliku).
 Każde sprawdzenie trafia do audytu jako „Sprawdzono przełączanie numeru”.
 
-Nad formularzem pojawiają się dwa ostrzeżenia: **trwa automatyczna zmiana
-hasła** (proces zapisał nowe hasło i czeka, aż WCO je przyjmie; zapisane są
-oba) oraz **WCO odrzuciło zapisane hasła** (proces przestał się logować, żeby
-nie zablokować konta WCO; wpisanie nowego hasła w polu **Hasło WCO** zdejmuje
-blokadę).
+Gdy WCO odrzuciło zapisane hasła (karta **Stan** pokazuje wtedy „Hasła
+odrzucone”), proces przestaje się logować, żeby nie zablokować konta WCO, a
+**Sprawdź połączenie** jest nieaktywne z tego samego powodu. Wpisanie nowego
+hasła w polu **Hasło WCO** zdejmuje blokadę.
 
 ### Stan
 
@@ -237,14 +235,6 @@ także datę ostatniej zmiany hasła WCO, trwającą zmianę hasła i odrzucenie
 haseł. Historia przebiegów jest w [Audycie](#audyt-audyt-administrator) pod
 akcjami „Przełączono numer on-call”, „Nie udało się przełączyć numeru”,
 „Pominięto przełączenie numeru” i „Zmieniono hasło WCO”.
-
-### Numery osób w rotacji
-
-Lista osób będących dziś w rotacji z numerem telefonu z ich konta; osoby bez
-numeru albo z numerem w złym formacie są na górze i oznaczone („brak numeru”,
-„popraw numer”). Przekierowanie trafia na numer z konta osoby: osoba zmienia
-go na ekranie [Moje](dostepnosc.md#mój-telefon), administrator na ekranie
-[Osoby](#osoby-osoby-administrator).
 
 ### Ręczne przełączenie numeru
 

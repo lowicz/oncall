@@ -119,6 +119,10 @@ MESSAGES: dict[str, str] = {
         "Aby włączyć przełączanie, podaj numer centrali, login, identyfikator "
         "użytkownika WCO i hasło."
     ),
+    "forwarding.credentials_refused": (
+        "WCO odrzuciło zapisane hasła; kolejna próba mogłaby zablokować konto "
+        "WCO. Najpierw wpisz nowe hasło WCO."
+    ),
     "forwarding.new_address_needs_password": (
         "Zmiana adresu WCO wymaga ponownego podania hasła, aby zapisane hasło "
         "nie trafiło na inny serwer."

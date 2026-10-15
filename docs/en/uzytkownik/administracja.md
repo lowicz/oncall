@@ -192,8 +192,8 @@ The permanent form of access for a person outside the rotation is a named
 Automatic forwarding of the on-call number through Orange WCO to the phone
 of the person on PRIMARY duty; how it works is described in
 [Integrations](../produkt/integracje.md#on-call-number-forwarding-orange-wco).
-The screen has three parts: the WCO account, the state and the numbers of
-the people in the rotation. Times are in `Europe/Warsaw`.
+The screen has two parts: the WCO account and the state. Times are in
+`Europe/Warsaw`.
 
 ### WCO account
 
@@ -234,11 +234,10 @@ worker does that itself); WCO refused the login details; could not connect
 body); configuration unavailable (`ONCALL_CA_FILE` names no readable file).
 Every check goes to the audit trail as "Sprawdzono przełączanie numeru".
 
-Two warnings appear above the form: **an automatic password change is under
-way** (the worker stored a new password and waits for WCO to accept it;
-both are stored) and **WCO refused the stored passwords** (the worker
-stopped logging in so as not to lock the WCO account; entering a new
-password in the **WCO password** field lifts the stop).
+Once WCO has refused the stored passwords (the **State** card then shows
+"Passwords refused"), the worker stops logging in so as not to lock the WCO
+account, and **Check connection** is disabled for the same reason. Entering
+a new password in the **WCO password** field lifts the stop.
 
 ### State
 
@@ -253,15 +252,6 @@ password change under way and refused passwords. The history of the passes
 is in the [Audit](#audit-audyt-administrator) under the actions "Przełączono
 numer on-call", "Nie udało się przełączyć numeru", "Pominięto przełączenie
 numeru" and "Zmieniono hasło WCO".
-
-### Numbers of the people in the rotation
-
-The people in the rotation today with the phone number on their account;
-people without a number or with one in the wrong format come first and are
-marked ("no number", "fix the number"). Forwarding goes to the number on the
-person's account: the person changes it on the
-[Mine](dostepnosc.md#my-phone) screen, an administrator on the
-[People](#people-osoby-administrator) screen.
 
 ### Switching the number by hand
 

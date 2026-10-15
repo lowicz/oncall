@@ -591,7 +591,6 @@ describe('the Polish interface', () => {
   it('number forwarding', async () => {
     renderScreen(<ForwardingPanel />)
     await screen.findByText('Marek Nowak · brak numeru', { exact: false })
-    await screen.findByText('Ola Wiśniewska')
     await snapshotOf('forwarding')
   })
 

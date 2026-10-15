@@ -33,13 +33,12 @@ export const forwarding = {
     keepPassword: 'Zostaw zapisane',
     save: 'Zapisz',
     saved: 'Zapisano ustawienia przełączania',
-    rotationPending: (since: string) => `Trwa automatyczna zmiana hasła WCO (od ${since}): zapisane są dwa hasła, a proces próbuje najpierw nowego.`,
-    credentialsInvalid: (since: string) => `WCO odrzuciło zapisane hasła ${since}. Proces nie loguje się, dopóki nie wpiszesz nowego hasła.`,
   },
   test: {
     action: 'Sprawdź połączenie',
     hint: 'Loguje się do WCO zapisanymi danymi i odczytuje numer, niczego nie zmieniając. Wynik trafia do audytu.',
     incomplete: 'Najpierw zapisz numer centrali, login, identyfikator użytkownika i hasło.',
+    refused: 'WCO odrzuciło zapisane hasła. Najpierw wpisz nowe hasło WCO, żeby kolejna próba nie zablokowała konta.',
     outcomes: {
       ok: (number: string) => `Połączenie działa. WCO przekierowuje teraz na ${number}.`,
       okNoNumber: 'Połączenie działa, ale WCO nie podało numeru.',
@@ -77,17 +76,6 @@ export const forwarding = {
     passwordChangedAt: 'Hasło WCO zmieniono',
     rotationPendingSince: 'Zmiana hasła w toku od',
     credentialsInvalidSince: 'Hasła odrzucone',
-  },
-  numbers: {
-    title: 'Numery osób w rotacji',
-    hint: 'Przekierowanie trafia na numer z konta osoby. Osoba zmienia go na ekranie Moje, administrator na ekranie Osoby.',
-    loading: 'Wczytywanie osób',
-    empty: 'Nikogo nie ma w rotacji.',
-    /** "5 osób · 1 bez numeru", the counts as plain integers. */
-    count: (people: number, problems: number) => `${people} w rotacji · ${problems} do uzupełnienia`,
-    missing: 'brak numeru',
-    fix: 'popraw numer',
-    people: 'Osoby',
   },
   reveal: {
     action: 'Pokaż hasło',

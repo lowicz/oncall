@@ -89,11 +89,16 @@ async def reveal_password(
 async def test_connection(ports: ConnectionTestPorts) -> ConnectionTest:
     """Log in to WCO with the stored settings and read the number it forwards
     to, writing nothing there, so an administrator learns before turning
-    forwarding on whether the settings work. Every test is audited."""
+    forwarding on whether the settings work. Every test is audited.
+
+    Once WCO has refused every stored password nothing is tried, as the
+    worker does, until a new password is entered."""
     settings = await ports.settings.current()
     tokens = await ports.settings.tokens()
     if tokens is None or not (settings.vpbx_number and settings.username and settings.wco_user_id):
         raise errors.SettingsIncomplete()
+    if settings.credentials_invalid_since is not None:
+        raise errors.CredentialsRefused()
     if not ports.cipher.available():
         raise errors.SecretsKeyMissing()
     pending = None if tokens.pending is None else _read(tokens.pending, ports.cipher)

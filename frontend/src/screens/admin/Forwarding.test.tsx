@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../../test/render'
 import { ForwardingPanel } from './Forwarding'
-import { AdminUser, ForwardingSettings, ForwardingState, RevealedPasswords, TeamMember, api } from '../../api'
+import { ForwardingSettings, ForwardingState, RevealedPasswords, api } from '../../api'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -26,25 +26,6 @@ const EMPTY_STATE: ForwardingState = {
   applied_number: null, applied_member_name: null, applied_at: null, desired_number: null, desired_member_name: null,
   desired_for_day: null, last_attempt_at: null, last_outcome: null, last_error: null, failing_since: null, attempts: 0, next_attempt_at: null,
 }
-const member = (id: string, user_id: string | null, display_name: string, active_until: string | null = null): TeamMember =>
-  ({ id, user_id, display_name, active_from: '2025-01-01', active_until, eligibility: [] })
-const TEAM: TeamMember[] = [
-  member('m1', 'u1', 'Anna Kowalska'),
-  member('m2', 'u2', 'Marek Nowak'),
-  member('m3', 'u3', 'Zofia Lis'),
-  member('m4', null, 'Importowany Gość'),
-  member('m5', 'u5', 'Ola Wiśniewska', '2026-08-31'),
-]
-const user = (id: string, display_name: string, phone: string | null): AdminUser => ({
-  id, username: id, personnel_number: null, first_name: '', last_name: '', display_name, auth_source: 'local', role: 'member',
-  email: null, phone, is_active: true, created_at: '2025-09-02T10:00:00Z', pending_activation: null,
-})
-const USERS: AdminUser[] = [
-  user('u1', 'Anna Kowalska', '+48600600600'),
-  user('u2', 'Marek Nowak', null),
-  user('u3', 'Zofia Lis', '123'),
-  user('u5', 'Ola Wiśniewska', '+48500500500'),
-]
 const REVEALED: RevealedPasswords = {
   current: 'Dummy-Haslo-WCO!1', pending: null, pending_since: null, credentials_invalid_since: null, password_changed_at: '2026-09-01T07:00:00Z',
 }
@@ -52,15 +33,13 @@ const REVEALED: RevealedPasswords = {
 function stub(settings = SETTINGS, state = STATE) {
   vi.spyOn(api, 'forwardingSettings').mockResolvedValue(settings)
   vi.spyOn(api, 'forwardingState').mockResolvedValue(state)
-  vi.spyOn(api, 'team').mockResolvedValue(TEAM)
-  vi.spyOn(api, 'adminUsers').mockResolvedValue(USERS)
 }
 
 const settingsForm = () => screen.findByRole('form', { name: 'Konto WCO' })
 const row = (key: string) => (screen.getByText(key).closest('.kv-row') as HTMLElement)
 
 describe('ForwardingPanel', () => {
-  it('shows the saved account, the state and the numbers of the rotation', async () => {
+  it('shows the saved account and the state', async () => {
     stub()
     renderScreen(<ForwardingPanel />)
 
@@ -86,18 +65,6 @@ describe('ForwardingPanel', () => {
     expect(row('Następna próba')).toHaveTextContent('10-09-2026, 10:00')
     expect(row('Hasło WCO zmieniono')).toHaveTextContent('01-09-2026, 09:00')
     expect(screen.queryByText('Zmiana hasła w toku od')).not.toBeInTheDocument()
-
-    const heading = screen.getByRole('heading', { name: 'Numery osób w rotacji' })
-    expect(heading.nextElementSibling).toHaveTextContent('4 w rotacji · 3 do uzupełnienia')
-    const names = Array.from(document.querySelectorAll('.list-row b')).map((node) => node.textContent)
-    expect(names).toEqual(['Importowany Gość', 'Marek Nowak', 'Zofia Lis', 'Anna Kowalska'])
-    expect(screen.queryByText('Ola Wiśniewska')).not.toBeInTheDocument()
-    const zofia = screen.getByText('Zofia Lis').closest('.list-row') as HTMLElement
-    expect(within(zofia).getByText('popraw numer')).toBeInTheDocument()
-    expect(within(zofia).getByText('123')).toBeInTheDocument()
-    const guest = screen.getByText('Importowany Gość').closest('.list-row') as HTMLElement
-    expect(within(guest).getAllByText('brak numeru')).toHaveLength(2)
-    expect(screen.getByRole('link', { name: 'Osoby' })).toHaveAttribute('href', '/osoby')
   })
 
   it('starts empty: the password is required and the connection cannot be checked yet', async () => {
@@ -126,8 +93,9 @@ describe('ForwardingPanel', () => {
 
     const form = await settingsForm()
     expect(within(form).getByText('Hasło zapisane.')).toBeInTheDocument()
-    expect(within(form).getByRole('alert')).toHaveTextContent('WCO odrzuciło zapisane hasła 10-09-2026, 08:30. Proces nie loguje się, dopóki nie wpiszesz nowego hasła.')
-    expect(within(form).getByText(/Trwa automatyczna zmiana hasła WCO \(od 10-09-2026, 08:00\)/)).toBeInTheDocument()
+    expect(within(form).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(form).getByRole('button', { name: 'Sprawdź połączenie' })).toBeDisabled()
+    expect(within(form).getByText('WCO odrzuciło zapisane hasła. Najpierw wpisz nowe hasło WCO, żeby kolejna próba nie zablokowała konta.')).toBeInTheDocument()
     expect(row('Cel')).toHaveTextContent('nikt na PRIMARY · dyżur 10-09-2026')
     expect(row('WCO przekierowuje na')).toHaveTextContent('+48600600600')
     expect(row('Wynik')).toHaveTextContent('pominięto: nikogo na PRIMARY')
@@ -248,30 +216,17 @@ describe('ForwardingPanel', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Żaden klucz')
   })
 
-  it('offers a retry when the settings, the state or the people fail to load', async () => {
+  it('offers a retry when the settings or the state fail to load', async () => {
     vi.spyOn(api, 'forwardingSettings').mockRejectedValueOnce(new Error('Serwer niedostępny')).mockResolvedValue(SETTINGS)
     vi.spyOn(api, 'forwardingState').mockRejectedValueOnce(new Error('Stan niedostępny')).mockResolvedValue(STATE)
-    vi.spyOn(api, 'team').mockRejectedValueOnce(new Error('Zespół niedostępny')).mockResolvedValue(TEAM)
-    vi.spyOn(api, 'adminUsers').mockResolvedValue(USERS)
     renderScreen(<ForwardingPanel />)
 
     expect(await screen.findByText('Serwer niedostępny')).toBeInTheDocument()
     expect(await screen.findByText('Stan niedostępny')).toBeInTheDocument()
-    expect(await screen.findByText('Zespół niedostępny')).toBeInTheDocument()
     for (const retry of screen.getAllByRole('button', { name: 'Spróbuj ponownie' })) fireEvent.click(retry)
 
     await settingsForm()
     await waitFor(() => expect(row('Wynik')).toHaveTextContent('niepowodzenie'))
-    expect(await screen.findByText('Zofia Lis')).toBeInTheDocument()
-  })
-
-  it('says when nobody is in the rotation', async () => {
-    stub()
-    vi.spyOn(api, 'team').mockResolvedValue([])
-    renderScreen(<ForwardingPanel />)
-
-    expect(await screen.findByText('Nikogo nie ma w rotacji.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Numery osób w rotacji' }).nextElementSibling).toHaveTextContent('0 w rotacji · 0 do uzupełnienia')
   })
 })
 

@@ -32,6 +32,7 @@ router = APIRouter(prefix="/api/v1/admin/forwarding", tags=["admin"])
 FORWARDING_ERROR_STATUSES = {
     errors.SecretsKeyMissing: status.HTTP_409_CONFLICT,
     errors.StoredPasswordUnreadable: status.HTTP_409_CONFLICT,
+    errors.CredentialsRefused: status.HTTP_409_CONFLICT,
     errors.SettingsIncomplete: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.NewAddressNeedsPassword: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }

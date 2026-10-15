@@ -37,3 +37,11 @@ class NewAddressNeedsPassword(DomainError):
 
     def __init__(self) -> None:
         super().__init__("forwarding.new_address_needs_password")
+
+
+class CredentialsRefused(DomainError):
+    """A connection test is asked for while WCO has refused every stored
+    password: another refused login could lock the WCO account."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.credentials_refused")
