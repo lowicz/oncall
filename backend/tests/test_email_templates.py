@@ -279,13 +279,22 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         switch_url=SWITCH_URL,
         app=APP,
     ),
-    "rotation_same_day_automatic": lambda: templates.rotation_same_day(
+    "rotation_same_day_switched": lambda: templates.rotation_same_day(
         starts_on=DAY,
         segments=[(AssignmentRole.primary, END)],
         switch_url=SWITCH_URL,
         app=APP,
+        switched=templates.NumberSwitched(
+            "+48500500500", datetime(2026, 9, 24, 7, 0, 12, tzinfo=UTC)
+        ),
+    ),
+    "assignment_overridden_automatic": lambda: templates.assignment_overridden(
+        service_date=DAY,
+        role=AssignmentRole.primary,
+        previous_name="Anna Kowalska",
+        new_name="Marek Nowak",
+        app=APP,
         automatic=True,
-        reminder_hour=9,
     ),
     "forwarding_failed": lambda: templates.forwarding_failed(
         target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
@@ -748,6 +757,40 @@ def test_the_switch_link_is_only_for_primary() -> None:
         assert "centrala.example" not in body
         assert "numeru on-call" not in body
     assert ">Moje dyżury</a>" in rendered.html
+
+
+def test_the_first_day_of_primary_confirms_the_switch_the_worker_made() -> None:
+    rendered = RENDERINGS["rotation_same_day_switched"]()
+    assert rendered.subject == "Dziś zaczynasz dyżur: czw 24-09-2026 · PRIMARY"
+    assert rendered.text == (
+        "Dziś (czw 24-09-2026) zaczynasz dyżur:\n"
+        "- czw 24-09-2026 · PRIMARY · ostatni dzień: śr 21-10-2026\n"
+        "\n"
+        "Numer on-call został przełączony na Twój telefon +48 500 *** 500 o 09:00. "
+        "Jeśli połączenia nie docierają, skontaktuj się z koordynatorem.\n"
+        "Moje dyżury: https://oncall.example.com/moje\n"
+    )
+    # Confirmed in the interface's ok colour, the number masked as in every
+    # mail about it, and no switch left to ask for.
+    assert "został przełączony na Twój telefon +48 500 *** 500 o 09:00." in rendered.html
+    assert "border-left:3px solid #017632" in rendered.html
+    for body in (rendered.text, rendered.html):
+        assert "+48500500500" not in body
+        assert "Pamiętaj" not in body
+        assert "Przełącz numer" not in body
+        assert "centrala.example" not in body
+
+
+def test_a_correction_in_automatic_mode_promises_the_new_primary_a_confirmation() -> None:
+    rendered = RENDERINGS["assignment_overridden_automatic"]()
+    promise = (
+        "Numer on-call zostanie przełączony automatycznie; osoba obejmująca dyżur "
+        "dostanie potwierdzenie osobną wiadomością."
+    )
+    assert f"\n{promise}\n" in rendered.text
+    assert promise in rendered.html
+    assert "Pamiętaj" not in rendered.text
+    assert "Pamiętaj o przełączeniu numeru on-call." in RENDERINGS["assignment_overridden"]().text
 
 
 def test_a_hostile_switch_url_stays_an_attribute() -> None:

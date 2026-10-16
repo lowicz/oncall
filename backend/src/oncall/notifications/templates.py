@@ -45,13 +45,12 @@ from oncall.rules import RuleViolation, summarise
 _SWITCH_NUMBER = "Pamiętaj o przełączeniu numeru on-call."
 
 
-def _automatic_switch(reminder_hour: int) -> str:
-    """What a PRIMARY reads instead of `_SWITCH_NUMBER` while the worker
-    switches the number."""
-    return (
-        f"Numer on-call jest przełączany automatycznie o {reminder_hour:02d}:00. "
-        "Jeśli połączenia nie docierają, skontaktuj się z koordynatorem."
-    )
+#: What a changed PRIMARY reads instead of `_SWITCH_NUMBER` while the worker
+#: switches the number: the confirmation follows with the first day's notice.
+_AUTOMATIC_SWITCH = (
+    "Numer on-call zostanie przełączony automatycznie; osoba obejmująca dyżur "
+    "dostanie potwierdzenie osobną wiadomością."
+)
 
 
 @dataclass(frozen=True)
@@ -782,17 +781,12 @@ def assignment_overridden(
     new_name: str,
     app: Brand,
     automatic: bool = False,
-    reminder_hour: int = 9,
 ) -> RenderedEmail:
     """`automatic` while the worker switches the number: a changed PRIMARY is
     then told so rather than asked to switch it."""
     day = format_day(service_date)
     subject = f"Zmiana przydziału: {day} · {ROLE_LABELS[role]}"
-    advice = (
-        _automatic_switch(reminder_hour)
-        if automatic and role is AssignmentRole.primary
-        else _SWITCH_NUMBER
-    )
+    advice = _AUTOMATIC_SWITCH if automatic and role is AssignmentRole.primary else _SWITCH_NUMBER
     body = (
         f"Koordynator zmienił przydział {ROLE_LABELS[role]} w dniu {day}.\n"
         f"Dyżur: {new_name} (poprzednio: {previous_name}).\n\n"
@@ -940,27 +934,44 @@ def rotation_ahead(
     )
 
 
+@dataclass(frozen=True)
+class NumberSwitched:
+    """WCO's confirmation that the on-call number forwards to the recipient:
+    the number as stored and when WCO confirmed it."""
+
+    number: str
+    at: datetime
+
+
+def _switched_note(switched: NumberSwitched) -> str:
+    local = switched.at.astimezone(BUSINESS_TIMEZONE)
+    return (
+        f"Numer on-call został przełączony na Twój telefon {masked_phone(switched.number)} "
+        f"o {local:%H:%M}. Jeśli połączenia nie docierają, skontaktuj się z koordynatorem."
+    )
+
+
 def rotation_same_day(
     *,
     starts_on: date,
     segments: list[tuple[AssignmentRole, date]],
     switch_url: str | None,
     app: Brand,
-    automatic: bool = False,
-    reminder_hour: int = 9,
+    switched: NumberSwitched | None = None,
 ) -> RenderedEmail:
     """Sent on `starts_on` itself, with the same `segments` as the notice
-    ahead. A PRIMARY is told whether the worker or the person switches the
-    number; the manual link is shown only in manual mode."""
+    ahead. A PRIMARY is asked to switch the number, with the manual link when
+    there is one, or, when `switched` carries WCO's confirmation that the
+    worker already did, told so instead."""
     noun = _duties_noun(segments)
     primary = any(role is AssignmentRole.primary for role, _ in segments)
     action = (
         Action("Przełącz numer on-call", switch_url)
-        if primary and switch_url and not automatic
+        if primary and switch_url and switched is None
         else _my_duties(app)
     )
-    if primary and automatic:
-        note = Note(_automatic_switch(reminder_hour))
+    if primary and switched is not None:
+        note: Note | None = Note(_switched_note(switched), Tone.ok)
     else:
         note = Note(_SWITCH_NUMBER) if primary else None
     return _rotation(

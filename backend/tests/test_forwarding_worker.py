@@ -89,12 +89,7 @@ async def _primary(db, frozen_clock, *, phone: str | None = "+48500500500"):
         late_shift=[member.display_name],
     )
     rows = (
-        await db.scalars(
-            select(Assignment).where(
-                Assignment.assignee_name == member.display_name,
-                Assignment.role == AssignmentRole.primary,
-            )
-        )
+        await db.scalars(select(Assignment).where(Assignment.assignee_name == member.display_name))
     ).all()
     for row in rows:
         row.member_id = member.id
@@ -122,7 +117,7 @@ async def _all(db_factory, model):
         return (await db.scalars(select(model))).all()
 
 
-async def test_notification_cycle_runs_forwarding_immediately_after_handover(
+async def test_notification_cycle_runs_handover_right_after_forwarding(
     db_factory, monkeypatch
 ) -> None:
     order: list[str] = []
@@ -150,7 +145,7 @@ async def test_notification_cycle_runs_forwarding_immediately_after_handover(
 
     stats = await worker.notification_cycle(db_factory)
 
-    assert order == ["drain", "handover", "forwarding", "digest"]
+    assert order == ["drain", "forwarding", "handover", "digest"]
     assert stats == {"sent": 0, "handover": 1, "forwarding": 1, "digest": 1}
 
 
@@ -468,31 +463,125 @@ async def test_a_crash_after_wco_changed_the_password_recovers_from_pending(
     assert fake.calls.count(f"POST {CHANGE_PASSWORD}") == 1
 
 
-async def test_live_rotation_notice_says_the_number_is_automatic(
-    db, frozen_clock, forwarding_key
+#: The frozen clock stands at 12:00 Warsaw time.
+CONFIRMED = "Numer on-call został przełączony na Twój telefon +48 500 *** 500 o 12:00."
+
+
+async def _rotation_notices(db) -> list[NotificationOutbox]:
+    rows = (await db.scalars(select(NotificationOutbox))).all()
+    return [row for row in rows if row.context["event"] == "rotation_notice"]
+
+
+async def test_live_first_day_notice_waits_for_the_switch_and_then_confirms_it(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    now_warsaw = _now(frozen_clock)
+
+    # Nothing has been switched yet: the notice waits and nothing is queued.
+    assert await worker.scan_handover(db, now_warsaw=now_warsaw) == 0
+    await db.commit()
+    assert await _all(db_factory, NotificationOutbox) == []
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=now_warsaw) == 1
+    assert await worker.scan_handover(db, now_warsaw=now_warsaw) == 1
+    await db.commit()
+
+    (row,) = await _rotation_notices(db)
+    assert row.recipient == "primary@example.com"
+    assert row.subject.startswith("Dziś zaczynasz dyżury: ")
+    assert CONFIRMED in row.body
+    assert "Pamiętaj o przełączeniu" not in row.body
+    assert "+48500500500" not in row.body
+    assert "+48500500500" not in row.html_body
+    assert any(call.startswith("PUT ") for call in fake.calls)
+    # The same timing of the notice is never queued twice.
+    assert await worker.scan_handover(db, now_warsaw=now_warsaw) == 0
+
+
+async def test_live_first_day_notice_confirms_a_number_wco_already_forwarded_to(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    fake.user["number"] = "+48500500500"
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    now_warsaw = _now(frozen_clock)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=now_warsaw) == 1
+    assert await worker.scan_handover(db, now_warsaw=now_warsaw) == 1
+    await db.commit()
+
+    (row,) = await _rotation_notices(db)
+    assert CONFIRMED in row.body
+    state = await _one(db_factory, CallForwardingState)
+    assert state.last_outcome is ForwardingOutcome.unchanged
+
+
+async def test_live_first_day_notice_waits_out_a_failed_switch(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco(faults={USER: httpx.ConnectError("network down")})
+    _use_fake(monkeypatch, fake)
+    await _primary(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    assert await worker.scan_handover(db, now_warsaw=_now(frozen_clock)) == 0
+    await db.commit()
+    assert await _all(db_factory, NotificationOutbox) == []
+
+    fake.faults.clear()
+    frozen_clock.advance(timedelta(minutes=2, seconds=1))
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+    assert await worker.scan_handover(db, now_warsaw=_now(frozen_clock)) == 1
+    await db.commit()
+
+    (row,) = await _rotation_notices(db)
+    assert "został przełączony na Twój telefon +48 500 *** 500 o 12:02." in row.body
+
+
+@pytest.mark.parametrize(
+    ("outcome", "days_ago", "name", "queued"),
+    [
+        (ForwardingOutcome.applied, 0, "Anna Kowalska", 1),
+        (ForwardingOutcome.unchanged, 0, "Anna Kowalska", 1),
+        (ForwardingOutcome.failed, 0, "Anna Kowalska", 0),
+        (ForwardingOutcome.applied, 1, "Anna Kowalska", 0),
+        (ForwardingOutcome.applied, 0, "Marek Nowak", 0),
+    ],
+    ids=["applied", "unchanged", "failed", "yesterday", "someone-else"],
+)
+async def test_the_live_first_day_notice_needs_the_state_to_confirm_this_person_today(
+    db, frozen_clock, forwarding_key, outcome, days_ago, name, queued
 ) -> None:
     fake = FakeWco()
     _user, member = await _primary(db, frozen_clock)
     await _settings(db, fake, ForwardingMode.live)
     day = _now(frozen_clock).date()
-
-    assert (
-        await enqueue_rotation_notice(
-            db,
-            RotationNotice(
-                NoticeTiming.same_day,
-                day,
-                member.display_name,
-                (Segment(AssignmentRole.primary, day, day),),
-            ),
+    db.add(
+        CallForwardingState(
+            last_outcome=outcome,
+            desired_for_day=day - timedelta(days=days_ago),
+            applied_member_name=name,
+            applied_number="+48500500500",
+            applied_at=frozen_clock.instant,
         )
-        == 1
     )
     await db.commit()
+    notice = RotationNotice(
+        NoticeTiming.same_day,
+        day,
+        member.display_name,
+        (Segment(AssignmentRole.primary, day, day),),
+    )
 
-    (row,) = (await db.scalars(select(NotificationOutbox))).all()
-    assert "przełączany automatycznie o 09:00" in row.body
-    assert "Pamiętaj o przełączeniu" not in row.body
+    assert await enqueue_rotation_notice(db, notice) == queued
+    assert len((await db.scalars(select(NotificationOutbox))).all()) == queued
 
 
 @pytest.mark.parametrize(
@@ -520,7 +609,7 @@ async def test_a_correction_mail_says_the_number_is_automatic_only_when_live(
     await db.commit()
 
     (row,) = (await db.scalars(select(NotificationOutbox))).all()
-    assert ("przełączany automatycznie o 09:00" in row.body) is automatic
+    assert ("potwierdzenie osobną wiadomością" in row.body) is automatic
     assert ("Pamiętaj o przełączeniu" in row.body) is not automatic
 
 

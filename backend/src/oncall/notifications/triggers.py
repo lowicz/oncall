@@ -9,21 +9,25 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
+from oncall.domain.clock import as_utc
 from oncall.domain.digest import DutyDigest
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
-from oncall.domain.forwarding.models import ForwardingMode
+from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome
 from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.infrastructure.sqlalchemy.forwarding_models import CallForwardingSettings
+from oncall.infrastructure.sqlalchemy.forwarding_models import (
+    CallForwardingSettings,
+    CallForwardingState,
+)
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications import templates
 from oncall.notifications.base import NotificationMessage
 from oncall.notifications.layout import Brand
 from oncall.notifications.service import enqueue_notification
-from oncall.notifications.templates import RenderedEmail
+from oncall.notifications.templates import NumberSwitched, RenderedEmail
 from oncall.rules import RuleViolation
 
 logger = logging.getLogger(__name__)
@@ -598,7 +602,6 @@ async def notify_assignment_overridden(
             new_name=new_name,
             app=Brand.from_settings(settings),
             automatic=mode is ForwardingMode.live,
-            reminder_hour=settings.handover_reminder_hour,
         ),
         context={"event": "assignment_overridden", "service_date": service_date.isoformat()},
     )
@@ -683,9 +686,34 @@ async def notify_assignments_overridden_in_batch(
         )
 
 
+#: The outcomes after which the state row names the number WCO forwards to.
+_CONFIRMED_OUTCOMES = (ForwardingOutcome.applied, ForwardingOutcome.unchanged)
+
+
+async def _number_switched_to(db: AsyncSession, notice: RotationNotice) -> NumberSwitched | None:
+    """WCO's confirmation that the number forwards to the notice's person for
+    its day, as the last forwarding pass recorded it; None until then."""
+    state = await db.scalar(select(CallForwardingState).limit(1))
+    if (
+        state is None
+        or state.last_outcome not in _CONFIRMED_OUTCOMES
+        or state.desired_for_day != notice.starts_on
+        or state.applied_member_name != notice.assignee_name
+        or state.applied_number is None
+        or state.applied_at is None
+    ):
+        return None
+    return NumberSwitched(state.applied_number, as_utc(state.applied_at))
+
+
 async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> int:
     """Queue one rotation notice for the person starting its segments, at
     most once per timing, first day and person; answers how many were queued.
+
+    While the worker switches the number, the first day's notice of a PRIMARY
+    is queued only once the forwarding pass has read this person's number for
+    the day back from WCO, and then says so; until then the scan answers 0
+    and the next cycle asks again.
 
     The key names the team member rather than the label, so it stays within
     the column however long a name is.
@@ -712,14 +740,19 @@ async def enqueue_rotation_notice(db: AsyncSession, notice: RotationNotice) -> i
             starts_on=notice.starts_on, segments=segments, app=Brand.from_settings(settings)
         )
     else:
+        switched = None
         mode = await db.scalar(select(CallForwardingSettings.mode).limit(1))
+        primary = any(role is AssignmentRole.primary for role, _ in segments)
+        if mode is ForwardingMode.live and primary:
+            switched = await _number_switched_to(db, notice)
+            if switched is None:
+                return 0
         rendered = templates.rotation_same_day(
             starts_on=notice.starts_on,
             segments=segments,
             switch_url=settings.oncall_switch_url,
             app=Brand.from_settings(settings),
-            automatic=mode is ForwardingMode.live,
-            reminder_hour=settings.handover_reminder_hour,
+            switched=switched,
         )
     queued = await enqueue_notification(
         db,

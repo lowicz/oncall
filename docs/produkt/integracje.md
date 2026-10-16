@@ -67,9 +67,16 @@ SECONDARY i 11–19), są w jednej wiadomości, każda z własnym ostatnim dniem
 Gdy wśród zaczynanych ról jest PRIMARY, przypomnienie z pierwszego dnia prosi
 o przełączenie numeru on-call, a jeśli ustawiono `ONCALL_SWITCH_URL`, jego
 przycisk prowadzi na stronę przełączania. Gdy automatyczne przekierowanie
-przez Orange WCO działa w trybie `live`, ta wiadomość i korekta zmieniająca
-PRIMARY mówią zamiast tego, że numer przełącza się sam o godzinie
-`ONCALL_HANDOVER_REMINDER_HOUR`. Każda z dwóch wiadomości wychodzi do
+przez Orange WCO działa w trybie `live`, to przypomnienie wychodzi dopiero
+wtedy, gdy proces roboczy odczyta z WCO numer tej osoby na ten dzień, i
+zamiast prośby potwierdza przełączenie: „Numer on-call został przełączony na
+Twój telefon +48 500 *** 500 o 09:00”, z numerem zamaskowanym jak w alarmach
+i godziną potwierdzenia przez WCO. Gdy przełączenie zawiedzie, przypomnienie
+czeka, aż uda się tego dnia (po ponowieniu, po nowym haśle albo po ręcznym
+przełączeniu w panelu WCO), a osoba dostaje w tym czasie alarm; dzień bez
+przełączenia mija bez przypomnienia. Korekta zmieniająca PRIMARY mówi w tym
+trybie, że numer przełączy się sam, a osoba obejmująca dyżur dostanie
+potwierdzenie osobną wiadomością. Każda z dwóch wiadomości wychodzi do
 osoby najwyżej raz, więc kolejne przebiegi procesu roboczego w ciągu dnia
 niczego nie dublują.
 
@@ -100,8 +107,8 @@ go, gdy się różnią. Dzień dyżuru zmienia się o godzinie przypomnienia o
 dyżurze (`ONCALL_HANDOVER_REMINDER_HOUR`, domyślnie 9 czasu warszawskiego):
 przed nią numer należy do wczorajszej osoby na PRIMARY, od niej do
 dzisiejszej, więc przełączenie następuje w tej samej minucie co
-przypomnienie „masz dziś dyżur”, a korekta albo zamiana w ciągu dnia zmienia
-numer przy najbliższym przebiegu.
+przypomnienie „masz dziś dyżur”, które w tym trybie je potwierdza, a korekta
+albo zamiana w ciągu dnia zmienia numer przy najbliższym przebiegu.
 
 Źródłem numeru jest telefon z konta osoby (`+48` i dziewięć cyfr), wysyłany
 do WCO bez zmian. Dane konta WCO (adres, numer centrali, login,
