@@ -46,10 +46,10 @@ _SWITCH_NUMBER = "Pamiętaj o przełączeniu numeru on-call."
 
 
 #: What a changed PRIMARY reads instead of `_SWITCH_NUMBER` while the worker
-#: switches the number: the confirmation follows with the first day's notice.
+#: switches the number; no separate confirmation follows a correction.
 _AUTOMATIC_SWITCH = (
-    "Numer on-call zostanie przełączony automatycznie; osoba obejmująca dyżur "
-    "dostanie potwierdzenie osobną wiadomością."
+    "Numer on-call przełącza się automatycznie; osoba obejmująca dyżur "
+    "dostaje zwykłe przypomnienie z pierwszego dnia dyżuru."
 )
 
 

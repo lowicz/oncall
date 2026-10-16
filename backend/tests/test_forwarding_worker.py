@@ -609,7 +609,7 @@ async def test_a_correction_mail_says_the_number_is_automatic_only_when_live(
     await db.commit()
 
     (row,) = (await db.scalars(select(NotificationOutbox))).all()
-    assert ("potwierdzenie osobną wiadomością" in row.body) is automatic
+    assert ("przełącza się automatycznie" in row.body) is automatic
     assert ("Pamiętaj o przełączeniu" in row.body) is not automatic
 
 

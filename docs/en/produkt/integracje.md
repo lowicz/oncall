@@ -77,9 +77,10 @@ it. When the switch fails, the reminder waits until it succeeds that day
 (after a retry, a new password or a manual switch in the WCO panel) and the
 person gets the alert meanwhile; a day without a switch passes without the
 reminder. A correction that changes PRIMARY says in this mode that the number
-switches itself and that the person taking over gets a confirmation in a
-separate message. Each of the two messages goes to a person at most once, so
-further worker passes during the day duplicate nothing.
+switches itself and that the person taking over gets the usual first-day
+reminder; the correction sends no separate confirmation. Each of the two
+messages goes to a person at most once, so further worker passes during the
+day duplicate nothing.
 
 Every coordinator and administrator gets a message on every Polish working
 day, at `ONCALL_COORDINATOR_DIGEST_HOUR` (Warsaw time, 8 by default), titled

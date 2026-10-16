@@ -781,11 +781,11 @@ def test_the_first_day_of_primary_confirms_the_switch_the_worker_made() -> None:
         assert "centrala.example" not in body
 
 
-def test_a_correction_in_automatic_mode_promises_the_new_primary_a_confirmation() -> None:
+def test_a_correction_in_automatic_mode_says_the_number_switches_itself() -> None:
     rendered = RENDERINGS["assignment_overridden_automatic"]()
     promise = (
-        "Numer on-call zostanie przełączony automatycznie; osoba obejmująca dyżur "
-        "dostanie potwierdzenie osobną wiadomością."
+        "Numer on-call przełącza się automatycznie; osoba obejmująca dyżur "
+        "dostaje zwykłe przypomnienie z pierwszego dnia dyżuru."
     )
     assert f"\n{promise}\n" in rendered.text
     assert promise in rendered.html

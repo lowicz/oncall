@@ -75,10 +75,10 @@ i godziną potwierdzenia przez WCO. Gdy przełączenie zawiedzie, przypomnienie
 czeka, aż uda się tego dnia (po ponowieniu, po nowym haśle albo po ręcznym
 przełączeniu w panelu WCO), a osoba dostaje w tym czasie alarm; dzień bez
 przełączenia mija bez przypomnienia. Korekta zmieniająca PRIMARY mówi w tym
-trybie, że numer przełączy się sam, a osoba obejmująca dyżur dostanie
-potwierdzenie osobną wiadomością. Każda z dwóch wiadomości wychodzi do
-osoby najwyżej raz, więc kolejne przebiegi procesu roboczego w ciągu dnia
-niczego nie dublują.
+trybie, że numer przełącza się sam, a osoba obejmująca dyżur dostaje zwykłe
+przypomnienie z pierwszego dnia dyżuru; korekta nie wysyła osobnego
+potwierdzenia. Każda z dwóch wiadomości wychodzi do osoby najwyżej raz, więc
+kolejne przebiegi procesu roboczego w ciągu dnia niczego nie dublują.
 
 Każdy koordynator i administrator dostaje w każdy polski dzień roboczy,
 o godzinie `ONCALL_COORDINATOR_DIGEST_HOUR` (czasu warszawskiego, domyślnie 8),
