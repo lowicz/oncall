@@ -236,10 +236,12 @@ O godzinie przypomnienia proces przełącza numer na dzisiejszą osobę na
 PRIMARY. Sprawdź wtedy kartę **Stan** i Audyt, a potem zadzwoń na numer
 on-call i upewnij się, że dzwoni telefon tej osoby.
 
-Od tej chwili przypomnienie z pierwszego dnia dyżuru PRIMARY mówi „Numer
-on-call jest przełączany automatycznie o 09:00. Jeśli połączenia nie
-docierają, skontaktuj się z koordynatorem.” zamiast „Pamiętaj o przełączeniu
-numeru on-call.”. Po udanym przełączeniu proces czyta WCO ponownie dopiero
+Od tej chwili przypomnienie z pierwszego dnia dyżuru PRIMARY wychodzi dopiero
+po przełączeniu i mówi „Numer on-call został przełączony na Twój telefon
++48 500 *** 500 o 09:00. Jeśli połączenia nie docierają, skontaktuj się z
+koordynatorem.” zamiast „Pamiętaj o przełączeniu numeru on-call.”; gdy
+przełączenie zawiedzie, przypomnienie czeka na udane przełączenie tego dnia,
+a osoba dostaje alarm. Po udanym przełączeniu proces czyta WCO ponownie dopiero
 wtedy, gdy zmieni się numer do ustawienia: o najbliższej godzinie
 przypomnienia, po korekcie grafiku lub zamianie, która zmienia osobę na
 PRIMARY albo jej numer, i po zapisaniu zmiany ustawień przełączania. Numer zmieniony
@@ -297,10 +299,11 @@ wyśle alarm. Wpisanie hasła zdejmuje tę blokadę.
 Ustaw **Tryb** na **Wyłączone** i kliknij **Zapisz**. Proces przestaje
 łączyć się z WCO przy najbliższym przebiegu, czyli w ciągu kilku sekund. WCO
 zostaje na ostatnio ustawionym numerze, a numer znowu przełącza się ręcznie;
-przypomnienie z pierwszego dnia dyżuru wraca do „Pamiętaj o przełączeniu
-numeru on-call.”. Ustawienia i hasło zostają zapisane, więc ponowne włączenie
-zaczyna się od [trybu próbnego](#tryb-próbny). Cofnięcie wydania nie jest do
-tego potrzebne.
+przypomnienie z pierwszego dnia dyżuru wraca do godziny przypomnienia i do
+„Pamiętaj o przełączeniu numeru on-call.”. Ustawienia i hasło zostają
+zapisane, więc ponowne włączenie zaczyna się od
+[trybu próbnego](#tryb-próbny). Cofnięcie wydania nie jest do tego
+potrzebne.
 
 ## Rozwiązywanie problemów
 

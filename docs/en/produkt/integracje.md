@@ -68,10 +68,19 @@ one message, each with its own last day.
 When PRIMARY is among the roles starting, the first-day reminder asks for the
 on-call number to be switched and, if `ONCALL_SWITCH_URL` is set, its button
 leads to the switching page. When automatic forwarding through Orange WCO
-runs in `live` mode, this message and a correction that changes PRIMARY say
-instead that the number switches itself at `ONCALL_HANDOVER_REMINDER_HOUR`.
-Each of the two messages goes to a person at most
-once, so further worker passes during the day duplicate nothing.
+runs in `live` mode, that reminder goes out only once the worker has read
+this person's number for the day back from WCO, and confirms the switch
+instead of asking: „Numer on-call został przełączony na Twój telefon
++48 500 *** 500 o 09:00” (the on-call number has been switched to your
+phone), with the number masked as in the alerts and the time WCO confirmed
+it. When the switch fails, the reminder waits until it succeeds that day
+(after a retry, a new password or a manual switch in the WCO panel) and the
+person gets the alert meanwhile; a day without a switch passes without the
+reminder. A correction that changes PRIMARY says in this mode that the number
+switches itself and that the person taking over gets the usual first-day
+reminder; the correction sends no separate confirmation. Each of the two
+messages goes to a person at most once, so further worker passes during the
+day duplicate nothing.
 
 Every coordinator and administrator gets a message on every Polish working
 day, at `ONCALL_COORDINATOR_DIGEST_HOUR` (Warsaw time, 8 by default), titled
@@ -99,8 +108,9 @@ the number the schedule calls for with the number WCO last confirmed, and
 changes it when they differ. The duty day changes at the duty reminder hour
 (`ONCALL_HANDOVER_REMINDER_HOUR`, 9 Warsaw time by default): before it the
 number belongs to yesterday's PRIMARY, from it to today's, so the switch
-lands in the same minute as the "you are on call today" reminder, and a
-correction or a swap during the day changes the number on the next pass.
+lands in the same minute as the "you are on call today" reminder, which
+confirms it in this mode, and a correction or a swap during the day changes
+the number on the next pass.
 
 The number comes from the phone on the person's account (`+48` and nine
 digits), sent to WCO unchanged. The WCO account (address, switchboard

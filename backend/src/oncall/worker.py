@@ -453,13 +453,15 @@ async def scan_digest(db: AsyncSession, *, now_warsaw: datetime) -> int:
 
 
 async def notification_cycle(factory: Sessions) -> dict[str, int]:
-    """One outbox drain, then handover, forwarding and digest scans.
+    """One outbox drain, then forwarding, handover and digest scans.
 
     Runs on a fixed rhythm in the worker, independent of any generation in
     flight, so a notification enqueued mid-generation is delivered within two
     of these cycles rather than waiting out the solve. The drain owns its own
     units of work (see `drain_outbox`); each database step uses another, so a
-    failing WCO cannot hold back the notices queued just before it.
+    failing WCO cannot hold back the notices queued after it. Forwarding goes
+    before the handover scan so that the first day's notice of a PRIMARY
+    carries the switch this very cycle made.
     """
     settings = get_settings()
     stats = await drain_outbox(
@@ -470,9 +472,9 @@ async def notification_cycle(factory: Sessions) -> dict[str, int]:
         lease=timedelta(seconds=settings.notification_lease_seconds),
     )
     now_warsaw = utc_now().astimezone(WARSAW)
+    stats["forwarding"] = await scan_forwarding(factory, now_warsaw=now_warsaw)
     async with SqlAlchemyUnitOfWork(factory) as db:
         stats["handover"] = await scan_handover(db, now_warsaw=now_warsaw)
-    stats["forwarding"] = await scan_forwarding(factory, now_warsaw=now_warsaw)
     async with SqlAlchemyUnitOfWork(factory) as db:
         stats["digest"] = await scan_digest(db, now_warsaw=now_warsaw)
     return stats

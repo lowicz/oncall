@@ -239,11 +239,14 @@ At the reminder hour the worker switches the number to today's person on
 PRIMARY. Check the **State** card and the Audit trail then, and call the
 on-call number to make sure that person's phone rings.
 
-From then on the first-day reminder of a PRIMARY duty says „Numer on-call
-jest przełączany automatycznie o 09:00. Jeśli połączenia nie docierają,
-skontaktuj się z koordynatorem.” (the number switches automatically; tell a
+From then on the first-day reminder of a PRIMARY duty goes out only after
+the switch and says „Numer on-call został przełączony na Twój telefon
++48 500 *** 500 o 09:00. Jeśli połączenia nie docierają, skontaktuj się z
+koordynatorem.” (the number has been switched to your phone at 09:00; tell a
 coordinator when calls do not arrive) instead of „Pamiętaj o przełączeniu
-numeru on-call.” (remember to switch the number). After a successful switch
+numeru on-call.” (remember to switch the number); when the switch fails, the
+reminder waits for a successful switch that day and the person gets the
+alert. After a successful switch
 the worker reads WCO again only when the number to set changes: at the next
 reminder hour, after a schedule correction or swap that changes the person
 on PRIMARY or their number, and after a change to the forwarding settings is saved. A
@@ -308,9 +311,9 @@ lifts that stop.
 Set **Mode** to **Off** and click **Save**. The worker stops connecting to
 WCO on its next pass, within a few seconds. WCO stays on the number set
 last, and the number is switched by hand again; the first-day reminder goes
-back to „Pamiętaj o przełączeniu numeru on-call.”. The settings and the
-password stay stored, so enabling again starts with the [dry run](#dry-run).
-Rolling back the release is not needed for this.
+back to the reminder hour and to „Pamiętaj o przełączeniu numeru on-call.”.
+The settings and the password stay stored, so enabling again starts with the
+[dry run](#dry-run). Rolling back the release is not needed for this.
 
 ## Troubleshooting
 
