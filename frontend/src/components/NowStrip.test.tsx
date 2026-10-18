@@ -57,7 +57,8 @@ describe('NowStrip', () => {
 
   it('sets the role chips white on the header band and leaves them filled everywhere else', async () => {
     // The real stylesheet, so the header rule has to win the cascade over the
-    // shared chip fill; jsdom resolves no var(), so the tokens are compared by name.
+    // shared chip fill; use the longhand because jsdom expands shorthand custom
+    // properties to transparent instead of preserving the unresolved token.
     loadRealStylesheet()
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
       duty({}),
@@ -70,7 +71,7 @@ describe('NowStrip', () => {
     await within(strip).findByTitle('Ola Wiśniewska')
     const paint = (element: HTMLElement) => {
       const style = getComputedStyle(element)
-      return [style.getPropertyValue('background'), style.getPropertyValue('color')]
+      return [style.getPropertyValue('background-color'), style.getPropertyValue('color')]
     }
     const chip = (label: string) => paint(within(strip).getByText(label, { selector: '.lbl' }))
     expect(chip('PRIMARY')).toEqual(['var(--band-chip)', 'var(--band-p)'])
