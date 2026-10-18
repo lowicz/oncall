@@ -71,7 +71,7 @@ small, .small { font-size: 12px; line-height: 16px; }
 .now-tools button { color: var(--band-ink); }
 .now .ava, .mob-top .ava { background: var(--band-ink); color: var(--rail-active-ink); }
 .now .kbd { color: var(--band-ink); border-color: var(--band-kbd); }
-.now .lbl { background: var(--band-chip); }
+.now .lbl { background-color: var(--band-chip); }
 .now .lbl-p { color: var(--band-p); }
 .now .lbl-s { color: var(--band-sec); }
 .now .lbl-l { color: var(--band-late); }
@@ -90,9 +90,9 @@ small, .small { font-size: 12px; line-height: 16px; }
   .now-tools { flex: 1 1 100%; justify-content: flex-end; border-top: 1px solid var(--band-line); }
 }
 .lbl { font: 700 12px/16px var(--label); padding: 2px 7px; border-radius: 6px; flex: 0 0 auto; white-space: nowrap; }
-.lbl-p, .rm-p { color: var(--role-ink); background: var(--p-fill); }
-.lbl-s, .rm-s { color: var(--role-ink); background: var(--sec-fill); }
-.lbl-l, .rm-l { color: var(--role-ink); background: var(--late-fill); }
+.lbl-p, .rm-p { color: var(--role-ink); background-color: var(--p-fill); }
+.lbl-s, .rm-s { color: var(--role-ink); background-color: var(--sec-fill); }
+.lbl-l, .rm-l { color: var(--role-ink); background-color: var(--late-fill); }
 
 /* page header and section heading */
 .ph { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
