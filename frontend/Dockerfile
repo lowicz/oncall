@@ -27,7 +27,7 @@ RUN npm run build
 # through a reviewed Renovate pull request. Renovate reads this line with the
 # nginx custom manager in renovate.json5 and moves only the version number;
 # frontend/scripts/nginx-base-image.test.mjs fails on any other tag form.
-FROM nginxinc/nginx-unprivileged:1.31.6-alpine
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine
 # Set by the release workflow to the version tag; `dev` for local builds.
 ARG ONCALL_VERSION=dev
 ENV ONCALL_VERSION=${ONCALL_VERSION}
