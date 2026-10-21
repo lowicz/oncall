@@ -31,7 +31,6 @@ from oncall.bootstrap.providers import (
 from oncall.config import get_settings
 from oncall.domain.access import errors, use_cases
 from oncall.domain.access.models import AccountOverview, PasswordChoice, SignInRequest
-from oncall.domain.access.ports import SsoSignInPorts
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import utc_now
 from oncall.domain.errors import DomainError
@@ -350,11 +349,11 @@ def _back_to_login(code: str) -> RedirectResponse:
     return _sso_redirect(f"/?sso={code}", clear_cookie=True)
 
 
-async def _sso_refused(ports: SsoSignInPorts, reason: str) -> RedirectResponse:
+def _sso_refused(reason: str) -> RedirectResponse:
     """A callback refused before the provider is asked anything: no state
-    cookie, a state that is not the cookie's, or no code to exchange."""
+    cookie, a state that is not the cookie's, or no code to exchange. Anyone
+    can send one, so it reaches the operator's log but not the audit trail."""
     login_log.emit("sso_auth", outcome="rejected", phase="callback", reason=reason)
-    await ports.attempts.sso_refused("callback", reason)
     return _back_to_login("rejected")
 
 
@@ -438,11 +437,11 @@ async def sso_callback(
     login_log.begin_attempt()
     pending = _pending_sso(request)
     if pending is None or not state or not secrets.compare_digest(state, pending.state):
-        return await _sso_refused(ports, "state_mismatch")
-    if error or not code:
-        # The provider's own code (`access_denied`, `login_required`) when it
-        # sent the browser back without a code; never its description.
-        return await _sso_refused(ports, (error or "code_missing")[:120])
+        return _sso_refused("state_mismatch")
+    if error:
+        return _sso_refused("provider_error")
+    if not code:
+        return _sso_refused("code_missing")
     try:
         number = await sso.exchange(code, code_verifier=pending.verifier, nonce=pending.nonce)
     except SsoUnavailableError as failure:

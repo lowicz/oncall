@@ -5,6 +5,7 @@ opens, and what each refusal leaves in the audit trail and the log."""
 import base64
 import json
 import logging
+from datetime import timedelta
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -242,63 +243,68 @@ async def test_an_inactive_account_is_refused(client, db, sso) -> None:
     assert refused.details == {"phase": "account", "reason": "account_inactive"}
 
 
-async def test_a_callback_without_the_cookie_is_refused(client, db, sso, diagnostics) -> None:
+def callback_refusal(diagnostics) -> tuple[str, str, str, str]:
+    [record] = records(diagnostics)
+    return (record["event"], record["outcome"], record["phase"], record["reason"])
+
+
+async def test_a_callback_without_the_cookie_is_logged_but_not_audited(
+    client, db, sso, diagnostics
+) -> None:
     response = await callback(client, "state-1")
 
     assert (response.status_code, response.headers["location"]) == (302, "/?sso=rejected")
     assert sso.exchanged == []
-    [refused] = await audit(db, "auth.sso_rejected")
-    assert (refused.actor_label, refused.details) == (
-        "sso",
-        {"phase": "callback", "reason": "state_mismatch"},
-    )
-    [record] = records(diagnostics)
-    assert (record["outcome"], record["phase"], record["reason"]) == (
-        "rejected",
-        "callback",
-        "state_mismatch",
-    )
+    assert list(await db.scalars(select(AuditEvent))) == []
+    assert callback_refusal(diagnostics) == ("sso_auth", "rejected", "callback", "state_mismatch")
 
 
 @pytest.mark.parametrize("state", ["state-of-another-browser", "", None])
-async def test_a_state_that_is_not_the_cookies_is_refused(client, db, sso, state) -> None:
+async def test_a_state_that_is_not_the_cookies_is_refused(
+    client, db, sso, diagnostics, state
+) -> None:
     await start(client)
 
     response = await callback(client, state)
 
     assert response.headers["location"] == "/?sso=rejected"
     assert sso.exchanged == []
+    assert list(await db.scalars(select(AuditEvent))) == []
+    assert callback_refusal(diagnostics)[3] == "state_mismatch"
 
 
-async def test_a_cookie_that_is_not_ours_is_refused(client, db, sso) -> None:
+async def test_a_cookie_that_is_not_ours_is_refused(client, db, sso, diagnostics) -> None:
     client.cookies.set("oncall_sso", "not-what-we-set", domain="test", path="/api/v1/auth/sso")
 
     response = await callback(client, "state-1")
 
     assert response.headers["location"] == "/?sso=rejected"
-    [refused] = await audit(db, "auth.sso_rejected")
-    assert refused.details == {"phase": "callback", "reason": "state_mismatch"}
+    assert list(await db.scalars(select(AuditEvent))) == []
+    assert callback_refusal(diagnostics)[3] == "state_mismatch"
 
 
-async def test_the_providers_refusal_is_recorded_by_its_code(client, db, sso) -> None:
+async def test_the_providers_refusal_is_logged_under_one_fixed_code(
+    client, db, sso, diagnostics
+) -> None:
     pending = pending_from(await start(client))
 
-    response = await callback(client, pending["state"], code=None, error="access_denied")
+    response = await callback(client, pending["state"], error="<script>" + "x" * 200)
 
     assert response.headers["location"] == "/?sso=rejected"
     assert sso.exchanged == []
-    [refused] = await audit(db, "auth.sso_rejected")
-    assert refused.details == {"phase": "callback", "reason": "access_denied"}
+    assert list(await db.scalars(select(AuditEvent))) == []
+    assert callback_refusal(diagnostics) == ("sso_auth", "rejected", "callback", "provider_error")
+    assert "<script>" not in diagnostics.text
 
 
-async def test_a_callback_without_a_code_is_refused(client, db, sso) -> None:
+async def test_a_callback_without_a_code_is_refused(client, db, sso, diagnostics) -> None:
     pending = pending_from(await start(client))
 
     response = await callback(client, pending["state"], code=None)
 
     assert response.headers["location"] == "/?sso=rejected"
-    [refused] = await audit(db, "auth.sso_rejected")
-    assert refused.details == {"phase": "callback", "reason": "code_missing"}
+    assert list(await db.scalars(select(AuditEvent))) == []
+    assert callback_refusal(diagnostics)[3] == "code_missing"
 
 
 async def test_a_provider_down_at_start_sends_the_person_to_the_password_form(
@@ -316,8 +322,24 @@ async def test_a_provider_down_at_start_sends_the_person_to_the_password_form(
     assert (outage.actor_label, outage.summary, outage.details) == (
         "sso",
         "SSO niedostępne",
-        {"phase": "discovery", "reason": "timeout"},
+        {"phase": "discovery", "reason": "timeout", "count": 1},
     )
+
+
+async def test_outages_within_five_minutes_share_one_audit_row(client, db, sso) -> None:
+    sso.failure = SsoUnavailableError("discovery", "timeout")
+    await start(client)
+    sso.failure = SsoUnavailableError("discovery", "connection_refused")
+    await start(client)
+
+    [outage] = await audit(db, "auth.sso_unavailable")
+    assert outage.details == {"phase": "discovery", "reason": "connection_refused", "count": 2}
+
+    outage.occurred_at -= timedelta(minutes=6)
+    await db.commit()
+    await start(client)
+
+    assert len(await audit(db, "auth.sso_unavailable")) == 2
 
 
 async def test_a_provider_down_at_the_exchange_sends_the_person_to_the_password_form(
@@ -331,7 +353,7 @@ async def test_a_provider_down_at_the_exchange_sends_the_person_to_the_password_
     assert response.headers["location"] == "/?sso=unavailable"
     assert await db.scalar(select(Session)) is None
     [outage] = await audit(db, "auth.sso_unavailable")
-    assert outage.details == {"phase": "exchange", "reason": "connection_refused"}
+    assert outage.details == {"phase": "exchange", "reason": "connection_refused", "count": 1}
 
 
 async def test_a_rejected_token_sends_the_person_back(client, db, sso) -> None:

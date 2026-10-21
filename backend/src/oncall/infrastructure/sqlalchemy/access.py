@@ -1,7 +1,7 @@
 """Accounts, credentials, sign-in attempts and account links for signing in."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,9 @@ from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 ATTEMPT = "auth.login_attempt"
 FAILURE_SERIES = "auth.login_failed"
 THROTTLE_SERIES = "auth.throttled"
+SSO_OUTAGE_SERIES = "auth.sso_unavailable"
+#: Outages of the identity provider closer together than this share one row.
+SSO_OUTAGE_WINDOW = timedelta(minutes=5)
 
 
 def account_from_row(row: User) -> Account:
@@ -155,14 +158,24 @@ class SqlAlchemyLoginAttempts:
         )
 
     async def sso_unavailable(self, phase: str, reason: str) -> None:
-        record_audit(
-            self._session,
-            actor=None,
-            actor_label="sso",
-            action="auth.sso_unavailable",
-            summary="SSO niedostępne",
-            details={"phase": phase, "reason": reason},
-        )
+        now = utc_now()
+        series = await self._series(SSO_OUTAGE_SERIES, "sso", now - SSO_OUTAGE_WINDOW)
+        if series is None:
+            record_audit(
+                self._session,
+                actor=None,
+                actor_label="sso",
+                action=SSO_OUTAGE_SERIES,
+                summary="SSO niedostępne",
+                details={"phase": phase, "reason": reason, "count": 1},
+            )
+            return
+        series.occurred_at = now
+        series.details = {
+            "phase": phase,
+            "reason": reason,
+            "count": int((series.details or {}).get("count", 1)) + 1,
+        }
 
 
 class SqlAlchemyAccessAccounts:
