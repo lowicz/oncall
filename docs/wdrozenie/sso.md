@@ -131,9 +131,11 @@ Keycloak. Klient nie potrzebuje adresu powrotu po wylogowaniu.
   Keycloak (albo w katalogu, z którego Keycloak go czyta), decyduje, na które
   konto wejdzie osoba - tak samo jak dziś z `employeeNumber` w AD. Unikalny
   numer kadrowy w aplikacji wyklucza dwa konta z tym samym numerem.
-- **Zegar.** Token ID jest sprawdzany z tolerancją 60 sekund. Większa różnica
-  zegarów między hostem aplikacji a Keycloak odrzuca każde logowanie
-  (`reason=token_expired`); oba hosty powinny synchronizować czas (NTP).
+- **Zegar.** Token ID jest sprawdzany z tolerancją 60 sekund. Zegar Keycloak
+  wyprzedzający host aplikacji o więcej niż 60 sekund odrzuca każde logowanie
+  (`reason=ImmatureSignatureError`). Zegar hosta aplikacji wyprzedzający
+  Keycloak odrzuca je dopiero po przekroczeniu czasu życia tokenu ID i 60
+  sekund (`reason=token_expired`). Oba hosty powinny synchronizować czas (NTP).
 - **Wspólny komputer.** Ponieważ „Wyloguj” nie kończy sesji Keycloak, kolejna
   osoba, która na tym samym komputerze naciśnie „Zaloguj przez SSO”, wejdzie
   na konto poprzedniej, dopóki trwa jej sesja w Keycloak. Na stanowiskach
@@ -210,10 +212,10 @@ logowań, `ONCALL_RETENTION_LOGIN_AUDIT_DAYS`.
 | `verify` | `issuer_mismatch` | `ONCALL_SSO_ISSUER` różni się od `iss` w tokenie: schemat, nazwa hosta, pod którą Keycloak się przedstawia, port albo nazwa realmu |
 | `verify` | `audience_mismatch`, `azp_mismatch` | token wydano dla innego klienta: `ONCALL_SSO_CLIENT_ID` |
 | `verify` | `nonce_mismatch` | token nie należy do tego logowania (np. dwie karty naraz): wystarczy spróbować ponownie |
-| `verify` | `token_expired` | różnica zegarów między hostem aplikacji a Keycloak przekracza 60 sekund |
+| `verify` | `token_expired` | token ID wygasł: zegar hosta aplikacji wyprzedza Keycloak o więcej niż czas życia tokenu i 60 sekund (zob. **Zegar** wyżej) |
 | `verify` | `claim_missing` | w tokenie ID nie ma claimu z `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER`: mapper nie ma „Add to ID token” albo nazwa claimu się różni - [Klient w Keycloak](#klient-w-keycloak) |
 | `verify` | `claim_invalid` | wartość claimu nie jest tekstem z samych cyfr, najwyżej 32 znaki; „Claim JSON Type” musi być String |
-| `verify` | inna nazwa klasy, np. `ImmatureSignatureError`, `InvalidAlgorithmError` | biblioteka PyJWT odrzuciła token z tego powodu: `ImmatureSignatureError` to zegar, `InvalidAlgorithmError` - realm podpisuje innym algorytmem niż RS256 albo ES256 |
+| `verify` | inna nazwa klasy, np. `ImmatureSignatureError`, `InvalidAlgorithmError` | biblioteka PyJWT odrzuciła token z tego powodu: `ImmatureSignatureError` - zegar Keycloak wyprzedza host aplikacji o więcej niż 60 sekund, `InvalidAlgorithmError` - realm podpisuje innym algorytmem niż RS256 albo ES256 |
 | `account` | `no_account` | żadne konto nie ma tego numeru kadrowego: administrator wpisuje numer na koncie na ekranie „Osoby” albo zakłada konto |
 | `account` | `account_inactive` | konto jest wyłączone w aplikacji (ekran „Osoby”) |
 | `discovery`, `exchange`, `verify` | `unexpected_error` | błąd w aplikacji albo bibliotece: zgłoś go z całym wierszem logu |

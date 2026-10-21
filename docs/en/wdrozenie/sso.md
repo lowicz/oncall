@@ -138,10 +138,11 @@ post-logout redirect address.
   from) decides which account a person enters - just as with `employeeNumber`
   in AD today. The unique personnel number in the application rules out two
   accounts with the same number.
-- **Clock.** The ID token is checked with a 60-second tolerance. A larger
-  clock difference between the application host and Keycloak refuses every
-  sign-in (`reason=token_expired`); both hosts should synchronise their time
-  (NTP).
+- **Clock.** The ID token is checked with a 60-second tolerance. A Keycloak
+  clock ahead of the application host by more than 60 seconds refuses every
+  sign-in (`reason=ImmatureSignatureError`). An application host clock ahead
+  of Keycloak refuses it only beyond the ID token lifetime plus 60 seconds
+  (`reason=token_expired`). Both hosts should synchronise their time (NTP).
 - **Shared computer.** Since “Sign out” does not end the Keycloak session, the
   next person who presses “Sign in with SSO” on the same computer enters the
   previous person's account for as long as their Keycloak session lasts. On
@@ -217,10 +218,10 @@ address. All three actions fall under the retention of routine sign-ins,
 | `verify` | `issuer_mismatch` | `ONCALL_SSO_ISSUER` differs from `iss` in the token: the scheme, the host name Keycloak presents itself under, the port or the realm name |
 | `verify` | `audience_mismatch`, `azp_mismatch` | the token was issued for another client: `ONCALL_SSO_CLIENT_ID` |
 | `verify` | `nonce_mismatch` | the token does not belong to this sign-in (e.g. two tabs at once): just try again |
-| `verify` | `token_expired` | the clock difference between the application host and Keycloak exceeds 60 seconds |
+| `verify` | `token_expired` | the ID token expired: the application host clock is ahead of Keycloak by more than the token lifetime plus 60 seconds (see **Clock** above) |
 | `verify` | `claim_missing` | the ID token has no claim named by `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER`: the mapper lacks “Add to ID token” or the claim name differs - [Keycloak client](#keycloak-client) |
 | `verify` | `claim_invalid` | the claim's value is not text of digits only, at most 32 characters; “Claim JSON Type” must be String |
-| `verify` | another class name, e.g. `ImmatureSignatureError`, `InvalidAlgorithmError` | the PyJWT library refused the token for that reason: `ImmatureSignatureError` is the clock, `InvalidAlgorithmError` means the realm signs with an algorithm other than RS256 or ES256 |
+| `verify` | another class name, e.g. `ImmatureSignatureError`, `InvalidAlgorithmError` | the PyJWT library refused the token for that reason: `ImmatureSignatureError` means the Keycloak clock is ahead of the application host by more than 60 seconds, `InvalidAlgorithmError` means the realm signs with an algorithm other than RS256 or ES256 |
 | `account` | `no_account` | no account has this personnel number: the administrator types the number on the account on the “People” screen or creates the account |
 | `account` | `account_inactive` | the account is disabled in the application (“People” screen) |
 | `discovery`, `exchange`, `verify` | `unexpected_error` | an error in the application or a library: report it with the whole log line |
