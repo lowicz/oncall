@@ -93,8 +93,9 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | zakończone uruchomienia generatora |
 | `ONCALL_SMTP_HOST` | puste | serwer poczty wychodzącej; puste wyłącza wysyłkę e-maili, patrz [Serwer SMTP](#serwer-smtp) |
 | `ONCALL_SECRETS_KEY` | puste | klucz Fernet, którym `api` i `worker` szyfrują sekrety trzymane w bazie (hasło Orange WCO automatycznego przekierowania numeru on-call); kilka kluczy po przecinku to rotacja: pierwszy szyfruje, każdy odszyfrowuje; puste wyłącza funkcje, które go potrzebują; klucz chroni wartość, którą administrator może odsłonić na ekranie przełączania numeru, więc jego granica jest taka sama jak konta administratora; nowy klucz wypisuje `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
-| `ONCALL_CA_FILE` | `./tls/ca.pem` | jeden pakiet PEM z CA, którym ufa wdrożenie: dla LDAP, SMTP, Orange WCO i nginx - patrz [Plik CA](#plik-ca) |
+| `ONCALL_CA_FILE` | `./tls/ca.pem` | jeden pakiet PEM z CA, którym ufa wdrożenie: dla LDAP, SMTP, Orange WCO, Keycloak i nginx - patrz [Plik CA](#plik-ca) |
 | `ONCALL_LDAP_ENABLED` | `false` | logowanie z katalogu - patrz [LDAP / Active Directory](ldap.md) |
+| `ONCALL_SSO_ENABLED` | `false` | logowanie przez SSO (Keycloak), z `ONCALL_SSO_ISSUER`, `ONCALL_SSO_CLIENT_ID`, `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER` i `ONCALL_SSO_TIMEOUT_SECONDS` - patrz [Logowanie przez SSO](sso.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS na nginx - patrz [TLS](tls.md) |
 
 Liczba procesów API razy rozmiar puli połączeń musi mieścić się poniżej
@@ -111,8 +112,8 @@ organizacji albo cały systemowy pakiet hosta, np.
 `/etc/pki/tls/certs/ca-bundle.crt`. Czytają go:
 
 - `api` i `worker` przez nakładkę `docker-compose.ca.yml`: katalog
-  [LDAP](ldap.md#certyfikat-katalogu), [serwer SMTP](#serwer-smtp) i
-  Orange WCO, gdy ich certyfikat wystawiło wewnętrzne CA (AD CS, firmowe
+  [LDAP](ldap.md#certyfikat-katalogu), [serwer SMTP](#serwer-smtp),
+  Orange WCO i [Keycloak](sso.md#certyfikat-keycloak), gdy ich certyfikat wystawiło wewnętrzne CA (AD CS, firmowe
   proxy TLS), którego obraz nie zna,
 - nginx przez nakładkę [TLS](tls.md#kompletny-systemowy-pakiet-zaufania).
 
@@ -127,7 +128,7 @@ docker compose -f docker-compose.yml -f docker-compose.ca.yml up -d
 docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ca.yml up -d
 ```
 
-SMTP i WCO dokładają CA z pliku do publicznych CA obrazu, nie zastępują ich,
+SMTP, WCO i Keycloak dokładają CA z pliku do publicznych CA obrazu, nie zastępują ich,
 więc ten sam pakiet obsłuży serwer w sieci wewnętrznej i publiczny. Katalog
 LDAP ufa **wyłącznie** temu pakietowi, więc musi on zawierać CA kontrolerów
 domeny. Certyfikatów nie da się nie weryfikować.

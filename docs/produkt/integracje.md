@@ -228,6 +228,11 @@ zamian, generowanie szkiców, publikacje, korekty, zmiany polityki, importy
 historii, linki i kanały, administracja kontami - są zapisywane w tabeli
 `audit_events` **w tej samej transakcji co sama zmiana**.
 
+Logowanie przez SSO zapisuje zwykłe „Logowanie” (`auth.login`, w szczegółach
+`via=sso`), a odmowy - „Odrzucono logowanie SSO” (`auth.sso_rejected`) i „SSO
+niedostępne” (`auth.sso_unavailable`); wszystkie trzy podlegają retencji
+zwykłych logowań. Patrz [Logowanie przez SSO](../wdrozenie/sso.md#diagnostyka).
+
 Etykieta aktora jest zdenormalizowana, więc ślad przetrwa usunięcie konta i
 opisze także aktorów niebędących użytkownikami, na przykład link podglądowy.
 Administrator przegląda i filtruje dziennik na ekranie „Audyt”, a wynik filtra

@@ -19,6 +19,8 @@ Każda próba przechodzi te same kroki. Nazwy w nawiasach to wartości pola
 
 Pierwsze udane logowanie zakłada konto `viewer`, kolejne synchronizują dane.
 Powiązanie z kontem lokalnym opisuje [Role i dostęp](../produkt/role-i-dostep.md#konta-i-logowanie).
+Ten sam numer kadrowy wiąże konto przy [logowaniu przez SSO](sso.md), więc
+konto z katalogu może logować się obiema drogami.
 
 ## Konfiguracja
 

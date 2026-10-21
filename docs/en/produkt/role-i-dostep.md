@@ -63,6 +63,13 @@ by the author of the entry and by the coordinator and the administrator.
   `employeeNumber`**. Once linked, the local password stops working. A
   mismatched number ends in a `409` conflict recorded in the audit - the
   administrator fixes it on the account.
+- **SSO sign-in (Keycloak)** - optional, off by default; a “Sign in with SSO”
+  button under the password form. Keycloak confirms the identity and the
+  application lets the person into the **existing, active account with the
+  same personnel number** as in the token (`employeeNumber` by default),
+  local or from the directory. SSO creates no accounts, synchronises no data
+  and **does not change how an account signs in**: the local password and
+  directory sign-in keep working. Details: [SSO sign-in](../wdrozenie/sso.md).
 
 The session is an `HttpOnly`, `Secure`, `SameSite=Lax` cookie with CSRF
 protection on state-changing operations. Signing out invalidates the session

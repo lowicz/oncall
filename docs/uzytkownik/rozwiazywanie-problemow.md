@@ -25,6 +25,25 @@ Numer kadrowy na koncie nie zgadza się z `employeeNumber` w katalogu.
 Administrator poprawia numer na ekranie „Osoby”; zdarzenie jest w audycie jako
 „Konflikt tożsamości LDAP”.
 
+**„Logowanie SSO jest chwilowo niedostępne”**
+Aplikacja nie mogła połączyć się z Keycloak. Zaloguj się loginem i hasłem;
+administrator znajdzie przyczynę w logu API - patrz
+[Logowanie przez SSO](../wdrozenie/sso.md#diagnostyka).
+
+**„Logowanie SSO nie powiodło się”**
+Logowanie przerwano albo trwało zbyt długo (np. cofnięcie w przeglądarce).
+Spróbuj ponownie. Jeśli powtarza się każdemu, administrator sprawdza
+konfigurację klienta w Keycloak.
+
+**„Brak konta dla Twojego numeru pracownika”**
+Keycloak Cię rozpoznał, ale żadne konto w aplikacji nie ma Twojego numeru
+kadrowego. Poproś administratora o konto z Twoim numerem pracownika albo o
+wpisanie numeru na istniejącym koncie (ekran „Osoby”).
+
+**„Konto jest nieaktywne” po „Zaloguj przez SSO”**
+Konto z Twoim numerem kadrowym jest wyłączone. Skontaktuj się z
+administratorem.
+
 **„Sesja wygasła” nad formularzem logowania**
 Sesja skończyła się, gdy karta była otwarta: minął czas życia sesji, nastąpiło
 wylogowanie w innej karcie albo administrator wyłączył konto. Aplikacja

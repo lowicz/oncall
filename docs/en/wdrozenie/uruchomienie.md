@@ -95,8 +95,9 @@ The full list with comments is in `.env.example`.
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | finished generator runs |
 | `ONCALL_SMTP_HOST` | empty | the outgoing mail server; empty disables e-mail sending, see [SMTP server](#smtp-server) |
 | `ONCALL_SECRETS_KEY` | empty | the Fernet key `api` and `worker` encrypt the secrets kept in the database with (the Orange WCO password of the automatic on-call number forwarding); several comma-separated keys rotate it: the first encrypts, every one decrypts; empty turns off the features that need it; the key protects a value an administrator can reveal on the number forwarding screen, so its boundary is the same as an administrator account's; `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` prints a new key |
-| `ONCALL_CA_FILE` | `./tls/ca.pem` | the one PEM bundle of the CAs the deployment trusts: for LDAP, SMTP, Orange WCO and nginx - see [CA file](#ca-file) |
+| `ONCALL_CA_FILE` | `./tls/ca.pem` | the one PEM bundle of the CAs the deployment trusts: for LDAP, SMTP, Orange WCO, Keycloak and nginx - see [CA file](#ca-file) |
 | `ONCALL_LDAP_ENABLED` | `false` | directory sign-in - see [LDAP / Active Directory](ldap.md) |
+| `ONCALL_SSO_ENABLED` | `false` | SSO sign-in (Keycloak), with `ONCALL_SSO_ISSUER`, `ONCALL_SSO_CLIENT_ID`, `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER` and `ONCALL_SSO_TIMEOUT_SECONDS` - see [SSO sign-in](sso.md) |
 | `ONCALL_TLS_ENABLED` | `false` | HTTPS on nginx - see [TLS](tls.md) |
 
 The number of API processes times the connection pool size must stay below
@@ -114,8 +115,8 @@ intermediate CAs, or the host's whole system bundle, e.g.
 `/etc/pki/tls/certs/ca-bundle.crt`. It is read by:
 
 - `api` and `worker` through the `docker-compose.ca.yml` overlay: the
-  [LDAP](ldap.md#directory-certificate) directory, the [SMTP server](#smtp-server)
-  and Orange WCO, when their certificate comes from an internal CA (AD CS, a
+  [LDAP](ldap.md#directory-certificate) directory, the [SMTP server](#smtp-server),
+  Orange WCO and [Keycloak](sso.md#keycloak-certificate), when their certificate comes from an internal CA (AD CS, a
   corporate TLS proxy) the image does not know,
 - nginx through the [TLS](tls.md#complete-system-trust-bundle) overlay.
 
@@ -130,7 +131,7 @@ docker compose -f docker-compose.yml -f docker-compose.ca.yml up -d
 docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ca.yml up -d
 ```
 
-SMTP and WCO add the CAs from the file to the image's public CAs rather than
+SMTP, WCO and Keycloak add the CAs from the file to the image's public CAs rather than
 replacing them, so the same bundle serves a server on the internal network
 and a public one. The LDAP directory trusts this bundle **alone**, so it must
 hold the domain controllers' CA. Certificate verification cannot be turned

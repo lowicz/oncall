@@ -63,6 +63,13 @@ autor wpisu oraz koordynator i administrator.
   `employeeNumber`**. Po powiązaniu hasło lokalne przestaje działać. Niezgodny
   numer kończy się konfliktem `409` zapisanym w audycie - poprawia go
   administrator na koncie.
+- **Logowanie SSO (Keycloak)** - opcjonalne, wyłączone domyślnie; przycisk
+  „Zaloguj przez SSO” pod formularzem hasła. Keycloak potwierdza tożsamość, a
+  aplikacja wpuszcza na **istniejące, aktywne konto z tym samym numerem
+  kadrowym** co w tokenie (domyślnie `employeeNumber`), lokalne albo z
+  katalogu. SSO nie zakłada kont, nie synchronizuje danych i **nie zmienia
+  sposobu logowania konta**: hasło lokalne i logowanie z katalogu działają
+  dalej. Szczegóły: [Logowanie przez SSO](../wdrozenie/sso.md).
 
 Sesja jest cookie `HttpOnly`, `Secure`, `SameSite=Lax`, z ochroną CSRF na
 operacjach zmieniających stan. Wylogowanie unieważnia sesję natychmiast.

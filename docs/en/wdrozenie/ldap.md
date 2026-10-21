@@ -20,6 +20,8 @@ values of the `phase=` field in the log - see [Diagnostics](#diagnostics).
 The first successful sign-in creates a `viewer` account; subsequent ones
 synchronise the data. Linking with a local account is described in
 [Roles and access](../produkt/role-i-dostep.md#accounts-and-sign-in).
+The same personnel number links the account in [SSO sign-in](sso.md), so a
+directory account can sign in either way.
 
 ## Configuration
 

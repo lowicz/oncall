@@ -11,6 +11,14 @@ If your company has directory sign-in enabled (LDAP / Active Directory), use
 the same credentials as for your computer. The account is created on the first
 successful sign-in.
 
+If your company has SSO sign-in enabled, there is a **“Sign in with SSO”**
+button under the form. It leads to the company sign-in page (Keycloak); after
+signing in there you return to the application, to the screen that was open.
+It lets you into the account the administrator created with your personnel
+number. “Sign out” ends the session in the application only: the next
+“Sign in with SSO” may let you in without asking for a password. On a shared
+computer, sign out of the company page too or close the browser.
+
 The message **“Wrong username or password”** also appears when the account
 has been disabled - in that case contact the administrator.
 
