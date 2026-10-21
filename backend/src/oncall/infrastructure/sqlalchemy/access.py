@@ -1,7 +1,7 @@
 """Accounts, credentials, sign-in attempts and account links for signing in."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,9 @@ from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 ATTEMPT = "auth.login_attempt"
 FAILURE_SERIES = "auth.login_failed"
 THROTTLE_SERIES = "auth.throttled"
+SSO_OUTAGE_SERIES = "auth.sso_unavailable"
+#: Outages of the identity provider closer together than this share one row.
+SSO_OUTAGE_WINDOW = timedelta(minutes=5)
 
 
 def account_from_row(row: User) -> Account:
@@ -141,6 +144,38 @@ class SqlAlchemyLoginAttempts:
             action="auth.ldap_identity_conflict",
             summary=f"Nie można powiązać konta LDAP: {login[:120]}",
         )
+
+    async def sso_refused(
+        self, phase: str, reason: str, *, personnel_number: str | None = None
+    ) -> None:
+        record_audit(
+            self._session,
+            actor=None,
+            actor_label=personnel_number or "sso",
+            action="auth.sso_rejected",
+            summary="Odrzucono logowanie SSO",
+            details={"phase": phase, "reason": reason},
+        )
+
+    async def sso_unavailable(self, phase: str, reason: str) -> None:
+        now = utc_now()
+        series = await self._series(SSO_OUTAGE_SERIES, "sso", now - SSO_OUTAGE_WINDOW)
+        if series is None:
+            record_audit(
+                self._session,
+                actor=None,
+                actor_label="sso",
+                action=SSO_OUTAGE_SERIES,
+                summary="SSO niedostępne",
+                details={"phase": phase, "reason": reason, "count": 1},
+            )
+            return
+        series.occurred_at = now
+        series.details = {
+            "phase": phase,
+            "reason": reason,
+            "count": int((series.details or {}).get("count", 1)) + 1,
+        }
 
 
 class SqlAlchemyAccessAccounts:
@@ -281,9 +316,15 @@ class SqlAlchemyAccessJournal:
         actor = await self._session.get(User, account.id)
         record_audit(self._session, actor=actor, entity_type="user", entity_id=account.id, **entry)
 
-    async def signed_in(self, account: Account) -> None:
+    async def signed_in(self, account: Account, *, via: str = "password") -> None:
+        # A password sign-in is the ordinary one and says nothing more; a
+        # single sign-on names its door, which is what an administrator
+        # reading the trail wants to know.
         await self._record(
-            account, action="auth.login", summary=f"Zalogowano: {account.display_name}"
+            account,
+            action="auth.login",
+            summary=f"Zalogowano: {account.display_name}",
+            details={"via": via} if via != "password" else None,
         )
 
     async def provisioned(self, account: Account) -> None:

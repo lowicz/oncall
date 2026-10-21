@@ -20,6 +20,11 @@ MESSAGES: dict[str, str] = {
     "access.no_active_session": "No active session",
     "access.session_expired": "The session has expired",
     "access.account_inactive": "The account is inactive",
+    "access.sso_no_account": (
+        "No account matches your personnel number. "
+        "Ask an administrator for an account with your personnel number."
+    ),
+    "access.sso_disabled": "SSO sign-in is turned off",
     "access.share_session_not_an_account": "The link session is not linked to a user account",
     "access.invalid_csrf_token": "Invalid CSRF token",
     "access.session_link_missing": "The session link is missing",

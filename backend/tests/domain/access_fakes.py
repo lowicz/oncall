@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from oncall.domain.access import errors
 from oncall.domain.access.errors import DirectoryFailure
 from oncall.domain.access.models import AccountLink, StoredCredentials
-from oncall.domain.access.ports import PasswordPorts, SignInPorts
+from oncall.domain.access.ports import PasswordPorts, SignInPorts, SsoSignInPorts
 from oncall.domain.accounts import Account, SignedInSession
 from oncall.domain.sharing.models import CalendarFeed, FeedIssued, ShareLink
 from oncall.domain.sharing.ports import (
@@ -61,6 +61,12 @@ class FakeAttempts:
 
     async def identity_conflict(self, login):
         self.events.append(("identity_conflict", login))
+
+    async def sso_refused(self, phase, reason, *, personnel_number=None):
+        self.events.append(("sso_refused", phase, reason, personnel_number))
+
+    async def sso_unavailable(self, phase, reason):
+        self.events.append(("sso_unavailable", phase, reason))
 
 
 class FakeAccessAccounts:
@@ -239,6 +245,15 @@ class AccessWorld:
             accounts=self.accounts,
             passwords=self.passwords,
             directory=self.directory,
+            sessions=self.sessions,
+            journal=self.journal,
+        )
+
+    @property
+    def sso_sign_in(self) -> SsoSignInPorts:
+        return SsoSignInPorts(
+            attempts=self.attempts,
+            accounts=self.accounts,
             sessions=self.sessions,
             journal=self.journal,
         )

@@ -13,6 +13,11 @@ RejectionCause = Literal["credentials_rejected", "account_inactive"]
 #: account.
 IdentityConflictCause = Literal["personnel_number_mismatch", "login_taken"]
 
+#: Why a single sign-on was refused once the identity provider had vouched
+#: for the person: the number it vouches for names no account here, or an
+#: inactive one.
+SsoRefusalCause = Literal["no_account", "account_inactive"]
+
 
 class LoginThrottled(RecordedRefusal):
     def __init__(self, retry_after: int) -> None:
@@ -28,6 +33,18 @@ class LoginRejected(RecordedRefusal):
     def __init__(self, cause: RejectionCause) -> None:
         super().__init__("access.login_rejected")
         self.cause: RejectionCause = cause
+
+
+class SsoSignInRefused(RecordedRefusal):
+    """Told apart to the person, unlike a rejected password: the provider has
+    already authenticated them, so naming the cause discloses nothing about
+    anyone else's account."""
+
+    def __init__(self, cause: SsoRefusalCause) -> None:
+        super().__init__(
+            "access.sso_no_account" if cause == "no_account" else "access.account_inactive"
+        )
+        self.cause: SsoRefusalCause = cause
 
 
 class DirectoryFailure(DomainError):

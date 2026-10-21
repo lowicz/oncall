@@ -2916,6 +2916,10 @@
             "title": "Login Audit Retention Days",
             "type": "integer"
           },
+          "sso_enabled": {
+            "title": "Sso Enabled",
+            "type": "boolean"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -2923,6 +2927,7 @@
         },
         "required": [
           "ldap_enabled",
+          "sso_enabled",
           "app_name",
           "app_subtitle",
           "version",
@@ -6572,6 +6577,125 @@
           }
         },
         "summary": "Reset Password"
+      }
+    },
+    "/api/v1/auth/sso/callback": {
+      "get": {
+        "description": "Where the identity provider sends the browser back. The code is\nexchanged and the ID token verified over a back channel; the personnel\nnumber it carries names the account, and an active one gets the same\nsession a password sign-in gets. A GET that changes state, as OpenID\nConnect redirects are: the state and nonce the `oncall_sso` cookie binds\nto this browser are what make it safe, so it is outside the CSRF guard\nand has no login throttle (the provider checked the password).",
+        "operationId": "sso_callback_api_v1_auth_sso_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To the screen the sign-on started from, with the session cookie, or to the login page with ?sso=unavailable|rejected|no_account|inactive"
+          },
+          "404": {
+            "description": "Single sign-on is not enabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sso Callback"
+      }
+    },
+    "/api/v1/auth/sso/start": {
+      "get": {
+        "description": "Send the browser to the identity provider (OpenID Connect,\nAuthorization Code with PKCE). `next` is the screen to return to after\nthe sign-on; it must be a path on this origin.",
+        "operationId": "sso_start_api_v1_auth_sso_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "next",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "To the identity provider, or to the login page with ?sso=unavailable"
+          },
+          "404": {
+            "description": "Single sign-on is not enabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sso Start"
       }
     },
     "/api/v1/availability/me": {
