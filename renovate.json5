@@ -306,6 +306,15 @@
       minimumReleaseAgeBehaviour: 'timestamp-optional',
     },
     {
+      // The Keycloak of the single sign-on test (docker-compose.keycloak.yml),
+      // read by the docker-compose manager. Renovate dates Docker Hub tags
+      // only, so on quay.io the three-day rule would hold every update for
+      // ever. Without the date there is no wait; the image runs only in that
+      // test and a development checkout, never in a deployment.
+      matchDepNames: ['quay.io/keycloak/keycloak'],
+      minimumReleaseAgeBehaviour: 'timestamp-optional',
+    },
+    {
       // A PostgreSQL release can ask for a step after the update (a REINDEX,
       // a changed setting); its release notes say so. Image lines only: the
       // bare major of the badge and the volume name has no minor.

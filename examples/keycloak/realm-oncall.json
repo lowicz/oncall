@@ -1,0 +1,67 @@
+{
+  "realm": "oncall",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "oncall",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8000/api/v1/auth/sso/callback",
+        "http://localhost:5173/api/v1/auth/sso/callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "employeeNumber",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "employeeNumber",
+            "claim.name": "employeeNumber",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "anna",
+      "enabled": true,
+      "email": "anna@oncall.example",
+      "emailVerified": true,
+      "firstName": "Anna",
+      "lastName": "Nowak",
+      "attributes": { "employeeNumber": ["000042"] },
+      "credentials": [{ "type": "password", "value": "anna-haslo", "temporary": false }]
+    },
+    {
+      "username": "wylaczona",
+      "enabled": true,
+      "email": "wylaczona@oncall.example",
+      "emailVerified": true,
+      "firstName": "Ewa",
+      "lastName": "Wyłączona",
+      "attributes": { "employeeNumber": ["000043"] },
+      "credentials": [{ "type": "password", "value": "wylaczona-haslo", "temporary": false }]
+    },
+    {
+      "username": "bez-konta",
+      "enabled": true,
+      "email": "bez-konta@oncall.example",
+      "emailVerified": true,
+      "firstName": "Jan",
+      "lastName": "Bezkonta",
+      "attributes": { "employeeNumber": ["000099"] },
+      "credentials": [{ "type": "password", "value": "bez-konta-haslo", "temporary": false }]
+    }
+  ]
+}
