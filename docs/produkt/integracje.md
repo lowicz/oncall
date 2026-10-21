@@ -231,7 +231,8 @@ historii, linki i kanały, administracja kontami - są zapisywane w tabeli
 Logowanie przez SSO zapisuje zwykłe „Logowanie” (`auth.login`, w szczegółach
 `via=sso`), a odmowy - „Odrzucono logowanie SSO” (`auth.sso_rejected`) i „SSO
 niedostępne” (`auth.sso_unavailable`, powtórzenia w ciągu 5 minut trafiają do
-jednego wpisu z licznikiem); wszystkie trzy podlegają retencji zwykłych logowań. Patrz [Logowanie przez SSO](../wdrozenie/sso.md#diagnostyka).
+jednego wpisu z licznikiem); wszystkie trzy podlegają retencji zwykłych
+logowań. Patrz [Logowanie przez SSO](../wdrozenie/sso.md#diagnostyka).
 
 Etykieta aktora jest zdenormalizowana, więc ślad przetrwa usunięcie konta i
 opisze także aktorów niebędących użytkownikami, na przykład link podglądowy.
