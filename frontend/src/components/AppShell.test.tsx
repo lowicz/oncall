@@ -37,7 +37,7 @@ function renderShell(
   vi.spyOn(api, 'publicConfig').mockImplementation(() => (
     version === null
       ? new Promise(() => {})
-      : Promise.resolve({ ldap_enabled: false, app_name: 'On-call', app_subtitle: subtitle, version, audit_retention_days: 365, login_audit_retention_days: 90 })
+      : Promise.resolve({ ldap_enabled: false, app_name: 'On-call', app_subtitle: subtitle, version, audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false })
   ))
   vi.spyOn(api, 'publishedSchedule').mockResolvedValue({
     generated_at: '2026-09-01T10:00:00Z',
@@ -343,7 +343,7 @@ describe('AppShell version', () => {
 
   it('lists it on the phone „Więcej” screen under the application settings', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90,
+      ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false,
     })
     renderScreen(<MoreScreen displayName="Ola Zielińska" access={{ role: 'member', hasTeamMember: true }} />)
     expect(await screen.findByText('1.4.0')).toBeInTheDocument()

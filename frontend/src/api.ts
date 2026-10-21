@@ -7,6 +7,9 @@ export type LateShiftAnchor = 'secondary' | 'primary' | 'independent'
 /** Instance settings the interface reads before anyone is logged in. */
 export interface PublicConfig {
   ldap_enabled: boolean
+  /** Whether the deployment signs people in through single sign-on too; the
+   *  login screen offers the SSO button only when it does. */
+  sso_enabled: boolean
   /** Product name shown in the rail, on the login screen and in the tab title. */
   app_name: string
   /** Optional second line under the name; empty hides it. */

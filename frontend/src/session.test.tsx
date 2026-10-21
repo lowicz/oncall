@@ -32,7 +32,7 @@ function serverWhoseSessionEnds() {
   let checked = false
   vi.stubGlobal('fetch', vi.fn((path: string) => {
     if (path === '/api/v1/config') {
-      return json(200, { app_name: 'On-call', app_subtitle: '', ldap_enabled: false, version: '1.0.0', audit_retention_days: 365, login_audit_retention_days: 90 })
+      return json(200, { app_name: 'On-call', app_subtitle: '', ldap_enabled: false, version: '1.0.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false })
     }
     if (path === '/api/v1/auth/login') {
       signedIn = true

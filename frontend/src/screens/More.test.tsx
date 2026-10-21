@@ -5,7 +5,7 @@ import { renderScreen } from '../test/render'
 import { MoreScreen } from './More'
 
 const config = (version: string) => ({
-  app_name: 'On-call', app_subtitle: '', ldap_enabled: false, version, audit_retention_days: 365, login_audit_retention_days: 90,
+  app_name: 'On-call', app_subtitle: '', ldap_enabled: false, version, audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false,
 })
 
 afterEach(() => vi.restoreAllMocks())

@@ -94,6 +94,8 @@ export const labels = {
     'auth.ldap_synced': 'Zsynchronizowano z LDAP',
     'auth.ldap_unavailable': 'LDAP niedostępny',
     'auth.ldap_identity_conflict': 'Konflikt tożsamości LDAP',
+    'auth.sso_rejected': 'Odrzucono logowanie SSO',
+    'auth.sso_unavailable': 'SSO niedostępne',
     'availability.created_on_behalf': 'Zgłoszono dostępność (w imieniu)',
     'availability.deleted_on_behalf': 'Usunięto dostępność (w imieniu)',
     'calendar.event_created': 'Utworzono wydarzenie',

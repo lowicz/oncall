@@ -4,8 +4,9 @@
  * checks that choosing English changes the words, the document's language
  * and nothing that was not asked for.
  */
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen } from '@testing-library/react'
+import { api } from '../api'
 import { renderScreen } from './render'
 import { Login } from '../screens/Login'
 import { DEFAULT_LANGUAGE, applyLanguage, messages, setLanguage } from '../i18n'
@@ -14,6 +15,7 @@ const en = messages('en')
 const pl = messages('pl')
 
 afterEach(() => {
+  vi.restoreAllMocks()
   window.localStorage.clear()
   applyLanguage(DEFAULT_LANGUAGE)
 })
@@ -30,6 +32,20 @@ describe('the English interface', () => {
     expect(screen.queryByRole('button', { name: pl.auth.signIn })).not.toBeInTheDocument()
     // The catalogs really differ where it matters.
     expect(en.auth.signIn).not.toBe(pl.auth.signIn)
+  })
+
+  it('offers single sign-on in English, with its refusal', async () => {
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({
+      ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: true,
+    })
+    setLanguage('en')
+    renderScreen(<Login />, { route: '/?sso=no_account' })
+
+    expect(await screen.findByRole('link', { name: en.auth.sso.button })).toBeInTheDocument()
+    expect(screen.getByText(en.auth.sso.or)).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(en.auth.sso.errors.no_account.title)
+    expect(screen.queryByText(pl.auth.sso.button)).not.toBeInTheDocument()
+    expect(en.auth.sso.button).not.toBe(pl.auth.sso.button)
   })
 
   it('switches back to Polish from the language control, live', () => {

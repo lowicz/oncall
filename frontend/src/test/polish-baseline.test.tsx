@@ -290,7 +290,7 @@ const AUDIT: AuditEvent[] = [
   { id: 'a4', occurred_at: '2026-09-07T09:00:00Z', actor_label: 'system', action: 'auth.throttled', entity_type: null, entity_id: null, summary: 'Ograniczono liczbę prób logowania', details: { login: 'anna' } },
 ]
 
-const CONFIG = { ldap_enabled: true, app_name: 'On-call', app_subtitle: 'Zespół infrastruktury', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90 }
+const CONFIG = { ldap_enabled: true, app_name: 'On-call', app_subtitle: 'Zespół infrastruktury', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false }
 
 /** Every query any screen makes, answered with the fixtures above. */
 function stubApi() {
@@ -416,6 +416,13 @@ describe('the Polish interface', () => {
     renderScreen(<Login expired />)
     await screen.findByText(/Masz konto firmowe/)
     await snapshotOf('login-expired')
+  })
+
+  it('login with single sign-on offered', async () => {
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({ ...CONFIG, sso_enabled: true })
+    renderScreen(<Login />)
+    await screen.findByRole('link', { name: 'Zaloguj przez SSO' })
+    await snapshotOf('login-sso')
   })
 
   it('account activation', async () => {
