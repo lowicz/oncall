@@ -142,6 +142,28 @@ class SqlAlchemyLoginAttempts:
             summary=f"Nie można powiązać konta LDAP: {login[:120]}",
         )
 
+    async def sso_refused(
+        self, phase: str, reason: str, *, personnel_number: str | None = None
+    ) -> None:
+        record_audit(
+            self._session,
+            actor=None,
+            actor_label=personnel_number or "sso",
+            action="auth.sso_rejected",
+            summary="Odrzucono logowanie SSO",
+            details={"phase": phase, "reason": reason},
+        )
+
+    async def sso_unavailable(self, phase: str, reason: str) -> None:
+        record_audit(
+            self._session,
+            actor=None,
+            actor_label="sso",
+            action="auth.sso_unavailable",
+            summary="SSO niedostępne",
+            details={"phase": phase, "reason": reason},
+        )
+
 
 class SqlAlchemyAccessAccounts:
     def __init__(self, session: AsyncSession) -> None:
@@ -281,9 +303,15 @@ class SqlAlchemyAccessJournal:
         actor = await self._session.get(User, account.id)
         record_audit(self._session, actor=actor, entity_type="user", entity_id=account.id, **entry)
 
-    async def signed_in(self, account: Account) -> None:
+    async def signed_in(self, account: Account, *, via: str = "password") -> None:
+        # A password sign-in is the ordinary one and says nothing more; a
+        # single sign-on names its door, which is what an administrator
+        # reading the trail wants to know.
         await self._record(
-            account, action="auth.login", summary=f"Zalogowano: {account.display_name}"
+            account,
+            action="auth.login",
+            summary=f"Zalogowano: {account.display_name}",
+            details={"via": via} if via != "password" else None,
         )
 
     async def provisioned(self, account: Account) -> None:

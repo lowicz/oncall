@@ -11,6 +11,8 @@ class PublicConfigResponse(BaseModel):
     """Instance settings the UI needs before anyone is logged in."""
 
     ldap_enabled: bool
+    #: Whether the login screen offers "Sign in with SSO".
+    sso_enabled: bool
     #: Brand shown before login: the product name and its optional subtitle.
     app_name: str
     app_subtitle: str

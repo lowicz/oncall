@@ -49,6 +49,16 @@ def available_cpu_count(cgroup_root: Path = CGROUP_ROOT) -> int:
     return max(1, min(8, detected or 1))
 
 
+def _web_address(value: str | None, variable: str) -> str | None:
+    """Blank is unset; anything else must be an http(s) address."""
+    url = (value or "").strip()
+    if not url:
+        return None
+    if not url.lower().startswith(("https://", "http://")):
+        raise ValueError(f"{variable} must start with https:// or http://")
+    return url
+
+
 class Settings(BaseSettings):
     #: A refused setting names the variable and the rule but never echoes the
     #: input: that is every ONCALL_* value, passwords included, and it would
@@ -128,6 +138,24 @@ class Settings(BaseSettings):
     #: on demand for the signed-in person only and never stored; empty turns
     #: the photo off, so the service account then needs no right to read it.
     ldap_attribute_photo: str = "thumbnailPhoto"
+
+    # Optional single sign-on through an OpenID Connect provider (Keycloak):
+    # a second door beside the password and the directory, which keep
+    # working whatever its state. The ID token's personnel number claim
+    # names the account, the column a directory sign-in binds on; nothing
+    # is provisioned, converted or synchronised. The redirect URI to
+    # register at the provider is `public_base_url` + the callback path
+    # (`oncall.sso_auth`).
+    sso_enabled: bool = False
+    #: `https://keycloak.example/realms/firma`: where discovery is read and
+    #: what the ID token's `iss` must equal.
+    sso_issuer: str | None = None
+    #: The public client at the provider; PKCE, no client secret.
+    sso_client_id: str | None = None
+    sso_claim_personnel_number: str = "employeeNumber"
+    #: Connect and read timeout of every call to the provider, so a hung
+    #: provider cannot hold an API worker longer than that.
+    sso_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
 
     # External SMTP service. Not hosted by this project; when smtp_host is
     # unset, e-mail notifications are marked as skipped instead of sent.
@@ -239,19 +267,22 @@ class Settings(BaseSettings):
     def _switch_url_is_a_web_address(cls, value: str | None) -> str | None:
         """Blank is unset; anything else must be an http(s) address, since a
         reader follows it straight from the e-mail."""
-        url = (value or "").strip()
-        if not url:
-            return None
-        if not url.lower().startswith(("https://", "http://")):
-            raise ValueError("ONCALL_SWITCH_URL must start with https:// or http://")
-        return url
+        return _web_address(value, "ONCALL_SWITCH_URL")
 
-    @field_validator("smtp_host", "smtp_local_hostname", "ca_file")
+    @field_validator("sso_issuer")
+    @classmethod
+    def _sso_issuer_is_a_web_address(cls, value: str | None) -> str | None:
+        """Blank is unset; anything else must be an http(s) address, since the
+        browser is sent there and discovery is read under it."""
+        return _web_address(value, "ONCALL_SSO_ISSUER")
+
+    @field_validator("smtp_host", "smtp_local_hostname", "ca_file", "sso_client_id")
     @classmethod
     def _blank_is_unset(cls, value: str | None) -> str | None:
         """Blank is unset, as Compose passes an unset variable: no host turns
         e-mail off, no local hostname lets the EHLO carry the system's FQDN,
-        no CA file leaves the image's public roots alone."""
+        no CA file leaves the image's public roots alone, no client id is
+        refused with single sign-on on."""
         return (value or "").strip() or None
 
     @field_validator("smtp_username", "smtp_password")
@@ -304,6 +335,17 @@ class Settings(BaseSettings):
             raise ValueError(
                 "ONCALL_SMTP_USE_TLS and ONCALL_SMTP_STARTTLS exclude each other: TLS from the "
                 "first byte (usually port 465) needs ONCALL_SMTP_STARTTLS=false."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _sso_needs_an_issuer_and_a_client_id(self) -> Self:
+        """Single sign-on with no provider or no client to name would send
+        every person to a dead door; refusing at startup says so once."""
+        if self.sso_enabled and (self.sso_issuer is None or self.sso_client_id is None):
+            raise ValueError(
+                "ONCALL_SSO_ENABLED is true but ONCALL_SSO_ISSUER or ONCALL_SSO_CLIENT_ID is "
+                "empty; set both, or turn single sign-on off."
             )
         return self
 

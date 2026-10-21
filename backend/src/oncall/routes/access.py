@@ -1,10 +1,14 @@
+import base64
 import ipaddress
 import logging
+import secrets
 from datetime import timedelta
 from functools import lru_cache
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 
 from oncall import login_log
 from oncall.auth import (
@@ -21,10 +25,13 @@ from oncall.bootstrap.providers import (
     PasswordProvider,
     SessionProvider,
     SignInProvider,
+    SsoProvider,
+    SsoSignInProvider,
 )
 from oncall.config import get_settings
 from oncall.domain.access import errors, use_cases
 from oncall.domain.access.models import AccountOverview, PasswordChoice, SignInRequest
+from oncall.domain.access.ports import SsoSignInPorts
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
 from oncall.domain.clock import utc_now
 from oncall.domain.errors import DomainError
@@ -42,9 +49,19 @@ from oncall.presentation.access import (
     UserResponse,
 )
 from oncall.routes.domain_edge import domain_errors_as_http
+from oncall.sso_auth import SsoRejectedError, SsoUnavailableError
 
 router = APIRouter()
 AVATAR_PATH = "/api/v1/auth/me/avatar"
+
+#: What a single sign-on in progress leaves in the browser between the two
+#: redirects: the cookie reaches only the two SSO routes and lives as long
+#: as a person may take to sign in at the provider.
+SSO_COOKIE = "oncall_sso"
+SSO_COOKIE_PATH = "/api/v1/auth/sso"
+SSO_COOKIE_MAX_AGE = 600
+#: The login page's `?sso=` code for a refusal the use case named.
+_SSO_REFUSAL_CODES = {"no_account": "no_account", "account_inactive": "inactive"}
 
 
 ACCESS_ERROR_STATUSES = {
@@ -280,6 +297,176 @@ async def update_my_phone(
             profiles,
         )
     return user_response(overview)
+
+
+class _PendingSso(BaseModel):
+    """The `oncall_sso` cookie: what the callback must find again."""
+
+    state: str
+    nonce: str
+    verifier: str
+    next: str
+
+
+def _same_origin_path(value: str | None) -> str:
+    """`next` as a path on this origin, so the callback never sends the
+    browser elsewhere: anything but an absolute path (`//host`, a scheme, a
+    backslash a browser would read as a slash) is the front page."""
+    if value and value.startswith("/") and value[1:2] not in ("/", "\\") and value.isprintable():
+        return value
+    return "/"
+
+
+def _pending_sso(request: Request) -> _PendingSso | None:
+    raw = request.cookies.get(SSO_COOKIE, "")
+    try:
+        return _PendingSso.model_validate_json(base64.urlsafe_b64decode(raw))
+    except ValueError:
+        return None
+
+
+def _require_sso() -> None:
+    if not get_settings().sso_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, translate("access.sso_disabled"))
+
+
+def _sso_redirect(url: str, *, clear_cookie: bool) -> RedirectResponse:
+    """A redirect the browser must not cache: the start one carries the
+    pending state, the callback one the session cookie or a one-shot code."""
+    response = RedirectResponse(url, status_code=status.HTTP_302_FOUND)
+    response.headers["Cache-Control"] = "no-store"
+    if clear_cookie:
+        response.delete_cookie(
+            SSO_COOKIE,
+            path=SSO_COOKIE_PATH,
+            httponly=True,
+            secure=get_settings().session_cookie_secure,
+            samesite="lax",
+        )
+    return response
+
+
+def _back_to_login(code: str) -> RedirectResponse:
+    return _sso_redirect(f"/?sso={code}", clear_cookie=True)
+
+
+async def _sso_refused(ports: SsoSignInPorts, reason: str) -> RedirectResponse:
+    """A callback refused before the provider is asked anything: no state
+    cookie, a state that is not the cookie's, or no code to exchange."""
+    login_log.emit("sso_auth", outcome="rejected", phase="callback", reason=reason)
+    await ports.attempts.sso_refused("callback", reason)
+    return _back_to_login("rejected")
+
+
+@router.get(
+    "/api/v1/auth/sso/start",
+    status_code=status.HTTP_302_FOUND,
+    response_class=RedirectResponse,
+    responses={
+        302: {
+            "description": "To the identity provider, or to the login page with ?sso=unavailable"
+        },
+        404: {"description": "Single sign-on is not enabled"},
+    },
+)
+async def sso_start(
+    sso: SsoProvider,
+    ports: SsoSignInProvider,
+    next_path: Annotated[str | None, Query(alias="next", max_length=2000)] = None,
+) -> RedirectResponse:
+    """Send the browser to the identity provider (OpenID Connect,
+    Authorization Code with PKCE). `next` is the screen to return to after
+    the sign-on; it must be a path on this origin."""
+    _require_sso()
+    login_log.begin_attempt()
+    # 32 random bytes make 43 URL-safe characters, the least PKCE asks of a
+    # verifier; the state and the nonce take the same.
+    pending = _PendingSso(
+        state=secrets.token_urlsafe(32),
+        nonce=secrets.token_urlsafe(32),
+        verifier=secrets.token_urlsafe(32),
+        next=_same_origin_path(next_path),
+    )
+    try:
+        url = await sso.authorization_url(
+            state=pending.state, nonce=pending.nonce, code_verifier=pending.verifier
+        )
+    except SsoUnavailableError as failure:
+        await ports.attempts.sso_unavailable(failure.phase, failure.reason)
+        return _back_to_login("unavailable")
+    response = _sso_redirect(url, clear_cookie=False)
+    response.set_cookie(
+        SSO_COOKIE,
+        base64.urlsafe_b64encode(pending.model_dump_json().encode()).decode(),
+        max_age=SSO_COOKIE_MAX_AGE,
+        path=SSO_COOKIE_PATH,
+        httponly=True,
+        secure=get_settings().session_cookie_secure,
+        samesite="lax",
+    )
+    return response
+
+
+@router.get(
+    "/api/v1/auth/sso/callback",
+    status_code=status.HTTP_302_FOUND,
+    response_class=RedirectResponse,
+    responses={
+        302: {
+            "description": "To the screen the sign-on started from, with the session cookie, "
+            "or to the login page with ?sso=unavailable|rejected|no_account|inactive"
+        },
+        404: {"description": "Single sign-on is not enabled"},
+    },
+)
+async def sso_callback(
+    request: Request,
+    sso: SsoProvider,
+    ports: SsoSignInProvider,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> RedirectResponse:
+    """Where the identity provider sends the browser back. The code is
+    exchanged and the ID token verified over a back channel; the personnel
+    number it carries names the account, and an active one gets the same
+    session a password sign-in gets. A GET that changes state, as OpenID
+    Connect redirects are: the state and nonce the `oncall_sso` cookie binds
+    to this browser are what make it safe, so it is outside the CSRF guard
+    and has no login throttle (the provider checked the password)."""
+    _require_sso()
+    login_log.begin_attempt()
+    pending = _pending_sso(request)
+    if pending is None or not state or not secrets.compare_digest(state, pending.state):
+        return await _sso_refused(ports, "state_mismatch")
+    if error or not code:
+        # The provider's own code (`access_denied`, `login_required`) when it
+        # sent the browser back without a code; never its description.
+        return await _sso_refused(ports, (error or "code_missing")[:120])
+    try:
+        number = await sso.exchange(code, code_verifier=pending.verifier, nonce=pending.nonce)
+    except SsoUnavailableError as failure:
+        await ports.attempts.sso_unavailable(failure.phase, failure.reason)
+        return _back_to_login("unavailable")
+    except SsoRejectedError as failure:
+        await ports.attempts.sso_refused(failure.phase, failure.reason)
+        return _back_to_login("rejected")
+    try:
+        signed_in = await use_cases.sign_in_with_sso(
+            number,
+            ports,
+            now=utc_now(),
+            session_lifetime=timedelta(hours=get_settings().session_ttl_hours),
+        )
+    except errors.SsoSignInRefused as refusal:
+        login_log.emit(
+            "sso_auth", outcome="rejected", phase="account", reason=refusal.cause, number=number
+        )
+        return _back_to_login(_SSO_REFUSAL_CODES[refusal.cause])
+    login_log.emit("login", login=signed_in.account.username, outcome="signed_in", source="sso")
+    response = _sso_redirect(pending.next, clear_cookie=True)
+    set_session_cookie(response, signed_in.session.token, signed_in.session.expires_at)
+    return response
 
 
 @router.get("/api/v1/auth/csrf")

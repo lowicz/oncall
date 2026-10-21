@@ -1,6 +1,7 @@
 """What the account owner's own operations need, one consumer at a time:
-signing in, confirming it is still them, choosing a password through a
-one-time link, the owner's own profile and their photo from the directory.
+signing in, with a password or through single sign-on, confirming it is
+still them, choosing a password through a one-time link, the owner's own
+profile and their photo from the directory.
 """
 
 import uuid
@@ -92,7 +93,10 @@ class AccountSessions(Protocol):
 
 
 class SignInJournal(Protocol):
-    async def signed_in(self, account: Account) -> None: ...
+    async def signed_in(self, account: Account, *, via: str = "password") -> None:
+        """`via` names the door: `password` (a local password or the
+        directory bind) or `sso`."""
+        ...
 
     async def provisioned(self, account: Account) -> None: ...
 
@@ -107,6 +111,34 @@ class SignInPorts:
     accounts: SignInAccounts
     passwords: PasswordVerifier
     directory: Directory
+    sessions: AccountSessions
+    journal: SignInJournal
+
+
+class SsoAttempts(Protocol):
+    """The record of single sign-on attempts that ended without a session;
+    `phase` and `reason` are the codes the operator's log carries."""
+
+    async def sso_refused(
+        self, phase: str, reason: str, *, personnel_number: str | None = None
+    ) -> None:
+        """The number is recorded when the provider vouched for one, so an
+        administrator can give it an account."""
+        ...
+
+    async def sso_unavailable(self, phase: str, reason: str) -> None: ...
+
+
+class SsoAccounts(Protocol):
+    async def account_with_personnel_number(self, personnel_number: str) -> Account | None: ...
+
+    async def has_team_member(self, account_id: uuid.UUID) -> bool: ...
+
+
+@dataclass(frozen=True)
+class SsoSignInPorts:
+    attempts: SsoAttempts
+    accounts: SsoAccounts
     sessions: AccountSessions
     journal: SignInJournal
 

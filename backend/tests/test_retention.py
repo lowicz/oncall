@@ -101,6 +101,8 @@ async def test_audit_rows_expire_by_tier(db, db_factory) -> None:
             _audit("auth.login", 91 * DAY),  # sign-in, past its age: goes
             _audit("auth.login_attempt", 91 * DAY),  # refused attempt: goes
             _audit("auth.throttled", 91 * DAY),  # throttle series: goes
+            _audit("auth.sso_rejected", 91 * DAY),  # refused single sign-on: goes
+            _audit("auth.sso_unavailable", 91 * DAY),  # provider outage: goes
             _audit("auth.login", 89 * DAY),  # sign-in, within: stays
             _audit("auth.login", timedelta(minutes=2)),  # what the throttle reads: stays
             _audit("auth.login", 3000 * DAY),  # a sign-in is never business audit
@@ -118,7 +120,7 @@ async def test_audit_rows_expire_by_tier(db, db_factory) -> None:
     report = await prune_expired(db_factory, POLICY, now=NOW)
 
     assert report.deleted["audit"] == 5
-    assert report.deleted["logins"] == 4
+    assert report.deleted["logins"] == 6
     assert await _actions(db) == [
         "auth.login",
         "auth.login",

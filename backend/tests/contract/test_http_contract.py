@@ -30,6 +30,7 @@ async def test_public_response_and_validation_envelopes(client) -> None:
         200,
         {
             "ldap_enabled": False,
+            "sso_enabled": False,
             "app_name": "On-call",
             "app_subtitle": "",
             "version": "dev",

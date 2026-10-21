@@ -1,6 +1,6 @@
-"""Signing in, confirming it is still the signed-in person, the directory
-link, one-time account links, the account owner's own details and their
-photo from the directory.
+"""Signing in, with a password or through single sign-on, confirming it is
+still the signed-in person, the directory link, one-time account links, the
+account owner's own details and their photo from the directory.
 
 Signing in is guarded twice: a throttle keyed by login and by address, and a
 constant cost per refusal (one password verification, real or decoy), so a
@@ -36,6 +36,7 @@ from oncall.domain.access.ports import (
     OwnProfiles,
     PasswordPorts,
     SignInPorts,
+    SsoSignInPorts,
 )
 from oncall.domain.accounts import Account
 from oncall.domain.admin.errors import DirectoryPasswordReadOnly
@@ -92,6 +93,28 @@ async def sign_in(
     return await _sign_in_as(account, ports, now=now, session_lifetime=session_lifetime)
 
 
+async def sign_in_with_sso(
+    personnel_number: str,
+    ports: SsoSignInPorts,
+    *,
+    now: datetime,
+    session_lifetime: timedelta,
+) -> SignedIn:
+    """Open the session for a person an identity provider has already
+    authenticated, known here only by the personnel number it vouches for:
+    the number a directory sign-in binds on. The account keeps its own way in
+    - a local password or the directory bind - since the provider is a door,
+    not a source of truth: nothing is provisioned, converted or synchronised.
+    No throttle: the provider checked the password, and a forged callback
+    costs one refused code exchange before it gets here."""
+    account = await ports.accounts.account_with_personnel_number(personnel_number)
+    if account is None:
+        await _refuse_sso(ports, personnel_number, "no_account")
+    if not account.is_active:
+        await _refuse_sso(ports, personnel_number, "account_inactive")
+    return await _sign_in_as(account, ports, now=now, session_lifetime=session_lifetime, via="sso")
+
+
 async def verify_own_password(
     account: Account, request: SignInRequest, ports: ConfirmationPorts, *, now: datetime
 ) -> None:
@@ -114,11 +137,16 @@ async def verify_own_password(
 
 
 async def _sign_in_as(
-    account: Account, ports: SignInPorts, *, now: datetime, session_lifetime: timedelta
+    account: Account,
+    ports: SignInPorts | SsoSignInPorts,
+    *,
+    now: datetime,
+    session_lifetime: timedelta,
+    via: str = "password",
 ) -> SignedIn:
     """Open the session for an account that has already been authenticated."""
     session = await ports.sessions.open_for_account(account.id, now + session_lifetime)
-    await ports.journal.signed_in(account)
+    await ports.journal.signed_in(account, via=via)
     return SignedIn(
         account=account,
         session=session,
@@ -154,6 +182,13 @@ async def _reject(
 ) -> NoReturn:
     await attempts.failed(request, now - FAILED_LOGIN_SERIES_WINDOW)
     raise errors.LoginRejected(cause)
+
+
+async def _refuse_sso(
+    ports: SsoSignInPorts, personnel_number: str, cause: errors.SsoRefusalCause
+) -> NoReturn:
+    await ports.attempts.sso_refused("account", cause, personnel_number=personnel_number)
+    raise errors.SsoSignInRefused(cause)
 
 
 async def synchronize_directory_account(identity: DirectoryIdentity, ports: SignInPorts) -> Account:

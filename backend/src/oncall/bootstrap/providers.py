@@ -15,6 +15,7 @@ from oncall.domain.access.ports import (
     OwnProfiles,
     PasswordPorts,
     SignInPorts,
+    SsoSignInPorts,
 )
 from oncall.domain.admin.ports import (
     AccountAdministrationPorts,
@@ -99,6 +100,7 @@ from oncall.infrastructure.sqlalchemy.team import SqlAlchemyTeamDirectory
 from oncall.infrastructure.wco_probe import probe_wco
 from oncall.ldap_auth import LdapAuthenticator, get_directory_authenticator
 from oncall.secrets import SettingsCipher
+from oncall.sso_auth import OidcClient, get_sso_client
 
 DbSession = Annotated[AsyncSession, Depends(get_db, scope="function")]
 DirectoryAuth = Annotated[LdapAuthenticator, Depends(get_directory_authenticator)]
@@ -311,6 +313,15 @@ def sign_in(db: DbSession, directory: DirectoryAuth) -> SignInPorts:
     )
 
 
+def sso_sign_in(db: DbSession) -> SsoSignInPorts:
+    return SsoSignInPorts(
+        attempts=SqlAlchemyLoginAttempts(db),
+        accounts=SqlAlchemyAccessAccounts(db),
+        sessions=SqlAlchemySessions(db),
+        journal=SqlAlchemyAccessJournal(db),
+    )
+
+
 def account_links(db: DbSession) -> AccountLinks:
     return SqlAlchemyAccountLinks(db)
 
@@ -411,6 +422,8 @@ MembershipAdminProvider = Annotated[MembershipAdministrationPorts, Depends(membe
 EligibilityAdminProvider = Annotated[EligibilityAdministrationPorts, Depends(eligibility_admin)]
 AuditProvider = Annotated[AuditTrail, Depends(audit_trail)]
 SignInProvider = Annotated[SignInPorts, Depends(sign_in)]
+SsoSignInProvider = Annotated[SsoSignInPorts, Depends(sso_sign_in)]
+SsoProvider = Annotated[OidcClient, Depends(get_sso_client)]
 AccountLinkProvider = Annotated[AccountLinks, Depends(account_links)]
 PasswordProvider = Annotated[PasswordPorts, Depends(password_choice)]
 OwnProfileProvider = Annotated[OwnProfiles, Depends(own_profiles)]

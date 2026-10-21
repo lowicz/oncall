@@ -49,6 +49,66 @@ def world() -> AccessWorld:
     return world
 
 
+async def sso_sign_in(world: AccessWorld, number: str = "42"):
+    return await use_cases.sign_in_with_sso(
+        number, world.sso_sign_in, now=NOW, session_lifetime=LIFETIME
+    )
+
+
+async def test_sso_opens_a_session_for_the_account_with_the_personnel_number(world) -> None:
+    ola = world.accounts.put(account("ola", personnel_number="42"))
+    world.accounts.members.add(ola.id)
+
+    signed_in = await sso_sign_in(world)
+
+    assert signed_in.account == ola
+    assert signed_in.has_team_member is True
+    assert world.sessions.opened == [("account", ola.id, NOW + LIFETIME)]
+    assert world.journal.events == [("signed_in", {"args": (ola,), "via": "sso"})]
+    # No password, no directory, no throttle: the provider authenticated.
+    assert (world.passwords.cost, world.directory.calls, world.attempts.events) == (0, 0, [])
+
+
+async def test_sso_leaves_a_directory_account_as_it_is(world) -> None:
+    ola = world.accounts.put(
+        account("ola", personnel_number="42", auth_source=AuthSource.ldap), None
+    )
+
+    signed_in = await sso_sign_in(world)
+
+    assert signed_in.account == ola
+    assert world.accounts.by_id[ola.id].auth_source == AuthSource.ldap
+    assert world.journal.names == ["signed_in"]
+
+
+@pytest.mark.parametrize(
+    ("setup", "cause"),
+    [("none", "no_account"), ("other_number", "no_account"), ("inactive", "account_inactive")],
+)
+async def test_sso_refuses_without_an_active_account_and_records_the_attempt(
+    world, setup, cause
+) -> None:
+    if setup == "other_number":
+        world.accounts.put(account("ola", personnel_number="43"))
+    elif setup == "inactive":
+        world.accounts.put(account("ola", personnel_number="42", is_active=False))
+
+    with pytest.raises(errors.SsoSignInRefused) as refused:
+        await sso_sign_in(world)
+
+    assert refused.value.cause == cause
+    assert isinstance(refused.value, RecordedRefusal)
+    assert world.attempts.events == [("sso_refused", "account", cause, "42")]
+    assert (world.sessions.opened, world.journal.events) == ([], [])
+
+
+def test_an_sso_refusal_names_its_cause_to_the_person() -> None:
+    assert str(errors.SsoSignInRefused("no_account")).startswith(
+        "Brak konta dla Twojego numeru pracownika"
+    )
+    assert str(errors.SsoSignInRefused("account_inactive")) == "Konto jest nieaktywne"
+
+
 async def test_a_local_account_signs_in_with_a_normalized_login(world) -> None:
     ola = world.accounts.put(account("ola"))
     world.accounts.members.add(ola.id)

@@ -16,6 +16,7 @@ async def public_config() -> PublicConfigResponse:
     settings = get_settings()
     return PublicConfigResponse(
         ldap_enabled=settings.ldap_enabled,
+        sso_enabled=settings.sso_enabled,
         app_name=settings.app_name,
         app_subtitle=settings.app_subtitle,
         version=settings.version,

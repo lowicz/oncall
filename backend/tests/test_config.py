@@ -78,6 +78,61 @@ def test_an_unlimited_or_unreadable_cgroup_v1_quota_uses_the_affinity(
     assert available_cpu_count(tmp_path) == 3
 
 
+def test_sso_is_off_by_default() -> None:
+    settings = Settings()
+
+    assert (settings.sso_enabled, settings.sso_issuer, settings.sso_client_id) == (
+        False,
+        None,
+        None,
+    )
+    assert settings.sso_claim_personnel_number == "employeeNumber"
+    assert settings.sso_timeout_seconds == 5.0
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_sso_settings_are_unset(blank: str) -> None:
+    settings = Settings(sso_issuer=blank, sso_client_id=blank)
+
+    assert (settings.sso_issuer, settings.sso_client_id) == (None, None)
+
+
+def test_sso_settings_are_trimmed() -> None:
+    settings = Settings(
+        sso_enabled=True, sso_issuer=" https://sso.example/realms/firma ", sso_client_id=" oncall "
+    )
+
+    assert (settings.sso_issuer, settings.sso_client_id) == (
+        "https://sso.example/realms/firma",
+        "oncall",
+    )
+
+
+@pytest.mark.parametrize(
+    ("issuer", "client_id"),
+    [(None, "oncall"), ("https://sso.example/realms/firma", ""), (None, None)],
+)
+def test_sso_cannot_be_on_without_an_issuer_and_a_client_id(
+    issuer: str | None, client_id: str | None
+) -> None:
+    with pytest.raises(ValidationError, match="ONCALL_SSO_ISSUER or ONCALL_SSO_CLIENT_ID"):
+        Settings(sso_enabled=True, sso_issuer=issuer, sso_client_id=client_id)
+
+
+@pytest.mark.parametrize("issuer", ["sso.example/realms/firma", "ldap://sso.example", "file:///x"])
+def test_an_sso_issuer_must_be_a_web_address(issuer: str) -> None:
+    with pytest.raises(
+        ValidationError, match="ONCALL_SSO_ISSUER must start with https:// or http://"
+    ):
+        Settings(sso_issuer=issuer)
+
+
+@pytest.mark.parametrize("seconds", [0, -1, 61])
+def test_the_sso_timeout_is_bounded(seconds: int) -> None:
+    with pytest.raises(ValidationError):
+        Settings(sso_timeout_seconds=seconds)
+
+
 def test_https_base_url_requires_a_secure_session_cookie() -> None:
     """#31/#36: an https deployment that forgot the Secure flag must not start,
     or it would keep serving the auth cookie over the pre-redirect cleartext

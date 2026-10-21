@@ -53,6 +53,8 @@ LOGIN_ACTIONS = (
     "auth.login_failed",
     "auth.throttled",
     "auth.ldap_unavailable",
+    "auth.sso_rejected",
+    "auth.sso_unavailable",
 )
 
 #: Outbox rows nobody will deliver again: delivered, given up on, or parked
