@@ -176,7 +176,7 @@ A successful sign-in is an `event=login` line with
 authorisation code, no tokens and no address carrying the code.
 
 The audit records: a successful sign-in as “Sign-in” (`auth.login`, with
-`via=sso` in the details), a refusal as “SSO sign-in refused”
+`via=sso` in the details), a refusal as “SSO sign-in rejected”
 (`auth.sso_rejected`, with the personnel number when no account has it, so
 the administrator can create the account) and an unavailable Keycloak as
 “SSO unavailable” (`auth.sso_unavailable`). All three fall under the

@@ -35,9 +35,9 @@ The sign-in was interrupted or took too long (e.g. going back in the browser).
 Try again. If it happens to everyone, the administrator checks the client
 configuration in Keycloak.
 
-**“No account for your employee number”**
+**“No account for your personnel number”**
 Keycloak recognised you, but no account in the application has your personnel
-number. Ask the administrator for an account with your employee number or to
+number. Ask the administrator for an account with your personnel number or to
 enter the number on your existing account (“People” screen).
 
 **“The account is inactive” after “Sign in with SSO”**

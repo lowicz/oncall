@@ -234,7 +234,7 @@ recorded in the `audit_events` table **in the same transaction as the change
 itself**.
 
 SSO sign-in records an ordinary “Sign-in” (`auth.login`, with `via=sso` in
-the details), and its refusals “SSO sign-in refused” (`auth.sso_rejected`) and
+the details), and its refusals “SSO sign-in rejected” (`auth.sso_rejected`) and
 “SSO unavailable” (`auth.sso_unavailable`); all three fall under the retention
 of routine sign-ins. See [SSO sign-in](../wdrozenie/sso.md#diagnostics).
 
