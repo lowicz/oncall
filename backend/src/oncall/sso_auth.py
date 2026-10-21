@@ -19,8 +19,9 @@ be reached or answered something this application cannot use, and
 application accepts. Nothing of the code, the token response or the ID token
 reaches the log.
 
-The discovery document is read on first use and kept for the process; the
-JWK set is kept too and read again once when a token names an unknown key,
+The discovery document is read once per sign-on conversation and never
+kept, so a start after an outage finds the provider again. Only the JWK set
+is kept for the process, read again once when a token names an unknown key,
 so a key rotation at the provider needs no restart here.
 """
 
