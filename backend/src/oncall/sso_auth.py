@@ -300,7 +300,7 @@ class OidcClient:
     async def _discover(self, attempt: _Attempt) -> dict[str, Any]:
         if self._discovery is None:
             attempt.phase = "discovery"
-            issuer = (self.settings.sso_issuer or "").rstrip("/")
+            issuer = self.settings.sso_issuer or ""
             document = await self._fetch_json(attempt, f"{issuer}/.well-known/openid-configuration")
             if not all(
                 isinstance(document.get(name), str)

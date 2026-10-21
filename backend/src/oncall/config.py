@@ -273,8 +273,10 @@ class Settings(BaseSettings):
     @classmethod
     def _sso_issuer_is_a_web_address(cls, value: str | None) -> str | None:
         """Blank is unset; anything else must be an http(s) address, since the
-        browser is sent there and discovery is read under it."""
-        return _web_address(value, "ONCALL_SSO_ISSUER")
+        browser is sent there and discovery is read under it. Stored without a
+        trailing slash, the form an ID token's `iss` carries."""
+        url = _web_address(value, "ONCALL_SSO_ISSUER")
+        return url.rstrip("/") if url else None
 
     @field_validator("smtp_host", "smtp_local_hostname", "ca_file", "sso_client_id")
     @classmethod

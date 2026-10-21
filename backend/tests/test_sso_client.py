@@ -193,6 +193,16 @@ async def test_an_authorization_endpoint_with_a_query_keeps_it(provider) -> None
     assert url.startswith(f"{AUTH_URL}?tenant=firma&response_type=code&")
 
 
+async def test_an_issuer_configured_with_a_trailing_slash_matches_the_tokens(provider) -> None:
+    oidc = OidcClient(
+        Settings(sso_enabled=True, sso_issuer=f"{ISSUER}/", sso_client_id=CLIENT_ID),
+        transport=httpx.MockTransport(provider.handler),
+    )
+
+    assert await exchange(oidc) == "000042"
+    assert provider.calls[0] == f"GET {DISCOVERY_URL}"
+
+
 async def test_a_good_code_becomes_the_personnel_number(provider, diagnostics) -> None:
     oidc = client(provider)
 

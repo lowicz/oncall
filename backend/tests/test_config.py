@@ -97,6 +97,12 @@ def test_blank_sso_settings_are_unset(blank: str) -> None:
     assert (settings.sso_issuer, settings.sso_client_id) == (None, None)
 
 
+def test_an_sso_issuer_is_stored_without_a_trailing_slash() -> None:
+    assert Settings(sso_issuer="https://sso.example/realms/firma//").sso_issuer == (
+        "https://sso.example/realms/firma"
+    )
+
+
 def test_sso_settings_are_trimmed() -> None:
     settings = Settings(
         sso_enabled=True, sso_issuer=" https://sso.example/realms/firma ", sso_client_id=" oncall "
