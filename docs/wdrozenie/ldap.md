@@ -91,8 +91,8 @@ dołóż to CA do [pliku CA](uruchomienie.md#plik-ca) wdrożenia
 [TLS](tls.md) montuje dla nginx) i uruchom stos z tą nakładką.
 
 Z nakładką katalogowi ufa się **wyłącznie** według tego pliku, inaczej niż
-serwerowi SMTP i Orange WCO, którym CA z pliku dochodzą do publicznych.
-Pakiet bez CA kontrolerów wyłącza więc logowanie z katalogu.
+serwerowi SMTP, Orange WCO i Keycloak, którym CA z pliku dochodzą do
+publicznych. Pakiet bez CA kontrolerów wyłącza więc logowanie z katalogu.
 
 Sprawdzenie certyfikatu z hosta, na którym działa Compose:
 

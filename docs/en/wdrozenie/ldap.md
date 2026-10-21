@@ -96,8 +96,8 @@ deployment's [CA file](uruchomienie.md#ca-file) (`ONCALL_CA_FILE`,
 for nginx) and start the stack with that overlay.
 
 With the overlay the directory is trusted **solely** according to that file,
-unlike the SMTP server and Orange WCO, for which the file's CAs are added to
-the public ones. A bundle without the controllers' CA therefore turns
+unlike the SMTP server, Orange WCO and Keycloak, for which the file's CAs are
+added to the public ones. A bundle without the controllers' CA therefore turns
 directory sign-in off.
 
 Checking the certificate from the host where Compose runs:
