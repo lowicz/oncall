@@ -39,8 +39,10 @@ zakłada kont**, nie synchronizuje danych i nie zmienia sposobu logowania
 konta: konto lokalne zachowuje hasło, konto z katalogu - logowanie z
 katalogu. Konto bez numeru kadrowego nie zaloguje się przez SSO.
 
-Konfigurację i klucze Keycloak API trzyma w pamięci procesu; nowy klucz
-(rotacja w realmie) pobiera samo, gdy token jest nim podpisany.
+Konfigurację Keycloak API czyta przy każdym starcie logowania i każdym
+powrocie, więc po awarii Keycloak nie trzeba restartu. W pamięci procesu
+trzyma tylko klucze podpisu realmu; nowy klucz (rotacja w realmie) pobiera
+samo, gdy token jest nim podpisany.
 
 ## Konfiguracja
 
@@ -49,7 +51,7 @@ Zmienne czyta tylko kontener `api`.
 | Zmienna | Domyślnie | Znaczenie |
 | --- | --- | --- |
 | `ONCALL_SSO_ENABLED` | `false` | włącza przycisk „Zaloguj przez SSO” i logowanie przez Keycloak |
-| `ONCALL_SSO_ISSUER` | brak | adres realmu, dokładnie taki jak `iss` w tokenach, np. `https://keycloak.firma.example/realms/firma`; zaczyna się od `https://` albo `http://` |
+| `ONCALL_SSO_ISSUER` | brak | adres realmu, dokładnie taki jak `iss` w tokenach, np. `https://keycloak.firma.example/realms/firma`; zaczyna się od `https://` albo `http://`; końcowy `/` jest pomijany |
 | `ONCALL_SSO_CLIENT_ID` | brak | identyfikator klienta w Keycloak, np. `oncall` |
 | `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER` | `employeeNumber` | claim tokenu ID z numerem kadrowym (same cyfry, najwyżej 32) |
 | `ONCALL_SSO_TIMEOUT_SECONDS` | `5` | limit czasu każdego wywołania Keycloak (konfiguracja, klucze, wymiana kodu), najwyżej 60 |
@@ -164,28 +166,54 @@ docker compose logs api | grep -E 'event=(login|sso_auth)'
 ```
 
 Udane logowanie to wiersz `event=login` z `outcome=signed_in source=sso`.
-Logowanie zatrzymane po drodze dokłada wiersz `event=sso_auth` z `phase=` i
-`reason=`. Log nie zawiera kodu autoryzacji, tokenów ani adresu z kodem.
+Logowanie zatrzymane po drodze zapisuje wiersz `event=sso_auth` z
+`outcome=` (`unavailable` na poziomie `WARNING`, `rejected` na poziomie
+`INFO`), `phase=` i `reason=`; wiersze z rozmowy z Keycloak mają też
+`elapsed_ms=`, odmowa przy `phase=account` - numer kadrowy w `number=`, a
+`unexpected_error` - typ wyjątku w `error=` (poziom `ERROR`). Log nie zawiera
+kodu autoryzacji, tokenów, adresu z kodem ani treści błędu przysłanego przez
+Keycloak.
 
 Do audytu trafiają: udane logowanie jako „Logowanie” (`auth.login`, w
-szczegółach `via=sso`), odmowa jako „Odrzucono logowanie SSO”
-(`auth.sso_rejected`, z numerem kadrowym, gdy żadne konto go nie ma, żeby
-administrator mógł założyć konto) i niedostępny Keycloak jako „SSO niedostępne”
-(`auth.sso_unavailable`). Wszystkie trzy podlegają retencji zwykłych logowań,
-`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`.
+szczegółach `via=sso`), odmowa na etapie `exchange`, `verify` albo `account`
+jako „Odrzucono logowanie SSO” (`auth.sso_rejected`, z `phase` i `reason` w
+szczegółach; przy `account` aktorem jest numer kadrowy, żeby administrator
+mógł założyć albo włączyć konto) i niedostępny Keycloak jako „SSO
+niedostępne” (`auth.sso_unavailable`). Kolejne niedostępności w ciągu 5
+minut nie dokładają wierszy: zwiększają licznik `count` w ostatnim wpisie i
+przesuwają jego czas. Odmowy na etapie `callback` są tylko w logu, bo taki
+adres może wywołać każdy. Wszystkie trzy akcje podlegają retencji zwykłych
+logowań, `ONCALL_RETENTION_LOGIN_AUDIT_DAYS`.
 
 ### Co oznacza powód
 
 | `phase` | `reason` | Co sprawdzić |
 | --- | --- | --- |
+| `callback` | `state_mismatch` | brak cookie `oncall_sso` albo inne `state`: logowanie trwało ponad 10 minut, zaczęło się w innej przeglądarce albo adres powrotu otwarto ręcznie; wystarczy spróbować ponownie |
+| `callback` | `provider_error` | Keycloak odesłał błąd zamiast kodu, np. osoba przerwała logowanie albo klient nie ma włączonego „Standard flow”; aplikacja nie zapisuje treści błędu - szczegóły są w logu Keycloak |
+| `callback` | `code_missing` | powrót bez kodu, zwykle adres powrotu otwarty ręcznie |
 | `discovery`, `exchange`, `verify` | `host_not_resolved` | kontener `api` nie rozwiązuje nazwy z `ONCALL_SSO_ISSUER` (DNS) |
 | `discovery`, `exchange`, `verify` | `connection_refused`, `timeout` | port, zapora albo przeciążony Keycloak; limit to `ONCALL_SSO_TIMEOUT_SECONDS` |
 | `discovery`, `exchange`, `verify` | `certificate_verify_failed` | brak CA Keycloak - [Certyfikat Keycloak](#certyfikat-keycloak) |
-| `discovery` | inny | `ONCALL_SSO_ISSUER` nie wskazuje realmu: otwórz `ONCALL_SSO_ISSUER/.well-known/openid-configuration` z hosta i sprawdź, czy to JSON |
-| `exchange` | `invalid_grant` | kod wygasł albo został już użyty (cofnięcie w przeglądarce, podwójne kliknięcie): wystarczy spróbować ponownie; powtarzalnie - klient nie ma PKCE `S256` albo `Client authentication` jest włączone |
+| `discovery`, `exchange`, `verify` | `ca_file_unreadable` | pliku CA nie ma w kontenerze albo nie da się go czytać: nakładka `docker-compose.ca.yml`, ścieżka `ONCALL_CA_FILE`, prawa `0644` |
+| `discovery`, `exchange`, `verify` | inna nazwa klasy, np. `ConnectError` | inny błąd sieci lub TLS po drodze do Keycloak |
+| `discovery`, `verify` | `http_<status>`, `not_json` | pod adresem odpowiada coś innego niż realm: otwórz `ONCALL_SSO_ISSUER/.well-known/openid-configuration` z hosta i sprawdź, czy to JSON |
+| `discovery` | `document_invalid` | dokument realmu nie ma `authorization_endpoint`, `token_endpoint` albo `jwks_uri` |
+| `verify` | `jwks_invalid` | zestaw kluczy realmu (`jwks_uri`) nie jest poprawnym JWKS |
+| `exchange` | `http_<status>` | Keycloak odpowiedział na wymianę kodu błędem HTTP; `5xx` to awaria Keycloak (`unavailable`), inny kod to odmowa bez kodu błędu OAuth |
+| `exchange` | `invalid_grant` | kod wygasł albo został już użyty (cofnięcie w przeglądarce, podwójne kliknięcie): wystarczy spróbować ponownie; powtarzalnie - klient nie ma PKCE `S256` |
+| `exchange` | inny kod OAuth, np. `invalid_client`, `unauthorized_client` | Keycloak odrzucił klienta: `ONCALL_SSO_CLIENT_ID`, „Client authentication” musi być wyłączone - [Klient w Keycloak](#klient-w-keycloak) |
+| `exchange` | `id_token_missing` | odpowiedź bez tokenu ID: klient nie ma zakresu `openid` |
+| `verify` | `token_malformed` | token ID nie jest poprawnym JWT |
+| `verify` | `unknown_kid` | token podpisano kluczem, którego nie ma w kluczach realmu nawet po ich ponownym pobraniu |
+| `verify` | `signature_invalid` | podpis nie zgadza się z kluczem realmu (inny realm albo proxy zmieniające odpowiedź) |
+| `verify` | `issuer_mismatch` | `ONCALL_SSO_ISSUER` różni się od `iss` w tokenie: schemat, nazwa hosta, pod którą Keycloak się przedstawia, port albo nazwa realmu |
+| `verify` | `audience_mismatch`, `azp_mismatch` | token wydano dla innego klienta: `ONCALL_SSO_CLIENT_ID` |
+| `verify` | `nonce_mismatch` | token nie należy do tego logowania (np. dwie karty naraz): wystarczy spróbować ponownie |
 | `verify` | `token_expired` | różnica zegarów między hostem aplikacji a Keycloak przekracza 60 sekund |
 | `verify` | `claim_missing` | w tokenie ID nie ma claimu z `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER`: mapper nie ma „Add to ID token” albo nazwa claimu się różni - [Klient w Keycloak](#klient-w-keycloak) |
-| `verify` | inny | token nie przeszedł sprawdzenia wystawcy, odbiorcy, podpisu albo `nonce`; `ONCALL_SSO_ISSUER` musi być identyczny z `iss`, a `ONCALL_SSO_CLIENT_ID` z identyfikatorem klienta |
+| `verify` | `claim_invalid` | wartość claimu nie jest tekstem z samych cyfr, najwyżej 32 znaki; „Claim JSON Type” musi być String |
+| `verify` | inna nazwa klasy, np. `ImmatureSignatureError`, `InvalidAlgorithmError` | biblioteka PyJWT odrzuciła token z tego powodu: `ImmatureSignatureError` to zegar, `InvalidAlgorithmError` - realm podpisuje innym algorytmem niż RS256 albo ES256 |
 | `account` | `no_account` | żadne konto nie ma tego numeru kadrowego: administrator wpisuje numer na koncie na ekranie „Osoby” albo zakłada konto |
 | `account` | `account_inactive` | konto jest wyłączone w aplikacji (ekran „Osoby”) |
-| dowolna | `unexpected_error` | błąd w aplikacji: zgłoś go z całym wierszem logu |
+| `discovery`, `exchange`, `verify` | `unexpected_error` | błąd w aplikacji albo bibliotece: zgłoś go z całym wierszem logu |

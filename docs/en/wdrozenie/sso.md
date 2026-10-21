@@ -43,8 +43,10 @@ account signs in: a local account keeps its password, a directory account its
 directory sign-in. An account without a personnel number cannot sign in with
 SSO.
 
-The API keeps Keycloak's configuration and keys in process memory; it fetches
-a new key (rotation in the realm) by itself when a token is signed with it.
+The API reads Keycloak's configuration at every sign-in start and every
+return, so no restart is needed after a Keycloak outage. It keeps only the
+realm's signing keys in process memory; it fetches a new key (rotation in the
+realm) by itself when a token is signed with it.
 
 ## Configuration
 
@@ -53,7 +55,7 @@ Only the `api` container reads these variables.
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `ONCALL_SSO_ENABLED` | `false` | turns on the “Sign in with SSO” button and sign-in through Keycloak |
-| `ONCALL_SSO_ISSUER` | none | the realm's address, exactly as `iss` in the tokens, e.g. `https://keycloak.company.example/realms/company`; starts with `https://` or `http://` |
+| `ONCALL_SSO_ISSUER` | none | the realm's address, exactly as `iss` in the tokens, e.g. `https://keycloak.company.example/realms/company`; starts with `https://` or `http://`; a trailing `/` is dropped |
 | `ONCALL_SSO_CLIENT_ID` | none | the client id in Keycloak, e.g. `oncall` |
 | `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER` | `employeeNumber` | the ID token claim with the personnel number (digits only, at most 32) |
 | `ONCALL_SSO_TIMEOUT_SECONDS` | `5` | time limit of each call to Keycloak (configuration, keys, code exchange), at most 60 |
@@ -171,29 +173,54 @@ docker compose logs api | grep -E 'event=(login|sso_auth)'
 ```
 
 A successful sign-in is an `event=login` line with
-`outcome=signed_in source=sso`. A sign-in stopped along the way adds an
-`event=sso_auth` line with `phase=` and `reason=`. The log contains no
-authorisation code, no tokens and no address carrying the code.
+`outcome=signed_in source=sso`. A sign-in stopped along the way writes an
+`event=sso_auth` line with `outcome=` (`unavailable` at `WARNING`, `rejected`
+at `INFO`), `phase=` and `reason=`; lines from the conversation with Keycloak
+also carry `elapsed_ms=`, a refusal at `phase=account` the personnel number in
+`number=`, and `unexpected_error` the exception type in `error=` (at
+`ERROR`). The log contains no authorisation code, no tokens, no address
+carrying the code and no error text sent by Keycloak.
 
 The audit records: a successful sign-in as “Sign-in” (`auth.login`, with
-`via=sso` in the details), a refusal as “SSO sign-in rejected”
-(`auth.sso_rejected`, with the personnel number when no account has it, so
-the administrator can create the account) and an unavailable Keycloak as
-“SSO unavailable” (`auth.sso_unavailable`). All three fall under the
-retention of routine sign-ins, `ONCALL_RETENTION_LOGIN_AUDIT_DAYS`.
+`via=sso` in the details), a refusal at `exchange`, `verify` or `account` as
+“SSO sign-in rejected” (`auth.sso_rejected`, with `phase` and `reason` in the
+details; at `account` the actor is the personnel number, so the administrator
+can create or enable the account) and an unavailable Keycloak as
+“SSO unavailable” (`auth.sso_unavailable`). Further outages within 5 minutes
+add no rows: they raise the `count` in the latest entry and move its time.
+Refusals at `callback` are in the log only, because anyone can call that
+address. All three actions fall under the retention of routine sign-ins,
+`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`.
 
 ### What the reason means
 
 | `phase` | `reason` | What to check |
 | --- | --- | --- |
+| `callback` | `state_mismatch` | no `oncall_sso` cookie or a different `state`: the sign-in took over 10 minutes, started in another browser, or the return address was opened by hand; just try again |
+| `callback` | `provider_error` | Keycloak sent back an error instead of a code, e.g. the person cancelled the sign-in or the client lacks “Standard flow”; the application does not record the error text - the details are in Keycloak's log |
+| `callback` | `code_missing` | a return without a code, usually the return address opened by hand |
 | `discovery`, `exchange`, `verify` | `host_not_resolved` | the `api` container cannot resolve the name in `ONCALL_SSO_ISSUER` (DNS) |
 | `discovery`, `exchange`, `verify` | `connection_refused`, `timeout` | port, firewall or an overloaded Keycloak; the limit is `ONCALL_SSO_TIMEOUT_SECONDS` |
 | `discovery`, `exchange`, `verify` | `certificate_verify_failed` | Keycloak's CA is missing - [Keycloak certificate](#keycloak-certificate) |
-| `discovery` | other | `ONCALL_SSO_ISSUER` does not point at a realm: open `ONCALL_SSO_ISSUER/.well-known/openid-configuration` from the host and check that it is JSON |
-| `exchange` | `invalid_grant` | the code expired or was already used (browser back, double click): just try again; if it repeats, the client lacks PKCE `S256` or has `Client authentication` on |
+| `discovery`, `exchange`, `verify` | `ca_file_unreadable` | the CA file is missing in the container or cannot be read: the `docker-compose.ca.yml` overlay, the `ONCALL_CA_FILE` path, `0644` permissions |
+| `discovery`, `exchange`, `verify` | another class name, e.g. `ConnectError` | another network or TLS error on the way to Keycloak |
+| `discovery`, `verify` | `http_<status>`, `not_json` | something other than a realm answers at the address: open `ONCALL_SSO_ISSUER/.well-known/openid-configuration` from the host and check that it is JSON |
+| `discovery` | `document_invalid` | the realm's document lacks `authorization_endpoint`, `token_endpoint` or `jwks_uri` |
+| `verify` | `jwks_invalid` | the realm's key set (`jwks_uri`) is not a valid JWKS |
+| `exchange` | `http_<status>` | Keycloak answered the code exchange with an HTTP error; `5xx` is a Keycloak failure (`unavailable`), any other code a refusal without an OAuth error code |
+| `exchange` | `invalid_grant` | the code expired or was already used (browser back, double click): just try again; if it repeats, the client lacks PKCE `S256` |
+| `exchange` | another OAuth code, e.g. `invalid_client`, `unauthorized_client` | Keycloak refused the client: `ONCALL_SSO_CLIENT_ID`, and “Client authentication” must be off - [Keycloak client](#keycloak-client) |
+| `exchange` | `id_token_missing` | the answer has no ID token: the client lacks the `openid` scope |
+| `verify` | `token_malformed` | the ID token is not a valid JWT |
+| `verify` | `unknown_kid` | the token is signed with a key that is not among the realm's keys even after fetching them again |
+| `verify` | `signature_invalid` | the signature does not match the realm's key (another realm or a proxy altering the answer) |
+| `verify` | `issuer_mismatch` | `ONCALL_SSO_ISSUER` differs from `iss` in the token: the scheme, the host name Keycloak presents itself under, the port or the realm name |
+| `verify` | `audience_mismatch`, `azp_mismatch` | the token was issued for another client: `ONCALL_SSO_CLIENT_ID` |
+| `verify` | `nonce_mismatch` | the token does not belong to this sign-in (e.g. two tabs at once): just try again |
 | `verify` | `token_expired` | the clock difference between the application host and Keycloak exceeds 60 seconds |
 | `verify` | `claim_missing` | the ID token has no claim named by `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER`: the mapper lacks “Add to ID token” or the claim name differs - [Keycloak client](#keycloak-client) |
-| `verify` | other | the token failed the issuer, audience, signature or `nonce` check; `ONCALL_SSO_ISSUER` must equal `iss` and `ONCALL_SSO_CLIENT_ID` the client id |
+| `verify` | `claim_invalid` | the claim's value is not text of digits only, at most 32 characters; “Claim JSON Type” must be String |
+| `verify` | another class name, e.g. `ImmatureSignatureError`, `InvalidAlgorithmError` | the PyJWT library refused the token for that reason: `ImmatureSignatureError` is the clock, `InvalidAlgorithmError` means the realm signs with an algorithm other than RS256 or ES256 |
 | `account` | `no_account` | no account has this personnel number: the administrator types the number on the account on the “People” screen or creates the account |
 | `account` | `account_inactive` | the account is disabled in the application (“People” screen) |
-| any | `unexpected_error` | an error in the application: report it with the whole log line |
+| `discovery`, `exchange`, `verify` | `unexpected_error` | an error in the application or a library: report it with the whole log line |

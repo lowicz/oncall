@@ -235,8 +235,9 @@ itself**.
 
 SSO sign-in records an ordinary “Sign-in” (`auth.login`, with `via=sso` in
 the details), and its refusals “SSO sign-in rejected” (`auth.sso_rejected`) and
-“SSO unavailable” (`auth.sso_unavailable`); all three fall under the retention
-of routine sign-ins. See [SSO sign-in](../wdrozenie/sso.md#diagnostics).
+“SSO unavailable” (`auth.sso_unavailable`, repeats within 5 minutes merged
+into one entry with a count); all three fall under the retention of routine
+sign-ins. See [SSO sign-in](../wdrozenie/sso.md#diagnostics).
 
 The actor label is denormalised, so the trail survives the deletion of an
 account and also describes actors that are not users, for example a share
