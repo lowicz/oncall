@@ -166,8 +166,19 @@ async def test_the_browser_is_sent_to_the_provider_with_the_pkce_challenge(
         "code_challenge_method": "S256",
     }
     assert again == url
-    assert provider.calls == [f"GET {DISCOVERY_URL}"], "discovery is read once per process"
+    assert provider.calls == [f"GET {DISCOVERY_URL}"] * 2, "discovery is read on every start"
     assert records(diagnostics) == []
+
+
+async def test_a_provider_that_goes_down_after_a_sign_in_is_unavailable_at_the_next_start(
+    provider,
+) -> None:
+    oidc = client(provider)
+    await authorization_url(oidc)
+    provider.failure = httpx.ConnectError("All connection attempts failed")
+
+    with pytest.raises(SsoUnavailableError, match="discovery: connection_refused"):
+        await authorization_url(oidc)
 
 
 def test_the_redirect_uri_is_the_public_base_url_plus_the_callback_path(provider) -> None:
@@ -217,11 +228,12 @@ async def test_a_good_code_becomes_the_personnel_number(provider, diagnostics) -
         "client_id": CLIENT_ID,
         "code_verifier": VERIFIER,
     }
-    # Discovery and the key set are read once; the second exchange is one call.
+    # Discovery is read once per exchange, the key set once per process.
     assert provider.calls == [
         f"GET {DISCOVERY_URL}",
         f"POST {TOKEN_URL}",
         f"GET {JWKS_URL}",
+        f"GET {DISCOVERY_URL}",
         f"POST {TOKEN_URL}",
     ]
     assert records(diagnostics) == []

@@ -116,6 +116,7 @@ class _Attempt:
 
     def __init__(self) -> None:
         self.phase = "discovery"
+        self.discovery: dict[str, Any] | None = None
         self._started = time.monotonic()
 
     def log(self, outcome: str, level: int, phase: str, **fields: object) -> None:
@@ -139,7 +140,6 @@ class OidcClient:
     ) -> None:
         self.settings = settings
         self._transport = transport
-        self._discovery: dict[str, Any] | None = None
         self._jwks: jwt.PyJWKSet | None = None
 
     @property
@@ -298,7 +298,9 @@ class OidcClient:
             raise SsoUnavailableError(attempt.phase, "jwks_invalid") from exc
 
     async def _discover(self, attempt: _Attempt) -> dict[str, Any]:
-        if self._discovery is None:
+        """The provider's discovery document, read once per conversation and
+        never kept longer: a start that follows an outage finds it."""
+        if attempt.discovery is None:
             attempt.phase = "discovery"
             issuer = self.settings.sso_issuer or ""
             document = await self._fetch_json(attempt, f"{issuer}/.well-known/openid-configuration")
@@ -307,8 +309,8 @@ class OidcClient:
                 for name in ("authorization_endpoint", "token_endpoint", "jwks_uri")
             ):
                 raise SsoUnavailableError("discovery", "document_invalid")
-            self._discovery = document
-        return self._discovery
+            attempt.discovery = document
+        return attempt.discovery
 
     async def _fetch_json(self, attempt: _Attempt, url: str) -> dict[str, Any]:
         response = await self._send(attempt, "GET", url)
