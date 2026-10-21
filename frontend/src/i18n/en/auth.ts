@@ -13,6 +13,28 @@ export const auth: Messages['auth'] = {
   signInAgain: 'Sign in again to return to the screen you had open.',
   directoryHint: 'Have a company account? Sign in with your domain (AD) username and password. ',
   forgotPassword: 'Forgot your password? Ask the system administrator for a one-time reset link.',
+  sso: {
+    button: 'Sign in with SSO',
+    or: 'or',
+    errors: {
+      unavailable: {
+        title: 'SSO sign-in is temporarily unavailable',
+        hint: 'Sign in with your username and password. If the problem persists, notify the administrator.',
+      },
+      rejected: {
+        title: 'SSO sign-in failed',
+        hint: 'Try again. If the problem persists, notify the administrator.',
+      },
+      no_account: {
+        title: 'No account for your personnel number',
+        hint: 'Ask the administrator for an account with your personnel number.',
+      },
+      inactive: {
+        title: 'The account is inactive',
+        hint: 'Contact the administrator.',
+      },
+    },
+  },
   hints: {
     unauthorized: 'If the account has been disabled, contact the administrator.',
     conflict: 'The account needs a fix on the administrator side - contact them.',

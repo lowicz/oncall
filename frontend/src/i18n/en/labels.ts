@@ -92,6 +92,8 @@ export const labels: Messages['labels'] = {
     'auth.ldap_synced': 'Synchronised with LDAP',
     'auth.ldap_unavailable': 'LDAP unavailable',
     'auth.ldap_identity_conflict': 'LDAP identity conflict',
+    'auth.sso_rejected': 'SSO sign-in rejected',
+    'auth.sso_unavailable': 'SSO unavailable',
     'availability.created_on_behalf': 'Availability filed (on behalf)',
     'availability.deleted_on_behalf': 'Availability removed (on behalf)',
     'calendar.event_created': 'Event created',

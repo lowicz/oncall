@@ -12,6 +12,7 @@ const config = (over: Partial<PublicConfig>): PublicConfig => ({
   version: '1.0.0',
   audit_retention_days: 365,
   login_audit_retention_days: 90,
+  sso_enabled: false,
   ...over,
 })
 

@@ -25,7 +25,7 @@ const member = (over: Partial<TeamMember> & { id: string }): TeamMember => ({
 function mockData(users: AdminUser[] = [user({ id: 'u1' })], members: TeamMember[] = []) {
   vi.spyOn(api, 'adminUsers').mockResolvedValue(users)
   vi.spyOn(api, 'team').mockResolvedValue(members)
-  vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90 })
+  vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false })
 }
 
 const rowOf = async (username: string) => (await screen.findByText(username, { selector: 'td' })).closest('tr') as HTMLTableRowElement
@@ -400,7 +400,7 @@ describe('PeoplePanel new account', () => {
 })
 
 const ldapConfig = () => vi.spyOn(api, 'publicConfig').mockResolvedValue({
-  ldap_enabled: true, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90,
+  ldap_enabled: true, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false,
 })
 
 // Anna is in the rotation until the end of the year with one open and one

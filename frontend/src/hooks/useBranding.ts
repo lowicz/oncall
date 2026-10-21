@@ -21,7 +21,14 @@ export function useBranding() {
   const name = config.data?.app_name?.trim() || DEFAULT_APP_NAME
   const subtitle = config.data?.app_subtitle?.trim() || ''
   const version = config.data?.version?.trim() || ''
-  return { name, subtitle, version, ldapEnabled: config.data?.ldap_enabled ?? false, loaded: config.isSuccess }
+  return {
+    name,
+    subtitle,
+    version,
+    ldapEnabled: config.data?.ldap_enabled ?? false,
+    ssoEnabled: config.data?.sso_enabled ?? false,
+    loaded: config.isSuccess,
+  }
 }
 
 /** "Teraz · On-call" in the browser tab; the screen name first so several tabs

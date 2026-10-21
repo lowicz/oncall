@@ -12,6 +12,30 @@ export const auth = {
   signInAgain: 'Zaloguj się ponownie, aby wrócić do otwartego ekranu.',
   directoryHint: 'Masz konto firmowe? Zaloguj się loginem i hasłem domenowym (AD). ',
   forgotPassword: 'Nie pamiętasz hasła? Poproś administratora systemu o jednorazowy link resetujący.',
+  /** The second way in, shown under the password form when the deployment
+   *  has single sign-on; the API's redirect back names why it refused. */
+  sso: {
+    button: 'Zaloguj przez SSO',
+    or: 'albo',
+    errors: {
+      unavailable: {
+        title: 'Logowanie SSO jest chwilowo niedostępne',
+        hint: 'Zaloguj się loginem i hasłem. Jeśli problem się powtarza, powiadom administratora.',
+      },
+      rejected: {
+        title: 'Logowanie SSO nie powiodło się',
+        hint: 'Spróbuj ponownie. Jeśli problem się powtarza, powiadom administratora.',
+      },
+      no_account: {
+        title: 'Brak konta dla Twojego numeru pracownika',
+        hint: 'Poproś administratora o konto z Twoim numerem pracownika.',
+      },
+      inactive: {
+        title: 'Konto jest nieaktywne',
+        hint: 'Skontaktuj się z administratorem.',
+      },
+    },
+  },
   hints: {
     unauthorized: 'Jeśli konto zostało wyłączone, skontaktuj się z administratorem.',
     conflict: 'Konto wymaga poprawki po stronie administratora - skontaktuj się z nim.',
