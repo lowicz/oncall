@@ -1,6 +1,6 @@
 # Pull request and main-branch gates.
 #
-# One workflow, six parallel jobs that feed `ci-ok` for branch protection,
+# One workflow, seven parallel jobs that feed `ci-ok` for branch protection,
 # plus a SonarCloud scan and a single sign-on test against Keycloak outside
 # it. Nothing in the jobs behind `ci-ok` needs more than read access and
 # nothing here pushes an image, so a pull request from a fork (read-only
