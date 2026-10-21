@@ -35,6 +35,7 @@
         "wdrozenie/wydania.md",
         "wdrozenie/tls.md",
         "wdrozenie/ldap.md",
+        "wdrozenie/sso.md",
         "wdrozenie/przelaczanie-numeru.md"
       ]
     }

@@ -25,6 +25,24 @@ The personnel number on the account does not match `employeeNumber` in the
 directory. The administrator corrects the number on the “People” screen; the
 event is in the audit as “LDAP identity conflict”.
 
+**“SSO sign-in is temporarily unavailable”**
+The application could not reach Keycloak. Sign in with your username and
+password; the administrator will find the cause in the API log - see
+[SSO sign-in](../wdrozenie/sso.md#diagnostics).
+
+**“SSO sign-in failed”**
+The sign-in was interrupted or took too long (e.g. going back in the browser).
+Try again. If it happens to everyone, the administrator checks the client
+configuration in Keycloak.
+
+**“No account for your personnel number”**
+Keycloak recognised you, but no account in the application has your personnel
+number. Ask the administrator for an account with your personnel number or to
+enter the number on your existing account (“People” screen).
+
+**“The account is inactive” after “Sign in with SSO”**
+The account with your personnel number is disabled. Contact the administrator.
+
 **“Session expired” above the sign-in form**
 The session ended while the tab was open: the session lifetime ran out, a
 sign-out happened in another tab, or the administrator disabled the account.

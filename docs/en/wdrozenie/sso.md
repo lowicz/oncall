@@ -1,0 +1,227 @@
+# SSO sign-in (Keycloak)
+
+SSO sign-in is optional and disabled by default. Once enabled, the sign-in
+screen has a **“Sign in with SSO”** button under the password form, which
+leads to Keycloak. Username and password (local accounts and
+[LDAP / Active Directory](ldap.md)) keep working unchanged, also when Keycloak
+is unavailable.
+
+Configuring Keycloak itself (the realm, users, directory federation) is not
+part of the application; this page says what the application expects of it.
+
+## How sign-in proceeds
+
+The application uses OpenID Connect, the Authorization Code flow with PKCE
+(S256). The API carries the whole conversation with Keycloak: the browser only
+follows two redirects, and no token ever reaches JavaScript. The names in
+brackets are the values of the `phase=` field in the log - see
+[Diagnostics](#diagnostics).
+
+1. The button opens `/api/v1/auth/sso/start`. The API fetches Keycloak's
+   configuration (`discovery`) from `ONCALL_SSO_ISSUER/.well-known/openid-configuration`,
+   stores `state`, `nonce`, the PKCE verifier and the screen to return to in a
+   short-lived `oncall_sso` cookie (10 minutes) and redirects the browser to
+   Keycloak.
+2. The person signs in at Keycloak, however it is set up there.
+3. Keycloak redirects to `/api/v1/auth/sso/callback`. The API checks `state`
+   against the cookie and exchanges the code for tokens directly with Keycloak
+   (`exchange`).
+4. The API verifies the ID token (`verify`): the signature with a key from the
+   realm's JWKS, the issuer, the audience (the client id), the validity period
+   and `nonce`. The access token is discarded, no refresh token is kept.
+5. The API reads the personnel number from the ID token (the `employeeNumber`
+   claim by default) and looks for the account with the same personnel number
+   (`account`).
+6. An active account gets an ordinary session - the same cookie, the same
+   lifetime and the same CSRF protection as after a password sign-in - and the
+   person returns to the screen they came from.
+
+The personnel number is the same key [directory sign-in](ldap.md) links
+accounts by, and the same one the administrator types on the “People” screen.
+SSO **creates no accounts**, synchronises no data and does not change how an
+account signs in: a local account keeps its password, a directory account its
+directory sign-in. An account without a personnel number cannot sign in with
+SSO.
+
+The API reads Keycloak's configuration at every sign-in start and every
+return, so no restart is needed after a Keycloak outage. It keeps only the
+realm's signing keys in process memory; it fetches a new key (rotation in the
+realm) by itself when a token is signed with it.
+
+## Configuration
+
+Only the `api` container reads these variables.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ONCALL_SSO_ENABLED` | `false` | turns on the “Sign in with SSO” button and sign-in through Keycloak |
+| `ONCALL_SSO_ISSUER` | none | the realm's address, exactly as `iss` in the tokens, e.g. `https://keycloak.company.example/realms/company`; starts with `https://` or `http://`; a trailing `/` is dropped |
+| `ONCALL_SSO_CLIENT_ID` | none | the client id in Keycloak, e.g. `oncall` |
+| `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER` | `employeeNumber` | the ID token claim with the personnel number (digits only, at most 32) |
+| `ONCALL_SSO_TIMEOUT_SECONDS` | `5` | time limit of each call to Keycloak (configuration, keys, code exchange), at most 60 |
+
+`ONCALL_SSO_ENABLED=true` with an empty `ONCALL_SSO_ISSUER` or
+`ONCALL_SSO_CLIENT_ID` stops the API at startup. The return address is not set
+separately: the API derives it from `ONCALL_PUBLIC_BASE_URL`.
+
+```bash
+# in .env
+ONCALL_SSO_ENABLED=true
+ONCALL_SSO_ISSUER=https://keycloak.company.example/realms/company
+ONCALL_SSO_CLIENT_ID=oncall
+```
+
+The change takes effect after restarting `api` (`docker compose up -d api`).
+
+## Keycloak client
+
+The Keycloak administrator creates a client in the realm with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Client type | OpenID Connect |
+| Client ID | the same value as `ONCALL_SSO_CLIENT_ID` |
+| Client authentication | **off** (a public client, no secret) |
+| Standard flow | on |
+| Direct access grants | off |
+| Proof Key for Code Exchange Code Challenge Method | `S256` |
+| Valid redirect URIs | exactly `ONCALL_PUBLIC_BASE_URL` + `/api/v1/auth/sso/callback`, e.g. `https://oncall.company.example:8443/api/v1/auth/sso/callback` - port included, no `*` |
+| Web origins | empty |
+
+Plus a mapper in the client's “Client scopes” tab (the dedicated scope) or in
+a shared scope:
+
+| Setting | Value |
+| --- | --- |
+| Mapper type | User Attribute (or an attribute from LDAP federation) |
+| User Attribute | the attribute holding the personnel number, e.g. `employeeNumber` |
+| Token Claim Name | the same value as `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER` |
+| Claim JSON Type | String |
+| Add to ID token | **on** |
+
+The number must be in the **ID token**. A mapper that adds it only to the
+access token or to userinfo ends every sign-in in a refusal with
+`reason=claim_missing`.
+
+## Keycloak certificate
+
+The API always verifies Keycloak's certificate. When an internal CA issued it,
+or the traffic passes through a corporate TLS proxy, add that CA to the
+deployment's [CA file](uruchomienie.md#ca-file) (`ONCALL_CA_FILE`) and start
+the stack with the `docker-compose.ca.yml` overlay. As for SMTP, the CAs from
+the file are added to the image's public CAs, not substituted for them.
+
+## When Keycloak is unavailable
+
+The button stays on the sign-in screen (the application does not probe
+Keycloak in advance). When Keycloak does not answer at the start of the
+sign-in, at the code exchange or when fetching keys, the person returns to the
+sign-in screen with the message “SSO sign-in is temporarily unavailable” and
+the password form. No call lasts longer than `ONCALL_SSO_TIMEOUT_SECONDS`.
+Password and directory sign-in, and open sessions, keep working.
+
+## Signing out
+
+“Sign out” ends only the session in the application. The Keycloak session
+stays, so the next “Sign in with SSO” lets the person in without asking for a
+password for as long as the Keycloak session lasts. The client needs no
+post-logout redirect address.
+
+## Security and limitations
+
+- **The return address must match `ONCALL_PUBLIC_BASE_URL` character for
+  character** (scheme, name, port). A difference ends at Keycloak with
+  “Invalid parameter: redirect_uri”, before the application sees the sign-in
+  at all.
+- **The personnel number decides the account.** Whoever changes the
+  attribute with the number in Keycloak (or in the directory Keycloak reads it
+  from) decides which account a person enters - just as with `employeeNumber`
+  in AD today. The unique personnel number in the application rules out two
+  accounts with the same number.
+- **Clock.** The ID token is checked with a 60-second tolerance. A Keycloak
+  clock ahead of the application host by more than 60 seconds refuses every
+  sign-in (`reason=ImmatureSignatureError`). An application host clock ahead
+  of Keycloak refuses it only beyond the ID token lifetime plus 60 seconds
+  (`reason=token_expired`). Both hosts should synchronise their time (NTP).
+- **Shared computer.** Since “Sign out” does not end the Keycloak session, the
+  next person who presses “Sign in with SSO” on the same computer enters the
+  previous person's account for as long as their Keycloak session lasts. On
+  shared workstations, sign out of Keycloak too or close the browser.
+- **Session lifetime** is the application's (12 hours), not Keycloak's: a
+  person blocked in Keycloak keeps an open session until it expires or the
+  administrator disables the account on the “People” screen - as with AD.
+- **No attempt limit.** The return address has no sign-in attempt limit, on
+  purpose: Keycloak checks the password, and a forged call ends in one refused
+  code exchange.
+- **Two state-changing GET addresses.** `/api/v1/auth/sso/start` and
+  `/api/v1/auth/sso/callback` set a cookie and open a session with a plain
+  `GET`, because that is how an OpenID Connect redirect works; they bypass the
+  CSRF protection, and forgery is prevented by `state` and `nonce` bound to the
+  browser through the `oncall_sso` cookie (`HttpOnly`, `SameSite=Lax`,
+  `Secure` like the session cookie). The return screen must be a path within
+  the same application; any other address becomes `/`.
+- The CSP stays unchanged: the browser does not connect to Keycloak from
+  JavaScript, it only follows a redirect.
+
+## Diagnostics
+
+The person sees one of four messages, described in
+[Troubleshooting](../uzytkownik/rozwiazywanie-problemow.md#signing-in). The
+cause is in the API log, at the default level:
+
+```bash
+docker compose logs api | grep -E 'event=(login|sso_auth)'
+```
+
+A successful sign-in is an `event=login` line with
+`outcome=signed_in source=sso`. A sign-in stopped along the way writes an
+`event=sso_auth` line with `outcome=` (`unavailable` at `WARNING`, `rejected`
+at `INFO`), `phase=` and `reason=`; lines from the conversation with Keycloak
+also carry `elapsed_ms=`, a refusal at `phase=account` the personnel number in
+`number=`, and `unexpected_error` the exception type in `error=` (at
+`ERROR`). The log contains no authorisation code, no tokens, no address
+carrying the code and no error text sent by Keycloak.
+
+The audit records: a successful sign-in as “Sign-in” (`auth.login`, with
+`via=sso` in the details), a refusal at `exchange`, `verify` or `account` as
+“SSO sign-in rejected” (`auth.sso_rejected`, with `phase` and `reason` in the
+details; at `account` the actor is the personnel number, so the administrator
+can create or enable the account) and an unavailable Keycloak as
+“SSO unavailable” (`auth.sso_unavailable`). Further outages within 5 minutes
+add no rows: they raise the `count` in the latest entry and move its time.
+Refusals at `callback` are in the log only, because anyone can call that
+address. All three actions fall under the retention of routine sign-ins,
+`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`.
+
+### What the reason means
+
+| `phase` | `reason` | What to check |
+| --- | --- | --- |
+| `callback` | `state_mismatch` | no `oncall_sso` cookie or a different `state`: the sign-in took over 10 minutes, started in another browser, or the return address was opened by hand; just try again |
+| `callback` | `provider_error` | Keycloak sent back an error instead of a code, e.g. the person cancelled the sign-in or the client lacks “Standard flow”; the application does not record the error text - the details are in Keycloak's log |
+| `callback` | `code_missing` | a return without a code, usually the return address opened by hand |
+| `discovery`, `exchange`, `verify` | `host_not_resolved` | the `api` container cannot resolve the name in `ONCALL_SSO_ISSUER` (DNS) |
+| `discovery`, `exchange`, `verify` | `connection_refused`, `timeout` | port, firewall or an overloaded Keycloak; the limit is `ONCALL_SSO_TIMEOUT_SECONDS` |
+| `discovery`, `exchange`, `verify` | `certificate_verify_failed` | Keycloak's CA is missing - [Keycloak certificate](#keycloak-certificate) |
+| `discovery`, `exchange`, `verify` | `ca_file_unreadable` | the CA file is missing in the container or cannot be read: the `docker-compose.ca.yml` overlay, the `ONCALL_CA_FILE` path, `0644` permissions |
+| `discovery`, `exchange`, `verify` | another class name, e.g. `ConnectError` | another network or TLS error on the way to Keycloak |
+| `discovery`, `verify` | `http_<status>`, `not_json` | something other than a realm answers at the address: open `ONCALL_SSO_ISSUER/.well-known/openid-configuration` from the host and check that it is JSON |
+| `discovery` | `document_invalid` | the realm's document lacks `authorization_endpoint`, `token_endpoint` or `jwks_uri` |
+| `verify` | `jwks_invalid` | the realm's key set (`jwks_uri`) is not a valid JWKS |
+| `exchange` | `http_<status>` | Keycloak answered the code exchange with an HTTP error; `5xx` is a Keycloak failure (`unavailable`), any other code a refusal without an OAuth error code |
+| `exchange` | `invalid_grant` | the code expired or was already used (browser back, double click): just try again; if it repeats, the client lacks PKCE `S256` |
+| `exchange` | another OAuth code, e.g. `invalid_client`, `unauthorized_client` | Keycloak refused the client: `ONCALL_SSO_CLIENT_ID`, and “Client authentication” must be off - [Keycloak client](#keycloak-client) |
+| `exchange` | `id_token_missing` | the answer has no ID token: the client lacks the `openid` scope |
+| `verify` | `token_malformed` | the ID token is not a valid JWT |
+| `verify` | `unknown_kid` | the token is signed with a key that is not among the realm's keys even after fetching them again |
+| `verify` | `signature_invalid` | the signature does not match the realm's key (another realm or a proxy altering the answer) |
+| `verify` | `issuer_mismatch` | `ONCALL_SSO_ISSUER` differs from `iss` in the token: the scheme, the host name Keycloak presents itself under, the port or the realm name |
+| `verify` | `audience_mismatch`, `azp_mismatch` | the token was issued for another client: `ONCALL_SSO_CLIENT_ID` |
+| `verify` | `nonce_mismatch` | the token does not belong to this sign-in (e.g. two tabs at once): just try again |
+| `verify` | `token_expired` | the ID token expired: the application host clock is ahead of Keycloak by more than the token lifetime plus 60 seconds (see **Clock** above) |
+| `verify` | `claim_missing` | the ID token has no claim named by `ONCALL_SSO_CLAIM_PERSONNEL_NUMBER`: the mapper lacks “Add to ID token” or the claim name differs - [Keycloak client](#keycloak-client) |
+| `verify` | `claim_invalid` | the claim's value is not text of digits only, at most 32 characters; “Claim JSON Type” must be String |
+| `verify` | another class name, e.g. `ImmatureSignatureError`, `InvalidAlgorithmError` | the PyJWT library refused the token for that reason: `ImmatureSignatureError` means the Keycloak clock is ahead of the application host by more than 60 seconds, `InvalidAlgorithmError` means the realm signs with an algorithm other than RS256 or ES256 |
+| `account` | `no_account` | no account has this personnel number: the administrator types the number on the account on the “People” screen or creates the account |
+| `account` | `account_inactive` | the account is disabled in the application (“People” screen) |
+| `discovery`, `exchange`, `verify` | `unexpected_error` | an error in the application or a library: report it with the whole log line |

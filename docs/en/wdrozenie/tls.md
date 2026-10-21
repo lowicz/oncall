@@ -56,7 +56,7 @@ format does not change, its contents do.
 `ca.pem` is the full set of authorities this deployment is to trust. nginx
 reads it directly as `ssl_trusted_certificate`. It is the same
 [CA file](uruchomienie.md#ca-file) `api` and `worker` verify the LDAP
-directory, the SMTP server and Orange WCO against.
+directory, the SMTP server, Orange WCO and Keycloak against.
 
 The same file is ready as `proxy_ssl_trusted_certificate`, should the API ever
 be proxied over HTTPS - the relevant lines are in

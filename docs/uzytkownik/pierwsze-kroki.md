@@ -10,6 +10,14 @@ Jeżeli firma ma włączone logowanie z katalogu (LDAP / Active Directory), uży
 tych samych danych co do komputera. Konto powstanie przy pierwszym udanym
 logowaniu.
 
+Jeżeli firma ma włączone logowanie SSO, pod formularzem jest przycisk
+**„Zaloguj przez SSO”**. Prowadzi on do firmowej strony logowania (Keycloak);
+po zalogowaniu tam wracasz do aplikacji, na ekran, który był otwarty.
+Wpuszcza na konto z Twoim numerem kadrowym.
+„Wyloguj” kończy sesję tylko w aplikacji: kolejne „Zaloguj przez SSO” może
+wpuścić bez pytania o hasło. Na wspólnym komputerze wyloguj się też ze strony
+firmowej albo zamknij przeglądarkę.
+
 Komunikat **„Nieprawidłowy login lub hasło”** pojawia się także wtedy, gdy konto
 zostało wyłączone - w takim wypadku skontaktuj się z administratorem.
 

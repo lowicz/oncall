@@ -20,6 +20,8 @@ values of the `phase=` field in the log - see [Diagnostics](#diagnostics).
 The first successful sign-in creates a `viewer` account; subsequent ones
 synchronise the data. Linking with a local account is described in
 [Roles and access](../produkt/role-i-dostep.md#accounts-and-sign-in).
+The same personnel number links the account in [SSO sign-in](sso.md), so a
+directory account can sign in either way.
 
 ## Configuration
 
@@ -94,8 +96,8 @@ deployment's [CA file](uruchomienie.md#ca-file) (`ONCALL_CA_FILE`,
 for nginx) and start the stack with that overlay.
 
 With the overlay the directory is trusted **solely** according to that file,
-unlike the SMTP server and Orange WCO, for which the file's CAs are added to
-the public ones. A bundle without the controllers' CA therefore turns
+unlike the SMTP server, Orange WCO and Keycloak, for which the file's CAs are
+added to the public ones. A bundle without the controllers' CA therefore turns
 directory sign-in off.
 
 Checking the certificate from the host where Compose runs:

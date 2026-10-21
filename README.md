@@ -35,7 +35,7 @@ Fair duty rotations for infrastructure teams: <code>PRIMARY</code>, <code>SECOND
 
 | Fair by construction | Runs the day to day | Fits the team |
 | --- | --- | --- |
-| A CP-SAT generator balances primary, secondary, the 11-19 shift, weekends and holidays over the previous 12 months, and shows the fairness criterion it met. Drafts never replace a published schedule on their own. | Single-day swaps with acceptance and approval, availability and preferences, coordinator overrides, a monthly report, a fairness report and an audit log. | E-mail notifications, ICS calendar feeds, expiring viewer links, LDAP / Active Directory sign-in, a Polish and English interface, and the brand as a deployment setting. |
+| A CP-SAT generator balances primary, secondary, the 11-19 shift, weekends and holidays over the previous 12 months, and shows the fairness criterion it met. Drafts never replace a published schedule on their own. | Single-day swaps with acceptance and approval, availability and preferences, coordinator overrides, a monthly report, a fairness report and an audit log. | E-mail notifications, ICS calendar feeds, expiring viewer links, LDAP / Active Directory and Keycloak SSO sign-in, a Polish and English interface, and the brand as a deployment setting. |
 
 The name shown in the interface, e-mails and calendar feeds is a deployment
 setting (`ONCALL_APP_NAME`, with an optional `ONCALL_APP_SUBTITLE`), so the
@@ -313,3 +313,13 @@ mismatch ends in a 409 recorded as `auth.ldap_identity_conflict`. Every
 attempt writes `event=login` and, when the directory stopped it,
 `event=ldap_auth` lines that never carry secrets.
 [LDAP](docs/wdrozenie/ldap.md) · [EN](docs/en/wdrozenie/ldap.md).
+
+**SSO login (Keycloak).** Off by default; `ONCALL_SSO_ENABLED=true` with
+`ONCALL_SSO_ISSUER` and `ONCALL_SSO_CLIENT_ID` adds a "Zaloguj przez SSO"
+button under the password form. The API runs the OpenID Connect Authorization
+Code flow with PKCE against a public Keycloak client, verifies the ID token and
+opens a session for the existing active account whose personnel number equals
+the token's `employeeNumber` claim; it creates and converts no accounts, so
+local and LDAP sign-in keep working, also when Keycloak is down. Signing out
+ends the On-call session only.
+[SSO](docs/wdrozenie/sso.md) · [EN](docs/en/wdrozenie/sso.md).
