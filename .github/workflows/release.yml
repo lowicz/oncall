@@ -7,7 +7,8 @@
 #             published versions are immutable, a rerun of the same tag is a
 #             mistake by construction.
 # ci        - the same gates as every pull request (ci.yml); an image can only
-#             come from a commit that passed them.
+#             come from a commit that passed them. The single sign-on test
+#             against Keycloak, never required, skips itself here.
 # build     - one job per image (api, web): build, push, SBOM and SLSA
 #             provenance attached by BuildKit, a GitHub attestation, a keyless
 #             cosign signature. Tags: X.Y.Z, X.Y, X, latest; a prerelease gets

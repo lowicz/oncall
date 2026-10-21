@@ -10,7 +10,8 @@
 # itself reports. CodeQL (codeql.yml) and Dependency Review
 # (dependency-review.yml) are workflows of their own.
 # release.yml calls this workflow before it publishes, so an image can only
-# come from a commit that passed every required gate.
+# come from a commit that passed every required gate; the Keycloak job skips
+# itself on a tag, so a release never waits for it.
 #
 # Every action is pinned to a full commit SHA; Renovate (renovate.json5) moves
 # the pins forward, and the tool versions in `env` below with them.
@@ -163,8 +164,10 @@ jobs:
     # Single sign-on against a real Keycloak: the realm of
     # docker-compose.keycloak.yml and tests/test_sso_keycloak.py, which skips
     # itself without the URL below. Not in ci-ok's needs: it pulls Keycloak
-    # from quay.io, and an outage there must not block a merge.
+    # from quay.io, and an outage there must not block a merge, nor a
+    # release, so it skips itself when release.yml calls this on a tag.
     name: backend (single sign-on against Keycloak)
+    if: github.ref_type != 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
