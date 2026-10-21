@@ -137,6 +137,13 @@ def provider(signing_key) -> FakeProvider:
 
 
 @pytest.fixture
+def oidc(provider) -> OidcClient:
+    """A client over the fake provider; the provider's knobs are read at
+    request time, so a test may turn them after the client exists."""
+    return client(provider)
+
+
+@pytest.fixture
 def diagnostics(caplog):
     caplog.set_level(logging.INFO, logger="oncall")
     yield caplog
@@ -146,10 +153,8 @@ def diagnostics(caplog):
 
 
 async def test_the_browser_is_sent_to_the_provider_with_the_pkce_challenge(
-    provider, diagnostics
+    provider, oidc, diagnostics
 ) -> None:
-    oidc = client(provider)
-
     url = await authorization_url(oidc)
     again = await authorization_url(oidc)
 
@@ -171,9 +176,8 @@ async def test_the_browser_is_sent_to_the_provider_with_the_pkce_challenge(
 
 
 async def test_a_provider_that_goes_down_after_a_sign_in_is_unavailable_at_the_next_start(
-    provider,
+    provider, oidc
 ) -> None:
-    oidc = client(provider)
     await authorization_url(oidc)
     provider.failure = httpx.ConnectError("All connection attempts failed")
 
@@ -214,9 +218,7 @@ async def test_an_issuer_configured_with_a_trailing_slash_matches_the_tokens(pro
     assert provider.calls[0] == f"GET {DISCOVERY_URL}"
 
 
-async def test_a_good_code_becomes_the_personnel_number(provider, diagnostics) -> None:
-    oidc = client(provider)
-
+async def test_a_good_code_becomes_the_personnel_number(provider, oidc, diagnostics) -> None:
     number = await exchange(oidc)
     again = await exchange(oidc)
 
@@ -245,8 +247,7 @@ async def test_a_token_without_azp_is_accepted(provider) -> None:
     assert await exchange(client(provider)) == "000042"
 
 
-async def test_a_rotated_key_is_fetched_once_without_a_restart(provider, other_key) -> None:
-    oidc = client(provider)
+async def test_a_rotated_key_is_fetched_once_without_a_restart(provider, oidc, other_key) -> None:
     await exchange(oidc)
     provider.private_key, provider.kid = other_key, "key-2"
 
@@ -272,12 +273,11 @@ async def test_a_rotated_key_is_fetched_once_without_a_restart(provider, other_k
     ],
 )
 async def test_an_id_token_that_fails_a_check_is_rejected_with_the_reason(
-    provider, diagnostics, claims, reason
+    provider, oidc, diagnostics, claims, reason
 ) -> None:
     provider.token = provider.id_token(**claims)
-
     with pytest.raises(SsoRejectedError) as refused:
-        await exchange(client(provider))
+        await exchange(oidc)
 
     assert (refused.value.phase, refused.value.reason) == ("verify", reason)
     [record] = records(diagnostics)
@@ -286,14 +286,13 @@ async def test_an_id_token_that_fails_a_check_is_rejected_with_the_reason(
     assert "elapsed_ms" in record
 
 
-async def test_a_token_signed_with_another_key_is_rejected(provider, other_key) -> None:
+async def test_a_token_signed_with_another_key_is_rejected(provider, oidc, other_key) -> None:
     provider.token = provider.id_token(key=other_key)
-
     with pytest.raises(SsoRejectedError, match="verify: signature_invalid"):
-        await exchange(client(provider))
+        await exchange(oidc)
 
 
-async def test_an_unsigned_token_is_rejected(provider) -> None:
+async def test_an_unsigned_token_is_rejected(provider, oidc) -> None:
     provider.token = jwt.encode(
         {"iss": ISSUER, "aud": CLIENT_ID, "exp": 10**10, "iat": 1, "nonce": NONCE},
         key=None,
@@ -302,23 +301,21 @@ async def test_an_unsigned_token_is_rejected(provider) -> None:
     )
 
     with pytest.raises(SsoRejectedError, match="verify: InvalidAlgorithmError"):
-        await exchange(client(provider))
+        await exchange(oidc)
 
 
-async def test_a_token_naming_an_unknown_key_is_rejected_after_one_refetch(provider) -> None:
+async def test_a_token_naming_an_unknown_key_is_rejected_after_one_refetch(provider, oidc) -> None:
     provider.token = provider.id_token(kid="key-9")
-
     with pytest.raises(SsoRejectedError, match="verify: unknown_kid"):
-        await exchange(client(provider))
+        await exchange(oidc)
 
     assert provider.calls.count(f"GET {JWKS_URL}") == 2
 
 
-async def test_something_that_is_not_a_token_is_rejected(provider) -> None:
+async def test_something_that_is_not_a_token_is_rejected(provider, oidc) -> None:
     provider.token = "not-a-token"
-
     with pytest.raises(SsoRejectedError, match="verify: token_malformed"):
-        await exchange(client(provider))
+        await exchange(oidc)
 
 
 async def test_the_claim_name_is_the_configured_one(provider) -> None:
@@ -342,12 +339,11 @@ async def test_the_claim_name_is_the_configured_one(provider) -> None:
     ],
 )
 async def test_a_provider_that_cannot_be_reached_is_unavailable_with_the_reason(
-    provider, diagnostics, failure, reason
+    provider, oidc, diagnostics, failure, reason
 ) -> None:
     provider.failure = failure
-
     with pytest.raises(SsoUnavailableError) as unavailable:
-        await authorization_url(client(provider))
+        await authorization_url(oidc)
 
     assert (unavailable.value.phase, unavailable.value.reason) == ("discovery", reason)
     [record] = records(diagnostics)
@@ -369,12 +365,11 @@ async def test_a_provider_that_cannot_be_reached_is_unavailable_with_the_reason(
     ],
 )
 async def test_a_discovery_document_the_client_cannot_use_is_unavailable(
-    provider, answer, reason
+    provider, oidc, answer, reason
 ) -> None:
     provider.answers[DISCOVERY_URL] = answer
-
     with pytest.raises(SsoUnavailableError, match=f"discovery: {reason}"):
-        await authorization_url(client(provider))
+        await authorization_url(oidc)
 
 
 @pytest.mark.parametrize(
@@ -390,12 +385,11 @@ async def test_a_discovery_document_the_client_cannot_use_is_unavailable(
     ],
 )
 async def test_the_token_endpoints_answer_decides_between_unavailable_and_rejected(
-    provider, answer, outcome, reason
+    provider, oidc, answer, outcome, reason
 ) -> None:
     provider.answers[TOKEN_URL] = answer
-
     with pytest.raises(outcome, match=f"exchange: {reason}"):
-        await exchange(client(provider))
+        await exchange(oidc)
 
 
 @pytest.mark.parametrize(
@@ -406,18 +400,21 @@ async def test_the_token_endpoints_answer_decides_between_unavailable_and_reject
         (httpx.Response(200, json={"keys": "none"}), "jwks_invalid"),
     ],
 )
-async def test_a_key_set_the_client_cannot_use_is_unavailable(provider, answer, reason) -> None:
+async def test_a_key_set_the_client_cannot_use_is_unavailable(
+    provider, oidc, answer, reason
+) -> None:
     provider.answers[JWKS_URL] = answer
-
     with pytest.raises(SsoUnavailableError, match=f"verify: {reason}"):
-        await exchange(client(provider))
+        await exchange(oidc)
 
 
 async def test_an_unreadable_ca_file_fails_the_call_and_names_the_reason(
     provider, tmp_path: Path
 ) -> None:
+    oidc = client(provider, ca_file=str(tmp_path))
+
     with pytest.raises(SsoUnavailableError, match="discovery: ca_file_unreadable"):
-        await authorization_url(client(provider, ca_file=str(tmp_path)))
+        await authorization_url(oidc)
 
     assert provider.calls == []
 
@@ -429,12 +426,11 @@ async def test_a_readable_ca_file_is_accepted(provider, tmp_path: Path) -> None:
 
 
 async def test_a_defect_is_an_outage_for_the_person_and_an_error_in_the_log(
-    provider, diagnostics
+    provider, oidc, diagnostics
 ) -> None:
     provider.failure = RuntimeError(f"boom {CODE}")
-
     with pytest.raises(SsoUnavailableError) as unavailable:
-        await exchange(client(provider))
+        await exchange(oidc)
 
     assert (unavailable.value.phase, unavailable.value.reason) == ("discovery", "unexpected_error")
     assert isinstance(unavailable.value.__cause__, RuntimeError)

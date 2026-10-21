@@ -133,8 +133,11 @@ async def test_start_sends_the_browser_to_the_provider_with_what_the_cookie_hold
     assert all(len(value) >= 43 for value in sso.started[0].values())
     [cookie] = set_cookies(response)
     assert cookie.startswith("oncall_sso=")
-    assert "HttpOnly" in cookie and "SameSite=lax" in cookie and "Secure" not in cookie
-    assert "Max-Age=600" in cookie and "Path=/api/v1/auth/sso" in cookie
+    assert "HttpOnly" in cookie
+    assert "SameSite=lax" in cookie
+    assert "Secure" not in cookie
+    assert "Max-Age=600" in cookie
+    assert "Path=/api/v1/auth/sso" in cookie
     assert response.headers["cache-control"] == "no-store"
     assert records(diagnostics) == []
 
@@ -157,7 +160,8 @@ async def test_two_starts_remember_different_secrets(client, sso) -> None:
     first = pending_from(await start(client))
     second = pending_from(await start(client))
 
-    assert first["state"] != second["state"] and first["verifier"] != second["verifier"]
+    assert first["state"] != second["state"]
+    assert first["verifier"] != second["verifier"]
 
 
 @pytest.mark.parametrize(
@@ -188,7 +192,8 @@ async def test_the_callback_opens_a_session_and_returns_to_the_screen(
     [login] = await audit(db, "auth.login")
     assert (login.actor_user_id, login.details) == (anna.id, {"via": "sso"})
     await db.refresh(anna)
-    assert anna.auth_source == AuthSource.local and anna.password_hash is not None
+    assert anna.auth_source == AuthSource.local
+    assert anna.password_hash is not None
     [record] = records(diagnostics)
     assert record | {"event": "login", "outcome": "signed_in", "source": "sso"} == record
     assert record["login"] == "anna"
