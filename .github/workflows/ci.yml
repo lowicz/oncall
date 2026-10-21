@@ -1,7 +1,8 @@
 # Pull request and main-branch gates.
 #
 # One workflow, six parallel jobs that feed `ci-ok` for branch protection,
-# plus a SonarCloud scan outside it. Nothing in the jobs behind `ci-ok` needs
+# plus a SonarCloud scan and a single sign-on test against Keycloak outside
+# it. Nothing in the jobs behind `ci-ok` needs
 # more than read access and nothing here pushes an image, so a pull request
 # from a fork (read-only token, no secrets) still gets a green `ci-ok`. The
 # SonarCloud job skips cleanly when SONAR_TOKEN is missing; the quality gate
@@ -157,6 +158,41 @@ jobs:
           path: ${{ runner.temp }}/junit-backend-postgres.xml
           retention-days: 7
           if-no-files-found: ignore
+
+  sso-keycloak:
+    # Single sign-on against a real Keycloak: the realm of
+    # docker-compose.keycloak.yml and tests/test_sso_keycloak.py, which skips
+    # itself without the URL below. Not in ci-ok's needs: it pulls Keycloak
+    # from quay.io, and an outage there must not block a merge.
+    name: backend (single sign-on against Keycloak)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ONCALL_E2E_KEYCLOAK_URL: http://localhost:8180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Keycloak with the oncall realm
+        working-directory: .
+        run: docker compose -f docker-compose.keycloak.yml up -d --wait
+      - name: Install from the lock
+        run: uv sync --extra dev --frozen
+      - name: Tests (Keycloak)
+        run: uv run --frozen pytest -q tests/test_sso_keycloak.py
+      - name: Keycloak log
+        if: failure()
+        working-directory: .
+        run: docker compose -f docker-compose.keycloak.yml logs keycloak
 
   frontend:
     name: frontend (eslint, tsc, vitest, build with docs)

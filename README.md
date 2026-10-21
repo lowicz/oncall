@@ -135,6 +135,9 @@ The gates CI runs, in the same order: `uv run ruff check .`, `uv run ruff format
 PostgreSQL suites need a disposable server:
 `docker compose -f docker-compose.contract.yml up -d` and
 `ONCALL_TEST_POSTGRES_URL=postgresql+asyncpg://oncall_contract:oncall_contract@127.0.0.1:55432/oncall_contract uv run pytest tests/test_concurrency_postgres.py tests/test_schema_postgres.py`.
+The single sign-on test needs the local Keycloak:
+`docker compose -f docker-compose.keycloak.yml up -d --wait` and
+`ONCALL_E2E_KEYCLOAK_URL=http://localhost:8180 uv run pytest tests/test_sso_keycloak.py`.
 
 For Docker Compose, put the credentials in `.env`. On every API start the bootstrap
 creates the account or synchronizes its password, display name, admin role and active

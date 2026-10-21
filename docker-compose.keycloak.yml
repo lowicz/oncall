@@ -1,0 +1,30 @@
+# A disposable Keycloak for trying single sign-on in a development checkout
+# and for backend/tests/test_sso_keycloak.py; never part of a deployment.
+# The realm `oncall` (examples/keycloak/realm-oncall.json) is imported on the
+# first start and lives only as long as the container:
+#
+#   docker compose -f docker-compose.keycloak.yml up -d --wait
+#   cd backend && ONCALL_E2E_KEYCLOAK_URL=http://localhost:8180 uv run pytest tests/test_sso_keycloak.py
+#   docker compose -f docker-compose.keycloak.yml down
+name: oncall-keycloak
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./examples/keycloak/realm-oncall.json:/opt/keycloak/data/import/realm-oncall.json:ro
+    # The image has no curl; bash talks to the management port itself.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3 &&
+          grep -q '"UP"' <&3
+      interval: 2s
+      timeout: 3s
+      retries: 60
