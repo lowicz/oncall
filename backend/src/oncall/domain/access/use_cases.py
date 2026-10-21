@@ -108,10 +108,10 @@ async def sign_in_with_sso(
     No throttle: the provider checked the password, and a forged callback
     costs one refused code exchange before it gets here."""
     account = await ports.accounts.account_with_personnel_number(personnel_number)
-    if account is None:
-        await _refuse_sso(ports, personnel_number, "no_account")
-    if not account.is_active:
-        await _refuse_sso(ports, personnel_number, "account_inactive")
+    if account is None or not account.is_active:
+        cause: errors.SsoRefusalCause = "no_account" if account is None else "account_inactive"
+        await ports.attempts.sso_refused("account", cause, personnel_number=personnel_number)
+        raise errors.SsoSignInRefused(cause)
     return await _sign_in_as(account, ports, now=now, session_lifetime=session_lifetime, via="sso")
 
 
@@ -182,13 +182,6 @@ async def _reject(
 ) -> NoReturn:
     await attempts.failed(request, now - FAILED_LOGIN_SERIES_WINDOW)
     raise errors.LoginRejected(cause)
-
-
-async def _refuse_sso(
-    ports: SsoSignInPorts, personnel_number: str, cause: errors.SsoRefusalCause
-) -> NoReturn:
-    await ports.attempts.sso_refused("account", cause, personnel_number=personnel_number)
-    raise errors.SsoSignInRefused(cause)
 
 
 async def synchronize_directory_account(identity: DirectoryIdentity, ports: SignInPorts) -> Account:
