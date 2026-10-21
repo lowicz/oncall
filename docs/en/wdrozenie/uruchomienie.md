@@ -115,9 +115,10 @@ intermediate CAs, or the host's whole system bundle, e.g.
 `/etc/pki/tls/certs/ca-bundle.crt`. It is read by:
 
 - `api` and `worker` through the `docker-compose.ca.yml` overlay: the
-  [LDAP](ldap.md#directory-certificate) directory, the [SMTP server](#smtp-server),
-  Orange WCO and [Keycloak](sso.md#keycloak-certificate), when their certificate comes from an internal CA (AD CS, a
-  corporate TLS proxy) the image does not know,
+  [LDAP](ldap.md#directory-certificate) directory, the
+  [SMTP server](#smtp-server), Orange WCO and
+  [Keycloak](sso.md#keycloak-certificate), when their certificate comes from
+  an internal CA (AD CS, a corporate TLS proxy) the image does not know,
 - nginx through the [TLS](tls.md#complete-system-trust-bundle) overlay.
 
 ```bash
@@ -131,11 +132,11 @@ docker compose -f docker-compose.yml -f docker-compose.ca.yml up -d
 docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ca.yml up -d
 ```
 
-SMTP, WCO and Keycloak add the CAs from the file to the image's public CAs rather than
-replacing them, so the same bundle serves a server on the internal network
-and a public one. The LDAP directory trusts this bundle **alone**, so it must
-hold the domain controllers' CA. Certificate verification cannot be turned
-off.
+SMTP, WCO and Keycloak add the CAs from the file to the image's public CAs
+rather than replacing them, so the same bundle serves a server on the internal
+network and a public one. The LDAP directory trusts this bundle **alone**, so
+it must hold the domain controllers' CA. Certificate verification cannot be
+turned off.
 
 The file must exist and be readable by the image's user (`0644` permissions)
 before the containers start: Compose creates a missing mount source as an

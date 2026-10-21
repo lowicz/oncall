@@ -113,8 +113,8 @@ organizacji albo cały systemowy pakiet hosta, np.
 
 - `api` i `worker` przez nakładkę `docker-compose.ca.yml`: katalog
   [LDAP](ldap.md#certyfikat-katalogu), [serwer SMTP](#serwer-smtp),
-  Orange WCO i [Keycloak](sso.md#certyfikat-keycloak), gdy ich certyfikat wystawiło wewnętrzne CA (AD CS, firmowe
-  proxy TLS), którego obraz nie zna,
+  Orange WCO i [Keycloak](sso.md#certyfikat-keycloak), gdy ich certyfikat
+  wystawiło wewnętrzne CA (AD CS, firmowe proxy TLS), którego obraz nie zna,
 - nginx przez nakładkę [TLS](tls.md#kompletny-systemowy-pakiet-zaufania).
 
 ```bash
@@ -128,10 +128,10 @@ docker compose -f docker-compose.yml -f docker-compose.ca.yml up -d
 docker compose -f docker-compose.yml -f docker-compose.tls.yml -f docker-compose.ca.yml up -d
 ```
 
-SMTP, WCO i Keycloak dokładają CA z pliku do publicznych CA obrazu, nie zastępują ich,
-więc ten sam pakiet obsłuży serwer w sieci wewnętrznej i publiczny. Katalog
-LDAP ufa **wyłącznie** temu pakietowi, więc musi on zawierać CA kontrolerów
-domeny. Certyfikatów nie da się nie weryfikować.
+SMTP, WCO i Keycloak dokładają CA z pliku do publicznych CA obrazu, nie
+zastępują ich, więc ten sam pakiet obsłuży serwer w sieci wewnętrznej i
+publiczny. Katalog LDAP ufa **wyłącznie** temu pakietowi, więc musi on
+zawierać CA kontrolerów domeny. Certyfikatów nie da się nie weryfikować.
 
 Plik musi istnieć i być czytelny dla użytkownika obrazu (prawa `0644`) przed
 startem kontenerów: brakujące źródło montowania Compose tworzy jako pusty

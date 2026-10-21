@@ -53,7 +53,7 @@ wraz z pośrednimi - format pliku nie zmienia się, zmienia się jego zawartoś�
 `ca.pem` to pełny zestaw urzędów, którym ma ufać to wdrożenie. nginx czyta go
 bezpośrednio jako `ssl_trusted_certificate`. To ten sam
 [plik CA](uruchomienie.md#plik-ca), według którego `api` i `worker`
-weryfikują katalog LDAP, serwer SMTP i Orange WCO.
+weryfikują katalog LDAP, serwer SMTP, Orange WCO i Keycloak.
 
 Ten sam plik jest gotowy jako `proxy_ssl_trusted_certificate`, gdyby API miało
 kiedyś być proxowane po HTTPS - odpowiednie linie są w

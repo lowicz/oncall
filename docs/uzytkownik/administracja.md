@@ -66,7 +66,8 @@ przekaż osobie bezpiecznym kanałem; aplikacja go nie wysyła.
 
 Numer pracownika ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
 `employeeNumber`, żeby konto lokalne powiązało się automatycznie przy pierwszym
-logowaniu z katalogu.
+logowaniu z katalogu. Przy [logowaniu przez SSO](../wdrozenie/sso.md) wskazuje
+konto, na które Keycloak wpuszcza osobę.
 
 Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę, a
 próba zamknięcia wypisze, co zostanie utracone. Zmiana roli i wyłączenie konta

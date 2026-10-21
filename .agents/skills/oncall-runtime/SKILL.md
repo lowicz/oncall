@@ -36,8 +36,8 @@ metadata:
   base file mounts nothing from the host so it comes up on a machine with no
   certificate, under Docker and Podman alike. Details: `docs/wdrozenie/tls.md`.
   The deployment's one CA bundle, `ONCALL_CA_FILE`, is the same kind of
-  overlay (`docker-compose.ca.yml`): LDAP, SMTP and Orange WCO in `api` and
-  `worker` verify against it, and the TLS overlay gives it to nginx
+  overlay (`docker-compose.ca.yml`): LDAP, SMTP, Orange WCO and Keycloak in
+  `api` and `worker` verify against it, and the TLS overlay gives it to nginx
   (`docs/wdrozenie/uruchomienie.md`, "Plik CA").
 - Every Compose service is `read_only` with `cap_drop: [ALL]` and
   `no-new-privileges`; only `db` adds back what the postgres entrypoint needs.
