@@ -162,7 +162,7 @@ to workflow bezpieczeństwa działające obok `ci.yml`:
 | Dependency Review (`dependency-review.yml`) | każdy pull request | porównuje zależności pull requesta z gałęzią docelową w grafie zależności GitHuba (`backend/uv.lock`, `frontend/package-lock.json`, akcje w workflow); status `dependency-review` jest czerwony, gdy zmiana wnosi zależność, także deweloperską, z podatnością o ważności high lub critical; pull request bez zmian zależności przechodzi |
 | SonarCloud (zadanie `sonarcloud` w `ci.yml`) | każdy pull request i push do `main` | jakość kodu, podatności i pokrycie testami; bramka jakości (m.in. 80% pokrycia nowego kodu) zgłasza status `SonarCloud Code Analysis` |
 | Dependabot alerts | stale | alerty o znanych podatnościach w zależnościach, w Security → Dependabot; Dependabot nie otwiera pull requestów |
-| Renovate | harmonogram, a przy alercie od razu | jedyny bot otwierający pull requesty z aktualizacjami, także poprawkami bezpieczeństwa (patrz [Aktualizacje zależności](#aktualizacje-zależności)) |
+| Renovate | harmonogram, a przy alercie od razu (dla pakietu tylko z pliku lock: przy codziennym odświeżeniu plików lock) | jedyny bot otwierający pull requesty z aktualizacjami, także poprawkami bezpieczeństwa (patrz [Aktualizacje zależności](#aktualizacje-zależności)) |
 
 Dependabot jest tu wyłącznie źródłem alertów. Repozytorium nie ma pliku
 `.github/dependabot.yml` (zadanie `workflows` odrzuca go w CI), a
@@ -198,10 +198,19 @@ Zasady:
   zaproponowane - świeżo opublikowana, być może przejęta, wersja nie trafia do
   PR-a tego samego dnia; bez tej karencji przychodzi tylko to, co nie ma daty
   wydania: obraz `postgres` (Docker Hub nie podaje dat dla obrazu z tyloma
-  tagami), comiesięczne odświeżenie plików lock i przypięcie wersji (nie
-  wnoszą nowego wydania),
+  tagami), codzienne odświeżenie plików lock i przypięcie wersji; odświeżenie
+  plików lock wnosi jednak nowsze wydania, więc trzy dni karencji egzekwują
+  przy nim same narzędzia: `exclude-newer` w `backend/pyproject.toml` (uv) i
+  `min-release-age` w `frontend/.npmrc` (npm),
 - poprawki bezpieczeństwa (alerty GitHub i baza OSV) powstają natychmiast,
-  osobno i z etykietą `security`,
+  osobno i z etykietą `security`; dotyczy to pakietów wpisanych w
+  `pyproject.toml` i `package.json`, bo Renovate nie poprawia z alertu pakietu,
+  który występuje tylko w pliku lock (zależności pośredniej, np. `certifi`) -
+  ten przechodzi na poprawione wydanie przy codziennym odświeżeniu plików
+  lock; ta sama karencja narzędzi sprawia, że poprawki, której wydanie ma
+  mniej niż trzy dni, nie da się zapisać w pliku lock, dopóki nie skończy
+  trzech dni - także dla zależności bezpośredniej; wyjątek dla jednego pakietu
+  to `exclude-newer-package` (uv) lub `min-release-age-exclude` (npm),
 - zmiany wersji głównych oraz każda zmiana środowiska uruchomieniowego
   (Python, Node, PostgreSQL) czekają na zatwierdzenie w Dependency Dashboard -
   to decyzje, nie rutyna; wyjątkiem jest wydanie poprawkowe używanej wersji
