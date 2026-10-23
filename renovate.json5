@@ -81,10 +81,14 @@
   // gets no pull request; the refresh of both lock files is what moves it to
   // the fixed release. Daily, so such a fix waits a day, not a month. Upstream
   // work to fix uv.lock-only packages from alerts (renovatebot/renovate#43377,
-  // #44262) would let this go back to a slower cadence once released.
+  // #44262) would let this go back to a slower cadence once released. The
+  // refresh is exempt from the PR limits, so open update PRs cannot hold back
+  // such a fix.
   lockFileMaintenance: {
     enabled: true,
     schedule: ['before 6am'],
+    prConcurrentLimit: 0,
+    prHourlyLimit: 0,
   },
   ignorePaths: ['archive/**'],
   enabledManagers: ['github-actions', 'npm', 'pep621', 'dockerfile', 'docker-compose', 'custom.regex'],
