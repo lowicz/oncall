@@ -170,7 +170,7 @@ two are security workflows running alongside `ci.yml`:
 | Dependency Review (`dependency-review.yml`) | every pull request | compares the pull request's dependencies with the target branch in GitHub's dependency graph (`backend/uv.lock`, `frontend/package-lock.json`, actions in workflows); the `dependency-review` status is red when the change brings in a dependency, including a development one, with a vulnerability of severity high or critical; a pull request without dependency changes passes |
 | SonarCloud (the `sonarcloud` job in `ci.yml`) | every pull request and push to `main` | code quality, vulnerabilities and test coverage; the quality gate (among others, 80% coverage of new code) reports the `SonarCloud Code Analysis` status |
 | Dependabot alerts | continuously | alerts about known vulnerabilities in dependencies, in Security → Dependabot; Dependabot opens no pull requests |
-| Renovate | on a schedule, and immediately on an alert | the only bot opening pull requests with updates, including security fixes (see [Dependency updates](#dependency-updates)) |
+| Renovate | on a schedule, and immediately on an alert (for a package only in a lock file: at the daily lock file refresh) | the only bot opening pull requests with updates, including security fixes (see [Dependency updates](#dependency-updates)) |
 
 Dependabot is here solely a source of alerts. The repository has no
 `.github/dependabot.yml` file (the `workflows` job rejects it in CI), and
@@ -206,10 +206,14 @@ The rules:
   proposed - a freshly published, possibly hijacked, version does not go into
   a PR the same day; only what has no release date comes without that wait:
   the `postgres` image (Docker Hub gives no dates for an image with that many
-  tags), the monthly lock file refresh and the pinning of a version (they
+  tags), the daily lock file refresh and the pinning of a version (they
   bring no new release),
 - security fixes (GitHub alerts and the OSV database) are created
-  immediately, separately and with the `security` label,
+  immediately, separately and with the `security` label; this holds for
+  packages listed in `pyproject.toml` and `package.json`, because Renovate does
+  not fix from an alert a package that only a lock file names (an indirect
+  dependency, e.g. `certifi`) - that one moves to the fixed release at the
+  daily lock file refresh,
 - major version changes and every change of the runtime (Python, Node,
   PostgreSQL) wait for approval in the Dependency Dashboard - these are
   decisions, not routine; the exception is a bug-fix release of the version in

@@ -14,7 +14,8 @@
 //     its own weekly pull request;
 //   - a version that appears in several files is read from one datasource
 //     in all of them, so every file gets the same version on the same day;
-//   - security updates at any time, on their own, labelled;
+//   - security updates at any time, on their own, labelled; a package that
+//     only a lock file names comes with the next daily lock file refresh;
 //   - no automerge: the repository is public and one person maintains it, so
 //     every change lands through a reviewed pull request that passed `ci-ok`;
 //   - a release must be at least three days old before it is proposed, so a
@@ -74,9 +75,16 @@
   // In-range updates only touch the lockfile; out-of-range ones widen the
   // range in pyproject.toml / package.json as well.
   rangeStrategy: 'update-lockfile',
+  // Renovate turns a vulnerability alert into a fix only for a dependency it
+  // reads from pyproject.toml or package.json. A package that only uv.lock or
+  // package-lock.json names, such as certifi under httpx, matches nothing and
+  // gets no pull request; the refresh of both lock files is what moves it to
+  // the fixed release. Daily, so such a fix waits a day, not a month. Upstream
+  // work to fix uv.lock-only packages from alerts (renovatebot/renovate#43377,
+  // #44262) would let this go back to a slower cadence once released.
   lockFileMaintenance: {
     enabled: true,
-    schedule: ['before 6am on the first day of the month'],
+    schedule: ['before 6am'],
   },
   ignorePaths: ['archive/**'],
   enabledManagers: ['github-actions', 'npm', 'pep621', 'dockerfile', 'docker-compose', 'custom.regex'],
