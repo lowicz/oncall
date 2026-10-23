@@ -22,7 +22,10 @@
 //     freshly published (and possibly hijacked) package cannot reach a pull
 //     request the same hour it appears. Where no release date exists (the
 //     postgres image, lock file maintenance) the update is proposed without
-//     that wait; the rules below say why.
+//     that wait; the rules below say why. Lock file maintenance does pull
+//     newer releases, so for it the resolvers keep the three days themselves:
+//     `exclude-newer` in backend/pyproject.toml and `min-release-age` in
+//     frontend/.npmrc.
 //
 // Approving a major or runtime update: open the Dependency Dashboard issue and
 // tick the update's checkbox under "Pending Approval". Renovate opens the pull
@@ -64,6 +67,11 @@
   // GitHub's own vulnerability data to break that rule when it matters.
   minimumReleaseAge: '3 days',
   internalChecksFilter: 'strict',
+  // The resolvers' own three-day floor (uv exclude-newer, npm min-release-age)
+  // still applies to a security fix: one whose release is younger than three
+  // days cannot be locked until it is three days old, direct dependency or
+  // not. uv's exclude-newer-package and npm's min-release-age-exclude lift it
+  // for one package.
   osvVulnerabilityAlerts: true,
   vulnerabilityAlerts: {
     enabled: true,
@@ -83,7 +91,8 @@
   // work to fix uv.lock-only packages from alerts (renovatebot/renovate#43377,
   // #44262) would let this go back to a slower cadence once released. The
   // refresh is exempt from the PR limits, so open update PRs cannot hold back
-  // such a fix.
+  // such a fix. It locks only releases at least three days old, by the
+  // resolvers' own floor (header).
   lockFileMaintenance: {
     enabled: true,
     schedule: ['before 6am'],
@@ -337,9 +346,10 @@
       ],
     },
     {
-      // Lock file maintenance and pinning move to no new release, so they have
-      // no release date; with the date required they never pass the three-day
-      // rule. Keeping minimumReleaseAge lets npm still resolve with --before.
+      // Lock file maintenance and pinning have no release date for Renovate to
+      // check; with the date required they never pass the three-day rule (the
+      // resolvers' own floor covers lock file maintenance, see the header).
+      // Keeping minimumReleaseAge lets npm still resolve with --before.
       matchUpdateTypes: ['lockFileMaintenance', 'pin'],
       minimumReleaseAgeBehaviour: 'timestamp-optional',
     },

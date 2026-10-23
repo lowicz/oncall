@@ -206,14 +206,19 @@ The rules:
   proposed - a freshly published, possibly hijacked, version does not go into
   a PR the same day; only what has no release date comes without that wait:
   the `postgres` image (Docker Hub gives no dates for an image with that many
-  tags), the daily lock file refresh and the pinning of a version (they
-  bring no new release),
+  tags), the daily lock file refresh and the pinning of a version; the lock
+  file refresh does bring newer releases, so for it the tools themselves
+  enforce the three days: `exclude-newer` in `backend/pyproject.toml` (uv) and
+  `min-release-age` in `frontend/.npmrc` (npm),
 - security fixes (GitHub alerts and the OSV database) are created
   immediately, separately and with the `security` label; this holds for
   packages listed in `pyproject.toml` and `package.json`, because Renovate does
   not fix from an alert a package that only a lock file names (an indirect
   dependency, e.g. `certifi`) - that one moves to the fixed release at the
-  daily lock file refresh,
+  daily lock file refresh; the same tool wait means a fix whose release is
+  less than three days old cannot be written to a lock file until it is three
+  days old - for a direct dependency too; the exception for one package is
+  `exclude-newer-package` (uv) or `min-release-age-exclude` (npm),
 - major version changes and every change of the runtime (Python, Node,
   PostgreSQL) wait for approval in the Dependency Dashboard - these are
   decisions, not routine; the exception is a bug-fix release of the version in

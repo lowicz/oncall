@@ -198,14 +198,19 @@ Zasady:
   zaproponowane - świeżo opublikowana, być może przejęta, wersja nie trafia do
   PR-a tego samego dnia; bez tej karencji przychodzi tylko to, co nie ma daty
   wydania: obraz `postgres` (Docker Hub nie podaje dat dla obrazu z tyloma
-  tagami), codzienne odświeżenie plików lock i przypięcie wersji (nie
-  wnoszą nowego wydania),
+  tagami), codzienne odświeżenie plików lock i przypięcie wersji; odświeżenie
+  plików lock wnosi jednak nowsze wydania, więc trzy dni karencji egzekwują
+  przy nim same narzędzia: `exclude-newer` w `backend/pyproject.toml` (uv) i
+  `min-release-age` w `frontend/.npmrc` (npm),
 - poprawki bezpieczeństwa (alerty GitHub i baza OSV) powstają natychmiast,
   osobno i z etykietą `security`; dotyczy to pakietów wpisanych w
   `pyproject.toml` i `package.json`, bo Renovate nie poprawia z alertu pakietu,
   który występuje tylko w pliku lock (zależności pośredniej, np. `certifi`) -
   ten przechodzi na poprawione wydanie przy codziennym odświeżeniu plików
-  lock,
+  lock; ta sama karencja narzędzi sprawia, że poprawki, której wydanie ma
+  mniej niż trzy dni, nie da się zapisać w pliku lock, dopóki nie skończy
+  trzech dni - także dla zależności bezpośredniej; wyjątek dla jednego pakietu
+  to `exclude-newer-package` (uv) lub `min-release-age-exclude` (npm),
 - zmiany wersji głównych oraz każda zmiana środowiska uruchomieniowego
   (Python, Node, PostgreSQL) czekają na zatwierdzenie w Dependency Dashboard -
   to decyzje, nie rutyna; wyjątkiem jest wydanie poprawkowe używanej wersji
