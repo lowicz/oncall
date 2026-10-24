@@ -19,7 +19,7 @@ dependencies = [
   "asyncpg==0.32.0",
   "cryptography==50.0.2",
   "email-validator==2.3.0",
-  "fastapi==0.157.0",
+  "fastapi==0.158.0",
   "holidays==0.107",
   "httpx==0.28.1",
   "ldap3==2.9.1",
@@ -27,7 +27,7 @@ dependencies = [
   "pydantic-settings==2.16.1",
   "pyjwt[crypto]==2.15.1",
   "python-multipart==0.0.32",
-  "sqlalchemy[asyncio]==2.1.5",
+  "sqlalchemy[asyncio]==2.1.6",
   "uvicorn[standard]==0.54.0",
 ]
 
