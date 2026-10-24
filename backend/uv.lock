@@ -344,7 +344,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.158.0"
+version = "0.158.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -354,9 +354,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7c/47/702f3164e1453923434fb997fa5368a7f8e6a443e149d5c0e5148f279623/fastapi-0.158.0.tar.gz", hash = "sha256:890440689039bdadb06131bafae81eb63468a0dd9f6185fcec47afb69424ea6a", size = 509671, upload-time = "2026-10-21T17:02:14.798Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/02/defd62b5ca4907c7923ee450bf6b54c7568a1ec536db30d36d74ce852f84/fastapi-0.158.1.tar.gz", hash = "sha256:03844f5e23cf813a3b8eefa559d434a3a78b33d07a436948a744d3506aab079a", size = 510591, upload-time = "2026-10-21T17:47:42.339Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/df/f273d102d6ee50c5de3e56023a3e69bad30c209f8002e8d2efeecbeb114c/fastapi-0.158.0-py3-none-any.whl", hash = "sha256:c5127864026eca80a419047caba7760d561160904445fd825a60b6285b86ed0b", size = 148533, upload-time = "2026-10-21T17:02:12.881Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/08/928ad3d4c2f1ffc81b246a949664b94227fbdd1a7c9f84f0a231cf89b4b5/fastapi-0.158.1-py3-none-any.whl", hash = "sha256:646c52eb31e71fa71a184404349ea78b17b564b39f181e988dc7dfeaf84f1bc8", size = 148576, upload-time = "2026-10-21T17:47:41.072Z" },
 ]
 
 [[package]]
@@ -656,7 +656,7 @@ requires-dist = [
     { name = "asyncpg", specifier = "==0.32.0" },
     { name = "cryptography", specifier = "==50.0.2" },
     { name = "email-validator", specifier = "==2.3.0" },
-    { name = "fastapi", specifier = "==0.158.0" },
+    { name = "fastapi", specifier = "==0.158.1" },
     { name = "holidays", specifier = "==0.107" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "ldap3", specifier = "==2.9.1" },
@@ -1007,6 +1007,9 @@ dependencies = [
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/36/dc/9addbf490110b5727380059ee542ad8353bdcee45a37ba6a5e0976966ae0/sqlalchemy-2.1.6.tar.gz", hash = "sha256:499eae5c9051efe96cb9a73ec2fbde8ffa4186f102b9094ebab8fcc9d3b99f52", size = 10589700, upload-time = "2026-10-21T16:25:06.497Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/69/c75534e336b06b3fd3f76de73d89736510800e60c77c58d4e4ce18389018/sqlalchemy-2.1.6-py3-none-any.whl", hash = "sha256:106878cf3795cd3d357e2e858609f9e44f20f19b2d8e48a3532bef3f90b03fbe", size = 2063055, upload-time = "2026-10-21T18:42:10.234Z" },
+]
 
 [package.optional-dependencies]
 asyncio = [
