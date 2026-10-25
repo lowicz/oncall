@@ -19,7 +19,7 @@ dependencies = [
   "asyncpg==0.32.0",
   "cryptography==50.0.2",
   "email-validator==2.3.0",
-  "fastapi==0.160.0",
+  "fastapi==0.161.0",
   "holidays==0.107",
   "httpx==0.28.1",
   "ldap3==2.9.1",
@@ -39,7 +39,7 @@ dev = [
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
   "pytest-xdist==3.8.0",
-  "ruff==0.17.1",
+  "ruff==0.17.2",
 ]
 
 [tool.hatch.build.targets.wheel]
