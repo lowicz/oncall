@@ -83,7 +83,7 @@ environments = ["sys_platform == 'linux'"]
 # (backend/Dockerfile) and Renovate installs it for its lockfile updates. uv
 # refuses to run under any other release, so a drift fails loudly instead of
 # resolving the lock differently. Renovate's "uv" group moves all three.
-required-version = "==0.13.4"
+required-version = "==0.13.5"
 # Resolve only releases at least three days old, the same wait renovate.json5
 # sets, so Renovate's lock file refresh (`uv lock --upgrade`, which has no
 # release dates to check) cannot lock a release published hours ago.
