@@ -311,6 +311,19 @@ jobs:
         run: systemd-analyze verify deploy/backup/oncall-backup.service deploy/backup/oncall-backup-alert.service deploy/backup/oncall-backup.timer
       - name: Production setup (stubbed systemd, loginctl and Podman)
         run: bash deploy/backup/setup.test.sh
+      # Ubuntu 26.04's AppArmor profile for pasta refuses the SIGTERM Podman
+      # sends when it tears down the rootless network namespace of a Compose
+      # network, so stopping its last container fails
+      # (https://bugs.launchpad.net/ubuntu/+source/passt/+bug/2154379). The
+      # rule goes in only while Podman cannot do that; delete the step once no
+      # runner needs it.
+      - name: Rootless Podman can tear down its network namespace
+        run: |
+          if ! podman unshare --rootless-netns true; then
+            sudo sed -i 's/^}$/  signal (receive) set=(term) peer=podman,\n}/' /etc/apparmor.d/usr.bin.pasta
+            sudo apparmor_parser --replace /etc/apparmor.d/usr.bin.pasta
+            podman unshare --rootless-netns true
+          fi
       - name: Dump, restore test, retention, restore, alert, PostgreSQL upgrade and cleanup against rootless Podman
         if: matrix.compose == 'docker-compose'
         run: |
