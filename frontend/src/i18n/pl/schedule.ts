@@ -43,6 +43,8 @@ export const schedule = {
     unstaffedDay: 'dzień bez obsady',
     weekendHoliday: 'weekend / święto (2X)',
     event: 'wydarzenie (kropka w komórce)',
+    keys: 'Klawisze',
+    keysText: 'Strzałki przechodzą po siatce, PageUp i PageDown przeskakują o tydzień.',
   },
   /** The day-by-day list a phone reads instead of the matrix (`CalendarDayList`). */
   dayList: {

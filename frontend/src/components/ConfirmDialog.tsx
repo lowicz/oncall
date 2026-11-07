@@ -79,7 +79,6 @@ export function ConfirmDialog({
             <Textarea
               id={id}
               name="reason"
-              autoFocus
               rows={3}
               value={reason}
               onChange={(event) => setReason(event.target.value)}

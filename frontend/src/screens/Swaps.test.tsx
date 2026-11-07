@@ -1441,7 +1441,7 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
       inReturn: { service_date: '2026-09-16', role: 'secondary' }, scope: 'whole', returnScope: 'whole', correction: false,
     })
 
-    fireEvent.click(within(row).getByRole('button', { name: 'Zdecyduj: pon 14 wrz PRIMARY ⇄ śr 16 wrz SECONDARY' }))
+    fireEvent.click(within(row).getByRole('button', { name: 'Zdecyduj: pon 14 wrz PRIMARY zamiana z śr 16 wrz SECONDARY' }))
     const sheet = await screen.findByRole('dialog', { name: 'Wymiana · pon 14 wrz ⇄ śr 16 wrz' })
     expect(rowsOf(sheet)).toEqual([
       ['Dostajesz', 'pon 14 wrzPRIMARY + 11–19od: Anna Kowalska', 'za 4 dni'],

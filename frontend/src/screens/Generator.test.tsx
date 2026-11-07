@@ -370,7 +370,9 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     const button = await screen.findByRole('button', { name: 'Przekaż do akceptacji' })
-    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAttribute('aria-describedby', 'generator-propose-blocked')
+    fireEvent.click(button)
     expect(
       screen.getByText('Najpierw usuń dyżury w dniach zgłoszonej niedostępności'),
     ).toBeInTheDocument()

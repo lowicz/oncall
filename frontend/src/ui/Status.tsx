@@ -1,8 +1,9 @@
-import { ReactNode, useState } from 'react'
+import { Children, ReactNode, useState } from 'react'
 import { cx } from './cx'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
 import { signedPoints } from '../lib/numbers'
+import { messages } from '../i18n'
 
 export type StatusTone = 'draft' | 'prop' | 'pub' | 'ok' | 'warn' | 'bad' | 'sig' | 'muted'
 
@@ -36,7 +37,7 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
   )
   if (onClick) {
     return (
-      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} title={title}>
+      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} title={title} aria-description={title}>
         {content}
       </button>
     )
@@ -45,7 +46,11 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
 }
 
 export function ChipRow({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
-  return <div className={cx('risk', className)} role={label ? 'list' : undefined} aria-label={label}>{children}</div>
+  return (
+    <div className={cx('risk', className)} role={label ? 'list' : undefined} aria-label={label}>
+      {label ? Children.toArray(children).map((child, index) => <div className="chip-row-item" role="listitem" key={index}>{child}</div>) : children}
+    </div>
+  )
 }
 
 const roleClass: Record<AssignmentRole, string> = { primary: 'p', secondary: 's', late_shift: 'l' }
@@ -119,7 +124,7 @@ export function DeviationBar({ value, max, label, className }: {
   const over = value > 0
   const formatted = signedPoints(value)
   return (
-    <span className={cx('dev', className)} role="img" aria-label={label ?? `odchylenie ${formatted}`}>
+    <span className={cx('dev', className)} role="img" aria-label={label ?? messages().common.deviation(formatted)}>
       <span className="dev-track">
         <i className={over ? 'dev-over' : 'dev-under'} style={{ width: `${width / 2}%` }} />
       </span>

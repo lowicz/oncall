@@ -17,6 +17,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route, Routes } from 'react-router-dom'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
+import axe from 'axe-core'
 import { renderScreen } from './render'
 import { api } from '../api'
 import type {
@@ -59,9 +60,19 @@ const TODAY = '2026-09-10'
  * The generated element ids (`_r_2r_`) count up across the whole run, so they
  * are the one thing normalised away; what is left is the markup and the words.
  */
-const snapshotOf = (name: string) =>
-  expect(document.body.innerHTML.replace(/_r_[0-9a-z]+_/g, '_r_x_'))
+// axe probes a canvas for some rules; jsdom has none and only logs that it does not.
+HTMLCanvasElement.prototype.getContext = () => null
+
+const snapshotOf = async (name: string) => {
+  // Colour contrast needs real layout and the stylesheet, which jsdom has neither of.
+  const { violations } = await axe.run(document.body, {
+    runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],
+    rules: { 'color-contrast': { enabled: false } },
+  })
+  expect(violations.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(' ')).join(' | ')}`)).toEqual([])
+  await expect(document.body.innerHTML.replace(/_r_[0-9a-z]+_/g, '_r_x_'))
     .toMatchFileSnapshot(`__snapshots__/polish/${name}.html`)
+}
 
 const balance = (actual: number, expected: number) => ({ actual, expected, deviation: actual - expected })
 

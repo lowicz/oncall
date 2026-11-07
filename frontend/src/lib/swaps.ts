@@ -57,6 +57,11 @@ export function swapHeadline(item: SwapRequest) {
   return returned ? `${dayRole(item)} ⇄ ${dayRole(returned)}` : dayRole(item)
 }
 
+export function accessibleSwapHeadline(item: SwapRequest, exchange: string) {
+  const returned = returnOf(item)
+  return returned ? `${dayRole(item)} ${exchange} ${dayRole(returned)}` : dayRole(item)
+}
+
 const scopeOf = (slots: SwapSlot[]): SwapScope => (slots.length > 1 ? 'whole' : 'single')
 
 /** What a stored request moves, as the projection of its points asks for it. */

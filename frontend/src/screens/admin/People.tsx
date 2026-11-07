@@ -27,6 +27,7 @@ import {
   PageHeader,
   Panel,
   SectionHeading,
+  ScrollArea,
   Segmented,
   StatusBadge,
   StatusTone,
@@ -110,7 +111,7 @@ const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 function LinkResult({ value, label }: { value: string; label: string }) {
   return (
     <Box tone="ok" role="status" title={label}>
-      <div className="token-once"><code>{value}</code><CopyButton value={value} /></div>
+      <div className="token-once"><code translate="no">{value}</code><CopyButton value={value} /></div>
     </Box>
   )
 }
@@ -466,7 +467,7 @@ export function PeoplePanel() {
         <div className="panel"><EmptyState compact icon="people" title={t.emptyFilter} /></div>
       )}
       {rows.length > 0 && (
-        <div className="panel wide-scroll">
+        <ScrollArea label={t.accounts} hint={m.common.scrollHint}>
           <table className="lg" aria-label={t.accounts}>
             <caption className="sr-only">{t.tableCaption}</caption>
             <thead>
@@ -518,7 +519,7 @@ export function PeoplePanel() {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       )}
 
       <Panel
@@ -545,30 +546,30 @@ export function PeoplePanel() {
             <>
               <div className="frow">
                 <Field label={t.fields.firstName} id="new-first-name" required>
-                  {({ id }) => <Input id={id} value={newForm.first_name} onChange={(e) => setNewForm({ ...newForm, first_name: e.target.value })} required />}
+                  {({ id }) => <Input id={id} name="first_name" autoComplete="given-name" autoCapitalize="words" value={newForm.first_name} onChange={(e) => setNewForm({ ...newForm, first_name: e.target.value })} required />}
                 </Field>
                 <Field label={t.fields.lastName} id="new-last-name">
-                  {({ id }) => <Input id={id} value={newForm.last_name} onChange={(e) => setNewForm({ ...newForm, last_name: e.target.value })} />}
+                  {({ id }) => <Input id={id} name="last_name" autoComplete="family-name" autoCapitalize="words" value={newForm.last_name} onChange={(e) => setNewForm({ ...newForm, last_name: e.target.value })} />}
                 </Field>
               </div>
               <div className="frow">
                 <Field label={t.fields.username} id="new-username" required hint={branding.ldapEnabled ? t.fields.usernameLdapHint : undefined}>
-                  {({ id, describedBy }) => <Input id={id} mono autoComplete="off" value={newForm.username} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, username: e.target.value })} required />}
+                  {({ id, describedBy }) => <Input id={id} name="username" mono autoComplete="off" autoCapitalize="none" spellCheck={false} value={newForm.username} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, username: e.target.value })} required />}
                 </Field>
                 <Field label={t.fields.personnelNumber} id="new-personnel-number" hint={branding.ldapEnabled ? t.fields.personnelNumberLdapHint : undefined}>
-                  {({ id, describedBy }) => <Input id={id} mono inputMode="numeric" pattern="[0-9]*" value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
+                  {({ id, describedBy }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} inputMode="numeric" pattern="[0-9]*" value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
                 </Field>
               </div>
               <div className="frow">
                 <Field label={t.fields.email} id="new-email">
-                  {({ id }) => <Input id={id} type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
+                  {({ id }) => <Input id={id} name="email" autoComplete="email" type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
                 </Field>
                 <Field label={t.fields.phone} id="new-phone" hint={t.fields.phoneNewHint}>
-                  {({ id, describedBy }) => <Input id={id} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
+                  {({ id, describedBy }) => <Input id={id} name="phone" autoComplete="tel" autoCapitalize="off" spellCheck={false} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
                 </Field>
               </div>
               <Field label={t.fields.accountRole} id="new-role" hint={t.fields.accountRoleHint}>
-                {() => <Segmented<UserRole> label={t.fields.accountRole} value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
+                {({ labelId }) => <Segmented<UserRole> label={t.fields.accountRole} labelId={labelId} value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
               </Field>
               <Box tone="sig" title={t.newAccountPanel.afterCreation}>
                 {t.newAccountPanel.afterCreationText}
@@ -595,7 +596,13 @@ export function PeoplePanel() {
         open={Boolean(selectedRow)}
         onClose={requestClose}
         wide
-        title={selectedRow ? <span className="row"><Avatar name={selectedRow.user.display_name} size={30} />{selectedRow.user.display_name}</span> : ''}
+        title={selectedRow ? (
+          <span className="row">
+            <Avatar name={selectedRow.user.display_name} size={30} />
+            {selectedRow.user.display_name}
+            {!selectedRow.user.is_active && <span className="sr-only"> · {t.details.disabled}</span>}
+          </span>
+        ) : ''}
         meta={selectedRow && (
           <>
             <StatusBadge tone={roleTone[selectedRow.user.role]}>{accountRoleLabels()[selectedRow.user.role]}</StatusBadge>
@@ -638,23 +645,23 @@ export function PeoplePanel() {
                 )}
                 <div className="frow">
                   <Field label={t.fields.firstName} id="acc-first-name" required>
-                    {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.first_name} onChange={(e) => setAccountForm({ ...accountForm, first_name: e.target.value })} required />}
+                    {({ id }) => <Input id={id} name="first_name" autoComplete="given-name" autoCapitalize="words" disabled={ldapFieldsLocked} value={accountForm.first_name} onChange={(e) => setAccountForm({ ...accountForm, first_name: e.target.value })} required />}
                   </Field>
                   <Field label={t.fields.lastName} id="acc-last-name">
-                    {({ id }) => <Input id={id} disabled={ldapFieldsLocked} value={accountForm.last_name} onChange={(e) => setAccountForm({ ...accountForm, last_name: e.target.value })} />}
+                    {({ id }) => <Input id={id} name="last_name" autoComplete="family-name" autoCapitalize="words" disabled={ldapFieldsLocked} value={accountForm.last_name} onChange={(e) => setAccountForm({ ...accountForm, last_name: e.target.value })} />}
                   </Field>
                 </div>
                 <div className="frow">
                   <Field label={t.fields.username} id="acc-username" hint={t.fields.usernameLocked}>
-                    {({ id, describedBy }) => <Input id={id} mono disabled value={selectedRow.user.username} aria-describedby={describedBy} readOnly />}
+                    {({ id, describedBy }) => <Input id={id} name="username" mono autoComplete="off" autoCapitalize="none" spellCheck={false} disabled value={selectedRow.user.username} aria-describedby={describedBy} readOnly />}
                   </Field>
                   <Field label={t.fields.personnelNumber} id="acc-personnel-number">
-                    {({ id }) => <Input id={id} mono disabled={ldapFieldsLocked} inputMode="numeric" pattern="[0-9]*" value={accountForm.personnel_number ?? ''} onChange={(e) => setAccountForm({ ...accountForm, personnel_number: e.target.value || null })} />}
+                    {({ id }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={ldapFieldsLocked} inputMode="numeric" pattern="[0-9]*" value={accountForm.personnel_number ?? ''} onChange={(e) => setAccountForm({ ...accountForm, personnel_number: e.target.value || null })} />}
                   </Field>
                 </div>
                 <div className="frow">
                   <Field label={t.fields.email} id="acc-email">
-                    {({ id }) => <Input id={id} type="email" disabled={ldapFieldsLocked} value={accountForm.email ?? ''} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value || null })} />}
+                    {({ id }) => <Input id={id} name="email" autoComplete="email" type="email" disabled={ldapFieldsLocked} value={accountForm.email ?? ''} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value || null })} />}
                   </Field>
                   <Field
                     label={t.fields.phone}
@@ -664,7 +671,7 @@ export function PeoplePanel() {
                       ? (selectedState === 'active' || selectedState === 'entering' ? t.fields.phoneRequired : undefined)
                       : (isPolishPhone(accountForm.phone) ? undefined : t.fields.phoneFix)}
                   >
-                    {({ id, describedBy, invalid }) => <Input id={id} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
+                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="tel" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
                   </Field>
                 </div>
               </TabPanel>
@@ -680,8 +687,8 @@ export function PeoplePanel() {
                       {t.rotationTab.qualifications(selectedRoles.length > 0 ? selectedRoles.map((role) => dutyRoleLabels()[role]).join(', ') : t.rotationTab.noQualifications)}
                     </Box>
                     <Field label={t.rotationTab.dutyQualifications} id="qualifications" hint={t.rotationTab.dutyQualificationsHint}>
-                      {() => (
-                        <div className="filter-chips" role="group" aria-label={t.rotationTab.dutyQualifications}>
+                      {({ labelId }) => (
+                        <div className="filter-chips" role="group" aria-labelledby={labelId}>
                           {dutyRoles.map((role) => {
                             const held = selectedRoles.includes(role)
                             return held ? (
@@ -718,9 +725,10 @@ export function PeoplePanel() {
                     {addingPeriod && (
                       <div className="frow frow-end">
                         <Field label={t.rotationTab.dutyRole} id="new-eligibility-role">
-                          {() => (
+                          {({ labelId }) => (
                             <Segmented<AssignmentRole>
                               label={t.rotationTab.dutyRole}
+                              labelId={labelId}
                               size="sm"
                               value={eligibilityRole}
                               onChange={setEligibilityRole}
@@ -766,7 +774,8 @@ export function PeoplePanel() {
                                 ? <span className="muted small">{t.rotationTab.historic}</span>
                                 : <Button size="sm" variant="ghost" onClick={() => setEditingPeriod(item.id)}>{t.rotationTab.edit}</Button>}
                             >
-                              <b>{formatDate(value.starts_on)} → {value.ends_on ? formatDate(value.ends_on) : '∞'}</b>
+                              <b aria-hidden="true">{formatDate(value.starts_on)} → {value.ends_on ? formatDate(value.ends_on) : '∞'}</b>
+                              <span className="sr-only">{formatDate(value.starts_on)} {t.period.untilOptional}: {value.ends_on ? formatDate(value.ends_on) : t.rotationTab.noExitDate}</span>
                               <small>{dutyRoleLabels()[item.role]}{eligibilityEdits[item.id] ? ` · ${t.rotationTab.changedUnsaved}` : ''}</small>
                             </ListRow>
                           )
@@ -794,9 +803,10 @@ export function PeoplePanel() {
               </TabPanel>
               <TabPanel<DetailTab> value="access" className="stack-sm">
                 <Field label={t.fields.accountRole} id="acc-role" hint={t.fields.accountRoleHint}>
-                  {() => (
+                  {({ labelId }) => (
                     <Segmented<UserRole>
                       label={t.fields.accountRole}
+                      labelId={labelId}
                       value={accountForm.role}
                       onChange={(role) => setAccountForm({ ...accountForm, role })}
                       options={roleOptions}
@@ -884,7 +894,7 @@ export function PeoplePanel() {
             </ul>
             {deleteAccount.error && <Box tone="bad" role="alert" title={deleteAccount.error.message} />}
             <Field label={t.deleteDialog.typeUsername} id="delete-confirm">
-              {({ id }) => <Input id={id} mono autoComplete="off" value={deleteTyped} placeholder={selectedRow.user.username} onChange={(event) => setDeleteTyped(event.target.value)} />}
+              {({ id }) => <Input id={id} name="username-confirmation" mono autoComplete="off" autoCapitalize="none" spellCheck={false} value={deleteTyped} placeholder={selectedRow.user.username} onChange={(event) => setDeleteTyped(event.target.value)} />}
             </Field>
           </>
         )}

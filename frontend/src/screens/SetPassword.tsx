@@ -56,12 +56,12 @@ export function SetPassword({ mode }: { mode: 'activate' | 'reset' }) {
           <>
             <Field label={t.newPassword} hint={t.passwordHint}>
               {({ id, describedBy }) => (
-                <Input id={id} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={12} required aria-describedby={describedBy} />
+                <Input id={id} name="new-password" type="password" autoComplete="new-password" autoCapitalize="none" spellCheck={false} value={password} onChange={(event) => setPassword(event.target.value)} minLength={12} required aria-describedby={describedBy} />
               )}
             </Field>
             <Field label={t.repeatPassword} error={mismatch ? t.passwordsDiffer : undefined}>
               {({ id, describedBy, invalid }) => (
-                <Input id={id} type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required invalid={invalid} aria-describedby={describedBy} />
+                <Input id={id} name="new-password-confirmation" type="password" autoComplete="new-password" autoCapitalize="none" spellCheck={false} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required invalid={invalid} aria-describedby={describedBy} />
               )}
             </Field>
             <Button

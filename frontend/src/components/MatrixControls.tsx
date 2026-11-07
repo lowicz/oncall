@@ -31,6 +31,8 @@ export function LegendPopover({ showAvailability, trigger }: { showAvailability:
         <div className="pop-row"><span className="pop-swatch pop-swatch-gap" /> {t.legend.unstaffedDay}</div>
         <div className="pop-row"><span className="pop-swatch pop-swatch-weekend" /> {t.legend.weekendHoliday}</div>
         <div className="pop-row"><span className="pop-swatch pop-swatch-event" /> {t.legend.event}</div>
+        <div className="pop-h">{t.legend.keys}</div>
+        <div className="pop-row">{t.legend.keysText}</div>
       </div>
     </Popover>
   )

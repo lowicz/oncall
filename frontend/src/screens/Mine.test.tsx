@@ -220,6 +220,25 @@ describe('MineScreen availability calendar', () => {
     expect(await screen.findByText('Zapisano: niedz 20 wrz „wolę nie”')).toBeInTheDocument()
   })
 
+  it('keeps focus on the day and ignores further input while a save runs', async () => {
+    stub()
+    const create = vi.spyOn(api, 'createAvailability').mockReturnValue(new Promise(() => {}))
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+    const grid = await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    const day = cell(/niedz 20-09-2026/)
+
+    day.focus()
+    fireEvent.click(day)
+    await waitFor(() => expect(grid).toHaveAttribute('aria-busy', 'true'))
+    expect(day).toBeEnabled()
+    expect(day).toHaveFocus()
+
+    fireEvent.pointerDown(cell(/pon 21-09-2026/), { button: 0 })
+    fireEvent.pointerEnter(cell(/wt 22-09-2026/))
+    fireEvent.click(cell(/pon 21-09-2026/))
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
   it('cannot paint a day that has passed', async () => {
     stub()
     renderScreen(<MineScreen displayName="Julia Nowak" />)
