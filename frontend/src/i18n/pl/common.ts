@@ -4,6 +4,7 @@ export const common = {
   closePanel: 'Zamknij panel',
   closeNotification: 'Zamknij powiadomienie',
   notifications: 'Powiadomienia',
+  undoClosed: 'E-maile już wyszły',
   loading: 'Wczytywanie',
   loadingScreen: 'Wczytywanie ekranu',
   checkingSession: 'Sprawdzanie sesji',

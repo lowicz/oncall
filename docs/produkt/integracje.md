@@ -49,9 +49,10 @@ Wiadomości o korekcie wychodzą 10 sekund po niej, czyli po zamknięciu okna
 „Cofnij”; sama zmiana grafiku i wpis audytu powstają od razu. Korekta odwrotna w
 tym czasie (przywrócenie poprzedniej osoby) anuluje niewysłane wiadomości i nie
 wysyła nowych. Po zamknięciu okna treść i adresaci są takie jak bez opóźnienia.
-Powiadomienie z „Cofnij” znika w chwili zamknięcia okna, także gdy wskaźnik albo
-fokus wstrzymuje jego odliczanie, więc „Cofnij” nie jest dostępne, gdy wiadomości
-mogą już wychodzić. Długość okna podaje `/api/v1/config`
+Powiadomienie z „Cofnij” odlicza do zamknięcia okna. Wskaźnik albo fokus może
+je zatrzymać na ekranie dowolnie długo, ale gdy okno się zamknie, przycisk
+„Cofnij” znika, a powiadomienie mówi „E-maile już wyszły”, więc po tym terminie
+zmiany nie da się z niego cofnąć. Długość okna podaje `/api/v1/config`
 (`undo_window_seconds`).
 
 Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego

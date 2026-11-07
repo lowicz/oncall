@@ -27,6 +27,6 @@ class PublicConfigResponse(BaseModel):
     audit_retention_days: int
     login_audit_retention_days: int
     #: How long Undo stays open after a reversible change, in seconds: the
-    #: worker holds that change's e-mails for this long, and the toast offering
-    #: Undo closes when it ends.
+    #: worker holds that change's e-mails for this long, and the toast
+    #: withdraws Undo when it ends.
     undo_window_seconds: int

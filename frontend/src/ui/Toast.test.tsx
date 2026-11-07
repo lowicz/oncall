@@ -40,7 +40,7 @@ describe('toasts', () => {
 
   it('offers an action that runs its handler until its deadline', async () => {
     const onClick = vi.fn()
-    renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick }, until: Date.now() + 10_000 }))
+    renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick }, until: { at: Date.now() + 10_000, expired: 'E-maile już wyszły' } }))
     const item = await toastNamed('Usunięto wpis')
     fireEvent.click(within(item).getByRole('button', { name: 'Cofnij' }))
     expect(onClick).toHaveBeenCalledOnce()
@@ -58,12 +58,21 @@ describe('toasts', () => {
       fireEvent.keyDown(document, { key: 'Tab' })
       within(item).getByRole('button', { name: 'Cofnij' }).focus()
     }],
-  ])('closes at its deadline even while %s', async (_, pause) => {
-    renderToasts((toast) => toast.success('Zapisano zmianę', { action: { label: 'Cofnij', onClick: vi.fn() }, until: Date.now() + 10_000 }))
+  ])('drops its action at the deadline but stays open while %s', async (_, pause) => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', {
+      description: 'E-maile wyjdą za chwilę',
+      action: { label: 'Cofnij', onClick: vi.fn() },
+      until: { at: Date.now() + 10_000, expired: 'E-maile już wyszły' },
+    }))
     pause(await toastNamed('Zapisano zmianę'))
 
-    await act(() => vi.advanceTimersByTimeAsync(10_100))
-    await waitFor(() => expect(screen.queryByText('Zapisano zmianę')).not.toBeInTheDocument())
+    await act(() => vi.advanceTimersByTimeAsync(9000))
+    expect(screen.getByRole('button', { name: 'Cofnij' })).toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(6000))
+    const item = await toastNamed('Zapisano zmianę')
+    expect(within(item).queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+    expect(within(item).getByText('E-maile już wyszły')).toHaveClass('toast-desc')
+    expect(within(item).queryByText('E-maile wyjdą za chwilę')).not.toBeInTheDocument()
   })
 
   it('pauses an action toast while the pointer is over the notifications', async () => {

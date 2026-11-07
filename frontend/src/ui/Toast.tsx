@@ -10,9 +10,10 @@ interface ToastOptions {
   description?: ReactNode
   action?: { label: string; onClick: () => void }
   timeout?: number
-  /** Epoch milliseconds at which the toast closes, even while hover or focus
-   *  pauses its countdown. */
-  until?: number
+  /** When the action expires: the toast counts down to `at`, and at `at` it
+   *  drops the action and shows `expired` in place of its description, even
+   *  while hover or focus keeps it open. */
+  until?: { at: number; expired: ReactNode }
 }
 
 export type ToastApi = ReturnType<typeof useToast>
@@ -60,14 +61,15 @@ function ToastList() {
 export function useToast() {
   const manager = BaseToast.useToastManager()
   const show = useCallback((tone: Tone, title: ReactNode, options?: ToastOptions) => {
+    const until = options?.until
     const id = manager.add({
       type: tone,
       title,
       description: options?.description,
-      timeout: options?.until === undefined ? options?.timeout : 0,
+      timeout: until ? Math.max(1, until.at - Date.now()) : options?.timeout,
       actionProps: options?.action ? { children: options.action.label, onClick: options.action.onClick } : undefined,
     })
-    if (options?.until !== undefined) setTimeout(() => manager.close(id), options.until - Date.now())
+    if (until) setTimeout(() => manager.update(id, { description: until.expired, actionProps: undefined }), until.at - Date.now())
     return id
   }, [manager])
   return useMemo(() => ({

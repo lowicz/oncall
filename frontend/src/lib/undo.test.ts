@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { messages } from '../i18n'
 import type { ToastApi } from '../ui/Toast'
 import { undoable } from './undo'
 
@@ -37,7 +38,7 @@ describe('undoable', () => {
     expect(toast.success).toHaveBeenCalledWith('Saved 7', {
       description: 'E-mails are waiting',
       action: { label: 'Undo', onClick: expect.any(Function) },
-      until: started + 10_000,
+      until: { at: started + 10_000, expired: messages().common.undoClosed },
     })
 
     actionFrom(toast)()
@@ -91,7 +92,7 @@ describe('undoable', () => {
     await vi.advanceTimersByTimeAsync(3000)
     await pending
 
-    expect(toast.success.mock.calls[0]?.[1]?.until).toBe(started + 10_000)
+    expect(toast.success.mock.calls[0]?.[1]?.until?.at).toBe(started + 10_000)
   })
 
   it('does not show a toast when the mutation fails', async () => {

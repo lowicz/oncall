@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { messages } from '../i18n'
 import type { ToastApi } from '../ui/Toast'
 
 export interface UndoMessage {
@@ -19,11 +20,12 @@ export interface UndoableOptions<Result> {
 }
 
 /**
- * Executes a reversible mutation and offers its inverse in a toast that closes
- * when the server's Undo window does. The window is counted from before the
- * request, so it never outlasts the server's, and hover or focus cannot extend
- * it. A failed inverse remains available for another attempt and is reported
- * by the caller, which owns the operation-specific error copy.
+ * Executes a reversible mutation and offers its inverse in a toast until the
+ * server's Undo window closes. The window is counted from before the request,
+ * so it never outlasts the server's; when it closes the toast drops "Cofnij"
+ * and says the e-mails have gone out, even if hover or focus keeps it open.
+ * A failed inverse remains available for another attempt and is reported by
+ * the caller, which owns the operation-specific error copy.
  */
 export async function undoable<Result>(options: UndoableOptions<Result>): Promise<Result> {
   const until = Date.now() + options.windowSeconds * 1000
@@ -47,7 +49,7 @@ export async function undoable<Result>(options: UndoableOptions<Result>): Promis
   toastId = options.toast.success(message.title, {
     description: message.description,
     action: { label: options.undoLabel, onClick: undo },
-    until,
+    until: { at: until, expired: messages().common.undoClosed },
   })
   return result
 }

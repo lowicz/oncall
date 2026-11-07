@@ -57,8 +57,8 @@ MAX_ERROR_LENGTH = 500
 DEFAULT_LEASE = timedelta(minutes=5)
 
 #: Reversible changes stay in force immediately, but their messages wait for
-#: Undo to close. `/api/v1/config` publishes it, so the toast offering Undo
-#: closes at the same deadline.
+#: Undo to close. `/api/v1/config` publishes it, so the toast withdraws Undo
+#: at the same deadline.
 UNDO_WINDOW = timedelta(seconds=10)
 
 

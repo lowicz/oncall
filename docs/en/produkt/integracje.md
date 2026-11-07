@@ -51,10 +51,11 @@ has closed; the schedule change and its audit entry are recorded immediately.
 The reverse correction within that time (putting the previous person back)
 cancels the unsent messages and sends no new ones. After the window closes, the
 content and recipients are the same as without the delay. The notification
-offering Undo disappears when the window closes, even while the pointer or
-focus pauses its countdown, so Undo is never offered once the messages may be
-going out. `/api/v1/config` states the window's length
-(`undo_window_seconds`).
+offering Undo counts down to the window's close. The pointer or focus can keep
+it on screen for as long as they rest on it, but when the window closes the
+Undo button disappears and the notification says "The e-mails have gone out",
+so the change can no longer be undone from it. `/api/v1/config` states the
+window's length (`undo_window_seconds`).
 
 The schedule publication message goes to every team member active in its
 range. It lists only their own duties (day and role) or says that there is
