@@ -3,7 +3,7 @@ import { cx } from './cx'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
 import { signedPoints } from '../lib/numbers'
-import { messages } from '../i18n'
+import { useMessages } from '../i18n/messages'
 
 export type StatusTone = 'draft' | 'prop' | 'pub' | 'ok' | 'warn' | 'bad' | 'sig' | 'muted'
 
@@ -126,8 +126,9 @@ export function DeviationBar({ value, max, label, className }: {
   const width = Math.min(100, Math.abs(value) / Math.max(max, 0.01) * 100)
   const over = value > 0
   const formatted = signedPoints(value)
+  const { common } = useMessages()
   return (
-    <span className={cx('dev', className)} role="img" aria-label={label ?? messages().common.deviation(formatted)}>
+    <span className={cx('dev', className)} role="img" aria-label={label ?? common.deviation(formatted)}>
       <span className="dev-track">
         <i className={over ? 'dev-over' : 'dev-under'} style={{ width: `${width / 2}%` }} />
       </span>
