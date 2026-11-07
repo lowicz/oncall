@@ -3,10 +3,10 @@ import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { ConfirmDialog } from './ConfirmDialog'
 
 /** The one question `useUnsavedChanges` asks; `detail` names what would be lost. */
-export function UnsavedChangesDialog({ guard, detail }: {
+export function UnsavedChangesDialog({ guard, detail }: Readonly<{
   guard: ReturnType<typeof useUnsavedChanges>
   detail?: string
-}) {
+}>) {
   const t = useMessages().common.unsavedChanges
   return (
     <ConfirmDialog

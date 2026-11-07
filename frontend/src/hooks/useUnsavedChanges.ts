@@ -20,8 +20,11 @@ export function useUnsavedChanges(dirty: boolean, onDiscard?: () => void) {
   }, [dirty]), { capture: true })
 
   const requestAction = (action: () => void) => {
-    if (dirty) setPendingAction(() => action)
-    else action()
+    if (!dirty) {
+      action()
+      return
+    }
+    setPendingAction(() => action)
   }
 
   /** Runs a navigation the screen starts by itself, which the user never asked to confirm. */
