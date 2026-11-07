@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConnectionTest, ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
@@ -124,7 +124,7 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
         </div>
         <div className="frow">
           <Field label={t.settings.vpbxNumber} id="forwarding-vpbx">
-            {({ id }) => <Input id={id} name="vpbx_number" type="tel" mono value={form.vpbx_number} autoComplete="tel" autoCapitalize="off" spellCheck={false} onChange={(event) => setForm({ ...form, vpbx_number: event.target.value })} />}
+            {({ id }) => <Input id={id} name="vpbx_number" type="tel" mono value={form.vpbx_number} autoComplete="off" autoCapitalize="off" spellCheck={false} onChange={(event) => setForm({ ...form, vpbx_number: event.target.value })} />}
           </Field>
           <Field label={t.settings.username} id="forwarding-username">
             {({ id }) => <Input id={id} name="username" value={form.username} autoComplete="off" autoCapitalize="none" spellCheck={false} onChange={(event) => setForm({ ...form, username: event.target.value })} />}
@@ -236,6 +236,7 @@ function RevealDialog({ open, onClose }: Readonly<{ open: boolean; onClose: () =
   const t = useMessages().forwarding.reveal
   const common = useMessages().common
   const [confirmation, setConfirmation] = useState('')
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [left, setLeft] = useState(REVEAL_SECONDS)
   const reveal = useMutation({
     mutationFn: api.revealForwardingPassword,
@@ -259,6 +260,7 @@ function RevealDialog({ open, onClose }: Readonly<{ open: boolean; onClose: () =
       title={t.title}
       size="sm"
       dismissible={!reveal.isPending}
+      initialFocus={passwordRef}
       actions={revealed ? (
         <Button onClick={close}>{common.close}</Button>
       ) : (
@@ -289,7 +291,7 @@ function RevealDialog({ open, onClose }: Readonly<{ open: boolean; onClose: () =
         <form id="forwarding-reveal" className="stack-sm" onSubmit={(event) => { event.preventDefault(); reveal.mutate(confirmation) }}>
           <p className="small">{t.audited}</p>
           <Field label={t.yourPassword} id="forwarding-confirmation">
-            {({ id }) => <Input id={id} name="password-confirmation" type="password" autoComplete="current-password" autoCapitalize="none" spellCheck={false} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />}
+            {({ id }) => <Input ref={passwordRef} id={id} name="password-confirmation" type="password" autoComplete="current-password" autoCapitalize="none" spellCheck={false} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />}
           </Field>
           {reveal.error && <Box tone="bad" role="alert" title={reveal.error.message} />}
         </form>

@@ -9,7 +9,6 @@ import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/date
 import {
   SwapChoice,
   SwapViewer,
-  accessibleSwapHeadline,
   brokenRules,
   canCoordinate,
   canWithdraw,
@@ -23,6 +22,7 @@ import {
   returnOf,
   returnSlotsOf,
   slotsOf,
+  swapHeadline,
   swapImpactQuery,
 } from '../lib/swaps'
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
@@ -667,7 +667,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               )}
             </div>
           ) : (
-            <ScrollArea label={t.swaps.table.dayRole} hint={t.common.scrollHint}>
+            <ScrollArea label={inboxLabels[inbox]} hint={t.common.scrollHint}>
               <table className="lg">
                 <thead>
                   <tr>
@@ -704,7 +704,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                           {stageDetail(item, viewer) && <small>{stageDetail(item, viewer)}</small>}
                         </td>
                         <td className="td-actions">
-                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, accessibleSwapHeadline(item, t.common.swapWith))}>
+                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, swapHeadline(item, t.common.swapWith))}>
                             {verb}
                           </Button>
                         </td>

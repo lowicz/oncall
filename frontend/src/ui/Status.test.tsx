@@ -25,6 +25,7 @@ describe('Chip', () => {
     const chip = screen.getByRole('button', { name: '2 luki' })
     expect(chip).toHaveClass('chip', 'chip-bad', 'chip-btn', 'c')
     expect(chip).toHaveAttribute('title', 'Pokaż luki')
+    expect(chip).toHaveAccessibleDescription('Pokaż luki')
     fireEvent.click(chip)
     expect(onClick).toHaveBeenCalledOnce()
   })

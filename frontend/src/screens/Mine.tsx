@@ -21,7 +21,7 @@ import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
 import { formatPoints } from '../lib/numbers'
 import { preferredScrollBehavior } from '../lib/motion'
-import { accessibleSwapHeadline, isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
+import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
 import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useNarrow } from '../hooks/useMediaQuery'
@@ -629,9 +629,12 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
     ...mine.filter((item) => !isOpen(item)).sort((a, b) => b.created_at.localeCompare(a.created_at)),
   ].slice(0, 5)
   const arrow = (item: SwapRequest) => (returnOf(item) ? '⇄' : '→')
-  const lead = (item: SwapRequest, joint: string) => item.requester_name === displayName
-    ? t.youTo(firstName(item.replacement_name), joint)
-    : t.toYou(firstName(item.requester_name), joint)
+  const lead = (item: SwapRequest, spoken: boolean) => {
+    const handingOver = item.requester_name === displayName
+    const name = firstName(handingOver ? item.replacement_name : item.requester_name)
+    if (spoken) return (handingOver ? t.youToSpoken : t.toYouSpoken)(name, Boolean(returnOf(item)))
+    return (handingOver ? t.youTo : t.toYou)(name, arrow(item))
+  }
   const stage = (item: SwapRequest) => {
     if (isLapsed(item)) return expired
     if (item.status === 'pending_replacement') {
@@ -666,8 +669,8 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
                   : <StatusBadge tone={swapTone[item.status]}>{t.short[item.status]}</StatusBadge>}
               >
                 <b>
-                  <span aria-hidden="true">{lead(item, arrow(item))} · {swapHeadline(item)}</span>
-                  <span className="sr-only">{lead(item, returnOf(item) ? common.swapWith : common.handoverTo)} · {accessibleSwapHeadline(item, common.swapWith)}</span>
+                  <span aria-hidden="true">{lead(item, false)} · {swapHeadline(item)}</span>
+                  <span className="sr-only">{lead(item, true)} · {swapHeadline(item, common.swapWith)}</span>
                 </b>
                 <small>{stage(item)}</small>
               </ListRow>

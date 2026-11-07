@@ -106,6 +106,8 @@ export const mine: Messages['mine'] = {
     },
     youTo: (name: string, arrow: string) => `You ${arrow} ${name}`,
     toYou: (name: string, arrow: string) => `${name} ${arrow} you`,
+    youToSpoken: (name: string, exchange: boolean) => (exchange ? `Exchange: you and ${name}` : `You hand over, ${name} takes over`),
+    toYouSpoken: (name: string, exchange: boolean) => (exchange ? `Exchange: ${name} and you` : `${name} hands over to you`),
     askedYou: 'request to you · respond',
     waitingFor: (name: string, since: string) => `waiting for: ${name} · ${since}`,
     waitingForYourApproval: 'waiting for your approval',

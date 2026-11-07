@@ -11,7 +11,6 @@ export const common = {
   scrollHint: 'Przewiń w poziomie, aby zobaczyć więcej',
   deviation: (value: string) => `odchylenie ${value}`,
   swapWith: 'zamiana z',
-  handoverTo: 'do',
   checkingSession: 'Sprawdzanie sesji',
   fetchFailed: 'Nie udało się pobrać danych',
   retry: 'Spróbuj ponownie',

@@ -150,6 +150,9 @@ describe('MineScreen points and swaps', () => {
     expect(within(incoming).getByRole('link', { name: 'Zdecyduj' })).toHaveAttribute('href', '/zamiany?skrzynka=do-mnie')
     const outgoing = screen.getByText('Ty → Marek · pon 28 wrz PRIMARY').closest('.list-row') as HTMLElement
     expect(within(outgoing).getByText(/czeka na: Marek/)).toBeInTheDocument()
+    // A screen reader hears words, not the arrow.
+    expect(within(incoming).getByText('Piotr przekazuje Ci dyżur · sob 3 paź PRIMARY')).toHaveClass('sr-only')
+    expect(within(outgoing).getByText('Przekazujesz dyżur, przejmuje go Marek · pon 28 wrz PRIMARY')).toHaveClass('sr-only')
     // A swap between two other people is not mine.
     expect(screen.queryByText(/Ola/)).not.toBeInTheDocument()
   })
@@ -180,6 +183,8 @@ describe('MineScreen points and swaps', () => {
 
     expect(await screen.findByText('Piotr ⇄ Ty · sob 3 paź PRIMARY ⇄ śr 30 wrz SECONDARY')).toBeInTheDocument()
     expect(screen.getByText('Ty ⇄ Marek · pon 28 wrz PRIMARY ⇄ śr 30 wrz SECONDARY')).toBeInTheDocument()
+    expect(screen.getByText('Zamiana: Piotr i Ty · sob 3 paź PRIMARY zamiana z śr 30 wrz SECONDARY')).toHaveClass('sr-only')
+    expect(screen.getByText('Zamiana: Ty i Marek · pon 28 wrz PRIMARY zamiana z śr 30 wrz SECONDARY')).toHaveClass('sr-only')
   })
 })
 
@@ -193,7 +198,8 @@ describe('MineScreen availability calendar', () => {
     }])
     const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
     renderScreen(<MineScreen displayName="Julia Nowak" />)
-    await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: Wyjazd/ })
+    const painted = await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: Wyjazd/ })
+    expect(painted).toHaveAttribute('title', 'Nie mogę: Wyjazd')
 
     fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
     fireEvent.click(cell(/niedz 20-09-2026/))

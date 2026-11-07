@@ -695,6 +695,9 @@ describe('CalendarMatrix grid', () => {
     expect(headers.find((cell) => cell.textContent === 'czw01')).toHaveAttribute('title', 'Migracja')
     expect(headers.find((cell) => cell.textContent === 'sob03')).toHaveAttribute('title', 'Święto testowe')
     expect(headers.find((cell) => cell.textContent === 'wt29')).not.toHaveAttribute('title')
+    expect(within(grid).getByRole('columnheader', { name: 'pt · 02 · brak pełnej obsady' })).toBeInTheDocument()
+    expect(within(grid).getByRole('columnheader', { name: 'czw · 01 · Migracja' })).toBeInTheDocument()
+    expect(within(grid).getByRole('columnheader', { name: 'sob · 03 · Święto testowe' })).toBeInTheDocument()
 
     // Yourself first, then the people on duty, then the rest.
     expect(within(grid).getByText('Ty')).toBeInTheDocument()

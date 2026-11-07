@@ -546,10 +546,10 @@ export function PeoplePanel() {
             <>
               <div className="frow">
                 <Field label={t.fields.firstName} id="new-first-name" required>
-                  {({ id }) => <Input id={id} name="first_name" autoComplete="given-name" autoCapitalize="words" value={newForm.first_name} onChange={(e) => setNewForm({ ...newForm, first_name: e.target.value })} required />}
+                  {({ id }) => <Input id={id} name="first_name" autoComplete="off" autoCapitalize="words" value={newForm.first_name} onChange={(e) => setNewForm({ ...newForm, first_name: e.target.value })} required />}
                 </Field>
                 <Field label={t.fields.lastName} id="new-last-name">
-                  {({ id }) => <Input id={id} name="last_name" autoComplete="family-name" autoCapitalize="words" value={newForm.last_name} onChange={(e) => setNewForm({ ...newForm, last_name: e.target.value })} />}
+                  {({ id }) => <Input id={id} name="last_name" autoComplete="off" autoCapitalize="words" value={newForm.last_name} onChange={(e) => setNewForm({ ...newForm, last_name: e.target.value })} />}
                 </Field>
               </div>
               <div className="frow">
@@ -562,10 +562,10 @@ export function PeoplePanel() {
               </div>
               <div className="frow">
                 <Field label={t.fields.email} id="new-email">
-                  {({ id }) => <Input id={id} name="email" autoComplete="email" type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
+                  {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
                 </Field>
                 <Field label={t.fields.phone} id="new-phone" hint={t.fields.phoneNewHint}>
-                  {({ id, describedBy }) => <Input id={id} name="phone" autoComplete="tel" autoCapitalize="off" spellCheck={false} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
+                  {({ id, describedBy }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
                 </Field>
               </div>
               <Field label={t.fields.accountRole} id="new-role" hint={t.fields.accountRoleHint}>
@@ -645,10 +645,10 @@ export function PeoplePanel() {
                 )}
                 <div className="frow">
                   <Field label={t.fields.firstName} id="acc-first-name" required>
-                    {({ id }) => <Input id={id} name="first_name" autoComplete="given-name" autoCapitalize="words" disabled={ldapFieldsLocked} value={accountForm.first_name} onChange={(e) => setAccountForm({ ...accountForm, first_name: e.target.value })} required />}
+                    {({ id }) => <Input id={id} name="first_name" autoComplete="off" autoCapitalize="words" disabled={ldapFieldsLocked} value={accountForm.first_name} onChange={(e) => setAccountForm({ ...accountForm, first_name: e.target.value })} required />}
                   </Field>
                   <Field label={t.fields.lastName} id="acc-last-name">
-                    {({ id }) => <Input id={id} name="last_name" autoComplete="family-name" autoCapitalize="words" disabled={ldapFieldsLocked} value={accountForm.last_name} onChange={(e) => setAccountForm({ ...accountForm, last_name: e.target.value })} />}
+                    {({ id }) => <Input id={id} name="last_name" autoComplete="off" autoCapitalize="words" disabled={ldapFieldsLocked} value={accountForm.last_name} onChange={(e) => setAccountForm({ ...accountForm, last_name: e.target.value })} />}
                   </Field>
                 </div>
                 <div className="frow">
@@ -661,7 +661,7 @@ export function PeoplePanel() {
                 </div>
                 <div className="frow">
                   <Field label={t.fields.email} id="acc-email">
-                    {({ id }) => <Input id={id} name="email" autoComplete="email" type="email" disabled={ldapFieldsLocked} value={accountForm.email ?? ''} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value || null })} />}
+                    {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" disabled={ldapFieldsLocked} value={accountForm.email ?? ''} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value || null })} />}
                   </Field>
                   <Field
                     label={t.fields.phone}
@@ -671,7 +671,7 @@ export function PeoplePanel() {
                       ? (selectedState === 'active' || selectedState === 'entering' ? t.fields.phoneRequired : undefined)
                       : (isPolishPhone(accountForm.phone) ? undefined : t.fields.phoneFix)}
                   >
-                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="tel" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
+                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
                   </Field>
                 </div>
               </TabPanel>
@@ -775,7 +775,7 @@ export function PeoplePanel() {
                                 : <Button size="sm" variant="ghost" onClick={() => setEditingPeriod(item.id)}>{t.rotationTab.edit}</Button>}
                             >
                               <b aria-hidden="true">{formatDate(value.starts_on)} → {value.ends_on ? formatDate(value.ends_on) : '∞'}</b>
-                              <span className="sr-only">{formatDate(value.starts_on)} {t.period.untilOptional}: {value.ends_on ? formatDate(value.ends_on) : t.rotationTab.noExitDate}</span>
+                              <span className="sr-only">{value.ends_on ? t.rotationTab.periodSpan(formatDate(value.starts_on), formatDate(value.ends_on)) : t.rotationTab.periodOpen(formatDate(value.starts_on))}</span>
                               <small>{dutyRoleLabels()[item.role]}{eligibilityEdits[item.id] ? ` · ${t.rotationTab.changedUnsaved}` : ''}</small>
                             </ListRow>
                           )

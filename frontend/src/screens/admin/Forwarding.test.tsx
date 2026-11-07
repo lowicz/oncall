@@ -247,6 +247,7 @@ describe('ForwardingPanel reveal dialog', () => {
     const dialog = await openReveal()
     expect(within(dialog).getByText('Odsłonięcie zostanie zapisane w dzienniku zdarzeń.')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Pokaż' })).toBeDisabled()
+    await waitFor(() => expect(within(dialog).getByLabelText('Twoje hasło do aplikacji')).toHaveFocus())
     fireEvent.change(within(dialog).getByLabelText('Twoje hasło do aplikacji'), { target: { value: 'moje-haslo' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Pokaż' }))
 

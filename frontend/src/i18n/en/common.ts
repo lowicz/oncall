@@ -12,7 +12,6 @@ export const common: Messages['common'] = {
   scrollHint: 'Scroll horizontally to see more',
   deviation: (value: string) => `deviation ${value}`,
   swapWith: 'exchange with',
-  handoverTo: 'to',
   checkingSession: 'Checking session',
   fetchFailed: 'Could not load the data',
   retry: 'Try again',

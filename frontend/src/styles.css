@@ -115,18 +115,18 @@ small, .small { font-size: 12px; line-height: 16px; }
 
 /* ---------- 3 primitives ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px/21px var(--font); padding: 8px 18px; border-radius: 999px; border: 1px solid var(--line2); background: var(--s1); color: var(--fg); white-space: nowrap; text-decoration: none; min-height: 40px; cursor: pointer; }
-.btn:hover:not(:disabled) { background: var(--s2); border-color: var(--line2); }
+.btn:hover:not(:disabled, [aria-disabled="true"]) { background: var(--s2); border-color: var(--line2); }
 .btn-pri { background: var(--act); color: var(--act-ink); border-color: transparent; }
-.btn-pri:hover:not(:disabled) { background: var(--act); filter: brightness(0.95); }
+.btn-pri:hover:not(:disabled, [aria-disabled="true"]) { background: var(--act); filter: brightness(0.95); }
 .btn-danger { background: var(--danger); color: var(--act-ink); border-color: transparent; }
-.btn-danger:hover:not(:disabled) { background: var(--danger); filter: brightness(0.95); }
+.btn-danger:hover:not(:disabled, [aria-disabled="true"]) { background: var(--danger); filter: brightness(0.95); }
 .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
-.btn-ghost:hover:not(:disabled) { color: var(--fg); background: var(--s2); }
+.btn-ghost:hover:not(:disabled, [aria-disabled="true"]) { color: var(--fg); background: var(--s2); }
 .btn-sm { padding: 5px 14px; font-size: 12px; line-height: 16px; min-height: 32px; }
 .btn-block { width: 100%; }
 /* The 24 px icon beside 21 px text would make a button with an icon 2 px taller than one without; keep every button at its text height. */
 .btn .icon { margin: -2px 0; }
-.btn:disabled { opacity: 0.5; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; }
 .ib { width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--line); background: transparent; display: inline-grid; place-items: center; color: var(--muted); flex: 0 0 auto; padding: 0; }
 .ib:hover:not(:disabled) { color: var(--fg); background: var(--s2); }
 .ib-sm { width: 32px; height: 32px; }
@@ -518,7 +518,6 @@ button.rank-c.rank-blocked { cursor: not-allowed; }
 .avail-foot { display: flex; gap: 14px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; }
 .avail-foot > .muted { flex: 1 1 280px; }
 .avail-note { flex: 0 1 260px; }
-.avail-row { display: contents; }
 .avail-cal-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; font: 600 12px/16px var(--label); color: var(--dim); text-align: center; margin-bottom: 6px; }
 .avail-cal-head .we { color: var(--late); }
 .avail-day { position: relative; height: 40px; border-radius: 8px; background: var(--s2); color: var(--fg); display: grid; place-items: center; font: 600 12px/16px var(--label); border: 0; padding: 0; }
