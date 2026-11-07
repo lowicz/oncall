@@ -70,7 +70,7 @@ export function DraftList({ activeId, onOpen, onDelete, deleting }: {
             </ListRow>
           ))}
           {all.length > VISIBLE_DRAFTS && (
-            <div className="list-row" style={{ justifyContent: 'center' }}>
+            <div className="list-row row-center">
               <Button size="sm" variant="ghost" onClick={() => setShowAll(!showAll)}>
                 {showAll ? t.showFewer : t.showAll(all.length)}
               </Button>

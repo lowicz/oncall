@@ -55,7 +55,7 @@ export function ScheduleComparison({ drafts }: { drafts: ScheduleSummary[] }) {
             </Select>
           )}
         </Field>
-        <Button disabled={!leftId || !rightId} onClick={() => setRequestedPair([leftId, rightId])} loading={comparison.isLoading} style={{ alignSelf: 'end' }}>{t.compare}</Button>
+        <Button disabled={!leftId || !rightId} onClick={() => setRequestedPair([leftId, rightId])} loading={comparison.isLoading} className="self-end">{t.compare}</Button>
       </div>
       {comparison.error && <InlineError error={comparison.error} />}
       {comparison.data && (

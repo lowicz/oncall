@@ -27,10 +27,10 @@ export function LegendPopover({ showAvailability, trigger }: { showAvailability:
         <div className="pop-h">{t.legend.marks}</div>
         <div className="pop-row"><RoleMark role="primary" change="swap" /> {t.legend.afterSwap}</div>
         <div className="pop-row"><RoleMark role="primary" change="manual_override" /> {t.legend.afterOverride}</div>
-        <div className="pop-row"><span className="pop-swatch" style={{ background: 'var(--today)', borderColor: 'var(--sig-line)' }} /> {t.legend.today}</div>
-        <div className="pop-row"><span className="pop-swatch" style={{ background: 'var(--bad-bg)' }} /> {t.legend.unstaffedDay}</div>
-        <div className="pop-row"><span className="pop-swatch" style={{ background: 'var(--wknd)' }} /> {t.legend.weekendHoliday}</div>
-        <div className="pop-row"><span className="pop-swatch" style={{ background: 'var(--ev-blue)', width: 6, height: 6, borderRadius: '50%' }} /> {t.legend.event}</div>
+        <div className="pop-row"><span className="pop-swatch pop-swatch-today" /> {t.legend.today}</div>
+        <div className="pop-row"><span className="pop-swatch pop-swatch-gap" /> {t.legend.unstaffedDay}</div>
+        <div className="pop-row"><span className="pop-swatch pop-swatch-weekend" /> {t.legend.weekendHoliday}</div>
+        <div className="pop-row"><span className="pop-swatch pop-swatch-event" /> {t.legend.event}</div>
       </div>
     </Popover>
   )
@@ -86,7 +86,7 @@ export function MatrixControls({
               { value: '8', label: t.weeks(8) },
             ]}
           />
-          <span className="row" style={{ gap: 4 }}>
+          <span className="row row-gap-4">
             <IconButton size="sm" label={t.weekBack} icon="chevron-left" disabled={!canShiftBack} onClick={() => onShift(-7)} />
             <Button size="sm" onClick={onToday}>{t.today}</Button>
             <IconButton size="sm" label={t.weekForward} icon="chevron-right" disabled={!canShiftForward} onClick={() => onShift(7)} />

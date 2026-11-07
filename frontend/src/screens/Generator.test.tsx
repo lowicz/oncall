@@ -564,7 +564,9 @@ describe('GeneratorPanel queue and progress', () => {
     expect(screen.getByRole('region', { name: 'Postęp generowania' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
-    expect(await screen.findByRole('progressbar', { name: 'Postęp generowania' })).toHaveAttribute('aria-valuenow', '0')
+    const progress = await screen.findByRole('progressbar', { name: 'Postęp generowania' })
+    expect(progress).toHaveAttribute('aria-valuenow', '0')
+    expect(progress.querySelector('i')).toHaveStyle({ transform: 'scaleX(0)' })
     expect(screen.getByRole('heading', { level: 1, name: 'Generuję 21 wrz – 18 paź' })).toBeInTheDocument()
     expect(screen.getByText('Solver pracuje poza procesem API.')).toBeInTheDocument()
     expect(screen.queryByText(/na jeden przebieg solvera/)).not.toBeInTheDocument()
@@ -604,7 +606,9 @@ describe('GeneratorPanel queue and progress', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
     expect(await screen.findByText('Przed początkiem szkicu pozostaje 2 nieobsadzonych dni: 19-09-2026, 20-09-2026.')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: 'Postęp generowania' })).toHaveAttribute('aria-valuenow', '90')
+    const progress = screen.getByRole('progressbar', { name: 'Postęp generowania' })
+    expect(progress).toHaveAttribute('aria-valuenow', '90')
+    expect(progress.querySelector('i')).toHaveStyle({ transform: 'scaleX(0.9)' })
     const steps = screen.getByRole('list', { name: 'Etap generowania' })
     expect(within(steps).getByText('sprawiedliwość')).toHaveAttribute('aria-current', 'step')
     expect(within(steps).getByText('solver')).toHaveClass('step-done')

@@ -49,7 +49,7 @@ export function MonthlyReportsPanel() {
         actions={(
           <form className="row" onSubmit={(event) => { event.preventDefault(); download.mutate() }}>
             <MonthField id="report-month" label={t.reports.month} value={month} onChange={setMonth} />
-            <Button type="submit" variant="primary" icon="download" disabled={download.isPending || !month} loading={download.isPending} style={{ alignSelf: 'end' }}>
+            <Button type="submit" variant="primary" icon="download" disabled={download.isPending || !month} loading={download.isPending} className="self-end">
               {download.isPending ? t.reports.preparing : t.reports.downloadCsv}
             </Button>
           </form>

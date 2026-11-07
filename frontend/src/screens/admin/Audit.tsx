@@ -131,7 +131,7 @@ export function AuditPanel() {
       )}
       {load.isPending && <LoadingBlock label={t.audit.loading} rows={3} />}
       {hasMore && !load.isPending && (
-        <div className="row" style={{ justifyContent: 'center' }}>
+        <div className="row row-center">
           <Button onClick={() => load.mutate({ nextOffset: offset })}>{t.audit.loadMore}</Button>
         </div>
       )}

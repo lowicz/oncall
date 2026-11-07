@@ -145,7 +145,7 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
           <div className="frow">
             <Field label={t.settings.password} id="forwarding-password" hint={t.settings.passwordHint} required={!saved.password_set}>
               {({ id, describedBy }) => (
-                <div className="row" style={{ flexWrap: 'nowrap' }}>
+                <div className="row row-nowrap">
                   <Input id={id} type="password" autoComplete="new-password" value={password} aria-describedby={describedBy} required={!saved.password_set} onChange={(event) => setPassword(event.target.value)} />
                   {saved.password_set && <Button size="sm" variant="ghost" onClick={() => setPassword(null)}>{t.settings.keepPassword}</Button>}
                 </div>

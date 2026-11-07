@@ -82,7 +82,7 @@ function AccountMenu({ displayName, avatar, roleLine, version, share, onPalette,
     <Menu
       align="end"
       trigger={(
-        <button type="button" className="ib" aria-label={t.shell.account(displayName)} title={displayName} style={{ border: 0 }}>
+        <button type="button" className="ib border-0" aria-label={t.shell.account(displayName)} title={displayName}>
           <Avatar name={displayName} src={avatar} />
         </button>
       )}
@@ -97,7 +97,7 @@ function AccountMenu({ displayName, avatar, roleLine, version, share, onPalette,
       <LanguageMenuRadio />
       <MenuSeparator />
       <MenuLink to={docsHref(language)} external><Icon name="doc" /> {t.shell.documentation}</MenuLink>
-      {!share && <MenuItem onClick={onPalette}><Icon name="search" /> {t.shell.commandPalette} <span className="kbd" style={{ marginLeft: 'auto' }}>Ctrl K</span></MenuItem>}
+      {!share && <MenuItem onClick={onPalette}><Icon name="search" /> {t.shell.commandPalette} <span className="kbd ml-auto">Ctrl K</span></MenuItem>}
       <MenuSeparator />
       <MenuItem onClick={onLogout} disabled={logoutPending}><Icon name="logout" /> {t.shell.logout}</MenuItem>
       {version && (
@@ -185,7 +185,7 @@ export function AppShell({ displayName, avatar = null, access, share }: {
 
   return (
     <div className={cx('app', !showRail && 'app-norail')}>
-      <a className="sr-only" href="#tresc">{t.shell.skipToContent}</a>
+      <a className="sr-only skip-link" href="#tresc">{t.shell.skipToContent}</a>
       {showRail && (
         <aside className="rail">
           <NavLink to="/" className="brand" aria-label={branding.name}>
@@ -203,7 +203,7 @@ export function AppShell({ displayName, avatar = null, access, share }: {
             {admin.map((item) => <RailLink key={item.path} path={item.path} label={navLabel(item)} icon={item.icon} />)}
           </nav>
           <div className="rail-foot">
-            <a href={docsHref(language)} className="nav-link" style={{ padding: 0 }}><Icon name="doc" /><span>{t.shell.documentation}</span></a>
+            <a href={docsHref(language)} className="nav-link p-0"><Icon name="doc" /><span>{t.shell.documentation}</span></a>
             <button type="button" onClick={() => setPaletteOpen(true)}>{t.shell.palette} <span className="kbd">Ctrl</span> <span className="kbd">K</span></button>
             {branding.version && <span>{t.shell.versionLine(branding.version)}</span>}
           </div>

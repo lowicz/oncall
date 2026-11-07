@@ -34,7 +34,7 @@ export function DutyCard({ duty, role, todayDayOff, holidayName }: {
   const roleLabel = roleLabels()[role]
   return (
     <article className={cx('dcard', roleClass[role], !duty && 'dcard-none')} aria-label={roleLabel}>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
+      <div className="row row-between">
         <span className="dcard-role">{role === 'primary' && duty ? t.roleNow(roleLabel) : roleLabel}</span>
         {duty?.is_override && <Tag tone="sig">{t.override}</Tag>}
         {duty?.is_day_off && <Tag tone="late">{t.dayOffRate}</Tag>}

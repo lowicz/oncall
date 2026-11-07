@@ -7,7 +7,7 @@ import { monthGroups, startsWeek } from '../lib/calendar'
 import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
 import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
 import { signed } from '../lib/numbers'
-import { AvailabilityMark, Box, Button, ErrorState, Field, LoadingBlock, Panel, RoleMark, Select, Tag, cx } from '../ui'
+import { AvailabilityMark, Box, Button, ErrorState, Field, KeyValue, LoadingBlock, Panel, RoleMark, Select, Tag, cx } from '../ui'
 
 type Member = CalendarData['members'][number]
 type Day = CalendarData['days'][number]
@@ -202,10 +202,10 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                 </Select>
               )}
             </Field>
-            <div className="kv">
-              <div className="kv-row"><dt>{t.currently}</dt><dd>{selectedAssignment?.assignee_name ?? t.noAssignment}</dd></div>
-              <div className="kv-row"><dt>{t.afterCorrection}</dt><dd>{selectedAssignment ? selected.member.display_name : t.none}</dd></div>
-            </div>
+            <KeyValue items={[
+              { key: t.currently, value: selectedAssignment?.assignee_name ?? t.noAssignment },
+              { key: t.afterCorrection, value: selectedAssignment ? selected.member.display_name : t.none },
+            ]} />
             {!selectedAssignment && <p className="muted small">{t.nobodyHoldsRole}</p>}
             {selectedBalance && selectedCategory && selectedAssignment && selectedAssignment.assignee_name !== selected.member.display_name && (
               <Box tone="sig" title={t.balanceTitle(roleLabels()[selectedRole], selectedBalance.display_name)}>
