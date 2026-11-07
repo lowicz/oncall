@@ -25,6 +25,7 @@ colors:
   ok-soft: "rgba(108, 217, 157, 0.14)"
   warn-salmon: "#FFB196"
   warn-soft: "rgba(255, 177, 150, 0.14)"
+  warn-text: "#FFB196"
   bad-pink: "#EB4C79"
   bad-text: "#FF8AAA"
   bad-soft: "rgba(235, 76, 121, 0.16)"
@@ -273,6 +274,8 @@ tą samą nazwą zmiennej.
 - **Warianty tekstowe stanu**: błąd (`#FF8AAA`, `--bad-text`) i SECONDARY
   (`#D5A8D2`, `--sec-text`) są jaśniejsze od kolorów kresek i wypełnień,
   aby zachować kontrast co najmniej 4,5:1 na `s1`, `s2`, `s3` i podkładach.
+  Ostrzeżenie (`#FFB196`, `--warn-text`) barwi tytuł ramki `.box-warn`; w
+  jasnym motywie jest ciemniejsze od `--warn` (`#A33F00` zamiast `#B84800`).
 - **Podkłady dnia**: dziś (`rgba(101,184,255,.12)`), weekend
   (`rgba(163,181,201,.10)`).
 - Motyw jasny: tło `#F4F6FA`, panele `#FFFFFF`, atrament `#303030`,

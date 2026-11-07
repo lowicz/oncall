@@ -40,6 +40,7 @@
   --ok-bg: rgba(108, 217, 157, 0.14);
   --ok-dot: #0CB43F;
   --warn: #FFB196;
+  --warn-text: #FFB196;
   --warn-bg: rgba(255, 177, 150, 0.14);
   --warn-dot: #FF6130;
   --bad: #EB4C79;
@@ -114,6 +115,7 @@
   --ok-bg: rgba(108, 217, 157, 0.26);
   --ok-dot: #017632;
   --warn: #B84800;
+  --warn-text: #A33F00;
   --warn-bg: rgba(255, 177, 150, 0.32);
   --warn-dot: #D25200;
   --bad: #BC3B51;

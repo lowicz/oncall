@@ -67,9 +67,12 @@ describe.each([
     }
   })
 
-  it('keeps error text readable on every surface and error wash', () => {
-    const foreground = rgb(token(theme, 'bad-text'))
-    const wash = rgba(token(theme, 'bad-bg'))
+  it.each([
+    ['error', 'bad-text', 'bad-bg'],
+    ['warning', 'warn-text', 'warn-bg'],
+  ])('keeps %s text readable on every surface and its wash', (_, text, washToken) => {
+    const foreground = rgb(token(theme, text))
+    const wash = rgba(token(theme, washToken))
     for (const surface of ['s1', 's2', 's3']) {
       const background = rgb(token(theme, surface))
       expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5)

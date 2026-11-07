@@ -36,6 +36,7 @@ describe('shared interaction styles', () => {
     const { container } = render(
       <>
         <div className="box box-bad"><b>Konflikt</b></div>
+        <div className="box box-warn"><b>Brak dyżurów</b></div>
         <span className="tag tag-bad">brak</span>
         <span className="rank-fact-bad">kolizja</span>
         <button type="button" className="btn btn-bad">Usuń</button>
@@ -48,6 +49,7 @@ describe('shared interaction styles', () => {
     for (const selector of ['.box-bad > b', '.tag-bad', '.rank-fact-bad', '.btn-bad']) {
       expect(style(selector).color).toBe('var(--bad-text)')
     }
+    expect(style('.box-warn > b').color).toBe('var(--warn-text)')
     expect(style('.role-r-s').color).toBe('var(--sec-text)')
     expect(style('.avail-day-na').color).toBe('var(--fg)')
     expect(style('.now-search').backgroundColor).toBe('rgba(0, 0, 0, 0)')

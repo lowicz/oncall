@@ -230,7 +230,7 @@ small, .small { font-size: 12px; line-height: 16px; }
 
 .box { border-left: 3px solid var(--line2); background: var(--s2); padding: 8px 10px; border-radius: 0 6px 6px 0; font-size: 12px; line-height: 16px; }
 .box > b { display: block; font-size: 12px; line-height: 16px; margin-bottom: 2px; }
-.box-warn { border-color: var(--warn); background: var(--warn-bg); } .box-warn > b { color: var(--warn); }
+.box-warn { border-color: var(--warn); background: var(--warn-bg); } .box-warn > b { color: var(--warn-text); }
 .box-bad { border-color: var(--bad); background: var(--bad-bg); } .box-bad > b { color: var(--bad-text); }
 .box-ok { border-color: var(--ok); background: var(--ok-bg); } .box-ok > b { color: var(--ok); }
 .box-sig { border-color: var(--sig); background: var(--sig-soft); } .box-sig > b { color: var(--sig); }
