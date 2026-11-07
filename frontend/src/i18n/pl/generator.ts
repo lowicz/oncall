@@ -46,6 +46,8 @@ export const generator = {
   },
   progress: {
     stage: 'Etap generowania',
+    liveStarting: 'Generowanie rozpoczęte.',
+    live: (stage: string) => `Generowanie: ${stage}.`,
     steps: {
       data: 'dane',
       solver: 'solver',
@@ -235,6 +237,7 @@ export const generator = {
     balanceChange: (before: string, after: string, points: string) => `${before} → ${after} (${points})`,
     twoPoints: '+2 punkty za dzień 2X',
     onePoint: '+1 punkt',
+    events: 'Wydarzenia',
   },
   fairness: {
     impact: {

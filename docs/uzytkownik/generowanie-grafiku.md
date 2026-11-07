@@ -55,6 +55,13 @@ postępu pokazuje:
 Po odświeżeniu strony podgląd trwającego generowania wznawia się sam - **nie
 uruchamiaj go drugi raz**.
 
+### Wydarzenia na szkicu
+
+Macierz szkicu pokazuje wydarzenia kalendarza tak samo jak opublikowany grafik.
+Kropka w kolorze wydarzenia pojawia się w każdej komórce tego dnia, a nazwa wydarzenia jest dostępna także dla czytnika ekranu.
+Po otwarciu dnia panel wymienia jego wydarzenia z kolorowymi próbkami.
+Lista jest tylko do odczytu - wydarzenia dodaje się i zmienia na ekranie **Wydarzenia**.
+
 ## Propozycja
 
 Otwarty szkic to osobna strona. Tytuł mówi, na jakim etapie jest wynik:

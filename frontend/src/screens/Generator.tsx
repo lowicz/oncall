@@ -287,8 +287,16 @@ export function GeneratorPanel() {
     </Field>
   )
 
+  const liveStage = runProgress?.status === 'queued'
+    ? t.progress.steps.data
+    : runProgress?.status === 'completed'
+      ? t.progress.steps.fairness
+      : t.progress.steps.solver
+  const liveAnnouncement = generating
+    ? runProgress ? t.progress.live(liveStage) : t.progress.liveStarting
+    : ''
   const progress = generating && (
-    <div className="panel panel-padded stack-sm" aria-live="polite">
+    <div className="panel panel-padded stack-sm">
       <Steps
         label={t.progress.stage}
         steps={[
@@ -429,6 +437,7 @@ export function GeneratorPanel() {
           )}
         </Box>
       )}
+      <div role="region" aria-label={t.progress.bar} aria-live="polite" className="sr-only">{liveAnnouncement}</div>
       {progress}
       {opened.isLoading && <p className="muted">{t.draft.opening}</p>}
       {opened.error && <ErrorState error={opened.error} onRetry={() => opened.refetch()} />}

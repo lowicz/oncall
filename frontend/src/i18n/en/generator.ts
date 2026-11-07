@@ -38,6 +38,8 @@ export const generator: Messages['generator'] = {
   },
   progress: {
     stage: 'Generation stage',
+    liveStarting: 'Generation started.',
+    live: (stage: string) => `Generation: ${stage}.`,
     steps: {
       data: 'data',
       solver: 'solver',
@@ -227,6 +229,7 @@ export const generator: Messages['generator'] = {
     balanceChange: (before: string, after: string, points: string) => `${before} → ${after} (${points})`,
     twoPoints: '+2 points for a 2X day',
     onePoint: '+1 point',
+    events: 'Events',
   },
   fairness: {
     impact: {
