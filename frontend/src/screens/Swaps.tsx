@@ -47,8 +47,11 @@ import {
   Tag,
   Textarea,
   cx,
+  navigateRadioGroup,
+  radioTabIndex,
   useToast,
 } from '../ui'
+import type { RadioNavigationOption } from '../ui'
 
 const statusTone: Record<SwapStatus, StatusTone> = {
   pending_replacement: 'warn',
@@ -128,7 +131,7 @@ type Verdict = Pick<SwapOption, 'blocking_violations' | 'rule_violations' | 'war
  * exchange is seen before a rule is acknowledged. `own` are the broken rules
  * the choice adds itself, named before the ones every choice shares.
  */
-function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violations, selected, best, onSelect }: {
+function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violations, selected, best, radioValue, selectedValue, navigation, onSelect }: {
   no: ReactNode
   title: string
   detail?: string
@@ -136,13 +139,17 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
   own?: RuleViolation[]
   selected: boolean
   best?: boolean
-  onSelect: () => void
+  radioValue: string
+  selectedValue: string
+  navigation: RadioNavigationOption<string>[]
+  onSelect: (value: string) => void
 }) {
   const t = useMessages().swaps.compose
   const blockedBy = verdict.blocking_violations?.[0]
   const breaks = blockedBy ? undefined : own?.[0]
   const bends = blockedBy || breaks ? undefined : verdict.warning_violations?.[0]
   const needsAcknowledgement = Boolean(verdict.rule_violations?.length)
+  const disabled = Boolean(navigation.find((item) => item.value === radioValue)?.disabled)
   const facts = [
     detail,
     blockedBy && <span className="who-out">{t.blocked(blockedBy.message)}</span>,
@@ -154,10 +161,12 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
       type="button"
       role="radio"
       aria-checked={selected}
-      // A selected day stays selectable: another way of taking it may be open.
-      disabled={Boolean(blockedBy) && !selected}
+      aria-disabled={disabled || undefined}
+      tabIndex={radioTabIndex(selectedValue, radioValue, navigation)}
+      data-value={radioValue}
       className={cx('rank-c', best && 'rank-best', selected && 'rank-sel', blockedBy && 'rank-blocked')}
-      onClick={onSelect}
+      onClick={() => { if (!disabled) onSelect(radioValue) }}
+      onKeyDown={(event) => navigateRadioGroup(event, radioValue, navigation, onSelect)}
     >
       <span className="rank-no">{blockedBy ? '–' : no}</span>
       <span className="rank-nm">
@@ -476,9 +485,22 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     if (rightBenefit === null) return -1
     return rightBenefit - leftBenefit || left.display_name.localeCompare(right.display_name, locale())
   })
+  const candidateNavigation = orderedOptions.map((option) => ({
+    value: option.member_id,
+    disabled: Boolean(option.blocking_violations?.length),
+  }))
   const selectedOption = options.data?.find((option) => option.member_id === replacementId)
   const returnDay = returnOptions.data?.find((option) => waysOf(option).some((way) => wayKey(way) === inReturn))
   const selectedReturn = returnDay && waysOf(returnDay).find((way) => wayKey(way) === inReturn)
+  // The selected day reads as the way it is taken.
+  const returnWays = (returnOptions.data ?? []).map((option) => (option === returnDay && selectedReturn ? selectedReturn : option))
+  const selectedReturnValue = selectedReturn ? wayKey(selectedReturn) : ''
+  // A blocked choice cannot be picked and the arrows skip it, except the one
+  // already selected: it stays readable and removable.
+  const returnNavigation = [
+    { value: '', disabled: Boolean(selectedOption?.blocking_violations?.length) && Boolean(selectedReturn) },
+    ...returnWays.map((way) => ({ value: wayKey(way), disabled: Boolean(way.blocking_violations?.length) && way !== selectedReturn })),
+  ]
   // An exchange is judged as one move, so its verdict replaces the hand-over's.
   const verdict: Verdict | undefined = selectedReturn ?? selectedOption
   // The hard rules the request being written breaks: it is sent only
@@ -829,14 +851,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           {/* Availability, current balance and a duty marker travel with the
               name, so comparing two candidates no longer means selecting each
               one and reading the impact preview twice (MED5-09). */}
-          <div className="stack-sm" role="radiogroup" aria-label={t.swaps.compose.replacement}>
+          <div className="stack-sm">
             <SectionHeading as="h3" title={t.swaps.compose.candidates} meta={t.swaps.compose.candidatesMeta} />
             {!serviceDate && <div className="muted small">{t.swaps.compose.pickDutyFirst}</div>}
             {serviceDate && options.isLoading && <LoadingBlock label={t.swaps.compose.searching} rows={2} />}
             {serviceDate && options.error && <ErrorState error={options.error} onRetry={() => options.refetch()} />}
             {serviceDate && options.data?.length === 0 && <EmptyState compact icon="people" title={t.swaps.compose.noCandidates} />}
             {serviceDate && orderedOptions.length > 0 && (
-              <div className="rank">
+              <div className="rank" role="radiogroup" aria-label={t.swaps.compose.replacement}>
                 {orderedOptions.map((option, index) => {
                   const blockedBy = option.blocking_violations?.[0]
                   const blocked = Boolean(blockedBy)
@@ -853,9 +875,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                       key={option.member_id}
                       role="radio"
                       aria-checked={replacementId === option.member_id}
-                      disabled={blocked}
+                      aria-disabled={blocked || undefined}
+                      tabIndex={radioTabIndex(replacementId, option.member_id, candidateNavigation)}
+                      data-value={option.member_id}
                       className={cx('rank-c', best && 'rank-best', replacementId === option.member_id && 'rank-sel', blocked && 'rank-blocked')}
-                      onClick={() => pickReplacement(option.member_id)}
+                      onClick={() => { if (!blocked) pickReplacement(option.member_id) }}
+                      onKeyDown={(event) => navigateRadioGroup(event, option.member_id, candidateNavigation, pickReplacement)}
                     >
                       <span className="rank-no">{blocked ? '–' : index + 1}</span>
                       <span className="rank-nm">
@@ -892,7 +917,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             )}
           </div>
           {selectedOption && (
-            <div className="stack-sm" role="radiogroup" aria-label={t.swaps.compose.inReturn}>
+            <div className="stack-sm">
               <SectionHeading as="h3" title={t.swaps.compose.inReturn} meta={t.swaps.compose.inReturnMeta(firstName(selectedOption.display_name))} />
               {returnOptions.isLoading && <LoadingBlock label={t.swaps.compose.returnSearching} rows={2} />}
               {returnOptions.error && <ErrorState error={returnOptions.error} onRetry={() => returnOptions.refetch()} />}
@@ -900,11 +925,19 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 <div className="muted small">{t.swaps.compose.noReturnDuties(firstName(selectedOption.display_name))}</div>
               )}
               {returnOptions.data && returnOptions.data.length > 0 && (
-                <div className="rank">
-                  <ReturnChoice no="–" title={t.swaps.compose.nothingInReturn} verdict={selectedOption} selected={!selectedReturn} onSelect={() => pickReturn('')} />
+                <div className="rank" role="radiogroup" aria-label={t.swaps.compose.inReturn}>
+                  <ReturnChoice
+                    no="–"
+                    title={t.swaps.compose.nothingInReturn}
+                    verdict={selectedOption}
+                    selected={!selectedReturn}
+                    radioValue=""
+                    selectedValue={selectedReturnValue}
+                    navigation={returnNavigation}
+                    onSelect={pickReturn}
+                  />
                   {returnOptions.data.map((option, index) => {
-                    // The selected day reads as the way it is taken.
-                    const way = option === returnDay && selectedReturn ? selectedReturn : option
+                    const way = returnWays[index]
                     return (
                       <Fragment key={slotKey(option)}>
                         <ReturnChoice
@@ -917,7 +950,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                           selected={option === returnDay}
                           // The first exchange that spares the request an acknowledgement.
                           best={index === 0 && Boolean(selectedOption.rule_violations?.length) && option.rule_violations.length + option.blocking_violations.length === 0}
-                          onSelect={() => option !== returnDay && pickReturn(wayKey(option))}
+                          radioValue={wayKey(way)}
+                          selectedValue={selectedReturnValue}
+                          navigation={returnNavigation}
+                          onSelect={pickReturn}
                         />
                         {/* A day with two roles is taken whole or one role of it, like the day given. */}
                         {option === returnDay && option.parts?.length ? (

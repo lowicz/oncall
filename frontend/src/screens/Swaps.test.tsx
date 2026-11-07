@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { SwapPanel } from './Swaps'
@@ -452,8 +453,49 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     await openForm()
 
     const option = await screen.findByRole('radio', { name: /Piotr Zieliński/ })
-    expect(option).toBeDisabled()
+    expect(option).toHaveAttribute('aria-disabled', 'true')
+    expect(option).not.toBeDisabled()
     expect(option).toHaveTextContent(/nie można/)
+  })
+
+  it('uses one tab stop and arrows to select candidates while skipping blocked cards', async () => {
+    const user = userEvent.setup()
+    stubSchedule()
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
+    vi.spyOn(api, 'swapOptions').mockResolvedValue([
+      { member_id: 'a1', display_name: 'Adam Aktywny', availability: null, on_duty_that_day: false },
+      {
+        member_id: 'b1',
+        display_name: 'Beata Zablokowana',
+        availability: null,
+        on_duty_that_day: false,
+        blocking_violations: [{
+          rule: 'three_in_seven',
+          message: 'Nie można wybrać.',
+          member_name: 'Beata Zablokowana',
+          days: ['2099-09-14'],
+        }],
+      },
+      { member_id: 'c1', display_name: 'Celina Aktywna', availability: null, on_duty_that_day: false },
+    ])
+    await openForm()
+
+    const group = await screen.findByRole('radiogroup', { name: 'Zastępca' })
+    const adam = within(group).getByRole('radio', { name: /Adam Aktywny/ })
+    const beata = within(group).getByRole('radio', { name: /Beata Zablokowana/ })
+    const celina = within(group).getByRole('radio', { name: /Celina Aktywna/ })
+    expect(within(group).getAllByRole('radio').filter((candidate) => candidate.tabIndex === 0)).toEqual([adam])
+    expect(beata).toHaveAttribute('aria-disabled', 'true')
+
+    adam.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(celina).toHaveFocus()
+    expect(celina).toHaveAttribute('aria-checked', 'true')
+    await user.keyboard('{ArrowRight}')
+    expect(adam).toHaveFocus()
+    expect(beata).toHaveAttribute('aria-checked', 'false')
+    await user.click(beata)
+    expect(beata).toHaveAttribute('aria-checked', 'false')
   })
 
   const THREE_IN_SEVEN = {
@@ -1017,7 +1059,8 @@ describe('SwapPanel composing', () => {
     expect(dorota).toHaveTextContent('Chętnie wezmę · ma już dyżur tego dnia')
     expect(dorota).toHaveTextContent('2 pkt powyżej udziału')
     expect(dorota).not.toHaveClass('rank-best')
-    expect(zenon).toBeDisabled()
+    expect(zenon).toHaveAttribute('aria-disabled', 'true')
+    expect(zenon).not.toBeDisabled()
     expect(zenon).toHaveTextContent('nie można: Więcej niż 3 dyżury w 7 dniach.')
     expect(zenon).toHaveTextContent('reguła twarda')
   })
@@ -1172,6 +1215,7 @@ describe('SwapPanel exchange: the "in return" step', () => {
   const acknowledgement = () => screen.queryByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
 
   it('offers the replacement\'s duties with a verdict for each, the clean exchange first in line', async () => {
+    const user = userEvent.setup()
     stubForm()
     let offer: (value: SwapReturnOption[]) => void = () => {}
     const search = vi.spyOn(api, 'swapReturnOptions').mockReturnValue(new Promise((resolve) => { offer = resolve }))
@@ -1185,7 +1229,7 @@ describe('SwapPanel exchange: the "in return" step', () => {
     act(() => offer(RETURNS))
 
     const group = await returns()
-    expect(within(group).getByText('opcjonalnie · od: Piotr')).toBeInTheDocument()
+    expect(screen.getByText('opcjonalnie · od: Piotr')).toBeInTheDocument()
     const [nothing, clean, bends, breaks, blocked] = await within(group).findAllByRole('radio')
     // Handing the duty over is the choice until another is made, and says what it breaks.
     expect(nothing).toBeChecked()
@@ -1197,7 +1241,16 @@ describe('SwapPanel exchange: the "in return" step', () => {
     expect(breaks).toHaveTextContent('łamie regułę: Więcej niż 3 dyżury on-call w okresie 7 dni.wymaga potwierdzenia')
     expect(breaks).toBeEnabled()
     expect(blocked).toHaveTextContent('–pon 21 wrzSECONDARY + 11–19 · za 26674 dni · nie można: Obie role on-call jednego dnia.reguła twarda')
-    expect(blocked).toBeDisabled()
+    expect(blocked).toHaveAttribute('aria-disabled', 'true')
+    expect(blocked).not.toBeDisabled()
+
+    nothing.focus()
+    await user.keyboard('{ArrowLeft}')
+    expect(breaks).toHaveFocus()
+    expect(breaks).toBeChecked()
+    expect(blocked).not.toBeChecked()
+    await user.click(blocked)
+    expect(breaks).toBeChecked()
   })
 
   it('sends a clean exchange with nothing to acknowledge, where the hand-over alone broke a rule', async () => {
@@ -1293,7 +1346,7 @@ describe('SwapPanel exchange: the "in return" step', () => {
     await pickPiotr()
 
     expect(await screen.findByText('Piotr nie ma nadchodzących dyżurów, które można wziąć w zamian.')).toBeInTheDocument()
-    expect(within(await returns()).queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup', { name: 'W zamian biorę' })).not.toBeInTheDocument()
   })
 
   it('shows a failed list of duties and reads it again on retry', async () => {
@@ -1303,9 +1356,8 @@ describe('SwapPanel exchange: the "in return" step', () => {
       .mockResolvedValue(RETURNS)
     await pickPiotr()
 
-    const group = await returns()
-    expect(await within(group).findByText('Nie udało się wczytać dyżurów')).toBeInTheDocument()
-    fireEvent.click(within(group).getByRole('button', { name: 'Spróbuj ponownie' }))
+    expect(await screen.findByText('Nie udało się wczytać dyżurów')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }))
     expect(await choice(/śr 16 wrz/)).toBeInTheDocument()
   })
 
@@ -1323,6 +1375,27 @@ describe('SwapPanel exchange: the "in return" step', () => {
     await waitFor(() => expect(search).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(sendButton()).toBeDisabled())
     expect(await choice(/śr 16 wrz/)).toHaveTextContent('reguła twarda')
+  })
+
+  it('keeps a hand-over that became blocked out of reach while a day is taken in return', async () => {
+    const user = userEvent.setup()
+    stubSchedule()
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
+    vi.spyOn(api, 'swapOptions')
+      .mockResolvedValueOnce([piotr])
+      .mockResolvedValue([{ ...piotr, blocking_violations: RETURNS[3].blocking_violations }])
+    vi.spyOn(api, 'swapReturnOptions').mockResolvedValue(RETURNS)
+    vi.spyOn(api, 'createSwap').mockRejectedValue(new ApiError('Zamiana złamie reguły twarde grafiku', 409))
+    await pickPiotr()
+    fireEvent.click(await choice(/śr 16 wrz/))
+    fireEvent.click(sendButton())
+
+    const [nothing, clean, , breaks] = await within(await returns()).findAllByRole('radio')
+    await waitFor(() => expect(nothing).toHaveAttribute('aria-disabled', 'true'))
+    clean.focus()
+    await user.keyboard('{ArrowUp}')
+    expect(breaks).toHaveFocus()
+    expect(nothing).not.toBeChecked()
   })
 })
 
@@ -1509,12 +1582,12 @@ describe('SwapPanel: what is given of a day', () => {
     expect(scopeGroup()).toHaveAccessibleDescription(`${label(anchor)} + 11–19. Jedna akceptacja zastępcy obejmuje oba.`)
     await waitFor(() => expect(search).toHaveBeenCalledWith('2099-09-14', anchor, 'whole'))
     fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
-    expect(await screen.findByRole('radiogroup', { name: 'W zamian biorę' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'W zamian biorę' })).toBeInTheDocument()
 
     fireEvent.click(scopeChoice(`Tylko ${label(anchor)}`))
     expect(scopeGroup()).toHaveAccessibleDescription('Zmiana 11–19 tego dnia zostaje u Ciebie. Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.')
     // Another scope is another request: the candidate is picked again.
-    expect(screen.queryByRole('radiogroup', { name: 'W zamian biorę' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'W zamian biorę' })).not.toBeInTheDocument()
 
     fireEvent.click(scopeChoice('Tylko 11–19'))
     expect(scopeChoice('Tylko 11–19')).toBeChecked()

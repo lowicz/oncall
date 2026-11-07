@@ -7,6 +7,8 @@ import {
   useId,
 } from 'react'
 import { cx } from './cx'
+import { navigateRadioGroup, radioTabIndex } from './radioNavigation'
+import type { RadioNavigationOption } from './radioNavigation'
 
 /**
  * A labelled control: mono uppercase label above, the control, and either
@@ -100,10 +102,8 @@ export function Checkbox({ label, hint, className, ...rest }: {
 }
 
 
-export interface SegmentOption<T extends string> {
-  value: T
+export interface SegmentOption<T extends string> extends RadioNavigationOption<T> {
   label: ReactNode
-  disabled?: boolean
   /** Colour of the label, for the availability brush. */
   tone?: 'na' | 'wn' | 'ch'
 }
@@ -124,36 +124,21 @@ export function Segmented<T extends string>({ value, onChange, options, label, d
   size?: 'md' | 'sm'
   className?: string
 }) {
-  const onKeyDown = (event: React.KeyboardEvent, index: number) => {
-    const enabled = options.filter((option) => !option.disabled)
-    const position = enabled.findIndex((option) => option.value === options[index].value)
-    let next = position
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (position + 1) % enabled.length
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (position - 1 + enabled.length) % enabled.length
-    else if (event.key === 'Home') next = 0
-    else if (event.key === 'End') next = enabled.length - 1
-    else return
-    event.preventDefault()
-    onChange(enabled[next].value)
-    const buttons = (event.currentTarget.parentElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')
-    const target = Array.from(buttons).find((button) => button.dataset.value === enabled[next].value)
-    target?.focus()
-  }
   return (
     <div className={cx('seg', size === 'sm' && 'seg-sm', className)} role="radiogroup" aria-label={label} aria-describedby={describedBy}>
-      {options.map((option, index) => (
+      {options.map((option) => (
         <button
           key={option.value}
           type="button"
           role="radio"
           aria-checked={option.value === value}
-          tabIndex={option.value === value ? 0 : -1}
+          tabIndex={radioTabIndex(value, option.value, options)}
           data-value={option.value}
           data-tone={option.tone}
           className={cx(option.value === value && 'on')}
           disabled={option.disabled}
           onClick={() => onChange(option.value)}
-          onKeyDown={(event) => onKeyDown(event, index)}
+          onKeyDown={(event) => navigateRadioGroup(event, option.value, options, onChange)}
         >
           {option.label}
         </button>

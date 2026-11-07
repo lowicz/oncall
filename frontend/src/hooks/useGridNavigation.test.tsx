@@ -86,6 +86,81 @@ describe('useGridNavigation', () => {
     expect(cell(1, 2).tabIndex).toBe(0)
   })
 
+  it('skips disabled and missing cells and starts at the first available one', () => {
+    const disabled = new Set(['0:0', '0:2', '1:1'])
+    function SparseGrid() {
+      const grid = useGridNavigation(2, 4, { isCellDisabled: (row, col) => disabled.has(`${row}:${col}`) })
+      return (
+        <table>
+          <tbody>
+            {[0, 1].map((row) => (
+              <tr key={row}>
+                {Array.from({ length: 4 }, (_, col) => (
+                  <td key={col}>
+                    <button disabled={disabled.has(`${row}:${col}`)} type="button" aria-label={`${row}-${col}`} {...grid.cellProps(row, col)} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )
+    }
+    render(<SparseGrid />)
+    expect(cell(0, 1).tabIndex).toBe(0)
+    act(() => cell(0, 1).focus())
+    fireEvent.keyDown(cell(0, 1), { key: 'ArrowRight' })
+    expect(cell(0, 3)).toHaveFocus()
+    fireEvent.keyDown(cell(0, 3), { key: 'ArrowLeft' })
+    expect(cell(0, 1)).toHaveFocus()
+    fireEvent.keyDown(cell(0, 1), { key: 'ArrowLeft' })
+    expect(cell(0, 1)).toHaveFocus()
+    fireEvent.keyDown(cell(0, 1), { key: 'End', ctrlKey: true })
+    expect(cell(1, 3)).toHaveFocus()
+    fireEvent.keyDown(cell(1, 3), { key: 'Home', ctrlKey: true })
+    expect(cell(0, 1)).toHaveFocus()
+  })
+
+  it('runs the left and right arrows on across rows with wrap, as a calendar does', () => {
+    function Calendar() {
+      const grid = useGridNavigation(2, 3, { wrap: true, isCellDisabled: (row, col) => row === 1 && col === 0 })
+      return (
+        <>
+          {[0, 1].flatMap((row) => [0, 1, 2].map((col) => (
+            <button type="button" aria-label={`${row}-${col}`} key={`${row}${col}`} {...grid.cellProps(row, col)} />
+          )))}
+        </>
+      )
+    }
+    render(<Calendar />)
+    act(() => cell(0, 2).focus())
+    fireEvent.keyDown(cell(0, 2), { key: 'ArrowRight' })
+    expect(cell(1, 1)).toHaveFocus()
+    fireEvent.keyDown(cell(1, 1), { key: 'ArrowLeft' })
+    expect(cell(0, 2)).toHaveFocus()
+    fireEvent.keyDown(cell(0, 2), { key: 'ArrowDown' })
+    expect(cell(1, 2)).toHaveFocus()
+  })
+
+  it('leaves no tab stop or movement target when every cell is disabled', () => {
+    function DisabledGrid() {
+      const grid = useGridNavigation(1, 2, { isCellDisabled: () => true })
+      return (
+        <>
+          <button type="button" onClick={() => grid.focusCell(0, 0)}>jump</button>
+          {[0, 1].map((col) => <button disabled type="button" aria-label={`0-${col}`} key={col} {...grid.cellProps(0, col)} />)}
+        </>
+      )
+    }
+    render(<DisabledGrid />)
+    const cells = [cell(0, 0), cell(0, 1)]
+    expect(cells.every((button) => button.tabIndex === -1)).toBe(true)
+    act(() => screen.getByText('jump').focus())
+    fireEvent.click(screen.getByText('jump'))
+    fireEvent.keyDown(cell(0, 0), { key: 'Home' })
+    expect(screen.getByText('jump')).toHaveFocus()
+  })
+
   it('focusCell moves focus programmatically, for the jump-to-gap action', () => {
     function Harness() {
       const grid = useGridNavigation(2, 8)
