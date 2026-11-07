@@ -10,12 +10,14 @@ describe('shared interaction styles', () => {
         <button type="button" className="btn btn-sm">Zapisz</button>
         <button type="button" className="ib ib-sm">X</button>
         <div className="seg seg-sm"><button type="button">Miesiąc</button></div>
+        <span className="filter-chip">Jan<button type="button">×</button></span>
       </>,
     )
-    const [button, icon, segment] = Array.from(container.querySelectorAll('button'))
+    const [button, icon, segment, chip] = Array.from(container.querySelectorAll('button'))
     expect(getComputedStyle(button).minHeight).toBe('44px')
     expect([getComputedStyle(icon).minWidth, getComputedStyle(icon).minHeight]).toEqual(['44px', '44px'])
     expect(getComputedStyle(segment).minHeight).toBe('44px')
+    expect([getComputedStyle(chip).minWidth, getComputedStyle(chip).minHeight]).toEqual(['44px', '44px'])
   })
 
   it('stops motion without hiding loading indicators', () => {

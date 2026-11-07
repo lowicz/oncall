@@ -96,7 +96,7 @@ export function ListRow({ children, aside, className, highlight, tone }: {
   aside?: ReactNode
   className?: string
   highlight?: boolean
-  tone?: 'bad' | 'warn'
+  tone?: 'warn'
 }) {
   return (
     <div className={cx('list-row', highlight && 'list-row-hl', tone && `list-row-${tone}`, className)}>
