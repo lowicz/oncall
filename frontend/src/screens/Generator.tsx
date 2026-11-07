@@ -175,17 +175,6 @@ export function GeneratorPanel() {
     // for the global 30s staleTime and the effect above would rewind `result`.
     queryClient.invalidateQueries({ queryKey: ['schedule'] })
   }
-  const remove = useMutation({
-    mutationFn: (id: string) => api.deleteSchedule(id),
-    onSuccess: (_data, id) => {
-      setToDelete(null)
-      if (openId === id) {
-        setOpenId(null)
-        setResult(null)
-      }
-      invalidateDrafts()
-    },
-  })
   // Rotation mode, the 11–19 anchor and the swap approval are stored policy,
   // not request parameters; they are written only on an explicit save, never
   // on change.
@@ -208,10 +197,21 @@ export function GeneratorPanel() {
   const settingsDirty = Boolean(policy.data && SETTINGS_KEYS.some((key) => settings[key] !== policy.data[key]))
   const unsavedChanges = useUnsavedChanges(settingsDirty, () => setSettings(settingsOf(policy.data!)))
   const closeSettings = () => unsavedChanges.requestAction(() => setSettingsOpen(false))
+  const remove = useMutation({
+    mutationFn: (id: string) => api.deleteSchedule(id),
+    onSuccess: (_data, id) => {
+      setToDelete(null)
+      if (openId === id) {
+        unsavedChanges.bypass(() => setOpenId(null))
+        setResult(null)
+      }
+      invalidateDrafts()
+    },
+  })
   const onGenerated = (value: DraftSchedule) => {
     setRunProgress(null)
     setResult(value)
-    setOpenId(value.id)
+    unsavedChanges.bypass(() => setOpenId(value.id))
     invalidateDrafts()
   }
   const generate = useMutation({

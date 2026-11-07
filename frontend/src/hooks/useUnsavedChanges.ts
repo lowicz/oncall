@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { createPath, useBeforeUnload, useBlocker } from 'react-router-dom'
 
 /**
@@ -7,8 +7,9 @@ import { createPath, useBeforeUnload, useBlocker } from 'react-router-dom'
  * `onDiscard` throws the edits away when the screen stays mounted.
  */
 export function useUnsavedChanges(dirty: boolean, onDiscard?: () => void) {
+  const unguarded = useRef(false)
   const blocker = useBlocker(useCallback(({ currentLocation, nextLocation }) => (
-    dirty && createPath(currentLocation) !== createPath(nextLocation)
+    dirty && !unguarded.current && createPath(currentLocation) !== createPath(nextLocation)
   ), [dirty]))
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
 
@@ -21,6 +22,16 @@ export function useUnsavedChanges(dirty: boolean, onDiscard?: () => void) {
   const requestAction = (action: () => void) => {
     if (dirty) setPendingAction(() => action)
     else action()
+  }
+
+  /** Runs a navigation the screen starts by itself, which the user never asked to confirm. */
+  const bypass = (navigation: () => void) => {
+    unguarded.current = true
+    try {
+      navigation()
+    } finally {
+      unguarded.current = false
+    }
   }
 
   const cancel = () => {
@@ -42,6 +53,7 @@ export function useUnsavedChanges(dirty: boolean, onDiscard?: () => void) {
   return {
     open: blocker.state === 'blocked' || pendingAction !== null,
     requestAction,
+    bypass,
     cancel,
     discard,
   }

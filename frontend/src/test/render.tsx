@@ -35,5 +35,5 @@ export function renderScreen(ui: ReactNode, { route = '/' }: { route?: string } 
     )
   }
   const view = render(ui, { wrapper: Providers })
-  return { ...view, queryClient }
+  return { ...view, queryClient, router }
 }

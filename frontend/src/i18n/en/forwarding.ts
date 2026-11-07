@@ -5,7 +5,7 @@ export const forwarding: Messages['forwarding'] = {
   subtitle: 'The on-call number is forwarded through Orange WCO to the phone of the person on PRIMARY duty, from the duty reminder hour. Times are in Europe/Warsaw.',
   settings: {
     title: 'WCO account',
-    loading: 'Loading settings',
+    loading: 'Loading settings…',
     savedAt: (moment: string) => `saved ${moment}`,
     mode: 'Mode',
     modes: {
@@ -49,7 +49,7 @@ export const forwarding: Messages['forwarding'] = {
   },
   state: {
     title: 'State',
-    loading: 'Loading state',
+    loading: 'Loading state…',
     desired: 'Target',
     desiredValue: (name: string, number: string, day: string) => `${name} · ${number} · duty ${day}`,
     noNumber: 'no number',

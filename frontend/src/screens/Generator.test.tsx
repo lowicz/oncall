@@ -939,6 +939,46 @@ describe('GeneratorPanel settings drawer', () => {
     expect(screen.queryByText('niezapisane')).not.toBeInTheDocument()
   })
 
+  it('opens a finished generation without asking about the unsaved settings', async () => {
+    stub([])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    let finish: (value: DraftSchedule) => void = () => {}
+    vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    const { router } = renderScreen(<GeneratorPanel />, { route: '/generator' })
+
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
+    await waitFor(() => expect(mode).toBeEnabled())
+    fireEvent.change(mode, { target: { value: 'weekly' } })
+
+    act(() => finish(draft({ id: 'd1' })))
+    await waitFor(() => expect(router.state.location.search).toBe('?szkic=d1'))
+    expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument()
+    expect(mode).toHaveValue('weekly')
+  })
+
+  it('drops a deleted open draft from the URL without asking about the unsaved settings', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    vi.spyOn(api, 'deleteSchedule').mockResolvedValue(undefined)
+    const { router } = renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    expect(await screen.findByText('CP-SAT: OPTIMAL')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Ustawienia generatora/ }))
+    const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
+    await waitFor(() => expect(mode).toBeEnabled())
+    fireEvent.change(mode, { target: { value: 'weekly' } })
+    fireEvent.click(screen.getByRole('button', { name: /Usuń szkic/ }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Usunąć szkic?' })).getByRole('button', { name: 'Usuń' }))
+
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(screen.queryByText('CP-SAT: OPTIMAL')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument()
+    expect(mode).toHaveValue('weekly')
+  })
+
   it('restores the stored settings when closing the panel discards the changes', async () => {
     stub([summary({ id: 'd1' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))

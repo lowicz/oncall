@@ -13,7 +13,7 @@ export const shareLinks: Messages['shareLinks'] = {
   form: {
     title: 'New link',
     recipient: 'Recipient',
-    recipientPlaceholder: 'e.g. dispatch desk',
+    recipientPlaceholder: 'e.g. dispatch desk…',
     scheduleFrom: 'Schedule from',
     scheduleTo: 'Schedule to',
     validity: 'Link validity',
@@ -24,7 +24,7 @@ export const shareLinks: Messages['shareLinks'] = {
   list: {
     title: 'Links',
     showRevoked: 'Show revoked',
-    loading: 'Loading links',
+    loading: 'Loading links…',
     empty: 'No links have been created yet',
     emptyDescription: 'A link gives someone outside the team a view of the published schedule for the chosen date range.',
     copyIcs: 'Copy ICS',

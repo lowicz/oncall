@@ -31,7 +31,7 @@ export const historyImport = {
   moreRows: (rows: string) => `+ ${rows} kolejnych`,
   previous: {
     title: 'Wcześniejsze importy',
-    loading: 'Wczytywanie importów',
+    loading: 'Wczytywanie importów…',
     empty: 'Brak wcześniejszych importów',
     undo: 'Cofnij import',
   },

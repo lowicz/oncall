@@ -8,7 +8,7 @@ export const reports: Messages['reports'] = {
   downloadCsv: 'Download CSV',
   downloaded: 'The report has been downloaded.',
   fileName: (month: string) => `oncall-${month}.csv`,
-  loadingPreview: 'Loading preview',
+  loadingPreview: 'Loading preview…',
   noPublishedDuties: 'The selected month has no published duties.',
   partialCoverage: (staffedDays: number, daysInMonth: number) =>
     `The published schedule covers ${staffedDays} of the ${daysInMonth} days of this month.`,
