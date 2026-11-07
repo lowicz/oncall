@@ -39,7 +39,7 @@ export const generator: Messages['generator'] = {
   progress: {
     stage: 'Generation stage',
     liveStarting: 'Generation started.',
-    live: (stage: string, progress: number) => `Generation: ${stage}, ${progress}%`,
+    live: (stage: string) => `Generation: ${stage}.`,
     steps: {
       data: 'data',
       solver: 'solver',

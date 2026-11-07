@@ -47,7 +47,7 @@ export const generator = {
   progress: {
     stage: 'Etap generowania',
     liveStarting: 'Generowanie rozpoczęte.',
-    live: (stage: string, progress: number) => `Generowanie: ${stage}, ${progress}%`,
+    live: (stage: string) => `Generowanie: ${stage}.`,
     steps: {
       data: 'dane',
       solver: 'solver',

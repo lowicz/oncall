@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { GeneratorPanel } from './Generator'
 import { api, ApiError } from '../api'
@@ -569,6 +569,28 @@ describe('GeneratorPanel queue and progress', () => {
     expect(screen.getByText('Solver pracuje poza procesem API.')).toBeInTheDocument()
     expect(screen.queryByText(/na jeden przebieg solvera/)).not.toBeInTheDocument()
     expect(generate).toHaveBeenCalledTimes(1)
+  })
+
+  it('announces stage changes only, not the solver progress within a stage', async () => {
+    stub([])
+    let report: ((progress: ScheduleRun) => void) | undefined
+    vi.spyOn(api, 'generateSchedule').mockImplementation((_input, onProgress) => {
+      report = onProgress
+      return new Promise(() => {})
+    })
+    renderScreen(<GeneratorPanel />)
+    await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    const live = screen.getByRole('region', { name: 'Postęp generowania' })
+    await waitFor(() => expect(live).toHaveTextContent('Generowanie rozpoczęte.'))
+    act(() => report?.(run({ id: 'r1', progress: 41 })))
+    expect(live).toHaveTextContent(/^Generowanie: solver\.$/)
+    act(() => report?.(run({ id: 'r1', progress: 43 })))
+    expect(screen.getByRole('progressbar', { name: 'Postęp generowania' })).toHaveAttribute('aria-valuenow', '43')
+    expect(live).toHaveTextContent(/^Generowanie: solver\.$/)
+    act(() => report?.(run({ id: 'r1', status: 'completed', progress: 90 })))
+    expect(live).toHaveTextContent(/^Generowanie: sprawiedliwość\.$/)
   })
 
   it('moves to the fairness step once the solver is done and names the gap before the draft', async () => {

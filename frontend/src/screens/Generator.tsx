@@ -293,7 +293,7 @@ export function GeneratorPanel() {
       ? t.progress.steps.fairness
       : t.progress.steps.solver
   const liveAnnouncement = generating
-    ? runProgress ? t.progress.live(liveStage, runProgress.progress) : t.progress.liveStarting
+    ? runProgress ? t.progress.live(liveStage) : t.progress.liveStarting
     : ''
   const progress = generating && (
     <div className="panel panel-padded stack-sm">
