@@ -13,6 +13,7 @@ import { isPolishPhone } from '../../lib/phone'
 import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
+import { UnsavedChangesDialog } from '../../components/UnsavedChangesDialog'
 import {
   Avatar,
   Box,
@@ -840,15 +841,7 @@ export function PeoplePanel() {
         onCancel={() => setConfirmation(false)}
         onConfirm={() => saveAll.mutate()}
       />
-      <ConfirmDialog
-        open={unsavedChanges.open}
-        title={m.common.unsavedChanges.title}
-        description={<>{t.details.unsaved(pendingChanges.join(' · '))}<br />{m.common.unsavedChanges.description}</>}
-        confirmLabel={m.common.unsavedChanges.confirm}
-        confirmColor="warning"
-        onCancel={unsavedChanges.cancel}
-        onConfirm={unsavedChanges.discard}
-      />
+      <UnsavedChangesDialog guard={unsavedChanges} detail={t.details.unsaved(pendingChanges.join(' · '))} />
       <Dialog
         open={deleteOpen && Boolean(selectedRow)}
         onClose={() => setDeleteOpen(false)}

@@ -1,8 +1,6 @@
 import { useCallback, useState } from 'react'
 import { createPath, useBeforeUnload, useBlocker } from 'react-router-dom'
 
-type PendingAction = (() => void) | null
-
 /**
  * Protects unfinished form work from route changes, reloads and local actions
  * such as opening another row. The caller owns the confirmation copy and UI.
@@ -11,7 +9,7 @@ export function useUnsavedChanges(dirty: boolean) {
   const blocker = useBlocker(useCallback(({ currentLocation, nextLocation }) => (
     dirty && createPath(currentLocation) !== createPath(nextLocation)
   ), [dirty]))
-  const [pendingAction, setPendingAction] = useState<PendingAction>(null)
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
 
   useBeforeUnload(useCallback((event) => {
     if (!dirty) return
@@ -19,17 +17,17 @@ export function useUnsavedChanges(dirty: boolean) {
     event.returnValue = ''
   }, [dirty]), { capture: true })
 
-  const requestAction = useCallback((action: () => void) => {
+  const requestAction = (action: () => void) => {
     if (dirty) setPendingAction(() => action)
     else action()
-  }, [dirty])
+  }
 
-  const cancel = useCallback(() => {
+  const cancel = () => {
     setPendingAction(null)
     if (blocker.state === 'blocked') blocker.reset()
-  }, [blocker])
+  }
 
-  const discard = useCallback(() => {
+  const discard = () => {
     if (blocker.state === 'blocked') {
       blocker.proceed()
       return
@@ -37,7 +35,7 @@ export function useUnsavedChanges(dirty: boolean) {
     const action = pendingAction
     setPendingAction(null)
     action?.()
-  }, [blocker, pendingAction])
+  }
 
   return {
     open: blocker.state === 'blocked' || pendingAction !== null,

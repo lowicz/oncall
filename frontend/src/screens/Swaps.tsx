@@ -26,7 +26,7 @@ import {
   swapImpactQuery,
 } from '../lib/swaps'
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
-import { ConfirmDialog } from '../components/ConfirmDialog'
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import {
   AvailabilityMark,
@@ -1035,15 +1035,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           ) : create.error && <Box tone="bad" role="alert" title={create.error.message} />}
         </form>
       </Panel>
-      <ConfirmDialog
-        open={unsavedChanges.open}
-        title={t.common.unsavedChanges.title}
-        description={t.common.unsavedChanges.description}
-        confirmLabel={t.common.unsavedChanges.confirm}
-        confirmColor="warning"
-        onCancel={unsavedChanges.cancel}
-        onConfirm={unsavedChanges.discard}
-      />
+      <UnsavedChangesDialog guard={unsavedChanges} />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { preferredScrollBehavior } from '../lib/motion'
 import { draftFairnessImpactQuery } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
 import { DraftFairnessPanel, worstSpread } from '../components/DraftFairnessPanel'
 import { DraftList } from '../components/DraftList'
@@ -748,15 +749,7 @@ export function GeneratorPanel() {
           <p className="muted small">{t.publish.undoNote}</p>
         </Dialog>
       )}
-      <ConfirmDialog
-        open={unsavedChanges.open}
-        title={common.unsavedChanges.title}
-        description={common.unsavedChanges.description}
-        confirmLabel={common.unsavedChanges.confirm}
-        confirmColor="warning"
-        onCancel={unsavedChanges.cancel}
-        onConfirm={unsavedChanges.discard}
-      />
+      <UnsavedChangesDialog guard={unsavedChanges} />
     </div>
   )
 }
