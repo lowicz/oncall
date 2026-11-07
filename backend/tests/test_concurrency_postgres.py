@@ -43,6 +43,7 @@ from oncall.domain.vocabulary import (
 )
 from oncall.infrastructure.sqlalchemy.access_models import AccountToken, User
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.availability import SqlAlchemyAvailability
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.base import Base
 from oncall.infrastructure.sqlalchemy.notification_models import (
@@ -433,6 +434,50 @@ async def test_a_withdrawal_racing_the_expiry_ends_the_request_once(
     await pg.refresh(swap)
     assert swap.status == SwapStatus.cancelled
     assert swap.decision_note == (SWAP_EXPIRED_NOTE if closed else "Już nieaktualne")
+
+
+async def test_range_failure_rolls_back_every_availability_change(pg, monkeypatch) -> None:
+    roster = await _roster(pg)
+    ewa = roster["members"]["ewa"]
+    coordinator = await _client("koord1")
+    day = date.today() + timedelta(days=30)
+    try:
+        created = await coordinator.post(
+            f"/api/v1/availability/members/{ewa.id}",
+            json={
+                "kind": "unavailable",
+                "starts_on": day.isoformat(),
+                "ends_on": (day + timedelta(days=4)).isoformat(),
+            },
+        )
+        assert created.status_code == 201, created.text
+        record = SqlAlchemyAvailability.record
+        calls = 0
+
+        async def fail_on_second_record(self, entry):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError("injected range failure")
+            await record(self, entry)
+
+        monkeypatch.setattr(SqlAlchemyAvailability, "record", fail_on_second_record)
+        with pytest.raises(RuntimeError, match="injected range failure"):
+            await coordinator.put(
+                f"/api/v1/availability/members/{ewa.id}/range",
+                json={
+                    "kind": "prefer_not",
+                    "starts_on": (day + timedelta(days=2)).isoformat(),
+                    "ends_on": (day + timedelta(days=2)).isoformat(),
+                },
+            )
+    finally:
+        await coordinator.aclose()
+
+    rows = (await pg.scalars(select(Availability).where(Availability.member_id == ewa.id))).all()
+    assert [(row.kind.value, row.starts_on, row.ends_on) for row in rows] == [
+        ("unavailable", day, day + timedelta(days=4))
+    ]
 
 
 async def test_two_overlapping_declarations_store_one_entry(pg, monkeypatch) -> None:

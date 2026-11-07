@@ -225,6 +225,21 @@ whole month, and says how many days it covers.
 Future formats (XLSX, Word) are to use the same reporting model, not separate
 counting logic.
 
+## Availability and rule API
+
+`PUT /api/v1/availability/me/range` saves one painted availability range for the signed-in person in a single request.
+A coordinator uses the equivalent `PUT /api/v1/availability/members/{member_id}/range` to act for a rotation member.
+The body contains `starts_on`, `ends_on`, an optional `note`, and `kind`: `unavailable`, `prefer_not`, `prefer`, or `null` to clear the range.
+The server cuts overlapping entries into the pieces outside the range and stores removals, preserved pieces, and the new entry in one transaction.
+A failure in any part rolls back the whole operation.
+The existing `POST` and `DELETE` endpoints remain available for older clients.
+
+Before a schedule correction, a client can retrieve hard-rule violations without changing data.
+`POST /api/v1/calendar/override/check` checks one slot, while `POST /api/v1/calendar/override/batch/check` checks a whole `assignments` batch for one schedule.
+Both return a list of violations and write nothing.
+The write endpoints check the rules again, so a deliberate violation still requires `acknowledge_rule_violations: true`.
+Every request that changes or checks a decision requires a signed-in session, the appropriate role, and a CSRF token.
+
 ## Audit
 
 Significant operations - sign-ins and failed sign-ins, availability changes,

@@ -57,23 +57,26 @@ class SqlAlchemyAvailability:
         self._actor = actor
         self._recorded: Availability | None = None
 
-    async def overlapping_entry(
+    async def overlapping_entries(
         self, member_id: uuid.UUID, starts_on: date, ends_on: date
-    ) -> AvailabilityEntry | None:
-        # Atomic check-then-insert: declarations for one member are taken one
-        # at a time by locking the member's row until the unit of work ends.
+    ) -> list[AvailabilityEntry]:
+        # Atomic check-then-write: changes for one member are taken one at a
+        # time by locking the member's row until the unit of work ends.
         # NO KEY UPDATE still lets unrelated rows reference the member.
         await self._session.execute(
             select(TeamMember.id).where(TeamMember.id == member_id).with_for_update(key_share=True)
         )
-        row = await self._session.scalar(
-            select(Availability).where(
+        rows = await self._session.scalars(
+            select(Availability)
+            .where(
                 Availability.member_id == member_id,
                 Availability.starts_on <= ends_on,
                 Availability.ends_on >= starts_on,
             )
+            .order_by(Availability.starts_on)
+            .with_for_update()
         )
-        return _to_entry(row, None) if row is not None else None
+        return [_to_entry(row, None) for row in rows]
 
     async def record(self, entry: NewAvailabilityEntry) -> None:
         self._recorded = Availability(

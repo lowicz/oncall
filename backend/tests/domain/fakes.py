@@ -312,8 +312,8 @@ class FakeLedger:
         self.by_id[entry.id] = entry
         return entry
 
-    async def overlapping_entry(self, member_id, starts_on, ends_on):
-        return next(
+    async def overlapping_entries(self, member_id, starts_on, ends_on):
+        return sorted(
             (
                 item
                 for item in self.by_id.values()
@@ -321,7 +321,7 @@ class FakeLedger:
                 and item.starts_on <= ends_on
                 and item.ends_on >= starts_on
             ),
-            None,
+            key=lambda item: item.starts_on,
         )
 
     async def record(self, entry):
@@ -344,7 +344,13 @@ class FakeLedger:
 
     async def entries(self, member_id, starts_on, ends_on):
         return sorted(
-            (item for item in self.by_id.values() if item.member_id == member_id),
+            (
+                item
+                for item in self.by_id.values()
+                if item.member_id == member_id
+                and (starts_on is None or item.ends_on >= starts_on)
+                and (ends_on is None or item.starts_on <= ends_on)
+            ),
             key=lambda item: item.starts_on,
         )
 

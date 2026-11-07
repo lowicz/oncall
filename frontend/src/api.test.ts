@@ -129,6 +129,13 @@ const CASES: Case[] = [
   get('publishedSchedule', () => api.publishedSchedule(), '/api/v1/schedules/published'),
   get('calendar', () => api.calendar('2026-09-01', '2026-09-30'),
     '/api/v1/calendar?starts_on=2026-09-01&ends_on=2026-09-30'),
+  send('batchOverrideCheck', () => api.batchOverrideCheck({
+    schedule_id: 's1',
+    assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
+  }), 'POST', '/api/v1/calendar/override/batch/check', {
+    schedule_id: 's1',
+    assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
+  }),
   send('batchOverride', () => api.batchOverride({
     schedule_id: 's1', expected_version: 2, reason: 'choroba',
     assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
@@ -155,10 +162,14 @@ const CASES: Case[] = [
   get('availability', () => api.availability(), '/api/v1/availability/me'),
   send('createAvailability', () => api.createAvailability(availabilityInput),
     'POST', '/api/v1/availability/me', availabilityInput),
+  send('replaceAvailabilityRange', () => api.replaceAvailabilityRange({ ...availabilityInput, kind: null }),
+    'PUT', '/api/v1/availability/me/range', { ...availabilityInput, kind: null }),
   send('deleteAvailability', () => api.deleteAvailability('a1'), 'DELETE', '/api/v1/availability/me/a1'),
   get('memberAvailability', () => api.memberAvailability('m1'), '/api/v1/availability/members/m1'),
   send('createMemberAvailability', () => api.createMemberAvailability('m1', availabilityInput),
     'POST', '/api/v1/availability/members/m1', availabilityInput),
+  send('replaceMemberAvailabilityRange', () => api.replaceMemberAvailabilityRange('m1', availabilityInput),
+    'PUT', '/api/v1/availability/members/m1/range', availabilityInput),
   send('deleteMemberAvailability', () => api.deleteMemberAvailability('m1', 'a1'),
     'DELETE', '/api/v1/availability/members/m1/a1'),
   send('commitHistory', () => api.commitHistory({

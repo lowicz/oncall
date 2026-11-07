@@ -12,6 +12,7 @@ from oncall.domain.availability import errors, use_cases
 from oncall.domain.availability.models import (
     AvailabilityDeclaration,
     AvailabilityQuery,
+    AvailabilityRangeReplacement,
     AvailabilityWithdrawal,
     MemberById,
     MemberRef,
@@ -23,6 +24,7 @@ from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.permissions import Coordinator, require_roles
 from oncall.presentation.availability import (
     AvailabilityCreate,
+    AvailabilityRangeReplace,
     AvailabilityResponse,
     availability_response,
 )
@@ -85,6 +87,29 @@ async def _create(
     return availability_response(declared.entry, declared.member, declared.warning)
 
 
+async def _replace_range(
+    user: User,
+    member: MemberRef,
+    payload: AvailabilityRangeReplace,
+    ports: AvailabilityWritePorts,
+) -> AvailabilityResponse | None:
+    with domain_errors_as_http(AVAILABILITY_ERROR_STATUSES):
+        replaced = await use_cases.replace_availability_range(
+            AvailabilityRangeReplacement(
+                actor=actor_from(user),
+                member=member,
+                starts_on=payload.starts_on,
+                ends_on=payload.ends_on,
+                kind=payload.kind,
+                note=payload.note,
+            ),
+            ports,
+        )
+    if replaced.entry is None:
+        return None
+    return availability_response(replaced.entry, replaced.member, replaced.warning)
+
+
 async def _delete(
     user: User, member: MemberRef, entry_id: uuid.UUID, ports: AvailabilityWritePorts
 ) -> None:
@@ -109,6 +134,17 @@ async def create_my_availability(
     payload: AvailabilityCreate, user: MemberUser, ports: AvailabilityWriter, _: CsrfGuard
 ) -> AvailabilityResponse:
     return await _create(user, OwnMember(), payload, ports)
+
+
+@router.put("/me/range", response_model=AvailabilityResponse | None)
+async def replace_my_availability_range(
+    payload: AvailabilityRangeReplace,
+    user: MemberUser,
+    ports: AvailabilityWriter,
+    _: CsrfGuard,
+) -> AvailabilityResponse | None:
+    """Atomically replace or clear one range while preserving its outside pieces."""
+    return await _replace_range(user, OwnMember(), payload, ports)
 
 
 @router.delete("/me/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -142,6 +178,18 @@ async def create_member_availability(
     _: CsrfGuard,
 ) -> AvailabilityResponse:
     return await _create(user, MemberById(member_id), payload, ports)
+
+
+@router.put("/members/{member_id}/range", response_model=AvailabilityResponse | None)
+async def replace_member_availability_range(
+    member_id: uuid.UUID,
+    payload: AvailabilityRangeReplace,
+    user: Coordinator,
+    ports: AvailabilityWriter,
+    _: CsrfGuard,
+) -> AvailabilityResponse | None:
+    """Atomically replace a range on behalf of a rotation member."""
+    return await _replace_range(user, MemberById(member_id), payload, ports)
 
 
 @router.delete("/members/{member_id}/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)

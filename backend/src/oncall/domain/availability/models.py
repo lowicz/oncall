@@ -43,6 +43,22 @@ class AvailabilityDeclaration:
 
 
 @dataclass(frozen=True)
+class AvailabilityRangeReplacement:
+    """One brush stroke that replaces everything inside its date range.
+
+    A missing kind clears the range while preserving the parts of existing
+    entries that lie outside it.
+    """
+
+    actor: Actor
+    member: MemberRef
+    starts_on: date
+    ends_on: date
+    kind: AvailabilityKind | None
+    note: str | None = None
+
+
+@dataclass(frozen=True)
 class AvailabilityWithdrawal:
     actor: Actor
     member: MemberRef
@@ -96,6 +112,14 @@ class AvailabilityDeclared:
     #: Duties the member holds inside a hard `unavailable` entry; it does not
     #: remove them.
     duty_conflicts: tuple[Duty, ...]
+    warning: str | None
+
+
+@dataclass(frozen=True)
+class AvailabilityRangeReplaced:
+    member: Member
+    #: The entry painted over the range, or none when the range was cleared.
+    entry: AvailabilityEntry | None
     warning: str | None
 
 

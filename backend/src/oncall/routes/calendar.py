@@ -12,6 +12,7 @@ from oncall.domain.calendar.models import CalendarEventChange, NewCalendarEvent
 from oncall.domain.overrides import errors as override_errors
 from oncall.domain.overrides import use_cases as override_use_cases
 from oncall.domain.overrides.models import (
+    BatchOverrideCheck,
     BatchOverrideInput,
     BatchOverrideLine,
     OverrideCheck,
@@ -27,6 +28,7 @@ from oncall.presentation.calendar import (
     calendar_response,
 )
 from oncall.presentation.overrides import (
+    BatchOverrideCheckRequest,
     BatchOverrideRequest,
     DirectOverrideCheckRequest,
     DirectOverrideRequest,
@@ -208,6 +210,28 @@ async def direct_override(
             ports,
         )
     return override_assignment_response(result)
+
+
+@router.post("/override/batch/check", response_model=list[RuleViolationResponse])
+async def batch_override_check(
+    payload: BatchOverrideCheckRequest,
+    _: Coordinator,
+    ports: OverrideProvider,
+    __: CsrfGuard,
+) -> list[RuleViolationResponse]:
+    """The hard rules a whole batch would break, without writing any slot."""
+    with _override_errors_as_http():
+        violations = await override_use_cases.check_batch_override(
+            BatchOverrideCheck(
+                schedule_id=payload.schedule_id,
+                lines=tuple(
+                    BatchOverrideLine(item.service_date, item.role, item.replacement_member_id)
+                    for item in payload.assignments
+                ),
+            ),
+            ports,
+        )
+    return rule_violation_responses(violations)
 
 
 @router.post("/override/batch", response_model=list[AssignmentResponse])

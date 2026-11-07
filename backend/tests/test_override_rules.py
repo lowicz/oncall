@@ -214,6 +214,29 @@ def _breaking_batch(schedule, members: dict, **extra) -> dict:
 
 
 @pytest.mark.anyio
+async def test_batch_override_check_reports_rules_without_writing(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    members = await _team(db)
+    schedule = await _roster(db)
+    await login(client, "koord")
+    batch = _breaking_batch(schedule, members)
+
+    response = await client.post(
+        "/api/v1/calendar/override/batch/check",
+        json={"schedule_id": batch["schedule_id"], "assignments": batch["assignments"]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert "same_day_oncall" in {item["rule"] for item in response.json()}
+    await db.refresh(schedule)
+    assert schedule.version == 1
+    assert (
+        await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override_batch"))
+    ).all() == []
+
+
+@pytest.mark.anyio
 async def test_batch_override_that_breaks_a_rule_is_refused_without_acknowledgement(
     client: AsyncClient, db: AsyncSession
 ) -> None:

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from oncall.domain.availability.errors import (
     AvailabilityAlreadyExists,
@@ -14,6 +14,8 @@ from oncall.domain.availability.models import (
     AvailabilityDeclaration,
     AvailabilityDeclared,
     AvailabilityQuery,
+    AvailabilityRangeReplaced,
+    AvailabilityRangeReplacement,
     AvailabilityWithdrawal,
     MemberAvailability,
     MemberById,
@@ -49,6 +51,15 @@ async def list_availability(
     return MemberAvailability(member=member, entries=tuple(entries))
 
 
+def _validate_range(starts_on: date, ends_on: date, today: date) -> None:
+    if ends_on < starts_on:
+        raise AvailabilityRangeReversed()
+    if (ends_on - starts_on).days > MAX_ENTRY_DAYS:
+        raise AvailabilityRangeTooLong()
+    if ends_on < today:
+        raise AvailabilityInThePast()
+
+
 async def declare_availability(
     declaration: AvailabilityDeclaration,
     ports: AvailabilityWritePorts,
@@ -57,18 +68,14 @@ async def declare_availability(
 ) -> AvailabilityDeclared:
     """One write path for a member's own entry and a coordinator's entry on
     their behalf, so the rules cannot drift between the two."""
-    if declaration.ends_on < declaration.starts_on:
-        raise AvailabilityRangeReversed()
-    if (declaration.ends_on - declaration.starts_on).days > MAX_ENTRY_DAYS:
-        raise AvailabilityRangeTooLong()
+    _validate_range(declaration.starts_on, declaration.ends_on, today or business_today())
     member = await _resolve(declaration.member, declaration.actor, ports.team)
     on_behalf = member.user_id != declaration.actor.user_id
-    if declaration.ends_on < (today or business_today()):
-        raise AvailabilityInThePast()
-    overlapping = await ports.ledger.overlapping_entry(
+    overlapping_entries = await ports.ledger.overlapping_entries(
         member.id, declaration.starts_on, declaration.ends_on
     )
-    if overlapping is not None:
+    if overlapping_entries:
+        overlapping = overlapping_entries[0]
         if (
             overlapping.kind == declaration.kind
             and overlapping.starts_on == declaration.starts_on
@@ -110,6 +117,69 @@ async def declare_availability(
         on_behalf=on_behalf,
         duty_conflicts=tuple(duty_conflicts),
         warning=warning,
+    )
+
+
+async def replace_availability_range(
+    replacement: AvailabilityRangeReplacement,
+    ports: AvailabilityWritePorts,
+    *,
+    today: date | None = None,
+) -> AvailabilityRangeReplaced:
+    """Replace one date range as a single unit-of-work operation.
+
+    Existing entries are cut around the range, then an optional new entry is
+    painted into it. The HTTP unit of work commits every staged withdrawal and
+    declaration together, or rolls all of them back on any failure.
+    """
+    today = today or business_today()
+    _validate_range(replacement.starts_on, replacement.ends_on, today)
+    member = await _resolve(replacement.member, replacement.actor, ports.team)
+    on_behalf = member.user_id != replacement.actor.user_id
+    overlapping = await ports.ledger.overlapping_entries(
+        member.id, replacement.starts_on, replacement.ends_on
+    )
+    declarations: list[AvailabilityDeclaration] = []
+    for entry in overlapping:
+        await ports.journal.withdrawn(member=member, entry=entry, on_behalf=on_behalf)
+        await ports.ledger.remove(entry.id)
+        pieces = (
+            (entry.starts_on, replacement.starts_on - timedelta(days=1)),
+            (replacement.ends_on + timedelta(days=1), entry.ends_on),
+        )
+        declarations.extend(
+            AvailabilityDeclaration(
+                actor=replacement.actor,
+                member=replacement.member,
+                kind=entry.kind,
+                starts_on=starts_on,
+                ends_on=ends_on,
+                note=entry.note,
+            )
+            for starts_on, ends_on in pieces
+            if starts_on <= ends_on and ends_on >= today
+        )
+    painted_index: int | None = None
+    if replacement.kind is not None:
+        painted_index = len(declarations)
+        declarations.append(
+            AvailabilityDeclaration(
+                actor=replacement.actor,
+                member=replacement.member,
+                kind=replacement.kind,
+                starts_on=replacement.starts_on,
+                ends_on=replacement.ends_on,
+                note=replacement.note,
+            )
+        )
+    declared = [
+        await declare_availability(declaration, ports, today=today) for declaration in declarations
+    ]
+    painted = declared[painted_index] if painted_index is not None else None
+    return AvailabilityRangeReplaced(
+        member=member,
+        entry=painted.entry if painted is not None else None,
+        warning=painted.warning if painted is not None else None,
     )
 
 

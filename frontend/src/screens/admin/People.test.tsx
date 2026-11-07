@@ -943,7 +943,7 @@ describe('PeoplePanel rotation tab', () => {
     sheet = await screen.findByRole('dialog', { name: 'Zakończenie rotacji: Anna Kowalska' })
     expect(await within(sheet).findByText(/Brak dyżurów po dacie wyjścia/)).toBeInTheDocument()
     fireEvent.click(within(sheet).getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
 
     await waitFor(() => expect(finish).toHaveBeenCalledWith({ id: 'm1', input: { active_until: '2026-12-31' } }))
     expect(endPeriod).toHaveBeenCalledWith({ id: 'e1', input: { ends_on: '2026-12-31' } })

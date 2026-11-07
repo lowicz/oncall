@@ -52,6 +52,13 @@ class BatchOverrideItem(BaseModel):
     replacement_member_id: uuid.UUID
 
 
+class BatchOverrideCheckRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schedule_id: uuid.UUID
+    assignments: list[BatchOverrideItem] = Field(min_length=1, max_length=200)
+
+
 class BatchOverrideRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
