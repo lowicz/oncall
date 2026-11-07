@@ -20,6 +20,7 @@ describe('undoable', () => {
     const toast = toastDouble()
     const execute = vi.fn(async () => ({ id: 7 }))
     const undo = vi.fn(async () => {})
+    const started = Date.now()
 
     const result = await undoable({
       execute,
@@ -28,6 +29,7 @@ describe('undoable', () => {
       message: ({ id }) => ({ title: `Saved ${id}`, description: 'E-mails are waiting' }),
       undoLabel: 'Undo',
       onUndoError: vi.fn(),
+      windowSeconds: 10,
     })
 
     expect(result).toEqual({ id: 7 })
@@ -35,6 +37,7 @@ describe('undoable', () => {
     expect(toast.success).toHaveBeenCalledWith('Saved 7', {
       description: 'E-mails are waiting',
       action: { label: 'Undo', onClick: expect.any(Function) },
+      until: started + 10_000,
     })
 
     actionFrom(toast)()
@@ -59,6 +62,7 @@ describe('undoable', () => {
       message: () => ({ title: 'Saved' }),
       undoLabel: 'Undo',
       onUndoError,
+      windowSeconds: 10,
     })
 
     const action = actionFrom(toast)
@@ -69,6 +73,25 @@ describe('undoable', () => {
     action()
     await vi.waitFor(() => expect(undo).toHaveBeenCalledTimes(2))
     await vi.waitFor(() => expect(toast.close).toHaveBeenCalledWith('toast-1'))
+  })
+
+  it('counts the window from before the request, not from the toast', async () => {
+    const toast = toastDouble()
+    const started = Date.now()
+
+    const pending = undoable({
+      execute: () => new Promise((resolve) => setTimeout(() => resolve('saved'), 3000)),
+      undo: async () => {},
+      toast,
+      message: () => ({ title: 'Saved' }),
+      undoLabel: 'Undo',
+      onUndoError: vi.fn(),
+      windowSeconds: 10,
+    })
+    await vi.advanceTimersByTimeAsync(3000)
+    await pending
+
+    expect(toast.success.mock.calls[0]?.[1]?.until).toBe(started + 10_000)
   })
 
   it('does not show a toast when the mutation fails', async () => {
@@ -82,6 +105,7 @@ describe('undoable', () => {
       message: () => ({ title: 'Saved' }),
       undoLabel: 'Undo',
       onUndoError: vi.fn(),
+      windowSeconds: 10,
     })).rejects.toBe(failure)
 
     expect(toast.success).not.toHaveBeenCalled()

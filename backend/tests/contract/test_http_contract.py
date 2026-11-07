@@ -36,6 +36,7 @@ async def test_public_response_and_validation_envelopes(client) -> None:
             "version": "dev",
             "audit_retention_days": 365,
             "login_audit_retention_days": 90,
+            "undo_window_seconds": 10,
         },
     )
 

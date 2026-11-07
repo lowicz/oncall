@@ -6,12 +6,13 @@ import { useMessages } from '../i18n/messages'
 
 type Tone = 'ok' | 'warn' | 'bad' | 'info'
 
-const TOAST_ACTION_TIMEOUT_MS = 10_000
-
 interface ToastOptions {
   description?: ReactNode
   action?: { label: string; onClick: () => void }
   timeout?: number
+  /** Epoch milliseconds at which the toast closes, even while hover or focus
+   *  pauses its countdown. */
+  until?: number
 }
 
 export type ToastApi = ReturnType<typeof useToast>
@@ -59,13 +60,15 @@ function ToastList() {
 export function useToast() {
   const manager = BaseToast.useToastManager()
   const show = useCallback((tone: Tone, title: ReactNode, options?: ToastOptions) => {
-    return manager.add({
+    const id = manager.add({
       type: tone,
       title,
       description: options?.description,
-      timeout: options?.timeout ?? (options?.action ? TOAST_ACTION_TIMEOUT_MS : undefined),
+      timeout: options?.until === undefined ? options?.timeout : 0,
       actionProps: options?.action ? { children: options.action.label, onClick: options.action.onClick } : undefined,
     })
+    if (options?.until !== undefined) setTimeout(() => manager.close(id), options.until - Date.now())
+    return id
   }, [manager])
   return useMemo(() => ({
     success: (title: ReactNode, options?: ToastOptions) => show('ok', title, options),

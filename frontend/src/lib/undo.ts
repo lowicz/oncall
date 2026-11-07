@@ -13,14 +13,20 @@ export interface UndoableOptions<Result> {
   message: (result: Result) => UndoMessage
   undoLabel: string
   onUndoError: (error: unknown) => void
+  /** `undo_window_seconds` from `/api/v1/config`: how long the server holds
+   *  the change's e-mails. */
+  windowSeconds: number
 }
 
 /**
- * Executes a reversible mutation and offers its inverse in a ten-second toast.
- * A failed inverse remains available for another attempt and is reported by
- * the caller, which owns the operation-specific error copy.
+ * Executes a reversible mutation and offers its inverse in a toast that closes
+ * when the server's Undo window does. The window is counted from before the
+ * request, so it never outlasts the server's, and hover or focus cannot extend
+ * it. A failed inverse remains available for another attempt and is reported
+ * by the caller, which owns the operation-specific error copy.
  */
 export async function undoable<Result>(options: UndoableOptions<Result>): Promise<Result> {
+  const until = Date.now() + options.windowSeconds * 1000
   const result = await options.execute()
   const message = options.message(result)
   let undoing = false
@@ -41,6 +47,7 @@ export async function undoable<Result>(options: UndoableOptions<Result>): Promis
   toastId = options.toast.success(message.title, {
     description: message.description,
     action: { label: options.undoLabel, onClick: undo },
+    until,
   })
   return result
 }

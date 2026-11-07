@@ -22,6 +22,9 @@ export interface PublicConfig {
    *  states it so a reader knows where the trail ends. */
   audit_retention_days: number
   login_audit_retention_days: number
+  /** How long Undo stays open after a reversible change, in seconds; the
+   *  server holds the change's e-mails for as long. `undoable()` takes it. */
+  undo_window_seconds: number
 }
 
 export interface ShareSession {

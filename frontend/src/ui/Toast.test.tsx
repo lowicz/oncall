@@ -38,18 +38,32 @@ describe('toasts', () => {
     expect(within(item).getByText('Grafik wrzesień')).toHaveClass('toast-desc')
   })
 
-  it('offers an action that runs its handler for ten seconds', async () => {
+  it('offers an action that runs its handler until its deadline', async () => {
     const onClick = vi.fn()
-    renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick } }))
+    renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick }, until: Date.now() + 10_000 }))
     const item = await toastNamed('Usunięto wpis')
     fireEvent.click(within(item).getByRole('button', { name: 'Cofnij' }))
     expect(onClick).toHaveBeenCalledOnce()
     screen.getByRole('button', { name: 'raise' }).focus()
 
-    await act(() => vi.advanceTimersByTimeAsync(7000))
+    await act(() => vi.advanceTimersByTimeAsync(9000))
     expect(screen.getByText('Usunięto wpis')).toBeInTheDocument()
-    await act(() => vi.advanceTimersByTimeAsync(4000))
+    await act(() => vi.advanceTimersByTimeAsync(1100))
     await waitFor(() => expect(screen.queryByText('Usunięto wpis')).not.toBeInTheDocument())
+  })
+
+  it.each([
+    ['the pointer is over the notifications', (item: HTMLElement) => fireEvent.mouseEnter(item.closest('.toasts') as HTMLElement)],
+    ['its action has keyboard focus', (item: HTMLElement) => {
+      fireEvent.keyDown(document, { key: 'Tab' })
+      within(item).getByRole('button', { name: 'Cofnij' }).focus()
+    }],
+  ])('closes at its deadline even while %s', async (_, pause) => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', { action: { label: 'Cofnij', onClick: vi.fn() }, until: Date.now() + 10_000 }))
+    pause(await toastNamed('Zapisano zmianę'))
+
+    await act(() => vi.advanceTimersByTimeAsync(10_100))
+    await waitFor(() => expect(screen.queryByText('Zapisano zmianę')).not.toBeInTheDocument())
   })
 
   it('pauses an action toast while the pointer is over the notifications', async () => {
