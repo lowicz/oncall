@@ -39,6 +39,8 @@ describe('Chip', () => {
   it('rows are a named list only when labelled', () => {
     const { container, rerender } = render(<ChipRow label="Ryzyka" className="r"><span>a</span></ChipRow>)
     expect(screen.getByRole('list', { name: 'Ryzyka' })).toHaveClass('risk', 'r')
+    rerender(<ChipRow label="Ryzyka"><><span>a</span>{false}<><span>b</span></></><></>{null}<span>c</span></ChipRow>)
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['a', 'b', 'c'])
     rerender(<ChipRow><span>a</span></ChipRow>)
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
     expect(container.firstElementChild).toHaveClass('risk')

@@ -1,4 +1,4 @@
-import { Children, ReactNode, useState } from 'react'
+import { Children, Fragment, ReactNode, isValidElement, useState } from 'react'
 import { cx } from './cx'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
@@ -45,10 +45,13 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
   return <span className={cx('chip', `chip-${tone}`, className)} title={title}>{content}</span>
 }
 
+const chipsOf = (children: ReactNode): ReactNode[] => Children.toArray(children).flatMap((child) =>
+  isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment ? chipsOf(child.props.children) : [child])
+
 export function ChipRow({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
   return (
     <div className={cx('risk', className)} role={label ? 'list' : undefined} aria-label={label}>
-      {label ? Children.toArray(children).map((child, index) => <div className="chip-row-item" role="listitem" key={index}>{child}</div>) : children}
+      {label ? chipsOf(children).map((child, index) => <div className="chip-row-item" role="listitem" key={index}>{child}</div>) : children}
     </div>
   )
 }
