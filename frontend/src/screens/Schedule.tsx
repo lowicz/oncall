@@ -63,11 +63,9 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
     }
     const coveredEnd = published.data?.ends_on
     const fourWeeks = addDays(today, 27)
-    const defaultEnd = !published.data?.is_published
-      ? fourWeeks
-      : coveredEnd && coveredEnd >= today
-        ? (coveredEnd < fourWeeks ? coveredEnd : fourWeeks)
-        : fourWeeks
+    const defaultEnd = published.data?.is_published && coveredEnd && coveredEnd >= today && coveredEnd < fourWeeks
+      ? coveredEnd
+      : fourWeeks
     return { starts_on: today, ends_on: defaultEnd }
   }, [explicitStart, od, legacyEnd, zoomParam, focusDay, published.data, today])
   const zoom: MatrixZoom = isZoom(zoomParam) ? zoomParam : zoomFor(range)
