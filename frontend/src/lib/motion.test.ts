@@ -2,16 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { preferredScrollBehavior } from './motion'
 
 function preferReducedMotion(matches: boolean) {
-  vi.spyOn(window, 'matchMedia').mockReturnValue({
-    matches,
-    media: '(prefers-reduced-motion: reduce)',
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  })
+  vi.spyOn(window, 'matchMedia').mockReturnValue({ matches } as MediaQueryList)
 }
 
 afterEach(() => vi.restoreAllMocks())

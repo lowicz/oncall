@@ -53,7 +53,7 @@ export function HistoryImportPanel() {
       />
       <div className="panel panel-padded stack-sm">
         <div className="row">
-          <label className="btn btn-pri cursor-pointer">
+          <label className="btn btn-pri">
             {upload.isPending ? t.checking : t.chooseCsv}
             <input
               hidden
