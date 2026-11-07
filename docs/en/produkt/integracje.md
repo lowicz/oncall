@@ -48,8 +48,8 @@ correction.
 
 Messages about a correction go out 10 seconds after it, once the Undo window
 has closed; the schedule change and its audit entry are recorded immediately.
-The reverse correction within that time (putting the previous person back)
-cancels the unsent messages and sends no new ones. After the window closes, the
+The reverse correction (putting the previous person back), as long as the
+messages have not been sent, cancels them and sends no new ones. After the window closes, the
 content and recipients are the same as without the delay. The notification
 offering Undo counts down to the window's close. The pointer or focus can keep
 it on screen for as long as they rest on it, but when the window closes the

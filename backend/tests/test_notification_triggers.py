@@ -382,7 +382,10 @@ async def test_batch_override_notifies_everyone_who_gave_up_or_took_a_slot(
     assert len(marek.context["changes"]) == 1
 
 
-async def test_reversing_a_batch_override_cancels_its_unsent_messages(db, frozen_clock) -> None:
+@pytest.mark.parametrize("delay", [timedelta(0), UNDO_WINDOW + timedelta(seconds=1)])
+async def test_reversing_a_batch_override_cancels_its_unsent_messages(
+    db, frozen_clock, delay
+) -> None:
     today, _members = await _seed_team(db)
     changes = [
         (today, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak"),
@@ -394,6 +397,7 @@ async def test_reversing_a_batch_override_cancels_its_unsent_messages(db, frozen
         ),
     ]
     await notify_assignments_overridden_in_batch(db, changes=changes, reason="Zmiana obsady")
+    frozen_clock.advance(delay)
     await notify_assignments_overridden_in_batch(
         db,
         changes=[

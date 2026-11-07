@@ -70,3 +70,14 @@ async def test_worker_sends_nothing_for_a_correction_undone_in_its_window(
     frozen_clock.advance(UNDO_WINDOW)
     assert (await worker.notification_cycle(db_factory))["sent"] == 0
     assert provider.sent == []
+
+
+async def test_an_undo_reaching_the_server_after_the_window_still_cancels_unsent_mail(
+    db, db_factory, frozen_clock, provider
+) -> None:
+    await _correct(db, "Anna Kowalska", "Marek Nowak")
+    frozen_clock.advance(UNDO_WINDOW + UNDO_WINDOW / 20)
+    await _correct(db, "Marek Nowak", "Anna Kowalska")
+
+    assert (await worker.notification_cycle(db_factory))["sent"] == 0
+    assert provider.sent == []

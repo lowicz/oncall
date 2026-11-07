@@ -211,21 +211,24 @@ async def test_undo_cancels_a_notification_before_the_worker_can_claim_it(
     assert provider.sent == []
 
 
-async def test_a_notification_cannot_be_cancelled_after_undo_expires(
+async def test_a_notification_can_be_cancelled_until_the_worker_sends_it(
     db, db_factory, frozen_clock
 ) -> None:
-    notification_id = await enqueue_notification(
-        db,
-        undoable_message(),
-        send_after=frozen_clock.instant + UNDO_WINDOW,
-    )
-    assert notification_id is not None
-    frozen_clock.advance(UNDO_WINDOW)
-
-    assert await cancel_notifications(db, undo_key="correction:1") == 0
+    for _ in range(2):
+        await enqueue_notification(
+            db,
+            undoable_message(),
+            send_after=frozen_clock.instant + UNDO_WINDOW,
+        )
     await db.commit()
+    frozen_clock.advance(UNDO_WINDOW)
     provider = FakeProvider()
-    assert (await drain_outbox(db_factory, {"email": provider}))["sent"] == 1
+    assert (await drain_outbox(db_factory, {"email": provider}, batch_size=1))["sent"] == 1
+
+    assert await cancel_notifications(db, undo_key="correction:1") == 1
+    await db.commit()
+    assert (await drain_outbox(db_factory, {"email": provider}))["sent"] == 0
+    assert len(provider.sent) == 1
 
 
 async def test_drain_respects_next_attempt_time(db, db_factory, frozen_clock) -> None:

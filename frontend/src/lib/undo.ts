@@ -5,6 +5,9 @@ import type { ToastApi } from '../ui/Toast'
 export interface UndoMessage {
   title: ReactNode
   description?: ReactNode
+  /** Replaces the description once Undo has expired; an action that sends
+   *  e-mails passes `common.undoEmailsSent`. */
+  expired?: ReactNode
 }
 
 export interface UndoableOptions<Result> {
@@ -23,7 +26,8 @@ export interface UndoableOptions<Result> {
  * Executes a reversible mutation and offers its inverse in a toast until the
  * server's Undo window closes. The window is counted from before the request,
  * so it never outlasts the server's; when it closes the toast drops "Cofnij"
- * and says the e-mails have gone out, even if hover or focus keeps it open.
+ * and shows the message's `expired` text, even if hover or focus keeps it
+ * open, and the inverse is no longer run.
  * A failed inverse remains available for another attempt and is reported by
  * the caller, which owns the operation-specific error copy.
  */
@@ -35,7 +39,7 @@ export async function undoable<Result>(options: UndoableOptions<Result>): Promis
   let toastId = ''
 
   const undo = () => {
-    if (undoing) return
+    if (undoing || Date.now() >= until) return
     undoing = true
     options.undo(result).then(
       () => options.toast.close(toastId),
@@ -49,7 +53,7 @@ export async function undoable<Result>(options: UndoableOptions<Result>): Promis
   toastId = options.toast.success(message.title, {
     description: message.description,
     action: { label: options.undoLabel, onClick: undo },
-    until: { at: until, expired: messages().common.undoClosed },
+    until: { at: until, expired: message.expired ?? messages().common.undoClosed },
   })
   return result
 }

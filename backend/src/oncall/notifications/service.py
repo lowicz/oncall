@@ -108,10 +108,13 @@ async def cancel_notifications(
     undo_key: str,
     now: datetime | None = None,
 ) -> int:
-    """Cancel an operation's pending messages while Undo is still open.
+    """Cancel an operation's messages that no worker has claimed yet.
 
-    The business change and audit trail are untouched. A cancellation only
-    marks the queued side effect so the worker and outbox metrics ignore it.
+    Only `pending` rows match, and a drain claims a row before sending it, so
+    a cancellation succeeds exactly while the messages are still unsent, also
+    when the inverse arrives just after the Undo window. The business change
+    and audit trail are untouched. A cancellation only marks the queued side
+    effect so the worker and outbox metrics ignore it.
     """
     cancelled_at = now or utc_now()
     result = await db.execute(
@@ -119,7 +122,6 @@ async def cancel_notifications(
         .where(
             NotificationOutbox.status == NotificationStatus.pending,
             NotificationOutbox.cancelled_at.is_(None),
-            NotificationOutbox.send_after > cancelled_at,
             NotificationOutbox.context["undo_key"].as_string() == undo_key,
         )
         .values(cancelled_at=cancelled_at)

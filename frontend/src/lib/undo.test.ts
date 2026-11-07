@@ -95,6 +95,43 @@ describe('undoable', () => {
     expect(toast.success.mock.calls[0]?.[1]?.until?.at).toBe(started + 10_000)
   })
 
+  it('lets an action that sends e-mails say so once Undo expires', async () => {
+    const toast = toastDouble()
+
+    await undoable({
+      execute: async () => 'saved',
+      undo: async () => {},
+      toast,
+      message: () => ({ title: 'Saved', expired: messages().common.undoEmailsSent }),
+      undoLabel: 'Undo',
+      onUndoError: vi.fn(),
+      windowSeconds: 10,
+    })
+
+    expect(toast.success.mock.calls[0]?.[1]?.until?.expired).toBe(messages().common.undoEmailsSent)
+  })
+
+  it('runs no inverse once the deadline has passed, even if the action is still shown', async () => {
+    const toast = toastDouble()
+    const undo = vi.fn(async () => {})
+    const started = Date.now()
+
+    await undoable({
+      execute: async () => 'saved',
+      undo,
+      toast,
+      message: () => ({ title: 'Saved' }),
+      undoLabel: 'Undo',
+      onUndoError: vi.fn(),
+      windowSeconds: 10,
+    })
+    vi.setSystemTime(started + 10_000)
+    actionFrom(toast)()
+
+    expect(undo).not.toHaveBeenCalled()
+    expect(toast.close).not.toHaveBeenCalled()
+  })
+
   it('does not show a toast when the mutation fails', async () => {
     const toast = toastDouble()
     const failure = new Error('not saved')
