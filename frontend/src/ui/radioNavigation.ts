@@ -26,7 +26,8 @@ const STEPS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: 
 
 /**
  * Shared arrow-key behaviour for segmented controls and radio cards: the
- * arrows select the next enabled choice, Home and End the first and last.
+ * arrows select the next enabled choice, Home and End the first and last;
+ * landing on the choice already made selects nothing again.
  * When every choice is blocked the arrows still walk them, so each reason can
  * be read, but select none.
  */
@@ -48,8 +49,9 @@ export function navigateRadioGroup<T extends string>(
     next = options[index]
   } else return
   event.preventDefault()
-  if (!next.disabled) onChange(next.value)
   // Only the group's own choices: a nested control (how a selected day is taken) carries values too.
   const radios = event.currentTarget.closest<HTMLElement>('[role="radiogroup"]')!.children as HTMLCollectionOf<HTMLElement>
-  Array.from(radios).find((radio) => radio.dataset.value === next.value)!.focus()
+  const target = Array.from(radios).find((radio) => radio.dataset.value === next.value)!
+  if (!next.disabled && target.getAttribute('aria-checked') !== 'true') onChange(next.value)
+  target.focus()
 }

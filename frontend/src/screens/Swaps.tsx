@@ -165,7 +165,7 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
       tabIndex={radioTabIndex(selectedValue, radioValue, navigation)}
       data-value={radioValue}
       className={cx('rank-c', best && 'rank-best', selected && 'rank-sel', blockedBy && 'rank-blocked')}
-      onClick={() => { if (!disabled) onSelect(radioValue) }}
+      onClick={() => { if (!disabled && radioValue !== selectedValue) onSelect(radioValue) }}
       onKeyDown={(event) => navigateRadioGroup(event, radioValue, navigation, onSelect)}
     >
       <span className="rank-no">{blockedBy ? '–' : no}</span>
@@ -879,7 +879,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                       tabIndex={radioTabIndex(replacementId, option.member_id, candidateNavigation)}
                       data-value={option.member_id}
                       className={cx('rank-c', best && 'rank-best', replacementId === option.member_id && 'rank-sel', blocked && 'rank-blocked')}
-                      onClick={() => { if (!blocked) pickReplacement(option.member_id) }}
+                      onClick={() => { if (!blocked && replacementId !== option.member_id) pickReplacement(option.member_id) }}
                       onKeyDown={(event) => navigateRadioGroup(event, option.member_id, candidateNavigation, pickReplacement)}
                     >
                       <span className="rank-no">{blocked ? '–' : index + 1}</span>

@@ -594,6 +594,10 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' }))
     expect(sendButton()).toBeEnabled()
 
+    // The candidate already chosen, chosen again, keeps the tick.
+    fireEvent.click(screen.getByRole('radio', { name: /Piotr Zieliński/ }))
+    expect(screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).toBeChecked()
+
     fireEvent.click(screen.getByRole('radio', { name: /Ola Wiśniewska/ }))
     expect(screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeChecked()
     expect(sendButton()).toBeDisabled()
@@ -1305,6 +1309,11 @@ describe('SwapPanel exchange: the "in return" step', () => {
     expect(screen.getByText(/^Wymiana: /).parentElement).toHaveTextContent('Jedna akceptacja zastępcy załatwia całość. Oba dyżury przechodzą razem albo wcale.')
     fireEvent.change(screen.getByLabelText(/Powód/), { target: { value: 'Urlop, nikt inny nie może' } })
     fireEvent.click(acknowledgement() as HTMLElement)
+    expect(sendButton()).toBeEnabled()
+
+    // The day already chosen, chosen again, keeps the tick.
+    fireEvent.click(await choice(/pt 18 wrz/))
+    expect(acknowledgement()).toBeChecked()
     expect(sendButton()).toBeEnabled()
 
     // Back to the hand-over: its rule was never acknowledged.

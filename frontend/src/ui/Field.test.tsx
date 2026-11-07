@@ -131,6 +131,18 @@ describe('Segmented', () => {
     fireEvent.click(option('Miesiąc'))
     expect(onChange).toHaveBeenCalledWith('month')
     expect(option('Miesiąc')).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(option('Miesiąc'))
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('selects nothing again when an arrow lands on the choice already made', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<Segmented label="Jedna" value="a" onChange={onChange} options={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B', disabled: true }]} />)
+    await user.tab()
+    await user.keyboard('{ArrowRight}{End}')
+    expect(option('A')).toHaveFocus()
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('moves with the arrow keys, skipping a disabled option and wrapping at the ends', async () => {
@@ -156,8 +168,8 @@ describe('Segmented', () => {
   })
 
   describe('radio cards with aria-disabled choices', () => {
-    function Cards({ options }: { options: { value: string; disabled?: boolean }[] }) {
-      const [value, setValue] = useState('')
+    function Cards({ options, initial = '', onChange }: { options: { value: string; disabled?: boolean }[]; initial?: string; onChange?: (value: string) => void }) {
+      const [value, setValue] = useState(initial)
       return (
         <div role="radiogroup" aria-label="Cards">
           {options.map((item) => (
@@ -169,7 +181,7 @@ describe('Segmented', () => {
               aria-disabled={item.disabled || undefined}
               tabIndex={radioTabIndex(value, item.value, options)}
               data-value={item.value}
-              onKeyDown={(event) => navigateRadioGroup(event, item.value, options, setValue)}
+              onKeyDown={(event) => navigateRadioGroup(event, item.value, options, (next) => { setValue(next); onChange?.(next) })}
             >
               {item.value}
             </button>
@@ -199,6 +211,16 @@ describe('Segmented', () => {
       await user.keyboard('{ArrowUp}')
       expect(option('c')).toHaveFocus()
       expect(option('c')).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it('selects nothing again when stepping from a blocked card onto the chosen one', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      render(<Cards options={[{ value: 'a', disabled: true }, { value: 'b' }]} initial="b" onChange={onChange} />)
+      act(() => option('a').focus())
+      await user.keyboard('{ArrowDown}')
+      expect(option('b')).toHaveFocus()
+      expect(onChange).not.toHaveBeenCalled()
     })
   })
 

@@ -137,7 +137,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, d
           data-tone={option.tone}
           className={cx(option.value === value && 'on')}
           disabled={option.disabled}
-          onClick={() => onChange(option.value)}
+          onClick={() => { if (option.value !== value) onChange(option.value) }}
           onKeyDown={(event) => navigateRadioGroup(event, option.value, options, onChange)}
         >
           {option.label}
