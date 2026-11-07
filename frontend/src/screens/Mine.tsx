@@ -281,14 +281,14 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
 }
 
 /** Entries the painted range touches, with the pieces that stay outside it. */
-function splitAround(entries: AvailabilityEntry[], startsOn: string, endsOn: string, today: string) {
+function splitAround(entries: AvailabilityEntry[], startsOn: string, endsOn: string) {
   const overlapping = entries.filter((entry) => entry.starts_on <= endsOn && entry.ends_on >= startsOn)
   return overlapping.map((entry) => ({
     entry,
     pieces: [
       { starts_on: entry.starts_on, ends_on: addDays(startsOn, -1) },
       { starts_on: addDays(endsOn, 1), ends_on: entry.ends_on },
-    ].filter((piece) => piece.starts_on <= piece.ends_on && piece.ends_on >= today),
+    ].filter((piece) => piece.starts_on <= piece.ends_on),
   }))
 }
 
@@ -298,9 +298,8 @@ function optimisticRange(
   endsOn: string,
   brush: Brush,
   note: string | undefined,
-  today: string,
 ): AvailabilityEntry[] {
-  const split = splitAround(entries, startsOn, endsOn, today)
+  const split = splitAround(entries, startsOn, endsOn)
   const replacedIds = new Set(split.map(({ entry }) => entry.id))
   const result = entries.filter((entry) => !replacedIds.has(entry.id))
   for (const { entry, pieces } of split) {
@@ -320,6 +319,10 @@ function optimisticRange(
   }
   return result
 }
+
+const PAINT_KEY = ['availability', 'paint']
+
+const availabilityKey = (member: string | null) => (member ? ['availability', 'member', member] : ['availability', 'me'])
 
 /**
  * Availability as a calendar with a brush. The three kinds and "clear" are
@@ -350,7 +353,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   // show, so the section only works once a person is picked.
   const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf
 
-  const listKey = onBehalf ? ['availability', 'member', target] : ['availability', 'me']
+  const listKey = availabilityKey(onBehalf ? target : null)
   const entries = useQuery({
     queryKey: listKey,
     queryFn: onBehalf ? () => api.memberAvailability(target) : api.availability,
@@ -369,27 +372,27 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   const [brush, setBrush] = useState<Brush>('unavailable')
   const [note, setNote] = useState('')
   const [warning, setWarning] = useState<string | null>(null)
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: listKey })
-    queryClient.invalidateQueries({ queryKey: ['calendar'] })
-  }
-  const replace = (input: AvailabilityRangeInput) => (
-    onBehalf ? api.replaceMemberAvailabilityRange(target, input) : api.replaceAvailabilityRange(input)
-  )
-  type PaintCommand = { startsOn: string; endsOn: string; brush: Brush; note: string | undefined }
+  type PaintCommand = { member: string | null; startsOn: string; endsOn: string; brush: Brush; note: string | undefined }
   const paint = useMutation<AvailabilityEntry | null, Error, PaintCommand, { previous: AvailabilityEntry[] | undefined }>({
-    mutationFn: ({ startsOn, endsOn, brush: selectedBrush, note: selectedNote }) => replace({
-      kind: selectedBrush === 'clear' ? null : selectedBrush,
-      starts_on: startsOn,
-      ends_on: endsOn,
-      note: selectedNote,
-    }),
-    onMutate: async ({ startsOn, endsOn, brush: selectedBrush, note: selectedNote }) => {
-      await queryClient.cancelQueries({ queryKey: listKey })
-      const previous = queryClient.getQueryData<AvailabilityEntry[]>(listKey)
+    mutationKey: PAINT_KEY,
+    // One scope runs the paints one after another, in the order painted.
+    scope: { id: 'availability-paint' },
+    mutationFn: ({ member, startsOn, endsOn, brush: selectedBrush, note: selectedNote }) => {
+      const input: AvailabilityRangeInput = {
+        kind: selectedBrush === 'clear' ? null : selectedBrush,
+        starts_on: startsOn,
+        ends_on: endsOn,
+        note: selectedNote,
+      }
+      return member ? api.replaceMemberAvailabilityRange(member, input) : api.replaceAvailabilityRange(input)
+    },
+    onMutate: async ({ member, startsOn, endsOn, brush: selectedBrush, note: selectedNote }) => {
+      const key = availabilityKey(member)
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<AvailabilityEntry[]>(key)
       queryClient.setQueryData<AvailabilityEntry[]>(
-        listKey,
-        optimisticRange(previous ?? [], startsOn, endsOn, selectedBrush, selectedNote, today),
+        key,
+        optimisticRange(previous ?? [], startsOn, endsOn, selectedBrush, selectedNote),
       )
       return { previous }
     },
@@ -400,11 +403,16 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
         ? t.cleared(range)
         : t.saved(range, availabilityLabels()[command.brush].toLowerCase()))
     },
-    onError: (error, _command, context) => {
-      queryClient.setQueryData(listKey, context?.previous)
+    onError: (error, command, context) => {
+      queryClient.setQueryData(availabilityKey(command.member), context?.previous)
       toast.error(error.message)
     },
-    onSettled: invalidate,
+    onSettled: (_result, _error, command) => {
+      // A refetch while a later paint waits would drop its optimistic cells.
+      if (queryClient.isMutating({ mutationKey: PAINT_KEY }) > 1) return
+      queryClient.invalidateQueries({ queryKey: availabilityKey(command.member) })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+    },
   })
 
   const heading = targetMember ? t.headingFor(targetMember.display_name) : t.heading
@@ -463,6 +471,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
             today={today}
             disabled={entries.isLoading}
             onPaint={(startsOn, endsOn) => paint.mutate({
+              member: onBehalf ? target : null,
               startsOn,
               endsOn,
               brush,

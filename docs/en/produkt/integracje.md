@@ -231,6 +231,7 @@ counting logic.
 A coordinator uses the equivalent `PUT /api/v1/availability/members/{member_id}/range` to act for a rotation member.
 The body contains `starts_on`, `ends_on`, an optional `note`, and `kind`: `unavailable`, `prefer_not`, `prefer`, or `null` to clear the range.
 The server cuts overlapping entries into the pieces outside the range and stores removals, preserved pieces, and the new entry in one transaction.
+Preserved pieces, including those before today, keep their author and note and send no notifications again; notifications and the audit trail cover only the days that changed.
 A failure in any part rolls back the whole operation.
 The existing `POST` and `DELETE` endpoints remain available for older clients.
 

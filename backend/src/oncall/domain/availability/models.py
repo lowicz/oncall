@@ -76,7 +76,7 @@ class AvailabilityQuery:
 @dataclass(frozen=True)
 class NewAvailabilityEntry:
     member_id: uuid.UUID
-    created_by_user_id: uuid.UUID
+    created_by_user_id: uuid.UUID | None
     kind: AvailabilityKind
     starts_on: date
     ends_on: date

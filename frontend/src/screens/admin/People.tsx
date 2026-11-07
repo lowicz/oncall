@@ -584,6 +584,7 @@ export function PeoplePanel() {
 
       {selectedRow?.member && (
         <OffboardingDialog
+          key={selectedRow.member.id}
           open={offboardingOpen}
           member={selectedRow.member}
           activeUntil={rotationUntil}

@@ -14,6 +14,8 @@ import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select } 
  * Before any rewrite, the batches of every affected schedule are checked
  * together, so a rule spanning two schedules is seen as well. Hard-rule
  * violations are listed and acknowledged before the first batch is saved.
+ * A failure after some schedules were saved says how many duties are already
+ * rewritten and returns to the check for the rest.
  */
 export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }: {
   open: boolean
@@ -54,6 +56,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   const [confirming, setConfirming] = useState(false)
   const [violations, setViolations] = useState<RuleViolation[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
+  const [rewritten, setRewritten] = useState(0)
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
   const candidates = (day: string, role: AssignmentRole) => {
     const roleLoad = new Map<string, number>()
@@ -98,6 +101,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
           reason: t.reason(member.display_name),
           acknowledge_rule_violations: violations.length > 0 && acknowledged,
         })
+        setRewritten((count) => count + group.length)
       }
       for (const period of member.eligibility) {
         if (period.starts_on > activeUntil) await api.deleteEligibility(period.id)
@@ -108,6 +112,14 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
       return api.updateTeamMember({ id: member.id, input: { active_until: activeUntil } })
     },
     onSuccess: onDone,
+    onError: async () => {
+      // Schedules saved before the failure are rewritten: reload so a retry
+      // checks and sends only the duties this person still holds.
+      setConfirming(false)
+      setViolations([])
+      setAcknowledged(false)
+      await calendar.refetch()
+    },
   })
   const complete = duties.every((item) => replacements[key(item.service_date, item.role)])
   const busy = check.isPending || submit.isPending
@@ -138,6 +150,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
       {calendar.error && <Box tone="bad" role="alert" title={calendar.error.message} />}
       {check.error && <Box tone="bad" role="alert" title={check.error.message} />}
       {submit.error && <Box tone="bad" role="alert" title={submit.error.message} />}
+      {rewritten > 0 && !submit.isPending && <Box tone="warn" role="status" title={t.alreadyRewritten(rewritten)} />}
       {violations.length > 0 && (
         <Box tone="warn" role="status" title={t.refusalTitle}>
           <ul className="box-list">

@@ -90,6 +90,44 @@ describe('OffboardingDialog', () => {
       .toEqual([['s1', true], ['s2', true]])
   })
 
+  it('says what was rewritten before a failure and checks only the rest on a retry', async () => {
+    let assignments = [duty('2026-09-22', 's1', 1, 'm1'), duty('2026-10-05', 's2', 3, 'm1')]
+    vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => (
+      calendarWith(startsOn === '2026-09-21' ? assignments : [])
+    ))
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const batch = vi.spyOn(api, 'batchOverride').mockImplementation(async (input) => {
+      if (input.schedule_id === 's2' && input.expected_version === 3) {
+        assignments = [duty('2026-09-22', 's1', 2, 'm2'), duty('2026-10-05', 's2', 4, 'm1')]
+        throw new ApiError('Grafik zmienił się w międzyczasie', 409)
+      }
+      return []
+    })
+    vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
+    const onDone = vi.fn()
+    renderScreen(
+      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} />,
+    )
+
+    for (const picker of await screen.findAllByRole('combobox')) fireEvent.change(picker, { target: { value: 'm2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Grafik zmienił się w międzyczasie')
+    expect(await screen.findByText('1 dyżur już przepisano. Potwierdź ponownie, aby przepisać pozostałe i zakończyć rotację.'))
+      .toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(check.mock.calls.map(([input]) => input.batches.map((item) => item.schedule_id)))
+      .toEqual([['s1', 's2'], ['s2']])
+    expect(batch.mock.calls.map(([input]) => [input.schedule_id, input.expected_version]))
+      .toEqual([['s1', 1], ['s2', 3], ['s2', 4]])
+  })
+
   it('drops the checked rules and acknowledgement when a different replacement is picked', async () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => calendarWith(
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],

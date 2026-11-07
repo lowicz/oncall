@@ -122,7 +122,7 @@ async def test_an_identical_entry_and_an_overlapping_one_are_told_apart(world) -
     with pytest.raises(errors.AvailabilityOverlaps):
         await declare(world, own(world), OwnMember(), kind=AvailabilityKind.unavailable)
 
-    assert world.ledger.pending is None
+    assert world.ledger.recorded is None
 
 
 async def test_a_hard_unavailability_over_a_duty_warns_and_names_the_duties(world) -> None:
@@ -186,7 +186,7 @@ async def test_replacing_a_range_cuts_existing_entries_and_paints_once(world) ->
     ]
     assert result is not None
     assert result.entry.kind == AvailabilityKind.unavailable
-    assert world.journal.names == ["withdrawn", "declared", "declared", "declared"]
+    assert world.journal.names == ["withdrawn", "declared"]
 
 
 async def test_clearing_a_range_can_leave_no_painted_entry(world) -> None:
@@ -203,24 +203,35 @@ async def test_clearing_a_range_can_leave_no_painted_entry(world) -> None:
     assert world.ledger.by_id == {}
 
 
-async def test_replacing_a_range_does_not_recreate_a_piece_wholly_in_the_past(world) -> None:
-    stored(world, AvailabilityKind.prefer, TODAY - timedelta(days=2), DAY)
+async def test_replacing_a_range_keeps_an_elapsed_piece_and_its_author(world) -> None:
+    original = stored(world, AvailabilityKind.unavailable, TODAY - timedelta(days=37), DAY)
 
     await replace_availability_range(
         AvailabilityRangeReplacement(
-            own(world),
-            OwnMember(),
-            TODAY - timedelta(days=1),
-            DAY - timedelta(days=1),
-            None,
+            world.coordinator,
+            MemberById(world.anna.id),
+            TODAY,
+            TODAY,
+            AvailabilityKind.prefer,
         ),
         world.availability_writes,
         today=TODAY,
     )
 
-    assert [(entry.starts_on, entry.ends_on) for entry in world.ledger.by_id.values()] == [
-        (DAY, DAY)
+    assert [
+        (entry.kind, entry.starts_on, entry.ends_on, entry.created_by_user_id)
+        for entry in sorted(world.ledger.by_id.values(), key=lambda entry: entry.starts_on)
+    ] == [
+        (
+            AvailabilityKind.unavailable,
+            TODAY - timedelta(days=37),
+            TODAY - timedelta(days=1),
+            original.created_by_user_id,
+        ),
+        (AvailabilityKind.prefer, TODAY, TODAY, world.coordinator.user_id),
+        (AvailabilityKind.unavailable, TODAY + timedelta(days=1), DAY, original.created_by_user_id),
     ]
+    assert world.journal.names == ["withdrawn", "declared"]
 
 
 async def test_replacing_an_invalid_range_changes_nothing(world) -> None:

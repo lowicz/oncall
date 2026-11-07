@@ -1,6 +1,6 @@
 """Atomic range replacement for the availability calendar."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 from httpx import AsyncClient
@@ -11,6 +11,7 @@ from oncall.domain.vocabulary import UserRole
 from oncall.infrastructure.sqlalchemy.availability import SqlAlchemyAvailability
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from tests.conftest import create_member, create_user, login
+from tests.frozen_clock import FrozenClock
 
 START = date(2026, 9, 20)
 
@@ -92,7 +93,7 @@ async def test_range_can_be_cleared_on_behalf_of_a_member(
     assert [
         (entry["kind"], entry["starts_on"], entry["ends_on"], entry["created_by_name"])
         for entry in listed.json()
-    ] == [("unavailable", "2026-09-21", "2026-09-21", "Koordynator Nowak")]
+    ] == [("unavailable", "2026-09-21", "2026-09-21", None)]
 
 
 @pytest.mark.usefixtures("frozen_clock")
@@ -134,3 +135,28 @@ async def test_failure_in_the_middle_rolls_back_the_whole_range_on_sqlite(
     ).all()
     stored = [(str(row.id), row.kind.value, row.starts_on, row.ends_on, row.note) for row in rows]
     assert stored == [(original["id"], "unavailable", START, date(2026, 9, 24), "wyjazd")]
+
+
+async def test_range_replacement_keeps_the_elapsed_part_of_an_entry(
+    client: AsyncClient, db: AsyncSession, frozen_clock: FrozenClock
+) -> None:
+    await _member(client, db)
+    await _create(client, starts_on=date(2026, 10, 1), ends_on=date(2026, 11, 30))
+    frozen_clock.instant = datetime(2026, 11, 7, 10, 0, tzinfo=UTC)
+    await login(client, "anna")
+
+    response = await client.put(
+        "/api/v1/availability/me/range",
+        json={"kind": "prefer", "starts_on": "2026-11-07", "ends_on": "2026-11-07"},
+    )
+
+    assert response.status_code == 200, response.text
+    listed = await client.get("/api/v1/availability/me")
+    assert [
+        (entry["kind"], entry["starts_on"], entry["ends_on"], entry["note"])
+        for entry in listed.json()
+    ] == [
+        ("unavailable", "2026-10-01", "2026-11-06", "wyjazd"),
+        ("prefer", "2026-11-07", "2026-11-07", None),
+        ("unavailable", "2026-11-08", "2026-11-30", "wyjazd"),
+    ]

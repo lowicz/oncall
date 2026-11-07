@@ -727,6 +727,34 @@ describe('MineScreen availability painting', () => {
     await waitFor(() => expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined }))
   })
 
+  it('saves paints one after another and keeps the elapsed part of a cut entry', async () => {
+    stub()
+    const list = vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'unavailable', starts_on: '2026-09-01', ends_on: '2026-09-25', note: null, created_at: '2026-08-20T10:00:00Z' },
+    ])
+    let finishFirst: (value: null) => void = () => {}
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = resolve }))
+      .mockResolvedValue(null)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    fireEvent.click(cell(/wt 22-09-2026/))
+
+    expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026' })).toBeInTheDocument()
+    expect(cell(/niedz 20-09-2026/)).toHaveAccessibleName('niedz 20-09-2026')
+    expect(cell(/sob 05-09-2026/)).toHaveAccessibleName('sob 05-09-2026, Nie mogę')
+    expect(replace).toHaveBeenCalledTimes(1)
+
+    finishFirst(null)
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
+    expect(replace.mock.calls.map(([input]) => input.starts_on)).toEqual(['2026-09-20', '2026-09-22'])
+    expect(await screen.findByText('Wyczyszczono: wt 22 wrz')).toBeInTheDocument()
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+  })
+
   it('reports a failed save', async () => {
     stub()
     vi.spyOn(api, 'replaceAvailabilityRange').mockRejectedValue(new ApiError('Nie można zapisać dostępności', 409))

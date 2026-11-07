@@ -227,6 +227,7 @@ nie z osobnej logiki liczenia.
 Koordynator używa równoważnego `PUT /api/v1/availability/members/{member_id}/range`, aby działać w imieniu członka rotacji.
 Treść zawiera `starts_on`, `ends_on`, opcjonalne `note` i `kind`: `unavailable`, `prefer_not`, `prefer` albo `null`, gdy zakres ma zostać wyczyszczony.
 Serwer przycina zachodzące wpisy do części poza zakresem i zapisuje usunięcia, zachowane części oraz nowy wpis w jednej transakcji.
+Zachowane części, także te sprzed dzisiaj, zachowują autora i notatkę i nie wysyłają ponownie powiadomień; powiadomienia i audyt dotyczą tylko zmienionych dni.
 Błąd dowolnej części wycofuje całą operację.
 Dotychczasowe punkty `POST` i `DELETE` pozostają dostępne dla starszych klientów.
 

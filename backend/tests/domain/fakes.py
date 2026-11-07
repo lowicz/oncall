@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-from oncall.domain.availability.models import AvailabilityEntry, NewAvailabilityEntry
+from oncall.domain.availability.models import AvailabilityEntry
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.overrides.ports import OverridePorts
 from oncall.domain.roster import Duty, ScheduleRef, Slot, SlotOrigin
@@ -305,7 +305,7 @@ class FakeJournal:
 class FakeLedger:
     def __init__(self) -> None:
         self.by_id: dict[uuid.UUID, AvailabilityEntry] = {}
-        self.pending: NewAvailabilityEntry | None = None
+        self.recorded: AvailabilityEntry | None = None
         self.removed: list[uuid.UUID] = []
 
     def put(self, entry: AvailabilityEntry) -> AvailabilityEntry:
@@ -325,22 +325,23 @@ class FakeLedger:
         )
 
     async def record(self, entry):
-        self.pending = entry
+        self.recorded = self.put(
+            AvailabilityEntry(
+                id=uuid.uuid4(),
+                member_id=entry.member_id,
+                kind=entry.kind,
+                starts_on=entry.starts_on,
+                ends_on=entry.ends_on,
+                note=entry.note,
+                created_at=datetime.now(UTC),
+                created_by_user_id=entry.created_by_user_id,
+                created_by_name="filer",
+            )
+        )
 
     async def recorded_entry(self):
-        assert self.pending is not None
-        stored = AvailabilityEntry(
-            id=uuid.uuid4(),
-            member_id=self.pending.member_id,
-            kind=self.pending.kind,
-            starts_on=self.pending.starts_on,
-            ends_on=self.pending.ends_on,
-            note=self.pending.note,
-            created_at=datetime.now(UTC),
-            created_by_user_id=self.pending.created_by_user_id,
-            created_by_name="filer",
-        )
-        return self.put(stored)
+        assert self.recorded is not None
+        return self.recorded
 
     async def entries(self, member_id, starts_on, ends_on):
         return sorted(

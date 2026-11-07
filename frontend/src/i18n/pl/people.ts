@@ -241,5 +241,6 @@ export const people = {
     confirmText: (count: number, date: string) => `Potwierdź przepisanie ${count} dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem ${date}.`,
     noDuties: 'Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.',
     pickReplacement: 'Wybierz zastępcę',
+    alreadyRewritten: (count: number) => `${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} już przepisano. Potwierdź ponownie, aby przepisać pozostałe i zakończyć rotację.`,
   },
 }
