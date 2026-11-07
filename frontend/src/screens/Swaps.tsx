@@ -410,14 +410,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const pickChoice = (value: SwapChoice | '') => { setChoice(value); pickReplacement('') }
   const pickDay = (value: string) => { setServiceDate(value); pickChoice('') }
   const [composing, setComposing] = useState(Boolean(linkedDay) && hasTeamMember)
-  const composeDirty = composing && Boolean(serviceDate || choice || replacementId || note || composeAcknowledgedFor || inReturn)
-  const unsavedChanges = useUnsavedChanges(composeDirty)
+  const composeDirty = composing && Boolean((serviceDate && serviceDate !== linkedDay) || choice || replacementId || note || composeAcknowledgedFor || inReturn)
   const resetCompose = () => {
     pickDay('')
     setNote('')
     setComposing(false)
   }
-  const closeComposer = () => unsavedChanges.requestAction(resetCompose)
+  const unsavedChanges = useUnsavedChanges(composeDirty, resetCompose)
+  const closeComposer = () => unsavedChanges.requestAction(() => setComposing(false))
   const [openId, setOpenId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setSheetAcknowledgedFor(null) }
@@ -547,11 +547,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       queryClient.invalidateQueries({ queryKey: ['swap-return-options'] })
     },
   })
+  const { isSuccess: sent, reset: resetCreate } = create
   useEffect(() => {
     // Run after the cleared form has rendered, so its own success navigation is
     // not mistaken for abandoning unfinished work.
-    if (create.isSuccess) setInbox('moje')
-  }, [create.isSuccess, setInbox])
+    if (!sent) return
+    setInbox('moje')
+    resetCreate()
+  }, [sent, resetCreate, setInbox])
   const settle = (message: string) => ({
     onSuccess: () => {
       openSheet(null)

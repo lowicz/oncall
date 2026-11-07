@@ -206,7 +206,7 @@ export function GeneratorPanel() {
     onSuccess: (value) => queryClient.setQueryData(['scheduling-policy'], value),
   })
   const settingsDirty = Boolean(policy.data && SETTINGS_KEYS.some((key) => settings[key] !== policy.data[key]))
-  const unsavedChanges = useUnsavedChanges(settingsDirty)
+  const unsavedChanges = useUnsavedChanges(settingsDirty, () => setSettings(settingsOf(policy.data!)))
   const closeSettings = () => unsavedChanges.requestAction(() => setSettingsOpen(false))
   const onGenerated = (value: DraftSchedule) => {
     setRunProgress(null)

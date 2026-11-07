@@ -935,6 +935,28 @@ describe('GeneratorPanel settings drawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Otwórz' }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).getByRole('button', { name: 'Odrzuć zmiany' }))
     await waitFor(() => expect(api.schedule).toHaveBeenCalledWith('d1'))
+    expect(screen.getByRole('combobox', { name: /Tryb rotacji/ })).toHaveValue('hybrid')
+    expect(screen.queryByText('niezapisane')).not.toBeInTheDocument()
+  })
+
+  it('restores the stored settings when closing the panel discards the changes', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
+    await waitFor(() => expect(mode).toBeEnabled())
+    fireEvent.change(mode, { target: { value: 'weekly' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Zamknij panel' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).getByRole('button', { name: 'Odrzuć zmiany' }))
+    await waitFor(() => expect(screen.queryByRole('combobox', { name: /Tryb rotacji/ })).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Otwórz' }))
+    await waitFor(() => expect(api.schedule).toHaveBeenCalledWith('d1'))
+    expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Ustawienia generatora/ }))
+    expect(await screen.findByRole('combobox', { name: /Tryb rotacji/ })).toHaveValue('hybrid')
   })
 
   it('warns about the weekly mode, marks unsaved changes and restores the stored ones', async () => {

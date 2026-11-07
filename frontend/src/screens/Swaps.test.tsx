@@ -401,6 +401,10 @@ describe('SwapPanel new request', () => {
     // a render after the toast.
     await waitFor(() => expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'true'))
     await waitFor(() => expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument())
+
+    fireEvent.click(inbox(/^Do mnie/))
+    await waitFor(() => expect(inbox(/^Do mnie/)).toHaveAttribute('aria-pressed', 'true'))
+    expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('confirms without a name when the replacement left the list while the request was sent', async () => {
@@ -438,6 +442,20 @@ describe('SwapPanel new request', () => {
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />, { route: '/zamiany?data=2099-09-14&rola=primary' })
     expect(await screen.findByLabelText(/Mój dyżur/)).toHaveValue('2099-09-14')
     expect(await screen.findByText('Brak dostępnych zastępców')).toBeInTheDocument()
+  })
+
+  it('closes a form the link filled in without asking, as nothing was changed in it', async () => {
+    stubSchedule()
+    vi.spyOn(api, 'swapOptions').mockResolvedValue([])
+    renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />, { route: '/zamiany?data=2099-09-14&rola=primary' })
+    expect(await screen.findByLabelText(/Mój dyżur/)).toHaveValue('2099-09-14')
+    const reload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(reload)
+    expect(reload.defaultPrevented).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))
+    await waitFor(() => expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument())
+    expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument()
   })
 })
 

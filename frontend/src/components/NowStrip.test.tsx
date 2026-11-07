@@ -143,6 +143,20 @@ describe('NowStrip', () => {
     expect(screen.getByText('Anna Kowalska')).toBeInTheDocument()
   })
 
+  it('keeps saying the connection is gone on an empty slot when a refresh fails', async () => {
+    const published = vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ service_date: '2026-09-10' })]))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><NowStrip /></QueryClientProvider>)
+    expect(await screen.findAllByText('brak obsady')).toHaveLength(2)
+    expect(screen.queryByText('brak połączenia')).not.toBeInTheDocument()
+
+    published.mockRejectedValue(new Error('offline'))
+    await act(async () => { await queryClient.refetchQueries({ queryKey: ['published-schedule'] }) })
+
+    await waitFor(() => expect(screen.getAllByText('brak połączenia')).toHaveLength(2))
+    expect(screen.getAllByText('brak obsady')).toHaveLength(2)
+  })
+
   it('draws a ringed warn dot before a stale timestamp so it reads on the header band', async () => {
     // The real stylesheet, so the dot the now-stale class draws is the actual
     // cascade; jsdom applies no pseudo-element, so the rule is read from the CSSOM.

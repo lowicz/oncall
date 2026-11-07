@@ -3,9 +3,10 @@ import { createPath, useBeforeUnload, useBlocker } from 'react-router-dom'
 
 /**
  * Protects unfinished form work from route changes, reloads and local actions
- * such as opening another row. The caller owns the confirmation copy and UI.
+ * such as opening another row. The caller owns the confirmation copy and UI;
+ * `onDiscard` throws the edits away when the screen stays mounted.
  */
-export function useUnsavedChanges(dirty: boolean) {
+export function useUnsavedChanges(dirty: boolean, onDiscard?: () => void) {
   const blocker = useBlocker(useCallback(({ currentLocation, nextLocation }) => (
     dirty && createPath(currentLocation) !== createPath(nextLocation)
   ), [dirty]))
@@ -28,6 +29,7 @@ export function useUnsavedChanges(dirty: boolean) {
   }
 
   const discard = () => {
+    onDiscard?.()
     if (blocker.state === 'blocked') {
       blocker.proceed()
       return

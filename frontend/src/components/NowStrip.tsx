@@ -100,7 +100,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
               <>
                 <span className="now-who now-who-none">{notApplicable ? t.notApplicable : t.unstaffed}</span>
                 <span className="now-until">
-                  {notApplicable ? (holiday ? t.holiday(holiday) : t.dayOff) : ''}
+                  {notApplicable ? (holiday ? t.holiday(holiday) : t.dayOff) : stale ? t.offline : ''}
                 </span>
               </>
             )}
