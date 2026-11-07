@@ -78,6 +78,11 @@ async def test_suggested_range_starts_today_without_coverage(
     assert response.json()["starts_on"] == business_today().isoformat()
 
 
+def test_uncovered_working_day_starts_itself() -> None:
+    tuesday = date(2026, 9, 15)
+    assert suggested_start(tuesday, []) == tuesday
+
+
 def test_uncovered_saturday_starts_the_whole_day_off_block() -> None:
     saturday = date(2026, 9, 12)
     assert suggested_start(saturday, []) == saturday
