@@ -14,7 +14,6 @@ from oncall.domain.availability.models import (
     AvailabilityDeclaration,
     AvailabilityDeclared,
     AvailabilityQuery,
-    AvailabilityRangeReplaced,
     AvailabilityRangeReplacement,
     AvailabilityWithdrawal,
     MemberAvailability,
@@ -125,12 +124,13 @@ async def replace_availability_range(
     ports: AvailabilityWritePorts,
     *,
     today: date | None = None,
-) -> AvailabilityRangeReplaced:
+) -> AvailabilityDeclared | None:
     """Replace one date range as a single unit-of-work operation.
 
     Existing entries are cut around the range, then an optional new entry is
-    painted into it. The HTTP unit of work commits every staged withdrawal and
-    declaration together, or rolls all of them back on any failure.
+    painted into it and returned. The HTTP unit of work commits every staged
+    withdrawal and declaration together, or rolls all of them back on any
+    failure.
     """
     today = today or business_today()
     _validate_range(replacement.starts_on, replacement.ends_on, today)
@@ -139,7 +139,7 @@ async def replace_availability_range(
     overlapping = await ports.ledger.overlapping_entries(
         member.id, replacement.starts_on, replacement.ends_on
     )
-    declarations: list[AvailabilityDeclaration] = []
+    pieces_kept: list[AvailabilityDeclaration] = []
     for entry in overlapping:
         await ports.journal.withdrawn(member=member, entry=entry, on_behalf=on_behalf)
         await ports.ledger.remove(entry.id)
@@ -147,7 +147,7 @@ async def replace_availability_range(
             (entry.starts_on, replacement.starts_on - timedelta(days=1)),
             (replacement.ends_on + timedelta(days=1), entry.ends_on),
         )
-        declarations.extend(
+        pieces_kept.extend(
             AvailabilityDeclaration(
                 actor=replacement.actor,
                 member=replacement.member,
@@ -159,27 +159,21 @@ async def replace_availability_range(
             for starts_on, ends_on in pieces
             if starts_on <= ends_on and ends_on >= today
         )
-    painted_index: int | None = None
-    if replacement.kind is not None:
-        painted_index = len(declarations)
-        declarations.append(
-            AvailabilityDeclaration(
-                actor=replacement.actor,
-                member=replacement.member,
-                kind=replacement.kind,
-                starts_on=replacement.starts_on,
-                ends_on=replacement.ends_on,
-                note=replacement.note,
-            )
-        )
-    declared = [
-        await declare_availability(declaration, ports, today=today) for declaration in declarations
-    ]
-    painted = declared[painted_index] if painted_index is not None else None
-    return AvailabilityRangeReplaced(
-        member=member,
-        entry=painted.entry if painted is not None else None,
-        warning=painted.warning if painted is not None else None,
+    for piece in pieces_kept:
+        await declare_availability(piece, ports, today=today)
+    if replacement.kind is None:
+        return None
+    return await declare_availability(
+        AvailabilityDeclaration(
+            actor=replacement.actor,
+            member=replacement.member,
+            kind=replacement.kind,
+            starts_on=replacement.starts_on,
+            ends_on=replacement.ends_on,
+            note=replacement.note,
+        ),
+        ports,
+        today=today,
     )
 
 

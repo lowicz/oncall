@@ -116,14 +116,6 @@ class AvailabilityDeclared:
 
 
 @dataclass(frozen=True)
-class AvailabilityRangeReplaced:
-    member: Member
-    #: The entry painted over the range, or none when the range was cleared.
-    entry: AvailabilityEntry | None
-    warning: str | None
-
-
-@dataclass(frozen=True)
 class MemberAvailability:
     member: Member
     entries: tuple[AvailabilityEntry, ...]

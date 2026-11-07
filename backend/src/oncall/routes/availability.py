@@ -94,7 +94,7 @@ async def _replace_range(
     ports: AvailabilityWritePorts,
 ) -> AvailabilityResponse | None:
     with domain_errors_as_http(AVAILABILITY_ERROR_STATUSES):
-        replaced = await use_cases.replace_availability_range(
+        declared = await use_cases.replace_availability_range(
             AvailabilityRangeReplacement(
                 actor=actor_from(user),
                 member=member,
@@ -105,9 +105,9 @@ async def _replace_range(
             ),
             ports,
         )
-    if replaced.entry is None:
+    if declared is None:
         return None
-    return availability_response(replaced.entry, replaced.member, replaced.warning)
+    return availability_response(declared.entry, declared.member, declared.warning)
 
 
 async def _delete(

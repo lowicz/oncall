@@ -184,7 +184,7 @@ async def test_replacing_a_range_cuts_existing_entries_and_paints_once(world) ->
         (AvailabilityKind.unavailable, DAY, DAY, "urlop"),
         (AvailabilityKind.prefer, DAY + timedelta(days=1), DAY + timedelta(days=2), None),
     ]
-    assert result.entry is not None
+    assert result is not None
     assert result.entry.kind == AvailabilityKind.unavailable
     assert world.journal.names == ["withdrawn", "declared", "declared", "declared"]
 
@@ -198,8 +198,7 @@ async def test_clearing_a_range_can_leave_no_painted_entry(world) -> None:
         today=TODAY,
     )
 
-    assert result.entry is None
-    assert result.warning is None
+    assert result is None
     assert world.ledger.removed == [original.id]
     assert world.ledger.by_id == {}
 
