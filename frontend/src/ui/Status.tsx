@@ -1,4 +1,4 @@
-import { Children, Fragment, ReactNode, isValidElement, useState } from 'react'
+import { Children, Fragment, ReactNode, isValidElement, useId, useState } from 'react'
 import { cx } from './cx'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
@@ -29,6 +29,7 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
   className?: string
   title?: string
 }) {
+  const descriptionId = useId()
   const content = (
     <>
       <i className="chip-dot" aria-hidden="true" />
@@ -37,21 +38,25 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
   )
   if (onClick) {
     return (
-      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} title={title} aria-description={title}>
+      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} title={title} aria-describedby={title ? descriptionId : undefined}>
         {content}
+        {title && <span id={descriptionId} hidden>{title}</span>}
       </button>
     )
   }
   return <span className={cx('chip', `chip-${tone}`, className)} title={title}>{content}</span>
 }
 
-const chipsOf = (children: ReactNode): ReactNode[] => Children.toArray(children).flatMap((child) =>
-  isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment ? chipsOf(child.props.children) : [child])
+/** The chips inside any Fragments, each with a key unique along its path. */
+const chipsOf = (children: ReactNode, path = ''): [string, ReactNode][] => Children.toArray(children).flatMap((child, index) => {
+  const key = `${path}/${isValidElement(child) ? child.key : index}`
+  return isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment ? chipsOf(child.props.children, key) : [[key, child]]
+})
 
 export function ChipRow({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
   return (
     <div className={cx('risk', className)} role={label ? 'list' : undefined} aria-label={label}>
-      {label ? chipsOf(children).map((child, index) => <div className="chip-row-item" role="listitem" key={index}>{child}</div>) : children}
+      {label ? chipsOf(children).map(([key, child]) => <div className="chip-row-item" role="listitem" key={key}>{child}</div>) : children}
     </div>
   )
 }
