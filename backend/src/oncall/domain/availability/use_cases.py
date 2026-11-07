@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, timedelta
 
 from oncall.domain.availability.errors import (
@@ -142,7 +143,12 @@ async def replace_availability_range(
         member.id, replacement.starts_on, replacement.ends_on
     )
     for entry in overlapping:
-        await ports.journal.withdrawn(member=member, entry=entry, on_behalf=on_behalf)
+        withdrawn_days = replace(
+            entry,
+            starts_on=max(entry.starts_on, replacement.starts_on),
+            ends_on=min(entry.ends_on, replacement.ends_on),
+        )
+        await ports.journal.withdrawn(member=member, entry=withdrawn_days, on_behalf=on_behalf)
         await ports.ledger.remove(entry.id)
         pieces = (
             (entry.starts_on, replacement.starts_on - timedelta(days=1)),

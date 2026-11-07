@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.vocabulary import UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.availability import SqlAlchemyAvailability
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from tests.conftest import create_member, create_user, login
@@ -159,4 +160,34 @@ async def test_range_replacement_keeps_the_elapsed_part_of_an_entry(
         ("unavailable", "2026-10-01", "2026-11-06", "wyjazd"),
         ("prefer", "2026-11-07", "2026-11-07", None),
         ("unavailable", "2026-11-08", "2026-11-30", "wyjazd"),
+    ]
+
+
+@pytest.mark.usefixtures("frozen_clock")
+async def test_range_replacement_audits_only_the_withdrawn_days(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _member(client, db)
+    original = await _create(client, starts_on=date(2026, 9, 1), ends_on=date(2026, 9, 25))
+
+    response = await client.put(
+        "/api/v1/availability/me/range",
+        json={"kind": None, "starts_on": "2026-09-20", "ends_on": "2026-09-22"},
+    )
+
+    assert response.status_code == 200, response.text
+    audited = (
+        await db.scalars(
+            select(AuditEvent)
+            .where(AuditEvent.action.like("availability.%"))
+            .order_by(AuditEvent.action)
+        )
+    ).all()
+    assert [(event.action, event.entity_id, event.summary) for event in audited] == [
+        ("availability.created", original["id"], "Anna Nowak: nie mogę 2026-09-01 – 2026-09-25"),
+        (
+            "availability.deleted",
+            original["id"],
+            "Anna Nowak: usunięto „nie mogę” 2026-09-20 – 2026-09-22",
+        ),
     ]
