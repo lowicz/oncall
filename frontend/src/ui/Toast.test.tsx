@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { messages } from '../i18n'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { ToastProvider, useToast } from './Toast'
 
 type Api = ReturnType<typeof useToast>
@@ -116,6 +117,13 @@ describe('toasts', () => {
     screen.getByRole('button', { name: 'raise' }).focus()
     await act(() => vi.advanceTimersByTimeAsync(11_000))
     await waitFor(() => expect(screen.queryByText('Zapisano zmianę')).not.toBeInTheDocument())
+  })
+
+  it('sets its title in the toast text size, not the heading size', async () => {
+    loadRealStylesheet()
+    renderToasts((toast) => toast.success('Zapisano'))
+    const title = getComputedStyle(await screen.findByText('Zapisano'))
+    expect([title.fontSize, title.lineHeight, title.fontWeight]).toEqual(['12px', '16px', '600'])
   })
 
   it('uses a polite live region for notifications', () => {
