@@ -755,6 +755,34 @@ describe('MineScreen availability painting', () => {
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
   })
 
+  it('rolls a failed paint back without dropping the paint still waiting behind it', async () => {
+    stub()
+    vi.spyOn(api, 'availability')
+      .mockResolvedValueOnce([
+        { id: 'a1', kind: 'unavailable', starts_on: '2026-09-01', ends_on: '2026-09-25', note: null, created_at: '2026-08-20T10:00:00Z' },
+      ])
+      .mockRejectedValue(new ApiError('Brak połączenia', 503))
+    const failures: Array<(error: Error) => void> = []
+    vi.spyOn(api, 'replaceAvailabilityRange')
+      .mockImplementation(() => new Promise((_resolve, reject) => { failures.push(reject) }))
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    fireEvent.click(cell(/wt 22-09-2026/))
+    expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026' })).toBeInTheDocument()
+
+    failures[0](new ApiError('Nie zapisano', 503))
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })).toBeInTheDocument()
+    expect(cell(/wt 22-09-2026/)).toHaveAccessibleName('wt 22-09-2026')
+
+    await waitFor(() => expect(failures).toHaveLength(2))
+    failures[1](new ApiError('Nie zapisano', 503))
+    expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026, Nie mogę' })).toBeInTheDocument()
+    expect(cell(/niedz 20-09-2026/)).toHaveAccessibleName('niedz 20-09-2026, Nie mogę')
+  })
+
   it('reports a failed save', async () => {
     stub()
     vi.spyOn(api, 'replaceAvailabilityRange').mockRejectedValue(new ApiError('Nie można zapisać dostępności', 409))

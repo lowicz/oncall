@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
@@ -62,7 +63,7 @@ describe('OffboardingDialog', () => {
     const finished = vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
     const onDone = vi.fn()
     renderScreen(
-      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} />,
+      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />,
     )
 
     const pickers = await screen.findAllByRole('combobox')
@@ -106,7 +107,7 @@ describe('OffboardingDialog', () => {
     vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
     const onDone = vi.fn()
     renderScreen(
-      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} />,
+      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />,
     )
 
     for (const picker of await screen.findAllByRole('combobox')) fireEvent.change(picker, { target: { value: 'm2' } })
@@ -128,13 +129,49 @@ describe('OffboardingDialog', () => {
       .toEqual([['s1', 1], ['s2', 3], ['s2', 4]])
   })
 
+  it('reloads the person after an eligibility call fails, so a retry ends only the periods left', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWith([]))
+    const first = { id: 'e1', role: 'primary' as const, starts_on: '2026-10-01', ends_on: null }
+    const second = { id: 'e2', role: 'secondary' as const, starts_on: '2026-10-01', ends_on: null }
+    const remove = vi.spyOn(api, 'deleteEligibility')
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new ApiError('Serwer niedostępny', 503))
+      .mockResolvedValue(undefined)
+    vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
+    const onDone = vi.fn()
+    function Host() {
+      const [member, setMember] = useState<TeamMember>({ ...leaving, eligibility: [first, second] })
+      return (
+        <OffboardingDialog
+          open
+          member={member}
+          activeUntil="2026-09-20"
+          onClose={() => {}}
+          onDone={onDone}
+          onChanged={() => setMember({ ...leaving, eligibility: [second] })}
+        />
+      )
+    }
+    renderScreen(<Host />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Serwer niedostępny')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(remove.mock.calls).toEqual([['e1'], ['e2'], ['e2']])
+  })
+
   it('drops the checked rules and acknowledgement when a different replacement is picked', async () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => calendarWith(
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],
     ))
     vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
     renderScreen(
-      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={() => {}} />,
+      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={() => {}} onChanged={() => {}} />,
     )
 
     const picker = await screen.findByRole('combobox')
@@ -192,7 +229,7 @@ describe('OffboardingDialog', () => {
         { id: 'e-past', role: 'secondary', starts_on: '2025-01-01', ends_on: '2026-06-30' },
       ],
     }
-    renderScreen(<OffboardingDialog open member={member} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} />)
+    renderScreen(<OffboardingDialog open member={member} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />)
 
     expect(screen.getByRole('status', { name: 'Szukam przyszłych dyżurów' })).toBeInTheDocument()
     const picker = await screen.findByRole('combobox', { name: /05-10-2026 · PRIMARY/ })
@@ -233,7 +270,7 @@ describe('OffboardingDialog', () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWith([]))
     vi.spyOn(api, 'updateTeamMember').mockRejectedValue(new ApiError('Brak uprawnień', 403))
     const onClose = vi.fn()
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={onClose} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={onClose} onDone={vi.fn()} onChanged={() => {}} />)
 
     expect(await screen.findByText('Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.')).toBeInTheDocument()
     expect(screen.getByText(/Dyżury po 20-09-2026: 0\./)).toBeInTheDocument()
@@ -251,7 +288,7 @@ describe('OffboardingDialog', () => {
     ))
     vi.spyOn(api, 'batchOverrideCheck').mockRejectedValue(new ApiError('Nie sprawdzono reguł', 503))
     const batch = vi.spyOn(api, 'batchOverride')
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
 
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'm2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
@@ -266,7 +303,7 @@ describe('OffboardingDialog', () => {
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],
     ))
     vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
 
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'm2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
@@ -283,13 +320,13 @@ describe('OffboardingDialog', () => {
 
   it('reports a calendar that cannot be read', async () => {
     vi.spyOn(api, 'calendar').mockRejectedValue(new Error('Serwer niedostępny'))
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Serwer niedostępny')
   })
 
   it('looks up no calendar for an exit date it cannot read', async () => {
     const calendar = vi.spyOn(api, 'calendar')
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="wkrótce" onClose={() => {}} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="wkrótce" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
     expect(await screen.findByText('Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.')).toBeInTheDocument()
     expect(calendar).not.toHaveBeenCalled()
   })

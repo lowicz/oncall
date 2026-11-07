@@ -17,12 +17,14 @@ import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select } 
  * A failure after some schedules were saved says how many duties are already
  * rewritten and returns to the check for the rest.
  */
-export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }: {
+export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, onChanged }: {
   open: boolean
   member: TeamMember
   activeUntil: string
   onClose: () => void
   onDone: () => void
+  /** Reloads `member` after a failure, since the steps before it are saved. */
+  onChanged: () => void
 }) {
   const m = useMessages()
   const t = m.people.offboarding
@@ -57,6 +59,12 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   const [violations, setViolations] = useState<RuleViolation[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
   const [rewritten, setRewritten] = useState(0)
+  // A check and acknowledgement cover the exact picks and duties they saw.
+  const resetDecision = () => {
+    setConfirming(false)
+    setViolations([])
+    setAcknowledged(false)
+  }
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
   const candidates = (day: string, role: AssignmentRole) => {
     const roleLoad = new Map<string, number>()
@@ -113,11 +121,10 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     },
     onSuccess: onDone,
     onError: async () => {
-      // Schedules saved before the failure are rewritten: reload so a retry
-      // checks and sends only the duties this person still holds.
-      setConfirming(false)
-      setViolations([])
-      setAcknowledged(false)
+      // Steps saved before the failure stay saved: reload so a retry checks
+      // and sends only the duties and periods this person still holds.
+      resetDecision()
+      onChanged()
       await calendar.refetch()
     },
   })
@@ -185,10 +192,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
               value={replacements[key(item.service_date, item.role)] ?? ''}
               onChange={(event) => {
                 setReplacements((current) => ({ ...current, [key(item.service_date, item.role)]: event.target.value }))
-                // A check and acknowledgement cover the exact picks they saw.
-                setConfirming(false)
-                setViolations([])
-                setAcknowledged(false)
+                resetDecision()
                 check.reset()
                 submit.reset()
               }}

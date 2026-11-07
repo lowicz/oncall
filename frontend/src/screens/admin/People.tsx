@@ -590,6 +590,7 @@ export function PeoplePanel() {
           activeUntil={rotationUntil}
           onClose={() => setOffboardingOpen(false)}
           onDone={() => { setOffboardingOpen(false); setSelectedId(null); refresh() }}
+          onChanged={refresh}
         />
       )}
 
