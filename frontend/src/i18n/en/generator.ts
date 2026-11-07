@@ -73,7 +73,7 @@ export const generator: Messages['generator'] = {
   drafts: {
     heading: 'Drafts',
     compareVariants: 'Compare the daily and weekly variants',
-    loading: 'Loading drafts',
+    loading: 'Loading drafts…',
     empty: 'No drafts',
     emptyHint: 'Create a new one by choosing a date range above.',
     opened: 'Opened',
@@ -172,6 +172,8 @@ export const generator: Messages['generator'] = {
     title: (isProposal: boolean, version: number, range: string) => `Publishing the ${isProposal ? 'proposal' : 'draft'} v${version} · ${range}`,
     back: 'Back to the proposal',
     publishing: 'Publishing…',
+    failed: 'Could not publish',
+    failedNext: 'Return to the proposal, check the changes and publish again.',
     publishVersion: (version: number) => `Publish v${version}`,
     assignments: (count: number) => pluralEn(count, ['assignment', 'assignments']),
     becomePublished: (assignments: number, days: number) =>
@@ -206,7 +208,7 @@ export const generator: Messages['generator'] = {
     undoNote: 'A publication can only be undone by a new publication. The operation goes to the audit as “Schedule published”.',
   },
   matrix: {
-    loading: 'Loading the draft matrix',
+    loading: 'Loading the draft matrix…',
     region: 'Draft matrix',
     caption: 'Draft schedule. People in rows, days in columns. Click a cell to correct an assignment.',
     person: 'Person',
@@ -244,7 +246,7 @@ export const generator: Messages['generator'] = {
     },
     since: (date: string) => `since ${date}`,
     memberChange: (before: string, after: string, impact: string) => `${before} → ${after} · ${impact}`,
-    loading: 'Recalculating fairness',
+    loading: 'Recalculating fairness…',
     spread: (before: string) => `points spread (was ${before})`,
     criterion: 'Acceptance criterion',
     criterionTag: (points: string) => `spread ≤ ${points} pts per lens`,

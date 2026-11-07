@@ -14,7 +14,7 @@ export const people: Messages['people'] = {
   exportCsv: 'Export CSV',
   newAccount: 'New account',
   accounts: 'Accounts',
-  searchPlaceholder: 'Search for a person, username or number',
+  searchPlaceholder: 'Search for a person, username or number…',
   filters: {
     all: 'All',
     rotation: 'In the rotation',
@@ -22,7 +22,7 @@ export const people: Messages['people'] = {
     inactive: 'Disabled',
     pending: 'Pending',
   },
-  loadingAccounts: 'Loading accounts',
+  loadingAccounts: 'Loading accounts…',
   emptyFilter: 'No accounts match the selected filter',
   tableCaption: 'System accounts and their rotation status.',
   columns: {
@@ -178,12 +178,6 @@ export const people: Messages['people'] = {
     toSave: (changes: string) => `To save: ${changes}`,
     confirm: 'Confirm and save',
   },
-  confirmClose: {
-    title: 'Close without saving?',
-    unsaved: (changes: string) => `You have unsaved changes: ${changes}.`,
-    text: 'Closing the panel will discard them.',
-    confirm: 'Close without saving',
-  },
   deleteDialog: {
     title: (name: string) => `Deleting the account ${name} and its personal data`,
     confirm: 'Delete account and data',
@@ -232,7 +226,7 @@ export const people: Messages['people'] = {
     reason: (name: string) => `Rotation ended for ${name}`,
     confirmEnd: 'Confirm ending the rotation',
     rewriteAndEnd: 'Rewrite duties and end the rotation',
-    searchingDuties: 'Looking for future duties',
+    searchingDuties: 'Looking for future duties…',
     refusalTitle: 'The rewrite would break hard rules',
     refusalNext: 'Pick other replacements or confirm a deliberate violation; it will go into the audit log.',
     acknowledge: 'I understand and am deliberately breaking these rules',

@@ -349,6 +349,27 @@ describe('SwapPanel new request', () => {
     expect(screen.queryByText(/traci dyżur/)).not.toBeInTheDocument()
   })
 
+  it('keeps a started request until discarding it is confirmed', async () => {
+    stubSchedule()
+    vi.spyOn(api, 'swapOptions').mockResolvedValue([])
+    renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    const slot = await screen.findByLabelText(/Mój dyżur/)
+    await screen.findByRole('option', { name: /PRIMARY/ })
+    fireEvent.change(slot, { target: { value: '2099-09-14' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
+    fireEvent.click(within(warning).getByRole('button', { name: 'Anuluj' }))
+    expect(screen.getByLabelText(/Mój dyżur/)).toHaveValue('2099-09-14')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).getByRole('button', { name: 'Odrzuć zmiany' }))
+    await waitFor(() => expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Nowa zamiana' }))
+    expect(await screen.findByLabelText(/Mój dyżur/)).toHaveValue('')
+  })
+
   it('sends the request, confirms with a toast naming the replacement and moves to "Moje"', async () => {
     stubSchedule()
     vi.spyOn(api, 'swapOptions').mockResolvedValue([
@@ -1229,7 +1250,7 @@ describe('SwapPanel exchange: the "in return" step', () => {
     const search = vi.spyOn(api, 'swapReturnOptions').mockReturnValue(new Promise((resolve) => { offer = resolve }))
     await pickPiotr()
 
-    expect(await screen.findByRole('status', { name: 'Szukam dyżurów do wzięcia w zamian' })).toBeInTheDocument()
+    expect(await screen.findByRole('status', { name: 'Szukam dyżurów do wzięcia w zamian…' })).toBeInTheDocument()
     expect(search).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', undefined)
     expect(steps().map((item) => [item.textContent, item.getAttribute('aria-current')])).toEqual([
       ['1 dyżur', null], ['2 kandydat', null], ['3 w zamian', 'step'], ['4 powód i wysłanie', null],

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { UserRole, api } from '../api'
-import { addDays, daysBetween, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
+import { addDays, daysBetween, formatDate, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
 import { useNarrow } from '../hooks/useMediaQuery'
-import { LinkButton, PageHeader, SectionHeading } from '../ui'
+import { Box, Button, EmptyState, LinkButton, PageHeader, SectionHeading } from '../ui'
 
 /** The zoom the range fits; an arbitrary od/do still gets sensible cells. */
 function zoomFor(range: CalendarRange): MatrixZoom {
@@ -67,7 +67,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
       ? fourWeeks
       : coveredEnd && coveredEnd >= today
         ? (coveredEnd < fourWeeks ? coveredEnd : fourWeeks)
-        : today
+        : fourWeeks
     return { starts_on: today, ends_on: defaultEnd }
   }, [explicitStart, od, legacyEnd, zoomParam, focusDay, published.data, today])
   const zoom: MatrixZoom = isZoom(zoomParam) ? zoomParam : zoomFor(range)
@@ -92,6 +92,10 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   const generatorHref = publication?.ends_on
     ? `/generator?od=${addDays(publication.ends_on, 1)}&do=${addDays(publication.ends_on, 28)}`
     : '/generator'
+  const publicationExpired = Boolean(publication?.ends_on && publication.ends_on < today)
+  const nextStep = (size?: 'sm') => (pending
+    ? <LinkButton to={`/generator?szkic=${pending.id}`} variant="primary" size={size} icon="wand">{t.schedule.actions.openProposal}</LinkButton>
+    : <LinkButton to={generatorHref} variant="primary" size={size} icon="wand">{t.schedule.actions.generateNext}</LinkButton>)
 
   return (
     <div className="page">
@@ -116,13 +120,29 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
               </span>
             )}
             {hasTeamMember && <LinkButton to="/moje#ics" variant="ghost" icon="download">{t.schedule.actions.exportIcs}</LinkButton>}
-            {canCoordinate && (pending
-              ? <LinkButton to={`/generator?szkic=${pending.id}`} variant="primary" icon="wand">{t.schedule.actions.openProposal}</LinkButton>
-              : <LinkButton to={generatorHref} variant="primary" icon="wand">{t.schedule.actions.generateNext}</LinkButton>)}
+            {canCoordinate && nextStep()}
           </>
         )}
       />
-      {!rangeValid && <p className="muted">{t.schedule.rangeInvalid}</p>}
+      {publicationExpired && publication?.ends_on && (
+        <Box tone="warn" title={t.schedule.publicationExpired(formatDate(publication.ends_on))}>
+          {canCoordinate && (
+            <>
+              {t.schedule.publicationExpiredHint}
+              <div className="box-next">{nextStep('sm')}</div>
+            </>
+          )}
+        </Box>
+      )}
+      {!rangeValid && (
+        <div className="panel">
+          <EmptyState
+            icon="alert"
+            title={t.schedule.rangeInvalid}
+            action={<Button variant="primary" size="sm" onClick={() => setStart(today, '4')}>{t.schedule.showFromToday}</Button>}
+          />
+        </div>
+      )}
       {rangeValid && (
         <CalendarMatrix
           role={role}

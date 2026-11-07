@@ -96,7 +96,7 @@ describe('DraftScheduleMatrix grid', () => {
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
     renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
 
-    expect(screen.getByRole('status', { name: 'Wczytywanie macierzy szkicu' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Wczytywanie macierzy szkicu…' })).toBeInTheDocument()
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Serwer niedostępny')
     load.mockResolvedValue(calendar)

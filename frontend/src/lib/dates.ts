@@ -159,10 +159,11 @@ export function formatDateLong(value: string) {
 }
 
 /**
- * "20 wrz – 17 paź", "4 – 31 paź" inside one month, and the year only when
- * the range crosses one ("20 gru 2026 – 3 sty 2027").
+ * "20 wrz – 17 paź", "4 – 31 paź" inside one month, one date for a
+ * single-day range, and the year only when it crosses one.
  */
 export function formatRange(startsOn: string, endsOn: string) {
+  if (startsOn === endsOn) return formatShortDate(startsOn)
   const start = parse(startsOn)
   const end = parse(endsOn)
   if (start.getUTCFullYear() !== end.getUTCFullYear()) {

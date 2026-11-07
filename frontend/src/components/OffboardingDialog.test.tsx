@@ -231,7 +231,7 @@ describe('OffboardingDialog', () => {
     }
     renderScreen(<OffboardingDialog open member={member} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />)
 
-    expect(screen.getByRole('status', { name: 'Szukam przyszłych dyżurów' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Szukam przyszłych dyżurów…' })).toBeInTheDocument()
     const picker = await screen.findByRole('combobox', { name: /05-10-2026 · PRIMARY/ })
     expect(screen.getAllByRole('combobox')).toHaveLength(1)
     expect(within(picker).getAllByRole('option').map((option) => option.textContent))

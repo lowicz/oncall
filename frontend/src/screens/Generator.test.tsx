@@ -313,6 +313,24 @@ describe('GeneratorPanel draft deletion', () => {
     expect(remove.mock.calls[0][0]).toBe('d1')
   })
 
+  it('keeps a deletion failure inside the confirmation dialog', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'deleteSchedule').mockRejectedValue(new Error('Szkic zmienił się w międzyczasie'))
+    renderScreen(<GeneratorPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Usuń szkic/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Usunąć szkic?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Usuń' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Szkic zmienił się w międzyczasie')
+    expect(screen.getByRole('dialog', { name: 'Usunąć szkic?' })).toBeInTheDocument()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Anuluj' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Usuń szkic/ }))
+    const reopened = await screen.findByRole('dialog', { name: 'Usunąć szkic?' })
+    expect(within(reopened).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('does not delete anything when the confirmation is dismissed', async () => {
     stub([summary({ id: 'd1' })])
     const remove = vi.spyOn(api, 'deleteSchedule').mockResolvedValue(undefined)
@@ -879,6 +897,46 @@ describe('GeneratorPanel settings drawer', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Generuj' })).not.toBeInTheDocument())
   })
 
+  it('keeps unsaved settings when closing the panel is cancelled', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
+    await waitFor(() => expect(mode).toBeEnabled())
+    fireEvent.change(mode, { target: { value: 'weekly' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Zamknij panel' }))
+
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
+    fireEvent.click(within(warning).getByRole('button', { name: 'Anuluj' }))
+    expect(mode).toHaveValue('weekly')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zamknij panel' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).getByRole('button', { name: 'Odrzuć zmiany' }))
+    await waitFor(() => expect(screen.queryByRole('combobox', { name: /Tryb rotacji/ })).not.toBeInTheDocument())
+  })
+
+  it('blocks opening another draft until unsaved settings are discarded', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
+    await waitFor(() => expect(mode).toBeEnabled())
+    fireEvent.change(mode, { target: { value: 'weekly' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Otwórz' }))
+
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
+    expect(api.schedule).not.toHaveBeenCalled()
+    fireEvent.click(within(warning).getByRole('button', { name: 'Anuluj' }))
+    expect(mode).toHaveValue('weekly')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Otwórz' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).getByRole('button', { name: 'Odrzuć zmiany' }))
+    await waitFor(() => expect(api.schedule).toHaveBeenCalledWith('d1'))
+  })
+
   it('warns about the weekly mode, marks unsaved changes and restores the stored ones', async () => {
     stub([])
     renderScreen(<GeneratorPanel />)
@@ -1019,6 +1077,31 @@ describe('GeneratorPanel publication sheet', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(publish).not.toHaveBeenCalled()
+  })
+
+  it('keeps a publication failure in the open publication dialog', async () => {
+    stub([summary({ id: 'd1', status: 'proposed', version: 2 })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    vi.spyOn(api, 'publishPreview').mockResolvedValue({ lost_changes: [], carried_changes: [], pending_swaps: [], uncovered_before: [], stale_changes_count: 0, rest_violations: [] })
+    vi.spyOn(api, 'publishSchedule').mockRejectedValue(new ApiError('Propozycja zmieniła się od otwarcia okna', 409))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
+    const dialog = await screen.findByRole('dialog', { name: /Publikuję propozycję/ })
+    const publish = await within(dialog).findByRole('button', { name: 'Publikuj v2' })
+    await waitFor(() => expect(publish).toBeEnabled())
+    fireEvent.click(publish)
+
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert).toHaveTextContent('Nie udało się opublikować')
+    expect(alert).toHaveTextContent('Propozycja zmieniła się od otwarcia okna')
+    expect(alert).toHaveTextContent('Wróć do propozycji, sprawdź zmiany i opublikuj ponownie.')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć do propozycji' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /^Publikuj…/ }))
+    const reopened = await screen.findByRole('dialog', { name: /Publikuję propozycję/ })
+    expect(within(reopened).queryByText('Nie udało się opublikować')).not.toBeInTheDocument()
   })
 
   it('refuses to publish when the consequences cannot be checked', async () => {

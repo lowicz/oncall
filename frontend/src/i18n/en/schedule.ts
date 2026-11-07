@@ -8,6 +8,9 @@ export const schedule: Messages['schedule'] = {
   draftWaiting: (range: string) => `draft ${range} awaits approval`,
   clearHighlight: (name: string) => `Clear the highlight: ${name}`,
   rangeInvalid: 'The “to” date is earlier than the “from” date.',
+  showFromToday: 'Show from today',
+  publicationExpired: (date: string) => `The published schedule ended on ${date}.`,
+  publicationExpiredHint: 'Publish the next range.',
   peopleInRotation: (count: number) => `${pluralEn(count, ['person', 'people'])} in the rotation`,
   actions: {
     exportIcs: 'Export ICS',
@@ -81,7 +84,7 @@ export const schedule: Messages['schedule'] = {
     conflictPeople: (count: number) => `${pluralEn(count, ['person', 'people'])} on duty on a day of unavailability`,
     fullCoverage: 'Full coverage across the whole range',
   },
-  loading: 'Loading the schedule',
+  loading: 'Loading the schedule…',
   empty: {
     nobodyYet: 'Nobody is in the rotation yet',
     addPeople: 'Add people on the People screen.',

@@ -11,6 +11,7 @@ export const duty: Messages['duty'] = {
     asOf: (time: string) => `As of ${time}`,
     asOfInline: (time: string) => `as of ${time}`,
     notApplicable: 'not applicable',
+    noData: 'no data',
     unstaffed: 'unstaffed',
     holiday: (name: string) => `holiday · ${name}`,
     dayOff: 'day off · 2X',

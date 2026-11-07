@@ -32,7 +32,7 @@ describe('DraftList', () => {
     const onDelete = vi.fn()
     renderScreen(<DraftList activeId="a" onOpen={onOpen} onDelete={onDelete} />)
 
-    expect(screen.getByRole('status', { name: 'Wczytywanie szkiców' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Wczytywanie szkiców…' })).toBeInTheDocument()
     const opened = await screen.findByRole('button', { name: 'Otwarty' })
     expect(opened).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('05-10-2026 – 01-11-2026 · Dzienny · v1 · 76 przydziałów · utworzony 08-09-2026')).toBeInTheDocument()

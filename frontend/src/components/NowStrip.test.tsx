@@ -120,10 +120,13 @@ describe('NowStrip', () => {
     expect(await screen.findByText('dzień wolny · 2X')).toBeInTheDocument()
   })
 
-  it('says the connection is gone when nothing was ever loaded', async () => {
+  it('distinguishes a failed first load from unstaffed roles', async () => {
     vi.spyOn(api, 'publishedSchedule').mockRejectedValue(new Error('offline'))
     renderScreen(<NowStrip />)
-    expect(await screen.findAllByText('brak połączenia')).toHaveLength(3)
+    expect(await screen.findAllByText('brak danych')).toHaveLength(3)
+    expect(screen.getAllByText('brak danych')[0]).toHaveClass('now-stale')
+    expect(screen.getAllByText('brak połączenia')).toHaveLength(3)
+    expect(screen.queryByText('brak obsady')).not.toBeInTheDocument()
   })
 
   it('keeps the last known staffing and its time when a refresh fails', async () => {

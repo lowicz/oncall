@@ -220,15 +220,39 @@ describe('ScheduleScreen default range and header states', () => {
     await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-10-07'))
   })
 
-  it('shows only today when the publication has already ended', async () => {
+  it('shows four weeks, a warning and the generator path when the publication has ended', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ starts_on: '2026-08-01', ends_on: '2026-08-31' }))
     const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
     renderSchedule('/grafik')
 
-    expect(await screen.findByRole('heading', { level: 2, name: '10 – 10 wrz' })).toBeInTheDocument()
-    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-09-10'))
-    expect(screen.getByRole('radio', { name: '2 tyg.' })).toBeChecked()
+    expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 7 paź' })).toBeInTheDocument()
+    await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-10-07'))
+    expect(screen.getByText('Opublikowany grafik skończył się 31-08-2026.')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Generuj kolejny zakres' })).toHaveLength(2)
+    expect(screen.getAllByRole('link', { name: 'Generuj kolejny zakres' })[1]).toHaveAttribute('href', '/generator?od=2026-09-01&do=2026-09-28')
+    expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeChecked()
+  })
+
+  it('points an ended publication at the waiting proposal', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ starts_on: '2026-08-01', ends_on: '2026-08-31' }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([proposal])
+    renderSchedule('/grafik')
+
+    expect(await screen.findByText('Opublikowany grafik skończył się 31-08-2026.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByRole('link', { name: /Otwórz propozycję/ })).toHaveLength(2))
+    expect(screen.queryByRole('link', { name: 'Generuj kolejny zakres' })).not.toBeInTheDocument()
+  })
+
+  it('warns a member about an ended publication without the generator path', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ starts_on: '2026-08-01', ends_on: '2026-08-31' }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    renderSchedule('/grafik', { role: 'member' })
+
+    expect(await screen.findByText('Opublikowany grafik skończył się 31-08-2026.')).toBeInTheDocument()
+    expect(screen.queryByText('Opublikuj kolejny zakres.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Generuj kolejny zakres' })).not.toBeInTheDocument()
   })
 
   it('says nothing is published and names a plain draft without pushing it', async () => {
@@ -274,6 +298,10 @@ describe('ScheduleScreen default range and header states', () => {
     expect(await screen.findByText('Data „do” jest wcześniejsza niż „od”.')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Macierz grafiku' })).not.toBeInTheDocument()
     expect(calendarCall).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż od dziś' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 7 paź' })).toBeInTheDocument()
+    expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=4')
   })
 
   it('shows the highlighted person as a chip that clears the highlight', async () => {

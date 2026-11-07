@@ -71,9 +71,9 @@ Numer pracownika ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
 logowaniu z katalogu. Przy [logowaniu przez SSO](../wdrozenie/sso.md) wskazuje
 konto, na które Keycloak wpuszcza osobę.
 
-Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę, a
-próba zamknięcia wypisze, co zostanie utracone. Zmiana roli i wyłączenie konta
-wymagają dodatkowego potwierdzenia.
+Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę.
+Próba zamknięcia, otwarcia innej osoby, przejścia na inny ekran albo odświeżenia wymaga decyzji, czy odrzucić wprowadzone zmiany.
+Zmiana roli i wyłączenie konta wymagają dodatkowego potwierdzenia.
 
 ### Wyjście z rotacji
 

@@ -10,7 +10,7 @@ export const swaps = {
     closed: (count: number) => pluralPl(count, ['zamknięta', 'zamknięte', 'zamkniętych']),
   },
   newSwap: 'Nowa zamiana',
-  loading: 'Wczytywanie zamian',
+  loading: 'Wczytywanie zamian…',
   inbox: {
     heading: 'Skrzynka',
     toMe: 'Do mnie',
@@ -145,7 +145,7 @@ export const swaps = {
     candidates: 'Kandydaci',
     candidatesMeta: 'posortowani wg dopasowania',
     pickDutyFirst: 'Najpierw wybierz swój dyżur.',
-    searching: 'Szukam dostępnych osób',
+    searching: 'Szukam dostępnych osób…',
     noCandidates: 'Brak dostępnych zastępców',
     onDutyThatDay: 'ma już dyżur tego dnia',
     /** A candidate who may not hold 11-19 takes the on-call role of the whole duty alone. */
@@ -166,7 +166,7 @@ export const swaps = {
     /** What the request takes of the chosen day of the replacement, when it has two roles. */
     takeScope: 'Biorę',
     inReturnMeta: (name: string) => `opcjonalnie · od: ${name}`,
-    returnSearching: 'Szukam dyżurów do wzięcia w zamian',
+    returnSearching: 'Szukam dyżurów do wzięcia w zamian…',
     noReturnDuties: (name: string) => `${name} nie ma nadchodzących dyżurów, które można wziąć w zamian.`,
     nothingInReturn: 'Nic, tylko oddaję dyżur',
     warning: 'ostrzeżenie',
@@ -183,7 +183,7 @@ export const swaps = {
   },
   /** The points preview (`src/components/SwapImpactPreview.tsx`). */
   impact: {
-    loading: 'Przeliczanie wpływu zamiany',
+    loading: 'Przeliczanie wpływu zamiany…',
     heading: 'Wpływ na bilans',
     dayWorth: (day: string, points: string) => `${day} to ${points}.`,
     twoPoints: '2 punkty (2X)',

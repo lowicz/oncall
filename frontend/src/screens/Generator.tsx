@@ -8,6 +8,7 @@ import { formatPoints } from '../lib/numbers'
 import { preferredScrollBehavior } from '../lib/motion'
 import { draftFairnessImpactQuery } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
 import { DraftFairnessPanel, worstSpread } from '../components/DraftFairnessPanel'
 import { DraftList } from '../components/DraftList'
@@ -204,6 +205,8 @@ export function GeneratorPanel() {
     onSuccess: (value) => queryClient.setQueryData(['scheduling-policy'], value),
   })
   const settingsDirty = Boolean(policy.data && SETTINGS_KEYS.some((key) => settings[key] !== policy.data[key]))
+  const unsavedChanges = useUnsavedChanges(settingsDirty)
+  const closeSettings = () => unsavedChanges.requestAction(() => setSettingsOpen(false))
   const onGenerated = (value: DraftSchedule) => {
     setRunProgress(null)
     setResult(value)
@@ -258,7 +261,7 @@ export function GeneratorPanel() {
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
     },
   })
-  const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error ?? publish.error ?? remove.error
+  const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error
   const counts = result ? problemCounts(result) : { hard: 0, soft: 0, total: 0 }
   const days = result ? new Set(result.assignments.map((item) => item.service_date)).size : 0
   const spread = impact.data ? worstSpread(impact.data) : null
@@ -370,7 +373,7 @@ export function GeneratorPanel() {
   const draftsSection = (
     <section className="stack-sm">
       <SectionHeading title={t.drafts.heading} meta={drafts.data ? `${drafts.data.length}` : undefined} />
-      <DraftList activeId={result?.id} onOpen={setOpenId} onDelete={setToDelete} deleting={remove.isPending} />
+      <DraftList activeId={result?.id} onOpen={setOpenId} onDelete={(item) => { remove.reset(); setToDelete(item) }} deleting={remove.isPending} />
       {(drafts.data?.some((item) => item.rotation_mode === 'daily') && drafts.data.some((item) => item.rotation_mode === 'weekly')) && (
         <Disclosure title={t.drafts.compareVariants}>
           <ScheduleComparison drafts={drafts.data} />
@@ -415,7 +418,7 @@ export function GeneratorPanel() {
               {result.status === 'proposed' && (
                 <>
                   <Button disabled={withdraw.isPending} loading={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>{t.header.backToDraft}</Button>
-                  <Button variant="primary" icon="send" disabled={publish.isPending || generating} onClick={() => setPublishConfirmOpen(true)}>{t.header.publish}</Button>
+                  <Button variant="primary" icon="send" disabled={publish.isPending || generating} onClick={() => { publish.reset(); setPublishConfirmOpen(true) }}>{t.header.publish}</Button>
                 </>
               )}
               {result.status === 'published' && <StatusBadge tone="pub">{t.header.published}</StatusBadge>}
@@ -553,10 +556,11 @@ export function GeneratorPanel() {
         confirmLabel={t.deleteDialog.confirm}
         confirmColor="error"
         description={toDelete && t.deleteDialog.description(toDelete.name, formatDate(toDelete.starts_on), formatDate(toDelete.ends_on))}
+        error={remove.error ? remove.error.message : null}
       />
       <Panel
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={closeSettings}
         wide
         title={t.settings.title}
         meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}
@@ -659,6 +663,11 @@ export function GeneratorPanel() {
             </>
           )}
         >
+          {publish.error && (
+            <Box tone="bad" role="alert" title={t.publish.failed}>
+              {publish.error.message} {t.publish.failedNext}
+            </Box>
+          )}
           <ul>
             <li><b>{t.publish.assignments(result.assignments.length)}</b> {t.publish.becomePublished(result.assignments.length, days)}</li>
             <li>{t.publish.earlierSchedule}</li>
@@ -739,6 +748,15 @@ export function GeneratorPanel() {
           <p className="muted small">{t.publish.undoNote}</p>
         </Dialog>
       )}
+      <ConfirmDialog
+        open={unsavedChanges.open}
+        title={common.unsavedChanges.title}
+        description={common.unsavedChanges.description}
+        confirmLabel={common.unsavedChanges.confirm}
+        confirmColor="warning"
+        onCancel={unsavedChanges.cancel}
+        onConfirm={unsavedChanges.discard}
+      />
     </div>
   )
 }

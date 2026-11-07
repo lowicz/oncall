@@ -80,7 +80,7 @@ describe('CalendarEventsPanel list', () => {
       .mockResolvedValue([EVENT])
     renderScreen(<CalendarEventsPanel />)
 
-    expect(await screen.findByText('Nie udało się pobrać danych')).toBeInTheDocument()
+    expect(await screen.findByText('Nie udało się pobrać danych. Sprawdź połączenie i spróbuj ponownie.')).toBeInTheDocument()
     expect(screen.getAllByText('Serwer niedostępny').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }))
 
