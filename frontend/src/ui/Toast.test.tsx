@@ -38,12 +38,53 @@ describe('toasts', () => {
     expect(within(item).getByText('Grafik wrzesień')).toHaveClass('toast-desc')
   })
 
-  it('offers an action that runs its handler', async () => {
+  it('offers an action that runs its handler for ten seconds', async () => {
     const onClick = vi.fn()
     renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick } }))
     const item = await toastNamed('Usunięto wpis')
     fireEvent.click(within(item).getByRole('button', { name: 'Cofnij' }))
     expect(onClick).toHaveBeenCalledOnce()
+    screen.getByRole('button', { name: 'raise' }).focus()
+
+    await act(() => vi.advanceTimersByTimeAsync(7000))
+    expect(screen.getByText('Usunięto wpis')).toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(4000))
+    await waitFor(() => expect(screen.queryByText('Usunięto wpis')).not.toBeInTheDocument())
+  })
+
+  it('pauses an action toast while the pointer is over the notifications', async () => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', { action: { label: 'Cofnij', onClick: vi.fn() } }))
+    await toastNamed('Zapisano zmianę')
+    const viewport = screen.getByRole('region', { name: messages().common.notifications })
+
+    fireEvent.mouseEnter(viewport)
+    await act(() => vi.advanceTimersByTimeAsync(15_000))
+    expect(screen.getByText('Zapisano zmianę')).toBeInTheDocument()
+
+    fireEvent.mouseLeave(viewport)
+    await act(() => vi.advanceTimersByTimeAsync(11_000))
+    await waitFor(() => expect(screen.queryByText('Zapisano zmianę')).not.toBeInTheDocument())
+  })
+
+  it('pauses an action toast while its action has keyboard focus', async () => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', { action: { label: 'Cofnij', onClick: vi.fn() } }))
+    const item = await toastNamed('Zapisano zmianę')
+    const action = within(item).getByRole('button', { name: 'Cofnij' })
+
+    fireEvent.keyDown(document, { key: 'Tab' })
+    action.focus()
+    await act(() => vi.advanceTimersByTimeAsync(15_000))
+    expect(screen.getByText('Zapisano zmianę')).toBeInTheDocument()
+
+    screen.getByRole('button', { name: 'raise' }).focus()
+    await act(() => vi.advanceTimersByTimeAsync(11_000))
+    await waitFor(() => expect(screen.queryByText('Zapisano zmianę')).not.toBeInTheDocument())
+  })
+
+  it('uses a polite live region for notifications', () => {
+    renderToasts()
+    expect(screen.getByRole('region', { name: messages().common.notifications }))
+      .toHaveAttribute('aria-live', 'polite')
   })
 
   it('closes on its close button', async () => {

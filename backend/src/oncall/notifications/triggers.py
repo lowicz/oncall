@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
-from oncall.domain.clock import as_utc
+from oncall.domain.clock import as_utc, utc_now
 from oncall.domain.digest import DutyDigest
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
 from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome
@@ -26,7 +26,11 @@ from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications import templates
 from oncall.notifications.base import NotificationMessage
 from oncall.notifications.layout import Brand
-from oncall.notifications.service import enqueue_notification
+from oncall.notifications.service import (
+    UNDO_WINDOW,
+    cancel_notifications,
+    enqueue_notification,
+)
 from oncall.notifications.templates import NumberSwitched, RenderedEmail
 from oncall.rules import RuleViolation
 
@@ -34,6 +38,22 @@ logger = logging.getLogger(__name__)
 
 #: The order a day's roles are read in: PRIMARY, SECONDARY, 11–19.
 _ROLE_ORDER = {role: index for index, role in enumerate(AssignmentRole)}
+
+
+def _undo_key(changes: Iterable[tuple[date, AssignmentRole, str, str]]) -> str:
+    """A stable identity for one correction, independent of batch row order."""
+    canonical = sorted(
+        (service_date.isoformat(), role.value, previous_name, new_name)
+        for service_date, role, previous_name, new_name in changes
+    )
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"oncall:notification-undo:{canonical!r}").hex
+
+
+def _inverse_undo_key(changes: Iterable[tuple[date, AssignmentRole, str, str]]) -> str:
+    return _undo_key(
+        (service_date, role, new_name, previous_name)
+        for service_date, role, previous_name, new_name in changes
+    )
 
 
 def _message(recipient: str, rendered: RenderedEmail, context: dict) -> NotificationMessage:
@@ -74,6 +94,7 @@ async def _enqueue_for(
     build,
     dedup_key: str | None = None,
     context: dict | None = None,
+    send_after: datetime | None = None,
 ) -> None:
     """Enqueue one message per recipient that has a known e-mail address."""
     for name in dict.fromkeys(names):
@@ -86,6 +107,7 @@ async def _enqueue_for(
             db,
             _message(recipient, build(), {**(context or {}), "member": name}),
             dedup_key=key,
+            send_after=send_after,
         )
 
 
@@ -589,6 +611,10 @@ async def notify_assignment_overridden(
     new_name: str,
 ) -> None:
     settings = get_settings()
+    changes = [(service_date, role, previous_name, new_name)]
+    now = utc_now()
+    if await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now):
+        return
     emails = await _emails_for_names(db, [previous_name, new_name])
     mode = await db.scalar(select(CallForwardingSettings.mode).limit(1))
     await _enqueue_for(
@@ -603,7 +629,12 @@ async def notify_assignment_overridden(
             app=Brand.from_settings(settings),
             automatic=mode is ForwardingMode.live,
         ),
-        context={"event": "assignment_overridden", "service_date": service_date.isoformat()},
+        context={
+            "event": "assignment_overridden",
+            "service_date": service_date.isoformat(),
+            "undo_key": _undo_key(changes),
+        },
+        send_after=now + UNDO_WINDOW,
     )
 
 
@@ -661,7 +692,12 @@ async def notify_assignments_overridden_in_batch(
             name for _, _, previous_name, new_name in changes for name in (previous_name, new_name)
         )
     )
+    now = utc_now()
+    if await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now):
+        return
     emails = await _emails_for_names(db, names)
+    send_after = now + UNDO_WINDOW
+    undo_key = _undo_key(changes)
     for name in names:
         own = [change for change in changes if name in change[2:]]
         await _enqueue_for(
@@ -673,6 +709,7 @@ async def notify_assignments_overridden_in_batch(
             ),
             context={
                 "event": "assignments_overridden_in_batch",
+                "undo_key": undo_key,
                 "changes": [
                     {
                         "service_date": service_date.isoformat(),
@@ -683,6 +720,7 @@ async def notify_assignments_overridden_in_batch(
                     for service_date, role, previous_name, new_name in own
                 ],
             },
+            send_after=send_after,
         )
 
 

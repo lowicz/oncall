@@ -6,6 +6,16 @@ import { useMessages } from '../i18n/messages'
 
 type Tone = 'ok' | 'warn' | 'bad' | 'info'
 
+const TOAST_ACTION_TIMEOUT_MS = 10_000
+
+interface ToastOptions {
+  description?: ReactNode
+  action?: { label: string; onClick: () => void }
+  timeout?: number
+}
+
+export type ToastApi = ReturnType<typeof useToast>
+
 /**
  * Transient confirmations at the bottom right (top on a phone): "Zapisano",
  * "Wysłano do Marka". Errors of a form stay next to the form; a toast is only
@@ -48,19 +58,20 @@ function ToastList() {
 
 export function useToast() {
   const manager = BaseToast.useToastManager()
-  const show = useCallback((tone: Tone, title: ReactNode, options?: { description?: ReactNode; action?: { label: string; onClick: () => void }; timeout?: number }) => {
-    manager.add({
+  const show = useCallback((tone: Tone, title: ReactNode, options?: ToastOptions) => {
+    return manager.add({
       type: tone,
       title,
       description: options?.description,
-      timeout: options?.timeout,
+      timeout: options?.timeout ?? (options?.action ? TOAST_ACTION_TIMEOUT_MS : undefined),
       actionProps: options?.action ? { children: options.action.label, onClick: options.action.onClick } : undefined,
     })
   }, [manager])
   return useMemo(() => ({
-    success: (title: ReactNode, options?: Parameters<typeof show>[2]) => show('ok', title, options),
-    warn: (title: ReactNode, options?: Parameters<typeof show>[2]) => show('warn', title, options),
-    error: (title: ReactNode, options?: Parameters<typeof show>[2]) => show('bad', title, { timeout: 10000, ...options }),
-    info: (title: ReactNode, options?: Parameters<typeof show>[2]) => show('info', title, options),
-  }), [show])
+    success: (title: ReactNode, options?: ToastOptions) => show('ok', title, options),
+    warn: (title: ReactNode, options?: ToastOptions) => show('warn', title, options),
+    error: (title: ReactNode, options?: ToastOptions) => show('bad', title, { timeout: 10000, ...options }),
+    info: (title: ReactNode, options?: ToastOptions) => show('info', title, options),
+    close: manager.close,
+  }), [manager.close, show])
 }

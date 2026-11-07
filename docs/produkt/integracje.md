@@ -45,6 +45,11 @@ powiadamia obie strony każdego przepisanego slotu: osobę zdejmowaną i
 przejmującą. Przy korekcie wsadowej każda osoba dostaje jedną wiadomość z listą
 wyłącznie tych slotów, które oddała albo przejęła, oraz z powodem korekty.
 
+Wiadomości o korekcie wychodzą 10 sekund po niej, czyli po zamknięciu okna
+„Cofnij”; sama zmiana grafiku i wpis audytu powstają od razu. Korekta odwrotna w
+tym czasie (przywrócenie poprzedniej osoby) anuluje niewysłane wiadomości i nie
+wysyła nowych. Po zamknięciu okna treść i adresaci są takie jak bez opóźnienia.
+
 Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
 zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
 tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje** (`/moje`).

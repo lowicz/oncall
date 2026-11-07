@@ -46,6 +46,12 @@ taking over. With a batch correction each person gets one message listing only
 the slots they gave up or took over, together with the reason for the
 correction.
 
+Messages about a correction go out 10 seconds after it, once the Undo window
+has closed; the schedule change and its audit entry are recorded immediately.
+The reverse correction within that time (putting the previous person back)
+cancels the unsent messages and sends no new ones. After the window closes, the
+content and recipients are the same as without the delay.
+
 The schedule publication message goes to every team member active in its
 range. It lists only their own duties (day and role) or says that there is
 none in this schedule, and leads to the **Mine** screen (`/moje`).

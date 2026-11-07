@@ -55,7 +55,12 @@ def _audit(action: str, age: timedelta) -> AuditEvent:
     )
 
 
-def _mail(status: NotificationStatus, age: timedelta) -> NotificationOutbox:
+def _mail(
+    status: NotificationStatus,
+    age: timedelta,
+    *,
+    cancelled: bool = False,
+) -> NotificationOutbox:
     return NotificationOutbox(
         channel=NotificationChannel.email,
         recipient="anna@example.com",
@@ -64,6 +69,8 @@ def _mail(status: NotificationStatus, age: timedelta) -> NotificationOutbox:
         status=status,
         attempts=1,
         next_attempt_at=NOW - age,
+        send_after=NOW - age,
+        cancelled_at=NOW - age if cancelled else None,
         created_at=NOW - age,
         sent_at=NOW - age if status is NotificationStatus.sent else None,
     )
@@ -136,6 +143,8 @@ async def test_outbox_keeps_live_rows_and_expires_finished_ones(db, db_factory) 
             _mail(NotificationStatus.failed, 91 * DAY),
             _mail(NotificationStatus.skipped, 91 * DAY),
             _mail(NotificationStatus.sent, 89 * DAY),
+            _mail(NotificationStatus.pending, 91 * DAY, cancelled=True),
+            _mail(NotificationStatus.pending, 89 * DAY, cancelled=True),
             _mail(NotificationStatus.pending, 400 * DAY),  # live work, however old
             _mail(NotificationStatus.claimed, 400 * DAY),
         ]
@@ -144,10 +153,11 @@ async def test_outbox_keeps_live_rows_and_expires_finished_ones(db, db_factory) 
 
     report = await prune_expired(db_factory, POLICY, now=NOW)
 
-    assert report.deleted["outbox"] == 3
+    assert report.deleted["outbox"] == 4
     statuses = sorted((await db.scalars(select(NotificationOutbox.status))).all())
     assert statuses == [
         NotificationStatus.claimed,
+        NotificationStatus.pending,
         NotificationStatus.pending,
         NotificationStatus.sent,
     ]

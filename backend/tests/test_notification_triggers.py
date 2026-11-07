@@ -4,13 +4,16 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select
 
-from oncall.domain.clock import business_today
+from oncall.domain.clock import as_utc, business_today
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
+from oncall.notifications.service import UNDO_WINDOW
 from oncall.notifications.templates import format_day
 from oncall.notifications.triggers import (
     notify_assignments_changed_by_publication,
+    notify_assignments_overridden_in_batch,
     notify_schedule_published,
     notify_swap_accepted,
     notify_swap_cancelled,
@@ -127,7 +130,7 @@ async def test_swap_rejection_notifies_requester(client, db) -> None:
     assert "Nie mogę tego dnia" in rejection.body
 
 
-async def test_direct_override_notifies_both_sides(client, db) -> None:
+async def test_direct_override_notifies_both_sides(client, db, frozen_clock) -> None:
     today, members = await _seed_team(db)
     schedule = await create_published_schedule(
         db,
@@ -151,10 +154,67 @@ async def test_direct_override_notifies_both_sides(client, db) -> None:
     )
     assert response.status_code == 200, response.text
     rows = await _outbox_rows(db)
+    audit = await db.scalar(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
+    assert audit is not None
     recipients = {row.recipient for row in rows}
     assert recipients == {"anna@example.com", "marek@example.com"}
     assert all("Zmiana przydziału" in row.subject for row in rows)
+    assert all(as_utc(row.send_after) == frozen_clock.instant + UNDO_WINDOW for row in rows)
     assert any("Marek Nowak (poprzednio: Anna Kowalska)" in row.body for row in rows)
+
+
+async def test_reversing_a_direct_override_cancels_its_unsent_messages(
+    client, db, frozen_clock
+) -> None:
+    today, members = await _seed_team(db)
+    schedule = await create_published_schedule(
+        db,
+        starts_on=today,
+        days=1,
+        primary=["Anna Kowalska"],
+        secondary=["Ola Wiśniewska"],
+        late_shift=["Ola Wiśniewska"],
+    )
+    await create_user(db, "admin", role=UserRole.admin)
+    await login(client, "admin")
+    first = await client.post(
+        "/api/v1/calendar/override",
+        json={
+            "schedule_id": str(schedule.id),
+            "expected_version": schedule.version,
+            "service_date": str(today),
+            "role": "primary",
+            "replacement_member_id": str(members["Marek Nowak"].id),
+        },
+    )
+    assert first.status_code == 200, first.text
+    await db.refresh(schedule)
+
+    undone = await client.post(
+        "/api/v1/calendar/override",
+        json={
+            "schedule_id": str(schedule.id),
+            "expected_version": schedule.version,
+            "service_date": str(today),
+            "role": "primary",
+            "replacement_member_id": str(members["Anna Kowalska"].id),
+        },
+    )
+
+    assert undone.status_code == 200, undone.text
+    assert undone.json()["assignee_name"] == "Anna Kowalska"
+    db.expire_all()
+    rows = await _outbox_rows(db)
+    assert len(rows) == 2
+    assert all(as_utc(row.cancelled_at) == frozen_clock.instant for row in rows)
+    assert (
+        len(
+            (
+                await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
+            ).all()
+        )
+        == 2
+    )
 
 
 async def test_direct_override_rejects_current_assignee_without_side_effects(client, db) -> None:
@@ -258,7 +318,9 @@ async def test_publish_notification_lists_only_the_recipients_own_duties(db) -> 
     assert bodies["ola@example.com"].endswith(moje)
 
 
-async def test_batch_override_notifies_everyone_who_gave_up_or_took_a_slot(client, db) -> None:
+async def test_batch_override_notifies_everyone_who_gave_up_or_took_a_slot(
+    client, db, frozen_clock
+) -> None:
     """A batch correction (offboarding, for instance) tells each person about
     the slots they lost or gained - only those - the way a single correction
     tells both of its sides."""
@@ -301,6 +363,9 @@ async def test_batch_override_notifies_everyone_who_gave_up_or_took_a_slot(clien
     assert set(rows) == {"anna@example.com", "marek@example.com", "ola@example.com"}
     assert all(row.subject.startswith("Zmiana przydziałów") for row in rows.values())
     assert all(row.html_body for row in rows.values())
+    assert all(
+        as_utc(row.send_after) == frozen_clock.instant + UNDO_WINDOW for row in rows.values()
+    )
     # Anna gave up both slots; Marek and Ola each took one.
     anna, marek, ola = (rows[f"{who}@example.com"] for who in ("anna", "marek", "ola"))
     assert anna.subject.endswith("(2)")
@@ -315,6 +380,32 @@ async def test_batch_override_notifies_everyone_who_gave_up_or_took_a_slot(clien
     assert "Marek Nowak" not in ola.body
     assert marek.context["event"] == "assignments_overridden_in_batch"
     assert len(marek.context["changes"]) == 1
+
+
+async def test_reversing_a_batch_override_cancels_its_unsent_messages(db, frozen_clock) -> None:
+    today, _members = await _seed_team(db)
+    changes = [
+        (today, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak"),
+        (
+            today + timedelta(days=1),
+            AssignmentRole.primary,
+            "Anna Kowalska",
+            "Ola Wiśniewska",
+        ),
+    ]
+    await notify_assignments_overridden_in_batch(db, changes=changes, reason="Zmiana obsady")
+    await notify_assignments_overridden_in_batch(
+        db,
+        changes=[
+            (day, role, new_name, previous_name) for day, role, previous_name, new_name in changes
+        ],
+        reason="Cofnięcie zmiany obsady",
+    )
+    await db.commit()
+
+    rows = await _outbox_rows(db)
+    assert len(rows) == 3
+    assert all(as_utc(row.cancelled_at) == frozen_clock.instant for row in rows)
 
 
 async def test_unavailability_over_existing_duty_warns_member_and_coordinator(client, db) -> None:
