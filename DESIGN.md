@@ -499,7 +499,7 @@ podkład leży na nieprzezroczystym `s2`. Początek tygodnia to lewa linia
 - **Do** oznaczaj rolę kolorem wypełnienia z granatowym atramentem, w obu
   motywach tak samo.
 - **Do** sygnalizuj stan kropką w pigułce (`.st`, `.chip`) albo lewym
-  paskiem 3 px (`.box`, `.dcard`, `.list-row-bad`), nie zmianą całego tła
+  paskiem 3 px (`.box`, `.dcard`, `.list-row-warn`), nie zmianą całego tła
   sekcji.
 - **Do** projektuj każdy ekran w trzech szerokościach: ≤900 px (zakładki
   dolne, arkusze od dołu), 901-1100 px (szyna 56 px), >1100 px.
