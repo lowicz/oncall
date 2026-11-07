@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { focusManager } from '@tanstack/react-query'
@@ -752,7 +753,7 @@ describe('MineScreen availability painting', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
     expect(replace.mock.calls.map(([input]) => input.starts_on)).toEqual(['2026-09-20', '2026-09-22'])
     expect(await screen.findByText('Wyczyszczono: wt 22 wrz')).toBeInTheDocument()
-    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3))
   })
 
   it('rolls a failed paint back without dropping the paint still waiting behind it', async () => {
@@ -781,6 +782,32 @@ describe('MineScreen availability painting', () => {
     failures[1](new ApiError('Nie zapisano', 503))
     expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026, Nie mogę' })).toBeInTheDocument()
     expect(cell(/niedz 20-09-2026/)).toHaveAccessibleName('niedz 20-09-2026, Nie mogę')
+  })
+
+  it('keeps drawing a waiting paint after the screen is mounted again', async () => {
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([])
+    let finish: (value: null) => void = () => {}
+    vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    function Host() {
+      const [mount, setMount] = useState(0)
+      return (
+        <>
+          <button type="button" onClick={() => setMount(mount + 1)}>remount</button>
+          <MineScreen key={mount} hasTeamMember displayName="Julia Nowak" />
+        </>
+      )
+    }
+    renderScreen(<Host />)
+    await screen.findByRole('gridcell', { name: 'niedz 20-09-2026' })
+
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'remount' }))
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })).toBeInTheDocument()
+
+    finish(null)
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026' })).toBeInTheDocument()
   })
 
   it('reports a failed save', async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AssignmentRole,
   AvailabilityEntry,
@@ -353,9 +353,10 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   // show, so the section only works once a person is picked.
   const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf
 
-  const listKey = availabilityKey(onBehalf ? target : '')
+  // Whose list the brush paints: '' is the user's own.
+  const member = onBehalf ? target : ''
   const entries = useQuery({
-    queryKey: listKey,
+    queryKey: availabilityKey(member),
     queryFn: onBehalf ? () => api.memberAvailability(target) : api.availability,
     enabled: onBehalf || hasTeamMember,
   })
@@ -376,14 +377,6 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   const applyPaint = (list: AvailabilityEntry[], command: PaintCommand) => (
     optimisticRange(list, command.startsOn, command.endsOn, command.brush, command.note)
   )
-  // The paints still waiting for one person, oldest first, this one included.
-  const pendingPaints = (member: string) => queryClient.getMutationCache()
-    .findAll({ mutationKey: PAINT_KEY, status: 'pending' })
-    .map((mutation) => mutation.state.variables as PaintCommand)
-    .filter((command) => command.member === member)
-  // Each person's list as the server last confirmed it while paints wait;
-  // a failed paint rebuilds the view from it with the paints still waiting.
-  const confirmed = useRef<Record<string, AvailabilityEntry[]>>({})
   const paint = useMutation<AvailabilityEntry | null, Error, PaintCommand>({
     mutationKey: PAINT_KEY,
     // One scope runs the paints one after another, in the order painted.
@@ -397,37 +390,28 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
       }
       return member ? api.replaceMemberAvailabilityRange(member, input) : api.replaceAvailabilityRange(input)
     },
-    onMutate: async (command) => {
-      const key = availabilityKey(command.member)
-      const first = pendingPaints(command.member).length === 1
-      await queryClient.cancelQueries({ queryKey: key })
-      const previous = queryClient.getQueryData<AvailabilityEntry[]>(key) ?? []
-      if (first) confirmed.current[command.member] = previous
-      queryClient.setQueryData<AvailabilityEntry[]>(key, applyPaint(previous, command))
-    },
     onSuccess: (result, command) => {
-      confirmed.current[command.member] = applyPaint(confirmed.current[command.member], command)
       setWarning(result?.warning ?? null)
       const range = rangeText(command.startsOn, command.endsOn)
       toast.success(command.brush === 'clear'
         ? t.cleared(range)
         : t.saved(range, availabilityLabels()[command.brush].toLowerCase()))
     },
-    onError: (error, command) => {
-      const waiting = pendingPaints(command.member).filter((other) => other !== command)
-      queryClient.setQueryData(
-        availabilityKey(command.member),
-        waiting.reduce(applyPaint, confirmed.current[command.member]),
-      )
-      toast.error(error.message)
-    },
-    onSettled: (_result, _error, command) => {
-      // A refetch while a later paint waits would drop its optimistic cells.
-      if (queryClient.isMutating({ mutationKey: PAINT_KEY }) > 1) return
-      queryClient.invalidateQueries({ queryKey: availabilityKey(command.member) })
-      queryClient.invalidateQueries({ queryKey: ['calendar'] })
-    },
+    onError: (error) => toast.error(error.message),
+    // The paint stays pending, and so stays drawn, until its person's list
+    // has been read back.
+    onSettled: (_result, _error, command) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: availabilityKey(command.member) }),
+      queryClient.invalidateQueries({ queryKey: ['calendar'] }),
+    ]),
   })
+  // Paints waiting to be saved are drawn over the list the server returned;
+  // one that fails is no longer pending and drops out by itself.
+  const pending = useMutationState({
+    filters: { mutationKey: PAINT_KEY, status: 'pending' },
+    select: (mutation) => mutation.state.variables as PaintCommand,
+  })
+  const shown = pending.filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
 
   const heading = targetMember ? t.headingFor(targetMember.display_name) : t.heading
   return (
@@ -479,13 +463,13 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
           {entries.error && <ErrorState error={entries.error} onRetry={() => entries.refetch()} />}
           <AvailabilityCalendar
             month={month}
-            entries={entries.data ?? []}
+            entries={shown}
             duties={duties}
             brush={brush}
             today={today}
             disabled={entries.isLoading}
             onPaint={(startsOn, endsOn) => paint.mutate({
-              member: onBehalf ? target : '',
+              member,
               startsOn,
               endsOn,
               brush,
