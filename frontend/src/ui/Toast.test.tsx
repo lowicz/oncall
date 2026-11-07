@@ -75,6 +75,20 @@ describe('toasts', () => {
     expect(within(item).queryByText('E-maile wyjdą za chwilę')).not.toBeInTheDocument()
   })
 
+  it('moves focus from a withdrawn action to its close button', async () => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', {
+      action: { label: 'Cofnij', onClick: vi.fn() },
+      until: { at: Date.now() + 10_000, expired: 'E-maile już wyszły' },
+    }))
+    const item = await toastNamed('Zapisano zmianę')
+    fireEvent.keyDown(document, { key: 'Tab' })
+    within(item).getByRole('button', { name: 'Cofnij' }).focus()
+
+    await act(() => vi.advanceTimersByTimeAsync(10_100))
+    expect(within(item).queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+    expect(within(item).getByRole('button', { name: messages().common.closeNotification })).toHaveFocus()
+  })
+
   it('pauses an action toast while the pointer is over the notifications', async () => {
     renderToasts((toast) => toast.success('Zapisano zmianę', { action: { label: 'Cofnij', onClick: vi.fn() } }))
     await toastNamed('Zapisano zmianę')

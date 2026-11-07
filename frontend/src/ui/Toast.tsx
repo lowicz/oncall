@@ -69,7 +69,11 @@ export function useToast() {
       timeout: until ? Math.max(1, until.at - Date.now()) : options?.timeout,
       actionProps: options?.action ? { children: options.action.label, onClick: options.action.onClick } : undefined,
     })
-    if (until) setTimeout(() => manager.update(id, { description: until.expired, actionProps: undefined }), until.at - Date.now())
+    if (until) setTimeout(() => manager.update(id, (toast) => {
+      const root = toast.ref?.current
+      if (root?.contains(document.activeElement)) root.querySelector<HTMLElement>('.ib')?.focus()
+      return { description: until.expired, actionProps: undefined }
+    }), until.at - Date.now())
     return id
   }, [manager])
   return useMemo(() => ({
