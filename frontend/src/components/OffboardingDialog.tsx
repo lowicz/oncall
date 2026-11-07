@@ -11,9 +11,9 @@ import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select } 
  * replacement picked here, then the eligibility periods are closed and the
  * member's active_until is set, in that order.
  *
- * Before any rewrite, every affected schedule is checked together with its
- * selected replacements. Hard-rule violations are listed and acknowledged in
- * the decision before the first batch is saved.
+ * Before any rewrite, the batches of every affected schedule are checked
+ * together, so a rule spanning two schedules is seen as well. Hard-rule
+ * violations are listed and acknowledged before the first batch is saved.
  */
 export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }: {
   open: boolean
@@ -52,7 +52,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   const duties = found.assignments.filter((item) => item.member_id === member.id && item.service_date > activeUntil)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [confirming, setConfirming] = useState(false)
-  const [preflight, setPreflight] = useState<Record<string, RuleViolation[]> | null>(null)
+  const [violations, setViolations] = useState<RuleViolation[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
   const candidates = (day: string, role: AssignmentRole) => {
@@ -76,17 +76,14 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   }))
   const check = useMutation({
     mutationFn: async () => {
-      const checked = await Promise.all([...groupedDuties()].map(async ([scheduleId, group]) => [
-        scheduleId,
-        await api.batchOverrideCheck({
-          schedule_id: scheduleId,
-          assignments: assignmentsFor(group),
-        }),
-      ] as const))
-      return Object.fromEntries(checked)
+      const batches = [...groupedDuties()].map(([scheduleId, group]) => ({
+        schedule_id: scheduleId,
+        assignments: assignmentsFor(group),
+      }))
+      return batches.length > 0 ? api.batchOverrideCheck({ batches }) : []
     },
     onSuccess: (result) => {
-      setPreflight(result)
+      setViolations(result)
       setAcknowledged(false)
       setConfirming(true)
     },
@@ -99,7 +96,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
           expected_version: group[0].schedule_version,
           assignments: assignmentsFor(group),
           reason: t.reason(member.display_name),
-          acknowledge_rule_violations: Boolean(preflight?.[scheduleId]?.length && acknowledged),
+          acknowledge_rule_violations: violations.length > 0 && acknowledged,
         })
       }
       for (const period of member.eligibility) {
@@ -113,11 +110,6 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     onSuccess: onDone,
   })
   const complete = duties.every((item) => replacements[key(item.service_date, item.role)])
-  const violations = Object.values(preflight ?? {}).flat().filter((violation, index, all) => (
-    all.findIndex((candidate) => candidate.rule === violation.rule
-      && candidate.member_name === violation.member_name
-      && candidate.days.join() === violation.days.join()) === index
-  ))
   const busy = check.isPending || submit.isPending
 
   return (
@@ -182,7 +174,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
                 setReplacements((current) => ({ ...current, [key(item.service_date, item.role)]: event.target.value }))
                 // A check and acknowledgement cover the exact picks they saw.
                 setConfirming(false)
-                setPreflight(null)
+                setViolations([])
                 setAcknowledged(false)
                 check.reset()
                 submit.reset()

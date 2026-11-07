@@ -586,7 +586,7 @@
         "title": "AvailabilityResponse",
         "type": "object"
       },
-      "BatchOverrideCheckRequest": {
+      "BatchOverrideCheckBatch": {
         "additionalProperties": false,
         "properties": {
           "assignments": {
@@ -607,6 +607,26 @@
         "required": [
           "schedule_id",
           "assignments"
+        ],
+        "title": "BatchOverrideCheckBatch",
+        "type": "object"
+      },
+      "BatchOverrideCheckRequest": {
+        "additionalProperties": false,
+        "description": "The batches one decision will save, one per schedule, checked together.",
+        "properties": {
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/BatchOverrideCheckBatch"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Batches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batches"
         ],
         "title": "BatchOverrideCheckRequest",
         "type": "object"
@@ -8147,7 +8167,7 @@
     },
     "/api/v1/calendar/override/batch/check": {
       "post": {
-        "description": "The hard rules a whole batch would break, without writing any slot.",
+        "description": "The hard rules the batches would break together, without writing any slot.",
         "operationId": "batch_override_check_api_v1_calendar_override_batch_check_post",
         "parameters": [
           {

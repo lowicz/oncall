@@ -72,7 +72,9 @@ describe('OffboardingDialog', () => {
 
     expect(await screen.findByText('Przepisanie złamie reguły twarde')).toBeInTheDocument()
     expect(screen.getByText(/Więcej niż 3 dyżury on-call w okresie 7 dni/)).toBeInTheDocument()
-    expect(check.mock.calls.map(([input]) => input.schedule_id)).toEqual(['s1', 's2'])
+    // One check for both schedules, so a rule spanning them is seen too.
+    expect(check.mock.calls.map(([input]) => input.batches.map((item) => item.schedule_id)))
+      .toEqual([['s1', 's2']])
     expect(batch).not.toHaveBeenCalled()
     expect(finished).not.toHaveBeenCalled()
 
@@ -166,8 +168,10 @@ describe('OffboardingDialog', () => {
     fireEvent.click(start)
     expect(await screen.findByText('Potwierdź przepisanie 1 dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem 20-09-2026.')).toBeInTheDocument()
     expect(check).toHaveBeenCalledWith({
-      schedule_id: 's1',
-      assignments: [{ service_date: '2026-10-05', role: 'primary', replacement_member_id: 'm4' }],
+      batches: [{
+        schedule_id: 's1',
+        assignments: [{ service_date: '2026-10-05', role: 'primary', replacement_member_id: 'm4' }],
+      }],
     })
     fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
 

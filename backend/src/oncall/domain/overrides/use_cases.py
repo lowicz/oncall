@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Sequence
 from datetime import date
 
 from oncall.domain.clock import business_today
@@ -203,9 +204,12 @@ async def override_duty(
     )
 
 
+Move = tuple[date, AssignmentRole, str]
+
+
 async def _batch_plan(
     check: BatchOverrideCheck, ports: OverridePorts
-) -> tuple[ScheduleRef, dict[uuid.UUID, Member], list[Duty], list[RuleViolation]]:
+) -> tuple[ScheduleRef, dict[uuid.UUID, Member], list[Duty], list[Move]]:
     """Resolve and validate a batch without changing the roster."""
     if not check.lines:
         raise EmptyBatch()
@@ -217,7 +221,7 @@ async def _batch_plan(
         raise RepeatedSlotInBatch()
     replacements = await ports.team.members(line.replacement_member_id for line in check.lines)
     assignments: list[Duty] = []
-    projected_moves: list[tuple[date, AssignmentRole, str]] = []
+    projected_moves: list[Move] = []
     for line in check.lines:
         replacement = replacements.get(line.replacement_member_id)
         if replacement is None or not replacement.is_eligible(line.role, line.service_date):
@@ -229,19 +233,31 @@ async def _batch_plan(
             raise ScheduleSlotNotFound()
         assignments.append(assignment)
         projected_moves.append((line.service_date, line.role, replacement.display_name))
-    violations = await batch_substitution_check(ports.roster, ports.policy, projected_moves)
-    unique_violations = list(
-        {(item.rule, item.member_name, item.days): item for item in violations}.values()
-    )
-    return schedule, replacements, assignments, unique_violations
+    return schedule, replacements, assignments, projected_moves
+
+
+async def _violations(moves: list[Move], ports: OverridePorts) -> list[RuleViolation]:
+    violations = await batch_substitution_check(ports.roster, ports.policy, moves)
+    return list({(item.rule, item.member_name, item.days): item for item in violations}.values())
 
 
 async def check_batch_override(
-    check: BatchOverrideCheck, ports: OverridePorts
+    checks: Sequence[BatchOverrideCheck], ports: OverridePorts
 ) -> list[RuleViolation]:
-    """Return hard-rule violations before the first write of a batch."""
-    *_, violations = await _batch_plan(check, ports)
-    return violations
+    """Hard-rule violations of batches saved one after another, before the first.
+
+    The moves of every schedule are checked together, so a rule spanning two
+    schedules (three duties in seven days across their boundary) is seen too:
+    it is what the last batch's own check meets once the others are saved.
+    """
+    moves: list[Move] = []
+    for check in checks:
+        *_, schedule_moves = await _batch_plan(check, ports)
+        moves.extend(schedule_moves)
+    slots = [(day, role) for day, role, _name in moves]
+    if len(slots) != len(set(slots)):
+        raise RepeatedSlotInBatch()
+    return await _violations(moves, ports)
 
 
 async def override_duties_in_batch(
@@ -253,7 +269,8 @@ async def override_duties_in_batch(
     if len(batch.reason) < MIN_REASON_LENGTH:
         raise BatchCorrectionNeedsReason()
     check = BatchOverrideCheck(batch.schedule_id, batch.lines)
-    schedule, replacements, assignments, unique_violations = await _batch_plan(check, ports)
+    schedule, replacements, assignments, projected_moves = await _batch_plan(check, ports)
+    unique_violations = await _violations(projected_moves, ports)
     if unique_violations and not batch.acknowledge_rule_violations:
         raise RuleViolationsNotAcknowledged(unique_violations)
     slots = [(line.service_date, line.role) for line in batch.lines]

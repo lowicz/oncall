@@ -130,11 +130,15 @@ const CASES: Case[] = [
   get('calendar', () => api.calendar('2026-09-01', '2026-09-30'),
     '/api/v1/calendar?starts_on=2026-09-01&ends_on=2026-09-30'),
   send('batchOverrideCheck', () => api.batchOverrideCheck({
-    schedule_id: 's1',
-    assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
+    batches: [{
+      schedule_id: 's1',
+      assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
+    }],
   }), 'POST', '/api/v1/calendar/override/batch/check', {
-    schedule_id: 's1',
-    assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
+    batches: [{
+      schedule_id: 's1',
+      assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
+    }],
   }),
   send('batchOverride', () => api.batchOverride({
     schedule_id: 's1', expected_version: 2, reason: 'choroba',

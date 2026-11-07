@@ -875,11 +875,13 @@ export const api = {
       `/api/v1/calendar?starts_on=${encodeURIComponent(startsOn)}&ends_on=${encodeURIComponent(endsOn)}`,
     ),
   batchOverrideCheck: (input: {
-    schedule_id: string
-    assignments: Array<{
-      service_date: string
-      role: AssignmentRole
-      replacement_member_id: string
+    batches: Array<{
+      schedule_id: string
+      assignments: Array<{
+        service_date: string
+        role: AssignmentRole
+        replacement_member_id: string
+      }>
     }>
   }) => send<RuleViolation[]>('POST', '/api/v1/calendar/override/batch/check', input),
   batchOverride: (input: {

@@ -224,7 +224,9 @@ async def test_batch_override_check_reports_rules_without_writing(
 
     response = await client.post(
         "/api/v1/calendar/override/batch/check",
-        json={"schedule_id": batch["schedule_id"], "assignments": batch["assignments"]},
+        json={
+            "batches": [{"schedule_id": batch["schedule_id"], "assignments": batch["assignments"]}]
+        },
     )
 
     assert response.status_code == 200, response.text
@@ -234,6 +236,49 @@ async def test_batch_override_check_reports_rules_without_writing(
     assert (
         await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override_batch"))
     ).all() == []
+
+
+@pytest.mark.anyio
+async def test_batch_override_check_sees_a_rule_across_two_schedules(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    await _team(db)
+    ewa = await create_member(db, await create_user(db, "ewa"), display_name="Ewa Lis")
+    first = await _roster(db)
+    second = await create_published_schedule(
+        db, starts_on=date(2026, 9, 29), days=7, primary=["Julia Kowal"], name="Next week"
+    )
+    await login(client, "koord")
+
+    def batch(schedule, days: list[str]) -> dict:
+        return {
+            "schedule_id": str(schedule.id),
+            "assignments": [
+                {"service_date": day, "role": "primary", "replacement_member_id": str(ewa.id)}
+                for day in days
+            ],
+        }
+
+    first_batch = batch(first, ["2026-09-28"])
+    second_batch = batch(second, ["2026-09-29", "2026-09-30", "2026-10-01"])
+
+    async def check(*batches: dict) -> list[tuple[str, str]]:
+        response = await client.post(
+            "/api/v1/calendar/override/batch/check", json={"batches": list(batches)}
+        )
+        assert response.status_code == 200, response.text
+        return [(item["rule"], item["member_name"]) for item in response.json()]
+
+    # Each week alone is clean; saved one after the other, Ewa has four days in a row.
+    assert await check(first_batch) == []
+    assert await check(second_batch) == []
+    assert ("max_consecutive", "Ewa Lis") in await check(first_batch, second_batch)
+
+    repeated = await client.post(
+        "/api/v1/calendar/override/batch/check",
+        json={"batches": [first_batch, first_batch]},
+    )
+    assert repeated.status_code == 422, repeated.text
 
 
 @pytest.mark.anyio

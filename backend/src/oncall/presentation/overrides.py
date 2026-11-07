@@ -52,11 +52,19 @@ class BatchOverrideItem(BaseModel):
     replacement_member_id: uuid.UUID
 
 
-class BatchOverrideCheckRequest(BaseModel):
+class BatchOverrideCheckBatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     schedule_id: uuid.UUID
     assignments: list[BatchOverrideItem] = Field(min_length=1, max_length=200)
+
+
+class BatchOverrideCheckRequest(BaseModel):
+    """The batches one decision will save, one per schedule, checked together."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    batches: list[BatchOverrideCheckBatch] = Field(min_length=1, max_length=20)
 
 
 class BatchOverrideRequest(BaseModel):

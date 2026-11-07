@@ -256,7 +256,7 @@ async def test_a_batch_refuses_repeated_and_missing_slots(world) -> None:
 async def test_a_batch_check_needs_at_least_one_line(world) -> None:
     with pytest.raises(errors.EmptyBatch):
         await check_batch_override(
-            BatchOverrideCheck(world.roster.schedule_ref.id, ()), world.overrides
+            [BatchOverrideCheck(world.roster.schedule_ref.id, ())], world.overrides
         )
 
 

@@ -231,7 +231,8 @@ Błąd dowolnej części wycofuje całą operację.
 Dotychczasowe punkty `POST` i `DELETE` pozostają dostępne dla starszych klientów.
 
 Przed korektą grafiku klient może pobrać naruszenia reguł twardych bez zmiany danych.
-`POST /api/v1/calendar/override/check` sprawdza pojedynczy slot, a `POST /api/v1/calendar/override/batch/check` cały wsad `assignments` jednego grafiku.
+`POST /api/v1/calendar/override/check` sprawdza pojedynczy slot, a `POST /api/v1/calendar/override/batch/check` listę `batches`: wsad `assignments` dla każdego grafiku, którego dotyczy jedna decyzja.
+Wsady są sprawdzane razem, więc wynik obejmuje też regułę łamaną na styku dwóch grafików, np. więcej niż trzy dyżury z rzędu.
 Oba zwracają listę naruszeń i niczego nie zapisują.
 Punkty zapisu sprawdzają reguły ponownie, dlatego świadome naruszenie nadal wymaga `acknowledge_rule_violations: true`.
 Wszystkie żądania zmieniające i sprawdzające decyzję wymagają zalogowanej sesji, właściwej roli oraz tokenu CSRF.
