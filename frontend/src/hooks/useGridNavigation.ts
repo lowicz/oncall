@@ -10,6 +10,26 @@ const cellsOf = (rows: number[], cols: number): Cell[] =>
 const upTo = (count: number) => Array.from({ length: count }, (_, index) => index)
 
 /**
+ * The cells a key walks through, nearest first, or null for a key the grid
+ * leaves alone. Home and End take the row's first or last cell (with Ctrl,
+ * the grid's); an arrow goes along the column or the row, which with `wrap`
+ * runs on through the whole grid in reading order.
+ */
+function pathFor(key: string, ctrlKey: boolean, from: Cell, grid: { rows: number; cols: number; wrap: boolean }): Cell[] | null {
+  if (key === 'Home' || key === 'End') {
+    const cells = cellsOf(ctrlKey ? upTo(grid.rows) : [from.row], grid.cols)
+    if (key === 'End') cells.reverse()
+    return cells
+  }
+  let line: Cell[]
+  if (key === 'ArrowUp' || key === 'ArrowDown') line = upTo(grid.rows).map((row) => ({ row, col: from.col }))
+  else if (key === 'ArrowLeft' || key === 'ArrowRight') line = cellsOf(grid.wrap ? upTo(grid.rows) : [from.row], grid.cols)
+  else return null
+  const at = line.findIndex((cell) => cell.row === from.row && cell.col === from.col)
+  return key === 'ArrowRight' || key === 'ArrowDown' ? line.slice(at + 1) : line.slice(0, at).reverse()
+}
+
+/**
  * Roving tabindex for a two-dimensional grid of buttons.
  *
  * Without it every cell is a tab stop: a 4-person / 30-day matrix put 120 stops
@@ -43,30 +63,17 @@ export function useGridNavigation(rows: number, cols: number, { isCellDisabled =
   }, [rows, cols, isCellDisabled])
 
   const onKeyDown = useCallback((event: React.KeyboardEvent, row: number, col: number) => {
-    if (event.key === 'Home' || event.key === 'End') {
-      event.preventDefault()
-      // The row's first or last cell; with Ctrl, the grid's.
-      const cells = cellsOf(event.ctrlKey ? upTo(rows) : [row], cols)
-      const target = firstEnabled(event.key === 'End' ? cells.reverse() : cells)
-      if (target) focusCell(target.row, target.col)
-      return
-    }
     if (event.key === 'PageUp' || event.key === 'PageDown') {
       event.preventDefault()
       // A week at a time, which is how rotations are actually read.
       focusCell(row, col + (event.key === 'PageUp' ? -7 : 7))
       return
     }
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
+    const path = pathFor(event.key, event.ctrlKey, { row, col }, { rows, cols, wrap })
+    if (!path) return
     event.preventDefault()
-    // The nearest enabled cell that way, along the column or the row (the
-    // whole grid in reading order with `wrap`); at the edge the focus stays.
-    const line = event.key === 'ArrowUp' || event.key === 'ArrowDown'
-      ? upTo(rows).map((each) => ({ row: each, col }))
-      : cellsOf(wrap ? upTo(rows) : [row], cols)
-    const at = line.findIndex((cell) => cell.row === row && cell.col === col)
-    const forward = event.key === 'ArrowRight' || event.key === 'ArrowDown'
-    const target = firstEnabled(forward ? line.slice(at + 1) : line.slice(0, at).reverse())
+    // The first enabled cell on the way; at the edge the focus stays.
+    const target = firstEnabled(path)
     if (target) focusCell(target.row, target.col)
   }, [focusCell, firstEnabled, rows, cols, wrap])
 

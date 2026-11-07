@@ -179,11 +179,13 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   const roleNames = roleLabels()
   const days = monthDays(month)
   const lead = weekdayIndex(days[0])
+  // Week rows of seven cells, each keyed by its place in the month; a blank
+  // before the first day or after the last has no date.
   const weeks = Array.from({ length: Math.ceil((lead + days.length) / 7) }, (_, week) =>
-    Array.from({ length: 7 }, (_, day) => days[week * 7 + day - lead] ?? null))
+    Array.from({ length: 7 }, (_, day) => ({ key: `${month}-${week}-${day}`, date: days[week * 7 + day - lead] ?? null })))
   const grid = useGridNavigation(weeks.length, 7, {
     isCellDisabled: (row, col) => {
-      const date = weeks[row]?.[col]
+      const date = weeks[row]?.[col]?.date
       return !date || date < today || disabled
     },
     wrap: true,
@@ -231,9 +233,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
       </div>
       <div className="avail-cal" role="grid" aria-label={t.label(formatMonth(month))}>
         {weeks.map((week, rowIndex) => (
-          <div className="avail-cal-row" role="row" key={`${month}-week-${rowIndex}`}>
-            {week.map((date, colIndex) => {
-              if (!date) return <span key={`empty-${colIndex}`} role="gridcell" aria-hidden="true" />
+          <div className="avail-cal-row" role="row" key={week[0].key}>
+            {week.map(({ key, date }, colIndex) => {
+              if (!date) return <span key={key} role="gridcell" aria-hidden="true" />
               const entry = entryFor(date)
               const roles = dutiesByDate.get(date) ?? []
               const weekend = weekdayIndex(date) >= 5

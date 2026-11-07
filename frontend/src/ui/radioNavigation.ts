@@ -40,7 +40,7 @@ export function navigateRadioGroup<T extends string>(
   const stops = navigable(options)
   let next: RadioNavigationOption<T>
   if (event.key === 'Home') next = stops[0]
-  else if (event.key === 'End') next = stops[stops.length - 1]
+  else if (event.key === 'End') next = stops.at(-1)!
   else if (STEPS[event.key]) {
     // From the current choice, even a blocked one a click focused, to the next stop.
     let index = options.findIndex((option) => option.value === current)
