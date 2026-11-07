@@ -141,6 +141,16 @@ describe('DraftScheduleMatrix grid', () => {
     expect(headers.find((cell) => cell.getAttribute('title') === 'Święto testowe')).toHaveClass('we')
     expect(headers.find((cell) => cell.getAttribute('title') === 'Migracja')).toHaveClass('wk')
 
+    const eventCell = within(region).getByRole('button', { name: 'Anna Kowalska, pon 12-10-2026, wydarzenia: Migracja, brak dyżuru' })
+    expect(eventCell).toHaveClass('cell-ev')
+    expect(eventCell).toHaveStyle('--ev: var(--ev-blue)')
+    fireEvent.click(eventCell)
+    const eventPanel = await screen.findByRole('dialog', { name: 'Anna Kowalska · 12-10-2026' })
+    expect(within(eventPanel).getByText('Wydarzenia')).toBeInTheDocument()
+    expect(within(eventPanel).getByText('Migracja')).toBeInTheDocument()
+    expect(within(eventPanel).queryByRole('button', { name: /Usuń/ })).not.toBeInTheDocument()
+    fireEvent.click(within(eventPanel).getByRole('button', { name: 'Zamknij panel' }))
+
     const clash = within(region).getByRole('button', { name: 'Anna Kowalska, czw 01-10-2026, PRIMARY korekta kolizja z niedostępnością, 11–19 kolizja z niedostępnością' })
     expect(clash.closest('td')).toHaveClass('gap')
     expect(within(region).getByRole('button', { name: 'Marek Nowak, czw 01-10-2026, brak dyżuru, Wolę nie' })).toBeInTheDocument()

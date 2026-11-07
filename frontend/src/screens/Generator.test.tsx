@@ -561,6 +561,7 @@ describe('GeneratorPanel queue and progress', () => {
     const generate = vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise(() => {}))
     renderScreen(<GeneratorPanel />)
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+    expect(screen.getByRole('region', { name: 'Postęp generowania' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
     expect(await screen.findByRole('progressbar', { name: 'Postęp generowania' })).toHaveAttribute('aria-valuenow', '0')

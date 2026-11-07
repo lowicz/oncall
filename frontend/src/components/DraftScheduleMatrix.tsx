@@ -120,7 +120,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                       <td key={day.service_date} className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', day.service_date === today && 'td', conflict && 'gap')}>
                         <button
                           type="button"
-                          className={cx('cell', isSelected && 'cell-sel')}
+                          className={cx('cell', isSelected && 'cell-sel', day.events.length > 0 && 'cell-ev')}
+                          style={day.events[0] ? { ['--ev' as string]: `var(--ev-${day.events[0].color})` } : undefined}
                           disabled={!editable}
                           onClick={() => {
                             setSelected({ member, day })
@@ -176,6 +177,16 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
         {selected && (
           <>
             {selected.day.is_day_off && <Box tone="muted">{t.noLateShift}</Box>}
+            {selected.day.events.length > 0 && (
+              <div className="stack-sm">
+                <div className="impact-h">{t.events}</div>
+                {selected.day.events.map((event) => (
+                  <div key={event.id} className="row">
+                    <span><i className="event-swatch" style={{ background: `var(--ev-${event.color})` }} />{event.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {selectedAvailability && (
               <Box tone={selectedAvailability.kind === 'unavailable' ? 'bad' : 'muted'} title={t.availabilityTitle(selected.member.display_name, availabilityLabels()[selectedAvailability.kind])}>
                 {selectedAvailability.kind === 'unavailable' && <>{t.willBeRejected}{' '}</>}

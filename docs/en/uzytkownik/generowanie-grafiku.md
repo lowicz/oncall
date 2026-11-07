@@ -58,6 +58,13 @@ progress panel shows:
 After a page refresh the view of a generation in progress resumes by itself -
 **do not start it a second time**.
 
+### Events on the draft
+
+The draft matrix shows calendar events in the same way as the published schedule.
+A dot in the event colour appears in every cell for that day, and the event name is also available to screen readers.
+When you open a day, its panel lists the events with colour swatches.
+The list is read-only - add and edit events on the **Events** screen.
+
 ## Proposal
 
 An open draft is a separate page. The title says what stage the result is at:
