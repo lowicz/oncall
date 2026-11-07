@@ -229,8 +229,8 @@ describe('ScheduleScreen default range and header states', () => {
     expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 7 paź' })).toBeInTheDocument()
     await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-10-07'))
     expect(screen.getByText('Opublikowany grafik skończył się 31-08-2026.')).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Generuj kolejny zakres' })).toHaveLength(2)
-    expect(screen.getAllByRole('link', { name: 'Generuj kolejny zakres' })[1]).toHaveAttribute('href', '/generator?od=2026-09-01&do=2026-09-28')
+    const links = screen.getAllByRole('link', { name: 'Generuj kolejny zakres' })
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/generator', '/generator'])
     expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeChecked()
   })
 

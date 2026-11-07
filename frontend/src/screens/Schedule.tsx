@@ -87,10 +87,10 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   // The proposal waiting for the coordinator, named in the subtitle and
   // opened by the primary action; a plain draft is mentioned but not pushed.
   const pending = drafts.data?.find((item) => item.status === 'proposed') ?? drafts.data?.find((item) => item.status === 'draft')
-  const generatorHref = publication?.ends_on
+  const publicationExpired = Boolean(publication?.ends_on && publication.ends_on < today)
+  const generatorHref = publication?.ends_on && !publicationExpired
     ? `/generator?od=${addDays(publication.ends_on, 1)}&do=${addDays(publication.ends_on, 28)}`
     : '/generator'
-  const publicationExpired = Boolean(publication?.ends_on && publication.ends_on < today)
   const nextStep = (size?: 'sm') => (pending
     ? <LinkButton to={`/generator?szkic=${pending.id}`} variant="primary" size={size} icon="wand">{t.schedule.actions.openProposal}</LinkButton>
     : <LinkButton to={generatorHref} variant="primary" size={size} icon="wand">{t.schedule.actions.generateNext}</LinkButton>)
