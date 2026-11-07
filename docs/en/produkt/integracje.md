@@ -46,17 +46,13 @@ taking over. With a batch correction each person gets one message listing only
 the slots they gave up or took over, together with the reason for the
 correction.
 
-Messages about a correction go out 10 seconds after it, once the Undo window
-has closed; the schedule change and its audit entry are recorded immediately.
-The reverse correction (putting the previous person back) cancels every message
-about the first correction that has not gone out yet; whoever already received
-one also gets a message about the reverse correction. After the window closes, the
-content and recipients are the same as without the delay. The notification
-offering Undo counts down to the window's close. The pointer or focus can keep
-it on screen for as long as they rest on it, but when the window closes the
-Undo button disappears and the notification says "The e-mails have gone out",
-so the change can no longer be undone from it. `/api/v1/config` states the
-window's length (`undo_window_seconds`).
+Messages about a correction go out 10 seconds after it; the schedule change and
+its audit entry are recorded immediately. The reverse correction (putting the
+previous person back) cancels every message about the first correction that has
+not gone out yet; whoever already received one also gets a message about the
+reverse correction. After that time the content and recipients are the same as
+without the delay. `/api/v1/config` states the length of the delay
+(`undo_window_seconds`).
 
 The schedule publication message goes to every team member active in its
 range. It lists only their own duties (day and role) or says that there is

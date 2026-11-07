@@ -45,16 +45,12 @@ powiadamia obie strony każdego przepisanego slotu: osobę zdejmowaną i
 przejmującą. Przy korekcie wsadowej każda osoba dostaje jedną wiadomość z listą
 wyłącznie tych slotów, które oddała albo przejęła, oraz z powodem korekty.
 
-Wiadomości o korekcie wychodzą 10 sekund po niej, czyli po zamknięciu okna
-„Cofnij”; sama zmiana grafiku i wpis audytu powstają od razu. Korekta odwrotna
-(przywrócenie poprzedniej osoby) anuluje każdą wiadomość o pierwszej korekcie,
-która jeszcze nie wyszła; kto ją już dostał, dostaje też wiadomość o korekcie
-odwrotnej. Po zamknięciu okna treść i adresaci są takie jak bez opóźnienia.
-Powiadomienie z „Cofnij” odlicza do zamknięcia okna. Wskaźnik albo fokus może
-je zatrzymać na ekranie dowolnie długo, ale gdy okno się zamknie, przycisk
-„Cofnij” znika, a powiadomienie mówi „E-maile już wyszły”, więc po tym terminie
-zmiany nie da się z niego cofnąć. Długość okna podaje `/api/v1/config`
-(`undo_window_seconds`).
+Wiadomości o korekcie wychodzą 10 sekund po niej; sama zmiana grafiku i wpis
+audytu powstają od razu. Korekta odwrotna (przywrócenie poprzedniej osoby)
+anuluje każdą wiadomość o pierwszej korekcie, która jeszcze nie wyszła; kto ją
+już dostał, dostaje też wiadomość o korekcie odwrotnej. Po tym czasie treść i
+adresaci są takie jak bez opóźnienia. Długość opóźnienia podaje
+`/api/v1/config` (`undo_window_seconds`).
 
 Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
 zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
