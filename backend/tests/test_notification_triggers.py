@@ -8,10 +8,14 @@ from oncall.domain.clock import as_utc, business_today
 from oncall.domain.scheduling.models import ScheduledDuty
 from oncall.domain.vocabulary import AssignmentRole, UserRole
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
-from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
+from oncall.infrastructure.sqlalchemy.notification_models import (
+    NotificationOutbox,
+    NotificationStatus,
+)
 from oncall.notifications.service import UNDO_WINDOW
 from oncall.notifications.templates import format_day
 from oncall.notifications.triggers import (
+    notify_assignment_overridden,
     notify_assignments_changed_by_publication,
     notify_assignments_overridden_in_batch,
     notify_schedule_published,
@@ -410,6 +414,67 @@ async def test_reversing_a_batch_override_cancels_its_unsent_messages(
     rows = await _outbox_rows(db)
     assert len(rows) == 3
     assert all(as_utc(row.cancelled_at) == frozen_clock.instant for row in rows)
+
+
+async def _mark_sent(db, recipient: str) -> set[uuid.UUID]:
+    rows = await _outbox_rows(db)
+    next(row for row in rows if row.recipient == recipient).status = NotificationStatus.sent
+    await db.flush()
+    return {row.id for row in rows}
+
+
+async def test_reversing_a_partly_sent_override_tells_only_who_already_heard(
+    db, frozen_clock
+) -> None:
+    today, _members = await _seed_team(db)
+    correction = {"service_date": today, "role": AssignmentRole.primary}
+    await notify_assignment_overridden(
+        db, **correction, previous_name="Anna Kowalska", new_name="Marek Nowak"
+    )
+    original = await _mark_sent(db, "anna@example.com")
+
+    await notify_assignment_overridden(
+        db, **correction, previous_name="Marek Nowak", new_name="Anna Kowalska"
+    )
+
+    db.expire_all()
+    rows = await _outbox_rows(db)
+    cancelled = {row.recipient for row in rows if row.cancelled_at is not None}
+    reversal = [row for row in rows if row.id not in original]
+    assert cancelled == {"marek@example.com"}
+    assert [row.recipient for row in reversal] == ["anna@example.com"]
+    assert "Anna Kowalska (poprzednio: Marek Nowak)" in reversal[0].body
+
+
+async def test_reversing_a_partly_sent_batch_tells_only_who_already_heard(db, frozen_clock) -> None:
+    today, _members = await _seed_team(db)
+    changes = [
+        (today, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak"),
+        (
+            today + timedelta(days=1),
+            AssignmentRole.primary,
+            "Anna Kowalska",
+            "Ola Wiśniewska",
+        ),
+    ]
+    await notify_assignments_overridden_in_batch(db, changes=changes, reason="Zmiana obsady")
+    original = await _mark_sent(db, "marek@example.com")
+
+    await notify_assignments_overridden_in_batch(
+        db,
+        changes=[
+            (day, role, new_name, previous_name) for day, role, previous_name, new_name in changes
+        ],
+        reason="Cofnięcie zmiany obsady",
+    )
+
+    db.expire_all()
+    rows = await _outbox_rows(db)
+    cancelled = {row.recipient for row in rows if row.cancelled_at is not None}
+    reversal = [row for row in rows if row.id not in original]
+    assert cancelled == {"anna@example.com", "ola@example.com"}
+    assert [row.recipient for row in reversal] == ["marek@example.com"]
+    assert "Anna Kowalska (poprzednio: Marek Nowak)" in reversal[0].body
 
 
 async def test_unavailability_over_existing_duty_warns_member_and_coordinator(client, db) -> None:

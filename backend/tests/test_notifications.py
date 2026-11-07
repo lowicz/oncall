@@ -59,7 +59,7 @@ def undoable_message() -> NotificationMessage:
         recipient="anna@example.com",
         subject="Temat",
         body="Treść",
-        context={"event": "test", "undo_key": "correction:1"},
+        context={"event": "test", "undo_key": "correction:1", "member": "Anna Kowalska"},
     )
 
 
@@ -198,9 +198,9 @@ async def test_undo_cancels_a_notification_before_the_worker_can_claim_it(
         send_after=frozen_clock.instant + UNDO_WINDOW,
     )
     assert notification_id is not None
-    assert await cancel_notifications(db, undo_key="other") == 0
-    assert await cancel_notifications(db, undo_key="correction:1") == 1
-    assert await cancel_notifications(db, undo_key="correction:1") == 0
+    assert await cancel_notifications(db, undo_key="other") == set()
+    assert await cancel_notifications(db, undo_key="correction:1") == {"Anna Kowalska"}
+    assert await cancel_notifications(db, undo_key="correction:1") == set()
     await db.commit()
 
     row = await _stored(db_factory)
@@ -225,7 +225,7 @@ async def test_a_notification_can_be_cancelled_until_the_worker_sends_it(
     provider = FakeProvider()
     assert (await drain_outbox(db_factory, {"email": provider}, batch_size=1))["sent"] == 1
 
-    assert await cancel_notifications(db, undo_key="correction:1") == 1
+    assert await cancel_notifications(db, undo_key="correction:1") == {"Anna Kowalska"}
     await db.commit()
     assert (await drain_outbox(db_factory, {"email": provider}))["sent"] == 0
     assert len(provider.sent) == 1

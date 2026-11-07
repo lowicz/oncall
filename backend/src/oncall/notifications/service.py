@@ -29,9 +29,8 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, cast
 
-from sqlalchemy import CursorResult, and_, case, func, select, update
+from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oncall.database import SqlAlchemyUnitOfWork
@@ -107,14 +106,17 @@ async def cancel_notifications(
     *,
     undo_key: str,
     now: datetime | None = None,
-) -> int:
-    """Cancel an operation's messages that no worker has claimed yet.
+) -> set[str]:
+    """Cancel an operation's messages that no worker has claimed yet and
+    return the members whose message was withdrawn.
 
     Only `pending` rows match, and a drain claims a row before sending it, so
-    a cancellation succeeds exactly while the messages are still unsent, also
-    when the inverse arrives just after the Undo window. The business change
-    and audit trail are untouched. A cancellation only marks the queued side
-    effect so the worker and outbox metrics ignore it.
+    each person's message is withdrawn exactly while it is still unsent, also
+    when the inverse arrives just after the Undo window. A round can be partly
+    sent (a retry, a claimed batch, a disabled channel), so the caller tells
+    everyone else about the inverse. The business change and audit trail are
+    untouched. A cancellation only marks the queued side effect so the worker
+    and outbox metrics ignore it.
     """
     cancelled_at = now or utc_now()
     result = await db.execute(
@@ -125,8 +127,9 @@ async def cancel_notifications(
             NotificationOutbox.context["undo_key"].as_string() == undo_key,
         )
         .values(cancelled_at=cancelled_at)
+        .returning(NotificationOutbox.context["member"].as_string())
     )
-    return cast(CursorResult[Any], result).rowcount
+    return set(result.scalars())
 
 
 #: Outbox rows a drain may take: never delivered, delivered nowhere because the

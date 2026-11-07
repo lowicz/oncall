@@ -47,8 +47,9 @@ wyłącznie tych slotów, które oddała albo przejęła, oraz z powodem korekty
 
 Wiadomości o korekcie wychodzą 10 sekund po niej, czyli po zamknięciu okna
 „Cofnij”; sama zmiana grafiku i wpis audytu powstają od razu. Korekta odwrotna
-(przywrócenie poprzedniej osoby), dopóki wiadomości nie zostały wysłane, anuluje
-je i nie wysyła nowych. Po zamknięciu okna treść i adresaci są takie jak bez opóźnienia.
+(przywrócenie poprzedniej osoby) anuluje każdą wiadomość o pierwszej korekcie,
+która jeszcze nie wyszła; kto ją już dostał, dostaje też wiadomość o korekcie
+odwrotnej. Po zamknięciu okna treść i adresaci są takie jak bez opóźnienia.
 Powiadomienie z „Cofnij” odlicza do zamknięcia okna. Wskaźnik albo fokus może
 je zatrzymać na ekranie dowolnie długo, ale gdy okno się zamknie, przycisk
 „Cofnij” znika, a powiadomienie mówi „E-maile już wyszły”, więc po tym terminie

@@ -613,14 +613,14 @@ async def notify_assignment_overridden(
     settings = get_settings()
     changes = [(service_date, role, previous_name, new_name)]
     now = utc_now()
-    if await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now):
-        return
-    emails = await _emails_for_names(db, [previous_name, new_name])
+    cancelled = await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now)
+    names = [name for name in (previous_name, new_name) if name not in cancelled]
+    emails = await _emails_for_names(db, names)
     mode = await db.scalar(select(CallForwardingSettings.mode).limit(1))
     await _enqueue_for(
         db,
         emails,
-        names=[previous_name, new_name],
+        names=names,
         build=lambda: templates.assignment_overridden(
             service_date=service_date,
             role=role,
@@ -693,8 +693,8 @@ async def notify_assignments_overridden_in_batch(
         )
     )
     now = utc_now()
-    if await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now):
-        return
+    cancelled = await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now)
+    names = [name for name in names if name not in cancelled]
     emails = await _emails_for_names(db, names)
     send_after = now + UNDO_WINDOW
     undo_key = _undo_key(changes)
