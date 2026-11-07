@@ -87,11 +87,13 @@ counts in the reports; only the assignment of new duties after that date
 ends. Duties already published after that date have to be rewritten - the
 panel then shows the “Effect on the schedule” warning with the **Rewrite
 future duties and end the rotation…** button, which picks a replacement for
-each such duty. If the chosen replacements would break a hard rule, the
-dialog lists the violations under the heading “The rewrite would break hard
-rules”: pick other replacements or tick that you are breaking the rules
-deliberately, and confirm again. A confirmed violation goes into the audit
-log.
+each such duty. Before saving, the dialog checks the hard rules for all
+schedules at once. If the chosen replacements would break a hard rule, it
+lists the violations under the heading “The rewrite would break hard rules”:
+pick other replacements or tick that you are breaking the rules deliberately,
+and confirm. A confirmed violation goes into the audit log. If an error
+interrupts the save after some schedules were rewritten, the dialog says how
+many duties are already rewritten; confirming again rewrites the rest.
 
 ### Deleting an account and its personal data
 
