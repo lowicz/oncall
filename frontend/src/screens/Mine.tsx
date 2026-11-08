@@ -62,7 +62,6 @@ import {
 const toneOf: Record<AvailabilityKind, 'na' | 'wn' | 'ch'> = { unavailable: 'na', prefer_not: 'wn', prefer: 'ch' }
 const roleDot: Record<AssignmentRole, string> = { primary: 'dot-p', secondary: 'dot-s', late_shift: 'dot-l' }
 const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
-const AVAILABILITY_KINDS: AvailabilityKind[] = ['unavailable', 'prefer_not', 'prefer']
 
 /** What a click on the calendar writes: one of the three kinds, or nothing. */
 type Brush = AvailabilityKind | 'clear'
@@ -627,7 +626,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
               <div className="legend-grid small">
                 <div className="pop-row"><span className="pop-swatch pop-swatch-duty" aria-hidden="true" /> {t.legend.duty}</div>
                 <div className="pop-row"><span className="pop-swatch pop-swatch-collision" aria-hidden="true" /> {t.legend.collision}</div>
-                {AVAILABILITY_KINDS.map((kind) => (
+                {(Object.keys(toneOf) as AvailabilityKind[]).map((kind) => (
                   <div key={kind} className="pop-row">
                     <span className={cx('am', `am-${toneOf[kind]}`)} aria-hidden="true">{m.calendar.marks[kind]}</span>
                     {availabilityLabels()[kind]}
