@@ -102,6 +102,7 @@ export const schedule: Messages['schedule'] = {
     noFullCoverage: 'no full coverage',
     you: 'You',
     outOfRotation: 'out of the rotation',
+    highlighted: 'highlighted',
     dutiesInRange: (count: number) => `${pluralEn(count, ['duty', 'duties'])} in the range`,
   },
   inspector: {

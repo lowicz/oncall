@@ -290,6 +290,7 @@ class SqlAlchemySwapJournal:
     ) -> None:
         await triggers.notify_swap_requested(
             self._session,
+            swap_id=request.id,
             service_date=request.service_date,
             role=request.role,
             slots=request.moves,
@@ -391,6 +392,7 @@ class SqlAlchemySwapJournal:
     ) -> None:
         await triggers.notify_swap_cancelled(
             self._session,
+            swap_id=request.id,
             service_date=request.service_date,
             role=request.role,
             slots=request.moves,

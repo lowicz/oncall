@@ -5,7 +5,7 @@ role, also when the base rotation is weekly.
 
 ## Inbox
 
-All requests are in one table; the filters in the header of the **Inbox**
+All requests are in one inbox; the filters in the header of the **Inbox**
 section say whom a given request is waiting for, and the counter next to each
 filter - how many there are:
 
@@ -21,13 +21,24 @@ address `/zamiany?skrzynka=moje` opens the named one. The total of requests
 that need your action also appears as a badge next to the “Swaps” item in the
 navigation.
 
-A table row gives the day and the roles that move, who hands over, who takes over, the
-**effect** (the person who gains points, and how many; “no change” when nobody
-does) and the **stage** - who is next. An
+A table row gives the day and the roles that move, who hands over, who takes
+over and the **stage** - who is next. A coordinator who approves swaps also
+has the **effect** column (the person who gains points, and how many; “no
+change” when nobody does); the icon by its header says what it shows. With
+swap approval switched off nobody has this column. An
 [exchange](#exchanging-a-duty-for-a-duty) has both days in the first column.
 The **“breaks rules”** tag marks a request described in
 [A swap that breaks the rules](#a-swap-that-breaks-the-rules). The **Decide**
 button (when the decision is yours) or **Preview** opens the request sheet.
+
+On a phone (a screen narrower than 900 px) the inbox is a list instead of a
+table: a row gives the day and the roles, who hands the duty to whom (“You”
+instead of your name) and whom the request is waiting for; the status sits
+beside the day and the button is on the right, within reach of the thumb.
+
+Closed requests load 50 at a time, newest first; the **Show older** button
+under the list loads the next ones. While there are older ones, the closed
+count in the screen header carries a “+” (for example “50+ closed”).
 
 ## Decision sheet
 
@@ -61,8 +72,9 @@ stays with the request.
 
 The **New swap** button in the screen header opens the form in a panel; the
 **Request a swap** button on the Mine screen opens it with the duty already
-chosen. The form leads through four steps: duty, candidate, in return, reason
-and sending.
+chosen. The form leads through four steps: duty, replacement, in return
+(optional) and sending. Once the replacement is picked the bar moves straight
+on to sending, as “Nothing, I only give the duty away” is already chosen.
 Once a request has been started, closing the panel, going to another screen, or reloading requires a decision whether to discard the entered data.
 
 1. In the **My duty** field pick your upcoming duty. The list has one item a
@@ -70,38 +82,55 @@ Once a request has been started, closing the panel, going to another screen, or 
    11–19”) and how far away the day is. A duty colliding with your
    “Unavailable” entry is marked. A day with two roles has the **I give**
    choice under the field (see below).
-2. Under the field appears the **Candidates** list: eligible and available
-   people who do not hold the opposite role that day, ordered from the best
-   candidate. Next to each you see their availability, their deviation from
-   the fair share and whether they already have a duty that day - so you can
-   compare two candidates without opening each one separately. Clicking picks
-   the person. From the keyboard the list is a single Tab stop: the arrow keys
-   change the selection and skip blocked cards, the same as in the **In return
-   I take** list.
-   - a person marked **“not possible: …”** is blocked by a rule a swap may
-     not break, and cannot be picked,
-   - a person marked **“breaks a rule: …”** and **“needs confirmation”** can
-     be picked, but the request then needs an acknowledgement
-     (see [A swap that breaks the rules](#a-swap-that-breaks-the-rules)); such
+2. Under the field appears the **Replacement** list: eligible and available
+   people who do not hold the opposite role that day, best fit first. A
+   person's card gives the name, their availability, one verdict and one
+   number - the deviation from the fair share in points (for example
+   “-0.5 pts”) - so you compare several people at a glance. The first card
+   carries the **“best match”** tag when that person breaks no hard rule and the
+   swap evens out their balance the most. Clicking picks the person; under
+   their card appear the remaining facts: the rule the request would break,
+   with its days, a duty the person already has that day, a split block of
+   days off, their share in points and whether the swap improves the balance.
+   From the keyboard the list is a single Tab stop: the arrow keys change the
+   selection and skip blocked cards, the same as in the **In return I take**
+   list. The verdict on the card:
+   - **“hard rule”** - the person is blocked by a rule a swap may not break,
+     and cannot be picked; the card names that rule in place of the
+     availability,
+   - **“needs confirmation”** - the person can be picked, but the request
+     then needs an acknowledgement (see
+     [A swap that breaks the rules](#a-swap-that-breaks-the-rules)); such
      people are listed after those who break no rule,
-   - the **“improves the balance”** mark says the swap will reduce the
-     inequality,
-   - the **“splits a block of days off”** mark announces a warning for the
-     coordinator,
-   - the note **“will take only SECONDARY, does not work 11–19”** (with the
-     name of your on-call role) on a whole duty says the person cannot work
-     the 11–19 shift: they take the on-call role alone and the shift stays
-     with you. This is the exception to the anchor and only warns.
+   - **“warning”** - the swap violates a soft rule, for example it splits a
+     block of days off; the coordinator will see it,
+   - **“no violations”** - the swap breaks nothing.
+
+   The note **“Will take only SECONDARY, does not work 11–19.”** (with the
+   name of your on-call role) under the picked person's card on a whole duty
+   says the person cannot work the 11–19 shift: they take the on-call role
+   alone and the shift stays with you. This is the exception to the anchor
+   and only warns.
 3. Optionally pick, in the **In return I take** list, a day of that person
    whose duty you take in exchange (see
    [Exchanging a duty for a duty](#exchanging-a-duty-for-a-duty)). With no
    pick the request only gives your duty away.
-4. Under the list you see the **Effect on the balance**: how many points move
-   between the two of you, counted over every slot that moves.
+4. Under the list you see the folded **Effect on the balance** section (when
+   there are warnings: **Effect on the balance and warnings**). Its line sums
+   up how many points each of you gains or loses and counts the warnings (for
+   example “You -1 · Piotr +1 · 1 warning”); unfolded it shows the balance of
+   both people, counted over every slot that moves, and the warnings.
 5. Optionally add a **Reason**; the replacement and the coordinator will see
    it. The reason is not required, also when the swap breaks rules.
-6. “Send request”. The screen confirms the sending with the message “Sent
-   to: …” and moves to the **Mine** inbox.
+6. “Send request”. While something is missing, the panel footer says what
+   next to the button: the duty, the replacement, the rule confirmation or a
+   published schedule; with a hard rule - another person or another duty in
+   return. The screen confirms the sending with the message
+   “Sent to: …” with an **Undo** button and moves to the **Mine** inbox.
+   “Undo” within 10 seconds withdraws the request with the reason “cofnięte
+   zaraz po wysłaniu” (undone right after sending). The message to the replacement waits for the end of
+   that time, so a request withdrawn in time sends the replacement no message
+   at all.
 
 When you hold an on-call role and the 11–19 shift that day, the **I give**
 choice appears under the **My duty** field: “Whole duty”, “Only SECONDARY”
@@ -127,7 +156,7 @@ has no such choice.
 
 When the swap violates a soft rule (for example it splits a block of days
 off), you will see the warning “You can still send it - the coordinator will
-see the warning”. Sending is still possible.
+see the warning” in the **Effect on the balance and warnings** section. Sending is still possible.
 
 ## Exchanging a duty for a duty
 
@@ -142,14 +171,14 @@ with their duties of the next 90 days, one item a day. The first item,
 item carries a verdict computed for the whole exchange, both directions at
 once:
 
-- **“no rule violations”** - the exchange breaks nothing; when giving the duty
-  away alone would need an acknowledgement, the first such item is
-  highlighted,
+- **“no violations”** - the exchange breaks nothing; when giving the duty
+  away alone would need an acknowledgement, the first such item carries the
+  **“best match”** tag,
 - **“warning”** - the exchange violates a soft rule; sending is possible,
 - **“needs confirmation”** - the exchange breaks a rest or anchor rule and
   takes the path described in
   [A swap that breaks the rules](#a-swap-that-breaks-the-rules),
-- **“hard rule”** with the note “not possible: …” - this item cannot be
+- **“hard rule”** with the rule in place of the roles - this item cannot be
   picked.
 
 When the replacement holds an on-call role and the 11–19 shift that day, the
@@ -209,7 +238,7 @@ Breaking four rest and anchor rules can be acknowledged:
 
 The other hard rules block a swap without exception: the same person will not
 take both on-call duties of one day, and the 11–19 shift will not land on a
-day off work. The list marks such a candidate “not possible: …”.
+day off work. The list gives such a candidate the verdict “hard rule”.
 
 How it goes:
 

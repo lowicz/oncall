@@ -266,6 +266,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                   type="button"
                   key={date}
                   role="gridcell"
+                  aria-selected={preview}
                   aria-label={label}
                   title={entry?.note ? t.entryTitle(kinds[entry.kind], entry.note) : undefined}
                   className={cx(

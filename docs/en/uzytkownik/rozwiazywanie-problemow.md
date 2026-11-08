@@ -109,9 +109,9 @@ else's change.
 
 **I cannot pick a replacement**
 The list contains only people who are eligible, available and do not hold
-the opposite role that day. A person marked “not possible: …” is blocked by a
-rule a swap may not break. A person marked “breaks a rule: …” can be picked
-after an acknowledgement - see
+the opposite role that day. A person with the verdict “hard rule” is blocked
+by a rule a swap may not break. A person with the verdict “needs
+confirmation” can be picked after an acknowledgement - see
 [A swap that breaks the rules](zamiany.md#a-swap-that-breaks-the-rules).
 
 **“Date passed”**

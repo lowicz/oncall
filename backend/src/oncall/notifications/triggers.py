@@ -56,6 +56,11 @@ def _inverse_undo_key(changes: Iterable[tuple[date, AssignmentRole, str, str]]) 
     )
 
 
+def _swap_undo_key(swap_id: uuid.UUID) -> str:
+    """The request's mail to the replacement, which a withdrawal in time cancels."""
+    return f"swap-requested:{swap_id}"
+
+
 def _message(recipient: str, rendered: RenderedEmail, context: dict) -> NotificationMessage:
     return NotificationMessage(
         channel="email",
@@ -249,6 +254,7 @@ async def enqueue_forwarding_recovered(
 async def notify_swap_requested(
     db: AsyncSession,
     *,
+    swap_id: uuid.UUID,
     service_date: date,
     role: AssignmentRole,
     slots: Sequence[Slot] = (),
@@ -260,7 +266,9 @@ async def notify_swap_requested(
     """`violations` here and in the triggers below are the hard rules the
     swap breaks knowingly; the mails that lead to a decision name them.
     `slots` are every slot the requester gives and `return_slots` the ones
-    taken in exchange: a mail names all of them once more than one moves."""
+    taken in exchange: a mail names all of them once more than one moves.
+    The mail waits for the Undo window, so a request withdrawn right after
+    it was sent never reaches the replacement."""
     settings = get_settings()
     emails = await _emails_for_names(db, [replacement_name])
     await _enqueue_for(
@@ -276,7 +284,12 @@ async def notify_swap_requested(
             violations=violations,
             app=Brand.from_settings(settings),
         ),
-        context={"event": "swap_requested", "service_date": service_date.isoformat()},
+        context={
+            "event": "swap_requested",
+            "service_date": service_date.isoformat(),
+            "undo_key": _swap_undo_key(swap_id),
+        },
+        send_after=utc_now() + UNDO_WINDOW,
     )
 
 
@@ -362,6 +375,7 @@ async def notify_swap_rejected(
 async def notify_swap_cancelled(
     db: AsyncSession,
     *,
+    swap_id: uuid.UUID,
     service_date: date,
     role: AssignmentRole,
     slots: Sequence[Slot] = (),
@@ -370,7 +384,10 @@ async def notify_swap_cancelled(
     replacement_name: str,
     reason: str | None,
 ) -> None:
+    """A replacement whose request mail was still held learns of neither."""
     settings = get_settings()
+    if replacement_name in await cancel_notifications(db, undo_key=_swap_undo_key(swap_id)):
+        return
     emails = await _emails_for_names(db, [replacement_name])
     await _enqueue_for(
         db,
@@ -400,9 +417,12 @@ async def notify_swap_cancelled_by_publication(
     replacement_name: str,
     swap_id: uuid.UUID,
 ) -> None:
-    """Tell both participants when a publication makes their request obsolete."""
+    """Tell both participants when a publication makes their request obsolete;
+    a replacement whose request mail was still held learns of neither."""
     settings = get_settings()
-    names = [requester_name, replacement_name]
+    names = [requester_name]
+    if replacement_name not in await cancel_notifications(db, undo_key=_swap_undo_key(swap_id)):
+        names.append(replacement_name)
     emails = await _emails_for_names(db, names)
     await _enqueue_for(
         db,

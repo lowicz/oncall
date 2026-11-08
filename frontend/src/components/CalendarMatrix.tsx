@@ -504,11 +504,12 @@ export function CalendarMatrix({
                         <td className="who" colSpan={data.days.length + 1}>{memberGroupLabels()[group]}</td>
                       </tr>
                     )}
-                    <tr ref={(node) => { rowRefs.current.set(member.display_name, node) }}>
+                    <tr ref={(node) => { rowRefs.current.set(member.display_name, node) }} aria-current={highlighted || undefined}>
                       <th scope="row" className="who">
                         <span className={cx('who-name', you && 'who-you')} title={member.display_name}>{member.display_name}</span>
                         {you && <span className="who-tag who-you">{t.grid.you}</span>}
                         {out && <span className="who-tag who-out">{t.grid.outOfRotation}</span>}
+                        {highlighted && <span className="who-tag who-hl">{t.grid.highlighted}</span>}
                         <span className="who-load" aria-hidden="true">
                           <i style={{ width: `${(count / load.max) * 100}%` }} />
                         </span>
@@ -530,6 +531,7 @@ export function CalendarMatrix({
                             <button
                               type="button"
                               className={cx('cell', isSelected && 'cell-sel', highlighted && 'cell-hl', day.events.length > 0 && 'cell-ev')}
+                              aria-current={isSelected || undefined}
                               style={day.events[0] ? { ['--ev' as string]: `var(--ev-${day.events[0].color})` } : undefined}
                               {...grid.cellProps(rowIndex, colIndex)}
                               onClick={() => openDay(day, member, assignments[0]?.role ?? 'primary')}

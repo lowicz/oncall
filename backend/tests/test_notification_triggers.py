@@ -513,6 +513,7 @@ async def test_a_withdrawn_request_tells_the_replacement_why(db) -> None:
 
     await notify_swap_cancelled(
         db,
+        swap_id=uuid.uuid4(),
         service_date=today,
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",
@@ -533,6 +534,7 @@ async def test_a_request_naming_nobody_enqueues_nothing(db) -> None:
 
     await notify_swap_requested(
         db,
+        swap_id=uuid.uuid4(),
         service_date=today,
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",
@@ -607,6 +609,7 @@ async def test_a_request_withdrawn_without_a_reason_names_none(db) -> None:
 
     await notify_swap_cancelled(
         db,
+        swap_id=uuid.uuid4(),
         service_date=today,
         role=AssignmentRole.primary,
         requester_name="Anna Kowalska",

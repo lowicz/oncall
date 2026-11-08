@@ -113,6 +113,8 @@ export const schedule = {
     noFullCoverage: 'brak pełnej obsady',
     you: 'Ty',
     outOfRotation: 'poza rotacją',
+    /** The row a link asked for: the highlight said in words, not only in colour. */
+    highlighted: 'podświetlona',
     dutiesInRange: (count: number) => `${count} dyżurów w zakresie`,
   },
   inspector: {

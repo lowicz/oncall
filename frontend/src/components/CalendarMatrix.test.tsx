@@ -825,6 +825,14 @@ describe('CalendarMatrix grid', () => {
       renderScreen(<CalendarMatrix role="member" displayName="Anna Kowalska" range={WEEK_OF_TODAY} focusPerson="Marek Nowak" />)
       const cells = await screen.findAllByRole('button', { name: /^Marek Nowak/ })
       expect(cells[0]).toHaveClass('cell-hl')
+      // The highlight is said in words and to assistive technology, not only in colour.
+      const row = cells[0].closest('tr') as HTMLElement
+      expect(row).toHaveAttribute('aria-current', 'true')
+      expect(within(row).getByRole('rowheader')).toHaveTextContent('podświetlona')
+      expect(screen.getAllByText('podświetlona')).toHaveLength(1)
+      expect(cells[0]).not.toHaveAttribute('aria-current')
+      fireEvent.click(cells[0])
+      await waitFor(() => expect(cells[0]).toHaveAttribute('aria-current', 'true'))
       await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1))
       expect(scroll).toHaveBeenCalledWith({ block: 'center' })
     } finally {
