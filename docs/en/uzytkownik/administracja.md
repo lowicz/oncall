@@ -34,12 +34,17 @@ Clicking a person (or **Open**) opens a panel with three tabs:
   marked “fix the number” in the table, and in the field once it is left or
   saved. Everyone can also
   change their own number on the [Mine](dostepnosc.md#my-phone) screen,
-- **Rotation** - the rotation state, **duty qualifications** as chips
-  (removing a chip ends the role's period as of yesterday, so the published
-  schedule stays and the generator skips the role from the next run; adding
-  a chip opens a period from today), “Entry from” and “Exit on”, and the list
-  of **qualification periods** where the dates can be edited and a period
-  added,
+- **Rotation** - “Entry from” and “Exit on”, one **Qualifications** list
+  (for each role its current and future periods or a “no qualification” row
+  with an **Add** button, past periods last as history) and the **End the
+  rotation…** button (see below). Every period lies inside the rotation, so a
+  later entry date is saved on its own: only deleting periods that end before
+  it can be saved with it, and the panel says to save other rotation changes
+  separately. While some saved period starts before the new date, the “Entry
+  from” field names its role: a period that ends before it is deleted in the
+  same save, and one that runs past it is first moved or deleted in a separate
+  save. A badge in the panel header shows
+  the rotation state,
 - **Access** - the account role, the “Account enabled” switch and, for a
   local account, a **one-time** password reset link or - as long as the
   account is awaiting activation - a new activation link.
@@ -54,6 +59,30 @@ An account without a rotation has an **Add to the rotation** button with an
 entry date on the Rotation tab. The activation link of a new account is shown
 once, after creation; pass the link on to the person through a secure
 channel.
+
+A new account can join the rotation straight away: the **In the duty
+rotation** field in the “New local account” panel reveals the entry date,
+the phone (then required) and the duty qualifications to select. The “After
+creation” box says from when and in which roles the person will get duties.
+After creation the same panel shows what was created (the account, the
+rotation and the roles), the activation link and the **Open the rotation**
+button, which leads to that person's Rotation tab. If the server refuses to
+save the rotation or some of the qualifications, the account and the link
+stay, the panel says what was not saved and why, and you finish the rest on
+the tab.
+
+Every qualification change waits for **Save**, like the other fields of the
+panel, and joins the list of unsaved changes: **Edit** changes a period's
+dates, **End today** ends the period as of yesterday (the published schedule
+stays, the generator skips the role from the next run), a period that has not
+started yet has **Delete** instead, and **Add period** and **Add** next to a
+missing role add a new period. A changed row is marked “changed, unsaved”
+(or “deleted”, “new”) and has a **Restore** button. After saving, ending or
+deleting a period shows a message with an **Undo** button, which puts the
+previous dates back or creates the deleted period again; when the same save
+moved the entry into the rotation later, **Undo** also puts the previous entry
+date back. A period put back ends on the exit date from the rotation at the
+latest.
 
 ### Accounts awaiting activation
 
@@ -88,27 +117,45 @@ account Keycloak lets the person into.
 The panel keeps track of unsaved changes: the **Save** button gives their count.
 Trying to close it (Esc or the cross), open another person, go to another screen, or reload requires a decision whether to discard the entered changes.
 The **Discard changes** button in the footer drops them at once, without asking.
-Every save ends with a notification in the corner of the screen that says what was saved (“Saved: phone”); so do creating an account, adding to the rotation, adding and removing a qualification and deleting a period.
+Every save ends with a notification in the corner of the screen that says what was saved (“Saved: phone”); so do creating an account and adding to the rotation.
 A role change and disabling or enabling the account save without an extra question, and the notification (“Role changed: Jan Kowalski → Coordinator”) has an **Undo** button that puts the previous role and account state back for a few seconds.
 
 ### Leaving the rotation
 
 Setting “Exit on” ends the rotation. The duty history **stays** and still
 counts in the reports; only the assignment of new duties after that date
-ends. Duties already published after that date have to be rewritten - the
-panel then shows the “Effect on the schedule” warning with the **Rewrite
-future duties and end the rotation…** button, which picks a replacement for
-each such duty. The dialog has one red button that names the effect, for
-example **Rewrite 6 duties and end the rotation** (with no duties to rewrite:
-**End the rotation**). A click checks the hard rules for all schedules at
-once and, when nothing is broken, saves straight away. If the chosen
-replacements would break a hard rule, the dialog lists the violations under
-the heading “The rewrite would break hard rules”: pick other replacements or
-tick that you are breaking the rules deliberately, and click the same button.
-A confirmed violation goes into the audit log. If an error interrupts the
-save after some schedules were rewritten, the dialog says how many duties are
-already rewritten; another click rewrites the rest. When it is done, a
-notification gives the number of rewritten duties and the replacements
+ends. Duties already published after that date have to be rewritten, so they
+cannot be left unstaffed by mistake: the hint under the “Exit on” field gives
+their number, and **Save** with such a date saves the account changes and the
+entry date and opens the end-of-rotation dialog, which picks a replacement for
+each duty. **Save** opens the same dialog when qualifications run past the exit
+date, because no period may reach outside the rotation; the hint under the
+field then says that saving ends them. The exit date is saved only in that dialog; closing it leaves the
+date on the list of unsaved changes. Qualification changes wait too, because
+the server does not let a qualification end while published duties still need
+it: the dialog itself closes the periods on the exit date, and whatever is
+left of those changes is saved by the next **Save** - the periods end on the
+exit date at the latest, and those that would start after it leave the list. The **End the rotation…**
+button on the Rotation tab opens the same dialog, with the date from the “Exit
+on” field or, when it is empty, today's; without duties the dialog only closes
+the qualifications and saves the exit date.
+
+In the dialog the **The same replacement for all** field puts one person into
+every duty that person can take; each row can then be changed on its own. Next
+to every name, in brackets, is the number of duties that person already has on
+the days of the duties being rewritten, and the least loaded are at the top.
+The replacements get an e-mail, and the operation goes into the audit as “End
+of rotation” with the person's name. The dialog has one red button that names
+the effect, for example **Rewrite 6 duties and end the rotation** (with no
+duties to rewrite: **End the rotation**). A click checks the hard rules for
+all schedules at once and, when nothing is broken, saves straight away. If the
+chosen replacements would break a hard rule, the dialog lists the violations
+under the heading “The rewrite would break hard rules”: pick other
+replacements or tick that you are breaking the rules deliberately, and click
+the same button. A confirmed violation goes into the audit log. If an error
+interrupts the save after some schedules were rewritten, the dialog says how
+many duties are already rewritten; another click rewrites the rest. When it is
+done, a notification gives the number of rewritten duties and the replacements
 (“Marek Nowak ×3, Jan Wiśniewski ×1”) with an **Open schedule** button.
 
 ### Deleting an account and its personal data

@@ -75,10 +75,11 @@ describe('OffboardingDialog', () => {
       </>,
     )
 
-    const pickers = await screen.findAllByRole('combobox')
-    expect(pickers).toHaveLength(2)
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Ten sam zastępca dla wszystkich' }), { target: { value: 'm2' } })
     expect(screen.getByText('2 dyżury po 20-09-2026 dostaną zastępcę wybranego niżej, a kwalifikacje tej osoby skończą się z dniem 20-09-2026.')).toBeInTheDocument()
-    for (const picker of pickers) fireEvent.change(picker, { target: { value: 'm2' } })
+    expect(screen.getByRole('combobox', { name: /wt 22 wrz · PRIMARY/ })).toHaveValue('m2')
+    expect(screen.getByRole('combobox', { name: /pon 5 paź · PRIMARY/ })).toHaveValue('m2')
+    expect(screen.getByText('Zastępcy dostaną e-mail; operacja trafi do audytu jako „Zakończenie rotacji Anna Kowalska”.')).toBeInTheDocument()
     const button = screen.getByRole('button', { name: 'Przepisz 2 dyżury i zakończ rotację' })
     expect(button).toHaveClass('btn-danger')
     fireEvent.click(button)
@@ -250,10 +251,11 @@ describe('OffboardingDialog', () => {
     renderScreen(<OffboardingDialog open member={member} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />)
 
     expect(screen.getByRole('status', { name: 'Szukam przyszłych dyżurów…' })).toBeInTheDocument()
-    const picker = await screen.findByRole('combobox', { name: /05-10-2026 · PRIMARY/ })
+    const picker = await screen.findByRole('combobox', { name: /pon 5 paź · PRIMARY/ })
+    // One duty needs no "the same replacement for all".
     expect(screen.getAllByRole('combobox')).toHaveLength(1)
     expect(within(picker).getAllByRole('option').map((option) => option.textContent))
-      .toEqual(['Wybierz zastępcę', 'Adam Wolski', 'Beata Lis', 'Marek Nowak'])
+      .toEqual(['Wybierz zastępcę', 'Adam Wolski (0 dyżurów)', 'Beata Lis (0 dyżurów)', 'Marek Nowak (0 dyżurów)'])
 
     const start = screen.getByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' })
     expect(start).toBeDisabled()
@@ -281,6 +283,52 @@ describe('OffboardingDialog', () => {
       { id: 'e-later', input: { ends_on: '2026-09-20' } },
     ])
     expect(finished).toHaveBeenCalledWith({ id: 'm1', input: { active_until: '2026-09-20' } })
+  })
+
+  it('gives everyone one replacement where they can take the duty, the least loaded first', async () => {
+    vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => ({
+      ...calendarWith(startsOn === '2026-09-21' ? [
+        duty('2026-10-05', 's1', 1, 'm1'),
+        duty('2026-10-06', 's1', 1, 'm2'),
+        duty('2026-10-07', 's1', 1, 'm3'),
+        duty('2026-10-08', 's1', 1, 'm2'),
+        duty('2026-10-09', 's1', 1, 'm1'),
+        // Outside the days rewritten here, so it does not count.
+        duty('2026-11-20', 's1', 1, 'm4'),
+      ] : []),
+      members: [
+        { id: 'm1', display_name: 'Anna Kowalska', eligibility: everyRole },
+        { id: 'm2', display_name: 'Marek Nowak', eligibility: everyRole },
+        { id: 'm3', display_name: 'Beata Lis', eligibility: everyRole },
+        { id: 'm4', display_name: 'Adam Wolski', eligibility: everyRole },
+      ],
+      availability: startsOn === '2026-09-21'
+        ? [{ member_id: 'm4', kind: 'unavailable' as const, starts_on: '2026-10-01', ends_on: '2026-10-06', note: null }]
+        : [],
+    }))
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
+
+    const all = await screen.findByRole('combobox', { name: 'Ten sam zastępca dla wszystkich' })
+    expect(screen.getByText(/W nawiasie: ile dyżurów ma już każda osoba w dniach 5 – 9 paź; najmniej obciążeni są na górze\./)).toBeInTheDocument()
+    expect(within(all).getAllByRole('option').map((option) => option.textContent))
+      .toEqual(['Wybierz zastępcę', 'Adam Wolski (0 dyżurów)', 'Beata Lis (1 dyżur)', 'Marek Nowak (2 dyżury)'])
+    const first = screen.getByRole('combobox', { name: /pon 5 paź · PRIMARY/ })
+    const second = screen.getByRole('combobox', { name: /pt 9 paź · PRIMARY/ })
+    expect(within(first).getAllByRole('option').map((option) => option.textContent))
+      .toEqual(['Wybierz zastępcę', 'Beata Lis (1 dyżur)', 'Marek Nowak (2 dyżury)'])
+
+    // Adam is away on the 5th: that duty keeps its own pick.
+    fireEvent.change(all, { target: { value: 'm4' } })
+    expect(first).toHaveValue('')
+    expect(second).toHaveValue('m4')
+    expect(all).toHaveValue('')
+    fireEvent.change(all, { target: { value: 'm3' } })
+    expect(first).toHaveValue('m3')
+    expect(second).toHaveValue('m3')
+    expect(all).toHaveValue('m3')
+    fireEvent.change(second, { target: { value: 'm2' } })
+    expect(all).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Przepisz 2 dyżury i zakończ rotację' })).toBeEnabled()
   })
 
   it('ends a rotation without duties and shows why the save failed', async () => {
