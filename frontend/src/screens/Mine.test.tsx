@@ -850,6 +850,29 @@ describe('MineScreen availability painting', () => {
     await waitFor(() => expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined }))
   })
 
+  it('closes a range with a mouse Shift+click from the last painted day in one save', async () => {
+    stub()
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
+      .mockResolvedValueOnce(created('2026-09-20', '2026-09-20'))
+      .mockResolvedValue(created('2026-09-20', '2026-09-24'))
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await idleCalendar()
+
+    fireEvent.pointerDown(cell(/niedz 20-09-2026/), { button: 0 })
+    fireEvent.pointerUp(window)
+    fireEvent.click(cell(/niedz 20-09-2026/), { detail: 1 })
+    expect(await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).toBeInTheDocument()
+    await idleCalendar()
+
+    fireEvent.pointerDown(cell(/czw 24-09-2026/), { button: 0, shiftKey: true })
+    expect(cell(/pon 21-09-2026/)).toHaveClass('avail-day-sel')
+    fireEvent.pointerUp(window)
+    fireEvent.click(cell(/czw 24-09-2026/), { detail: 1, shiftKey: true })
+    expect(await screen.findByText('Zapisano: 20 – 24 wrz „nie mogę”')).toBeInTheDocument()
+    expect(replace).toHaveBeenCalledTimes(2)
+    expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined })
+  })
+
   it('saves paints one after another and keeps the elapsed part of a cut entry', async () => {
     stub()
     const list = vi.spyOn(api, 'availability').mockResolvedValue([

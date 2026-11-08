@@ -281,7 +281,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                   {...grid.cellProps(rowIndex, colIndex)}
                   onPointerDown={(event) => {
                     if (disabled || narrow || event.button !== 0) return
-                    setDrag({ anchor: date, hover: date })
+                    // Shift+click closes a range from the last painted day.
+                    const anchor = event.shiftKey && lastPainted.current ? lastPainted.current : date
+                    setDrag({ anchor, hover: date })
                   }}
                   onPointerEnter={() => {
                     // A browser may report a pointer over a passed day, which is disabled.
