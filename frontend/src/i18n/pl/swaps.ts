@@ -169,7 +169,7 @@ export const swaps = {
     /** A candidate who may not hold 11-19 takes the on-call role of the whole duty alone. */
     takesOnly: (role: string) => `Przejmie tylko ${role}, nie pełni 11–19.`,
     splitsDaysOff: 'Dzieli blok dni wolnych.',
-    breaksRule: (message: string, days: string) => `Łamie regułę: ${message}${days ? ` (${days})` : ''}.`,
+    breaksRule: (message: string, days: string) => (days ? `Łamie regułę: ${message} (${days}).` : `Łamie regułę: ${message}.`),
     aboveShare: (points: string) => `Ma już ${points} pkt powyżej udziału.`,
     belowShare: (points: string) => `Ma ${points} pkt poniżej udziału.`,
     improvesBalance: 'Zamiana poprawia bilans.',
