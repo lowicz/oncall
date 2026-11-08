@@ -163,12 +163,9 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
                   {weeksWord(weeks)}
                   {summary.people > 0 && ` · ${t.schedule.peopleInRotation(summary.people)}`}
                   {summary.firstGap && (
-                    <>
-                      {' · '}
-                      <button type="button" className="text-link" onClick={summary.firstGap.show}>
-                        {t.schedule.firstGap(t.schedule.risks.gapDays(summary.firstGap.count), formatDate(summary.firstGap.date).slice(0, 5))}
-                      </button>
-                    </>
+                    <> · <button type="button" className="text-link" onClick={summary.firstGap.show}>
+                      {t.schedule.firstGap(t.schedule.risks.gapDays(summary.firstGap.count), formatDate(summary.firstGap.date).slice(0, 5))}
+                    </button></>
                   )}
                 </>
               )}

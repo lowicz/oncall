@@ -155,14 +155,7 @@ function DutyList({ duties, today, collides, onShowCollision }: {
               {duty.partners && ` · ${duty.partners}`}
               {duty.day?.holiday_name && ` · ${duty.day.holiday_name}`}
               {duty.changed && <> · <span className="who-you">{t.mine.duties.afterCorrection}</span></>}
-              {conflict && (
-                <>
-                  {' · '}
-                  <button type="button" className="text-link" aria-label={t.mine.duties.showCollision(formatDayShort(duty.service_date))} onClick={() => onShowCollision(duty.service_date)}>
-                    {t.mine.duties.collision}
-                  </button>
-                </>
-              )}
+              {conflict && <> · <button type="button" className="text-link" aria-label={t.mine.duties.showCollision(formatDayShort(duty.service_date))} onClick={() => onShowCollision(duty.service_date)}>{t.mine.duties.collision}</button></>}
             </small>
           </ListRow>
         )
