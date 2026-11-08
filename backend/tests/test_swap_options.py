@@ -11,12 +11,14 @@ from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleS
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
+from oncall.workdays import is_polish_working_day
 from tests.conftest import create_member, create_user, login
 
 # A working day near today: the 11-19 shift exists only on working days, so a
-# fixed +3 offset made the suite fail whenever it landed on a weekend.
+# fixed +3 offset made the suite fail whenever it landed on a weekend or a
+# public holiday.
 DAY = date.today() + timedelta(days=3)
-while DAY.weekday() >= 5:
+while not is_polish_working_day(DAY):
     DAY += timedelta(days=1)
 
 
