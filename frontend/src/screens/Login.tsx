@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '../api'
 import { useBranding } from '../hooks/useBranding'
+import { useNarrow } from '../hooks/useMediaQuery'
 import { Messages, useMessages } from '../i18n'
 import { AnchorButton, Box, Button, Field, IconButton, Input } from '../ui'
 import { AuthFrame } from '../components/AuthFrame'
@@ -43,6 +44,7 @@ export function Login({ expired = false }: { expired?: boolean }) {
   // attempt the person makes.
   const [ssoRefusal, setSsoRefusal] = useState(() => ssoRefusalOf(searchParams.get('sso')))
   const branding = useBranding()
+  const narrow = useNarrow()
   const login = useMutation({
     mutationFn: () => api.login(username, password),
     onSuccess: (user) => queryClient.setQueryData(meKey, user),
@@ -85,13 +87,13 @@ export function Login({ expired = false }: { expired?: boolean }) {
         )}
         <Field label={t.auth.username}>
           {({ id }) => (
-            <Input id={id} name="username" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus required />
+            <Input id={id} name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={!narrow} required />
           )}
         </Field>
         <Field label={t.auth.password}>
           {({ id }) => (
             <div className="row row-nowrap">
-              <Input id={id} name="password" autoComplete="current-password" type={showPassword ? 'text' : 'password'} className="in-pw-toggled" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input id={id} name="password" autoComplete="current-password" autoCapitalize="none" spellCheck={false} type={showPassword ? 'text' : 'password'} className="in-pw-toggled" value={password} onChange={(e) => setPassword(e.target.value)} required />
               <IconButton
                 label={showPassword ? t.auth.hidePassword : t.auth.showPassword}
                 icon="eye"

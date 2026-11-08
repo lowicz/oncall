@@ -110,6 +110,9 @@ export const mine = {
     /** `arrow` points one way for a hand-over and both ways for an exchange. */
     youTo: (name: string, arrow: string) => `Ty ${arrow} ${name}`,
     toYou: (name: string, arrow: string) => `${name} ${arrow} Ty`,
+    /** The same lines read aloud, where an arrow glyph means nothing. */
+    youToSpoken: (name: string, exchange: boolean) => (exchange ? `Zamiana: Ty i ${name}` : `Przekazujesz dyżur, przejmuje go ${name}`),
+    toYouSpoken: (name: string, exchange: boolean) => (exchange ? `Zamiana: ${name} i Ty` : `${name} przekazuje Ci dyżur`),
     askedYou: 'prośba do Ciebie · odpowiedz',
     waitingFor: (name: string, since: string) => `czeka na: ${name} · ${since}`,
     waitingForYourApproval: 'czeka na Twoje zatwierdzenie',

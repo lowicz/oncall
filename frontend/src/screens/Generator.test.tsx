@@ -4,6 +4,7 @@ import { renderScreen } from '../test/render'
 import { GeneratorPanel } from './Generator'
 import { api, ApiError } from '../api'
 import type { DraftSchedule, ScheduleRun, ScheduleSummary, SchedulingPolicy } from '../api'
+import { loadRealStylesheet } from '../test/stylesheet'
 
 const policy: SchedulingPolicy = {
   rotation_mode: 'hybrid',
@@ -381,10 +382,14 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     stub([summary({ id: 'd1' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(conflicted)
     const propose = vi.spyOn(api, 'proposeSchedule')
+    loadRealStylesheet()
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     const button = await screen.findByRole('button', { name: 'Przekaż do akceptacji' })
-    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(getComputedStyle(button).opacity).toBe('0.5')
+    expect(button).toHaveAttribute('aria-describedby', 'generator-propose-blocked')
+    fireEvent.click(button)
     expect(
       screen.getByText('Najpierw usuń dyżury w dniach zgłoszonej niedostępności'),
     ).toBeInTheDocument()

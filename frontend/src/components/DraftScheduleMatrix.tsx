@@ -100,6 +100,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                     scope="col"
                     className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', day.service_date === today && 'td')}
                     title={[day.holiday_name, ...day.events.map((event) => event.title)].filter(Boolean).join(' · ') || undefined}
+                    aria-label={[formatWeekday(day.service_date), day.service_date.slice(8), day.holiday_name, ...day.events.map((event) => event.title)].filter(Boolean).join(' · ')}
                   >
                     <span>{formatWeekday(day.service_date)}</span>
                     <b>{day.service_date.slice(8)}</b>

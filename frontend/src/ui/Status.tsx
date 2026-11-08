@@ -1,8 +1,9 @@
-import { ReactNode, useState } from 'react'
+import { Children, Fragment, ReactNode, isValidElement, useId, useState } from 'react'
 import { cx } from './cx'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
 import { signedPoints } from '../lib/numbers'
+import { useMessages } from '../i18n/messages'
 
 export type StatusTone = 'draft' | 'prop' | 'pub' | 'ok' | 'warn' | 'bad' | 'sig' | 'muted'
 
@@ -28,6 +29,7 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
   className?: string
   title?: string
 }) {
+  const descriptionId = useId()
   const content = (
     <>
       <i className="chip-dot" aria-hidden="true" />
@@ -36,16 +38,32 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
   )
   if (onClick) {
     return (
-      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} title={title}>
+      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} title={title} aria-describedby={title ? descriptionId : undefined}>
         {content}
+        {title && <span id={descriptionId} hidden>{title}</span>}
       </button>
     )
   }
-  return <span className={cx('chip', `chip-${tone}`, className)} title={title}>{content}</span>
+  return (
+    <span className={cx('chip', `chip-${tone}`, className)} title={title}>
+      {content}
+      {title && <span className="sr-only"> {title}</span>}
+    </span>
+  )
 }
 
+/** The chips inside any Fragments, each with a key unique along its path. */
+const chipsOf = (children: ReactNode, path = ''): [string, ReactNode][] => Children.toArray(children).flatMap((child, index) => {
+  const key = `${path}/${isValidElement(child) ? child.key : index}`
+  return isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment ? chipsOf(child.props.children, key) : [[key, child]]
+})
+
 export function ChipRow({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
-  return <div className={cx('risk', className)} role={label ? 'list' : undefined} aria-label={label}>{children}</div>
+  return (
+    <div className={cx('risk', className)} role={label ? 'list' : undefined} aria-label={label}>
+      {label ? chipsOf(children).map(([key, child]) => <div className="chip-row-item" role="listitem" key={key}>{child}</div>) : children}
+    </div>
+  )
 }
 
 const roleClass: Record<AssignmentRole, string> = { primary: 'p', secondary: 's', late_shift: 'l' }
@@ -118,8 +136,9 @@ export function DeviationBar({ value, max, label, className }: {
   const width = Math.min(100, Math.abs(value) / Math.max(max, 0.01) * 100)
   const over = value > 0
   const formatted = signedPoints(value)
+  const { common } = useMessages()
   return (
-    <span className={cx('dev', className)} role="img" aria-label={label ?? `odchylenie ${formatted}`}>
+    <span className={cx('dev', className)} role="img" aria-label={label ?? common.deviation(formatted)}>
       <span className="dev-track">
         <i className={over ? 'dev-over' : 'dev-under'} style={{ width: `${width / 2}%` }} />
       </span>

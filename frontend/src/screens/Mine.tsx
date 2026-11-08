@@ -187,7 +187,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   const grid = useGridNavigation(weeks.length, 7, {
     isCellDisabled: (row, col) => {
       const date = weeks[row]?.[col]?.date
-      return !date || date < today || disabled
+      return !date || date < today
     },
     wrap: true,
   })
@@ -232,7 +232,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
       <div className="avail-cal-head" aria-hidden="true">
         {weekdaysFromMonday().map((label, index) => <span key={label} className={cx(index >= 5 && 'we')}>{label}</span>)}
       </div>
-      <div className="avail-cal" role="grid" aria-label={t.label(formatMonth(month))}>
+      <div className="avail-cal" role="grid" aria-label={t.label(formatMonth(month))} aria-busy={disabled || undefined}>
         {weeks.map((week, rowIndex) => (
           <div className="avail-cal-row" role="row" key={week[0].key}>
             {week.map(({ key, date }, colIndex) => {
@@ -267,14 +267,15 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                     date === today && 'avail-day-today',
                     conflict && 'avail-day-conflict',
                   )}
-                  disabled={past || disabled}
+                  disabled={past}
                   {...grid.cellProps(rowIndex, colIndex)}
                   onPointerDown={(event) => {
-                    if (event.button !== 0) return
+                    if (disabled || event.button !== 0) return
                     setDrag({ anchor: date, hover: date })
                   }}
-                  onPointerEnter={() => { if (drag) setDrag({ anchor: drag.anchor, hover: date }) }}
+                  onPointerEnter={() => { if (!disabled && drag) setDrag({ anchor: drag.anchor, hover: date }) }}
                   onClick={(event) => {
+                    if (disabled) return
                     // A pointer click was already committed on pointerup; the
                     // keyboard (Enter, Space) arrives here with no pointer at all.
                     if (event.detail !== 0) return
@@ -433,7 +434,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
 
   const heading = targetMember ? t.headingFor(targetMember.display_name) : t.heading
   return (
-    <section className="stack-sm" aria-labelledby="dostepnosc" id="dostepnosc">
+    <section className="stack-sm" aria-labelledby="dostepnosc-title" id="dostepnosc">
       <SectionHeading
         id="dostepnosc-title"
         title={heading}
@@ -618,7 +619,7 @@ const swapTone: Record<SwapRequest['status'], StatusTone> = {
 
 /** The swaps this person is part of, decided with one click; the rest is on the swaps screen. */
 function SwapsSection({ displayName, role }: { displayName: string; role: UserRole }) {
-  const { mine: { swaps: t }, swaps: { table: { expired } } } = useMessages()
+  const { mine: { swaps: t }, swaps: { table: { expired } }, common } = useMessages()
   const statuses = swapStatusLabels()
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps() })
   const viewer = { displayName, role }
@@ -628,6 +629,12 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
     ...mine.filter((item) => !isOpen(item)).sort((a, b) => b.created_at.localeCompare(a.created_at)),
   ].slice(0, 5)
   const arrow = (item: SwapRequest) => (returnOf(item) ? '⇄' : '→')
+  const lead = (item: SwapRequest, spoken: boolean) => {
+    const handingOver = item.requester_name === displayName
+    const name = firstName(handingOver ? item.replacement_name : item.requester_name)
+    if (spoken) return (handingOver ? t.youToSpoken : t.toYouSpoken)(name, Boolean(returnOf(item)))
+    return (handingOver ? t.youTo : t.toYou)(name, arrow(item))
+  }
   const stage = (item: SwapRequest) => {
     if (isLapsed(item)) return expired
     if (item.status === 'pending_replacement') {
@@ -662,10 +669,8 @@ function SwapsSection({ displayName, role }: { displayName: string; role: UserRo
                   : <StatusBadge tone={swapTone[item.status]}>{t.short[item.status]}</StatusBadge>}
               >
                 <b>
-                  {item.requester_name === displayName
-                    ? t.youTo(firstName(item.replacement_name), arrow(item))
-                    : t.toYou(firstName(item.requester_name), arrow(item))}
-                  {' · '}{swapHeadline(item)}
+                  <span aria-hidden="true">{lead(item, false)} · {swapHeadline(item)}</span>
+                  <span className="sr-only">{lead(item, true)} · {swapHeadline(item, common.swapWith)}</span>
                 </b>
                 <small>{stage(item)}</small>
               </ListRow>
@@ -722,7 +727,7 @@ function FeedsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
         {(create.error || revoke.error) && <Box tone="bad" role="alert" title={create.error?.message ?? revoke.error?.message} />}
         {created && (
           <Box tone="ok" role="status" title={t.createdOnce}>
-            <div className="token-once"><code>{created.url}</code><CopyButton value={created.url} /></div>
+            <div className="token-once"><code translate="no">{created.url}</code><CopyButton value={created.url} /></div>
           </Box>
         )}
         {feeds.isLoading && <LoadingBlock label={t.loading} rows={2} />}
@@ -794,7 +799,7 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
       <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); save.mutate() }}>
         <Field label={t.label} id="my-phone" hint={t.hint} error={error}>
           {({ id, describedBy, invalid }) => (
-            <Input id={id} type="tel" mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onChange={(event) => setDraft(event.target.value)} />
+            <Input id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onChange={(event) => setDraft(event.target.value)} />
           )}
         </Field>
         {save.error && <Box tone="bad" role="alert" focus title={save.error.message} />}

@@ -140,6 +140,8 @@ describe('DraftScheduleMatrix grid', () => {
     const headers = within(region).getAllByRole('columnheader')
     expect(headers.find((cell) => cell.getAttribute('title') === 'Święto testowe')).toHaveClass('we')
     expect(headers.find((cell) => cell.getAttribute('title') === 'Migracja')).toHaveClass('wk')
+    expect(within(region).getByRole('columnheader', { name: 'sob · 10 · Święto testowe' })).toBeInTheDocument()
+    expect(within(region).getByRole('columnheader', { name: 'pon · 12 · Migracja' })).toBeInTheDocument()
 
     const eventCell = within(region).getByRole('button', { name: 'Anna Kowalska, pon 12-10-2026, wydarzenia: Migracja, brak dyżuru' })
     expect(eventCell).toHaveClass('cell-ev')

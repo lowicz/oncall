@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode, useEffect, useRef, useState } from 'react'
 import { Box, Button, Dialog, Field, Textarea } from '../ui'
 import { useMessages } from '../i18n'
 
@@ -42,6 +42,7 @@ export function ConfirmDialog({
 }) {
   const t = useMessages()
   const [reason, setReason] = useState('')
+  const reasonRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     if (open) setReason('')
   }, [open])
@@ -57,6 +58,7 @@ export function ConfirmDialog({
       size="sm"
       tone={confirmColor === 'error' ? 'danger' : 'default'}
       dismissible={!pending}
+      initialFocus={reasonRef}
       actions={(
         <>
           <Button onClick={onCancel} disabled={pending}>{t.common.cancel}</Button>
@@ -77,9 +79,9 @@ export function ConfirmDialog({
         <Field label={reasonLabel} required error={tooShort ? t.common.reasonTooShort(reasonMinLength) : undefined}>
           {({ id, describedBy, invalid }) => (
             <Textarea
+              ref={reasonRef}
               id={id}
               name="reason"
-              autoFocus
               rows={3}
               value={reason}
               onChange={(event) => setReason(event.target.value)}

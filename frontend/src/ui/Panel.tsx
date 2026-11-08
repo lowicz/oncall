@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useRef } from 'react'
 import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { cx } from './cx'
 import { IconButton } from './Button'
@@ -28,6 +28,7 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
 }) {
   const narrow = useNarrow()
   const t = useMessages()
+  const titleRef = useRef<HTMLHeadingElement>(null)
   return (
     <BaseDialog.Root
       open={open}
@@ -37,9 +38,9 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
     >
       <BaseDialog.Portal>
         {narrow && <BaseDialog.Backdrop className="dialog-backdrop" />}
-        <BaseDialog.Popup className={cx('panel-popup', narrow && 'panel-modal', wide && 'panel-wide', className)}>
+        <BaseDialog.Popup initialFocus={titleRef} className={cx('panel-popup', narrow && 'panel-modal', wide && 'panel-wide', className)}>
           <div className="panel-head">
-            <BaseDialog.Title className="panel-title">{title}</BaseDialog.Title>
+            <BaseDialog.Title ref={titleRef} tabIndex={-1} className="panel-title">{title}</BaseDialog.Title>
             {meta && <div className="panel-meta">{meta}</div>}
             <BaseDialog.Close render={<IconButton label={t.common.closePanel} icon="x" size="sm" className="panel-close" />} />
           </div>

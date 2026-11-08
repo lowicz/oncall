@@ -52,9 +52,9 @@ export const returnOf = (item: SwapRequest): SwapSlot | undefined => item.return
 export const dayRole = (slot: SwapSlot) => `${formatDayShort(slot.service_date)} ${roleLabels()[slot.role]}`
 
 /** What names a request: its duty and, for an exchange, the one that comes back. */
-export function swapHeadline(item: SwapRequest) {
+export function swapHeadline(item: SwapRequest, joiner = '⇄') {
   const returned = returnOf(item)
-  return returned ? `${dayRole(item)} ⇄ ${dayRole(returned)}` : dayRole(item)
+  return returned ? `${dayRole(item)} ${joiner} ${dayRole(returned)}` : dayRole(item)
 }
 
 const scopeOf = (slots: SwapSlot[]): SwapScope => (slots.length > 1 ? 'whole' : 'single')

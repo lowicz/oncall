@@ -378,7 +378,7 @@ export function CalendarMatrix({
       {typeof heading === 'function' ? heading(summary) : heading}
       {calendar.error && <ErrorState error={calendar.error} onRetry={() => calendar.refetch()} />}
       {(calendar.isLoading || !enabled) && (
-        <div className="panel sk-block" aria-busy="true" aria-label={t.loading}>
+        <div className="panel sk-block" role="status" aria-busy="true" aria-label={t.loading}>
           <Skeleton height={22} width="min(340px, 100%)" />
           <Skeleton height={34 * 5} />
         </div>
@@ -438,6 +438,8 @@ export function CalendarMatrix({
                       className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', isToday && 'td', gap && 'gap')}
                       title={[day.holiday_name, ...day.events.map((event) => event.title), gap ? t.grid.noFullCoverage : null]
                         .filter(Boolean).join(' · ') || undefined}
+                      aria-label={[formatWeekday(day.service_date), day.service_date.slice(8), day.holiday_name, ...day.events.map((event) => event.title), gap ? t.grid.noFullCoverage : null]
+                        .filter(Boolean).join(' · ')}
                     >
                       <span>{formatWeekday(day.service_date)}</span>
                       <b>{day.service_date.slice(8)}</b>
@@ -655,7 +657,7 @@ export function CalendarMatrix({
                 {t.inspector.unstaffedRoles(selectedGap.missing.map((item) => roleLabels()[item]).join(', '))}
               </Box>
             )}
-            <div className="roles" aria-label={t.inspector.dayStaffing}>
+            <div className="roles" role="group" aria-label={t.inspector.dayStaffing}>
               {ROLES.map((item) => {
                 const slot = data?.assignments.find((entry) => entry.service_date === selected.day.service_date && entry.role === item)
                 const notApplicable = item === 'late_shift' && selected.day.is_day_off
@@ -731,11 +733,11 @@ export function CalendarMatrix({
               >
                 <b>{t.inspector.addEventTitle}</b>
                 <Field label={t.inspector.name} id="calendar-event-title">
-                  {({ id }) => <Input id={id} name={id} value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} autoFocus required />}
+                  {({ id }) => <Input id={id} name={id} value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} required />}
                 </Field>
                 <Field label={t.inspector.color} id="calendar-event-color">
-                  {({ id }) => (
-                    <div className="color-pick" role="radiogroup" aria-label={t.inspector.color} id={id}>
+                  {({ id, labelId }) => (
+                    <div className="color-pick" role="radiogroup" aria-labelledby={labelId} id={id}>
                       {eventColors().map((color) => (
                         <button
                           type="button"
