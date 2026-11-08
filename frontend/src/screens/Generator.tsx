@@ -333,9 +333,9 @@ export function GeneratorPanel() {
       const proposal = await api.proposeSchedule(input)
       try {
         return { proposal, effects: await api.publishPreview(proposal.id) }
-      } catch (failure) {
+      } catch (error_) {
         await api.withdrawSchedule({ id: proposal.id, expectedVersion: proposal.version })
-        throw failure
+        throw error_
       }
     },
     onSuccess: ({ proposal, effects }) => {
