@@ -630,14 +630,14 @@ describe('DutyScreen and the on-call number before the reminder hour', () => {
     },
   })
 
-  function stub(now: ForwardingNow) {
+  const FRIDAY_PAIR = [
+    friday('primary', 'Jan Wiśniewski', 'm3', '+48 603 456 789'),
+    friday('secondary', 'Ola Wiśniewska', 'm4', '+48 604 567 890'),
+  ]
+
+  function stub(now: ForwardingNow, current = FRIDAY_PAIR) {
     vi.setSystemTime(NIGHT)
-    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({
-      current: [
-        friday('primary', 'Jan Wiśniewski', 'm3', '+48 603 456 789'),
-        friday('secondary', 'Ola Wiśniewska', 'm4', '+48 604 567 890'),
-      ],
-    }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ current }))
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
@@ -697,5 +697,27 @@ describe('DutyScreen and the on-call number before the reminder hour', () => {
     const popover = await screen.findByRole('dialog', { name: 'Przekaż numer on-call' })
     expect(popover).toHaveTextContent('Marek Nowak nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie.')
     expect(within(popover).getByRole('button', { name: 'Przekaż numer' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('keeps the night holder\'s number row on a phone when the calendar day has no duties', async () => {
+    pretendNarrow(true)
+    stub(atAnna(pairFor('primary')), [])
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    const pill = await screen.findByRole('button', { name: 'numer on-call u Ciebie' })
+    const hand = screen.getByRole('button', { name: 'Przekaż numer…' })
+    expect(pill.closest('article')).toBeNull()
+    expect(hand.closest('article')).toBeNull()
+  })
+
+  it('keeps the number row of a night SECONDARY off the card of the calendar day\'s SECONDARY on a phone', async () => {
+    pretendNarrow(true)
+    stub(atMarek(pairFor('secondary')))
+    renderScreen(<DutyScreen role="member" displayName="Marek Nowak" hasTeamMember />)
+    const giveBack = await screen.findByRole('button', { name: 'Oddaj numer' })
+    const olaCard = screen.getByRole('article', { name: 'SECONDARY' })
+    expect(olaCard).toHaveTextContent('Ola Wiśniewska')
+    expect(olaCard).not.toContainElement(giveBack)
+    expect(within(olaCard).queryByRole('button', { name: /numer on-call/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'numer on-call u Ciebie · do 07:00' }).closest('article')).toBeNull()
   })
 })

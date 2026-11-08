@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AssignmentRole, CurrentDuty, ShareSession, UserRole, api } from '../api'
+import { AssignmentRole, CurrentDuty, HandoverPair, ShareSession, UserRole, api } from '../api'
 import { roleLabels } from '../lib/labels'
 import { groupSwaps } from '../lib/swaps'
 import { addDays, daysBetween, formatDateLong, formatDayShort, formatRange, formatShortDate, isIsoDate, relativeDay, warsawDate, weeksWord } from '../lib/dates'
@@ -79,6 +79,13 @@ export function DutyCard({ duty, role, todayDayOff, holidayName, numberRow }: {
       )}
     </article>
   )
+}
+
+/** Which side of the duty day's pair the reader is; a pair told to neither side is a coordinator's. */
+function handoverViewer(pair: HandoverPair | null): HandoverViewer {
+  if (!pair) return null
+  if (pair.primary.is_you) return 'primary'
+  return pair.secondary.is_you ? 'secondary' : 'coordinator'
 }
 
 /**
@@ -167,7 +174,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   // The pair of the duty day the number belongs to, which before the
   // reminder hour is yesterday's, not the calendar day's `current`.
   const pair = held?.pair ?? null
-  const viewer: HandoverViewer = pair && (pair.primary.is_you ? 'primary' : pair.secondary.is_you ? 'secondary' : 'coordinator')
+  const viewer = handoverViewer(pair)
   // Where the number rings and what the pair may do about it: in the header
   // on a desktop, on the reader's card in the pair on a phone.
   const numberPill = held && (
@@ -178,6 +185,13 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
     <HandoverActions now={held} pair={pair} receiverPhone={receiverPhone ?? null} viewer={viewer} />
   )
   const numberRow = numberPill && <>{numberPill}{handoverActions}</>
+  // On a phone the row goes on the card of the reader's side of the pair (the
+  // PRIMARY's for anyone else) while that card shows that person; before the
+  // reminder hour it may show the next pair, or nobody, so the row stands
+  // above the cards instead.
+  const rowRole: AssignmentRole = viewer === 'secondary' ? 'secondary' : 'primary'
+  const rowPerson = viewer === 'secondary' ? pair?.secondary.name : held?.handover?.from_name ?? held?.holder_name
+  const rowOnCard = byRole(rowRole)?.assignee_name === rowPerson
   // Not `Boolean(schedule.data?.id)`: imported history is stored as a
   // superseded schedule and fills `id` too (MED5-01).
   const published = schedule.data?.is_published ? schedule.data : null
@@ -226,10 +240,11 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
           {canCoordinate ? t.duty.notPublishedCoordinator : t.duty.notPublishedMember}
         </Box>
       )}
+      {narrow && schedule.data && numberRow && !rowOnCard && <div className="row">{numberRow}</div>}
       {narrow && schedule.data && (
         <div className="dcards">
-          <DutyCard role="primary" duty={primary} numberRow={viewer !== 'secondary' && numberRow} />
-          <DutyCard role="secondary" duty={secondary} numberRow={viewer === 'secondary' && numberRow} />
+          <DutyCard role="primary" duty={primary} numberRow={rowOnCard && rowRole === 'primary' && numberRow} />
+          <DutyCard role="secondary" duty={secondary} numberRow={rowOnCard && rowRole === 'secondary' && numberRow} />
           <DutyCard
             role="late_shift"
             duty={byRole('late_shift')}
