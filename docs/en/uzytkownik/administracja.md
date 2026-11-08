@@ -127,8 +127,8 @@ entry date and opens the end-of-rotation dialog, which picks a replacement for
 each duty. **Save** opens the same dialog when qualifications run past the exit
 date, because no period may reach outside the rotation; the hint under the
 field then says that saving ends them. The exit date is saved only in that dialog; closing it leaves the
-date on the list of unsaved changes. Qualification changes, except a new
-period start, wait too, because
+date on the list of unsaved changes. Qualification changes, except those a
+later entry date needs, wait too, because
 the server does not let a qualification end while published duties still need
 it: the dialog itself closes the periods on the exit date, and whatever is
 left of those changes is saved by the next **Save** - the periods end on the

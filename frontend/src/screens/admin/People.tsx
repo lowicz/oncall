@@ -486,7 +486,8 @@ export function PeoplePanel() {
     return [{ item, edit }]
   }), [selectedRow, eligibilityEdits])
   // Ending or deleting a period is saved first and offered back in a toast.
-  const removals = periodEdits.filter(({ edit }) => !edit || (edit.ends_on && edit.ends_on < today))
+  const isRemoval = ({ edit }: { edit: PeriodEdit }) => !edit || Boolean(edit.ends_on && edit.ends_on < today)
+  const removals = periodEdits.filter(isRemoval)
   const periodChange = ({ item, edit }: { item: Eligibility; edit: PeriodEdit }) =>
     (edit ? t.changes.eligibilityPeriod : t.changes.deletePeriod)(dutyRoleLabels()[item.role])
   const newPeriodChange = (period: NewPeriod) => t.changes.newPeriod(dutyRoleLabels()[period.role])
@@ -502,15 +503,22 @@ export function PeoplePanel() {
   const exitCutsPeriods = exitPending && selectedRow!.member!.eligibility
     .some((period) => !period.ends_on || period.ends_on > rotationUntil)
   const needsOffboarding = exitPending && (exitCutsPeriods || exitDuties.duties.length > 0 || exitDuties.calendar.isError)
-  // With the dialog ahead only the starts a later entry date needs moved are
-  // saved before it; a saved period never starts before the saved entry date.
-  const startMoves = periodEdits.filter(({ item, edit }) => edit && item.starts_on < rotationFrom)
+  const endsBeforeEntry = (item: Eligibility) => item.ends_on !== null && item.ends_on < rotationFrom
+  // With the dialog ahead only what a later entry date needs is saved before
+  // it (a saved period never starts before the saved entry date): a period
+  // wholly before the new date goes or moves as edited, and one running into
+  // it takes its new start with the saved end, unless that end comes first.
+  const entryEdits = periodEdits.flatMap(({ item, edit }): typeof periodEdits => {
+    if (item.starts_on >= rotationFrom) return []
+    if (!edit) return endsBeforeEntry(item) ? [{ item, edit }] : []
+    return [{ item, edit: item.ends_on !== null && item.ends_on < edit.starts_on ? edit : { starts_on: edit.starts_on, ends_on: item.ends_on ?? '' } }]
+  })
   // The server keeps every period inside the rotation, so a later entry date
   // waits until no period, as this save leaves it, starts before it.
   const earlyRoles = entryChanges.length === 0 ? [] : inRoleOrder([
     ...selectedRow!.member!.eligibility.flatMap((item) => {
       const edit = eligibilityEdits[item.id]
-      return edit === null && !needsOffboarding ? [] : [{ role: item.role, starts_on: edit ? edit.starts_on : item.starts_on }]
+      return edit === null && (!needsOffboarding || endsBeforeEntry(item)) ? [] : [{ role: item.role, starts_on: edit ? edit.starts_on : item.starts_on }]
     }),
     ...newPeriods,
   ].filter((period) => period.starts_on < rotationFrom).map((period) => period.role))
@@ -565,7 +573,8 @@ export function PeoplePanel() {
     if (!edit) return t.undo.periodDeleted(role)
     return edit.ends_on === addDays(today, -1) ? t.undo.endedToday(role) : t.undo.endedOn(role, formatDate(edit.ends_on))
   }
-  const saveEligibility = async (member: TeamMember, narrowsEntry: boolean) => {
+  const saveEligibility = async (member: TeamMember, narrowsEntry: boolean, edits: typeof periodEdits, additions: NewPeriod[]) => {
+    const removals = edits.filter(isRemoval)
     // One role's periods may not overlap, so what ends goes first.
     if (removals.length > 0) {
       await undoable({
@@ -586,13 +595,12 @@ export function PeoplePanel() {
         message: () => ({ title: removals.map(removalTitle).join(' · ') }),
       })
     }
-    await Promise.all(periodEdits.flatMap(({ item, edit }) => (edit && !removals.some((entry) => entry.item === item)
-      ? [api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } })]
-      : [])))
-    const results = await Promise.allSettled(newPeriods.map((period) =>
+    await Promise.all(edits.filter((entry) => !isRemoval(entry)).map(({ item, edit }) =>
+      api.updateEligibility({ id: item.id, input: { starts_on: edit!.starts_on, ends_on: edit!.ends_on || null } })))
+    const results = await Promise.allSettled(additions.map((period) =>
       api.createEligibility({ memberId: member.id, input: { role: period.role, starts_on: period.starts_on, ends_on: period.ends_on || null } })))
     // A retry after a refusal must not create the saved ones again.
-    const saved = newPeriods.filter((_, index) => results[index].status === 'fulfilled')
+    const saved = additions.filter((_, index) => results[index].status === 'fulfilled')
     setNewPeriods((current) => current.filter((entry) => !saved.includes(entry)))
     const refused = results.find((result) => result.status === 'rejected')
     if (refused) throw refused.reason
@@ -614,10 +622,8 @@ export function PeoplePanel() {
     // need, so with the dialog ahead the other qualification changes wait:
     // the dialog closes the periods at the exit date, and what is left stays
     // listed for the next save.
-    if (offboard) {
-      await Promise.all(startMoves.map(({ item, edit }) =>
-        api.updateEligibility({ id: item.id, input: { starts_on: edit!.starts_on, ends_on: item.ends_on } })))
-    } else await saveEligibility(member, narrow.active_from !== undefined)
+    const narrowsEntry = narrow.active_from !== undefined
+    await (offboard ? saveEligibility(member, narrowsEntry, entryEdits, []) : saveEligibility(member, narrowsEntry, periodEdits, newPeriods))
     if (Object.keys(narrow).length > 0) await api.updateTeamMember({ id: member.id, input: narrow })
   }
   const saveChanges = async ({ user, member }: Row, offboard: boolean) => {
@@ -649,7 +655,7 @@ export function PeoplePanel() {
       const offboard = needsOffboarding
       // What the dialog saves, or a removal's own Undo toast names, is not listed here.
       const others = offboard
-        ? [...accountChanges, ...entryChanges, ...startMoves.map(periodChange)]
+        ? [...accountChanges, ...entryChanges, ...entryEdits.filter((entry) => !isRemoval(entry)).map(periodChange)]
         : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !removals.includes(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
       if (accessChanges.length === 0) {
         const updated = await saveChanges(row, offboard)
