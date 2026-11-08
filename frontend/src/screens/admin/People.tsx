@@ -201,7 +201,16 @@ export function PeoplePanel() {
   const selectedId = params.get('osoba')
   const tab = tabOf(params.get('karta'))
   const filter = filterOf(params.get('filtr'))
-  const search = params.get('szukaj') ?? ''
+  const searchParam = params.get('szukaj') ?? ''
+  // Typed into its own state, which a router update lags behind; the URL
+  // takes it back only after a change the screen did not write itself.
+  const [search, setSearch] = useState(searchParam)
+  const searchWritten = useRef(searchParam)
+  useEffect(() => {
+    if (searchParam === searchWritten.current) return
+    searchWritten.current = searchParam
+    setSearch(searchParam)
+  }, [searchParam])
   // Whose details the forms hold, so a person named by the URL gets them once.
   const filledFor = useRef<string | null>(null)
   // Undo runs after the save, when another person may be open in the panel.
@@ -325,7 +334,7 @@ export function PeoplePanel() {
   const unsavedChanges = useUnsavedChanges(dirty)
   // The panel's own moves in the URL leave nothing unsaved behind: the
   // guard asks before the panel changes person, not on every tab.
-  const setDetails = (...args: Parameters<typeof setParams>) => unsavedChanges.bypass(() => setParams(...args))
+  const setDetails = (changes: Record<string, string | null>) => unsavedChanges.bypass(() => setParams(changes))
   const setTab = (value: DetailTab) => setDetails({ karta: TAB_SLUGS[value] })
   const closeDetails = () => {
     filledFor.current = null
@@ -535,7 +544,11 @@ export function PeoplePanel() {
               aria-label={t.searchPlaceholder}
               placeholder={t.searchPlaceholder}
               value={search}
-              onChange={(event) => setDetails({ szukaj: event.target.value || null }, { flushSync: true })}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                searchWritten.current = event.target.value
+                setDetails({ szukaj: event.target.value || null })
+              }}
               className="sech-search"
             />
             <Segmented

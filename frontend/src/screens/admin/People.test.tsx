@@ -129,6 +129,20 @@ describe('PeoplePanel table', () => {
     await waitFor(() => expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument())
   })
 
+  it('keeps every character typed quickly in a row, in the box and in the URL', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby' })
+    await rowOf('anna')
+
+    // Each key lands on what the box holds, before the router has caught up.
+    const box = screen.getByRole('searchbox', { name: /Szukaj osoby/ }) as HTMLInputElement
+    for (const key of 'ewa maj') fireEvent.change(box, { target: { value: box.value + key } })
+    expect(box).toHaveValue('ewa maj')
+    await waitFor(() => expect(router.state.location.search).toBe('?szukaj=ewa+maj'))
+    expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
+    expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
+  })
+
   it('clears the search when the address drops it, as the side navigation does', async () => {
     mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' })])
     const { router } = renderScreen(<PeoplePanel />, { route: '/osoby?szukaj=maj' })
