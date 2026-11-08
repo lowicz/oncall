@@ -146,7 +146,7 @@ From this panel:
   11–19 unchanged and shows the coupling rule for a knowing
   acknowledgement. A reason is needed only for a day that has already passed
   (a field in the frame, at least 10 characters). **Swap places** saves the
-  swap as one schedule change with one audit entry (“Zamieniono role dnia”);
+  swap as one schedule change with one audit entry (“Swapped the day's roles”);
   both people get a “Zamiana ról” e-mail once the “Undo” window closes. The
   message after the save has an **Undo** button, and for the same time the
   panel shows **Undo the swap** in place of “Swap places…”; undoing restores
