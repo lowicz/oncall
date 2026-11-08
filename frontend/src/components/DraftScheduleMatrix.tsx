@@ -93,7 +93,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const selectedAssignment = selected
     ? result.assignments.find((item) => item.service_date === selected.day.service_date && item.role === selectedRole)
     : undefined
-  const previousMember = members.find((item) => item.display_name === selectedAssignment?.assignee_name)
+  const previousMatches = members.filter((item) => item.display_name === selectedAssignment?.assignee_name)
+  const previousMember = previousMatches.length === 1 ? previousMatches[0] : undefined
   const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
   const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
   const selectedCategory = selectedBalance?.[selectedRole]
