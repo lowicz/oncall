@@ -502,14 +502,16 @@ export function PeoplePanel() {
   const exitCutsPeriods = exitPending && selectedRow!.member!.eligibility
     .some((period) => !period.ends_on || period.ends_on > rotationUntil)
   const needsOffboarding = exitPending && (exitCutsPeriods || exitDuties.duties.length > 0 || exitDuties.calendar.isError)
+  // With the dialog ahead only the new starts are saved before it.
+  const startMoves = periodEdits.filter(({ item, edit }) => edit && edit.starts_on !== item.starts_on)
   // The server keeps every period inside the rotation, so a later entry date
   // waits until no period, as this save leaves it, starts before it.
   const earlyRoles = entryChanges.length === 0 ? [] : inRoleOrder([
     ...selectedRow!.member!.eligibility.flatMap((item) => {
-      const edit = needsOffboarding ? undefined : eligibilityEdits[item.id]
-      return edit === null ? [] : [{ role: item.role, starts_on: edit ? edit.starts_on : item.starts_on }]
+      const edit = eligibilityEdits[item.id]
+      return edit === null && !needsOffboarding ? [] : [{ role: item.role, starts_on: edit ? edit.starts_on : item.starts_on }]
     }),
-    ...(needsOffboarding ? [] : newPeriods),
+    ...newPeriods,
   ].filter((period) => period.starts_on < rotationFrom).map((period) => period.role))
   const unsavedChanges = useUnsavedChanges(dirty)
   // The panel's own moves in the URL leave nothing unsaved behind: the
@@ -563,7 +565,6 @@ export function PeoplePanel() {
     return edit.ends_on === addDays(today, -1) ? t.undo.endedToday(role) : t.undo.endedOn(role, formatDate(edit.ends_on))
   }
   const saveEligibility = async (member: TeamMember) => {
-    if (periodEdits.some(({ edit }) => edit && !edit.starts_on)) throw new Error(t.errors.periodNeedsStart)
     // One role's periods may not overlap, so what ends goes first.
     if (removals.length > 0) {
       await undoable({
@@ -591,11 +592,31 @@ export function PeoplePanel() {
     const refused = results.find((result) => result.status === 'rejected')
     if (refused) throw refused.reason
   }
+  // The server refuses any step that leaves a period outside the rotation,
+  // so the rotation first widens to cover the saved and the new dates, the
+  // periods change inside it, and only then it narrows to the new dates.
+  const saveRotation = async (member: TeamMember, offboard: boolean) => {
+    const widen: { active_from?: string; active_until?: string | null } = {}
+    const narrow: typeof widen = {}
+    if (rotationFrom !== member.active_from) (rotationFrom < member.active_from ? widen : narrow).active_from = rotationFrom
+    // The dialog saves the exit date itself once the duties are rewritten.
+    const until = rotationUntil || null
+    if (!offboard && until !== member.active_until) {
+      (until === null || (member.active_until !== null && until > member.active_until) ? widen : narrow).active_until = until
+    }
+    if (Object.keys(widen).length > 0) await api.updateTeamMember({ id: member.id, input: widen })
+    // The server refuses to end a qualification its published duties still
+    // need, so with the dialog ahead the other qualification changes wait:
+    // the dialog closes the periods at the exit date, and what is left stays
+    // listed for the next save.
+    if (offboard) {
+      await Promise.all(startMoves.map(({ item, edit }) =>
+        api.updateEligibility({ id: item.id, input: { starts_on: edit!.starts_on, ends_on: item.ends_on } })))
+    } else await saveEligibility(member)
+    if (Object.keys(narrow).length > 0) await api.updateTeamMember({ id: member.id, input: narrow })
+  }
   const saveChanges = async ({ user, member }: Row, offboard: boolean) => {
-    // A later entry date is refused while a period still starts before it,
-    // so the periods move first; an earlier one makes room for them.
-    const periodsFirst = member !== undefined && !offboard && rotationFrom > member.active_from
-    if (periodsFirst) await saveEligibility(member)
+    if (member && periodEdits.some(({ edit }) => edit && !edit.starts_on)) throw new Error(t.errors.periodNeedsStart)
     const tasks: Array<Promise<unknown>> = []
     let updated: AdminUser | undefined
     if (accountChanges.length > 0 || accessChanges.length > 0) {
@@ -608,17 +629,8 @@ export function PeoplePanel() {
       const input: AdminUserUpdate = phone === user.phone ? rest : { ...rest, phone }
       tasks.push(api.updateAdminUser({ id: user.id, input }).then((saved) => { updated = saved }))
     }
-    if (member && rotationChanges.length > 0) {
-      // The dialog saves the exit date itself once the duties are rewritten.
-      if (!offboard) tasks.push(api.updateTeamMember({ id: member.id, input: { active_from: rotationFrom, active_until: rotationUntil || null } }))
-      else if (entryChanges.length > 0) tasks.push(api.updateTeamMember({ id: member.id, input: { active_from: rotationFrom } }))
-    }
+    if (member) tasks.push(saveRotation(member, offboard))
     await Promise.all(tasks)
-    // The server refuses to end a qualification its published duties still
-    // need, so with the dialog ahead the qualification changes wait: the
-    // dialog closes the periods at the exit date, and what is left stays
-    // listed for the next save.
-    if (member && !offboard && !periodsFirst) await saveEligibility(member)
     return updated
   }
   // A role change and switching the account off or on save at once like
@@ -629,7 +641,7 @@ export function PeoplePanel() {
       const offboard = needsOffboarding
       // What the dialog saves, or a removal's own Undo toast names, is not listed here.
       const others = offboard
-        ? [...accountChanges, ...entryChanges]
+        ? [...accountChanges, ...entryChanges, ...startMoves.map(periodChange)]
         : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !removals.includes(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
       if (accessChanges.length === 0) {
         const updated = await saveChanges(row, offboard)

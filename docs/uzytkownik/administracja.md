@@ -119,7 +119,8 @@ wejścia i otwiera okno zakończenia rotacji, które dla każdego dyżuru wybier
 zastępcę. To samo okno otwiera **Zapisz**, gdy kwalifikacje trwają dłużej niż
 do daty wyjścia, bo żaden okres nie może wyjść poza rotację; podpowiedź pod
 polem mówi wtedy, że zapis je zamknie. Data wyjścia zapisuje się dopiero w tym oknie; zamknięcie go
-zostawia ją na liście niezapisanych zmian. Zmiany kwalifikacji też czekają, bo
+zostawia ją na liście niezapisanych zmian. Zmiany kwalifikacji, poza nowym
+początkiem okresu, też czekają, bo
 serwer nie pozwala zakończyć kwalifikacji, której potrzebują jeszcze
 opublikowane dyżury: okno samo zamyka okresy z dniem wyjścia, a to, co z tych
 zmian zostanie, zapisuje kolejne **Zapisz** - okresy kończą się najpóźniej w
