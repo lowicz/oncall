@@ -203,12 +203,18 @@ export function PeoplePanel() {
   const filter = filterOf(params.get('filtr'))
   const searchParam = params.get('szukaj') ?? ''
   // Typed into its own state, which a router update lags behind; the URL
-  // takes it back only after a change the screen did not write itself.
+  // takes it back only after a change the screen did not write itself. Every
+  // write not yet seen is kept, as quick typing is ahead of the address by
+  // several letters and each earlier one still arrives on its way.
   const [search, setSearch] = useState(searchParam)
-  const searchWritten = useRef(searchParam)
+  const searchWrites = useRef<string[]>([])
   useEffect(() => {
-    if (searchParam === searchWritten.current) return
-    searchWritten.current = searchParam
+    const seen = searchWrites.current.indexOf(searchParam)
+    if (seen >= 0) {
+      searchWrites.current = searchWrites.current.slice(seen + 1)
+      return
+    }
+    searchWrites.current = []
     setSearch(searchParam)
   }, [searchParam])
   // Whose details the forms hold, so a person named by the URL gets them once.
@@ -546,7 +552,7 @@ export function PeoplePanel() {
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value)
-                searchWritten.current = event.target.value
+                searchWrites.current.push(event.target.value)
                 setDetails({ szukaj: event.target.value || null })
               }}
               className="sech-search"
