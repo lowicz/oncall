@@ -501,9 +501,11 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
       const range = rangeText(command.startsOn, command.endsOn)
       return undoable({
         execute: () => save(command),
-        undo: async () => {
-          for (const step of undoSteps(command)) await restore.mutateAsync(step)
-        },
+        // The steps run in order and stop at the first that fails.
+        undo: () => undoSteps(command).reduce<Promise<unknown>>(
+          (done, step) => done.then(() => restore.mutateAsync(step)),
+          Promise.resolve(),
+        ).then(() => undefined),
         toast,
         message: () => ({
           title: command.brush === 'clear' ? t.cleared(range) : t.saved(range, t.brushes[command.brush]),
