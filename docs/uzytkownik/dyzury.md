@@ -104,7 +104,12 @@ Z tego panelu:
   na końcu przycisk **Zmień…** (pusta rola: **Obsadź…**), a kliknięcie
   całego wiersza działa tak samo. Korekta dotyczy wyłącznie
   wybranego dnia i roli, a wszystko, co trzeba o niej wiedzieć, pojawia się w
-  panelu tuż pod wyborem osoby, bez osobnego okna potwierdzenia: linia reguł
+  panelu tuż pod wyborem osoby, bez osobnego okna potwierdzenia. Pole
+  **Osoba na `<rola>` · `<dzień>`** wymienia wszystkich w rotacji tego dnia;
+  kogo wybrać nie można, ten zostaje na liście z powodem po nazwisku
+  („Anna Kowalska · niedostępna tego dnia”), a podpowiedź pod polem opisuje
+  wybraną osobę: jej uprawnienia tego dnia i to, co zgłosiła na ten dzień.
+  Pod wyborem są linia reguł
   („Bez naruszeń reguł twardych”) i wpływ na bilans punktów obu osób. Jeśli
   zmiana złamie regułę twardą, w miejscu linii reguł pojawia się ramka „Ta
   korekta złamie reguły twarde” z listą naruszeń i polem „Rozumiem i świadomie
@@ -122,10 +127,16 @@ Z tego panelu:
   co zmieniono i kto dostanie e-mail („Zmieniono obsadę 14 lis · PRIMARY:
   Anna Kowalska → Jan Nowak”); przycisk **Otwórz dzień** otwiera panel tego
   dnia ponownie,
-- **koordynator i administrator** mogą z tego samego panelu dodać wydarzenie
-  kalendarza na ten dzień albo je usunąć; usunięcie działa od razu, a
-  powiadomienie ma przycisk **Cofnij**, który przez kilka sekund przywraca
-  wydarzenie.
+- **koordynator i administrator** mogą przyciskiem **Wydarzenie…** otworzyć
+  osobne okno i dodać w nim wydarzenie kalendarza na ten dzień; panel dnia
+  czeka pod spodem i po zapisie pokazuje nowe wydarzenie. Wydarzenie usuwa
+  się z panelu dnia; usunięcie działa od razu, a powiadomienie ma przycisk
+  **Cofnij**, który przez kilka sekund przywraca wydarzenie.
+
+Gdy ktoś ma dyżur w dniu, na który zgłosił „nie mogę”, koordynator widzi nad
+obsadą dnia ramkę „Kolizja: Jan Wiśniewski ma PRIMARY 14 mar mimo zgłoszenia
+„Nie mogę””, z powodem zgłoszenia i przyciskiem **Zmień osobę**, który otwiera
+zmianę obsady tej roli. Czytnik ekranu czyta ten sam tekst przy wierszu roli.
 
 Powody niedostępności pozostają prywatne: koordynator widzi je w szczegółach,
 członek zespołu tylko przy własnych wpisach, a konto podglądowe nie dostaje
@@ -146,9 +157,11 @@ Grafiku tak samo:
 | **⋯** → **Legenda** | rozwija spis symboli |
 | **⋯** → **Eksport ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje (członek zespołu) |
 
-Na Grafiku początek zakresu i długość są częścią adresu strony
-(`/grafik?od=2026-09-14&zoom=8`), więc link do konkretnego widoku można
-przekazać dalej; starsze linki z `od` i `do` nadal działają. Paleta poleceń
+Na Teraz i na Grafiku początek zakresu, jego długość i filtr **Tylko z
+dyżurem** są częścią adresu strony (`/grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem`,
+na Teraz `/?od=2026-09-14&zoom=8`), więc odświeżenie strony zachowuje widok,
+a link do niego można przekazać dalej; starsze linki z `od` i `do` nadal
+działają. Paleta poleceń
 otwiera grafik z podświetloną osobą albo z panelem wskazanego dnia; wiersz
 podświetlonej osoby ma przy nazwisku znacznik „podświetlona”, a podświetlenie
 wyłącza znacznik obok nagłówka.

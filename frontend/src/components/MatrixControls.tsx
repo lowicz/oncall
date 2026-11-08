@@ -7,6 +7,11 @@ export type MatrixView = 'matrix' | 'list'
 
 export const WEEKS: Record<MatrixZoom, number> = { '2': 2, '4': 4, '8': 8 }
 
+export const isZoom = (value: string | null): value is MatrixZoom => value === '2' || value === '4' || value === '8'
+
+/** "Only on duty" in the URL of a screen with the matrix: `?tylko=z-dyzurem`. */
+export const ONLY_ON_DUTY = { key: 'tylko', value: 'z-dyzurem' }
+
 /** The legend as a popover hanging off the "Legend" link in a section heading,
  *  or, opened from a menu, off the menu's button. */
 export function LegendPopover({ showAvailability, gridKeys = false, trigger, open, onOpenChange, anchor }: {

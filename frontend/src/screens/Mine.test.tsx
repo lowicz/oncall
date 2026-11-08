@@ -1050,6 +1050,30 @@ describe('MineScreen availability painting', () => {
     expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, sierpień 2026' })).toBeInTheDocument()
   })
 
+  it('keeps the month and the person in the URL, so a refresh shows the same calendar', async () => {
+    stub()
+    vi.spyOn(api, 'team').mockResolvedValue(TEAM)
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    const { router } = renderScreen(
+      <MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />,
+      { route: '/moje?miesiac=2026-11&osoba=m-beata' },
+    )
+    expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, listopad 2026' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Następny miesiąc' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?miesiac=2026-12&osoba=m-beata'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Osoba' }), { target: { value: '' } })
+    await waitFor(() => expect(router.state.location.search).toBe('?miesiac=2026-12'))
+    expect(await screen.findByRole('heading', { name: 'Moja dostępność' })).toBeInTheDocument()
+  })
+
+  it('opens on the current month when the URL names no real one', async () => {
+    stub()
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />, { route: '/moje?miesiac=2026-13' })
+    expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, wrzesień 2026' })).toBeInTheDocument()
+  })
+
   it('loads failed entries again on retry', async () => {
     stub()
     const list = vi.spyOn(api, 'availability')

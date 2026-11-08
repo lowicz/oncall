@@ -33,7 +33,9 @@ arrows that change the month on either side. On a phone the month row stays
 pinned under the top bar while you scroll the calendar. Above the calendar is
 a brush with four modes - **unavailable**, **prefer not**, **willing** and
 **clear** - and next to it the **Reason for the next entries** field: first
-you choose what and why, then you mark the days.
+you choose what and why, then you mark the days. The month is part of the
+page address (`/moje?miesiac=2026-10`), so refreshing the page keeps the same
+calendar.
 
 - Clicking a day saves that one day with the chosen mode.
 - Dragging across days saves the whole range; Shift+click closes the range
@@ -91,7 +93,8 @@ availability at all.
 
 A coordinator and an administrator have a **Person** field in the section
 header. Once someone is picked, the calendar shows that person's availability
-and saves entries on their behalf:
+and saves entries on their behalf (the person picked is in the page address
+too, as `osoba=`):
 
 - the person gets a notification about it,
 - they can remove the entry,

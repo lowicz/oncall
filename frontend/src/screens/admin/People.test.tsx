@@ -283,6 +283,30 @@ describe('PeoplePanel person panel', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
   })
 
+  it('keeps the open person and tab in the URL, so a refresh or a link opens the same panel', async () => {
+    mockData([user({ id: 'u1', phone: '+48 601 220 118' })], [member({ id: 'm1' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby?osoba=u1&karta=rotacja' })
+
+    const dialog = await screen.findByRole('dialog', { name: /Anna Kowalska/ })
+    expect(within(dialog).getByRole('tab', { name: /^Rotacja/ })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Konto' }))
+    // The form is filled from the account the URL named.
+    expect(await within(dialog).findByLabelText(/^Telefon/)).toHaveValue('+48 601 220 118')
+    await waitFor(() => expect(router.state.location.search).toBe('?osoba=u1&karta=konto'))
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    fireEvent.click(within(await rowOf('anna')).getByRole('button', { name: 'Otwórz' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?osoba=u1&karta=konto'))
+  })
+
+  it('opens no panel for a person the URL names but the list does not hold', async () => {
+    mockData()
+    renderScreen(<PeoplePanel />, { route: '/osoby?osoba=gone&karta=nieznana' })
+    await rowOf('anna')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('does not switch rows until unsaved edits are explicitly discarded', async () => {
     mockData([
       user({ id: 'u1' }),

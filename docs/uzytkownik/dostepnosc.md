@@ -33,7 +33,8 @@ strzałkami zmieniającymi miesiąc po obu stronach. Na telefonie wiersz z
 miesiącem zostaje przyklejony pod górnym paskiem, gdy przewijasz kalendarz.
 Nad kalendarzem jest pędzel z czterema trybami - **nie mogę**, **wolę nie**,
 **chętnie** i **wyczyść** - a obok niego pole **Powód do kolejnych wpisów**:
-najpierw wybierasz, co i dlaczego, potem zaznaczasz dni.
+najpierw wybierasz, co i dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie
+strony (`/moje?miesiac=2026-10`), więc odświeżenie zostawia ten sam kalendarz.
 
 - Kliknięcie dnia zapisuje ten jeden dzień wybranym trybem.
 - Przeciągnięcie po dniach zapisuje cały zakres; Shift+klik domyka zakres od
@@ -90,7 +91,7 @@ widzą dostępności w ogóle.
 
 Koordynator i administrator mają w nagłówku sekcji pole **Osoba**. Po
 wybraniu kogoś kalendarz pokazuje dostępność tej osoby i zapisuje wpisy w jej
-imieniu:
+imieniu (wybrana osoba też jest w adresie strony, jako `osoba=`):
 
 - osoba dostaje o tym powiadomienie,
 - może wpis usunąć,

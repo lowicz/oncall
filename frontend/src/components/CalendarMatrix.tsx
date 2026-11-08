@@ -1,11 +1,14 @@
 import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ApiError, AssignmentRole, CalendarData, CalendarEventColor, CalendarEventRef, UserRole, api } from '../api'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError, AssignmentRole, CalendarData, CalendarEventRef, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { eventDates, formatDate, formatDay, formatShortDate, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
+  StaffingCandidate,
+  availabilityByDay,
   availabilityDutyConflicts,
   coverageGaps,
+  groupByKey,
   hasDutyInRange,
   memberGroup,
   memberGroupLabels,
@@ -19,6 +22,7 @@ import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useUndoable } from '../hooks/useUndoable'
 import { CalendarDayList } from './CalendarDayList'
 import { ConfirmDialog } from './ConfirmDialog'
+import { DayEventDialog } from './DayEventDialog'
 import { DecisionFrame } from './DecisionFrame'
 import { SwapImpactPreview } from './SwapImpactPreview'
 import {
@@ -30,7 +34,6 @@ import {
   EmptyState,
   ErrorState,
   Field,
-  Input,
   LinkButton,
   Panel,
   RoleMark,
@@ -62,11 +65,18 @@ export function coverageWindowText(day: Pick<Day, 'is_day_off'>, role: Assignmen
   return day.is_day_off ? messages().schedule.allDay : '19:00–09:00'
 }
 
-const EVENT_COLOR_VALUES: CalendarEventColor[] = ['blue', 'green', 'amber', 'red', 'violet', 'teal']
+const NO_ASSIGNMENTS: CalendarData['assignments'] = []
 
-/** The colours a calendar event can wear, named in the current language, for a colour picker. */
-export const eventColors = (): Array<{ value: CalendarEventColor; label: string }> =>
-  EVENT_COLOR_VALUES.map((value) => ({ value, label: messages().schedule.eventColors[value] }))
+/** What the hint under the person picker says about the chosen person: the
+ *  roles they may hold that day and what they reported for it. */
+function candidateHint(candidate: StaffingCandidate, serviceDate: string) {
+  const t = messages().schedule.inspector.candidate
+  const date = formatShortDate(serviceDate)
+  return [
+    candidate.roles && t.roles(candidate.display_name, candidate.roles.map((item) => roleLabels()[item]).join(', ')),
+    candidate.availability ? t.reported(date, availabilityLabels()[candidate.availability]) : t.notReported(date),
+  ].filter(Boolean).join(' ')
+}
 
 /** What a day is worth and why, as the inspector's title tag. */
 function dayTag(day: Day) {
@@ -118,11 +128,14 @@ export function CalendarMatrix({
 }) {
   const queryClient = useQueryClient()
   const today = warsawDate()
-  const { schedule: t, calendarEvents, common } = useMessages()
+  const { schedule: t, calendarEvents } = useMessages()
   const calendar = useQuery({
     queryKey: ['calendar', range.starts_on, range.ends_on],
     queryFn: () => api.calendar(range.starts_on, range.ends_on),
     enabled,
+    // Moving the window keeps the last range on screen until the next one
+    // arrives, instead of collapsing the matrix to its skeleton.
+    placeholderData: keepPreviousData,
   })
   // The inspector is day-scoped. `member` is the row that was clicked - context
   // for reading the day, never the target of a staffing change (MED6-03). The
@@ -134,9 +147,7 @@ export function CalendarMatrix({
   const [violationsAcknowledged, setViolationsAcknowledged] = useState(false)
   const [confirmHistorical, setConfirmHistorical] = useState(false)
   const [historicalReason, setHistoricalReason] = useState('')
-  const [eventTitle, setEventTitle] = useState('')
-  const [eventColor, setEventColor] = useState<CalendarEventColor>('blue')
-  const [eventFormOpen, setEventFormOpen] = useState(false)
+  const [eventDialogOpen, setEventDialogOpen] = useState(false)
   const toast = useToast()
   const undoable = useUndoable()
 
@@ -145,7 +156,7 @@ export function CalendarMatrix({
     setStaffOpen(false)
     setStaffMemberId(null)
     setConfirmHistorical(false)
-    setEventFormOpen(false)
+    setEventDialogOpen(false)
   }
   const openDay = (day: Day, member: Member | undefined, nextRole: AssignmentRole) => {
     if (override.isPending) return
@@ -153,7 +164,7 @@ export function CalendarMatrix({
     setSelectedRole(nextRole)
     setStaffOpen(false)
     setStaffMemberId(null)
-    setEventFormOpen(false)
+    setEventDialogOpen(false)
   }
   const override = useMutation({
     mutationFn: api.directOverride,
@@ -174,18 +185,15 @@ export function CalendarMatrix({
     },
   })
   const refreshCalendar = () => queryClient.invalidateQueries({ queryKey: ['calendar'] })
-  const createEvent = useMutation({
-    mutationFn: api.createCalendarEvent,
-    onSuccess: (event) => {
-      setEventTitle('')
-      setEventFormOpen(false)
-      setSelected((current) => current ? {
-        ...current,
-        day: { ...current.day, events: [...current.day.events, event] },
-      } : null)
-      refreshCalendar()
-    },
-  })
+  const eventCreated = (event: CalendarEventRef) => {
+    setEventDialogOpen(false)
+    // The window is modal over the open day, so that day is still open.
+    setSelected((current) => current && {
+      ...current,
+      day: { ...current.day, events: [...current.day.events, event] },
+    })
+    refreshCalendar()
+  }
   // An event is deleted at once and offered back in the toast: Undo creates
   // it again over the whole range it had, read before the delete because the
   // day only carries its title and colour.
@@ -225,6 +233,14 @@ export function CalendarMatrix({
   )
   const gapDates = useMemo(() => new Set(gaps.map((gap) => gap.service_date)), [gaps])
   const dayByDate = useMemo(() => new Map((data?.days ?? []).map((day) => [day.service_date, day])), [data])
+  // What the cells and the inspector read, looked up instead of searched for
+  // in every cell of every render.
+  const cellAssignments = useMemo(
+    () => groupByKey(data?.assignments ?? [], (item) => `${item.service_date}|${item.assignee_name}`),
+    [data],
+  )
+  const slots = useMemo(() => new Map((data?.assignments ?? []).map((item) => [`${item.service_date}|${item.role}`, item])), [data])
+  const cellAvailability = useMemo(() => availabilityByDay(data?.availability ?? [], data?.days ?? []), [data])
   // A gap inside a published schedule is staffable by an override; a gap beyond
   // every published range needs a new publication, so the two must not be
   // announced with the same words (HGH-02).
@@ -285,9 +301,7 @@ export function CalendarMatrix({
     row.scrollIntoView({ block: 'center' })
   }, [data, focusPerson, members])
 
-  const selectedAssignment = selected
-    ? data?.assignments.find((item) => item.service_date === selected.day.service_date && item.role === selectedRole)
-    : undefined
+  const selectedAssignment = selected ? slots.get(`${selected.day.service_date}|${selectedRole}`) : undefined
   const selectedDayPublished = selected ? (dayByDate.get(selected.day.service_date)?.published ?? true) : true
   // Every availability entry that covers the open day, named - the inspector is
   // about the whole day, not the one row that was clicked (MED6-03).
@@ -314,6 +328,13 @@ export function CalendarMatrix({
       : chosenCandidate?.disabledReason
         ? t.staffBlock.chosenPerson(chosenCandidate.disabledReason)
         : undefined
+  // The people on duty that day despite reporting they cannot be, as one
+  // frame each above the role rows rather than a sum left to the reader.
+  const dayConflicts = selected && canCoordinate
+    ? dutyConflicts.filter((item) => item.service_date === selected.day.service_date)
+    : []
+  const conflictText = (item: (typeof dutyConflicts)[number]) =>
+    t.inspector.collision(item.display_name, roleLabels()[item.role], formatShortDate(item.service_date), availabilityLabels().unavailable)
   // The hard rules this override would break are shown under the chosen
   // person before the coordinator saves, and saving waits for their explicit
   // acknowledgement: the API refuses an unacknowledged rule-breaking override.
@@ -456,7 +477,7 @@ export function CalendarMatrix({
         />
       )}
       {data && view === 'matrix' && members.length > 0 && (
-        <div className="mx panel" role="region" aria-label={t.grid.region} tabIndex={-1}>
+        <div className="mx panel" role="region" aria-label={t.grid.region} aria-busy={calendar.isPlaceholderData || undefined} tabIndex={-1}>
           <table className="m" data-zoom={zoom}>
             <caption className="sr-only">{t.grid.caption(formatDate(range.starts_on), formatDate(range.ends_on))}</caption>
             <thead>
@@ -519,12 +540,8 @@ export function CalendarMatrix({
                         <span className="sr-only">{t.grid.dutiesInRange(count)}</span>
                       </th>
                       {data.days.map((day, colIndex) => {
-                        const assignments = data.assignments.filter(
-                          (item) => item.service_date === day.service_date && item.assignee_name === member.display_name,
-                        )
-                        const availability = data.availability.find(
-                          (item) => item.member_id === member.id && item.starts_on <= day.service_date && item.ends_on >= day.service_date,
-                        )
+                        const assignments = cellAssignments.get(`${day.service_date}|${member.display_name}`) ?? NO_ASSIGNMENTS
+                        const availability = cellAvailability.get(`${member.id}|${day.service_date}`)
                         const isSelected = selected?.day.service_date === day.service_date && selected.member?.id === member.id
                         return (
                           <td
@@ -610,7 +627,7 @@ export function CalendarMatrix({
             )}
             {canCoordinate && selected && selectedDayPublished && (
               <>
-                <Button icon="event" onClick={() => setEventFormOpen((open) => !open)} aria-expanded={eventFormOpen}>{t.inspector.event}</Button>
+                <Button onClick={() => setEventDialogOpen(true)}>{t.inspector.event}</Button>
                 <span className="sp" />
                 <Button variant="primary" onClick={() => openStaffChange(selectedRole)}>{t.inspector.changeStaffing}</Button>
               </>
@@ -652,7 +669,11 @@ export function CalendarMatrix({
               )}
             </Field>
             <div className="small muted">{t.inspector.currently(selectedAssignment?.assignee_name ?? t.inspector.noPublishedAssignment)}</div>
-            <Field label={t.inspector.person} id="calendar-override-member" hint={staffBlockReason}>
+            <Field
+              label={t.inspector.personFor(roleLabels()[selectedRole], formatShortDate(selected.day.service_date))}
+              id="calendar-override-member"
+              hint={staffBlockReason ?? candidateHint(chosenCandidate!, selected.day.service_date)}
+            >
               {({ id, describedBy }) => (
                 <Select
                   id={id}
@@ -665,7 +686,7 @@ export function CalendarMatrix({
                   <option value="">{t.inspector.pickPerson}</option>
                   {staffCandidates.map((candidate) => (
                     <option key={candidate.id} value={candidate.id} disabled={Boolean(candidate.disabledReason)}>
-                      {candidate.display_name}{candidate.disabledReason ? ` - ${candidate.disabledReason}` : ''}
+                      {candidate.disabledReason ? `${candidate.display_name} · ${candidate.disabledReason}` : candidate.display_name}
                     </option>
                   ))}
                 </Select>
@@ -709,9 +730,20 @@ export function CalendarMatrix({
                 {t.inspector.unstaffedRoles(selectedGap.missing.map((item) => roleLabels()[item]).join(', '))}
               </Box>
             )}
+            {dayConflicts.map((item) => (
+              <Box key={`${item.member_id}-${item.role}`} tone="warn" title={conflictText(item)}>
+                {item.note && `${t.inspector.collisionNote(item.note)} `}
+                {selectedDayPublished && (
+                  <div className="box-next">
+                    <Button size="sm" onClick={() => openStaffChange(item.role)}>{t.inspector.changePerson}</Button>
+                  </div>
+                )}
+              </Box>
+            ))}
             <div className="roles" role="group" aria-label={t.inspector.dayStaffing}>
               {ROLES.map((item) => {
-                const slot = data?.assignments.find((entry) => entry.service_date === selected.day.service_date && entry.role === item)
+                const slot = slots.get(`${selected.day.service_date}|${item}`)
+                const conflict = dayConflicts.find((entry) => entry.role === item)
                 const notApplicable = item === 'late_shift' && selected.day.is_day_off
                 const missing = !slot && !notApplicable && selectedGap?.missing.includes(item)
                 const body = (
@@ -725,11 +757,12 @@ export function CalendarMatrix({
                         <small>{coverageWindowText(selected.day, item)}{slot?.change_kind && ` · ${t.changes[slot.change_kind]}`}</small>
                       )}
                     </span>
+                    {conflict && <span className="sr-only">{conflictText(conflict)}</span>}
                   </>
                 )
                 const className = cx('role-row', selectedRole === item && 'role-row-sel', missing && 'role-row-gap')
                 return canCoordinate && selectedDayPublished && !notApplicable ? (
-                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={slot ? t.inspector.changeRole(roleLabels()[item], slot.assignee_name) : t.inspector.staffRole(roleLabels()[item])}>
+                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={[slot ? t.inspector.changeRole(roleLabels()[item], slot.assignee_name) : t.inspector.staffRole(roleLabels()[item]), conflict && conflictText(conflict)].filter(Boolean).join('. ')}>
                     {body}
                     {/* The whole row is the button; this only shows that it is one. */}
                     <span className={cx('btn', 'btn-sm', slot && 'btn-ghost')} aria-hidden="true">{slot ? t.inspector.change : t.inspector.staff}</span>
@@ -769,56 +802,16 @@ export function CalendarMatrix({
                 {!canCoordinate && !ownRole && ` ${t.inspector.publishedDetails}`}
               </div>
             )}
-            {(createEvent.error || deleteEvent.error) && (
-              <Box tone="bad" role="alert" title={createEvent.error?.message ?? deleteEvent.error?.message} />
-            )}
-            {canCoordinate && eventFormOpen && (
-              <form
-                className="stack-sm"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  if (!eventTitle.trim()) return
-                  createEvent.mutate({
-                    starts_on: selected.day.service_date,
-                    ends_on: selected.day.service_date,
-                    title: eventTitle.trim(),
-                    color: eventColor,
-                  })
-                }}
-              >
-                <b>{t.inspector.addEventTitle}</b>
-                <Field label={t.inspector.name} id="calendar-event-title">
-                  {({ id }) => <Input id={id} name={id} value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} required />}
-                </Field>
-                <Field label={t.inspector.color} id="calendar-event-color">
-                  {({ id, labelId }) => (
-                    <div className="color-pick" role="radiogroup" aria-labelledby={labelId} id={id}>
-                      {eventColors().map((color) => (
-                        <button
-                          type="button"
-                          key={color.value}
-                          role="radio"
-                          aria-checked={eventColor === color.value}
-                          aria-label={color.label}
-                          title={color.label}
-                          className={cx(eventColor === color.value && 'on')}
-                          style={{ background: `var(--ev-${color.value})` }}
-                          onClick={() => setEventColor(color.value)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </Field>
-                <div className="row">
-                  <Button type="submit" variant="primary" size="sm" disabled={!eventTitle.trim()} loading={createEvent.isPending}>{t.inspector.addEvent}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEventFormOpen(false)}>{common.cancel}</Button>
-                </div>
-              </form>
-            )}
+            {deleteEvent.error && <Box tone="bad" role="alert" title={deleteEvent.error.message} />}
           </>
         )}
       </Panel>
 
+      <DayEventDialog
+        serviceDate={eventDialogOpen && selected ? selected.day.service_date : null}
+        onClose={() => setEventDialogOpen(false)}
+        onCreated={eventCreated}
+      />
       <ConfirmDialog
         open={confirmHistorical}
         title={t.confirm.historicalTitle}

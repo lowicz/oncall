@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { UserRole, api } from '../api'
 import { addDays, daysBetween, formatDate, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
-import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
+import { MatrixControls, MatrixView, ONLY_ON_DUTY, WEEKS, isZoom } from '../components/MatrixControls'
 import { useNarrow } from '../hooks/useMediaQuery'
+import { useUrlParams } from '../hooks/useUrlParams'
 import { Box, Button, EmptyState, LinkButton, PageHeader, SectionHeading } from '../ui'
 
 /** The zoom the range fits; an arbitrary od/do still gets sensible cells. */
@@ -17,15 +17,13 @@ function zoomFor(range: CalendarRange): MatrixZoom {
   return '8'
 }
 
-const isZoom = (value: string | null): value is MatrixZoom => value === '2' || value === '4' || value === '8'
-
 /**
  * The full schedule: the same matrix as on "Teraz" without the risk row,
  * over any range, two to eight weeks per screen, as a matrix or a day list,
- * with the day inspector. The start and the zoom live in the URL
- * (`grafik?od=2026-09-14&zoom=8`) so a view can be sent as a link; an older
- * link with `od` and `do` still works. `dzien` and `osoba` come from the
- * command palette.
+ * with the day inspector. The start, the zoom and the "only on duty" filter
+ * live in the URL (`grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem`) so a view
+ * survives a refresh and can be sent as a link; an older link with `od` and
+ * `do` still works. `dzien` and `osoba` come from the command palette.
  */
 export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   role: UserRole
@@ -36,8 +34,8 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   const narrow = useNarrow()
   const t = useMessages()
   const canCoordinate = role === 'coordinator' || role === 'admin'
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [hideIdle, setHideIdle] = useState(false)
+  const [searchParams, setSearchParams] = useUrlParams()
+  const hideIdle = searchParams.get(ONLY_ON_DUTY.key) === ONLY_ON_DUTY.value
   const [view, setView] = useState<MatrixView>(narrow ? 'list' : 'matrix')
   useEffect(() => { setView(narrow ? 'list' : 'matrix') }, [narrow])
   // The default range ends where the published coverage ends (LOW5-05) rather
@@ -70,14 +68,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   }, [explicitStart, od, legacyEnd, zoomParam, focusDay, published.data, today])
   const zoom: MatrixZoom = isZoom(zoomParam) ? zoomParam : zoomFor(range)
   const setStart = (startsOn: string, nextZoom: MatrixZoom = zoom) => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current)
-      next.set('od', startsOn)
-      next.set('zoom', nextZoom)
-      next.delete('do')
-      next.delete('dzien')
-      return next
-    }, { replace: true })
+    setSearchParams({ od: startsOn, zoom: nextZoom, do: null, dzien: null })
   }
   const ready = explicitStart || Boolean(focusDay) || published.isSuccess || published.isError
   const rangeValid = range.starts_on <= range.ends_on
@@ -117,7 +108,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
             {focusPerson && (
               <span className="filter-chip">
                 {focusPerson}
-                <button type="button" aria-label={t.schedule.clearHighlight(focusPerson)} onClick={() => setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('osoba'); return next }, { replace: true })}>×</button>
+                <button type="button" aria-label={t.schedule.clearHighlight(focusPerson)} onClick={() => setSearchParams({ osoba: null })}>×</button>
               </span>
             )}
             {canCoordinate && nextStep()}
@@ -176,7 +167,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
                   onShift={(days) => setStart(addDays(range.starts_on, days))}
                   onToday={() => setStart(today)}
                   hideIdle={hideIdle}
-                  onHideIdle={setHideIdle}
+                  onHideIdle={(value) => setSearchParams({ [ONLY_ON_DUTY.key]: value ? ONLY_ON_DUTY.value : null })}
                   view={view}
                   onView={setView}
                   showAvailability={role !== 'viewer'}

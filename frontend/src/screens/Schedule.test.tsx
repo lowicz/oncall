@@ -130,6 +130,20 @@ describe('ScheduleScreen range in the URL', () => {
     expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=2')
   })
 
+  it('keeps "only on duty" in the address, so a refresh keeps the filter', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-10&zoom=2&tylko=z-dyzurem')
+    const filter = await screen.findByRole('button', { name: 'Tylko z dyżurem' })
+    expect(filter).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(filter)
+    await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent(/^\/grafik\?od=2026-09-10&zoom=2$/))
+    fireEvent.click(screen.getByRole('button', { name: 'Tylko z dyżurem' }))
+    await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=2&tylko=z-dyzurem'))
+  })
+
   it('still honours an older link with od and do', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))

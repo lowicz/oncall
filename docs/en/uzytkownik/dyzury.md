@@ -108,8 +108,12 @@ From this panel:
   **Staff…**), and clicking anywhere on the row does the same. The
   correction concerns only the chosen day and role, and everything there is
   to know about it appears in the panel right under the choice of person,
-  without a separate confirmation dialog: the rule line (“No hard rule is
-  broken”) and the effect on both people's points balance. If the change
+  without a separate confirmation dialog. The **Person for `<role>` ·
+  `<day>`** field lists everyone in the rotation that day; whoever cannot be
+  picked stays on the list with the reason after the name (“Anna Kowalska ·
+  unavailable that day”), and the hint under the field describes the chosen
+  person: the roles they may hold that day and what they reported for it.
+  Under the choice are the rule line (“No hard rule is broken”) and the effect on both people's points balance. If the change
   breaks a hard rule, the rule line gives way to a “This correction will
   break hard rules” frame with the list of violations and an “I understand
   and knowingly break these rules” box; such a violation goes to the audit
@@ -127,10 +131,17 @@ From this panel:
   save the panel closes and a notification says what changed and who gets
   an e-mail (“Staffing changed 14 Nov · PRIMARY: Anna Kowalska → Jan
   Nowak”); its **Open day** button opens that day's panel again,
-- a **coordinator and an administrator** can add a calendar event on that day
-  from the same panel, or delete one; deleting works at once, and the
-  notification has an **Undo** button that brings the event back for a few
-  seconds.
+- a **coordinator and an administrator** can open a separate window with
+  **Event…** and add a calendar event on that day there; the day panel waits
+  underneath and shows the new event once it is saved. An event is deleted
+  from the day panel; deleting works at once, and the notification has an
+  **Undo** button that brings the event back for a few seconds.
+
+When someone holds a duty on a day they reported “Unavailable” for, a
+coordinator sees a frame above the day's staffing, “Conflict: Jan Wiśniewski
+holds PRIMARY on 14 Mar despite reporting “Unavailable””, with the reason given
+and a **Change the person** button that opens the staffing change of that
+role. A screen reader reads the same text with the role row.
 
 Reasons for unavailability stay private: a coordinator sees them in the
 details, a team member only on their own entries, and a viewer account gets
@@ -151,9 +162,11 @@ on Now and on the Schedule:
 | **⋯** → **Legend** | expands the list of symbols |
 | **⋯** → **Export ICS** | opens the calendar addresses with your duties on the Mine screen (team member) |
 
-On the Schedule the start of the range and its length are part of the page
-address (`/grafik?od=2026-09-14&zoom=8`), so a link to a specific view can be
-passed on; older links with `od` and `do` still work. The command palette
+On Now and on the Schedule the start of the range, its length and the **On
+duty only** filter are part of the page address
+(`/grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem`, on Now `/?od=2026-09-14&zoom=8`),
+so refreshing the page keeps the view and a link to it can be passed on;
+older links with `od` and `do` still work. The command palette
 opens the schedule with a person highlighted or with the panel of the given
 day; the highlighted person's row carries the tag “highlighted” next to the
 name, and the highlight is switched off by the badge next to the header.

@@ -184,6 +184,31 @@ describe('DutyScreen schedule section', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Najbliższe 8 tygodni' })).toBeInTheDocument()
   })
 
+  it('keeps the window, the zoom and the filter in the URL, so a refresh shows the same view', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    const { router } = renderScreen(
+      <DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />,
+      { route: '/?od=2026-09-17&zoom=8&tylko=z-dyzurem' },
+    )
+
+    expect(await screen.findByRole('heading', { level: 2, name: '17 wrz – 11 lis' })).toBeInTheDocument()
+    expect(calendarCall).toHaveBeenCalledWith('2026-09-17', '2026-11-11')
+    expect(screen.getByRole('radio', { name: '8 tyg.' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'Tylko z dyżurem' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tylko z dyżurem' }))
+    fireEvent.click(screen.getByRole('radio', { name: '2 tyg.' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?od=2026-09-17&zoom=2'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?od=2026-09-10&zoom=2'))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Najbliższe 2 tygodnie' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'dziś' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?zoom=2'))
+    fireEvent.click(screen.getByRole('button', { name: 'Tylko z dyżurem' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?zoom=2&tylko=z-dyzurem'))
+  })
+
   it('opens the legend from its link and switches to the day list', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))

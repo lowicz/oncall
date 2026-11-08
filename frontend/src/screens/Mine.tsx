@@ -26,6 +26,7 @@ import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRang
 import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { usePublicConfig } from '../hooks/usePublicConfig'
+import { useUrlParams } from '../hooks/useUrlParams'
 import { undoable } from '../lib/undo'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
@@ -67,6 +68,8 @@ type Brush = AvailabilityKind | 'clear'
 function monthOf(iso: string) {
   return iso.slice(0, 7)
 }
+
+const isMonth = (value: string | null): value is string => Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value))
 function monthDays(month: string) {
   const [y, m] = month.split('-').map(Number)
   const count = new Date(Date.UTC(y, m, 0)).getUTCDate()
@@ -980,11 +983,16 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
     if (location.hash === '#ics') setIcsOpen(true)
     if (location.hash === '#dostepnosc') document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start' })
   }, [location.hash])
-  const [month, setMonth] = useState(monthOf(today))
-  const [target, setTarget] = useState('')
+  // The month and the person of the availability calendar live in the URL
+  // (`?osoba=<id>&miesiac=2026-09`), so a refresh keeps them.
+  const [params, setParams] = useUrlParams()
+  const target = params.get('osoba') ?? ''
+  const monthParam = params.get('miesiac')
+  const month = isMonth(monthParam) ? monthParam : monthOf(today)
+  const setMonth = (value: string) => setParams({ miesiac: value })
+  const setTarget = (value: string) => setParams({ osoba: value || null })
   const showCollision = (serviceDate: string) => {
-    setMonth(monthOf(serviceDate))
-    setTarget('')
+    setParams({ miesiac: monthOf(serviceDate), osoba: null })
     scrollToAvailability()
   }
   const scrollToAvailability = () => document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
