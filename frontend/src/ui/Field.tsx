@@ -20,7 +20,7 @@ export function Field({ label, hint, error, children, className, required, id: g
   label: ReactNode
   hint?: ReactNode
   error?: ReactNode
-  children: (props: { id: string; describedBy: string | undefined; invalid: boolean }) => ReactNode
+  children: (props: { id: string; labelId: string; describedBy: string | undefined; invalid: boolean }) => ReactNode
   className?: string
   required?: boolean
   id?: string
@@ -28,14 +28,15 @@ export function Field({ label, hint, error, children, className, required, id: g
   const generated = useId()
   const id = givenId ?? generated
   const messageId = `${id}-msg`
+  const labelId = `${id}-label`
   const hasMessage = Boolean(error || hint)
   return (
     <div className={cx('field', Boolean(error) && 'field-invalid', className)}>
-      <label className="field-label" htmlFor={id}>
+      <label className="field-label" id={labelId} htmlFor={id}>
         {label}
         {required && <span className="field-req" aria-hidden="true"> *</span>}
       </label>
-      {children({ id, describedBy: hasMessage ? messageId : undefined, invalid: Boolean(error) })}
+      {children({ id, labelId, describedBy: hasMessage ? messageId : undefined, invalid: Boolean(error) })}
       {error ? (
         <p className="field-msg" id={messageId} role="alert">{error}</p>
       ) : hint ? (
@@ -113,12 +114,14 @@ export interface SegmentOption<T extends string> extends RadioNavigationOption<T
  * radio group so arrow keys move between the options and a screen reader
  * announces the selected one.
  */
-export function Segmented<T extends string>({ value, onChange, options, label, describedBy, size = 'md', wrap, className }: {
+export function Segmented<T extends string>({ value, onChange, options, label, labelId, describedBy, size = 'md', wrap, className }: {
   value: T
   onChange: (value: T) => void
   options: SegmentOption<T>[]
   /** Accessible name of the group. */
   label: string
+  /** The id of the field label when this group is rendered by Field. */
+  labelId?: string
   /** The id of the text that says what the choice means. */
   describedBy?: string
   size?: 'md' | 'sm'
@@ -127,7 +130,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, d
   className?: string
 }) {
   return (
-    <div className={cx('seg', size === 'sm' && 'seg-sm', wrap && 'seg-wrap', className)} role="radiogroup" aria-label={label} aria-describedby={describedBy}>
+    <div className={cx('seg', size === 'sm' && 'seg-sm', wrap && 'seg-wrap', className)} role="radiogroup" aria-label={labelId ? undefined : label} aria-labelledby={labelId} aria-describedby={describedBy}>
       {options.map((option) => (
         <button
           key={option.value}

@@ -39,6 +39,7 @@ import {
   PageHeader,
   Panel,
   SectionHeading,
+  ScrollArea,
   Segmented,
   Select,
   StatusBadge,
@@ -666,7 +667,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               )}
             </div>
           ) : (
-            <div className="panel tbl-wrap">
+            <ScrollArea label={inboxLabels[inbox]} hint={t.common.scrollHint}>
               <table className="lg">
                 <thead>
                   <tr>
@@ -687,7 +688,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                       <tr key={item.id} className={openId === item.id ? 'on' : undefined}>
                         <th scope="row">
                           <b>{formatDayShort(item.service_date)}</b> {roleList(slotsOf(item))}
-                          {returned && <> ⇄ <b>{formatDayShort(returned.service_date)}</b> {roleList(returnSlotsOf(item))}</>}
+                          {returned && <> <span aria-hidden="true">⇄</span> <span className="sr-only">{t.common.swapWith}</span> <b>{formatDayShort(returned.service_date)}</b> {roleList(returnSlotsOf(item))}</>}
                           {brokenRules(item).length > 0 && <> <Tag tone="late">{t.swaps.rules.tag}</Tag></>}
                           <small>
                             {relativeDay(item.service_date)}
@@ -703,7 +704,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                           {stageDetail(item, viewer) && <small>{stageDetail(item, viewer)}</small>}
                         </td>
                         <td className="td-actions">
-                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, swapHeadline(item))}>
+                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, swapHeadline(item, t.common.swapWith))}>
                             {verb}
                           </Button>
                         </td>
@@ -712,7 +713,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           )}
           <p className="muted small">{t.swaps.table.footnote}</p>
         </>

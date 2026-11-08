@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, RefObject } from 'react'
 import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { cx } from './cx'
 import { IconButton } from './Button'
@@ -10,7 +10,7 @@ import { useMessages } from '../i18n/messages'
  * title is the dialog's accessible name; `tone="danger"` paints it red for
  * destructive confirmations.
  */
-export function Dialog({ open, onClose, title, description, children, actions, size = 'md', tone = 'default', dismissible = true, className }: {
+export function Dialog({ open, onClose, title, description, children, actions, size = 'md', tone = 'default', dismissible = true, initialFocus, className }: {
   open: boolean
   /** The dialog has no trigger: the page opens it through `open`, so the only
    *  change it ever asks for is to close (Escape, the close button, the
@@ -24,6 +24,9 @@ export function Dialog({ open, onClose, title, description, children, actions, s
   tone?: 'default' | 'danger'
   /** False while a mutation is running so a stray click cannot abandon it. */
   dismissible?: boolean
+  /** The field to start in; without it focus goes to the first tabbable
+   *  element, the close button. */
+  initialFocus?: RefObject<HTMLElement | null>
   className?: string
 }) {
   const t = useMessages()
@@ -31,7 +34,7 @@ export function Dialog({ open, onClose, title, description, children, actions, s
     <BaseDialog.Root open={open} onOpenChange={() => { if (dismissible) onClose() }} modal>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className="dialog-backdrop" />
-        <BaseDialog.Popup className={cx('dialog-popup', `dialog-${size}`, tone === 'danger' && 'dialog-danger', className)}>
+        <BaseDialog.Popup initialFocus={initialFocus} className={cx('dialog-popup', `dialog-${size}`, tone === 'danger' && 'dialog-danger', className)}>
           <div className="dialog-head">
             <BaseDialog.Title className="dialog-title">{title}</BaseDialog.Title>
             {dismissible && (

@@ -65,6 +65,13 @@ const ME: CurrentUser = {
   email: 'julia@example.com', phone: '+48600100200', share: null, avatar_url: null,
 }
 
+// The calendar ignores input while it loads, so a test paints only once it is idle.
+async function idleCalendar() {
+  const grid = await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+  await waitFor(() => expect(grid).not.toHaveAttribute('aria-busy'))
+  return grid
+}
+
 /** Every query the screen makes, so a test only overrides what it is about. */
 function stub() {
   vi.spyOn(api, 'me').mockResolvedValue(ME)
@@ -150,6 +157,9 @@ describe('MineScreen points and swaps', () => {
     expect(within(incoming).getByRole('link', { name: 'Zdecyduj' })).toHaveAttribute('href', '/zamiany?skrzynka=do-mnie')
     const outgoing = screen.getByText('Ty → Marek · pon 28 wrz PRIMARY').closest('.list-row') as HTMLElement
     expect(within(outgoing).getByText(/czeka na: Marek/)).toBeInTheDocument()
+    // A screen reader hears words, not the arrow.
+    expect(within(incoming).getByText('Piotr przekazuje Ci dyżur · sob 3 paź PRIMARY')).toHaveClass('sr-only')
+    expect(within(outgoing).getByText('Przekazujesz dyżur, przejmuje go Marek · pon 28 wrz PRIMARY')).toHaveClass('sr-only')
     // A swap between two other people is not mine.
     expect(screen.queryByText(/Ola/)).not.toBeInTheDocument()
   })
@@ -180,6 +190,8 @@ describe('MineScreen points and swaps', () => {
 
     expect(await screen.findByText('Piotr ⇄ Ty · sob 3 paź PRIMARY ⇄ śr 30 wrz SECONDARY')).toBeInTheDocument()
     expect(screen.getByText('Ty ⇄ Marek · pon 28 wrz PRIMARY ⇄ śr 30 wrz SECONDARY')).toBeInTheDocument()
+    expect(screen.getByText('Zamiana: Piotr i Ty · sob 3 paź PRIMARY zamiana z śr 30 wrz SECONDARY')).toHaveClass('sr-only')
+    expect(screen.getByText('Zamiana: Ty i Marek · pon 28 wrz PRIMARY zamiana z śr 30 wrz SECONDARY')).toHaveClass('sr-only')
   })
 })
 
@@ -193,7 +205,8 @@ describe('MineScreen availability calendar', () => {
     }])
     const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
     renderScreen(<MineScreen displayName="Julia Nowak" />)
-    await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: Wyjazd/ })
+    const painted = await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: Wyjazd/ })
+    expect(painted).toHaveAttribute('title', 'Nie mogę: Wyjazd')
 
     fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
     fireEvent.click(cell(/niedz 20-09-2026/))
@@ -210,7 +223,7 @@ describe('MineScreen availability calendar', () => {
       id: 'a1', kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie', created_at: '2026-09-01T10:00:00Z',
     })
     renderScreen(<MineScreen displayName="Julia Nowak" />)
-    await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    await idleCalendar()
 
     fireEvent.click(screen.getByRole('radio', { name: 'wolę nie' }))
     fireEvent.change(screen.getByLabelText('Powód'), { target: { value: 'szkolenie' } })
@@ -218,6 +231,35 @@ describe('MineScreen availability calendar', () => {
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie' }))
     expect(await screen.findByText('Zapisano: niedz 20 wrz „wolę nie”')).toBeInTheDocument()
+  })
+
+  it('keeps focus on the day while a save runs', async () => {
+    stub()
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockReturnValue(new Promise(() => {}))
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+    await idleCalendar()
+
+    cell(/niedz 20-09-2026/).focus()
+    fireEvent.click(cell(/niedz 20-09-2026/))
+
+    await waitFor(() => expect(replace).toHaveBeenCalledOnce())
+    expect(cell(/niedz 20-09-2026/)).toBeEnabled()
+    expect(cell(/niedz 20-09-2026/)).toHaveFocus()
+  })
+
+  it('ignores painting while the entries load', async () => {
+    stub()
+    vi.spyOn(api, 'availability').mockReturnValue(new Promise(() => {}))
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+    const grid = await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+
+    fireEvent.pointerDown(cell(/niedz 20-09-2026/), { button: 0 })
+    fireEvent.pointerEnter(cell(/pon 21-09-2026/))
+    fireEvent.click(cell(/niedz 20-09-2026/))
+
+    expect(grid).toHaveAttribute('aria-busy', 'true')
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('cannot paint a day that has passed', async () => {
@@ -240,7 +282,7 @@ describe('MineScreen availability calendar', () => {
       created_at: '2026-09-10T10:00:00Z',
     }))
     renderScreen(<MineScreen displayName="Julia Nowak" />)
-    const grid = await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    const grid = await idleCalendar()
     const enabled = within(grid).getAllByRole('gridcell').filter((item) => !item.hasAttribute('disabled'))
     expect(enabled.filter((item) => item.tabIndex === 0)).toHaveLength(1)
     expect(cell(/czw 10-09-2026/)).toHaveAttribute('tabindex', '0')
@@ -256,7 +298,7 @@ describe('MineScreen availability calendar', () => {
     await user.keyboard('{Enter}')
     await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-20', ends_on: '2026-09-20' })))
 
-    await waitFor(() => expect(cell(/niedz 20-09-2026/)).toBeEnabled())
+    await idleCalendar()
     await user.keyboard('{ArrowLeft} ')
     await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
   })
@@ -268,7 +310,7 @@ describe('MineScreen availability calendar', () => {
       warning: 'Masz w tym czasie dyżur. Zgłoszenie go nie zdejmuje, poproś o zamianę albo skontaktuj się z koordynatorem.',
     })
     renderScreen(<MineScreen displayName="Julia Nowak" />)
-    await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    await idleCalendar()
 
     fireEvent.click(cell(/niedz 20-09-2026/))
 
@@ -291,6 +333,7 @@ describe('MineScreen availability calendar', () => {
     expect(await screen.findByText(/Wpisujesz w imieniu:/)).toHaveTextContent('Beata Lis')
     expect(screen.getByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
 
+    await idleCalendar()
     fireEvent.click(cell(/niedz 20-09-2026/))
     await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('m-beata', expect.objectContaining({ kind: 'unavailable' })))
     expect(onBehalf).toHaveBeenCalledWith('m-beata')
@@ -689,6 +732,7 @@ describe('MineScreen availability painting', () => {
     const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(created('2026-09-22', '2026-09-25'))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('gridcell', { name: /śr 23-09-2026, dyżur: PRIMARY$/ })
+    await idleCalendar()
 
     // Dragged from the later day back to the earlier one.
     fireEvent.pointerDown(cell(/pt 25-09-2026/), { button: 0 })
@@ -709,7 +753,7 @@ describe('MineScreen availability painting', () => {
     stub()
     const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    await idleCalendar()
 
     fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
     fireEvent.pointerDown(cell(/wt 22-09-2026/), { button: 0 })
@@ -729,7 +773,7 @@ describe('MineScreen availability painting', () => {
     stub()
     const replace = vi.spyOn(api, 'replaceAvailabilityRange')
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    await idleCalendar()
 
     fireEvent.pointerEnter(cell(/śr 23-09-2026/))
     expect(cell(/śr 23-09-2026/)).not.toHaveClass('avail-day-sel')
@@ -753,11 +797,11 @@ describe('MineScreen availability painting', () => {
       .mockResolvedValueOnce(created('2026-09-20', '2026-09-20'))
       .mockResolvedValue(created('2026-09-20', '2026-09-24'))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    await idleCalendar()
 
     fireEvent.click(cell(/niedz 20-09-2026/))
     expect(await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).toBeInTheDocument()
-    await waitFor(() => expect(cell(/czw 24-09-2026/)).toBeEnabled())
+    await idleCalendar()
     fireEvent.click(cell(/czw 24-09-2026/), { shiftKey: true })
     await waitFor(() => expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined }))
   })
@@ -848,7 +892,7 @@ describe('MineScreen availability painting', () => {
     stub()
     vi.spyOn(api, 'replaceAvailabilityRange').mockRejectedValue(new ApiError('Nie można zapisać dostępności', 409))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    await idleCalendar()
 
     fireEvent.click(cell(/niedz 20-09-2026/))
     expect(await screen.findByText('Nie można zapisać dostępności')).toBeInTheDocument()

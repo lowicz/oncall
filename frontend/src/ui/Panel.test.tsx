@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { loadRealStylesheet } from '../test/stylesheet'
 import { Panel } from './Panel'
@@ -21,5 +21,15 @@ describe('Panel stacking', () => {
       expect(getComputedStyle(panel).zIndex).toBe('30')
     }
     expect(screen.getByRole('button', { name: 'Select candidate' })).toBeVisible()
+  })
+})
+
+describe('Panel title', () => {
+  it('takes the initial focus without drawing a focus ring', async () => {
+    loadRealStylesheet()
+    render(<Panel open onClose={vi.fn()} title="Details"><button>Select candidate</button></Panel>)
+    const title = screen.getByRole('heading', { name: 'Details' })
+    await waitFor(() => expect(title).toHaveFocus())
+    expect(getComputedStyle(title).outline).toBe('none')
   })
 })

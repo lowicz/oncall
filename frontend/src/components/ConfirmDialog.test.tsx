@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { ConfirmDialog } from './ConfirmDialog'
 
 describe('ConfirmDialog', () => {
-  it('asks for a long enough reason and hands it over trimmed', () => {
+  it('starts in the reason, asks for a long enough one and hands it over trimmed', async () => {
     const onConfirm = vi.fn()
     renderScreen(
       <ConfirmDialog
@@ -24,6 +24,7 @@ describe('ConfirmDialog', () => {
     expect(confirm).toBeDisabled()
 
     const reason = within(dialog).getByRole('textbox', { name: /Powód/ })
+    await waitFor(() => expect(reason).toHaveFocus())
     fireEvent.change(reason, { target: { value: ' ab ' } })
     expect(within(dialog).getByText('Wpisz co najmniej 5 znaków')).toBeInTheDocument()
     expect(confirm).toBeDisabled()

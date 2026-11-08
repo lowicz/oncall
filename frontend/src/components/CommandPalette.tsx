@@ -137,7 +137,7 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
               aria-activedescendant={items[clamped] ? `pal-${items[clamped].id}` : undefined}
               autoComplete="off"
             />
-            <span className="kbd">Esc</span>
+            <span className="kbd" translate="no">Esc</span>
           </div>
           <ul className="pal-list" id="pal-list" role="listbox" aria-label={t.shell.paletteResults}>
             {items.length === 0 && <li className="pal-empty">{t.shell.paletteEmpty}</li>}
@@ -164,9 +164,9 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
             })}
           </ul>
           <div className="pal-foot">
-            <span><span className="kbd">↑↓</span> {t.shell.paletteSelect}</span>
-            <span><span className="kbd">↵</span> {t.shell.paletteOpen}</span>
-            <span><span className="kbd">Esc</span> {t.shell.paletteClose}</span>
+            <span><span className="kbd" translate="no">↑↓</span> {t.shell.paletteSelect}</span>
+            <span><span className="kbd" translate="no">↵</span> {t.shell.paletteOpen}</span>
+            <span><span className="kbd" translate="no">Esc</span> {t.shell.paletteClose}</span>
           </div>
         </BaseDialog.Popup>
       </BaseDialog.Portal>
