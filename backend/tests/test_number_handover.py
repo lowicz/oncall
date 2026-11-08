@@ -247,7 +247,8 @@ async def test_either_of_its_people_ends_it_once_and_nobody_else(
     assert finished.summary == (
         "Zakończono przekazanie numeru on-call: Anna Kowalska → Marek Nowak, zakończone ręcznie"
     )
-    assert finished.details is not None and finished.details["reason"] == "manual"
+    assert finished.details is not None
+    assert finished.details["reason"] == "manual"
     assert (await client.get(NOW)).json()["holder_name"] == "Anna Kowalska"
 
 
@@ -371,11 +372,13 @@ async def test_the_store_answers_a_second_open_handover_as_the_first(
     }
     await store.start(until=frozen_clock.instant + timedelta(hours=1), **values)
 
+    second = store.start(until=frozen_clock.instant + timedelta(hours=2), **values)
     with pytest.raises(errors.HandoverActive) as refused:
-        await store.start(until=frozen_clock.instant + timedelta(hours=2), **values)
+        await second
+    pending = store.start(
+        until=frozen_clock.instant, **values | {"day": values["day"] + timedelta(days=1)}
+    )
     with pytest.raises(IntegrityError, match="ck_forwarding_handovers_period"):
-        await store.start(
-            until=frozen_clock.instant, **values | {"day": values["day"] + timedelta(days=1)}
-        )
+        await pending
 
     assert "Marek Nowak" in str(refused.value)

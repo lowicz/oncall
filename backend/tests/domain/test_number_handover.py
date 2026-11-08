@@ -192,7 +192,8 @@ async def test_during_a_handover_the_number_rings_at_the_receiver() -> None:
     )
     assert target is not None
     assert (target.holder_id, target.holder_name) == (MAREK, "Marek Nowak")
-    assert store.ended == [] and journal.events == []
+    assert store.ended == []
+    assert journal.events == []
 
 
 async def test_a_receiver_who_lost_the_number_leaves_the_call_with_the_primary() -> None:
@@ -300,27 +301,30 @@ async def test_a_coordinator_hands_it_over_for_the_pair() -> None:
 
 
 async def test_nothing_is_handed_over_while_forwarding_is_off() -> None:
+    pending = start_handover(
+        _actor(ANNA_USER),
+        UNTIL,
+        _change_ports(mode=ForwardingMode.off),
+        now=NOW,
+        reminder_hour=9,
+    )
     with pytest.raises(errors.ForwardingOff):
-        await start_handover(
-            _actor(ANNA_USER),
-            UNTIL,
-            _change_ports(mode=ForwardingMode.off),
-            now=NOW,
-            reminder_hour=9,
-        )
+        await pending
 
 
 async def test_somebody_outside_the_pair_is_refused() -> None:
     for user in (OTHER_USER, uuid.uuid4()):
+        pending = start_handover(_actor(user), UNTIL, _change_ports(), now=NOW, reminder_hour=9)
         with pytest.raises(errors.NotInThePair):
-            await start_handover(_actor(user), UNTIL, _change_ports(), now=NOW, reminder_hour=9)
+            await pending
 
 
 async def test_a_second_handover_is_refused_while_the_first_holds() -> None:
+    pending = start_handover(
+        _actor(ANNA_USER), UNTIL, _change_ports(_Store(HANDOVER)), now=NOW, reminder_hour=9
+    )
     with pytest.raises(errors.HandoverActive) as refused:
-        await start_handover(
-            _actor(ANNA_USER), UNTIL, _change_ports(_Store(HANDOVER)), now=NOW, reminder_hour=9
-        )
+        await pending
 
     assert "Marek Nowak" in str(refused.value)
 
@@ -350,10 +354,11 @@ async def test_an_expired_handover_does_not_block_the_next_one() -> None:
     ids=["no secondary", "no primary", "imported secondary", "imported primary"],
 )
 async def test_a_day_without_a_whole_pair_has_nobody_to_hand_over_to(duties) -> None:
+    pending = start_handover(
+        _actor(ANNA_USER), UNTIL, _change_ports(duties=duties), now=NOW, reminder_hour=9
+    )
     with pytest.raises(errors.HandoverNeedsPair):
-        await start_handover(
-            _actor(ANNA_USER), UNTIL, _change_ports(duties=duties), now=NOW, reminder_hour=9
-        )
+        await pending
 
 
 @pytest.mark.parametrize(
@@ -362,8 +367,9 @@ async def test_a_day_without_a_whole_pair_has_nobody_to_hand_over_to(duties) -> 
     ids=["now", "past", "after the duty day"],
 )
 async def test_the_end_lies_after_now_and_within_the_duty_day(until) -> None:
+    pending = start_handover(_actor(ANNA_USER), until, _change_ports(), now=NOW, reminder_hour=9)
     with pytest.raises(errors.HandoverUntilOutOfRange) as refused:
-        await start_handover(_actor(ANNA_USER), until, _change_ports(), now=NOW, reminder_hour=9)
+        await pending
 
     assert "11-03-2026 09:00" in str(refused.value)
 
@@ -379,14 +385,15 @@ async def test_the_end_of_the_duty_day_itself_is_allowed() -> None:
 
 
 async def test_a_receiver_without_a_number_is_refused_by_name() -> None:
+    pending = start_handover(
+        _actor(ANNA_USER),
+        UNTIL,
+        _change_ports(phones={ANNA: "+48601234567"}),
+        now=NOW,
+        reminder_hour=9,
+    )
     with pytest.raises(errors.ReceiverHasNoPhone) as refused:
-        await start_handover(
-            _actor(ANNA_USER),
-            UNTIL,
-            _change_ports(phones={ANNA: "+48601234567"}),
-            now=NOW,
-            reminder_hour=9,
-        )
+        await pending
 
     assert "Marek Nowak" in str(refused.value)
 
@@ -412,10 +419,11 @@ async def test_ending_works_whatever_the_mode() -> None:
 
 
 async def test_somebody_else_cannot_end_it() -> None:
+    pending = end_handover(
+        _actor(OTHER_USER), HANDOVER.id, _change_ports(_Store(HANDOVER)), now=NOW
+    )
     with pytest.raises(errors.NotInThePair):
-        await end_handover(
-            _actor(OTHER_USER), HANDOVER.id, _change_ports(_Store(HANDOVER)), now=NOW
-        )
+        await pending
 
 
 @pytest.mark.parametrize(
@@ -430,8 +438,9 @@ async def test_somebody_else_cannot_end_it() -> None:
 async def test_a_handover_that_is_not_open_is_not_found(store, handover_id) -> None:
     journal = _Journal()
 
+    pending = end_handover(_actor(ANNA_USER), handover_id, _change_ports(store, journal), now=NOW)
     with pytest.raises(errors.HandoverNotFound):
-        await end_handover(_actor(ANNA_USER), handover_id, _change_ports(store, journal), now=NOW)
+        await pending
 
     assert journal.events == []
 

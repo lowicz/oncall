@@ -30,6 +30,11 @@ from oncall.domain.forwarding.models import (
 )
 from oncall.infrastructure.sqlalchemy.base import Base
 
+#: The accounts and team members the forwarding rows point at.
+_USERS_ID = "users.id"
+_TEAM_MEMBERS_ID = "team_members.id"
+_SET_NULL = "SET NULL"
+
 
 class CallForwardingSettings(Base):
     """The WCO account the forwarding pass logs in with. One row, edited by
@@ -76,7 +81,7 @@ class CallForwardingSettings(Base):
         DateTime(timezone=True), default=utc_now, server_default=func.now()
     )
     updated_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        ForeignKey(_USERS_ID, ondelete=_SET_NULL), nullable=True
     )
 
 
@@ -96,7 +101,7 @@ class CallForwardingState(Base):
     #: The last number WCO confirmed it forwards to, read back after the update.
     applied_number: Mapped[str | None] = mapped_column(String(32))
     applied_member_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("team_members.id", ondelete="SET NULL")
+        ForeignKey(_TEAM_MEMBERS_ID, ondelete=_SET_NULL)
     )
     applied_member_name: Mapped[str | None] = mapped_column(String(160))
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -150,20 +155,20 @@ class ForwardingHandover(Base):
     #: The duty day it was made on (`oncall.domain.forwarding.job.forwarding_day`).
     day: Mapped[date] = mapped_column(Date)
     from_member_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("team_members.id", ondelete="CASCADE")
+        ForeignKey(_TEAM_MEMBERS_ID, ondelete="CASCADE")
     )
     to_member_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("team_members.id", ondelete="CASCADE")
+        ForeignKey(_TEAM_MEMBERS_ID, ondelete="CASCADE")
     )
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL")
+        ForeignKey(_USERS_ID, ondelete=_SET_NULL)
     )
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     #: None for the worker's own ends: the time ran out, or the roster changed.
     ended_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL")
+        ForeignKey(_USERS_ID, ondelete=_SET_NULL)
     )
     end_reason: Mapped[HandoverEnd | None] = mapped_column(
         Enum(
