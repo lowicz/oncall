@@ -6,7 +6,7 @@ import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { MineScreen } from './Mine'
 import { api, ApiError } from '../api'
-import type { AvailabilityRangeInput, CalendarData, CurrentUser, FairnessReport, SwapRequest } from '../api'
+import type { AvailabilityEntry, AvailabilityRangeInput, CalendarData, CurrentUser, FairnessReport, SwapRequest } from '../api'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -1117,6 +1117,56 @@ describe('MineScreen availability Undo', () => {
       { kind: null, starts_on: '2026-09-21', ends_on: '2026-09-22', note: undefined },
       { kind: 'prefer_not', starts_on: '2026-09-21', ends_on: '2026-09-22', note: undefined },
     ])
+  })
+
+  it('runs a paint made during an Undo after every step of that Undo', async () => {
+    stub()
+    // The server keeps one entry per day, so the final state does not depend
+    // on how the screen splits entries.
+    const days = new Map<string, Pick<AvailabilityEntry, 'kind' | 'note'>>(
+      ['18', '19', '20', '21', '22'].map((day) => [`2026-09-${day}`, { kind: 'prefer_not', note: null }]),
+    )
+    vi.spyOn(api, 'availability').mockImplementation(async () => [...days].map(([date, day]) => ({
+      id: date, ...day, starts_on: date, ends_on: date, created_at: '2026-08-20T10:00:00Z',
+    })))
+    const write = (input: AvailabilityRangeInput) => {
+      for (let day = Number(input.starts_on.slice(8)); day <= Number(input.ends_on.slice(8)); day += 1) {
+        const date = `2026-09-${String(day).padStart(2, '0')}`
+        if (input.kind) days.set(date, { kind: input.kind, note: input.note ?? null })
+        else days.delete(date)
+      }
+      return null
+    }
+    let finishClear: () => void = () => {}
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(async (input) => {
+      if (input.kind === null) await new Promise<void>((resolve) => { finishClear = resolve })
+      return write(input)
+    })
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Wolę nie/ })
+    await idleCalendar()
+
+    fireEvent.pointerDown(cell(/pon 21-09-2026/), { button: 0 })
+    fireEvent.pointerEnter(cell(/pt 25-09-2026/))
+    fireEvent.pointerUp(window)
+    const toast = (await screen.findByText('Zapisano: 21 – 25 wrz „nie mogę”')).closest('.toast') as HTMLElement
+    fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByRole('radio', { name: 'chętnie' }))
+    fireEvent.click(cell(/pon 21-09-2026/))
+    finishClear()
+
+    expect(await screen.findByText('Zapisano: pon 21 wrz „chętnie”')).toBeInTheDocument()
+    expect(replace.mock.calls.map(([input]) => [input.kind, input.starts_on, input.ends_on])).toEqual([
+      ['unavailable', '2026-09-21', '2026-09-25'],
+      [null, '2026-09-21', '2026-09-25'],
+      ['prefer_not', '2026-09-21', '2026-09-21'],
+      ['prefer_not', '2026-09-22', '2026-09-22'],
+      ['prefer', '2026-09-21', '2026-09-21'],
+    ])
+    expect(days.get('2026-09-21')).toEqual({ kind: 'prefer', note: null })
+    expect(days.get('2026-09-22')).toEqual({ kind: 'prefer_not', note: null })
+    expect(await screen.findByRole('gridcell', { name: /pon 21-09-2026, Chętnie wezmę/ })).toBeInTheDocument()
   })
 
   it('keeps Undo after a failed attempt and says what was not undone', async () => {

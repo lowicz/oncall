@@ -486,13 +486,17 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
     queryClient.invalidateQueries({ queryKey: availabilityKey(command.member) }),
     queryClient.invalidateQueries({ queryKey: ['calendar'] }),
   ])
-  // One scope runs the paints, and the steps of an Undo, one after another in
-  // the order they were made.
-  const restore = useMutation<AvailabilityEntry | null, Error, PaintCommand>({
+  // One scope runs the paints and the Undos one after another in the order
+  // they were made; an Undo runs its steps in order and stops at the first
+  // that fails.
+  const restore = useMutation<void, Error, PaintCommand[]>({
     mutationKey: PAINT_KEY,
     scope: { id: 'availability-paint' },
-    mutationFn: save,
-    onSettled: (_result, _error, command) => reload(command),
+    mutationFn: (steps) => steps.reduce<Promise<unknown>>(
+      (done, step) => done.then(() => save(step)),
+      Promise.resolve(),
+    ).then(() => undefined),
+    onSettled: (_result, _error, steps) => reload(steps[0]),
   })
   const paint = useMutation<AvailabilityEntry | null, Error, PaintCommand>({
     mutationKey: PAINT_KEY,
@@ -501,11 +505,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
       const range = rangeText(command.startsOn, command.endsOn)
       return undoable({
         execute: () => save(command),
-        // The steps run in order and stop at the first that fails.
-        undo: () => undoSteps(command).reduce<Promise<unknown>>(
-          (done, step) => done.then(() => restore.mutateAsync(step)),
-          Promise.resolve(),
-        ).then(() => undefined),
+        undo: () => restore.mutateAsync(undoSteps(command)),
         toast,
         message: () => ({
           title: command.brush === 'clear' ? t.cleared(range) : t.saved(range, t.brushes[command.brush]),
@@ -520,13 +520,13 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
     onError: (error) => toast.error(error.message),
     onSettled: (_result, _error, command) => reload(command),
   })
-  // Paints waiting to be saved are drawn over the list the server returned;
-  // one that fails is no longer pending and drops out by itself.
+  // Paints and Undo steps waiting to be saved are drawn over the list the
+  // server returned; one that fails is no longer pending and drops out by itself.
   const pending = useMutationState({
     filters: { mutationKey: PAINT_KEY, status: 'pending' },
-    select: (mutation) => mutation.state.variables as PaintCommand,
+    select: (mutation) => mutation.state.variables as PaintCommand | PaintCommand[],
   })
-  const shown = pending.filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
+  const shown = pending.flat().filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
   const collisions = dutyCollisions(duties, shown, today)
   const collidingDuties = collisions.reduce((count, collision) => count + collision.roles.length, 0)
 
