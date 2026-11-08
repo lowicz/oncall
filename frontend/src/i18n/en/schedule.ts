@@ -136,6 +136,14 @@ export const schedule: Messages['schedule'] = {
     color: 'Colour',
     addEvent: 'Add event',
   },
+  toast: {
+    changed: (day: string, role: string, previous: string, next: string) => `Staffing changed ${day} · ${role}: ${previous} → ${next}`,
+    filled: (role: string, day: string, name: string) => `${role} staffed ${day}: ${name}`,
+    emailBoth: 'Both people get an e-mail about the change.',
+    emailOne: (name: string) => `${name} gets an e-mail about the duty.`,
+    violationAudited: 'The rule breach is recorded in the audit log.',
+    openDay: 'Open day',
+  },
   confirm: {
     breaksRules: 'This correction will break hard rules',
     endsHandover: (from: string, to: string) => `This correction ends the on-call number handover ${from} → ${to}. The number goes back to the PRIMARY, and both of them get an e-mail.`,
@@ -144,7 +152,5 @@ export const schedule: Messages['schedule'] = {
     saveHistorical: 'Save the staffing change…',
     historicalTitle: 'Confirm the historical correction',
     historicalReason: 'Reason for the historical correction (at least 10 characters)',
-    deleteEventTitle: 'Delete the event?',
-    deleteEvent: (title: string) => `“${title}” will disappear from every day it was added to. This cannot be undone.`,
   },
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, SchedulingPolicy, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
@@ -42,6 +42,7 @@ import {
   Tag,
   Tooltip,
   cx,
+  useToast,
 } from '../ui'
 
 /** CP-SAT statuses that mean the model was actually solved. */
@@ -107,6 +108,8 @@ const settingsOf = (policy: SchedulingPolicy): Settings => ({
 export function GeneratorPanel() {
   const { generator: t, common, nav } = useMessages()
   const queryClient = useQueryClient()
+  const toast = useToast()
+  const navigate = useNavigate()
   const today = warsawDate()
   const policy = useQuery({ queryKey: ['scheduling-policy'], queryFn: api.schedulingPolicy })
   const drafts = useQuery({ queryKey: ['draft-schedules'], queryFn: api.draftSchedules })
@@ -181,6 +184,14 @@ export function GeneratorPanel() {
     // for the global 30s staleTime and the effect above would rewind `result`.
     queryClient.invalidateQueries({ queryKey: ['schedule'] })
   }
+  // A correction or its Undo can land after the coordinator opened another
+  // draft or closed this one; it then only refreshes the stored copies.
+  const shownId = useRef<string | undefined>(undefined)
+  useEffect(() => { shownId.current = result?.id }, [result?.id])
+  const correct = (value: DraftSchedule) => {
+    if (shownId.current === value.id) setResult(value)
+    else invalidateDrafts()
+  }
   // Rotation mode, the 11–19 anchor and the swap approval are stored policy,
   // not request parameters; they are written only on an explicit save, never
   // on change.
@@ -198,7 +209,10 @@ export function GeneratorPanel() {
   }, [policy.data])
   const savePolicy = useMutation({
     mutationFn: (input: Settings) => api.updateSchedulingPolicy(input),
-    onSuccess: (value) => queryClient.setQueryData(['scheduling-policy'], value),
+    onSuccess: (value) => {
+      queryClient.setQueryData(['scheduling-policy'], value)
+      toast.success(t.toast.settingsSaved)
+    },
   })
   const settingsDirty = Boolean(policy.data && SETTINGS_KEYS.some((key) => settings[key] !== policy.data[key]))
   const unsavedChanges = useUnsavedChanges(settingsDirty, () => setSettings(settingsOf(policy.data!)))
@@ -257,15 +271,31 @@ export function GeneratorPanel() {
     setResult(value)
     invalidateDrafts()
   }
-  const propose = useMutation({ mutationFn: (input: { id: string; expectedVersion: number }) => api.proposeSchedule(input), onSuccess: settle })
-  const withdraw = useMutation({ mutationFn: (input: { id: string; expectedVersion: number }) => api.withdrawSchedule(input), onSuccess: settle })
+  const propose = useMutation({
+    mutationFn: (input: { id: string; expectedVersion: number }) => api.proposeSchedule(input),
+    onSuccess: (value) => {
+      settle(value)
+      toast.success(t.toast.proposed(formatRange(value.starts_on, value.ends_on)))
+    },
+  })
+  const withdraw = useMutation({
+    mutationFn: (input: { id: string; expectedVersion: number }) => api.withdrawSchedule(input),
+    onSuccess: (value) => {
+      settle(value)
+      toast.success(t.toast.withdrawn(formatRange(value.starts_on, value.ends_on)))
+    },
+  })
   const publish = useMutation({
     mutationFn: (input: Parameters<typeof api.publishSchedule>[0]) => api.publishSchedule(input),
-    onSuccess: (value) => {
+    onSuccess: (value, { expectedVersion }) => {
       settle(value)
       setPublishConfirmOpen(false)
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      toast.success(t.toast.published(expectedVersion, formatRange(value.starts_on, value.ends_on)), {
+        description: t.toast.publishedDescription,
+        action: { label: t.toast.openSchedule, onClick: () => navigate(`/grafik?od=${value.starts_on}`) },
+      })
     },
   })
   const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error
@@ -512,7 +542,7 @@ export function GeneratorPanel() {
                 meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? t.draft.clickToCorrect : ''}`}
                 controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">{t.draft.legend}</button>} />}
               />
-              <DraftScheduleMatrix result={result} onChange={setResult} focus={focus} />
+              <DraftScheduleMatrix result={result} onChange={correct} focus={focus} />
               <div ref={problemsRef}>
                 <SectionHeading
                   as="h3"
@@ -642,7 +672,7 @@ export function GeneratorPanel() {
           <Box tone="sig" title={t.settings.startingPointsTitle}>
             {t.settings.startingPointsBody}
           </Box>
-          {savePolicy.isSuccess && !settingsDirty && <span className="small muted">{t.settings.saved}</span>}
+          {savePolicy.isSuccess && !settingsDirty && <span className="small muted" role="status">{t.settings.saved}</span>}
         </form>
       </Panel>
       {result && (

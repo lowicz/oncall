@@ -23,10 +23,7 @@ export const calendarEvents = {
     save: 'Zapisz',
     add: 'Dodaj',
   },
-  deleteDialog: {
-    title: 'Usunąć wydarzenie?',
-    confirm: 'Usuń',
-    /** `dates` is "24-09-2026" or "24-09-2026 – 26-09-2026". */
-    description: (title: string, dates: string) => `${title} (${dates}). Tej operacji nie da się cofnąć.`,
+  toast: {
+    deleted: (title: string) => `Usunięto „${title}”`,
   },
 }

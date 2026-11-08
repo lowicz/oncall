@@ -7,6 +7,8 @@ export const common: Messages['common'] = {
   notifications: 'Notifications',
   undoClosed: 'The time to undo has passed',
   undoEmailsSent: 'The e-mails have gone out',
+  undo: 'Undo',
+  undoFailed: 'Could not undo',
   loading: 'Loading…',
   loadingScreen: 'Loading screen…',
   scrollHint: 'Scroll horizontally to see more',

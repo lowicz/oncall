@@ -22,9 +22,11 @@ import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '..
 import { formatPoints } from '../lib/numbers'
 import { preferredScrollBehavior } from '../lib/motion'
 import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
-import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
+import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
 import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useNarrow } from '../hooks/useMediaQuery'
+import { usePublicConfig } from '../hooks/usePublicConfig'
+import { undoable } from '../lib/undo'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
 import { coverageWindowText } from '../components/CalendarMatrix'
@@ -36,6 +38,7 @@ import {
   EmptyState,
   ErrorState,
   Field,
+  Icon,
   IconButton,
   Input,
   LinkButton,
@@ -164,18 +167,22 @@ function DutyList({ duties, today, collides }: {
  * writes one day with the current brush, a drag writes the range under the
  * pointer, Shift+click writes the range from the last painted day; every
  * write is saved at once. The pointer range is previewed in the brush colour
- * before it is committed.
+ * before it is committed. On a phone, where a drag scrolls the page, the
+ * first tap starts a range and the second closes and saves it.
  */
-function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, onPaint }: {
+function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, narrow, onPaint }: {
   month: string
   entries: AvailabilityEntry[]
   duties: Duty[]
   brush: Brush
   today: string
   disabled: boolean
+  narrow: boolean
   onPaint: (startsOn: string, endsOn: string) => void
 }) {
-  const t = useMessages().mine.calendar
+  const words = useMessages()
+  const t = words.mine.calendar
+  const { range, brushes } = words.mine.availability
   const kinds = availabilityLabels()
   const roleNames = roleLabels()
   const days = monthDays(month)
@@ -193,6 +200,8 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   })
   // A drag in progress: the day it started on and the day under the pointer.
   const [drag, setDrag] = useState<{ anchor: string; hover: string } | null>(null)
+  // A range started by a tap on a phone, waiting for the tap that closes it.
+  const [pick, setPick] = useState<{ anchor: string; hover: string } | null>(null)
   const lastPainted = useRef<string | null>(null)
   const dutiesByDate = useMemo(() => {
     const map = new Map<string, AssignmentRole[]>()
@@ -222,8 +231,9 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
     // change of the drag so the commit always sees the current range.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag])
-  const previewRange = drag
-    ? [drag.anchor, drag.hover].sort((a, b) => a.localeCompare(b))
+  const selection = drag ?? pick
+  const previewRange = selection
+    ? [selection.anchor, selection.hover].sort((a, b) => a.localeCompare(b))
     : null
   const inPreview = (date: string) => Boolean(previewRange && previewRange[0] <= date && date <= previewRange[1])
   const previewTone = brush === 'clear' ? null : toneOf[brush]
@@ -270,12 +280,24 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                   disabled={past}
                   {...grid.cellProps(rowIndex, colIndex)}
                   onPointerDown={(event) => {
-                    if (disabled || event.button !== 0) return
-                    setDrag({ anchor: date, hover: date })
+                    if (disabled || narrow || event.button !== 0) return
+                    // Shift+click closes a range from the last painted day.
+                    const anchor = event.shiftKey && lastPainted.current ? lastPainted.current : date
+                    setDrag({ anchor, hover: date })
                   }}
-                  onPointerEnter={() => { if (!disabled && drag) setDrag({ anchor: drag.anchor, hover: date }) }}
+                  onPointerEnter={() => {
+                    // A browser may report a pointer over a passed day, which is disabled.
+                    if (disabled || past) return
+                    if (drag) setDrag({ anchor: drag.anchor, hover: date })
+                    if (pick) setPick({ anchor: pick.anchor, hover: date })
+                  }}
                   onClick={(event) => {
                     if (disabled) return
+                    if (narrow) {
+                      if (pick) paint(pick.anchor, date)
+                      setPick(pick ? null : { anchor: date, hover: date })
+                      return
+                    }
                     // A pointer click was already committed on pointerup; the
                     // keyboard (Enter, Space) arrives here with no pointer at all.
                     if (event.detail !== 0) return
@@ -284,6 +306,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                   }}
                 >
                   {roles.map((role) => <i key={role} className={cx('dot', roleDot[role])} aria-hidden="true" />)}
+                  {entry?.note && !preview && <Icon name="doc" className="avail-day-note" />}
                   <span>
                     {date.slice(8)}
                     {entry && !preview && <small>{t.marks[entry.kind]}</small>}
@@ -295,6 +318,14 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
           </div>
         ))}
       </div>
+      {pick && (
+        <Box tone="sig" role="status" title={range.from(formatShortDate(pick.anchor))}>
+          {brush === 'clear' ? range.closeToClear : range.closeToSave(brushes[brush])}
+          <div className="row avail-box-actions">
+            <Button size="sm" onClick={() => setPick(null)}>{words.common.cancel}</Button>
+          </div>
+        </Box>
+      )}
     </div>
   )
 }
@@ -341,6 +372,50 @@ function optimisticRange(
 
 const PAINT_KEY = ['availability', 'paint']
 
+/** One range written with one brush; `before` is what the range held when it
+ *  was painted, which its Undo writes back. */
+interface PaintCommand {
+  member: string
+  startsOn: string
+  endsOn: string
+  brush: Brush
+  note: string | undefined
+  before: AvailabilityEntry[]
+}
+
+const applyPaint = (list: AvailabilityEntry[], command: PaintCommand) => (
+  optimisticRange(list, command.startsOn, command.endsOn, command.brush, command.note)
+)
+
+/**
+ * The writes that undo a paint: clear the painted range, then write back the
+ * part of every entry it touched that lies inside the range, with its kind and
+ * reason. Days outside the range are never written, so a later paint there
+ * stays as it is.
+ */
+function undoSteps(command: PaintCommand): PaintCommand[] {
+  return [
+    { member: command.member, startsOn: command.startsOn, endsOn: command.endsOn, brush: 'clear', note: undefined, before: [] },
+    ...command.before.map((entry) => ({
+      member: command.member,
+      startsOn: entry.starts_on > command.startsOn ? entry.starts_on : command.startsOn,
+      endsOn: entry.ends_on < command.endsOn ? entry.ends_on : command.endsOn,
+      brush: entry.kind,
+      note: entry.note ?? undefined,
+      before: [],
+    })),
+  ]
+}
+
+/** Days from today on where the person holds a duty and has said "unavailable",
+ *  with the duty's roles in order. */
+function dutyCollisions(duties: Duty[], entries: AvailabilityEntry[], today: string) {
+  const dates = [...new Set(duties.map((duty) => duty.service_date))].sort((a, b) => a.localeCompare(b))
+  return dates
+    .filter((date) => date >= today && entries.some((entry) => entry.kind === 'unavailable' && entry.starts_on <= date && date <= entry.ends_on))
+    .map((date) => ({ date, roles: ROLE_ORDER.filter((role) => duties.some((duty) => duty.service_date === date && duty.role === role)) }))
+}
+
 const availabilityKey = (member: string) => (member ? ['availability', 'member', member] : ['availability', 'me'])
 
 /**
@@ -355,6 +430,10 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   displayName: string
 }) {
   const t = useMessages().mine.availability
+  const reasonOf = useMessages().mine.calendar.reason
+  const roleWords = roleLabels()
+  const roleNames = (roles: AssignmentRole[]) => roles.map((item) => roleWords[item]).join(' + ')
+  const narrow = useNarrow()
   const queryClient = useQueryClient()
   const toast = useToast()
   const today = warsawDate()
@@ -391,46 +470,65 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   const duties = (calendar.data?.assignments ?? []).filter((item) => item.assignee_name === targetName)
   const [brush, setBrush] = useState<Brush>('unavailable')
   const [note, setNote] = useState('')
-  const [warning, setWarning] = useState<string | null>(null)
-  type PaintCommand = { member: string; startsOn: string; endsOn: string; brush: Brush; note: string | undefined }
-  const applyPaint = (list: AvailabilityEntry[], command: PaintCommand) => (
-    optimisticRange(list, command.startsOn, command.endsOn, command.brush, command.note)
-  )
+  const config = usePublicConfig()
+  const save = (command: PaintCommand) => {
+    const input: AvailabilityRangeInput = {
+      kind: command.brush === 'clear' ? null : command.brush,
+      starts_on: command.startsOn,
+      ends_on: command.endsOn,
+      note: command.note,
+    }
+    return command.member ? api.replaceMemberAvailabilityRange(command.member, input) : api.replaceAvailabilityRange(input)
+  }
+  // The paint stays pending, and so stays drawn, until its person's list has
+  // been read back.
+  const reload = (command: PaintCommand) => Promise.all([
+    queryClient.invalidateQueries({ queryKey: availabilityKey(command.member) }),
+    queryClient.invalidateQueries({ queryKey: ['calendar'] }),
+  ])
+  // One scope runs the paints and the Undos one after another in the order
+  // they were made; an Undo runs its steps in order and stops at the first
+  // that fails.
+  const restore = useMutation<void, Error, PaintCommand[]>({
+    mutationKey: PAINT_KEY,
+    scope: { id: 'availability-paint' },
+    mutationFn: (steps) => steps.reduce<Promise<unknown>>(
+      (done, step) => done.then(() => save(step)),
+      Promise.resolve(),
+    ).then(() => undefined),
+    onSettled: (_result, _error, steps) => reload(steps[0]),
+  })
   const paint = useMutation<AvailabilityEntry | null, Error, PaintCommand>({
     mutationKey: PAINT_KEY,
-    // One scope runs the paints one after another, in the order painted.
     scope: { id: 'availability-paint' },
-    mutationFn: ({ member, startsOn, endsOn, brush: selectedBrush, note: selectedNote }) => {
-      const input: AvailabilityRangeInput = {
-        kind: selectedBrush === 'clear' ? null : selectedBrush,
-        starts_on: startsOn,
-        ends_on: endsOn,
-        note: selectedNote,
-      }
-      return member ? api.replaceMemberAvailabilityRange(member, input) : api.replaceAvailabilityRange(input)
-    },
-    onSuccess: (result, command) => {
-      setWarning(result?.warning ?? null)
+    mutationFn: (command) => {
       const range = rangeText(command.startsOn, command.endsOn)
-      toast.success(command.brush === 'clear'
-        ? t.cleared(range)
-        : t.saved(range, availabilityLabels()[command.brush].toLowerCase()))
+      return undoable({
+        execute: () => save(command),
+        undo: () => restore.mutateAsync(undoSteps(command)),
+        toast,
+        message: () => ({
+          title: command.brush === 'clear' ? t.cleared(range) : t.saved(range, t.brushes[command.brush]),
+          description: command.note && command.brush !== 'clear' ? reasonOf(command.note) : undefined,
+        }),
+        undoLabel: t.undo,
+        onUndoError: () => toast.error(t.undoFailed(range)),
+        // Until the config has answered, the server's default window.
+        windowSeconds: config.data?.undo_window_seconds ?? 10,
+      })
     },
     onError: (error) => toast.error(error.message),
-    // The paint stays pending, and so stays drawn, until its person's list
-    // has been read back.
-    onSettled: (_result, _error, command) => Promise.all([
-      queryClient.invalidateQueries({ queryKey: availabilityKey(command.member) }),
-      queryClient.invalidateQueries({ queryKey: ['calendar'] }),
-    ]),
+    onSettled: (_result, _error, command) => reload(command),
   })
-  // Paints waiting to be saved are drawn over the list the server returned;
-  // one that fails is no longer pending and drops out by itself.
+  // Paints and Undo steps waiting to be saved are drawn over the list the
+  // server returned; one that fails is no longer pending and drops out by itself.
   const pending = useMutationState({
     filters: { mutationKey: PAINT_KEY, status: 'pending' },
-    select: (mutation) => mutation.state.variables as PaintCommand,
+    select: (mutation) => mutation.state.variables as PaintCommand | PaintCommand[],
   })
-  const shown = pending.filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
+  const shown = pending.flat().filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
+  const collisions = dutyCollisions(duties, shown, today)
+  const collidingDuties = collisions.reduce((count, collision) => count + collision.roles.length, 0)
 
   const heading = targetMember ? t.headingFor(targetMember.display_name) : t.heading
   return (
@@ -453,18 +551,6 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
                 ))}
               </Select>
             )}
-            <Segmented<Brush>
-              size="sm"
-              label={t.brush}
-              value={brush}
-              onChange={setBrush}
-              options={[
-                { value: 'unavailable', label: t.brushes.unavailable, tone: 'na' },
-                { value: 'prefer_not', label: t.brushes.prefer_not, tone: 'wn' },
-                { value: 'prefer', label: t.brushes.prefer, tone: 'ch' },
-                { value: 'clear', label: t.brushes.clear },
-              ]}
-            />
             <span className="pager">
               <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => setMonth(shiftMonth(month, -1))} />
               <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => setMonth(shiftMonth(month, 1))} />
@@ -479,36 +565,64 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
       ) : (
         <div className="panel panel-padded stack-sm">
           {entries.error && <ErrorState error={entries.error} onRetry={() => entries.refetch()} />}
+          <div className="avail-brush-row">
+            <Segmented<Brush>
+              size="sm"
+              label={t.brush}
+              value={brush}
+              onChange={setBrush}
+              options={[
+                { value: 'unavailable', label: t.brushes.unavailable, tone: 'na' },
+                { value: 'prefer_not', label: t.brushes.prefer_not, tone: 'wn' },
+                { value: 'prefer', label: t.brushes.prefer, tone: 'ch' },
+                { value: 'clear', label: t.brushes.clear },
+              ]}
+            />
+            <Field label={t.note} id="availability-note" hint={t.noteHint} className="avail-note">
+              {({ id, describedBy }) => <Input id={id} name={id} value={note} onChange={(event) => setNote(event.target.value)} aria-describedby={describedBy} />}
+            </Field>
+          </div>
           <AvailabilityCalendar
+            key={member}
             month={month}
             entries={shown}
             duties={duties}
             brush={brush}
             today={today}
             disabled={entries.isLoading}
+            narrow={narrow}
             onPaint={(startsOn, endsOn) => paint.mutate({
               member,
               startsOn,
               endsOn,
               brush,
               note: note.trim() || undefined,
+              before: shown.filter((entry) => entry.starts_on <= endsOn && entry.ends_on >= startsOn),
             })}
           />
-          <div className="avail-foot">
-            <span className="muted small">
-              {t.howTo}
-            </span>
-            <Field label={t.note} id="availability-note" hint={t.noteHint} className="avail-note">
-              {({ id, describedBy }) => <Input id={id} name={id} value={note} onChange={(event) => setNote(event.target.value)} aria-describedby={describedBy} />}
-            </Field>
-          </div>
+          <span className="muted small">{narrow ? t.howToTouch : t.howTo}</span>
           {targetMember && (
             <div className="small muted">{t.onBehalfBefore} <b>{targetMember.display_name}</b> · {t.onBehalfAfter}</div>
           )}
           {canActOnBehalf && !onBehalf && !ownMember && team.data && (
             <div className="small muted">{t.notInRotation}</div>
           )}
-          {warning && <Box tone="warn" role="status" title={warning} />}
+          {collisions.length > 0 && (
+            <Box
+              tone="warn"
+              role="status"
+              title={targetMember
+                ? t.collision.titleFor(targetMember.display_name, collisions.length, collidingDuties, roleNames(collisions[0].roles), formatShortDate(collisions[0].date))
+                : t.collision.title(collisions.length, collidingDuties, roleNames(collisions[0].roles), formatShortDate(collisions[0].date))}
+            >
+              {targetMember ? t.collision.fixInSchedule(collisions.length) : t.collision.askForSwap(collisions.length)}
+              <div className="row avail-box-actions">
+                {collisions.map(({ date, roles }) => (targetMember
+                  ? <LinkButton key={date} size="sm" to={`/grafik?dzien=${date}`}>{t.collision.openDay(formatShortDate(date))}</LinkButton>
+                  : <LinkButton key={date} size="sm" to={`/zamiany?data=${date}&rola=${roles[0]}`}>{t.collision.requestSwap(formatShortDate(date))}</LinkButton>))}
+              </div>
+            </Box>
+          )}
         </div>
       )}
     </section>

@@ -121,7 +121,13 @@ Kliknij komórkę, w panelu dnia wybierz rolę i osobę, zapisz. Korekta:
 - korzysta z wersjonowania,
 - jest oznaczona jako ręczna,
 - nie oznacza szkicu jako nieaktualnego: to ostrzeżenie dotyczy tylko zmian
-  poza szkicem, np. dostępności wpisanej po wygenerowaniu.
+  poza szkicem, np. dostępności wpisanej po wygenerowaniu,
+- kończy się powiadomieniem, kogo zastąpiono i ile problemów zostało w
+  szkicu; jego przycisk **Cofnij** przez kilka sekund przywraca poprzednią
+  osobę (komórka zostaje oznaczona jako ręczna). Przycisku nie ma, gdy
+  poprzedniej osoby nie da się wskazać jednoznacznie, np. po zakończeniu jej
+  rotacji, usunięciu konta albo gdy w zespole jest kilka osób o tym samym
+  imieniu i nazwisku.
 
 ## Ustawienia generatora
 
@@ -130,6 +136,7 @@ Przycisk **Ustawienia generatora** otwiera panel boczny z zakresem **Od** /
 **globalnie dla całego zespołu**; obowiązują od następnego generowania.
 **Generuj** uruchamia generowanie od razu z zakresem z panelu, a **Przywróć zapisane** cofa niezapisane zmiany.
 Zamknięcie panelu, przejście na inny ekran, odświeżenie albo otwarcie innego szkicu przy niezapisanych ustawieniach wymaga decyzji, czy je odrzucić.
+Zapis potwierdza powiadomienie „Zapisano ustawienia generowania”.
 
 | Ustawienie | Zakres | Uwagi |
 | --- | --- | --- |
@@ -168,7 +175,11 @@ Szkic ──► Do akceptacji ──► Opublikowany
    Publikacja sprawdza pełne pokrycie zakresu; brak obsady któregokolwiek
    dnia zatrzymuje operację.
 3. Grafik staje się widoczny dla wszystkich, rozchodzą się powiadomienia, a
-   kanały ICS dostają aktualizacje.
+   kanały ICS dostają aktualizacje. Powiadomienie „Opublikowano v*N* ·
+   *zakres*” mówi to samo i ma przycisk **Otwórz grafik**.
+
+Przekazanie do akceptacji i powrót do szkicu też kończą się powiadomieniem z
+zakresem („Przekazano do akceptacji: 4 – 31 paź”).
 
 Jeśli w międzyczasie ktoś zmienił grafik albo zatwierdzona zamiana koliduje
 ze szkicem, arkusz publikacji wypisze każdy taki przypadek z polem

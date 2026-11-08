@@ -59,11 +59,12 @@ hasło, nigdy go nie mają. Eksport CSV podaje ten stan w kolumnie `aktywacja`.
 
 Na zakładce **Dostęp** takiego konta jest ramka „Oczekuje na aktywację” z
 terminem linku i przyciskiem **Wygeneruj nowy link aktywacyjny**. Po
-potwierdzeniu panel pokazuje nowy link, ważny 24 godziny; wcześniejsze linki
+kliknięciu panel od razu pokazuje nowy link, ważny 24 godziny; wcześniejsze linki
 aktywacyjne tej osoby przestają działać, a w audycie zostaje wpis
 „Wygenerowano link aktywacyjny”. Przycisk jest nieaktywny dla konta
 wyłączonego - najpierw je włącz. Konto, które ma już hasło, dostaje zamiast
-tego reset hasła (link ważny godzinę). Jak każdy link do konta, nowy link
+tego reset hasła (link ważny godzinę, też bez pytania; sesje tej osoby
+wygasną dopiero po ustawieniu nowego hasła). Jak każdy link do konta, nowy link
 przekaż osobie bezpiecznym kanałem; aplikacja go nie wysyła.
 
 Numer pracownika ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
@@ -74,7 +75,8 @@ konto, na które Keycloak wpuszcza osobę.
 Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę.
 Próba zamknięcia (Esc albo krzyżyk), otwarcia innej osoby, przejścia na inny ekran albo odświeżenia wymaga decyzji, czy odrzucić wprowadzone zmiany.
 Przycisk **Odrzuć zmiany** w stopce porzuca je od razu, bez pytania.
-Zmiana roli i wyłączenie konta wymagają dodatkowego potwierdzenia.
+Każdy zapis kończy się powiadomieniem w rogu ekranu, które mówi, co zapisano („Zapisano: telefon”); tak samo utworzenie konta, dodanie do rotacji, dodanie i zdjęcie kwalifikacji oraz usunięcie okresu.
+Zmiana roli i wyłączenie albo włączenie konta zapisują się bez dodatkowego pytania, a powiadomienie („Zmieniono rolę: Jan Kowalski → Koordynator”) ma przycisk **Cofnij**, który przez kilka sekund przywraca poprzednią rolę i stan konta.
 
 ### Wyjście z rotacji
 
@@ -83,13 +85,18 @@ liczy się w raportach; kończy się tylko przydzielanie nowych dyżurów po tej
 dacie. Dyżury już opublikowane po tej dacie trzeba przepisać - panel pokazuje
 wtedy ostrzeżenie „Skutek dla grafiku” z przyciskiem **Przepisz przyszłe
 dyżury i zakończ rotację…**, który dla każdego takiego dyżuru wybiera zastępcę.
-Przed zapisem okno sprawdza reguły twarde dla wszystkich grafików naraz. Jeśli
-wybrani zastępcy złamaliby regułę twardą, wymienia naruszenia pod nagłówkiem
-„Przepisanie złamie reguły twarde”: wybierz innych zastępców albo zaznacz, że
-łamiesz reguły świadomie, i potwierdź. Potwierdzone naruszenie trafia do
+Okno ma jeden czerwony przycisk, który nazywa skutek, na przykład **Przepisz
+6 dyżurów i zakończ rotację** (bez dyżurów do przepisania: **Zakończ
+rotację**). Kliknięcie sprawdza reguły twarde dla wszystkich grafików naraz i,
+jeśli nic nie jest łamane, od razu zapisuje. Jeśli wybrani zastępcy złamaliby
+regułę twardą, okno wymienia naruszenia pod nagłówkiem „Przepisanie złamie
+reguły twarde”: wybierz innych zastępców albo zaznacz, że łamiesz reguły
+świadomie, i kliknij ten sam przycisk. Potwierdzone naruszenie trafia do
 dziennika audytu. Jeśli zapis przerwie błąd, gdy część grafików jest już
-przepisana, okno podaje, ile dyżurów już przepisano; ponowne potwierdzenie
-przepisuje pozostałe.
+przepisana, okno podaje, ile dyżurów już przepisano; kolejne kliknięcie
+przepisuje pozostałe. Po zakończeniu powiadomienie podaje liczbę przepisanych
+dyżurów i zastępców („Marek Nowak ×3, Jan Wiśniewski ×1”) oraz przycisk
+**Otwórz grafik**.
 
 ### Usunięcie konta i danych osobowych
 
@@ -98,7 +105,9 @@ skutków: konto zostaje wyłączone natychmiast, dane osobowe usunięte, histori
 dyżurów i punkty zostają dla sprawiedliwości, a opublikowane dyżury tej osoby
 po dziś pozostaną bez obsady. Operację potwierdza się, **wpisując login**
 osoby (pole podpowiada tylko „wpisz login”, nie sam login); do tego czasu
-przycisk jest nieaktywny. Nie da się jej cofnąć.
+przycisk jest nieaktywny. Nie da się jej cofnąć. Po usunięciu powiadomienie
+podaje pseudonim, pod którym osoba zostaje w grafiku („W grafiku: Osoba
+usunięta #…”).
 
 Z konta znikają imię, nazwisko, e-mail, telefon i numer pracownika. Jeśli osoba
 była w rotacji, jej miejsce w zespole zostaje pod pseudonimem
@@ -125,8 +134,9 @@ kontekstu, na przykład okna zmian produkcyjnych albo zamrożenia.
 Pola „Pokaż od” i „Pokaż do” zawężają listę poniżej; „Od” i „Do” w formularzu
 to zakres samego wydarzenia.
 
-**Usuń** - tu i w panelu dnia na grafiku - pyta o potwierdzenie; usuniętego
-wydarzenia nie da się przywrócić.
+**Usuń** - tu i w panelu dnia na grafiku - usuwa wydarzenie od razu, bez
+pytania. Powiadomienie „Usunięto „…”” ma przycisk **Cofnij**, który przez kilka
+sekund przywraca wydarzenie z tą samą nazwą, kolorem i całym zakresem dat.
 
 ## Import historii (`/import`, koordynator)
 
@@ -143,6 +153,12 @@ wydarzenia nie da się przywrócić.
 w sobotę, niedzielę albo święto zostanie odrzucony z podaniem numeru wiersza.
 
 Import zasila historię, z której liczą raport sprawiedliwości i generator.
+
+**Cofnij import** przy wcześniejszym imporcie usuwa jego dyżury z historii na
+stałe, więc najpierw pyta oknem z liczbą wierszy, które znikną z bilansu
+(„Cofnąć import „historia 2025”? 312 wierszy zniknie z bilansu.”). Tego
+cofnięcia nie da się już odwrócić; dane wrócą tylko po ponownym imporcie
+pliku.
 
 ## Raport miesięczny (`/raporty`, koordynator)
 

@@ -1,4 +1,4 @@
-import { pluralPl } from '../../lib/plural'
+import { pluralFormPl, pluralPl } from '../../lib/plural'
 
 /** The history import: the CSV upload, its preview with the errors, the earlier imports. */
 export const historyImport = {
@@ -34,5 +34,10 @@ export const historyImport = {
     loading: 'Wczytywanie importów…',
     empty: 'Brak wcześniejszych importów',
     undo: 'Cofnij import',
+  },
+  revokeDialog: {
+    title: (name: string) => `Cofnąć import „${name}”?`,
+    description: (rows: number) =>
+      `${pluralPl(rows, ['wiersz', 'wiersze', 'wierszy'])} ${pluralFormPl(rows, ['zniknie', 'znikną', 'zniknie'])} z bilansu. Tej operacji nie da się cofnąć.`,
   },
 }

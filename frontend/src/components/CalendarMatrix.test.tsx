@@ -260,6 +260,7 @@ describe('CalendarMatrix override decision frame', () => {
     expect(override.mock.calls[0][0]).toMatchObject({
       replacement_member_id: 'm2', acknowledge_rule_violations: true,
     })
+    expect(await screen.findByText('E-mail o zmianie dostaną obie osoby. Naruszenie reguł zapisane w audycie.')).toBeInTheDocument()
   })
 
   it('checks again and asks for the acknowledgement when the write finds a new violation', async () => {
@@ -311,7 +312,7 @@ describe('CalendarMatrix override decision frame', () => {
     expect(within(panel).getByRole('button', { name: /Zapisz/ })).toBeDisabled()
 
     finish({} as never)
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(panel).not.toBeInTheDocument())
     expect(override).toHaveBeenCalledTimes(1)
   })
 
@@ -547,38 +548,54 @@ describe('CalendarMatrix event deletion', () => {
     }
   }
 
-  const openDeletion = async () => {
+  const stored = { id: 'e1', title: 'Audyt', color: 'red' as const, starts_on: '2026-09-01', ends_on: '2026-09-25', created_at: '2026-08-01T10:00:00Z' }
+
+  const deleteFromDay = async () => {
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
     fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
-    return screen.findByRole('dialog', { name: 'Usunąć wydarzenie?' })
   }
 
-  it('keeps the event when the confirmation is cancelled', async () => {
+  it('deletes at once and recreates the whole event with Undo', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(withEvent())
+    const read = vi.spyOn(api, 'calendarEvents').mockResolvedValue([{ ...stored, id: 'other' }, stored])
     const remove = vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    const create = vi.spyOn(api, 'createCalendarEvent').mockResolvedValue({ ...stored, id: 'e2' })
     renderScreen(matrix())
 
-    const confirm = await openDeletion()
-    expect(within(confirm).getByText(/„Audyt” zniknie ze wszystkich dni/)).toBeInTheDocument()
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Anuluj' }))
+    await deleteFromDay()
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument())
-    expect(remove).not.toHaveBeenCalled()
-    expect(screen.getByText('Audyt')).toBeInTheDocument()
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('e1'))
+    expect(read).toHaveBeenCalledWith(withEvent().days[0].service_date, withEvent().days[0].service_date)
+    expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument()
+    expect(await screen.findByText('Usunięto „Audyt”')).toBeInTheDocument()
+    // The same words as on the events screen, with every day the event had.
+    expect(screen.getByText('01-09-2026 – 25-09-2026')).toBeInTheDocument()
+    expect(screen.queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+    // The event comes back over every day it had, not only the one it was deleted from.
+    await waitFor(() => expect(create).toHaveBeenCalledWith({ starts_on: '2026-09-01', ends_on: '2026-09-25', title: 'Audyt', color: 'red' }))
+    await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
+    // The inspector still open on that day shows the event again.
+    expect(await within(screen.getByRole('dialog')).findByText('Audyt', { selector: 'span' })).toBeInTheDocument()
   })
 
-  it('deletes the event once confirmed', async () => {
+  it('leaves a restored event out of an inspector open on a day outside its range', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(withEvent())
-    const remove = vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    vi.spyOn(api, 'calendarEvents').mockResolvedValue([{ ...stored, starts_on: day(0), ends_on: day(0) }])
+    vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    const create = vi.spyOn(api, 'createCalendarEvent').mockResolvedValue({ ...stored, id: 'e2' })
     renderScreen(matrix())
 
-    const confirm = await openDeletion()
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Usuń' }))
+    await deleteFromDay()
+    expect(await screen.findByText('Usunięto „Audyt”')).toBeInTheDocument()
+    fireEvent.click((await screen.findAllByRole('button', { name: /Anna Kowalska/ }))[1])
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
 
-    await waitFor(() => expect(remove).toHaveBeenCalled())
-    expect(remove.mock.calls[0][0]).toBe('e1')
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument())
+    await waitFor(() => expect(create).toHaveBeenCalled())
+    await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
+    expect(within(screen.getByRole('dialog')).queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
   })
 })
 
@@ -1044,7 +1061,35 @@ describe('CalendarMatrix staffing form', () => {
       schedule_id: 's1', expected_version: 4, service_date: '2026-09-08', role: 'primary',
       replacement_member_id: 'm3', reason: 'Zamiana ustalona telefonicznie', acknowledge_rule_violations: false,
     })
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź zmianę obsady' })).not.toBeInTheDocument())
+    // The toast says what changed and who is told, and reopens the day.
+    expect(await screen.findByText('Zmieniono obsadę 8 wrz · PRIMARY: Anna Kowalska → Ola Wiśniewska')).toBeInTheDocument()
+    expect(screen.getByText('E-mail o zmianie dostaną obie osoby.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /^wt 08-09-2026/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Otwórz dzień' }))
+    expect(await screen.findByRole('dialog', { name: /^wt 08-09-2026/ })).toBeInTheDocument()
+  })
+
+  it('names only the person on duty once an empty slot is filled', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week({
+      members: [
+        { id: 'm1', display_name: 'Anna Kowalska' },
+        { id: 'm2', display_name: 'Marek Nowak' },
+        { id: 'm3', display_name: 'Ola Wiśniewska' },
+      ],
+    }))
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
+    const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Zmień obsadę')
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    const confirm = within(dialog).getByRole('button', { name: /^Zapisz zmianę obsady$/ })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(save).toHaveBeenCalled())
+    expect(await screen.findByText('Obsadzono 11–19 11 wrz: Ola Wiśniewska')).toBeInTheDocument()
+    expect(screen.getByText('E-mail o dyżurze dostanie Ola Wiśniewska.')).toBeInTheDocument()
   })
 
   it('closes the past-day dialog on a new violation so the panel can take the acknowledgement', async () => {
@@ -1203,35 +1248,32 @@ describe('CalendarMatrix events', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('shows why an event was not deleted, in the confirmation and on the day', async () => {
+  it('shows on the day why an event was not deleted', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({}, { '2026-09-11': { events: [{ id: 'e1', title: 'Audyt', color: 'red' }] } }))
+    vi.spyOn(api, 'calendarEvents').mockResolvedValue([])
     vi.spyOn(api, 'deleteCalendarEvent').mockRejectedValue(new ApiError('Brak uprawnień', 403))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openDay()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Usuń' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Usunąć wydarzenie?' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Usuń' }))
 
-    expect(await within(confirmation).findByRole('alert')).toHaveTextContent('Brak uprawnień')
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Anuluj' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument())
-    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Brak uprawnień')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Brak uprawnień')
+    expect(within(dialog).getByText('Audyt')).toBeInTheDocument()
   })
 
   it('forgets a deleted event of a day closed in the meantime', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({}, { '2026-09-11': { events: [{ id: 'e1', title: 'Audyt', color: 'red' }] } }))
     let finish: () => void = () => {}
+    vi.spyOn(api, 'calendarEvents').mockResolvedValue([{ id: 'e1', starts_on: '2026-09-11', ends_on: '2026-09-11', title: 'Audyt', color: 'red', created_at: '2026-08-01T10:00:00Z' }])
     vi.spyOn(api, 'deleteCalendarEvent').mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openDay()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Usuń' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Usunąć wydarzenie?' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Usuń' }))
     fireEvent.keyDown(dialog, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^pt 11-09-2026/ })).not.toBeInTheDocument())
 
     finish()
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Usunięto „Audyt”')).toBeInTheDocument())
+    expect(screen.queryByRole('dialog', { name: /^pt 11-09-2026/ })).not.toBeInTheDocument()
     expect(api.calendar).toHaveBeenCalledTimes(2)
   })
 })

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { OffboardingDialog } from './OffboardingDialog'
 import { ApiError, api } from '../api'
@@ -50,6 +51,11 @@ const threeInSeven = {
   days: ['2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05'],
 }
 
+function Location() {
+  const location = useLocation()
+  return <output aria-label="location">{location.pathname}{location.search}</output>
+}
+
 afterEach(() => vi.restoreAllMocks())
 
 describe('OffboardingDialog', () => {
@@ -63,13 +69,19 @@ describe('OffboardingDialog', () => {
     const finished = vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
     const onDone = vi.fn()
     renderScreen(
-      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />,
+      <>
+        <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />
+        <Location />
+      </>,
     )
 
     const pickers = await screen.findAllByRole('combobox')
     expect(pickers).toHaveLength(2)
+    expect(screen.getByText('2 dyżury po 20-09-2026 dostaną zastępcę wybranego niżej, a kwalifikacje tej osoby skończą się z dniem 20-09-2026.')).toBeInTheDocument()
     for (const picker of pickers) fireEvent.change(picker, { target: { value: 'm2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    const button = screen.getByRole('button', { name: 'Przepisz 2 dyżury i zakończ rotację' })
+    expect(button).toHaveClass('btn-danger')
+    fireEvent.click(button)
 
     expect(await screen.findByText('Przepisanie złamie reguły twarde')).toBeInTheDocument()
     expect(screen.getByText(/Więcej niż 3 dyżury on-call w okresie 7 dni/)).toBeInTheDocument()
@@ -79,16 +91,21 @@ describe('OffboardingDialog', () => {
     expect(batch).not.toHaveBeenCalled()
     expect(finished).not.toHaveBeenCalled()
 
-    const confirm = screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' })
     const acknowledgement = screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
-    expect(confirm).toBeDisabled()
+    expect(button).toBeDisabled()
     fireEvent.click(acknowledgement)
-    expect(confirm).toBeEnabled()
-    fireEvent.click(confirm)
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
 
     await waitFor(() => expect(onDone).toHaveBeenCalled())
+    // The same button saved: the check is not repeated for the acknowledged picks.
+    expect(check).toHaveBeenCalledTimes(1)
     expect(batch.mock.calls.map(([input]) => [input.schedule_id, input.acknowledge_rule_violations]))
       .toEqual([['s1', true], ['s2', true]])
+    expect(await screen.findByText('Zakończono rotację: Anna Kowalska · przepisano 2 dyżury')).toBeInTheDocument()
+    expect(screen.getByText('Marek Nowak ×2 · e-maile o zmianie wychodzą')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Otwórz grafik' }))
+    expect(screen.getByLabelText('location')).toHaveTextContent('/grafik?od=2026-09-21')
   })
 
   it('says what was rewritten before a failure and checks only the rest on a retry', async () => {
@@ -111,18 +128,18 @@ describe('OffboardingDialog', () => {
     )
 
     for (const picker of await screen.findAllByRole('combobox')) fireEvent.change(picker, { target: { value: 'm2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz 2 dyżury i zakończ rotację' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Grafik zmienił się w międzyczasie')
-    expect(await screen.findByText('1 dyżur już przepisano. Potwierdź ponownie, aby przepisać pozostałe i zakończyć rotację.'))
+    expect(await screen.findByText('1 dyżur już przepisano. Kliknij ponownie, aby przepisać pozostałe i zakończyć rotację.'))
       .toBeInTheDocument()
     await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(1))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' }))
 
     await waitFor(() => expect(onDone).toHaveBeenCalled())
+    // The toast counts the duties of both attempts.
+    expect(await screen.findByText('Zakończono rotację: Anna Kowalska · przepisano 2 dyżury')).toBeInTheDocument()
     expect(check.mock.calls.map(([input]) => input.batches.map((item) => item.schedule_id)))
       .toEqual([['s1', 's2'], ['s2']])
     expect(batch.mock.calls.map(([input]) => [input.schedule_id, input.expected_version]))
@@ -154,15 +171,16 @@ describe('OffboardingDialog', () => {
     }
     renderScreen(<Host />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zakończ rotację' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Serwer niedostępny')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zakończ rotację' }))
 
     await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(remove.mock.calls).toEqual([['e1'], ['e2'], ['e2']])
+    // Nothing was rewritten, so the toast names no replacements.
+    expect(await screen.findByText('Zakończono rotację: Anna Kowalska')).toBeInTheDocument()
+    expect(screen.queryByText(/e-maile o zmianie/)).not.toBeInTheDocument()
   })
 
   it('drops the checked rules and acknowledgement when a different replacement is picked', async () => {
@@ -176,7 +194,7 @@ describe('OffboardingDialog', () => {
 
     const picker = await screen.findByRole('combobox')
     fireEvent.change(picker, { target: { value: 'm2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' }))
 
     fireEvent.change(picker, { target: { value: '' } })
@@ -237,20 +255,19 @@ describe('OffboardingDialog', () => {
     expect(within(picker).getAllByRole('option').map((option) => option.textContent))
       .toEqual(['Wybierz zastępcę', 'Adam Wolski', 'Beata Lis', 'Marek Nowak'])
 
-    const start = screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' })
+    const start = screen.getByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' })
     expect(start).toBeDisabled()
     fireEvent.change(picker, { target: { value: 'm4' } })
     fireEvent.click(start)
-    expect(await screen.findByText('Potwierdź przepisanie 1 dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem 20-09-2026.')).toBeInTheDocument()
+
+    // No rule breaks, so the one click checks and saves.
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(check).toHaveBeenCalledWith({
       batches: [{
         schedule_id: 's1',
         assignments: [{ service_date: '2026-10-05', role: 'primary', replacement_member_id: 'm4' }],
       }],
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
-
-    await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(batch).toHaveBeenCalledWith({
       schedule_id: 's1',
       expected_version: 1,
@@ -273,9 +290,8 @@ describe('OffboardingDialog', () => {
     renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={onClose} onDone={vi.fn()} onChanged={() => {}} />)
 
     expect(await screen.findByText('Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.')).toBeInTheDocument()
-    expect(screen.getByText(/Dyżury po 20-09-2026: 0\./)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    expect(screen.getByText('Kwalifikacje tej osoby skończą się z dniem 20-09-2026.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Zakończ rotację' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Brak uprawnień')
 
     fireEvent.click(screen.getByRole('button', { name: 'Zamknij' }))
@@ -291,7 +307,7 @@ describe('OffboardingDialog', () => {
     renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
 
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'm2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Nie sprawdzono reguł')
     expect(screen.queryByText('Przepisanie złamie reguły twarde')).not.toBeInTheDocument()
@@ -306,9 +322,9 @@ describe('OffboardingDialog', () => {
     renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
 
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'm2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' }))
     const acknowledgement = await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
-    const confirm = screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' })
+    const confirm = screen.getByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' })
     await waitFor(() => expect(acknowledgement).toBeEnabled())
 
     fireEvent.click(acknowledgement)

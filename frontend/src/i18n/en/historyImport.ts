@@ -31,4 +31,8 @@ export const historyImport: Messages['historyImport'] = {
     empty: 'No earlier imports',
     undo: 'Undo import',
   },
+  revokeDialog: {
+    title: (name: string) => `Undo the import “${name}”?`,
+    description: (rows: number) => `${pluralEn(rows, ['row', 'rows'])} will leave the balance. This cannot be undone.`,
+  },
 }

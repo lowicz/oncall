@@ -56,14 +56,41 @@ export const mine = {
     pickTitle: 'Wybierz osobę',
     pickDescription: 'Twoje konto nie jest w rotacji. Wskaż osobę, w imieniu której chcesz zgłosić dostępność.',
     howTo: 'Klikasz albo przeciągasz po dniach (Shift+klik domyka zakres); zapis automatyczny. Kropka to dyżur, bursztynowa obwódka to kolizja „nie mogę” z dyżurem.',
-    note: 'Powód',
-    noteHint: 'Opcjonalny, do kolejnych wpisów; widzą koordynatorzy i administratorzy.',
+    /** The phone, where the first tap starts a range and the second closes it. */
+    howToTouch: 'Dotykasz pierwszego i ostatniego dnia zakresu (jeden dzień: dwa razy ten sam); zapis automatyczny. Kropka to dyżur, bursztynowa obwódka to kolizja „nie mogę” z dyżurem.',
+    note: 'Powód do kolejnych wpisów',
+    noteHint: 'Opcjonalny · widzą koordynatorzy i administratorzy.',
+    /** A range started by a tap on the phone, waiting for its last day. */
+    range: {
+      from: (day: string) => `Zakres: od ${day}`,
+      closeToSave: (kind: string) => `Dotknij ostatni dzień, żeby zapisać „${kind}” dla całego zakresu.`,
+      closeToClear: 'Dotknij ostatni dzień, żeby wyczyścić cały zakres.',
+    },
+    /** A duty on a day filed as "unavailable": the entry does not lift it. */
+    collision: {
+      title: (days: number, duties: number, roles: string, day: string) => (days === 1
+        ? `Masz dyżur ${roles} ${day}, a zgłaszasz „nie mogę”`
+        : `Masz ${pluralPl(duties, ['dyżur', 'dyżury', 'dyżurów'])} w dni „nie mogę”`),
+      titleFor: (name: string, days: number, duties: number, roles: string, day: string) => (days === 1
+        ? `${name} ma dyżur ${roles} ${day}, a wpis to „nie mogę”`
+        : `${name} ma ${pluralPl(duties, ['dyżur', 'dyżury', 'dyżurów'])} w dni „nie mogę”`),
+      askForSwap: (count: number): string => (count === 1
+        ? 'Wpis nie zdejmuje dyżuru. Poproś kogoś o zamianę tego dnia.'
+        : 'Wpis nie zdejmuje dyżurów. Poproś kogoś o zamianę tych dni.'),
+      fixInSchedule: (count: number): string => (count === 1
+        ? 'Wpis nie zdejmuje dyżuru. Zmień obsadę tego dnia w grafiku.'
+        : 'Wpis nie zdejmuje dyżurów. Zmień obsadę tych dni w grafiku.'),
+      requestSwap: (day: string) => `Poproś o zamianę · ${day}`,
+      openDay: (day: string) => `Otwórz dzień · ${day}`,
+    },
     /** "Wpisujesz w imieniu: <b>name</b> · dostanie o tym powiadomienie…" - the name sits between the two parts. */
     onBehalfBefore: 'Wpisujesz w imieniu:',
     onBehalfAfter: 'dostanie o tym powiadomienie i może wpis usunąć.',
     notInRotation: 'Twoje konto nie jest w rotacji - wskaż osobę, w imieniu której wpisujesz.',
     cleared: (range: string) => `Wyczyszczono: ${range}`,
     saved: (range: string, kind: string) => `Zapisano: ${range} „${kind}”`,
+    undo: 'Cofnij',
+    undoFailed: (range: string) => `Nie cofnięto: ${range}. Spróbuj ponownie.`,
   },
   points: {
     heading: 'Moje punkty',

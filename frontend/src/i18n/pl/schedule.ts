@@ -147,6 +147,14 @@ export const schedule = {
     color: 'Kolor',
     addEvent: 'Dodaj wydarzenie',
   },
+  toast: {
+    changed: (day: string, role: string, previous: string, next: string) => `Zmieniono obsadę ${day} · ${role}: ${previous} → ${next}`,
+    filled: (role: string, day: string, name: string) => `Obsadzono ${role} ${day}: ${name}`,
+    emailBoth: 'E-mail o zmianie dostaną obie osoby.',
+    emailOne: (name: string) => `E-mail o dyżurze dostanie ${name}.`,
+    violationAudited: 'Naruszenie reguł zapisane w audycie.',
+    openDay: 'Otwórz dzień',
+  },
   confirm: {
     breaksRules: 'Ta korekta złamie reguły twarde',
     endsHandover: (from: string, to: string) => `Ta korekta zakończy przekazanie numeru on-call ${from} → ${to}. Numer wróci do osoby na PRIMARY, a obie strony dostaną e-mail.`,
@@ -155,7 +163,5 @@ export const schedule = {
     saveHistorical: 'Zapisz zmianę obsady…',
     historicalTitle: 'Potwierdź korektę historyczną',
     historicalReason: 'Powód korekty historycznej (minimum 10 znaków)',
-    deleteEventTitle: 'Usunąć wydarzenie?',
-    deleteEvent: (title: string) => `„${title}” zniknie ze wszystkich dni, na które je dodano. Tej operacji nie da się cofnąć.`,
   },
 }
