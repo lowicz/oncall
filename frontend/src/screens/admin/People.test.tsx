@@ -154,6 +154,22 @@ describe('PeoplePanel table', () => {
     await rowOf('anna')
   })
 
+  it('clears the search typed back and forth quickly when the address drops it, and Back brings it again', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby' })
+    await rowOf('anna')
+    const box = screen.getByRole('searchbox', { name: /Szukaj osoby/ }) as HTMLInputElement
+    for (const value of ['e', '', 'e']) fireEvent.change(box, { target: { value } })
+    await waitFor(() => expect(router.state.location.search).toBe('?szukaj=e'))
+    expect(box).toHaveValue('e')
+
+    await act(() => router.navigate('/osoby'))
+    expect(box).toHaveValue('')
+    await rowOf('anna')
+    await act(() => router.navigate(-1))
+    expect(box).toHaveValue('e')
+  })
+
   it('shows every account for a filter the URL names but the screen does not know', async () => {
     mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj', is_active: false })])
     renderScreen(<PeoplePanel />, { route: '/osoby?filtr=nieznany' })

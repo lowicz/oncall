@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useLocation, useNavigationType } from 'react-router-dom'
 import { AdminUser, AdminUserInput, AdminUserUpdate, AssignmentRole, Eligibility, TeamMember, UserRole, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
 import { DateField } from '../../components/DateField'
@@ -203,20 +204,15 @@ export function PeoplePanel() {
   const filter = filterOf(params.get('filtr'))
   const searchParam = params.get('szukaj') ?? ''
   // Typed into its own state, which a router update lags behind; the URL
-  // takes it back only after a change the screen did not write itself. Every
-  // write not yet seen is kept, as quick typing is ahead of the address by
-  // several letters and each earlier one still arrives on its way.
+  // takes it back only after a navigation the screen did not make itself. The
+  // screen only ever replaces its address, while a link pushes one and Back
+  // or Forward pops one.
   const [search, setSearch] = useState(searchParam)
-  const searchWrites = useRef<string[]>([])
+  const { key: locationKey } = useLocation()
+  const navigationType = useNavigationType()
   useEffect(() => {
-    const seen = searchWrites.current.indexOf(searchParam)
-    if (seen >= 0) {
-      searchWrites.current = searchWrites.current.slice(seen + 1)
-      return
-    }
-    searchWrites.current = []
-    setSearch(searchParam)
-  }, [searchParam])
+    if (navigationType !== 'REPLACE') setSearch(searchParam)
+  }, [locationKey, navigationType, searchParam])
   // Whose details the forms hold, so a person named by the URL gets them once.
   const filledFor = useRef<string | null>(null)
   // Undo runs after the save, when another person may be open in the panel.
@@ -552,7 +548,6 @@ export function PeoplePanel() {
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value)
-                searchWrites.current.push(event.target.value)
                 setDetails({ szukaj: event.target.value || null })
               }}
               className="sech-search"
