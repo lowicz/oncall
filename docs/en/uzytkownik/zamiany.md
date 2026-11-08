@@ -33,8 +33,8 @@ button (when the decision is yours) or **Preview** opens the request sheet.
 
 On a phone (a screen narrower than 900 px) the inbox is a list instead of a
 table: a row gives the day and the roles, who hands the duty to whom (“You”
-instead of your name) and whom the request is waiting for, with the status and
-the button on the right, within reach of the thumb.
+instead of your name) and whom the request is waiting for; the status sits
+beside the day and the button is on the right, within reach of the thumb.
 
 Closed requests load 50 at a time, newest first; the **Show older** button
 under the list loads the next ones. While there are older ones, the closed

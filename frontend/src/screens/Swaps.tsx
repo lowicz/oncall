@@ -441,8 +441,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // Until the policy is read, the screen words things the way the default
   // policy has them.
   const approvalRequired = swapPolicy.data?.coordinator_approval_required ?? true
-  // A coordinator has requests to approve only while the policy sends them any.
-  const approver = coordinator && approvalRequired
+  // A coordinator has requests to approve only while the policy sends them
+  // any, so nothing of the approval is drawn or fetched before it is read.
+  const approver = coordinator && swapPolicy.data?.coordinator_approval_required === true
   const linkedRole = searchParams.get('role') ?? searchParams.get('rola')
   const linkedDate = searchParams.get('date') ?? searchParams.get('data') ?? searchParams.get('dzien')
   const linkedDay = linkedDate && linkedRole ? linkedDate : ''
@@ -617,7 +618,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       execute: () => api.createSwap(input),
       undo: withdrawSent,
       toast,
-      message: () => ({ title }),
+      message: () => ({ title, expired: t.common.undoEmailsSent }),
       undoLabel: t.common.undo,
       onUndoError: (error) => toast.error(t.swaps.toasts.undoFailed, { description: (error as Error).message }),
       windowSeconds: undoWindow,
@@ -727,9 +728,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const openRules = openItem ? brokenRules(openItem) : []
   const sheetAcknowledged = sheetAcknowledgedFor === rulesKey(openRules)
   // What still keeps the request from being sent, said beside the button.
-  // Empty while the schedule is read: nothing is missing yet.
+  // Empty while the schedule is read, and when reading it failed: the form
+  // shows that error instead.
   let sendBlocker: string | null = null
-  if (!schedule?.id) sendBlocker = publishedSchedule.isPending ? '' : t.swaps.compose.status.noSchedule
+  if (!schedule?.id) sendBlocker = publishedSchedule.isPending || publishedSchedule.error ? '' : t.swaps.compose.status.noSchedule
   else if (!serviceDate) sendBlocker = t.swaps.compose.status.pickDuty
   else if (!replacementId) sendBlocker = t.swaps.compose.status.pickReplacement
   else if (verdict?.blocking_violations?.length) sendBlocker = t.swaps.compose.status.hardRule
@@ -969,6 +971,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             }
           }}
         >
+          {!schedule?.id && publishedSchedule.error && <ErrorState error={publishedSchedule.error} onRetry={() => publishedSchedule.refetch()} />}
           <Steps
             label={t.swaps.compose.step}
             steps={[

@@ -549,6 +549,16 @@ describe('SwapPanel new request', () => {
     expect(screen.getByRole('button', { name: 'Cofnij' })).toBeInTheDocument()
   })
 
+  it('says the e-mail has gone out once the window to undo the request closes', async () => {
+    await sendToPiotr()
+    // The pointer over the notifications keeps the toast open past the window.
+    fireEvent.mouseEnter(screen.getByText('Wysłano do: Piotr Zieliński').closest('.toasts') as HTMLElement)
+
+    await act(() => vi.advanceTimersByTimeAsync(10_100))
+    expect(await screen.findByText('E-maile już wyszły')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+  })
+
   it('only confirms the request while the length of the Undo window is unknown', async () => {
     await sendToPiotr({ undoWindowKnown: false })
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
@@ -556,13 +566,45 @@ describe('SwapPanel new request', () => {
 
   it('says in the footer that there is no published schedule to swap from', async () => {
     stubSchedule()
-    vi.spyOn(api, 'publishedSchedule').mockRejectedValue(new ApiError('Brak opublikowanego grafiku', 404))
+    // The endpoint answers 200 without an id while nothing is published.
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue({
+      generated_at: '2026-09-01T10:00:00Z',
+      is_published: false,
+      id: null,
+      version: null,
+      starts_on: null,
+      ends_on: null,
+      assignments: [],
+      current: [],
+      today_is_day_off: false,
+      today_holiday_name: null,
+    })
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
     fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
 
     const send = screen.getByRole('button', { name: 'Wyślij prośbę' })
     await waitFor(() => expect(send).toHaveAccessibleDescription('Brak opublikowanego grafiku.'))
     expect(send).toBeDisabled()
+  })
+
+  it('shows a schedule that could not be read as an error to retry, not as no schedule', async () => {
+    stubSchedule()
+    const published = vi.mocked(api.publishedSchedule)
+    const answer = await published()
+    published.mockReset().mockRejectedValueOnce(new ApiError('Serwer nie odpowiada', 503)).mockResolvedValue(answer)
+    renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+
+    const form = screen.getByRole('form', { name: 'Nowa prośba o zamianę' })
+    const alert = await within(form).findByRole('alert')
+    expect(alert).toHaveTextContent('Serwer nie odpowiada')
+    const send = screen.getByRole('button', { name: 'Wyślij prośbę' })
+    expect(send).toBeDisabled()
+    expect(screen.queryByText('Brak opublikowanego grafiku.')).not.toBeInTheDocument()
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Spróbuj ponownie' }))
+    await waitFor(() => expect(within(form).queryByRole('alert')).not.toBeInTheDocument())
+    expect(await screen.findByRole('option', { name: /PRIMARY/ })).toBeInTheDocument()
   })
 
   it('opens the form with the duty a link from "Moje" names', async () => {
@@ -1057,6 +1099,17 @@ describe('SwapPanel stages and sheets', () => {
     await waitFor(() => expect(api.swapPolicy).toHaveBeenCalled())
     expect(screen.queryByRole('columnheader', { name: /Skutek pkt/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/Etap zamiany zawsze mówi/)).not.toBeInTheDocument()
+    expect(impactCall).not.toHaveBeenCalled()
+  })
+
+  it('draws and projects nothing of the approval for a coordinator before the policy is read', async () => {
+    stub([swap({ id: '1', replacement_member_id: 'p1', status: 'pending_coordinator' })])
+    vi.mocked(api.swapPolicy).mockReturnValue(new Promise(() => {}))
+    const impactCall = vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
+    renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />, { route: '/zamiany?skrzynka=w-toku' })
+
+    await screen.findByRole('row', { name: /pon 14 wrz/ })
+    expect(screen.queryByRole('columnheader', { name: /Skutek pkt/ })).not.toBeInTheDocument()
     expect(impactCall).not.toHaveBeenCalled()
   })
 

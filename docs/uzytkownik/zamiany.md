@@ -30,8 +30,8 @@ decyzja należy do Ciebie) albo **Podgląd** otwiera arkusz sprawy.
 
 Na telefonie (ekran węższy niż 900 px) skrzynka jest listą zamiast tabeli:
 wiersz podaje dzień i role, kto komu oddaje dyżur („Ty” zamiast Twojego
-nazwiska) i na kogo sprawa czeka, a status i przycisk są po prawej, w zasięgu
-kciuka.
+nazwiska) i na kogo sprawa czeka; status stoi obok dnia, a przycisk jest po
+prawej, w zasięgu kciuka.
 
 Zamknięte wnioski wczytują się po 50, od najnowszych; przycisk **Pokaż
 starsze** pod listą wczytuje kolejne. Dopóki są starsze, licznik zamkniętych w
