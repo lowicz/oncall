@@ -15,7 +15,10 @@ export const formatPoints = (value: number, digits = 1) =>
 /** 0.03 -> 0, 3.04 -> 3 - the value a point figure prints as, for the sign, the tone and the verdict that go with it. */
 export const printedPoints = (value: number, digits = 1) => Number(value.toFixed(digits))
 
-const withSign = (printed: number, digits: string) => `${printed > 0 ? '+' : printed < 0 ? '−' : ''}${digits}`
+const withSign = (printed: number, digits: string) => {
+  if (printed > 0) return `+${digits}`
+  return printed < 0 ? `−${digits}` : digits
+}
 
 /** "+0,5", "−1,9", "0" - a deviation with its sign, as the report prints it: the sign of the printed value and a true minus. */
 export function signed(value: number) {

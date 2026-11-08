@@ -13,7 +13,10 @@ export const generator: Messages['generator'] = {
     statusPill: (status: string, version: number) => `${status} · v${version}`,
     summary: (assignments: number, days: number, rotation: string) =>
       `${pluralEn(assignments, ['assignment', 'assignments'])} over ${pluralEn(days, ['day', 'days'])} · ${rotation}`,
-    solverStatus: (status: string): string => (status === 'OPTIMAL' ? 'optimal solution' : status === 'FEASIBLE' ? 'best found within the time limit' : 'no complete solution'),
+    solverStatus: (status: string): string => {
+      if (status === 'OPTIMAL') return 'optimal solution'
+      return status === 'FEASIBLE' ? 'best found within the time limit' : 'no complete solution'
+    },
     solverDetails: 'Solver details',
     solverEngine: (status: string) => `CP-SAT: ${status}`,
     newDraft: 'Generate a new draft',

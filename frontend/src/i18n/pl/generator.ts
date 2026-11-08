@@ -19,7 +19,10 @@ export const generator = {
     summary: (assignments: number, days: number, rotation: string) =>
       `${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])} w ${pluralPl(days, ['dniu', 'dniach', 'dniach'])} · ${rotation}`,
     /** The solver's verdict in words; the engine's own status code is in `solverDetails`. */
-    solverStatus: (status: string): string => (status === 'OPTIMAL' ? 'rozwiązanie optymalne' : status === 'FEASIBLE' ? 'najlepsze znalezione w limicie czasu' : 'bez pełnego rozwiązania'),
+    solverStatus: (status: string): string => {
+      if (status === 'OPTIMAL') return 'rozwiązanie optymalne'
+      return status === 'FEASIBLE' ? 'najlepsze znalezione w limicie czasu' : 'bez pełnego rozwiązania'
+    },
     solverDetails: 'Szczegóły solvera',
     solverEngine: (status: string) => `CP-SAT: ${status}`,
     newDraft: 'Generuj nowy szkic',

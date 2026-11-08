@@ -23,6 +23,13 @@ function missingRoles(result: DraftSchedule, serviceDate: string): AssignmentRol
   return REQUIRED_ROLES.filter((role) => !result.assignments.some((item) => item.service_date === serviceDate && item.role === role))
 }
 
+/** The member and day a problems-table focus points at, once the calendar has loaded. */
+function focusTarget(focus: DraftFocus, data?: CalendarData) {
+  const member = data?.members.find((item) => item.display_name === focus.assignee_name)
+  const day = data?.days.find((item) => item.service_date === focus.service_date)
+  return member && day ? { member, day } : null
+}
+
 /** The one member with this name; none when it is missing or shared, so Undo never puts back the wrong person. */
 function soleMember(members: Member[], name?: string) {
   const matches = members.filter((item) => item.display_name === name)
@@ -98,12 +105,11 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   // The problems table hands over a cell to open; each focus is consumed once.
   const consumed = useRef<DraftFocus | null>(null)
   useEffect(() => {
-    if (!focus || !metadata.data || consumed.current === focus) return
-    const member = metadata.data.members.find((item) => item.display_name === focus.assignee_name)
-    const day = metadata.data.days.find((item) => item.service_date === focus.service_date)
-    if (!member || !day) return
+    if (!focus || consumed.current === focus) return
+    const target = focusTarget(focus, metadata.data)
+    if (!target) return
     consumed.current = focus
-    setSelected({ member, day })
+    setSelected(target)
     setSelectedRole(focus.role)
   }, [focus, metadata.data])
 
