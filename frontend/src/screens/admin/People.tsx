@@ -419,19 +419,21 @@ export function PeoplePanel() {
       if (!rotation.on) return { user, url, roles: [] }
       // The account exists by now and its link is shown only once, so a
       // refused rotation is reported beside the link, to finish on the tab.
-      let member: TeamMember | undefined
-      const roles: AssignmentRole[] = []
+      let member: TeamMember
       try {
         member = await api.createTeamMember({ user_id: user.id, active_from: rotation.from })
-        for (const role of inRoleOrder(rotation.roles)) {
-          await api.createEligibility({ memberId: member.id, input: { role, starts_on: rotation.from, ends_on: null } })
-          roles.push(role)
-        }
-        return { user, url, member, roles }
       } catch (error) {
-        const missing = inRoleOrder(rotation.roles).filter((role) => !roles.includes(role))
-        return { user, url, member, roles, missing, rotationError: (error as Error).message }
+        return { user, url, roles: [], rotationError: (error as Error).message }
       }
+      // Each role is its own period, so they are created side by side.
+      const picked = inRoleOrder(rotation.roles)
+      const results = await Promise.allSettled(picked.map((role) =>
+        api.createEligibility({ memberId: member.id, input: { role, starts_on: rotation.from, ends_on: null } })))
+      const roles = picked.filter((_, index) => results[index].status === 'fulfilled')
+      const refused = results.find((result) => result.status === 'rejected')
+      if (!refused) return { user, url, member, roles }
+      const missing = picked.filter((_, index) => results[index].status === 'rejected')
+      return { user, url, member, roles, missing, rotationError: (refused.reason as Error).message }
     },
     onSuccess: (result, { input }) => {
       setCreated(result)
@@ -553,32 +555,29 @@ export function PeoplePanel() {
     // One role's periods may not overlap, so what ends goes first.
     if (removals.length > 0) {
       await undoable({
-        execute: async () => {
-          for (const { item, edit } of removals) {
-            if (edit) await api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on } })
-            else await api.deleteEligibility(item.id)
-          }
-        },
+        // Each removal touches its own period, so they run side by side.
+        execute: () => Promise.all(removals.map(({ item, edit }) => (edit
+          ? api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on } })
+          : api.deleteEligibility(item.id)))),
         undo: async () => {
-          for (const { item, edit } of removals) {
-            if (edit) await api.updateEligibility({ id: item.id, input: { starts_on: item.starts_on, ends_on: item.ends_on } })
-            else await api.createEligibility({ memberId: member.id, input: { role: item.role, starts_on: item.starts_on, ends_on: item.ends_on } })
-          }
+          await Promise.all(removals.map(({ item, edit }) => (edit
+            ? api.updateEligibility({ id: item.id, input: { starts_on: item.starts_on, ends_on: item.ends_on } })
+            : api.createEligibility({ memberId: member.id, input: { role: item.role, starts_on: item.starts_on, ends_on: item.ends_on } }))))
           refresh()
         },
         message: () => ({ title: removals.map(removalTitle).join(' · ') }),
       })
     }
-    for (const entry of periodEdits) {
-      if (entry.edit && !removals.includes(entry)) {
-        await api.updateEligibility({ id: entry.item.id, input: { starts_on: entry.edit.starts_on, ends_on: entry.edit.ends_on || null } })
-      }
-    }
-    for (const period of newPeriods) {
-      await api.createEligibility({ memberId: member.id, input: { role: period.role, starts_on: period.starts_on, ends_on: period.ends_on || null } })
-      // A retry after a later refusal must not create this one again.
-      setNewPeriods((current) => current.filter((entry) => entry !== period))
-    }
+    await Promise.all(periodEdits.flatMap(({ item, edit }) => (edit && !removals.some((entry) => entry.item === item)
+      ? [api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } })]
+      : [])))
+    const results = await Promise.allSettled(newPeriods.map((period) =>
+      api.createEligibility({ memberId: member.id, input: { role: period.role, starts_on: period.starts_on, ends_on: period.ends_on || null } })))
+    // A retry after a refusal must not create the saved ones again.
+    const saved = newPeriods.filter((_, index) => results[index].status === 'fulfilled')
+    setNewPeriods((current) => current.filter((entry) => !saved.includes(entry)))
+    const refused = results.find((result) => result.status === 'rejected')
+    if (refused) throw refused.reason
   }
   const saveChanges = async ({ user, member }: Row, offboard: boolean) => {
     const tasks: Array<Promise<unknown>> = []
