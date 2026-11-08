@@ -94,35 +94,38 @@ export function MatrixControls({
   return (
     <>
       {showRange && (
-        <>
-          <Segmented<MatrixZoom>
-            label={t.controls.rangeLength}
-            value={zoom}
-            onChange={onZoom}
-            options={[
-              { value: '2', label: t.controls.weeks(2) },
-              { value: '4', label: t.controls.weeks(4) },
-              { value: '8', label: t.controls.weeks(8) },
-            ]}
-          />
-          <span className="row row-gap-4">
+        <Segmented<MatrixZoom>
+          label={t.controls.rangeLength}
+          value={zoom}
+          onChange={onZoom}
+          options={[
+            { value: '2', label: t.controls.weeks(2) },
+            { value: '4', label: t.controls.weeks(4) },
+            { value: '8', label: t.controls.weeks(8) },
+          ]}
+        />
+      )}
+      {/* The arrows and the menu wrap as one group on a narrow screen. */}
+      <span className="row row-gap-4">
+        {showRange && (
+          <>
             <IconButton size="sm" label={t.controls.weekBack} icon="chevron-left" disabled={!canShiftBack} onClick={() => onShift(-7)} />
             <Button size="sm" onClick={onToday}>{t.controls.today}</Button>
             <IconButton size="sm" label={t.controls.weekForward} icon="chevron-right" disabled={!canShiftForward} onClick={() => onShift(7)} />
-          </span>
-        </>
-      )}
-      <Menu trigger={<IconButton ref={more} size="sm" label={t.controls.more} icon="more" />}>
-        <MenuCheckboxItem checked={hideIdle} onChange={onHideIdle}>{t.controls.onlyOnDuty}</MenuCheckboxItem>
-        <MenuCheckboxItem checked={view === 'list'} onChange={(list) => onView(list ? 'list' : 'matrix')}>{t.controls.dayList}</MenuCheckboxItem>
-        <MenuItem onClick={() => setLegendOpen(true)}>{t.controls.legend}</MenuItem>
-        {icsExport && (
-          <>
-            <MenuSeparator />
-            <MenuLink to="/moje#ics">{t.actions.exportIcs}</MenuLink>
           </>
         )}
-      </Menu>
+        <Menu trigger={<IconButton ref={more} size="sm" label={t.controls.more} icon="more" />}>
+          <MenuCheckboxItem checked={hideIdle} onChange={onHideIdle}>{t.controls.onlyOnDuty}</MenuCheckboxItem>
+          <MenuCheckboxItem checked={view === 'list'} onChange={(list) => onView(list ? 'list' : 'matrix')}>{t.controls.dayList}</MenuCheckboxItem>
+          <MenuItem onClick={() => setLegendOpen(true)}>{t.controls.legend}</MenuItem>
+          {icsExport && (
+            <>
+              <MenuSeparator />
+              <MenuLink to="/moje#ics">{t.actions.exportIcs}</MenuLink>
+            </>
+          )}
+        </Menu>
+      </span>
       <LegendPopover showAvailability={showAvailability} gridKeys={view === 'matrix'} open={legendOpen} onOpenChange={setLegendOpen} anchor={more} />
     </>
   )
