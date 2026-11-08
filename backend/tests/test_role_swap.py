@@ -79,7 +79,7 @@ async def test_a_role_swap_is_checked_saved_and_told_as_one_decision(
         json={"batches": [{"schedule_id": str(schedule_id), "assignments": swap}]},
     )
     assert checked.status_code == 200, checked.text
-    assert checked.json() == []
+    assert checked.json() == {"violations": [], "ends_handover": None}
 
     saved = await client.post(
         "/api/v1/calendar/override/batch",
