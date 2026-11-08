@@ -1574,6 +1574,79 @@ describe('PeoplePanel rotation tab', () => {
     await waitFor(() => expect(within(dialog).getByText('Niezapisane: e-mail')).toBeInTheDocument())
   })
 
+  describe('a later entry date with the dialog ahead and a period running into it removed', () => {
+    const prepare = async () => {
+      mockData([user({ id: 'u1', phone: '+48 1' })])
+      const server = rotationServer(member({ id: 'm1', active_from: '2026-12-01', eligibility: [
+        { id: 'e1', role: 'primary', starts_on: '2026-12-01', ends_on: null },
+        { id: 'e2', role: 'secondary', starts_on: '2026-12-01', ends_on: null },
+      ] }))
+      noDutiesAfterExit()
+      renderScreen(<PeoplePanel />)
+      const dialog = await openRotation()
+      fireEvent.change(within(dialog).getByLabelText('Wejście od'), { target: { value: '2026-12-15' } })
+      fireEvent.change(within(dialog).getByLabelText(/^Wyjście do/), { target: { value: '2027-06-30' } })
+      fireEvent.click(within(qualification(dialog, 'PRIMARY')).getByRole('button', { name: 'Edytuj: PRIMARY' }))
+      fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '2026-12-15' } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gotowe' }))
+      fireEvent.click(within(qualification(dialog, 'SECONDARY')).getByRole('button', { name: 'Usuń: SECONDARY' }))
+      // A deleted period needs no new start, so nothing holds the entry date back.
+      expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+      await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Zapisz (4)' })).toBeEnabled())
+      return { ...server, dialog }
+    }
+
+    it('deletes it first, then moves the other start and the entry date before the dialog', async () => {
+      const { membership, periods, dialog } = await prepare()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (4)' }))
+
+      await screen.findByRole('dialog', { name: 'Zakończenie rotacji: Anna Kowalska' })
+      const remove = vi.mocked(api.deleteEligibility)
+      expect(remove.mock.calls).toEqual([['e2']])
+      expect(periods.mock.calls.map(([call]) => call)).toEqual([{ id: 'e1', input: { starts_on: '2026-12-15', ends_on: null } }])
+      expect(membership.mock.calls.map(([call]) => call)).toEqual([{ id: 'm1', input: { active_from: '2026-12-15' } }])
+      expect(remove.mock.invocationCallOrder[0]).toBeLessThan(periods.mock.invocationCallOrder[0])
+      expect(periods.mock.invocationCallOrder[0]).toBeLessThan(membership.mock.invocationCallOrder[0])
+      expect(screen.getByRole('button', { name: 'Cofnij' })).toBeInTheDocument()
+    })
+
+    it('shows why the server kept it, keeps the draft and sends nothing after the refusal', async () => {
+      const { membership, periods, dialog } = await prepare()
+      vi.mocked(api.deleteEligibility).mockRejectedValue(new Error('Zmiana eligibility pozostawiłaby opublikowane dyżury bez uprawnień.'))
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (4)' }))
+
+      expect(await within(dialog).findByText('Zmiana eligibility pozostawiłaby opublikowane dyżury bez uprawnień.')).toBeInTheDocument()
+      expect(periods).not.toHaveBeenCalled()
+      expect(membership).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog', { name: /Zakończenie rotacji/ })).not.toBeInTheDocument()
+      expect(within(dialog).getByText('Niezapisane: wejście do rotacji: 15-12-2026 · wyjście z rotacji: 30-06-2027 · okres PRIMARY · usunięcie okresu SECONDARY')).toBeInTheDocument()
+      expect(within(dialog).getByLabelText('Wejście od')).toHaveValue('2026-12-15')
+    })
+  })
+
+  it('saves a qualification ended today before a later entry date and shows why the server keeps the date', async () => {
+    mockData([user({ id: 'u1', phone: '+48 1' })])
+    const { membership, periods } = rotationServer(member({ id: 'm1' }))
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRotation()
+
+    fireEvent.change(within(dialog).getByLabelText('Wejście od'), { target: { value: '2025-10-01' } })
+    fireEvent.click(within(qualification(dialog, 'PRIMARY')).getByRole('button', { name: 'Edytuj: PRIMARY' }))
+    fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '2025-10-01' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gotowe' }))
+    fireEvent.click(within(qualification(dialog, '11–19')).getByRole('button', { name: 'Zakończ dziś: 11–19' }))
+    // An ended period is not told to move its start; Save is open.
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (3)' }))
+
+    // The ending goes first; the period still starts before the new date, so the server keeps the old one.
+    expect(await within(dialog).findByText('Okresy eligibility muszą mieścić się w okresie członkostwa w rotacji')).toBeInTheDocument()
+    expect(periods.mock.calls[0][0]).toEqual({ id: 'e2', input: { starts_on: '2025-09-02', ends_on: '2026-09-09' } })
+    expect(membership.mock.calls.map(([call]) => call)).toEqual([{ id: 'm1', input: { active_from: '2025-10-01' } }])
+    expect(membership.mock.invocationCallOrder[0]).toBeGreaterThan(Math.max(...periods.mock.invocationCallOrder))
+    await waitFor(() => expect(within(dialog).getByText('Niezapisane: wejście do rotacji: 01-10-2025')).toBeInTheDocument())
+  })
+
   describe('a later entry date with the dialog ahead and a period wholly before it', () => {
     const entering = () => member({ id: 'm1', active_from: '2026-12-01', eligibility: [
       { id: 'e1', role: 'primary', starts_on: '2026-12-01', ends_on: '2026-12-10' },

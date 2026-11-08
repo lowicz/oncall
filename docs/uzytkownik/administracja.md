@@ -39,7 +39,9 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   mieści się w rotacji, więc późniejszej daty wejścia nie da się zapisać,
   dopóki któryś okres zaczyna się wcześniej: pole „Wejście od” wymienia wtedy
   jego rolę, a przesunięty w tym samym zapisie początek okresu zapisuje się
-  przed nową datą. Stan rotacji pokazuje znacznik w nagłówku panelu,
+  przed nową datą. Usunięcie albo zakończenie takiego okresu też zapisuje się
+  najpierw; jeśli serwer go odmówi, panel podaje powód i zostawia zmiany do
+  dokończenia. Stan rotacji pokazuje znacznik w nagłówku panelu,
 - **Dostęp** - rola konta, przełącznik „Konto włączone” i, dla konta
   lokalnego, **jednorazowy link** resetu hasła albo - dopóki konto czeka na
   aktywację - nowy link aktywacyjny.

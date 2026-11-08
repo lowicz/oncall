@@ -40,7 +40,9 @@ Clicking a person (or **Open**) opens a panel with three tabs:
   rotation…** button (see below). Every period lies inside the rotation, so a
   later entry date cannot be saved while some period starts earlier: the
   “Entry from” field then names its role, and a period start moved in the
-  same save is saved before the new date. A badge in the panel header shows
+  same save is saved before the new date. Deleting or ending such a period is
+  saved first too; if the server refuses, the panel gives the reason and keeps
+  the changes to finish. A badge in the panel header shows
   the rotation state,
 - **Access** - the account role, the “Account enabled” switch and, for a
   local account, a **one-time** password reset link or - as long as the

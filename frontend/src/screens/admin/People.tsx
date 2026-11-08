@@ -503,22 +503,23 @@ export function PeoplePanel() {
   const exitCutsPeriods = exitPending && selectedRow!.member!.eligibility
     .some((period) => !period.ends_on || period.ends_on > rotationUntil)
   const needsOffboarding = exitPending && (exitCutsPeriods || exitDuties.duties.length > 0 || exitDuties.calendar.isError)
-  const endsBeforeEntry = (item: Eligibility) => item.ends_on !== null && item.ends_on < rotationFrom
   // With the dialog ahead only what a later entry date needs is saved before
   // it (a saved period never starts before the saved entry date): a period
-  // wholly before the new date goes or moves as edited, and one running into
-  // it takes its new start with the saved end, unless that end comes first.
+  // starting before the new date is deleted or ended as edited, moves as
+  // edited when its saved end comes before the new start, and otherwise
+  // takes its new start with the saved end.
   const entryEdits = periodEdits.flatMap(({ item, edit }): typeof periodEdits => {
     if (item.starts_on >= rotationFrom) return []
-    if (!edit) return endsBeforeEntry(item) ? [{ item, edit }] : []
-    return [{ item, edit: item.ends_on !== null && item.ends_on < edit.starts_on ? edit : { starts_on: edit.starts_on, ends_on: item.ends_on ?? '' } }]
+    if (isRemoval({ edit }) || (item.ends_on !== null && item.ends_on < edit!.starts_on)) return [{ item, edit }]
+    return [{ item, edit: { starts_on: edit!.starts_on, ends_on: item.ends_on ?? '' } }]
   })
   // The server keeps every period inside the rotation, so a later entry date
-  // waits until no period, as this save leaves it, starts before it.
+  // waits until no period, as this save leaves it, starts before it; a
+  // removal goes first and the server answers for what it leaves.
   const earlyRoles = entryChanges.length === 0 ? [] : inRoleOrder([
     ...selectedRow!.member!.eligibility.flatMap((item) => {
       const edit = eligibilityEdits[item.id]
-      return edit === null && (!needsOffboarding || endsBeforeEntry(item)) ? [] : [{ role: item.role, starts_on: edit ? edit.starts_on : item.starts_on }]
+      return edit !== undefined && isRemoval({ edit }) ? [] : [{ role: item.role, starts_on: edit ? edit.starts_on : item.starts_on }]
     }),
     ...newPeriods,
   ].filter((period) => period.starts_on < rotationFrom).map((period) => period.role))
