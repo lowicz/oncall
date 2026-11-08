@@ -503,26 +503,23 @@ export function PeoplePanel() {
   const exitCutsPeriods = exitPending && selectedRow!.member!.eligibility
     .some((period) => !period.ends_on || period.ends_on > rotationUntil)
   const needsOffboarding = exitPending && (exitCutsPeriods || exitDuties.duties.length > 0 || exitDuties.calendar.isError)
-  // With the dialog ahead only what a later entry date needs is saved before
-  // it (a saved period never starts before the saved entry date): a period
-  // starting before the new date is deleted or ended as edited, moves as
-  // edited when its saved end comes before the new start, and otherwise
-  // takes its new start with the saved end.
-  const entryEdits = periodEdits.flatMap(({ item, edit }): typeof periodEdits => {
-    if (item.starts_on >= rotationFrom) return []
-    if (isRemoval({ edit }) || (item.ends_on !== null && item.ends_on < edit!.starts_on)) return [{ item, edit }]
-    return [{ item, edit: { starts_on: edit!.starts_on, ends_on: item.ends_on ?? '' } }]
-  })
   // The server keeps every period inside the rotation, so a later entry date
-  // waits until no period, as this save leaves it, starts before it; a
-  // removal goes first and the server answers for what it leaves.
-  const earlyRoles = entryChanges.length === 0 ? [] : inRoleOrder([
-    ...selectedRow!.member!.eligibility.flatMap((item) => {
-      const edit = eligibilityEdits[item.id]
-      return edit !== undefined && isRemoval({ edit }) ? [] : [{ role: item.role, starts_on: edit ? edit.starts_on : item.starts_on }]
-    }),
-    ...newPeriods,
-  ].filter((period) => period.starts_on < rotationFrom).map((period) => period.role))
+  // is saved on its own, with only the deletions of periods that end before
+  // it; every other rotation change waits for a save of its own.
+  const entryLater = Boolean(selectedRow?.member) && rotationFrom > selectedRow!.member!.active_from
+  const entryDeletions = periodEdits.filter(({ item, edit }) => edit === null && item.ends_on !== null && item.ends_on < rotationFrom)
+  const entryBlockers = entryLater ? [
+    ...exitChanges,
+    ...periodEdits.filter((entry) => !entryDeletions.includes(entry)).map(periodChange),
+    ...newPeriods.map(newPeriodChange),
+  ] : []
+  // A saved period starting before the new date keeps it from being saved;
+  // one deleted in this save is named by the note above instead.
+  const earlyRoles = entryLater
+    ? inRoleOrder(selectedRow!.member!.eligibility
+      .filter((item) => item.starts_on < rotationFrom && eligibilityEdits[item.id] !== null)
+      .map((item) => item.role))
+    : []
   const unsavedChanges = useUnsavedChanges(dirty)
   // The panel's own moves in the URL leave nothing unsaved behind: the
   // guard asks before the panel changes person, not on every tab.
@@ -587,9 +584,12 @@ export function PeoplePanel() {
           // A period put back may start before the later entry date this save
           // set, so the saved entry date comes back first.
           if (narrowsEntry) await api.updateTeamMember({ id: member.id, input: { active_from: member.active_from } })
+          // An exit date saved since then caps what comes back.
+          const until = queryClient.getQueryData<TeamMember[]>(['team'])!.find((entry) => entry.id === member.id)!.active_until
+          const end = (value: string | null) => (until !== null && (value === null || value > until) ? until : value)
           await Promise.all(removals.map(({ item, edit }) => (edit
-            ? api.updateEligibility({ id: item.id, input: { starts_on: item.starts_on, ends_on: item.ends_on } })
-            : api.createEligibility({ memberId: member.id, input: { role: item.role, starts_on: item.starts_on, ends_on: item.ends_on } }))))
+            ? api.updateEligibility({ id: item.id, input: { starts_on: item.starts_on, ends_on: end(item.ends_on) } })
+            : api.createEligibility({ memberId: member.id, input: { role: item.role, starts_on: item.starts_on, ends_on: end(item.ends_on) } }))))
           if (narrowsEntry && openedId.current === member.user_id) setRotationFrom(member.active_from)
           refresh()
         },
@@ -606,26 +606,26 @@ export function PeoplePanel() {
     const refused = results.find((result) => result.status === 'rejected')
     if (refused) throw refused.reason
   }
-  // The server refuses any step that leaves a period outside the rotation,
-  // so the rotation first widens to cover the saved and the new dates, the
-  // periods change inside it, and only then it narrows to the new dates.
   const saveRotation = async (member: TeamMember, offboard: boolean) => {
-    const widen: { active_from?: string; active_until?: string | null } = {}
-    const narrow: typeof widen = {}
-    if (rotationFrom !== member.active_from) (rotationFrom < member.active_from ? widen : narrow).active_from = rotationFrom
-    // The dialog saves the exit date itself once the duties are rewritten.
-    const until = rotationUntil || null
-    if (!offboard && until !== member.active_until) {
-      (until === null || (member.active_until !== null && until > member.active_until) ? widen : narrow).active_until = until
+    if (entryLater) {
+      await saveEligibility(member, true, entryDeletions, [])
+      await api.updateTeamMember({ id: member.id, input: { active_from: rotationFrom } })
+      return
     }
-    if (Object.keys(widen).length > 0) await api.updateTeamMember({ id: member.id, input: widen })
+    // An earlier entry date or a later exit date makes room for the periods,
+    // and an earlier exit date leaves them inside, so the rotation goes
+    // first. The dialog saves the exit date itself once the duties are
+    // rewritten.
+    const input = {
+      ...(entryChanges.length > 0 && { active_from: rotationFrom }),
+      ...(!offboard && exitChanges.length > 0 && { active_until: rotationUntil || null }),
+    }
+    if (Object.keys(input).length > 0) await api.updateTeamMember({ id: member.id, input })
     // The server refuses to end a qualification its published duties still
-    // need, so with the dialog ahead the other qualification changes wait:
-    // the dialog closes the periods at the exit date, and what is left stays
+    // need, so with the dialog ahead the qualification changes wait: the
+    // dialog closes the periods at the exit date, and what is left stays
     // listed for the next save.
-    const narrowsEntry = narrow.active_from !== undefined
-    await (offboard ? saveEligibility(member, narrowsEntry, entryEdits, []) : saveEligibility(member, narrowsEntry, periodEdits, newPeriods))
-    if (Object.keys(narrow).length > 0) await api.updateTeamMember({ id: member.id, input: narrow })
+    if (!offboard) await saveEligibility(member, false, periodEdits, newPeriods)
   }
   const saveChanges = async ({ user, member }: Row, offboard: boolean) => {
     if (member && periodEdits.some(({ edit }) => edit && !edit.starts_on)) throw new Error(t.errors.periodNeedsStart)
@@ -656,7 +656,7 @@ export function PeoplePanel() {
       const offboard = needsOffboarding
       // What the dialog saves, or a removal's own Undo toast names, is not listed here.
       const others = offboard
-        ? [...accountChanges, ...entryChanges, ...entryEdits.filter((entry) => !isRemoval(entry)).map(periodChange)]
+        ? [...accountChanges, ...entryChanges]
         : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !removals.includes(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
       if (accessChanges.length === 0) {
         const updated = await saveChanges(row, offboard)
@@ -1056,7 +1056,7 @@ export function PeoplePanel() {
                 <Button size="sm" onClick={requestClose}>{m.common.close}</Button>
               </>
             )}
-            <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending || exitChecking || earlyRoles.length > 0} loading={saveAll.isPending}>
+            <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending || exitChecking || earlyRoles.length > 0 || entryBlockers.length > 0} loading={saveAll.isPending}>
               {saveAll.isPending ? m.common.saving : dirty ? t.details.saveCount(pendingChanges.length) : t.details.save}
             </Button>
           </>
@@ -1135,6 +1135,7 @@ export function PeoplePanel() {
                             : exitCutsPeriods ? t.rotationTab.periodsAfterExit : t.rotationTab.exitHint}
                       />
                     </div>
+                    {entryBlockers.length > 0 && <Box tone="warn" role="status" title={t.rotationTab.entrySavedAlone(entryBlockers.join(', '))} />}
                     <SectionHeading
                       as="h3"
                       className="sech-sub"

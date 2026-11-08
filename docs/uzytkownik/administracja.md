@@ -36,12 +36,12 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   (dla każdej roli jej bieżące i przyszłe okresy albo wiersz „brak
   kwalifikacji” z przyciskiem **Dodaj**, na końcu okresy minione jako
   historia) i przycisk **Zakończ rotację…** (patrz niżej). Każdy okres
-  mieści się w rotacji, więc późniejszej daty wejścia nie da się zapisać,
-  dopóki któryś okres zaczyna się wcześniej: pole „Wejście od” wymienia wtedy
-  jego rolę, a przesunięty w tym samym zapisie początek okresu zapisuje się
-  przed nową datą. Usunięcie albo zakończenie takiego okresu też zapisuje się
-  najpierw; jeśli serwer go odmówi, panel podaje powód i zostawia zmiany do
-  dokończenia. Stan rotacji pokazuje znacznik w nagłówku panelu,
+  mieści się w rotacji, więc późniejszą datę wejścia zapisuje się osobno:
+  razem z nią można zapisać tylko usunięcie okresów, które kończą się przed
+  nią, a o innych zmianach rotacji panel mówi, że trzeba je zapisać oddzielnie.
+  Dopóki któryś zapisany okres zaczyna się przed nową datą, pole „Wejście od”
+  wymienia jego rolę: najpierw zapisz osobno nowy początek tego okresu albo
+  jego usunięcie. Stan rotacji pokazuje znacznik w nagłówku panelu,
 - **Dostęp** - rola konta, przełącznik „Konto włączone” i, dla konta
   lokalnego, **jednorazowy link** resetu hasła albo - dopóki konto czeka na
   aktywację - nowy link aktywacyjny.
@@ -76,7 +76,8 @@ dopisek „zmieniony, niezapisany” (albo „usunięty”, „nowy”) i przyci
 **Przywróć**. Po zapisie zakończenie albo usunięcie okresu pokazuje
 komunikat z przyciskiem **Cofnij**, który przywraca poprzednie daty albo
 odtwarza usunięty okres; gdy ten sam zapis przesunął wejście do rotacji na
-później, **Cofnij** przywraca też poprzednią datę wejścia.
+później, **Cofnij** przywraca też poprzednią datę wejścia. Przywrócony okres
+kończy się najpóźniej w dniu wyjścia z rotacji.
 
 ### Konta oczekujące na aktywację
 
@@ -122,8 +123,7 @@ wejścia i otwiera okno zakończenia rotacji, które dla każdego dyżuru wybier
 zastępcę. To samo okno otwiera **Zapisz**, gdy kwalifikacje trwają dłużej niż
 do daty wyjścia, bo żaden okres nie może wyjść poza rotację; podpowiedź pod
 polem mówi wtedy, że zapis je zamknie. Data wyjścia zapisuje się dopiero w tym oknie; zamknięcie go
-zostawia ją na liście niezapisanych zmian. Zmiany kwalifikacji, poza tymi,
-których wymaga późniejsza data wejścia, też czekają, bo
+zostawia ją na liście niezapisanych zmian. Zmiany kwalifikacji też czekają, bo
 serwer nie pozwala zakończyć kwalifikacji, której potrzebują jeszcze
 opublikowane dyżury: okno samo zamyka okresy z dniem wyjścia, a to, co z tych
 zmian zostanie, zapisuje kolejne **Zapisz** - okresy kończą się najpóźniej w

@@ -163,8 +163,9 @@ export const people = {
       `Po tej dacie ${pluralFormPl(count, ['jest', 'są', 'jest'])} ${pluralPl(count, ['opublikowany dyżur', 'opublikowane dyżury', 'opublikowanych dyżurów'])}; zapis poprowadzi przez wybór zastępców.`,
     periodsAfterExit: 'Kwalifikacje trwają dłużej; zapis zamknie je z tym dniem.',
     periodsBeforeEntry: (roles: string, count: number) => count === 1
-      ? `Kwalifikacja ${roles} zaczyna się przed tą datą; przesuń jej początek.`
-      : `Kwalifikacje ${roles} zaczynają się przed tą datą; przesuń ich początek.`,
+      ? `Kwalifikacja ${roles} zaczyna się przed tą datą; najpierw zapisz osobno nowy początek tego okresu albo jego usunięcie.`
+      : `Kwalifikacje ${roles} zaczynają się przed tą datą; najpierw zapisz osobno nowe początki tych okresów albo ich usunięcie.`,
+    entrySavedAlone: (changes: string) => `Późniejszą datę wejścia zapisz osobno, bez innych zmian rotacji: ${changes}.`,
     qualificationsTitle: 'Kwalifikacje',
     savedWithSave: 'zapis z przyciskiem „Zapisz”',
     addPeriod: 'Dodaj okres',

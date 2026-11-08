@@ -38,11 +38,11 @@ Clicking a person (or **Open**) opens a panel with three tabs:
   (for each role its current and future periods or a “no qualification” row
   with an **Add** button, past periods last as history) and the **End the
   rotation…** button (see below). Every period lies inside the rotation, so a
-  later entry date cannot be saved while some period starts earlier: the
-  “Entry from” field then names its role, and a period start moved in the
-  same save is saved before the new date. Deleting or ending such a period is
-  saved first too; if the server refuses, the panel gives the reason and keeps
-  the changes to finish. A badge in the panel header shows
+  later entry date is saved on its own: only deleting periods that end before
+  it can be saved with it, and the panel says to save other rotation changes
+  separately. While some saved period starts before the new date, the “Entry
+  from” field names its role: first save a new start for that period, or its
+  deletion, on its own. A badge in the panel header shows
   the rotation state,
 - **Access** - the account role, the “Account enabled” switch and, for a
   local account, a **one-time** password reset link or - as long as the
@@ -80,7 +80,8 @@ missing role add a new period. A changed row is marked “changed, unsaved”
 deleting a period shows a message with an **Undo** button, which puts the
 previous dates back or creates the deleted period again; when the same save
 moved the entry into the rotation later, **Undo** also puts the previous entry
-date back.
+date back. A period put back ends on the exit date from the rotation at the
+latest.
 
 ### Accounts awaiting activation
 
@@ -129,8 +130,7 @@ entry date and opens the end-of-rotation dialog, which picks a replacement for
 each duty. **Save** opens the same dialog when qualifications run past the exit
 date, because no period may reach outside the rotation; the hint under the
 field then says that saving ends them. The exit date is saved only in that dialog; closing it leaves the
-date on the list of unsaved changes. Qualification changes, except those a
-later entry date needs, wait too, because
+date on the list of unsaved changes. Qualification changes wait too, because
 the server does not let a qualification end while published duties still need
 it: the dialog itself closes the periods on the exit date, and whatever is
 left of those changes is saved by the next **Save** - the periods end on the
