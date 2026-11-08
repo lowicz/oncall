@@ -319,13 +319,10 @@ export function GeneratorPanel() {
       { onSuccess: () => toast.success(t.header.newDraftCreated) },
     )
     : generate.mutate(range)
-  // One step for changed settings: they are stored first, so the generation reads them.
-  const saveAndGenerate = () => savePolicy.mutate(settings, {
-    onSuccess: () => {
-      setSettingsOpen(false)
-      generateRange()
-    },
-  })
+  const generateFromSettings = () => {
+    setSettingsOpen(false)
+    generateRange()
+  }
   const showSoftProblems = () => {
     setHardOnly(false)
     setTab('problems')
@@ -629,13 +626,8 @@ export function GeneratorPanel() {
               icon="wand"
               disabled={generating || savePolicy.isPending || policy.isLoading}
               loading={savePolicy.isPending}
-              onClick={() => {
-                if (settingsDirty) saveAndGenerate()
-                else {
-                  setSettingsOpen(false)
-                  generateRange()
-                }
-              }}
+              // Changed settings are stored first, so the generation reads them.
+              onClick={() => settingsDirty ? savePolicy.mutate(settings, { onSuccess: generateFromSettings }) : generateFromSettings()}
             >
               {savePolicy.isPending ? common.saving : settingsDirty ? t.settings.saveAndGenerate : t.settings.generate}
             </Button>

@@ -115,9 +115,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
   const selectedCategory = selectedBalance?.[selectedRole]
   const correctionPoints = selectedRole === 'late_shift' ? 1 : selected?.day.is_day_off ? 2 : 1
-  const cannotAssign = selectedAssignment?.assignee_name === selected?.member.display_name
-    || selectedAvailability?.kind === 'unavailable'
-  const changesHolder = Boolean(selected) && selectedAssignment?.assignee_name !== selected?.member.display_name
+  const changesHolder = selectedAssignment?.assignee_name !== selected?.member.display_name
+  const cannotAssign = !changesHolder || selectedAvailability?.kind === 'unavailable'
 
   return (
     <div className="stack-sm">
