@@ -458,16 +458,19 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
   // user's own availability).
   const targetMember = team.data?.find((member) => member.id === target && member.id !== ownMember?.id)
   const onBehalf = Boolean(targetMember)
+  // A person named by the URL is only known once the team has loaded; until
+  // then the section neither reads nor paints anyone's availability.
+  const resolving = Boolean(target) && canActOnBehalf && team.isPending
   // An admin who is not in the rotation has no availability of their own to
   // show, so the section only works once a person is picked.
-  const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf
+  const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf && !resolving
 
   // Whose list the brush paints: '' is the user's own.
   const member = onBehalf ? target : ''
   const entries = useQuery({
     queryKey: availabilityKey(member),
     queryFn: onBehalf ? () => api.memberAvailability(target) : api.availability,
-    enabled: onBehalf || hasTeamMember,
+    enabled: !resolving && (onBehalf || hasTeamMember),
   })
   const calendarStart = `${month}-01`
   const calendarEnd = addDays(`${shiftMonth(month, 1)}-01`, -1)
@@ -600,7 +603,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
             duties={duties}
             brush={brush}
             today={today}
-            disabled={entries.isLoading}
+            disabled={resolving || entries.isLoading}
             narrow={narrow}
             onPaint={(startsOn, endsOn) => paint.mutate({
               member,

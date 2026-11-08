@@ -133,7 +133,6 @@ export const schedule = {
     role: 'Rola',
     currently: (who: string) => `Obecnie: ${who}`,
     noPublishedAssignment: 'brak opublikowanego przydziału',
-    person: 'Osoba',
     personFor: (role: string, date: string) => `Osoba na ${role} · ${date}`,
     pickPerson: 'Wybierz osobę',
     /** What the hint under the person picker says about the chosen person. */

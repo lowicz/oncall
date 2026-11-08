@@ -121,7 +121,6 @@ export const schedule: Messages['schedule'] = {
     role: 'Role',
     currently: (who: string) => `Currently: ${who}`,
     noPublishedAssignment: 'no published assignment',
-    person: 'Person',
     personFor: (role: string, date: string) => `Person for ${role} · ${date}`,
     pickPerson: 'Pick a person',
     candidate: {

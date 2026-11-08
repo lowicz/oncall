@@ -1092,6 +1092,31 @@ describe('MineScreen availability painting', () => {
     expect(await screen.findByRole('heading', { name: 'Moja dostępność' })).toBeInTheDocument()
   })
 
+  it('paints nobody while the person named by the URL waits for the team', async () => {
+    stub()
+    let resolveTeam: (team: typeof TEAM) => void = () => {}
+    vi.spyOn(api, 'team').mockReturnValue(new Promise((resolve) => { resolveTeam = resolve }))
+    const own = vi.spyOn(api, 'availability')
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
+    const replaceMember = vi.spyOn(api, 'replaceMemberAvailabilityRange').mockResolvedValue(null)
+    renderScreen(
+      <MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />,
+      { route: '/moje?miesiac=2026-09&osoba=m-beata' },
+    )
+    const grid = await screen.findByRole('grid', { name: 'Kalendarz dostępności, wrzesień 2026' })
+    expect(grid).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(screen.getByRole('gridcell', { name: /niedz 20-09-2026/ }))
+    expect(own).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+    expect(replaceMember).not.toHaveBeenCalled()
+
+    await act(async () => resolveTeam(TEAM))
+    expect(await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
+    await idleCalendar()
+    expect(own).not.toHaveBeenCalled()
+  })
+
   it('opens on the current month when the URL names no real one', async () => {
     stub()
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />, { route: '/moje?miesiac=2026-13' })
