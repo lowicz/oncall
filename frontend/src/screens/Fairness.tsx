@@ -101,7 +101,7 @@ function Drilldown({ member, report, asOf, lateShiftBalanced }: {
                 <div className="row">
                   <RoleMark role={duty.role} size="sm" />
                   <span>{formatDayShort(duty.service_date)}</span>
-                  {duty.is_day_off && <Tag tone="late">2X</Tag>}
+                  {duty.is_day_off && <Tag>2X</Tag>}
                 </div>
               </ListRow>
             ))}

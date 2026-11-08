@@ -69,8 +69,8 @@ import {
 import type { RadioNavigationOption } from '../ui'
 
 const statusTone: Record<SwapStatus, StatusTone> = {
-  pending_replacement: 'warn',
-  pending_coordinator: 'sig',
+  pending_replacement: 'prop',
+  pending_coordinator: 'prop',
   approved: 'ok',
   rejected: 'bad',
   cancelled: 'muted',
@@ -760,24 +760,29 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         <>
           <SectionHeading
             title={t.swaps.inbox.heading}
-            controls={INBOXES.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={cx('sech-link', inbox === value && 'on')}
-                aria-pressed={inbox === value}
-                // The badge would otherwise run into the label ("Do mnie0").
-                aria-label={value === 'zamkniete' ? undefined : t.swaps.inbox.count(inboxLabels[value], badges[value])}
-                onClick={() => setInbox(value)}
-              >
-                {inboxLabels[value]}
-                {value !== 'zamkniete' && (
-                  <Tag tone={value === 'w-toku' && approver && badges[value] > 0 ? 'late' : undefined} className="tab-count">
-                    {badges[value]}
-                  </Tag>
-                )}
-              </button>
-            ))}
+            controls={(
+              <Segmented<Inbox>
+                label={t.swaps.inbox.heading}
+                wrap
+                value={inbox}
+                onChange={setInbox}
+                options={INBOXES.map((value) => ({
+                  value,
+                  // The badge would otherwise run into the label ("Do mnie0").
+                  ariaLabel: value === 'zamkniete' ? undefined : t.swaps.inbox.count(inboxLabels[value], badges[value]),
+                  label: (
+                    <>
+                      {inboxLabels[value]}
+                      {value !== 'zamkniete' && (
+                        <Tag tone={value === 'w-toku' && approver && badges[value] > 0 ? 'sig' : undefined} className="tab-count">
+                          {badges[value]}
+                        </Tag>
+                      )}
+                    </>
+                  ),
+                }))}
+              />
+            )}
           />
           {visible.length === 0 ? (
             <div className="panel">
@@ -809,7 +814,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                       {returned && <> <span aria-hidden="true">⇄</span> <span className="sr-only">{t.common.swapWith}</span> {slotSummary(returnSlotsOf(item))}</>}
                     </b>
                     {' '}<StatusBadge tone={statusTone[item.status]}>{statuses[item.status]}</StatusBadge>
-                    {brokenRules(item).length > 0 && <> <Tag tone="late">{t.swaps.rules.tag}</Tag></>}
+                    {brokenRules(item).length > 0 && <> <Tag tone="bad">{t.swaps.rules.tag}</Tag></>}
                     <small>
                       {[
                         t.swaps.table.parties(party(item.requester_name), party(item.replacement_name)),
@@ -849,7 +854,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                         <th scope="row">
                           <b>{formatDayShort(item.service_date)}</b> {roleList(slotsOf(item))}
                           {returned && <> <span aria-hidden="true">⇄</span> <span className="sr-only">{t.common.swapWith}</span> <b>{formatDayShort(returned.service_date)}</b> {roleList(returnSlotsOf(item))}</>}
-                          {brokenRules(item).length > 0 && <> <Tag tone="late">{t.swaps.rules.tag}</Tag></>}
+                          {brokenRules(item).length > 0 && <> <Tag tone="bad">{t.swaps.rules.tag}</Tag></>}
                           <small>
                             {relativeDay(item.service_date)}
                             {returned && ` · ${t.swaps.table.exchange}`}
@@ -886,7 +891,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         meta={openItem && (
           <>
             <StatusBadge tone={statusTone[openItem.status]}>{statuses[openItem.status]}</StatusBadge>
-            {openRules.length > 0 && <Tag tone="late">{t.swaps.rules.tag}</Tag>}
+            {openRules.length > 0 && <Tag tone="bad">{t.swaps.rules.tag}</Tag>}
           </>
         )}
         footer={openItem && decision && (

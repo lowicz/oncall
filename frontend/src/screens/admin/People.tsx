@@ -192,6 +192,8 @@ export function PeoplePanel() {
   useEffect(() => { openedId.current = selectedId }, [selectedId])
   const [tab, setTab] = useState<DetailTab>('account')
   const [accountForm, setAccountForm] = useState<AccountForm>(emptyAccountForm)
+  // The phone is judged once the field is left or the form saved, not while it is typed or as the panel opens.
+  const [phoneChecked, setPhoneChecked] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
   const [newForm, setNewForm] = useState<AdminUserInput>(emptyAccount)
   const [activationUrl, setActivationUrl] = useState('')
@@ -259,6 +261,7 @@ export function PeoplePanel() {
     setRotationFrom(member?.active_from ?? today)
     setRotationUntil(member?.active_until ?? '')
     setEligibilityEdits({})
+    setPhoneChecked(false)
     setEditingPeriod(null)
     setAddingPeriod(false)
     setResetUrl('')
@@ -460,6 +463,7 @@ export function PeoplePanel() {
 
   const submitAll = (event: FormEvent) => {
     event.preventDefault()
+    setPhoneChecked(true)
     if (!selectedRow || !dirty) return
     saveAll.mutate(selectedRow)
   }
@@ -731,11 +735,11 @@ export function PeoplePanel() {
                     label={t.fields.phone}
                     id="acc-phone"
                     hint={t.fields.phoneHint}
-                    error={!accountForm.phone
+                    error={!phoneChecked ? undefined : !accountForm.phone
                       ? (selectedState === 'active' || selectedState === 'entering' ? t.fields.phoneRequired : undefined)
                       : (isPolishPhone(accountForm.phone) ? undefined : t.fields.phoneFix)}
                   >
-                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
+                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onBlur={() => setPhoneChecked(true)} onChange={(e) => { setPhoneChecked(false); setAccountForm({ ...accountForm, phone: e.target.value || null }) }} />}
                   </Field>
                 </div>
               </TabPanel>

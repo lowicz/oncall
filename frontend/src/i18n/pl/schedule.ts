@@ -32,6 +32,7 @@ export const schedule = {
     onlyOnDuty: 'Tylko z dyżurem',
     legend: 'Legenda',
     dayList: 'Lista dni',
+    more: 'Więcej',
   },
   legend: {
     roles: 'Role',
@@ -86,6 +87,7 @@ export const schedule = {
     pickPerson: 'Wybierz osobę, która ma objąć tę rolę.',
     chosenPerson: (reason: string) => `Wybrana osoba ${reason}.`,
   },
+  firstGap: (days: string, date: string) => `${days}, pierwszy ${date}`,
   risks: {
     label: 'Ryzyka w zakresie',
     showFirstGap: 'Pokaż pierwszy dzień bez pełnej obsady',
@@ -139,6 +141,9 @@ export const schedule = {
     notApplicableDayOff: 'nie dotyczy w dzień wolny',
     unstaffed: 'brak obsady',
     changeRole: (role: string, who: string) => `${role}: ${who}. Zmień obsadę`,
+    staffRole: (role: string) => `${role}: brak obsady. Obsadź`,
+    change: 'Zmień…',
+    staff: 'Obsadź…',
     events: 'Wydarzenia',
     delete: 'Usuń',
     availabilityToday: 'Dostępności tego dnia',

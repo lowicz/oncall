@@ -60,12 +60,6 @@ describe.each([
     }
   })
 
-  it('keeps late-shift tag text readable on every surface', () => {
-    for (const surface of ['s1', 's2', 's3']) {
-      expect(contrast(rgb(token(theme, 'late-text')), rgb(token(theme, surface)))).toBeGreaterThanOrEqual(4.5)
-    }
-  })
-
   it('keeps secondary text readable on the weekend header wash', () => {
     const background = composite(rgba(token(theme, 'wknd')), rgb(token(theme, 's2')))
     for (const foreground of ['muted', 'dim']) {

@@ -48,7 +48,6 @@ describe('shared interaction styles', () => {
         <div className="box box-bad"><b>Konflikt</b></div>
         <div className="box box-warn"><b>Brak dyżurów</b></div>
         <span className="tag tag-bad">brak</span>
-        <span className="tag tag-late">2X</span>
         <span className="rank-fact-bad">kolizja</span>
         <button type="button" className="btn btn-bad">Usuń</button>
         <span className="role-r role-r-s">SECONDARY</span>
@@ -61,7 +60,6 @@ describe('shared interaction styles', () => {
       expect(style(selector).color).toBe('var(--bad-text)')
     }
     expect(style('.box-warn > b').color).toBe('var(--warn-text)')
-    expect(style('.tag-late').color).toBe('var(--late-text)')
     expect(style('.role-r-s').color).toBe('var(--sec-text)')
     expect(style('.avail-day-na').color).toBe('var(--fg)')
     expect(style('.now-search').backgroundColor).toBe('rgba(0, 0, 0, 0)')

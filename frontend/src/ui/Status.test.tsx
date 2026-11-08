@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { AvailabilityMark, Avatar, Chip, ChipRow, DeviationBar, RoleLabel, RoleMark, StatusBadge, StatusLine, Tag } from './Status'
+import { TooltipProvider } from './Tooltip'
 import { expectNoAxeViolations } from '../test/axe'
 
 describe('badges and tags', () => {
@@ -12,8 +13,8 @@ describe('badges and tags', () => {
   })
 
   it('draw a tag, toned when asked', () => {
-    const { rerender } = render(<Tag tone="late" className="t">11–19</Tag>)
-    expect(screen.getByText('11–19')).toHaveClass('tag', 'tag-late', 't')
+    const { rerender } = render(<Tag tone="bad" className="t">łamie reguły</Tag>)
+    expect(screen.getByText('łamie reguły')).toHaveClass('tag', 'tag-bad', 't')
     rerender(<Tag>v3</Tag>)
     expect(screen.getByText('v3').className).toBe('tag')
   })
@@ -35,10 +36,26 @@ describe('Chip', () => {
     render(<Chip tone="bad" onClick={onClick} title="Pokaż luki" className="c">2 luki</Chip>)
     const chip = screen.getByRole('button', { name: '2 luki' })
     expect(chip).toHaveClass('chip', 'chip-bad', 'chip-btn', 'c')
-    expect(chip).toHaveAttribute('title', 'Pokaż luki')
+    // Where it leads is a description and a tooltip, not a mouse-only title,
+    // and a chevron says it can be followed.
+    expect(chip).not.toHaveAttribute('title')
     expect(chip).toHaveAccessibleDescription('Pokaż luki')
+    expect(chip.querySelector('svg.chip-go')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(chip)
     expect(onClick).toHaveBeenCalledOnce()
+  })
+
+  it('shows where it leads in a tooltip on keyboard focus', async () => {
+    render(<TooltipProvider><Chip onClick={() => {}} title="Pokaż pierwszy dzień">1 dzień bez pełnej obsady</Chip></TooltipProvider>)
+    act(() => screen.getByRole('button').focus())
+    expect(await screen.findByText('Pokaż pierwszy dzień', { selector: '.tip' })).toBeInTheDocument()
+  })
+
+  it('carries a chevron and no description when it says nothing more', () => {
+    render(<Chip onClick={() => {}}>3 ostrzeżenia</Chip>)
+    const chip = screen.getByRole('button', { name: '3 ostrzeżenia' })
+    expect(chip).not.toHaveAttribute('aria-describedby')
+    expect(chip.querySelector('svg.chip-go')).toBeInTheDocument()
   })
 
   it('is plain text otherwise', () => {

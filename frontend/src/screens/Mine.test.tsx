@@ -89,6 +89,51 @@ function stub() {
 // /moje is unreachable for accounts that are not rotation members, so the admin
 // session used for manual testing never renders these panels.
 describe('MineScreen duties', () => {
+  it('leads from a clash in the list to its day in the availability calendar', async () => {
+    stub()
+    const scroll = stubScroll()
+    vi.spyOn(api, 'calendar').mockResolvedValue({
+      ...EMPTY_CALENDAR,
+      days: [{ service_date: '2026-09-19', weekday: 'sob', is_day_off: true, holiday_name: null, published: true, events: [] }],
+      members: [{ id: 'm1', display_name: 'Julia Nowak' }],
+      team_has_members: true,
+      assignments: [{ schedule_id: 's1', schedule_version: 1, service_date: '2026-09-19', role: 'primary', assignee_name: 'Julia Nowak', member_id: 'm1', is_override: false, change_kind: null }],
+      availability: [{ member_id: 'm1', kind: 'unavailable', starts_on: '2026-09-19', ends_on: '2026-09-19', note: null }],
+    })
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('grid', { name: 'Kalendarz dostępności, wrzesień 2026' })
+    fireEvent.click(screen.getByRole('button', { name: 'Następny miesiąc' }))
+    await screen.findByRole('grid', { name: 'Kalendarz dostępności, październik 2026' })
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Kolizja z Twoją niedostępnością sob 19 wrz/ }))
+    expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, wrzesień 2026' })).toBeInTheDocument()
+    expect(scroll).toHaveBeenCalled()
+  })
+
+  it('leads a coordinator from their own clash back to their own calendar while a colleague is picked', async () => {
+    stub()
+    stubScroll()
+    vi.spyOn(api, 'team').mockResolvedValue(TEAM)
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    vi.spyOn(api, 'calendar').mockResolvedValue({
+      ...EMPTY_CALENDAR,
+      days: [{ service_date: '2026-09-19', weekday: 'sob', is_day_off: true, holiday_name: null, published: true, events: [] }],
+      members: [{ id: 'm-adam', display_name: 'Adam Nowicki' }],
+      team_has_members: true,
+      assignments: [{ schedule_id: 's1', schedule_version: 1, service_date: '2026-09-19', role: 'primary', assignee_name: 'Adam Nowicki', member_id: 'm-adam', is_override: false, change_kind: null }],
+      availability: [{ member_id: 'm-adam', kind: 'unavailable', starts_on: '2026-09-19', ends_on: '2026-09-19', note: null }],
+    })
+    renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
+    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+    await screen.findByRole('option', { name: 'Beata Lis' })
+    fireEvent.change(picker, { target: { value: 'm-beata' } })
+    expect(await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Kolizja z Twoją niedostępnością sob 19 wrz/ }))
+    expect(await screen.findByRole('heading', { name: 'Moja dostępność' })).toBeInTheDocument()
+    expect(picker).toHaveValue('')
+  })
+
   it('lists the upcoming duties with hours, multiplier, partner and a swap link', async () => {
     stub()
     vi.spyOn(api, 'calendar').mockResolvedValue({
@@ -111,7 +156,7 @@ describe('MineScreen duties', () => {
     // Saturday: round-the-clock cover (coverage.py), 2X, the SECONDARY partner named.
     const saturday = (await screen.findByText('sob 19 wrz · PRIMARY')).closest('.list-row') as HTMLElement
     expect(within(saturday).getByText(/całodobowo · 2X · Secondary: Marek/)).toBeInTheDocument()
-    expect(within(saturday).getByText(/koliduje z Twoją niedostępnością/)).toBeInTheDocument()
+    expect(within(saturday).getByRole('button', { name: 'Kolizja z Twoją niedostępnością sob 19 wrz: pokaż w kalendarzu' })).toHaveTextContent(/^kolizja$/)
     expect(within(saturday).getByRole('link', { name: 'Zamień' })).toHaveAttribute('href', '/zamiany?data=2026-09-19&rola=primary')
     // Two roles on one day are one row, with both windows.
     const monday = screen.getByText('pon 21 wrz · SECONDARY + 11–19').closest('.list-row') as HTMLElement
@@ -139,7 +184,7 @@ describe('MineScreen points and swaps', () => {
     const table = await screen.findByRole('table', { name: 'Punkty miesiąc po miesiącu' })
     expect(within(table).getByText('wrzesień')).toBeInTheDocument()
     expect(within(table).getByText('sierpień')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Ten miesiąc' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Ten miesiąc' }))
     expect(within(table).queryByText('sierpień')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Pełny raport sprawiedliwości' })).toHaveAttribute('href', '/sprawiedliwosc')
   })
@@ -536,14 +581,35 @@ describe('MineScreen phone', () => {
     const update = vi.spyOn(api, 'updateMyPhone').mockRejectedValue(new ApiError('Numer telefonu to +48 i dziewięć cyfr', 422))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     const input = await screen.findByLabelText('Numer telefonu')
-    expect(await screen.findByText('Wymagany dla osób w rotacji.')).toBeInTheDocument()
-    fireEvent.change(input, { target: { value: '+49 170 1234567' } })
-    expect(screen.getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
+    // Nothing is judged before the field is left: no alarm as the screen opens.
+    await waitFor(() => expect(input).toBeEnabled())
     expect(screen.queryByText('Wymagany dla osób w rotacji.')).not.toBeInTheDocument()
+    fireEvent.blur(input)
+    expect(await screen.findByText('Wymagany dla osób w rotacji.')).toBeInTheDocument()
+    // Typing again withdraws the verdict until the field is left once more.
+    fireEvent.change(input, { target: { value: '+49 170 1234567' } })
+    expect(screen.queryByText('Wymagany dla osób w rotacji.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
+    fireEvent.blur(input)
+    expect(screen.getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zapisz numer' }))
     const refusal = await screen.findByText('Numer telefonu to +48 i dziewięć cyfr')
     expect(refusal.closest('[role="alert"]')).toHaveFocus()
     expect(update).toHaveBeenCalledWith('+49 170 1234567')
+  })
+
+  it('waits for the field to be left or saved before calling a number wrong', async () => {
+    stub()
+    vi.spyOn(api, 'me').mockResolvedValue({ ...ME, phone: null })
+    vi.spyOn(api, 'updateMyPhone').mockRejectedValue(new ApiError('Numer telefonu to +48 i dziewięć cyfr', 422))
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    const input = await screen.findByLabelText('Numer telefonu')
+    await waitFor(() => expect(input).toBeEnabled())
+    fireEvent.change(input, { target: { value: '+49 17' } })
+    expect(screen.queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
+    expect(input).not.toHaveAttribute('aria-invalid', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz numer' }))
+    expect(await screen.findByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
   })
 
   it('needs no number from an account outside the rotation and clears one with an empty field', async () => {
@@ -691,10 +757,11 @@ describe('MineScreen points states', () => {
     // A month of another year carries its year.
     expect(within(table).getByText('grudzień 2025')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ten miesiąc' }))
+    const period = screen.getByRole('radiogroup', { name: 'Okres' })
+    fireEvent.click(within(period).getByRole('radio', { name: 'Ten miesiąc' }))
     expect(within(table).getByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '12 mies.' }))
-    expect(screen.getByRole('button', { name: '12 mies.' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(period).getByRole('radio', { name: '12 mies.' }))
+    expect(within(period).getByRole('radio', { name: '12 mies.' })).toHaveAttribute('aria-checked', 'true')
     expect(within(table).getByText('sierpień')).toBeInTheDocument()
   })
 
@@ -972,6 +1039,8 @@ describe('MineScreen availability painting', () => {
     const calendarCall = vi.spyOn(api, 'calendar')
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('grid', { name: 'Kalendarz dostępności, wrzesień 2026' })
+    // The month is the calendar's heading, between its arrows.
+    expect(screen.getByRole('heading', { level: 3, name: 'wrzesień 2026' })).toHaveClass('month-title')
 
     fireEvent.click(screen.getByRole('button', { name: 'Następny miesiąc' }))
     expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, październik 2026' })).toBeInTheDocument()

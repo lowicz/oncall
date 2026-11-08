@@ -68,20 +68,24 @@ The list is read-only - add and edit events on the **Events** screen.
 
 ## Proposal
 
-An open draft is a separate page. The title says what stage the result is at:
-“Draft *range*”, “Proposal *range*” after submission for approval, “Schedule
-*range*” after publication. Below the title are: the state badge, the
-version, the number of assignments and days, the rotation mode and the solver
-status (`CP-SAT: OPTIMAL` and the like; a status other than a complete
-solution is explained in words - most often it means that the time budget was
-too short or that the hard rules contradict the staffing). Further down, the
+An open draft is a separate page. The title is the range, and next to it one
+state pill with the version: “Draft · v2”, “For approval · v3” after
+submission, “Published · v4” after publication. Below the title are the
+number of assignments and days and the rotation mode. The solver status
+(`CP-SAT: OPTIMAL` and the like) is in the **Settings of this proposal**
+section; a status other than a complete solution is explained in words in a
+box above the matrix - most often it means that the time budget was too short
+or that the hard rules contradict the staffing. Further down, the
 row of cycle stages (Draft, For approval, Published) and the **Draft state**
 in four badges: staffing, hard rules, soft warnings and the points spread
 after publication.
 
-Actions in the header: **Generator settings**, **Regenerate**, and then
-**Submit for approval** for a draft or **Back to draft** and **Publish…** for
-a proposal.
+Actions in the header: **Generate a new draft**, and then **Submit for
+approval** for a draft or **Publish…** for a proposal. The **⋯** (**More**)
+menu has **Generator settings** and, for a proposal, **Back to draft**.
+**Generate a new draft** creates another draft for the same range and opens
+it; the open schedule, with its corrections, stays as it is, which the
+message after generating says.
 
 The page has two columns. On the left:
 

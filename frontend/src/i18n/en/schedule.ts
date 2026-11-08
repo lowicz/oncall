@@ -26,6 +26,7 @@ export const schedule: Messages['schedule'] = {
     onlyOnDuty: 'On duty only',
     legend: 'Legend',
     dayList: 'Day list',
+    more: 'More',
   },
   legend: {
     roles: 'Roles',
@@ -75,6 +76,7 @@ export const schedule: Messages['schedule'] = {
     pickPerson: 'Pick the person who is to take this role.',
     chosenPerson: (reason: string) => `The chosen person: ${reason}.`,
   },
+  firstGap: (days: string, date: string) => `${days}, first on ${date}`,
   risks: {
     label: 'Risks in the range',
     showFirstGap: 'Show the first day without full coverage',
@@ -127,6 +129,9 @@ export const schedule: Messages['schedule'] = {
     notApplicableDayOff: 'not applicable on a day off',
     unstaffed: 'unstaffed',
     changeRole: (role: string, who: string) => `${role}: ${who}. Change staffing`,
+    staffRole: (role: string) => `${role}: unstaffed. Staff`,
+    change: 'Change…',
+    staff: 'Staff…',
     events: 'Events',
     delete: 'Delete',
     availabilityToday: 'Availability on this day',

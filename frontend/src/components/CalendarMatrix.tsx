@@ -43,7 +43,14 @@ import {
 
 export type MatrixZoom = '2' | '4' | '8'
 export interface CalendarRange { starts_on: string; ends_on: string }
-export interface MatrixSummary { loaded: boolean; people: number; onDuty: number; teamHasMembers: boolean }
+export interface MatrixSummary {
+  loaded: boolean
+  people: number
+  onDuty: number
+  teamHasMembers: boolean
+  /** The staffable days without full coverage and the way to the first of them. */
+  firstGap?: { count: number; date: string; show: () => void }
+}
 type Day = CalendarData['days'][number]
 type Member = CalendarData['members'][number]
 
@@ -91,7 +98,6 @@ export function CalendarMatrix({
   enabled = true,
   heading,
   showRisks = true,
-  extraChips,
 }: {
   role: UserRole
   displayName: string
@@ -104,13 +110,11 @@ export function CalendarMatrix({
   /** False while the screen is still working out the default range. */
   enabled?: boolean
   /** The ruled section heading drawn between the risk chips and the grid; a
-   *  function receives whether the range has loaded, how many people it holds
-   *  and how many of them have a duty in it. */
+   *  function receives whether the range has loaded, how many people it holds,
+   *  how many of them have a duty in it and the first day without full coverage. */
   heading?: ReactNode | ((summary: MatrixSummary) => ReactNode)
   /** The "Teraz" screen carries the risk chips; the full schedule does not. */
   showRisks?: boolean
-  /** Chips the screen adds to the risk row: swaps waiting, the fairness verdict. */
-  extraChips?: ReactNode
 }) {
   const queryClient = useQueryClient()
   const today = warsawDate()
@@ -382,10 +386,8 @@ export function CalendarMatrix({
 
   return (
     <>
-      {(riskChips || extraChips) && (
+      {riskChips && (
         <ChipRow label={t.risks.label}>
-          {riskChips && (
-            <>
           {/* Only the staffable kind is a jump target; jumping to a day nobody
               can fix was the trap behind HGH-02. */}
           {publishedGaps.length > 0 && (
@@ -409,12 +411,13 @@ export function CalendarMatrix({
           {gaps.length === 0 && (!canCoordinate || dutyConflicts.length === 0) && (
             <Chip tone="ok">{t.risks.fullCoverage}</Chip>
           )}
-            </>
-          )}
-          {extraChips}
         </ChipRow>
       )}
-      {typeof heading === 'function' ? heading(summary) : heading}
+      {typeof heading === 'function'
+        ? heading(data && publishedGaps.length > 0
+          ? { ...summary, firstGap: { count: publishedGaps.length, date: publishedGaps[0].service_date, show: () => jumpToDate(data.days, publishedGaps[0].service_date) } }
+          : summary)
+        : heading}
       {calendar.error && <ErrorState error={calendar.error} onRetry={() => calendar.refetch()} />}
       {(calendar.isLoading || !enabled) && (
         <div className="panel sk-block" role="status" aria-busy="true" aria-label={t.loading}>
@@ -568,7 +571,7 @@ export function CalendarMatrix({
         title={selected ? formatDay(selected.day.service_date) : ''}
         meta={selected && (
           <>
-            <Tag tone={selected.day.is_day_off ? 'late' : undefined}>{dayTag(selected.day)}</Tag>
+            <Tag>{dayTag(selected.day)}</Tag>
             {!selectedDayPublished && <Tag>{t.inspector.outsidePublication}</Tag>}
           </>
         )}
@@ -718,15 +721,18 @@ export function CalendarMatrix({
                       {notApplicable
                         ? <span className="muted">{t.inspector.notApplicableDayOff}</span>
                         : (slot?.assignee_name ?? <span className={missing ? undefined : 'muted'}>{t.inspector.unstaffed}</span>)}
-                      {slot?.change_kind && <small>{t.changes[slot.change_kind]}</small>}
+                      {!notApplicable && (
+                        <small>{coverageWindowText(selected.day, item)}{slot?.change_kind && ` · ${t.changes[slot.change_kind]}`}</small>
+                      )}
                     </span>
-                    {!notApplicable && <span className="role-x mono">{coverageWindowText(selected.day, item)}</span>}
                   </>
                 )
                 const className = cx('role-row', selectedRole === item && 'role-row-sel', missing && 'role-row-gap')
                 return canCoordinate && selectedDayPublished && !notApplicable ? (
-                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={t.inspector.changeRole(roleLabels()[item], slot?.assignee_name ?? t.inspector.unstaffed)}>
+                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={slot ? t.inspector.changeRole(roleLabels()[item], slot.assignee_name) : t.inspector.staffRole(roleLabels()[item])}>
                     {body}
+                    {/* The whole row is the button; this only shows that it is one. */}
+                    <span className={cx('btn', 'btn-sm', slot && 'btn-ghost')} aria-hidden="true">{slot ? t.inspector.change : t.inspector.staff}</span>
                   </button>
                 ) : (
                   <div key={item} className={className}>{body}</div>

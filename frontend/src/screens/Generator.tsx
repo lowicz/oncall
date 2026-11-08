@@ -39,7 +39,9 @@ import {
   StatusBadge,
   StatusTone,
   Steps,
-  Tag,
+  IconButton,
+  Menu,
+  MenuItem,
   Tooltip,
   cx,
   useToast,
@@ -110,6 +112,7 @@ export function GeneratorPanel() {
   const queryClient = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
+  const moreRef = useRef<HTMLButtonElement>(null)
   const today = warsawDate()
   const policy = useQuery({ queryKey: ['scheduling-policy'], queryFn: api.schedulingPolicy })
   const drafts = useQuery({ queryKey: ['draft-schedules'], queryFn: api.draftSchedules })
@@ -132,6 +135,11 @@ export function GeneratorPanel() {
   const [runProgress, setRunProgress] = useState<ScheduleRun | null>(null)
   const [focus, setFocus] = useState<DraftFocus | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsFromMenu, setSettingsFromMenu] = useState(false)
+  const openSettings = (fromMenu: boolean) => {
+    setSettingsFromMenu(fromMenu)
+    setSettingsOpen(true)
+  }
   const [problemsBy, setProblemsBy] = useState<ProblemGrouping>('person')
   const [hardOnly, setHardOnly] = useState(false)
   const problemsRef = useRef<HTMLDivElement>(null)
@@ -238,6 +246,12 @@ export function GeneratorPanel() {
     mutationFn: (input: { starts_on: string; ends_on: string }) => api.generateSchedule(input, setRunProgress),
     onSuccess: onGenerated,
   })
+  // A new draft over the open one's range: the open one stays as it was,
+  // corrections and all, so say where it went.
+  const generateAgain = (draft: DraftSchedule) => generate.mutate(
+    { starts_on: draft.starts_on, ends_on: draft.ends_on },
+    { onSuccess: () => toast.success(t.header.newDraftCreated) },
+  )
   // A generation outlives the page that started it. Without rejoining it the
   // screen shows nothing while the worker is busy, and the natural reaction is
   // to press the button again (MED5-11, LOW5-09).
@@ -375,7 +389,7 @@ export function GeneratorPanel() {
   )
 
   const settingsButton = (
-    <Button variant="ghost" icon="settings" onClick={() => setSettingsOpen(true)}>
+    <Button variant="ghost" icon="settings" onClick={() => openSettings(false)}>
       {t.settingsButton}{settingsDirty ? t.settingsButtonUnsaved : ''}
     </Button>
   )
@@ -423,22 +437,21 @@ export function GeneratorPanel() {
     <div className="page">
       {result ? (
         <PageHeader
-          title={generating && generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : `${t.titleWord[result.status]} ${formatRange(result.starts_on, result.ends_on)}`}
-          sub={(
+          title={generating && generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : (
             <>
-              <StatusBadge tone={statusTone[result.status]}>{scheduleStatusLabels()[result.status]}</StatusBadge>
-              <span>
-                {t.header.versionLine(result.version, result.assignments.length, days, rotationLabels()[result.rotation_mode])}
-              </span>
-              <Tag tone={result.solver_status === 'OPTIMAL' ? 'sig' : SOLVER_OK.has(result.solver_status) ? undefined : 'bad'}>{t.header.solverStatus(result.solver_status)}</Tag>
+              {formatRange(result.starts_on, result.ends_on)}
+              {' '}
+              <StatusBadge tone={statusTone[result.status]} className="ph-pill">{t.header.statusPill(scheduleStatusLabels()[result.status], result.version)}</StatusBadge>
             </>
           )}
+          sub={t.header.summary(result.assignments.length, days, rotationLabels()[result.rotation_mode])}
           actions={(
             <>
-              {settingsButton}
-              <Button icon="wand" disabled={generating} loading={generating} onClick={() => generate.mutate({ starts_on: result.starts_on, ends_on: result.ends_on })}>
-                {t.header.regenerate}
-              </Button>
+              <Tooltip text={t.header.newDraftHint}>
+                <Button icon="wand" disabled={generating} loading={generating} onClick={() => generateAgain(result)}>
+                  {t.header.newDraft}
+                </Button>
+              </Tooltip>
               {result.status === 'draft' && (
                 <Tooltip text={conflictCount > 0 ? t.proposeBlocked : t.header.proposeHint}>
                   <Button
@@ -457,12 +470,14 @@ export function GeneratorPanel() {
                 </Tooltip>
               )}
               {result.status === 'proposed' && (
-                <>
-                  <Button disabled={withdraw.isPending} loading={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>{t.header.backToDraft}</Button>
-                  <Button variant="primary" icon="send" disabled={publish.isPending || generating} onClick={() => { publish.reset(); setPublishConfirmOpen(true) }}>{t.header.publish}</Button>
-                </>
+                <Button variant="primary" icon="send" disabled={publish.isPending || generating} onClick={() => { publish.reset(); setPublishConfirmOpen(true) }}>{t.header.publish}</Button>
               )}
-              {result.status === 'published' && <StatusBadge tone="pub">{t.header.published}</StatusBadge>}
+              <Menu trigger={<IconButton ref={moreRef} label={t.header.more} icon="more" />}>
+                {result.status === 'proposed' && (
+                  <MenuItem disabled={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>{t.header.backToDraft}</MenuItem>
+                )}
+                <MenuItem onClick={() => openSettings(true)}>{t.settingsButton}{settingsDirty ? t.settingsButtonUnsaved : ''}</MenuItem>
+              </Menu>
             </>
           )}
         />
@@ -573,6 +588,7 @@ export function GeneratorPanel() {
                   items={[
                     { key: t.draft.range, value: t.draft.rangeValue(formatDate(result.starts_on), formatDate(result.ends_on)), mono: true },
                     { key: t.draft.version, value: t.draft.versionValue(result.version), mono: true },
+                    { key: t.draft.solver, value: t.header.solverStatus(result.solver_status), mono: true },
                     { key: t.draft.rotationMode, value: rotationLabels()[result.rotation_mode] },
                     { key: t.draft.lateShiftAnchor(roleLabels().late_shift), value: lateShiftAnchorLabels()[policy.data?.late_shift_anchor ?? 'secondary'] },
                     { key: t.draft.fairnessWeight, value: policy.data?.fairness_weight ?? t.draft.unknown, mono: true },
@@ -582,7 +598,7 @@ export function GeneratorPanel() {
                   ]}
                 />
                 <p className="muted small">{t.draft.weightsNote}</p>
-                <Button size="sm" variant="ghost" className="self-start" onClick={() => setSettingsOpen(true)}>{t.draft.changeAndRegenerate}</Button>
+                <Button size="sm" variant="ghost" className="self-start" onClick={() => openSettings(false)}>{t.draft.changeAndRegenerate}</Button>
               </div>
             </div>
           </div>
@@ -603,6 +619,7 @@ export function GeneratorPanel() {
       <Panel
         open={settingsOpen}
         onClose={closeSettings}
+        finalFocus={settingsFromMenu ? moreRef : undefined}
         wide
         title={t.settings.title}
         meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}
@@ -617,7 +634,7 @@ export function GeneratorPanel() {
               variant="primary"
               icon="wand"
               disabled={generating || settingsDirty}
-              onClick={() => { setSettingsOpen(false); generate.mutate(result ? { starts_on: result.starts_on, ends_on: result.ends_on } : range) }}
+              onClick={() => { setSettingsOpen(false); if (result) generateAgain(result); else generate.mutate(range) }}
             >
               {t.settings.generate}
             </Button>

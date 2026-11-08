@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
+import { chooseFromMenu } from '../test/menu'
 import { GeneratorPanel } from './Generator'
 import { api, ApiError } from '../api'
 import type { DraftSchedule, ScheduleRun, ScheduleSummary, SchedulingPolicy } from '../api'
@@ -763,7 +764,12 @@ describe('GeneratorPanel open draft details', () => {
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     expect(await screen.findByText('Obsada: 2 dni, 3 przydziały')).toBeInTheDocument()
-    expect(screen.getByText(/wersja 1 · 3 przydziały w 2 dniach · Hybrydowy/)).toBeInTheDocument()
+    // The range is the title, with one state pill; the solver's tag sits with the proposal's settings.
+    const title = screen.getByRole('heading', { level: 1, name: '17 – 18 wrz Szkic · v1' })
+    expect(within(title).getByText('Szkic · v1')).toHaveClass('st', 'st-draft', 'ph-pill')
+    expect(screen.getByText('3 przydziały w 2 dniach · Hybrydowy')).toBeInTheDocument()
+    const solver = screen.getByText('Solver').closest('.kv-row') as HTMLElement
+    expect(within(solver).getByText(/^CP-SAT: /)).toBeInTheDocument()
     expect(screen.getByText('Sprawiedliwość: optymalna (udowodniona). Jakość całego rozwiązania: luka 2,5%. Stan kryterium pokazuje panel obok.')).toBeInTheDocument()
   })
 
@@ -861,7 +867,8 @@ describe('GeneratorPanel lifecycle actions', () => {
     const withdraw = vi.spyOn(api, 'withdrawSchedule').mockResolvedValue(draft({ id: 'd1', status: 'draft', version: 3 }))
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Wróć do szkicu' }))
+    await screen.findByRole('heading', { level: 1, name: /Do akceptacji · v2/ })
+    await chooseFromMenu('Więcej', 'Wróć do szkicu')
     await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2 }))
     expect(await screen.findByRole('button', { name: 'Przekaż do akceptacji' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Publikuj…/ })).not.toBeInTheDocument()
@@ -874,11 +881,46 @@ describe('GeneratorPanel lifecycle actions', () => {
     const generate = vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise(() => {}))
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Generuj ponownie' }))
+    const again = await screen.findByRole('button', { name: 'Generuj nowy szkic' })
+    fireEvent.click(again)
     await waitFor(() => expect(generate).toHaveBeenCalledWith({ starts_on: '2026-09-17', ends_on: '2026-09-18' }, expect.anything()))
     expect(await screen.findByRole('heading', { level: 1, name: 'Generuję 17 – 18 wrz' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Generuj ponownie' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Generuj nowy szkic' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Przekaż do akceptacji' })).toBeDisabled()
+  })
+
+  it('says where the open draft went once a new one is generated over its range', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    vi.spyOn(api, 'generateSchedule').mockResolvedValue(draft({ id: 'd2' }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generuj nowy szkic' }))
+    expect(await screen.findByText('Utworzono nowy szkic · otwarty grafik zostaje bez zmian')).toBeInTheDocument()
+  })
+
+  it('keeps the settings in the "more" menu of an open draft and gives the focus back to it', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    await chooseFromMenu('Więcej', 'Ustawienia generatora')
+    const panel = await screen.findByRole('dialog', { name: 'Ustawienia generatora' })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zamknij panel' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Więcej' })).toHaveFocus())
+  })
+
+  it('gives the focus back to the proposal settings button that opened the panel', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    const inline = await screen.findByRole('button', { name: 'Zmień i generuj ponownie' })
+    inline.focus()
+    fireEvent.click(inline)
+    const panel = await screen.findByRole('dialog', { name: 'Ustawienia generatora' })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zamknij panel' }))
+    await waitFor(() => expect(inline).toHaveFocus())
   })
 
   it('titles a resumed generation with the open draft range', async () => {
@@ -923,7 +965,7 @@ describe('GeneratorPanel draft correction', () => {
   async function correctD1() {
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, czw 17-09-2026/ }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Marek Nowak · 17-09-2026' })).getByRole('button', { name: 'Przypisz w szkicu' }))
-    expect(await screen.findByText(/wersja 2 ·/)).toBeInTheDocument()
+    expect(await screen.findByText('Szkic · v2')).toBeInTheDocument()
   }
 
   it('keeps the draft opened since when the earlier correction is undone', async () => {
@@ -932,13 +974,13 @@ describe('GeneratorPanel draft correction', () => {
     await correctD1()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Otwórz' })[0])
-    expect(await screen.findByText(/wersja 7 ·/)).toBeInTheDocument()
+    expect(await screen.findByText('Szkic · v7')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
     expect(save.mock.calls[1][0]).toMatchObject({ id: 'd1', expected_version: 2, replacement_member_id: 'm1' })
     await waitFor(() => expect(schedule.mock.calls.filter(([id]) => id === 'd2').length).toBeGreaterThan(1))
-    expect(screen.getByText(/wersja 7 ·/)).toBeInTheDocument()
+    expect(screen.getByText('Szkic · v7')).toBeInTheDocument()
     expect(router.state.location.search).toBe('?szkic=d2')
   })
 
@@ -948,7 +990,7 @@ describe('GeneratorPanel draft correction', () => {
     await correctD1()
 
     act(() => { void router.navigate('/generator') })
-    await waitFor(() => expect(screen.queryByText(/wersja 2 ·/)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText('Szkic · v2')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
@@ -1073,7 +1115,7 @@ describe('GeneratorPanel settings drawer', () => {
     const { router } = renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     expect(await screen.findByText('CP-SAT: OPTIMAL')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Ustawienia generatora/ }))
+    await chooseFromMenu('Więcej', /Ustawienia generatora/)
     const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
     await waitFor(() => expect(mode).toBeEnabled())
     fireEvent.change(mode, { target: { value: 'weekly' } })
@@ -1204,7 +1246,7 @@ describe('GeneratorPanel publication sheet', () => {
 
     finish(draft({ ...started, status: 'published', version: 3 }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^Publikuję/ })).not.toBeInTheDocument())
-    expect(await screen.findByText('grafik opublikowany')).toBeInTheDocument()
+    expect(await screen.findByText('Opublikowany · v3')).toBeInTheDocument()
     // The coordinator learns that the team was told, and can go and look;
     // the toast names the version they confirmed, not the bumped row version.
     expect(screen.getByText('Opublikowano v2 · 8 – 18 wrz')).toBeInTheDocument()

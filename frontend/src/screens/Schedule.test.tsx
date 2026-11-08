@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
+import { chooseFromMenu, openMenu } from '../test/menu'
 import { ScheduleScreen } from './Schedule'
 import { api } from '../api'
 import type { CalendarData, PublishedSchedule, ScheduleSummary } from '../api'
@@ -85,7 +86,10 @@ describe('ScheduleScreen header', () => {
     unmount()
 
     renderSchedule('/grafik', { role: 'member', hasTeamMember: true })
-    expect(await screen.findByRole('link', { name: /Eksport ICS/ })).toHaveAttribute('href', '/moje#ics')
+    // The ICS export waits in the matrix's "more" menu, not in the header.
+    const menu = await openMenu('Więcej')
+    expect(within(menu).getByRole('menuitem', { name: 'Eksport ICS' })).toHaveAttribute('href', '/moje#ics')
+    expect(screen.queryByRole('link', { name: /Eksport ICS/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Generuj kolejny zakres/ })).not.toBeInTheDocument()
     // A member's screen never asks for the drafts.
     expect(drafts).toHaveBeenCalledTimes(1)
@@ -100,7 +104,7 @@ describe('ScheduleScreen range in the URL', () => {
     renderSchedule('/grafik?od=2026-09-14&zoom=8')
 
     expect(await screen.findByRole('heading', { level: 2, name: '14 wrz – 8 lis' })).toBeInTheDocument()
-    expect(await screen.findByText('8 tygodni · 4 osoby w rotacji')).toBeInTheDocument()
+    expect(await screen.findByText(/^8 tygodni · 4 osoby w rotacji/)).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: '8 tyg.' })).toBeChecked()
     await waitFor(() => expect(api.calendar).toHaveBeenCalledWith('2026-09-14', '2026-11-08'))
     expect(screen.queryByRole('list', { name: 'Ryzyka w zakresie' })).not.toBeInTheDocument()
@@ -194,18 +198,49 @@ describe('ScheduleScreen range in the URL', () => {
     renderSchedule('/grafik')
     await screen.findByRole('region', { name: 'Macierz grafiku' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Legenda' }))
+    await chooseFromMenu('Więcej', 'Legenda')
     const legend = await screen.findByRole('dialog', { name: 'Legenda' })
     expect(within(legend).getByText(/po korekcie koordynatora/)).toBeInTheDocument()
+    fireEvent.keyDown(legend, { key: 'Escape' })
 
-    const toggle = screen.getByRole('button', { name: 'Lista dni' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Legenda' })).not.toBeInTheDocument())
+    // An on/off setting keeps the menu open, so the effect shows behind it.
+    const menu = await openMenu('Więcej')
+    const toggle = within(menu).getByRole('menuitemcheckbox', { name: 'Lista dni' })
     fireEvent.click(toggle)
     const list = await screen.findByRole('list', { name: 'Grafik dzień po dniu' })
     // The list is grouped by ISO week, each heading naming its Monday-Sunday span.
     expect(within(list).getByText('Tydzień 37 · 7 – 13 wrz')).toBeInTheDocument()
-    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(toggle)
     expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+  })
+
+  it('names the days without full coverage in the section heading and opens the first of them', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-14&zoom=8')
+
+    const first = await screen.findByRole('button', { name: '1 dzień bez pełnej obsady, pierwszy 14-09' })
+    expect(first).toHaveClass('link-btn')
+    expect(first.closest('.sech-meta')).toHaveTextContent('8 tygodni · 4 osoby w rotacji · 1 dzień bez pełnej obsady, pierwszy 14-09')
+    fireEvent.click(first)
+    expect(await screen.findByRole('dialog', { name: /^pon 14-09-2026/ })).toBeInTheDocument()
+  })
+
+  it('says nothing of gaps in a fully staffed range', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => ({
+      ...calendar(a, b),
+      assignments: (['primary', 'secondary', 'late_shift'] as const).map((role, index) => ({
+        service_date: a, role, assignee_name: `Osoba ${index}`, member_id: `m${index + 1}`, is_override: false, schedule_id: 's1', schedule_version: 4, change_kind: null,
+      })),
+    }))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-14&zoom=8')
+    expect(await screen.findByText('8 tygodni · 4 osoby w rotacji')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /bez pełnej obsady/ })).not.toBeInTheDocument()
   })
 })
 

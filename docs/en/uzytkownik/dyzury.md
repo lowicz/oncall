@@ -9,24 +9,29 @@ people × days matrix for a chosen range.
 The title of the screen is today's date, and under it the state of the
 published schedule: how far it reaches and which version it is. On a day off
 or a holiday the subtitle adds that the 2X rate applies (`PRIMARY` and
-`SECONDARY` then last around the clock). Who is on duty at this moment, until
+`SECONDARY` then last around the clock). The subtitle also gives the number
+of swaps waiting for your decision (a link to Swaps) and, for a coordinator,
+the result of the fairness criterion. Who is on duty at this moment, until
 when and on which phone number is shown all the time by the “On duty now”
 strip above every screen, so the screen itself does not repeat the staffing.
+A role nobody holds is bold in the strip and marked with a red dot:
+**unstaffed**.
 
-The actions on the right depend on the role: a team member has **Export ICS**
-and **File availability** (both lead to the Mine screen), a coordinator and an
+The actions on the right depend on the role: a team member has **File
+availability** (it leads to the Mine screen), a coordinator and an
 administrator have **Generate the next range**, which opens the Generator with
 a range starting the day after the end of the published schedule.
 
-Under the header is a row of risk badges: days without full coverage and days
-outside the published range (as on the Schedule), the number of swaps waiting
-for your decision (leads to Swaps) and, for a coordinator, the result of the
-fairness criterion (leads to the report).
+Under the header is a row of risk badges, about the visible range only: days
+without full coverage, days outside the published range and, for a
+coordinator, people on duty on a day of a filed “Unavailable”. A badge that
+leads to a day ends in an arrow.
 
 Below is the **Next 4 weeks** section with the same matrix as on the Schedule
-screen and the same controls in the section header: length 2 / 4 / 8 weeks, a
-week back and forward, back to today, **On duty only**, **Legend** and **Day
-list**. When nobody is in the rotation yet, the section says so plainly
+screen and the same strip of controls in the section header: length 2 / 4 / 8
+weeks, a week back and forward, back to today and a **⋯** (**More**) menu with
+**On duty only**, **Day list**, **Legend** and, for a team member, **Export
+ICS**. When nobody is in the rotation yet, the section says so plainly
 instead of showing an empty matrix, and shows no controls; an administrator
 gets an **Open People** button in it to add the team. When the team has
 people but none of them is in the rotation in the visible range, the section
@@ -45,13 +50,13 @@ is a list of days.
 
 The screen header gives the range and version of the published schedule, and
 for a coordinator also the proposal waiting for publication; the **Open the
-proposal** button leads straight to it in the Generator. A team member has
-**Export ICS** here.
+proposal** button leads straight to it in the Generator. A team member finds
+the ICS export in the **⋯** menu above the matrix and on the Mine screen.
 
 The default range starts today and covers four weeks (or fewer, if the published schedule ends earlier).
 If the publication has expired, the screen shows four weeks from today and a warning with the end date, and a coordinator also gets the way to the Generator (or to the waiting proposal).
 An invalid range from the address shows a **Show from today** action instead of leaving the screen without controls.
-The section header above the matrix names the range, its length and the number of people in the rotation. People are on
+The section header above the matrix names the range, its length and the number of people in the rotation, and when the range has days without full coverage, also their number with a link to the first of them (“2 days without full coverage, first on 14-11”). People are on
 the vertical axis, consecutive days on the horizontal one. The people column
 and the date headers stay visible while scrolling.
 
@@ -72,18 +77,20 @@ A cell combines two pieces of information:
 | correction or swap | a separate status, not just a different colour |
 
 Colour is never the only carrier of information - every state also has a text
-label, read by a screen reader as well. The **Legend** link in the section
-header expands the list of symbols; `Esc` closes it.
+label, read by a screen reader as well. The **Legend** item in the **⋯** menu
+above the matrix expands the list of symbols; `Esc` closes it.
 
 ### Risks in the range
 
 On the Now screen, above the matrix, is a row of badges: days of the published
 schedule without full coverage (clicking jumps to the first such day), days
-outside the published range, duties colliding with a filed “Unavailable”, or
-**Full coverage** when everything is fine. Narrowing the view cannot hide an
-active conflict without this message. The Schedule shows the same matrix
-without the risk row; days without coverage are marked in red in the column
-header and in the day panel there.
+outside the published range, people on duty on a day of a filed
+“Unavailable” (clicking jumps to the first such day), or **Full coverage**
+when everything is fine.
+Narrowing the view cannot hide an active conflict without this message. The
+Schedule shows the same matrix without the risk row; days without coverage
+are marked in red in the column header and in the day panel there, and the
+section header gives their number with a link to the first.
 
 ### Day details
 
@@ -96,7 +103,9 @@ From this panel:
 
 - a **team member** can start a swap request for their own slot,
 - a **coordinator and an administrator** can change any assignment directly,
-  without the replacement's consent and without an acceptance step. The
+  without the replacement's consent and without an acceptance step. Every
+  role row in the panel ends in a **Change…** button (an empty role:
+  **Staff…**), and clicking anywhere on the row does the same. The
   correction concerns only the chosen day and role, and everything there is
   to know about it appears in the panel right under the choice of person,
   without a separate confirmation dialog: the rule line (“No hard rule is
@@ -129,17 +138,18 @@ no availability data at all.
 
 ## View controls
 
-The controls are in the section header above the matrix, the same on Now and
-on the Schedule:
+The controls are one strip in the section header above the matrix, the same
+on Now and on the Schedule:
 
 | Control | What it does |
 | --- | --- |
 | **2 wk** / **4 wk** / **8 wk** | sets the length of the range; a longer range has smaller cells |
 | **‹** / **›** | moves the whole range by seven days |
 | **today** | returns to the range starting today |
-| **On duty only** | hides people without an assignment in the range |
-| **Legend** | expands the list of symbols |
-| **Day list** | switches between the matrix and the list of days |
+| **⋯** → **On duty only** | hides people without an assignment in the range |
+| **⋯** → **Day list** | switches between the matrix and the list of days |
+| **⋯** → **Legend** | expands the list of symbols |
+| **⋯** → **Export ICS** | opens the calendar addresses with your duties on the Mine screen (team member) |
 
 On the Schedule the start of the range and its length are part of the page
 address (`/grafik?od=2026-09-14&zoom=8`), so a link to a specific view can be

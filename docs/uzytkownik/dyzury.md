@@ -9,23 +9,28 @@ macierz osób × dni na wybrany zakres.
 Tytułem ekranu jest dzisiejsza data, a pod nią stan opublikowanego grafiku:
 do kiedy sięga i która to wersja. W dzień wolny lub święto podtytuł dodaje,
 że obowiązuje stawka 2X (`PRIMARY` i `SECONDARY` trwają wtedy całą dobę).
+Podtytuł podaje też liczbę zamian czekających na Twoją decyzję (link do
+Zamian) oraz, dla koordynatora, wynik kryterium sprawiedliwości.
 Kto ma dyżur w tej chwili, do kiedy i pod jakim telefonem, pokazuje stale
 pasek „Dyżur teraz” nad każdym ekranem, więc sam ekran nie powtarza obsady.
+Rola, której nikt nie ma, jest w pasku pogrubiona i oznaczona czerwoną
+kropką: **brak obsady**.
 
-Akcje po prawej zależą od roli: członek zespołu ma **Eksport ICS** i **Zgłoś
-dostępność** (oba prowadzą do ekranu Moje), koordynator i administrator mają
-**Generuj kolejny zakres**, który otwiera Generator z zakresem zaczynającym
-się dzień po końcu opublikowanego grafiku.
+Akcje po prawej zależą od roli: członek zespołu ma **Zgłoś dostępność**
+(prowadzi do ekranu Moje), koordynator i administrator mają **Generuj
+kolejny zakres**, który otwiera Generator z zakresem zaczynającym się dzień
+po końcu opublikowanego grafiku.
 
-Pod nagłówkiem jest rząd znaczników ryzyka: dni bez pełnej obsady i dni poza
-opublikowanym zakresem (jak na Grafiku), liczba zamian czekających na Twoją
-decyzję (prowadzi do Zamian) oraz, dla koordynatora, wynik kryterium
-sprawiedliwości (prowadzi do raportu).
+Pod nagłówkiem jest rząd znaczników ryzyka, tylko o widocznym zakresie: dni
+bez pełnej obsady, dni poza opublikowanym zakresem i, dla koordynatora,
+osoby z dyżurem w dniu zgłoszonego „nie mogę”. Znacznik, który prowadzi do
+dnia, kończy się strzałką.
 
 Niżej jest sekcja **Najbliższe 4 tygodnie** z tą samą macierzą co na ekranie
-Grafik i tymi samymi kontrolkami w nagłówku sekcji: długość 2 / 4 / 8
-tygodni, tydzień wstecz i do przodu, powrót do dziś, **Tylko z dyżurem**,
-**Legenda** i **Lista dni**. Gdy nikt nie jest jeszcze w rotacji, sekcja
+Grafik i tym samym pasem kontrolek w nagłówku sekcji: długość 2 / 4 / 8
+tygodni, tydzień wstecz i do przodu, powrót do dziś oraz menu **⋯**
+(**Więcej**) z pozycjami **Tylko z dyżurem**, **Lista dni**, **Legenda** i,
+dla członka zespołu, **Eksport ICS**. Gdy nikt nie jest jeszcze w rotacji, sekcja
 zamiast pustej macierzy mówi to wprost i nie pokazuje kontrolek;
 administrator dostaje w niej przycisk **Otwórz Osoby**, żeby dodać zespół.
 Gdy zespół ma osoby, ale żadna nie jest w rotacji w widocznym zakresie,
@@ -43,13 +48,13 @@ kartami członek zespołu widzi swój najbliższy dyżur, a grafik jest listą d
 
 Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
 koordynatorowi także propozycję czekającą na publikację; przycisk **Otwórz
-propozycję** prowadzi prosto do niej w Generatorze. Członek zespołu ma tu
-**Eksport ICS**.
+propozycję** prowadzi prosto do niej w Generatorze. Eksport ICS członek
+zespołu znajdzie w menu **⋯** nad macierzą i na ekranie Moje.
 
 Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli opublikowany grafik kończy się wcześniej).
 Jeśli publikacja już wygasła, ekran pokazuje cztery tygodnie od dziś i ostrzeżenie z datą końca, a koordynatorowi także drogę do Generatora (albo do czekającej propozycji).
 Nieprawidłowy zakres z adresu pokazuje akcję **Pokaż od dziś**, zamiast pozostawiać ekran bez kontrolek.
-Nagłówek sekcji nad macierzą nazywa zakres, jego długość i liczbę osób w rotacji. Osoby są na osi
+Nagłówek sekcji nad macierzą nazywa zakres, jego długość i liczbę osób w rotacji, a gdy w zakresie są dni bez pełnej obsady, także ich liczbę z linkiem do pierwszego z nich („2 dni bez pełnej obsady, pierwszy 14-11”). Osoby są na osi
 pionowej, kolejne dni na poziomej. Kolumna z osobami i nagłówki dat zostają
 widoczne podczas przewijania.
 
@@ -70,18 +75,19 @@ Komórka łączy dwie informacje:
 | korekta lub zamiana | osobny status, nie tylko inny kolor |
 
 Kolor nigdy nie jest jedynym nośnikiem informacji - każdy stan ma też etykietę
-tekstową, czytaną również przez czytnik ekranu. Link **Legenda** w nagłówku
-sekcji rozwija spis symboli; `Esc` go zamyka.
+tekstową, czytaną również przez czytnik ekranu. Pozycja **Legenda** w menu
+**⋯** nad macierzą rozwija spis symboli; `Esc` go zamyka.
 
 ### Ryzyka w zakresie
 
 Na ekranie Teraz nad macierzą jest rząd znaczników: dni opublikowanego
 grafiku bez pełnej obsady (kliknięcie przeskakuje do pierwszego takiego dnia),
-dni poza opublikowanym zakresem, dyżury kolidujące ze zgłoszonym „nie mogę”
-albo **Pełna obsada**, gdy wszystko gra. Zawężenie widoku nie może ukryć
-aktywnego konfliktu bez tego komunikatu. Grafik pokazuje tę samą macierz bez
-rzędu ryzyk; dni bez obsady są w nim zaznaczone na czerwono w nagłówku
-kolumny i w panelu dnia.
+dni poza opublikowanym zakresem, osoby z dyżurem w dniu zgłoszonego „nie
+mogę” (kliknięcie przeskakuje do pierwszego takiego dnia) albo **Pełna
+obsada**, gdy wszystko gra. Zawężenie widoku nie może ukryć aktywnego konfliktu bez tego
+komunikatu. Grafik pokazuje tę samą macierz bez rzędu ryzyk; dni bez obsady
+są w nim zaznaczone na czerwono w nagłówku kolumny i w panelu dnia, a
+nagłówek sekcji podaje ich liczbę z linkiem do pierwszego.
 
 ### Szczegóły dnia
 
@@ -94,7 +100,9 @@ Z tego panelu:
 
 - **członek zespołu** może rozpocząć prośbę o zamianę własnego slotu,
 - **koordynator i administrator** mogą zmienić dowolny przydział bezpośrednio,
-  bez zgody zastępcy i bez kroku akceptacji. Korekta dotyczy wyłącznie
+  bez zgody zastępcy i bez kroku akceptacji. Każdy wiersz roli w panelu ma
+  na końcu przycisk **Zmień…** (pusta rola: **Obsadź…**), a kliknięcie
+  całego wiersza działa tak samo. Korekta dotyczy wyłącznie
   wybranego dnia i roli, a wszystko, co trzeba o niej wiedzieć, pojawia się w
   panelu tuż pod wyborem osoby, bez osobnego okna potwierdzenia: linia reguł
   („Bez naruszeń reguł twardych”) i wpływ na bilans punktów obu osób. Jeśli
@@ -125,16 +133,18 @@ danych o dostępności w ogóle.
 
 ## Sterowanie widokiem
 
-Kontrolki są w nagłówku sekcji nad macierzą, na Teraz i na Grafiku tak samo:
+Kontrolki są jednym pasem w nagłówku sekcji nad macierzą, na Teraz i na
+Grafiku tak samo:
 
 | Kontrolka | Co robi |
 | --- | --- |
 | **2 tyg.** / **4 tyg.** / **8 tyg.** | ustawia długość zakresu; dłuższy zakres ma mniejsze komórki |
 | **‹** / **›** | przesuwa cały zakres o siedem dni |
 | **dziś** | wraca do zakresu zaczynającego się dziś |
-| **Tylko z dyżurem** | ukrywa osoby bez przydziału w zakresie |
-| **Legenda** | rozwija spis symboli |
-| **Lista dni** | przełącza między macierzą a listą dni |
+| **⋯** → **Tylko z dyżurem** | ukrywa osoby bez przydziału w zakresie |
+| **⋯** → **Lista dni** | przełącza między macierzą a listą dni |
+| **⋯** → **Legenda** | rozwija spis symboli |
+| **⋯** → **Eksport ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje (członek zespołu) |
 
 Na Grafiku początek zakresu i długość są częścią adresu strony
 (`/grafik?od=2026-09-14&zoom=8`), więc link do konkretnego widoku można

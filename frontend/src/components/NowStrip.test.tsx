@@ -7,14 +7,15 @@ import { NowStrip, coverageEnd, formatUntil } from './NowStrip'
 import { api } from '../api'
 import type { CurrentDuty, PublishedSchedule } from '../api'
 
-/** The freshness-dot rule the loaded stylesheet defines for a stale reading. */
-function staleDotRule(): CSSStyleRule | undefined {
+/** The last rule whose selector list names `selector`, as the cascade would apply it. */
+function dotRule(selector: string): CSSStyleRule | undefined {
+  let found: CSSStyleRule | undefined
   for (const sheet of Array.from(document.styleSheets)) {
     for (const rule of Array.from(sheet.cssRules)) {
-      if (rule instanceof CSSStyleRule && rule.selectorText === '.now-stale::before') return rule
+      if (rule instanceof CSSStyleRule && rule.selectorText.split(',').map((item) => item.trim()).includes(selector)) found = rule
     }
   }
-  return undefined
+  return found
 }
 
 const duty = (over: Partial<CurrentDuty>): CurrentDuty => ({
@@ -102,6 +103,18 @@ describe('NowStrip', () => {
     expect(within(strip).getAllByText('brak obsady')).toHaveLength(2)
   })
 
+  it('weighs a gap like a name and marks it with the alarm dot', async () => {
+    loadRealStylesheet()
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ service_date: '2026-09-10' })]))
+    renderScreen(<NowStrip />)
+    const [gap] = await screen.findAllByText('brak obsady')
+    expect(gap).toHaveClass('now-who', 'now-gap')
+    expect(gap).not.toHaveClass('now-who-none')
+    expect(getComputedStyle(gap).fontWeight).toBe('700')
+    expect(dotRule('.now-gap::before')?.style.background).toBe('var(--bad-dot)')
+    expect(dotRule('.now-stale::before')?.style.background).toBe('var(--warn-dot)')
+  })
+
   it('marks the day shift as not applicable on a holiday and on a day off', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValueOnce({
       ...schedule([duty({ service_date: '2026-09-10', coverage_starts_at: '19:00' })]),
@@ -170,7 +183,7 @@ describe('NowStrip', () => {
     await act(async () => { await queryClient.refetchQueries({ queryKey: ['published-schedule'] }) })
     await waitFor(() => expect(screen.getByText('stan z 09:00')).toHaveClass('now-stale'))
 
-    const dot = staleDotRule()
+    const dot = dotRule('.now-stale::before')
     expect(dot?.style.background).toBe('var(--warn-dot)')
     expect(dot?.style.boxShadow).toContain('var(--band-ink)')
     expect(dot?.style.width).toBe('8px')

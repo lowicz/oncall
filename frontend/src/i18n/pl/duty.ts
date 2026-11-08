@@ -19,7 +19,7 @@ export const duty = {
   },
   /** One role's duty as a card on a phone: who, until when, how to reach them, who is next. */
   card: {
-    roleNow: (role: string) => `${role} · teraz`,
+    now: 'teraz',
     override: 'korekta',
     dayOffRate: '2X',
     notApplicable: (reason: string) => `nie dotyczy: ${reason}`,
@@ -47,10 +47,8 @@ export const duty = {
   notPublishedMember: 'Koordynator jeszcze nie opublikował grafiku na ten okres.',
   nextOwnDuty: 'Twój następny dyżur:',
   swapsWaiting: (count: number) => `${pluralPl(count, ['zamiana czeka', 'zamiany czekają', 'zamian czeka'])} na Ciebie`,
-  openSwaps: 'Otwórz zamiany',
-  openFairness: 'Otwórz raport sprawiedliwości',
-  fairnessMet: 'Kryterium sprawiedliwości spełnione',
-  fairnessNotMet: 'Kryterium sprawiedliwości niespełnione',
+  fairnessMet: 'kryterium sprawiedliwości spełnione',
+  fairnessNotMet: 'kryterium sprawiedliwości niespełnione',
   /** "Najbliższe 4 tygodnie": the heading of the schedule section while it starts today. */
   upcoming: (weeks: string) => `Najbliższe ${weeks}`,
   linkRange: 'zakres linku',

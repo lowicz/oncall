@@ -65,19 +65,22 @@ Lista jest tylko do odczytu - wydarzenia dodaje się i zmienia na ekranie **Wyda
 
 ## Propozycja
 
-Otwarty szkic to osobna strona. Tytuł mówi, na jakim etapie jest wynik:
-„Szkic *zakres*”, „Propozycja *zakres*” po przekazaniu do akceptacji, „Grafik
-*zakres*” po publikacji. Pod tytułem są: znacznik stanu, wersja, liczba
-przydziałów i dni, tryb rotacji oraz status solvera (`CP-SAT: OPTIMAL` i
-podobne; status inny niż pełne rozwiązanie jest objaśniony słowami -
-najczęściej znaczy, że budżet czasu był za krótki albo że reguły twarde są
-sprzeczne z obsadą). Niżej rząd etapów cyklu (Szkic, Do akceptacji,
+Otwarty szkic to osobna strona. Tytułem jest zakres, a obok niego jedna
+pigułka stanu z wersją: „Szkic · v2”, „Do akceptacji · v3” po przekazaniu,
+„Opublikowany · v4” po publikacji. Pod tytułem są liczba przydziałów i dni
+oraz tryb rotacji. Status solvera (`CP-SAT: OPTIMAL` i podobne) jest w
+sekcji **Ustawienia tej propozycji**; status inny niż pełne rozwiązanie jest
+objaśniony słowami w ramce nad macierzą - najczęściej znaczy, że budżet
+czasu był za krótki albo że reguły twarde są sprzeczne z obsadą. Niżej rząd etapów cyklu (Szkic, Do akceptacji,
 Opublikowany) i **Stan szkicu** w czterech znacznikach: obsada, reguły twarde,
 ostrzeżenia miękkie i rozrzut punktów po publikacji.
 
-Akcje w nagłówku: **Ustawienia generatora**, **Generuj ponownie**, a dalej
-**Przekaż do akceptacji** dla szkicu albo **Wróć do szkicu** i **Publikuj…**
-dla propozycji.
+Akcje w nagłówku: **Generuj nowy szkic**, a dalej **Przekaż do akceptacji**
+dla szkicu albo **Publikuj…** dla propozycji. Menu **⋯** (**Więcej**) ma
+**Ustawienia generatora** i, dla propozycji, **Wróć do szkicu**. **Generuj
+nowy szkic** tworzy kolejny szkic dla tego samego zakresu i otwiera go;
+otwarty grafik, z poprawkami, zostaje bez zmian, o czym mówi komunikat po
+wygenerowaniu.
 
 Strona ma dwie kolumny. Po lewej:
 
