@@ -3,22 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, api } from '../api'
 import { useUndoable } from './useUndoable'
 import { messages, useMessages } from '../i18n'
-import { LateShiftLink, StaffChange, StaffingCandidate, lateShiftLink, slotOf, staffChanges, staffingCandidates } from '../lib/calendar'
+import { LateShiftLink, OnCall, StaffChange, StaffingCandidate, correctionRoles, lateShiftLink, staffChanges, staffingCandidates } from '../lib/calendar'
 import { formatShortDate, warsawDate } from '../lib/dates'
 import { availabilityLabels, roleLabels } from '../lib/labels'
-import { Button, Checkbox, Field, Fieldset, Input, Select, useToast } from '../ui'
+import { Button, Field, Input, Select, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
-import { StaffChangeImpact, StaffChangePreview } from '../components/StaffChangePreview'
-
-type OnCall = 'primary' | 'secondary'
+import { RolesFieldset, StaffChangeImpact, StaffChangePreview } from '../components/StaffChangePreview'
 
 const MIN_REASON_LENGTH = 10
 const FORM_ID = 'staff-change-form'
-
-/** The roles in the order a day reads them, PRIMARY or SECONDARY first. */
-function rolesOf(onCall: OnCall | null, late: boolean): AssignmentRole[] {
-  return [...(onCall ? [onCall] : []), ...(late ? ['late_shift' as const] : [])]
-}
 
 function labels(roles: AssignmentRole[]) {
   return roles.map((role) => roleLabels()[role])
@@ -46,10 +39,7 @@ function selection({ data, serviceDate, link, onCall, lateChoice, memberId, open
   memberId: string | null
   open: boolean
 }) {
-  // 11–19 goes along by default exactly where the API would carry it: with
-  // its anchor role, from the person holding both.
-  const late = lateChoice ?? Boolean(link?.coupled && link.anchor === onCall)
-  const roles = rolesOf(onCall, late)
+  const { late, roles } = correctionRoles(onCall, lateChoice, link)
   const candidates = open && data && serviceDate && roles.length > 0 ? staffingCandidates(data, serviceDate, roles) : []
   const chosen = candidates.find((item) => item.id === memberId)
   const ref = data?.assignments.find((item) => item.service_date === serviceDate)
@@ -76,29 +66,6 @@ function emailsTo(people: number, name: string) {
   if (people === 1) return toast.emailOne(name)
   if (people === 2) return toast.emailBoth
   return toast.emailMany(people)
-}
-
-/** What the 11–19 row says about its slot, and why 11–19 is ticked or not,
- *  said only while its anchor role is changed. */
-function lateTexts(
-  data: CalendarData | undefined,
-  serviceDate: string | undefined,
-  link: LateShiftLink | null,
-  onCall: OnCall | null,
-  late: boolean,
-) {
-  const t = messages().schedule.staffChange
-  const lateSlot = data && serviceDate ? slotOf(data, serviceDate, 'late_shift') : undefined
-  const anchorLabel = link && roleLabels()[link.anchor]
-  let note = t.unstaffed
-  if (link?.coupled) note = t.withAnchor(anchorLabel!)
-  else if (lateSlot) note = t.heldBy(lateSlot.assignee_name)
-  let hint: string | undefined
-  if (onCall === link?.anchor) {
-    if (late) hint = link.coupled ? t.lateByPolicy(link.holder, anchorLabel!) : t.lateByYou(anchorLabel!, link.anchorHolder)
-    else if (link.coupled) hint = t.lateStays(link.holder)
-  }
-  return { note, hint }
 }
 
 /** What the person picker says about the chosen person: why they take only
@@ -267,44 +234,25 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
     || ((violations?.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
 
-  const { note: lateNote, hint: lateHint } = lateTexts(data, serviceDate, link, onCall, late)
-  const other: OnCall | null = onCall && (onCall === 'primary' ? 'secondary' : 'primary')
-  const groupHint = [other && t.excluded(roleLabels()[other]), lateHint].filter(Boolean).join(' ') || undefined
-
   const { error: personError, hint: personHint } = personTexts(chosen, roles, serviceDate)
   const pending = save.isPending
-
-  const onCallCheck = (role: OnCall) => (
-    <Checkbox
-      className="role-check"
-      label={roleLabels()[role]}
-      checked={onCall === role}
-      blocked={other === role}
-      disabled={pending}
-      onChange={() => setOnCall(onCall === role ? null : role)}
-    />
-  )
 
   // A day that drops out of the publication while the form is open has
   // nothing left to correct; the inspector says why.
   const form = open && day?.published && serviceDate && (
     <section id={FORM_ID} className="swap-frame" aria-labelledby={`${FORM_ID}-title`}>
       <h3 id={`${FORM_ID}-title`} className="swap-frame-h">{t.title}</h3>
-      <Fieldset legend={t.roles} hint={groupHint} error={roles.length === 0 ? t.pickRole : undefined}>
-        <div className="role-checks">
-          {onCallCheck('primary')}
-          {onCallCheck('secondary')}
-          {!day.is_day_off && (
-            <Checkbox
-              className="role-check"
-              label={<>{roleLabels().late_shift} <small>· {lateNote}</small></>}
-              checked={late}
-              disabled={pending}
-              onChange={() => setLateChoice(!late)}
-            />
-          )}
-        </div>
-      </Fieldset>
+      <RolesFieldset
+        data={data!}
+        serviceDate={serviceDate}
+        link={link}
+        onCall={onCall}
+        late={late}
+        dayOff={day.is_day_off}
+        disabled={pending}
+        onOnCall={setOnCall}
+        onLate={setLateChoice}
+      />
       {roles.length > 0 && (
         <Field label={t.person(t.roleList(labels(roles)))} id="calendar-override-member" hint={personHint} error={personError}>
           {({ id, describedBy, invalid }) => (

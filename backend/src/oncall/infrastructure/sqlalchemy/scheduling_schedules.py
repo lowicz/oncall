@@ -6,7 +6,7 @@ value the domain works with, and `ScheduleRow` is always the table.
 """
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import date, datetime
 
 from sqlalchemy import select, text, update
@@ -203,19 +203,20 @@ class SqlAlchemySchedules:
         # The id is assigned when the unit of work writes the new row.
         return schedule
 
-    async def correct(self, schedule_id: uuid.UUID, slot: Slot, to: Member) -> None:
+    async def correct(self, schedule_id: uuid.UUID, holders: Sequence[tuple[Slot, Member]]) -> None:
         row = self._rows[schedule_id]
-        assignment = next(
-            (item for item in row.assignments if (item.service_date, item.role) == slot), None
-        )
-        if assignment is None:
-            service_date, role = slot
-            assignment = Assignment(service_date=service_date, role=role)
-            row.assignments.append(assignment)
-        record_origin(assignment)
-        assignment.assignee_name = to.display_name
-        assignment.member_id = to.id
-        assignment.is_override = True
+        for slot, to in holders:
+            assignment = next(
+                (item for item in row.assignments if (item.service_date, item.role) == slot), None
+            )
+            if assignment is None:
+                service_date, role = slot
+                assignment = Assignment(service_date=service_date, role=role)
+                row.assignments.append(assignment)
+            record_origin(assignment)
+            assignment.assignee_name = to.display_name
+            assignment.member_id = to.id
+            assignment.is_override = True
         row.version += 1
 
     async def change_status(

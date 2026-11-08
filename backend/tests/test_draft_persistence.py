@@ -126,8 +126,7 @@ async def test_manual_correction_survives_a_reload(client: AsyncClient, db: Asyn
         json={
             "expected_version": draft["version"],
             "service_date": slot["service_date"],
-            "role": slot["role"],
-            "replacement_member_id": replacement["id"],
+            "assignments": [{"role": slot["role"], "replacement_member_id": replacement["id"]}],
         },
     )
     assert corrected.status_code == 200, corrected.text

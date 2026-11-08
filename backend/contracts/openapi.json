@@ -1616,14 +1616,9 @@
         "title": "DraftLensSpreadResponse",
         "type": "object"
       },
-      "DraftOverrideRequest": {
+      "DraftOverrideLine": {
         "additionalProperties": false,
         "properties": {
-          "expected_version": {
-            "minimum": 1.0,
-            "title": "Expected Version",
-            "type": "integer"
-          },
           "replacement_member_id": {
             "format": "uuid",
             "title": "Replacement Member Id",
@@ -1631,6 +1626,32 @@
           },
           "role": {
             "$ref": "#/components/schemas/AssignmentRole"
+          }
+        },
+        "required": [
+          "role",
+          "replacement_member_id"
+        ],
+        "title": "DraftOverrideLine",
+        "type": "object"
+      },
+      "DraftOverrideRequest": {
+        "additionalProperties": false,
+        "description": "The roles of one draft day handed over as one decision: one person\ntaking one or more roles, or two people trading places.",
+        "properties": {
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/DraftOverrideLine"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Assignments",
+            "type": "array"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
           },
           "service_date": {
             "format": "date",
@@ -1641,8 +1662,7 @@
         "required": [
           "expected_version",
           "service_date",
-          "role",
-          "replacement_member_id"
+          "assignments"
         ],
         "title": "DraftOverrideRequest",
         "type": "object"

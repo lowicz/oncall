@@ -4,7 +4,7 @@ import { ApiError, AssignmentRole, CalendarData, LateShiftAnchor, api } from '..
 import { usePublicConfig } from './usePublicConfig'
 import { useMessages } from '../i18n'
 import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders, swapRefused } from '../lib/calendar'
-import { formatDay, warsawDate } from '../lib/dates'
+import { formatShortDate, warsawDate } from '../lib/dates'
 import { undoable } from '../lib/undo'
 import { Button, Field, Input, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
@@ -111,7 +111,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         },
         toast,
         message: () => ({
-          title: t.toast(formatDay(serviceDate), swapHolders(swap, carry, true)),
+          title: t.toast(formatShortDate(serviceDate), swapHolders(swap, carry, true)),
           description: t.emailsLater,
           expired: common.undoEmailsSent,
         }),

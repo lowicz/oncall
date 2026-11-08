@@ -68,8 +68,12 @@ def _rotation(world):
 
 
 def _correction(schedule, day, role, who, *, version=None) -> DraftCorrection:
+    return _holders(schedule, day, ((role, who),), version=version)
+
+
+def _holders(schedule, day, holders, *, version=None) -> DraftCorrection:
     return DraftCorrection(
-        COORDINATOR, schedule.id, schedule.version if version is None else version, day, role, who
+        COORDINATOR, schedule.id, schedule.version if version is None else version, day, holders
     )
 
 
@@ -86,7 +90,7 @@ async def test_a_correction_hands_the_slot_over_and_reports_the_rules_it_breaks(
     assert corrected.version == schedule.version + 1
     assert warnings == []
     assert world.journal.events == [
-        ("draft_corrected", {"args": (schedule.id, (MONDAY, "primary"), "Anna", "Dawid")})
+        ("draft_corrected", {"args": (schedule.id, [((MONDAY, "primary"), "Anna", "Dawid")])})
     ]
 
 
@@ -103,7 +107,7 @@ async def test_the_late_shift_can_go_to_whoever_is_on_call_that_day(world) -> No
     held = next(item for item in corrected.assignments if item.slot == (MONDAY, "late_shift"))
     assert (held.assignee_name, held.member_id, held.is_override) == ("Anna", world.anna.id, True)
     assert world.journal.events == [
-        ("draft_corrected", {"args": (schedule.id, (MONDAY, "late_shift"), "Bartek", "Anna")})
+        ("draft_corrected", {"args": (schedule.id, [((MONDAY, "late_shift"), "Bartek", "Anna")])})
     ]
 
 
@@ -176,9 +180,101 @@ async def test_a_role_the_draft_left_empty_is_filled_by_the_correction(world) ->
     assert world.journal.events == [
         (
             "draft_corrected",
-            {"args": (schedule.id, (MONDAY, "late_shift"), "brak obsady", "Dawid")},
+            {"args": (schedule.id, [((MONDAY, "late_shift"), "brak obsady", "Dawid")])},
         )
     ]
+
+
+async def test_two_people_trade_places_in_one_correction(world) -> None:
+    """PRIMARY and SECONDARY change hands together, 11-19 with SECONDARY: the
+    day is judged once both moved, so neither is refused as a second on-call."""
+    schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
+    primary, secondary, late = (
+        AssignmentRole.primary,
+        AssignmentRole.secondary,
+        AssignmentRole.late_shift,
+    )
+
+    warnings = await correct_draft(
+        _holders(
+            schedule,
+            MONDAY,
+            ((primary, world.bartek.id), (secondary, world.anna.id), (late, world.anna.id)),
+        ),
+        world.drafts,
+    )
+
+    corrected = world.schedules.by_id[schedule.id]
+    held = {
+        item.role: item.assignee_name
+        for item in corrected.assignments
+        if item.service_date == MONDAY
+    }
+    assert held == {primary: "Bartek", secondary: "Anna", late: "Anna"}
+    assert corrected.version == schedule.version + 1
+    # The rest rules are read for both people who took a role.
+    assert {item.split(":")[0] for item in warnings} == {"Anna", "Bartek"}
+    assert world.journal.events == [
+        (
+            "draft_corrected",
+            {
+                "args": (
+                    schedule.id,
+                    [
+                        ((MONDAY, primary), "Anna", "Bartek"),
+                        ((MONDAY, secondary), "Bartek", "Anna"),
+                        ((MONDAY, late), "Bartek", "Anna"),
+                    ],
+                )
+            },
+        )
+    ]
+
+
+async def test_one_person_takes_two_roles_in_one_correction(world) -> None:
+    schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
+
+    await correct_draft(
+        _holders(
+            schedule,
+            MONDAY,
+            (
+                (AssignmentRole.secondary, world.dawid.id),
+                (AssignmentRole.late_shift, world.dawid.id),
+            ),
+        ),
+        world.drafts,
+    )
+
+    corrected = world.schedules.by_id[schedule.id]
+    held = {
+        item.role: item.assignee_name
+        for item in corrected.assignments
+        if item.service_date == MONDAY
+    }
+    assert held == {"primary": "Anna", "secondary": "Dawid", "late_shift": "Dawid"}
+    assert corrected.version == schedule.version + 1
+    assert len(world.journal.events) == 1
+
+
+async def test_a_correction_leaving_one_person_on_both_on_call_roles_is_refused(world) -> None:
+    """Anna takes SECONDARY while keeping her PRIMARY: refused as a whole."""
+    schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
+
+    with pytest.raises(errors.SecondOnCallSameDay):
+        await correct_draft(
+            _holders(
+                schedule,
+                MONDAY,
+                (
+                    (AssignmentRole.secondary, world.anna.id),
+                    (AssignmentRole.late_shift, world.anna.id),
+                ),
+            ),
+            world.drafts,
+        )
+    assert world.schedules.by_id[schedule.id] == schedule
+    assert world.journal.events == []
 
 
 # --- lifecycle --------------------------------------------------------------

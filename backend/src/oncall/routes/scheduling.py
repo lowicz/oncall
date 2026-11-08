@@ -219,8 +219,9 @@ async def override_draft_assignment(
                 schedule_id=schedule_id,
                 expected_version=payload.expected_version,
                 service_date=payload.service_date,
-                role=payload.role,
-                replacement_member_id=payload.replacement_member_id,
+                holders=tuple(
+                    (item.role, item.replacement_member_id) for item in payload.assignments
+                ),
             ),
             ports,
         )

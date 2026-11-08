@@ -181,13 +181,28 @@ class PublishPreviewResponse(BaseModel):
     rest_violations: list[RuleViolationResponse] = Field(default_factory=list)
 
 
+class DraftOverrideLine(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: AssignmentRole
+    replacement_member_id: uuid.UUID
+
+
 class DraftOverrideRequest(BaseModel):
+    """The roles of one draft day handed over as one decision: one person
+    taking one or more roles, or two people trading places."""
+
     model_config = ConfigDict(extra="forbid")
 
     expected_version: int = Field(ge=1)
     service_date: date
-    role: AssignmentRole
-    replacement_member_id: uuid.UUID
+    assignments: list[DraftOverrideLine] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def one_line_per_role(self) -> DraftOverrideRequest:
+        if len({item.role for item in self.assignments}) < len(self.assignments):
+            raise ValueError(translate("history.duplicate_role"))
+        return self
 
 
 class RunResponse(TypedDict):

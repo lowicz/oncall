@@ -4,6 +4,7 @@ import uuid
 
 from oncall.domain.overrides.models import UNSTAFFED
 from oncall.domain.ports import TeamDirectory
+from oncall.domain.roster import Slot
 from oncall.domain.scheduling import errors
 from oncall.domain.scheduling.models import (
     DraftCorrection,
@@ -13,7 +14,8 @@ from oncall.domain.scheduling.models import (
 )
 from oncall.domain.scheduling.planning import member_rest_warnings
 from oncall.domain.scheduling.ports import DraftPorts
-from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus
+from oncall.domain.team import Member
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, ScheduleStatus
 from oncall.workdays import is_working_day, polish_holidays
 
 
@@ -36,41 +38,49 @@ async def unavailability_conflicts(
 
 
 async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[str]:
-    """Give one draft slot to another eligible and available member."""
+    """Give roles of one draft day to other eligible and available members in
+    one version: one person taking one or more roles, or two people trading
+    places. The day is judged as it stands once every role is handed over."""
     schedule = await ports.schedules.schedule_to_correct(correction.schedule_id)
     if schedule is None or schedule.status != ScheduleStatus.draft:
         raise errors.EditableDraftNotFound()
     if schedule.version != correction.expected_version:
         raise errors.DraftChanged()
-    day, role = correction.service_date, correction.role
+    day = correction.service_date
     if not schedule.starts_on <= day <= schedule.ends_on:
         raise errors.DateOutsideDraft()
-    if role == AssignmentRole.late_shift and not is_working_day(day, polish_holidays(day, day)):
-        raise errors.LateShiftOnlyOnWorkingDays()
-    replacement = await ports.team.member(correction.replacement_member_id)
-    if replacement is None:
-        raise errors.ReplacementNotFound()
-    if not replacement.is_eligible(role, day):
-        raise errors.ReplacementNotEligible()
-    if replacement.is_unavailable(day):
-        raise errors.ReplacementUnavailable()
-    # A role the solver left empty is filled the same way as a held one.
-    assignment = next((item for item in schedule.assignments if item.slot == (day, role)), None)
-    if role in (AssignmentRole.primary, AssignmentRole.secondary):
-        opposite = (
-            AssignmentRole.secondary if role == AssignmentRole.primary else AssignmentRole.primary
+    holders: list[tuple[Slot, Member]] = []
+    corrected = schedule
+    for role, member_id in correction.holders:
+        if role == AssignmentRole.late_shift and not is_working_day(day, polish_holidays(day, day)):
+            raise errors.LateShiftOnlyOnWorkingDays()
+        replacement = await ports.team.member(member_id)
+        if replacement is None:
+            raise errors.ReplacementNotFound()
+        if not replacement.is_eligible(role, day):
+            raise errors.ReplacementNotEligible()
+        if replacement.is_unavailable(day):
+            raise errors.ReplacementUnavailable()
+        # A role the solver left empty is filled the same way as a held one.
+        holders.append(((day, role), replacement))
+        corrected = corrected.with_holder((day, role), replacement.display_name, replacement.id)
+    on_call = [
+        item.member_id
+        for item in corrected.assignments
+        if item.service_date == day and item.role in ONCALL_ROLES
+    ]
+    if len(on_call) == 2 and on_call[0] is not None and on_call[0] == on_call[1]:
+        raise errors.SecondOnCallSameDay()
+    previous = {item.slot: item.assignee_name for item in schedule.assignments}
+    warnings: list[str] = []
+    for member_id in dict.fromkeys(member.id for _, member in holders):
+        warnings.extend(
+            item for item in member_rest_warnings(corrected, member_id) if item not in warnings
         )
-        if any(
-            item.slot == (day, opposite) and item.member_id == replacement.id
-            for item in schedule.assignments
-        ):
-            raise errors.SecondOnCallSameDay()
-    corrected = schedule.with_holder((day, role), replacement.display_name, replacement.id)
-    warnings = member_rest_warnings(corrected, replacement.id)
-    await ports.schedules.correct(schedule.id, (day, role), replacement)
-    previous_name = assignment.assignee_name if assignment is not None else UNSTAFFED
+    await ports.schedules.correct(schedule.id, holders)
     await ports.journal.draft_corrected(
-        schedule.id, (day, role), previous_name, replacement.display_name
+        schedule.id,
+        [(slot, previous.get(slot, UNSTAFFED), member.display_name) for slot, member in holders],
     )
     return warnings
 

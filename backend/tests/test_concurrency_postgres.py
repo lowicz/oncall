@@ -938,8 +938,12 @@ async def test_one_draft_corrected_twice_at_once_takes_one_correction(pg, monkey
                     json={
                         "expected_version": 1,
                         "service_date": roster["day"].isoformat(),
-                        "role": "primary",
-                        "replacement_member_id": str(roster["members"][name].id),
+                        "assignments": [
+                            {
+                                "role": "primary",
+                                "replacement_member_id": str(roster["members"][name].id),
+                            }
+                        ],
                     },
                 )
                 for client, name in ((first, "dawid"), (second, "ewa"))

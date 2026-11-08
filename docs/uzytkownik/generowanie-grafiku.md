@@ -138,13 +138,29 @@ Pod macierzą cztery zakładki:
 
 ### Ręczna korekta komórki
 
-Kliknij komórkę, a panel dnia (tytuł „Wstaw: *osoba* · *dzień*”) pokaże rolę,
-kto ją ma teraz i kto ją będzie miał po korekcie; zapisz. Gdy nie ma czego
-wstawić, panel ma tytuł „*osoba* · *dzień*”, a **Przypisz w szkicu** jest
-wyłączone: osoba już ma tę rolę albo zaznaczyła „nie mogę”. Korekta może też
-obsadzić rolę, którą solver zostawił pustą: kliknij dowolną pustą komórkę dnia
-oznaczonego jako luka, a panel otworzy się na pustej roli i pokaże „Teraz:
-brak → Po korekcie: *osoba*”. Korekta:
+Kliknij komórkę, a panel dnia (tytuł „Wstaw: *osoba* · *dzień*”) otworzy się
+na roli z tej komórki. Grupa **Role do zmiany** działa jak w inspektorze dnia
+opublikowanego grafiku: PRIMARY i SECONDARY wykluczają się, a `11–19` jest
+zaznaczona od razu, gdy powiązanie `11–19` wiąże ją z zaznaczoną rolą i jej
+obecna osoba ma obie; w dzień wolny `11–19` nie ma. Zaznaczone role dostaje
+osoba z klikniętego wiersza. Pod grupą podgląd pokazuje rola po roli, kto ma
+ją teraz i kto po korekcie, a niżej bilans tej osoby w każdej roli; zapisuje
+**Przypisz w szkicu**, przy dwóch rolach **Przypisz w szkicu (2 role)**. Gdy
+nie ma czego wstawić, panel ma tytuł „*osoba* · *dzień*”, a przycisk jest
+wyłączony: osoba już ma te role, zaznaczyła „nie mogę” albo nie może objąć
+którejś z nich - wtedy powód stoi pod grupą, np. brak uprawnień do `11–19`
+albo drugi on-call tego dnia. Zaznaczenie zostaje, więc odznacz rolę albo
+kliknij komórkę innej osoby. Korekta może też obsadzić rolę, którą solver
+zostawił pustą: kliknij dowolną pustą komórkę dnia oznaczonego jako luka, a
+panel otworzy się na pustej roli i pokaże „brak obsady → *osoba*”.
+
+Gdy PRIMARY i SECONDARY dnia mają różne osoby, panel ma też **Zamień
+miejscami…**. Ramka „Zamiana miejscami” pokazuje obie role po zamianie, a gdy
+osoba z SECONDARY ma też `11–19`, pole „razem z SECONDARY” zaznaczone według
+powiązania; odznaczenie zostawia `11–19` bez zmian. W szkicu zamiana nie
+sprawdza reguł twardych w ramce i nie wysyła e-maili: to, co złamie, pokaże
+tabela problemów. **Zamień miejscami** zapisuje obie role (i `11–19`) jedną
+korektą. Każda korekta, także zamiana:
 
 - nie regeneruje pozostałych dni,
 - podlega regułom twardym,
@@ -152,13 +168,13 @@ brak → Po korekcie: *osoba*”. Korekta:
 - jest oznaczona jako ręczna,
 - nie oznacza szkicu jako nieaktualnego: to ostrzeżenie dotyczy tylko zmian
   poza szkicem, np. dostępności wpisanej po wygenerowaniu,
-- kończy się powiadomieniem, kogo zastąpiono i ile problemów zostało w
-  szkicu; jego przycisk **Cofnij** przez kilka sekund przywraca poprzednią
-  osobę (komórka zostaje oznaczona jako ręczna). Przycisku nie ma, gdy
-  poprzedniej osoby nie da się wskazać jednoznacznie, np. po zakończeniu jej
-  rotacji, usunięciu konta albo gdy w zespole jest kilka osób o tym samym
-  imieniu i nazwisku, ani po obsadzeniu pustej roli - wtedy popraw komórkę
-  ponownie albo wygeneruj szkic od nowa.
+- kończy się powiadomieniem, co zmieniono i ile problemów zostało w szkicu;
+  jego przycisk **Cofnij** przez kilka sekund przywraca poprzednie osoby
+  wszystkich zmienionych ról (komórki zostają oznaczone jako ręczne).
+  Przycisku nie ma, gdy poprzedniej osoby którejś z ról nie da się wskazać
+  jednoznacznie, np. po zakończeniu jej rotacji, usunięciu konta albo gdy w
+  zespole jest kilka osób o tym samym imieniu i nazwisku, ani po obsadzeniu
+  pustej roli - wtedy popraw komórkę ponownie albo wygeneruj szkic od nowa.
 
 ## Ustawienia generatora
 

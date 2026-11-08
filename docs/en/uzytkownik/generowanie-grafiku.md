@@ -144,13 +144,30 @@ Under the matrix there are four tabs:
 
 ### Manual cell correction
 
-Click a cell; the day panel (titled “Insert: *person* · *day*”) shows the
-role, who holds it now and who will hold it after the correction; save. A
-panel titled “*person* · *day*” has nothing to insert and **Assign in the
-draft** is off: the person already holds the role or is marked “unavailable”.
-A correction can also fill a role the solver left empty: click any empty cell
-of a day marked as a gap, and the panel opens on the empty role and shows
-“Now: none → After correction: *person*”. A correction:
+Click a cell; the day panel (titled “Insert: *person* · *day*”) opens on the
+cell's role. The **Roles to change** group works as in the day inspector of the
+published schedule: PRIMARY and SECONDARY exclude each other, and `11–19` is
+ticked from the start when the `11–19` coupling binds it to the ticked role and
+its current holder has both; a day off has no `11–19`. The person in the
+clicked row takes the ticked roles. Under the group a preview shows, role by
+role, who holds it now and who will after the correction, then that person's
+balance in each role; **Assign in the draft** saves it, with two roles
+**Assign in the draft (2 roles)**. A panel titled “*person* · *day*” has
+nothing to insert and the button is off: the person already holds those
+roles, is marked “unavailable” or cannot take one of them - then the reason
+stands under the group, e.g. no eligibility for `11–19` or the other on-call
+that day. What is ticked stays, so untick a role or click another person's
+cell. A correction can also fill a role the solver left empty: click any empty
+cell of a day marked as a gap, and the panel opens on the empty role and shows
+“unstaffed → *person*”.
+
+When the day's PRIMARY and SECONDARY are held by different people, the panel
+also has **Swap places…**. The “Swapping places” frame shows both roles after the
+swap and, when the SECONDARY holder also has `11–19`, a “together with SECONDARY” box
+ticked according to the coupling; unticking it leaves `11–19` unchanged. In a
+draft the swap checks no hard rules in the frame and sends no e-mail: what it
+breaks shows in the problems table. **Swap places** saves both roles (and
+`11–19`) as one correction. Every correction, a swap included:
 
 - does not regenerate the remaining days,
 - is subject to the hard rules,
@@ -158,13 +175,13 @@ of a day marked as a gap, and the panel opens on the empty role and shows
 - is marked as manual,
 - does not mark the draft as out of date: that warning concerns only changes
   outside the draft, e.g. availability entered after generation,
-- ends with a notification saying who was replaced and how many problems are
-  left in the draft; its **Undo** button puts the previous person back for a
-  few seconds (the cell stays marked as manual). The button is missing when
-  the previous person cannot be told apart, e.g. after their rotation ended,
-  their account was deleted, or when several team members share the same
-  name, nor after filling an empty role - then correct the cell again or
-  generate the draft anew.
+- ends with a notification saying what changed and how many problems are left
+  in the draft; its **Undo** button puts the previous people of every changed
+  role back for a few seconds (the cells stay marked as manual). The button is
+  missing when the previous person of a role cannot be told apart, e.g. after
+  their rotation ended, their account was deleted, or when several team
+  members share the same name, nor after filling an empty role - then correct
+  the cell again or generate the draft anew.
 
 ## Generator settings
 

@@ -1054,12 +1054,13 @@ export const api = {
     ),
   schedule: (id: string) => request<DraftSchedule>(`/api/v1/scheduling/${id}`),
   deleteSchedule: (id: string) => send<void>('DELETE', `/api/v1/scheduling/${id}`),
+  /** Hands roles of one draft day over as one decision: one person taking
+   *  one or more roles, or two people trading places. */
   overrideDraft: async (input: {
     id: string
     expected_version: number
     service_date: string
-    role: AssignmentRole
-    replacement_member_id: string
+    assignments: Array<{ role: AssignmentRole; replacement_member_id: string }>
   }) => {
     const { id, ...body } = input
     return send<DraftSchedule>('POST', `/api/v1/scheduling/${id}/override`, body)

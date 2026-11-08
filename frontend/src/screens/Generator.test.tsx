@@ -1243,7 +1243,7 @@ describe('GeneratorPanel draft correction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
-    expect(save.mock.calls[1][0]).toMatchObject({ id: 'd1', expected_version: 2, replacement_member_id: 'm1' })
+    expect(save.mock.calls[1][0]).toMatchObject({ id: 'd1', expected_version: 2, assignments: [{ role: 'primary', replacement_member_id: 'm1' }] })
     await waitFor(() => expect(schedule.mock.calls.filter(([id]) => id === 'd2').length).toBeGreaterThan(1))
     expect(screen.getByText('Szkic · v7')).toBeInTheDocument()
     expect(router.state.location.search).toBe('?szkic=d2')
