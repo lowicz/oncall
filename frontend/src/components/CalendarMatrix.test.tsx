@@ -1750,7 +1750,7 @@ describe('CalendarMatrix role swap (P6)', () => {
       schedule_id: 's1', expected_version: 4, kind: 'role_swap', assignments: swapLines(true),
       reason: undefined, acknowledge_rule_violations: false,
     }))
-    expect(await screen.findByText('Zamieniono miejscami 10 wrz: Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19')).toBeInTheDocument()
+    expect(await screen.findByText('Zamieniono miejscami czw 10-09-2026: Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19')).toBeInTheDocument()
     expect(screen.getByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
     await waitFor(() => expect(within(dialog).queryByRole('region', { name: 'Zamiana miejscami' })).not.toBeInTheDocument())
 
@@ -1821,7 +1821,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({
       assignments: swapLines(false), acknowledge_rule_violations: true,
     })))
-    expect(await screen.findByText('Zamieniono miejscami 10 wrz: Marek Nowak PRIMARY, Anna Kowalska SECONDARY')).toBeInTheDocument()
+    expect(await screen.findByText('Zamieniono miejscami czw 10-09-2026: Marek Nowak PRIMARY, Anna Kowalska SECONDARY')).toBeInTheDocument()
   })
 
   it('keeps 11–19 where the person taking SECONDARY may not hold it, and with PRIMARY where the policy binds it there', async () => {

@@ -711,6 +711,32 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     expect(within(panel).queryByRole('region', { name: 'Zamiana miejscami' })).not.toBeInTheDocument()
   })
 
+  it('swaps without Undo when a holder may no longer take their role back', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue({
+      ...team,
+      members: [
+        { ...team.members[0], eligibility: eligibleFor('secondary', 'late_shift') },
+        { ...team.members[1], eligibility: eligibleFor('primary', 'secondary', 'late_shift') },
+        team.members[2],
+      ],
+    })
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(balances)
+    const swapped = { ...pair, version: 2 }
+    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue(swapped)
+    const onChange = vi.fn()
+    renderScreen(<DraftScheduleMatrix result={pair} onChange={onChange} />)
+
+    const panel = await openCell(/^Celina Dąbrowska, pon 21-09-2026/, 'Wstaw: Celina Dąbrowska · 21-09-2026')
+    fireEvent.click(within(panel).getByRole('button', { name: /^Zamień miejscami:/ }))
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zamień miejscami' }))
+
+    expect(await screen.findByText('Zamieniono miejscami 21 wrz: Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19')).toBeInTheDocument()
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith(swapped)
+    // Anna has lost PRIMARY since the draft was generated: the inverse would be refused.
+    expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+  })
+
   it('keeps a swap one holder may not take from being saved', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue({
       ...team,

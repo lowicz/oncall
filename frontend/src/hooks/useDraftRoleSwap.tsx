@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { DraftSchedule, LateShiftAnchor, api } from '../api'
+import { AssignmentRole, DraftSchedule, LateShiftAnchor, api } from '../api'
 import { useMessages } from '../i18n'
-import { RoleSwap, Roster, draftSwapLines, roleSwapOf, swapHolders, swapRefused } from '../lib/calendar'
+import { RoleSwap, Roster, draftSwapLines, roleSwapOf, staffChanges, swapHolders, swapRefused } from '../lib/calendar'
 import { formatShortDate } from '../lib/dates'
 import { useUndoable } from './useUndoable'
-import { Box, Button } from '../ui'
+import { Box, Button, useToast } from '../ui'
 import { problemCounts } from '../components/DraftProblems'
 import { RoleSwapPreview, RoleSwapTrigger } from '../components/RoleSwapPreview'
 
@@ -30,6 +30,7 @@ export function useDraftRoleSwap({ draft, roster, serviceDate, anchor, onSaved, 
   onUndone: (value: DraftSchedule) => void
 }) {
   const undoable = useUndoable()
+  const toast = useToast()
   const { schedule, generator, common } = useMessages()
   const t = schedule.roleSwap
   /** The day the frame is open for: another day's panel starts closed. */
@@ -46,24 +47,29 @@ export function useDraftRoleSwap({ draft, roster, serviceDate, anchor, onSaved, 
   }
 
   const save = useMutation({
-    mutationFn: ({ swap, serviceDate, carry }: { swap: RoleSwap; serviceDate: string; carry: boolean }) => undoable({
-      execute: () => api.overrideDraft({
-        id: draft.id,
-        expected_version: draft.version,
-        service_date: serviceDate,
-        assignments: draftSwapLines(swap, carry),
-      }),
-      undo: async (value) => onUndone(await api.overrideDraft({
-        id: draft.id,
-        expected_version: value.version,
-        service_date: serviceDate,
-        assignments: draftSwapLines(swap, carry, true),
-      })),
-      message: (value) => ({
+    mutationFn: async ({ swap, serviceDate, carry }: { swap: RoleSwap; serviceDate: string; carry: boolean }) => {
+      const input = { id: draft.id, expected_version: draft.version, service_date: serviceDate, assignments: draftSwapLines(swap, carry) }
+      const message = (value: DraftSchedule) => ({
         title: t.toast(formatShortDate(serviceDate), swapHolders(swap, carry, true)),
         description: generator.matrix.remainingProblems(problemCounts(value).total),
-      }),
-    }),
+      })
+      const moved: AssignmentRole[] = ['primary', 'secondary', ...(carry ? ['late_shift' as const] : [])]
+      if (staffChanges(roster!, serviceDate, moved).some((item) => !item.restoreTo)) {
+        const value = await api.overrideDraft(input)
+        const { title, description } = message(value)
+        toast.success(title, { description })
+        return value
+      }
+      return undoable({
+        execute: () => api.overrideDraft(input),
+        undo: async (value) => onUndone(await api.overrideDraft({
+          ...input,
+          expected_version: value.version,
+          assignments: draftSwapLines(swap, carry, true),
+        })),
+        message,
+      })
+    },
     onSuccess: (value) => {
       close()
       onSaved(value)
