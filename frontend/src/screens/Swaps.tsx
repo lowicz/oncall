@@ -1,13 +1,15 @@
 import { Fragment, ReactNode, useCallback, useEffect, useState } from 'react'
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
+import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapImpactMember, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { firstName, roleLabels, swapStatusLabels } from '../lib/labels'
-import { formatDecimal, signedPoints } from '../lib/numbers'
+import { formatDecimal, signed, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
 import { docsHref } from '../lib/nav'
+import { undoable } from '../lib/undo'
 import {
+  OPEN_STATUSES,
   SwapChoice,
   SwapViewer,
   brokenRules,
@@ -30,15 +32,21 @@ import {
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
+import { useNarrow } from '../hooks/useMediaQuery'
+import { usePublicConfig } from '../hooks/usePublicConfig'
 import {
   AvailabilityMark,
   Box,
   Button,
   Checkbox,
+  Disclosure,
   EmptyState,
   ErrorState,
   Field,
+  Icon,
   LinkButton,
+  List,
+  ListRow,
   LoadingBlock,
   PageHeader,
   Panel,
@@ -51,6 +59,7 @@ import {
   Steps,
   Tag,
   Textarea,
+  Tooltip,
   cx,
   navigateRadioGroup,
   radioTabIndex,
@@ -70,6 +79,12 @@ const statusTone: Record<SwapStatus, StatusTone> = {
 type Inbox = 'do-mnie' | 'moje' | 'w-toku' | 'zamkniete'
 const INBOXES: Inbox[] = ['do-mnie', 'moje', 'w-toku', 'zamkniete']
 const isInbox = (value: string | null): value is Inbox => INBOXES.includes(value as Inbox)
+
+const CLOSED_STATUSES: SwapStatus[] = ['approved', 'rejected', 'cancelled']
+/** Closed requests come a page at a time, newest first. */
+const CLOSED_PAGE = 50
+// ponytail: open requests in one request at the API's cap; page them too if a team ever keeps 200 open.
+const OPEN_LIMIT = 200
 
 function inboxOf(item: SwapRequest, me: string): Inbox {
   if (!isOpen(item)) return 'zamkniete'
@@ -133,18 +148,20 @@ function slotSummary(slots: SwapSlot[]): string {
 type Verdict = Pick<SwapOption, 'blocking_violations' | 'rule_violations' | 'warning_violations'>
 
 /**
- * One choice of the "in return" step: nothing, or a duty of the replacement.
- * It says what the request would break or bend with that choice, so a clean
- * exchange is seen before a rule is acknowledged. `own` are the broken rules
- * the choice adds itself, named before the ones every choice shares.
+ * One card of a choice list: a candidate, or what the request takes in
+ * return. It carries a name, one verdict and at most one number; a blocked
+ * card says why in place of its detail. `breaks` are the broken rules that
+ * make the choice need an acknowledgement. The facts that matter only once
+ * the card is picked are the caller's, under the selected card.
  */
-function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violations, best, radioValue, selectedValue, navigation, onSelect }: {
+function RankChoice({ no, title, detail, verdict, breaks, best, points, radioValue, selectedValue, navigation, onSelect }: {
   no: ReactNode
   title: string
-  detail?: string
+  detail?: ReactNode
   verdict: Verdict
-  own?: RuleViolation[]
+  breaks: RuleViolation[]
   best?: boolean
+  points?: ReactNode
   radioValue: string
   selectedValue: string
   navigation: RadioNavigationOption<string>[]
@@ -152,17 +169,13 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
 }) {
   const t = useMessages().swaps.compose
   const blockedBy = verdict.blocking_violations?.[0]
-  const breaks = blockedBy ? undefined : own?.[0]
-  const bends = blockedBy || breaks ? undefined : verdict.warning_violations?.[0]
-  const needsAcknowledgement = Boolean(verdict.rule_violations?.length)
   const selected = radioValue === selectedValue
   const disabled = Boolean(navigation.find((item) => item.value === radioValue)?.disabled)
-  const facts = [
-    detail,
-    blockedBy && <span className="who-out">{t.blocked(blockedBy.message)}</span>,
-    breaks && <span className="who-out">{t.breaksRule(breaks.message)}</span>,
-    bends?.message,
-  ].filter(Boolean)
+  const note = blockedBy ? blockedBy.message : detail
+  let word = <span className="rank-fact-ok">{t.noViolations}</span>
+  if (blockedBy) word = <span className="rank-fact-bad">{t.hardRule}</span>
+  else if (breaks.length > 0) word = <span className="rank-fact-warn">{t.needsAcknowledgement}</span>
+  else if (verdict.warning_violations?.length) word = <span>{t.warning}</span>
   return (
     <button
       type="button"
@@ -178,21 +191,40 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
       <span className="rank-no">{blockedBy ? '–' : no}</span>
       <span className="rank-nm">
         {title}
-        {facts.length > 0 && (
-          <small>{facts.map((fact, index) => <Fragment key={index}>{index > 0 && ' · '}{fact}</Fragment>)}</small>
-        )}
+        {best && <> <Tag tone="sig">{t.bestMatch}</Tag></>}
+        {note && <small>{note}</small>}
       </span>
       <span className="rank-facts">
-        {blockedBy
-          ? <span className="rank-fact-bad">{t.hardRule}</span>
-          : needsAcknowledgement
-            ? <span className="rank-fact-warn">{t.needsAcknowledgement}</span>
-            : bends
-              ? <span>{t.warning}</span>
-              : <span className="rank-fact-ok">{t.noViolations}</span>}
+        {word}
+        {!blockedBy && points}
       </span>
     </button>
   )
+}
+
+/**
+ * What else matters about the picked candidate, one sentence each, under
+ * their card: the rules a request to them breaks, a duty they already hold,
+ * what they take of a whole duty, and where their balance stands.
+ */
+function CandidateFacts({ option, breaks, deviation, benefit, takesOnly }: {
+  option: SwapOption
+  breaks: RuleViolation[]
+  deviation: number | null
+  benefit: number | null
+  takesOnly?: AssignmentRole
+}) {
+  const t = useMessages().swaps.compose
+  const facts = [
+    ...breaks.map((violation) => t.breaksRule(violation.message, violation.days.map(formatDate).join(', '))),
+    option.on_duty_that_day && t.onDutyThatDay,
+    takesOnly && t.takesOnly(roleLabels()[takesOnly]),
+    option.warning_violations?.some((violation) => violation.rule === 'day_off_block') && t.splitsDaysOff,
+    deviation ? (deviation > 0 ? t.aboveShare : t.belowShare)(formatDecimal(Math.abs(deviation))) : null,
+    (benefit ?? 0) > 0 && t.improvesBalance,
+  ].filter(Boolean)
+  if (facts.length === 0) return null
+  return <p className="rank-sub muted small">{facts.join(' ')}</p>
 }
 
 /**
@@ -400,6 +432,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const queryClient = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
+  const narrow = useNarrow()
+  const undoWindow = usePublicConfig().data?.undo_window_seconds
   const [searchParams, setSearchParams] = useSearchParams()
   const viewer = { displayName, role }
   const coordinator = canCoordinate(role)
@@ -442,7 +476,15 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const [reason, setReason] = useState('')
   const [rejecting, setRejecting] = useState(false)
   const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setRejecting(false); setSheetAcknowledgedFor(null) }
-  const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps() })
+  const openSwaps = useQuery({ queryKey: ['swaps', 'open'], queryFn: () => api.swaps({ status: OPEN_STATUSES, limit: OPEN_LIMIT }) })
+  const closedSwaps = useInfiniteQuery({
+    queryKey: ['swaps', 'closed'],
+    queryFn: ({ pageParam }) => api.swaps({ status: CLOSED_STATUSES, limit: CLOSED_PAGE, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => (last.length < CLOSED_PAGE ? undefined : pages.length * CLOSED_PAGE),
+  })
+  const swapsError = openSwaps.error ?? closedSwaps.error
+  const swapsLoaded = Boolean(openSwaps.data && closedSwaps.data)
   const publishedSchedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
   const schedule = publishedSchedule.data
   const availability = useQuery({ queryKey: ['availability', 'me'], queryFn: api.availability, enabled: hasTeamMember })
@@ -540,8 +582,18 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const composeWarnings = verdict?.warning_violations ?? []
   const breaksRules = composeRules.length > 0
   const composeAcknowledged = composeAcknowledgedFor === rulesKey(composeRules)
-  const noteLength = note.trim().length
-  const returnDecided = Boolean(replacementId) && (Boolean(selectedReturn) || noteLength > 0)
+  const exchangeLine = `${approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval} ${t.swaps.compose.exchangeTogether}`
+  // The one line the folded balance and warnings show: "Ty -1 · Anna +1 · 1 ostrzeżenie".
+  const moveImpact = useQuery({
+    ...swapImpactQuery(serviceDate, assignmentRole, replacementId, { inReturn: selectedReturn, scope, returnScope: selectedReturn?.scope ?? undefined }),
+    enabled: Boolean(serviceDate && assignmentRole && replacementId),
+  })
+  const pointsMoved = (side: SwapImpactMember) => signed(side.after.total_points - side.before.total_points)
+  const detailsMeta = [
+    moveImpact.data && t.swaps.compose.detailsPoints(t.swaps.table.you, pointsMoved(moveImpact.data.requester)),
+    moveImpact.data && t.swaps.compose.detailsPoints(firstName(moveImpact.data.replacement.display_name), pointsMoved(moveImpact.data.replacement)),
+    composeWarnings.length > 0 && t.swaps.compose.detailsWarnings(composeWarnings.length),
+  ].filter(Boolean).join(' · ')
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['swaps'] })
     queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
@@ -554,13 +606,28 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       return next
     }, { replace: true })
   }, [setSearchParams])
+  // A request sent by mistake is withdrawn while its e-mail is still held,
+  // so the replacement never reads it.
+  const withdrawSent = (sent: SwapRequest) => api.cancelSwap({ id: sent.id, reason: t.swaps.toasts.undoReason }).then(refresh)
+  const sendSwap = (input: Parameters<typeof api.createSwap>[0]) => {
+    const name = options.data?.find((option) => option.member_id === input.replacement_member_id)?.display_name
+    const title = name ? t.swaps.toasts.sentTo(name) : t.swaps.toasts.sent
+    if (!undoWindow) return api.createSwap(input).then((sent) => { toast.success(title); return sent })
+    return undoable({
+      execute: () => api.createSwap(input),
+      undo: withdrawSent,
+      toast,
+      message: () => ({ title }),
+      undoLabel: t.common.undo,
+      onUndoError: (error) => toast.error(t.swaps.toasts.undoFailed, { description: (error as Error).message }),
+      windowSeconds: undoWindow,
+    })
+  }
   const create = useMutation({
-    mutationFn: api.createSwap,
-    onSuccess: (_result, input) => {
-      const name = options.data?.find((option) => option.member_id === input.replacement_member_id)?.display_name
+    mutationFn: sendSwap,
+    onSuccess: () => {
       resetCompose()
       refresh()
-      toast.success(name ? t.swaps.toasts.sentTo(name) : t.swaps.toasts.sent)
     },
     // A refusal may mean the roster moved under the list of candidates.
     onError: () => {
@@ -599,7 +666,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const busy = accept.isPending || approve.isPending || reject.isPending || cancel.isPending
   const decisionError = [accept.error, approve.error, reject.error, cancel.error].find(Boolean) ?? null
 
-  const items = swaps.data ?? []
+  // A request that closes between two pages may come twice.
+  const items = [...new Map([...(openSwaps.data ?? []), ...(closedSwaps.data?.pages.flat() ?? [])].map((item) => [item.id, item])).values()]
   const counts: Record<Inbox, number> = { 'do-mnie': 0, moje: 0, 'w-toku': 0, zamkniete: 0 }
   for (const item of items) counts[inboxOf(item, displayName)] += 1
   // A coordinator's "for approval" inbox lists every open request of others,
@@ -622,14 +690,25 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const visible = items
     .filter((item) => inboxOf(item, displayName) === inbox)
     .sort((left, right) => (inbox === 'zamkniete' ? right.created_at.localeCompare(left.created_at) : left.service_date.localeCompare(right.service_date)))
-  // One projection per open row, for the "effect" column.
-  const projected = visible.filter((item) => isOpen(item) && item.replacement_member_id)
+  // One projection per open row, for the "effect" column. Only a coordinator
+  // who approves swaps decides on points, so only they get the column.
+  const projected = approver ? visible.filter((item) => isOpen(item) && item.replacement_member_id) : []
   const rowImpacts = useQueries({
     queries: projected.map((item) => swapImpactQuery(item.service_date, item.role, item.replacement_member_id as string, movesOf(item))),
   })
   const impactOfRow = (item: SwapRequest) => {
     const index = projected.indexOf(item)
     return index >= 0 ? rowImpacts[index]?.data : undefined
+  }
+  const party = (name: string) => (name === displayName ? t.swaps.table.you : name)
+  const rowAction = (item: SwapRequest) => {
+    const decide = needsMyDecision(item, viewer)
+    const verb = decide ? t.swaps.table.decide : t.swaps.table.preview
+    return (
+      <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, swapHeadline(item, t.common.swapWith))}>
+        {verb}
+      </Button>
+    )
   }
   const inboxLabels: Record<Inbox, string> = {
     'do-mnie': t.swaps.inbox.toMe,
@@ -647,13 +726,18 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const decision = openItem ? decisionOf(openItem, viewer) : null
   const openRules = openItem ? brokenRules(openItem) : []
   const sheetAcknowledged = sheetAcknowledgedFor === rulesKey(openRules)
-  const submitDisabled = create.isPending || !schedule?.id || !serviceDate || !replacementId
-    || (verdict?.blocking_violations?.length ?? 0) > 0
-    || (breaksRules && !composeAcknowledged)
-  const subtitle = swaps.data && [
+  // What still keeps the request from being sent, said beside the button.
+  // Empty while the schedule is read: nothing is missing yet.
+  let sendBlocker: string | null = null
+  if (!schedule?.id) sendBlocker = publishedSchedule.isPending ? '' : t.swaps.compose.status.noSchedule
+  else if (!serviceDate) sendBlocker = t.swaps.compose.status.pickDuty
+  else if (!replacementId) sendBlocker = t.swaps.compose.status.pickReplacement
+  else if (verdict?.blocking_violations?.length) sendBlocker = t.swaps.compose.status.hardRule
+  else if (breaksRules && !composeAcknowledged) sendBlocker = t.swaps.compose.status.acknowledge
+  const subtitle = swapsLoaded && [
     t.swaps.summary.awaitingMe(actionable),
     t.swaps.summary.awaitingOthers(otherOpen),
-    t.swaps.summary.closed(counts.zamkniete),
+    t.swaps.summary.closed(counts.zamkniete, closedSwaps.hasNextPage),
   ].join(' · ')
 
   return (
@@ -665,9 +749,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>{t.swaps.newSwap}</Button>
         )}
       />
-      {swaps.error && <ErrorState error={swaps.error} onRetry={() => swaps.refetch()} />}
-      {swaps.isLoading && <LoadingBlock label={t.swaps.loading} />}
-      {swaps.data && (
+      {swapsError && <ErrorState error={swapsError} onRetry={() => { openSwaps.refetch(); closedSwaps.refetch() }} />}
+      {!swapsError && !swapsLoaded && <LoadingBlock label={t.swaps.loading} />}
+      {swapsLoaded && (
         <>
           <SectionHeading
             title={t.swaps.inbox.heading}
@@ -707,6 +791,33 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 <EmptyState compact icon="swap" title={t.swaps.inbox.noneClosed} />
               )}
             </div>
+          ) : narrow ? (
+            // A phone gets one row per request with its action in reach, as on Moje.
+            <List className="panel">
+              {visible.map((item) => {
+                const returned = returnOf(item)
+                return (
+                  <ListRow
+                    key={item.id}
+                    highlight={openId === item.id}
+                    aside={<><StatusBadge tone={statusTone[item.status]}>{statuses[item.status]}</StatusBadge>{rowAction(item)}</>}
+                  >
+                    <b>
+                      {slotSummary(slotsOf(item))}
+                      {returned && <> <span aria-hidden="true">⇄</span> <span className="sr-only">{t.common.swapWith}</span> {slotSummary(returnSlotsOf(item))}</>}
+                    </b>
+                    {brokenRules(item).length > 0 && <> <Tag tone="late">{t.swaps.rules.tag}</Tag></>}
+                    <small>
+                      {[
+                        t.swaps.table.parties(party(item.requester_name), party(item.replacement_name)),
+                        stageDetail(item, viewer),
+                        isLapsed(item) && t.swaps.table.expired,
+                      ].filter(Boolean).join(' · ')}
+                    </small>
+                  </ListRow>
+                )
+              })}
+            </List>
           ) : (
             <ScrollArea label={inboxLabels[inbox]} hint={t.common.scrollHint}>
               <table className="lg">
@@ -715,15 +826,20 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                     <th scope="col">{t.swaps.table.dayRole}</th>
                     <th scope="col">{t.swaps.table.gives}</th>
                     <th scope="col">{t.swaps.table.takes}</th>
-                    <th scope="col">{t.swaps.table.effect}</th>
+                    {approver && (
+                      <th scope="col">
+                        {t.swaps.table.effect}
+                        <Tooltip text={t.swaps.table.effectHint}>
+                          <button type="button" className="ib ib-sm th-help" aria-label={t.swaps.table.effectHelp}><Icon name="info" size={14} /></button>
+                        </Tooltip>
+                      </th>
+                    )}
                     <th scope="col">{t.swaps.table.stage}</th>
                     <th scope="col"><span className="sr-only">{t.swaps.table.actions}</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {visible.map((item) => {
-                    const decide = needsMyDecision(item, viewer)
-                    const verb = decide ? t.swaps.table.decide : t.swaps.table.preview
                     const returned = returnOf(item)
                     return (
                       <tr key={item.id} className={openId === item.id ? 'on' : undefined}>
@@ -739,16 +855,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                         </th>
                         <td>{item.requester_name}</td>
                         <td>{item.replacement_name}</td>
-                        <td><Effect impact={impactOfRow(item)} /></td>
+                        {approver && <td><Effect impact={impactOfRow(item)} /></td>}
                         <td>
                           <StatusBadge tone={statusTone[item.status]}>{statuses[item.status]}</StatusBadge>
                           {stageDetail(item, viewer) && <small>{stageDetail(item, viewer)}</small>}
                         </td>
-                        <td className="td-actions">
-                          <Button size="sm" variant={decide ? 'primary' : 'ghost'} onClick={() => openSheet(item.id)} aria-label={t.swaps.table.rowAction(verb, swapHeadline(item, t.common.swapWith))}>
-                            {verb}
-                          </Button>
-                        </td>
+                        <td className="td-actions">{rowAction(item)}</td>
                       </tr>
                     )
                   })}
@@ -756,7 +868,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               </table>
             </ScrollArea>
           )}
-          <p className="muted small">{t.swaps.table.footnote}</p>
+          {inbox === 'zamkniete' && closedSwaps.hasNextPage && (
+            <Button size="sm" variant="ghost" loading={closedSwaps.isFetchingNextPage} onClick={() => closedSwaps.fetchNextPage()}>{t.swaps.inbox.showOlder}</Button>
+          )}
         </>
       )}
 
@@ -821,9 +935,19 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         wide
         footer={(
           <>
+            <output className="foot-status" id="swap-send-status">{sendBlocker}</output>
             <Button variant="ghost" onClick={closeComposer}>{t.common.cancel}</Button>
-            <span className="sp" />
-            <Button type="submit" form="new-swap" variant="primary" icon="send" disabled={submitDisabled} loading={create.isPending}>{t.swaps.compose.send}</Button>
+            <Button
+              type="submit"
+              form="new-swap"
+              variant="primary"
+              icon="send"
+              disabled={create.isPending || sendBlocker !== null}
+              aria-describedby={sendBlocker ? 'swap-send-status' : undefined}
+              loading={create.isPending}
+            >
+              {t.swaps.compose.send}
+            </Button>
           </>
         )}
       >
@@ -852,12 +976,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             steps={[
               { label: t.swaps.compose.stepDuty, state: serviceDate ? 'done' : 'on' },
               { label: t.swaps.compose.stepCandidate, state: replacementId ? 'done' : serviceDate ? 'on' : 'todo' },
-              // Optional: settled by a pick, or by moving on to the reason.
-              { label: t.swaps.compose.stepReturn, state: returnDecided ? 'done' : replacementId ? 'on' : 'todo' },
-              { label: t.swaps.compose.stepReason, state: returnDecided ? 'on' : 'todo' },
+              // Optional: "nothing in return" is already picked with the replacement.
+              { label: t.swaps.compose.stepReturn, state: replacementId ? 'done' : 'todo' },
+              { label: t.swaps.compose.stepSend, state: replacementId ? 'on' : 'todo' },
             ]}
           />
-          <Field label={t.swaps.compose.myDuty} id="swap-slot" required hint={t.swaps.compose.myDutyHint}>
+          <Field label={t.swaps.compose.myDuty} id="swap-slot" required>
             {({ id }) => (
               <Select id={id} name="slot" value={serviceDate} onChange={(event) => pickDay(event.target.value)} required>
                 <option value="" disabled>{ownDays.length === 0 ? t.swaps.compose.noUpcomingDuties : t.swaps.compose.pickDuty}</option>
@@ -893,11 +1017,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               </p>
             </div>
           )}
-          {/* Availability, current balance and a duty marker travel with the
-              name, so comparing two candidates no longer means selecting each
-              one and reading the impact preview twice (MED5-09). */}
+          {/* Each card carries a name, one verdict and one number, so six
+              candidates compare at a glance; what else matters about a person
+              is read under their card once they are picked. */}
           <div className="stack-sm">
-            <SectionHeading as="h3" title={t.swaps.compose.candidates} meta={t.swaps.compose.candidatesMeta} />
+            <SectionHeading as="h3" title={t.swaps.compose.replacement} meta={t.swaps.compose.candidatesMeta} />
             {!serviceDate && <div className="muted small">{t.swaps.compose.pickDutyFirst}</div>}
             {serviceDate && options.isLoading && <LoadingBlock label={t.swaps.compose.searching} rows={2} />}
             {serviceDate && options.error && <ErrorState error={options.error} onRetry={() => options.refetch()} />}
@@ -905,57 +1029,34 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             {serviceDate && orderedOptions.length > 0 && (
               <div className="rank" role="radiogroup" aria-label={t.swaps.compose.replacement}>
                 {orderedOptions.map((option, index) => {
-                  const blockedBy = option.blocking_violations?.[0]
-                  const blocked = Boolean(blockedBy)
                   // What a request to this person would have to acknowledge.
-                  const breaks = blocked ? undefined : ownRules(option)[0]
-                  // A whole duty the candidate takes only the on-call role of.
-                  const takesOnly = given === 'whole' && twoRoles && option.slots?.length === 1 ? option.slots[0].role : undefined
+                  const breaks = ownRules(option)
                   const deviation = optionDeviation(option.member_id)
                   const benefit = optionBenefit(option.member_id)
-                  const best = index === 0 && tierOf(option) === 0 && (benefit ?? 0) > 0
                   return (
-                    <button
-                      type="button"
-                      key={option.member_id}
-                      role="radio"
-                      aria-checked={replacementId === option.member_id}
-                      aria-disabled={blocked || undefined}
-                      tabIndex={radioTabIndex(replacementId, option.member_id, candidateNavigation)}
-                      data-value={option.member_id}
-                      className={cx('rank-c', best && 'rank-best', replacementId === option.member_id && 'rank-sel', blocked && 'rank-blocked')}
-                      onClick={() => { if (!blocked && replacementId !== option.member_id) pickReplacement(option.member_id) }}
-                      onKeyDown={(event) => navigateRadioGroup(event, option.member_id, candidateNavigation, pickReplacement)}
-                    >
-                      <span className="rank-no">{blocked ? '–' : index + 1}</span>
-                      <span className="rank-nm">
-                        {option.display_name}
-                        <small>
-                          {[
-                            option.availability && <AvailabilityMark key="av" kind={option.availability} withLabel />,
-                            option.on_duty_that_day && t.swaps.compose.onDutyThatDay,
-                            takesOnly && t.swaps.compose.takesOnly(roles[takesOnly]),
-                            !blocked && option.warning_violations?.some((violation) => violation.rule === 'day_off_block') && t.swaps.compose.splitsDaysOff,
-                            blockedBy && <span key="blocked" className="who-out">{t.swaps.compose.blocked(blockedBy.message)}</span>,
-                            breaks && <span key="breaks" className="who-out">{t.swaps.compose.breaksRule(breaks.message)}</span>,
-                          ].filter(Boolean).map((fact, index) => (
-                            <Fragment key={index}>{index > 0 && ' · '}{fact}</Fragment>
-                          ))}
-                        </small>
-                      </span>
-                      <span className="rank-facts">
-                        {deviation !== null && (
-                          <span className={cx(deviation > 0 ? 'rank-fact-warn' : 'rank-fact-ok')}>
-                            {deviation > 0
-                              ? t.swaps.compose.aboveShare(formatDecimal(Math.abs(deviation)))
-                              : t.swaps.compose.belowShare(formatDecimal(Math.abs(deviation)))}
+                    <Fragment key={option.member_id}>
+                      <RankChoice
+                        no={index + 1}
+                        title={option.display_name}
+                        detail={option.availability && <AvailabilityMark kind={option.availability} withLabel />}
+                        verdict={option}
+                        breaks={breaks}
+                        best={index === 0 && tierOf(option) === 0 && (benefit ?? 0) > 0}
+                        points={deviation !== null && (
+                          <span className={deviation > 0 ? 'rank-fact-warn' : 'rank-fact-ok'}>
+                            {t.swaps.compose.points(signedPoints(deviation))}
+                            <span className="sr-only"> {t.swaps.compose.pointsMeaning}</span>
                           </span>
                         )}
-                        {!blocked && (benefit ?? 0) > 0 && <span className="rank-fact-ok">{t.swaps.compose.improvesBalance}</span>}
-                        {blocked && <span className="rank-fact-bad">{t.swaps.compose.hardRule}</span>}
-                        {breaks && <span className="rank-fact-warn">{t.swaps.compose.needsAcknowledgement}</span>}
-                      </span>
-                    </button>
+                        radioValue={option.member_id}
+                        selectedValue={replacementId}
+                        navigation={candidateNavigation}
+                        onSelect={pickReplacement}
+                      />
+                      {replacementId === option.member_id && (
+                        <CandidateFacts option={option} breaks={breaks} deviation={deviation} benefit={benefit} takesOnly={given === 'whole' && twoRoles && option.slots?.length === 1 ? option.slots[0].role : undefined} />
+                      )}
+                    </Fragment>
                   )
                 })}
               </div>
@@ -971,10 +1072,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               )}
               {returnOptions.data && returnOptions.data.length > 0 && (
                 <div className="rank" role="radiogroup" aria-label={t.swaps.compose.inReturn}>
-                  <ReturnChoice
+                  <RankChoice
                     no="–"
                     title={t.swaps.compose.nothingInReturn}
                     verdict={selectedOption}
+                    breaks={selectedOption.rule_violations ?? []}
                     radioValue=""
                     selectedValue={selectedReturnValue}
                     navigation={returnNavigation}
@@ -984,13 +1086,13 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                     const way = returnWays[index]
                     return (
                       <Fragment key={slotKey(option)}>
-                        <ReturnChoice
+                        <RankChoice
                           no={index + 1}
                           // The day names the duty; its roles would not fit beside the verdict.
                           title={formatDayShort(option.service_date)}
                           detail={`${roleList(way.slots)} · ${relativeDay(option.service_date)}`}
                           verdict={way}
-                          own={ownRules(way)}
+                          breaks={way.rule_violations}
                           // The first exchange that spares the request an acknowledgement.
                           best={index === 0 && Boolean(selectedOption.rule_violations?.length) && option.rule_violations.length + option.blocking_violations.length === 0}
                           radioValue={wayKey(way)}
@@ -1020,40 +1122,42 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               )}
             </div>
           )}
-          {selectedOption && selectedReturn && (
-            <Box tone="sig" title={t.swaps.compose.exchangeTitle(formatDayShort(serviceDate), formatDayShort(selectedReturn.service_date))}>
-              {approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval} {t.swaps.compose.exchangeTogether}
-            </Box>
-          )}
-          {selectedOption && (
-            <>
-              {selectedReturn && !breaksRules && <Box tone="ok" title={t.swaps.rules.exchangeClean}>{t.swaps.compose.exchangeCleanBody}</Box>}
-              <ViolationList violations={composeRules} title={t.swaps.rules.breaks}>
-                <div className="box-next">
-                  {(approvalRequired ? t.swaps.compose.seenWithApproval : t.swaps.compose.seenWithoutApproval)(firstName(selectedOption.display_name))} <RulesDocsLink />
-                </div>
-                <Checkbox
-                  label={t.swaps.rules.acknowledge}
-                  checked={composeAcknowledged}
-                  onChange={(event) => setComposeAcknowledgedFor(event.target.checked ? rulesKey(composeRules) : null)}
-                  disabled={create.isPending}
-                />
-              </ViolationList>
-              <ViolationList
-                violations={composeWarnings}
-                title={approvalRequired ? t.swaps.compose.warningsWithApproval : t.swaps.compose.warningsWithoutApproval}
+          {/* One frame sums the request up: the rules it breaks with their
+              acknowledgement, or a clean exchange; the balance and the
+              warnings fold under one line. */}
+          {selectedOption && (breaksRules ? (
+            <ViolationList violations={composeRules} title={t.swaps.rules.breaks}>
+              {selectedReturn && <div className="box-next">{exchangeLine}</div>}
+              <div className="box-next">
+                {(approvalRequired ? t.swaps.compose.seenWithApproval : t.swaps.compose.seenWithoutApproval)(firstName(selectedOption.display_name))} <RulesDocsLink />
+              </div>
+              <Checkbox
+                label={t.swaps.rules.acknowledge}
+                checked={composeAcknowledged}
+                onChange={(event) => setComposeAcknowledgedFor(event.target.checked ? rulesKey(composeRules) : null)}
+                disabled={create.isPending}
               />
-            </>
-          )}
+            </ViolationList>
+          ) : selectedReturn && (
+            <Box tone="ok" title={t.swaps.rules.exchangeClean}>{exchangeLine} {t.swaps.compose.exchangeCleanBody}</Box>
+          ))}
           {serviceDate && assignmentRole && replacementId && (
-            <SwapImpactPreview
-              serviceDate={serviceDate}
-              role={assignmentRole}
-              replacementId={replacementId}
-              inReturn={selectedReturn}
-              scope={scope}
-              returnScope={selectedReturn?.scope ?? undefined}
-            />
+            <Disclosure title={composeWarnings.length > 0 ? t.swaps.compose.details : t.swaps.compose.detailsBalance} meta={detailsMeta}>
+              <div className="stack-sm">
+                <ViolationList
+                  violations={composeWarnings}
+                  title={approvalRequired ? t.swaps.compose.warningsWithApproval : t.swaps.compose.warningsWithoutApproval}
+                />
+                <SwapImpactPreview
+                  serviceDate={serviceDate}
+                  role={assignmentRole}
+                  replacementId={replacementId}
+                  inReturn={selectedReturn}
+                  scope={scope}
+                  returnScope={selectedReturn?.scope ?? undefined}
+                />
+              </div>
+            </Disclosure>
           )}
           <Field label={t.swaps.compose.note} id="swap-note" hint={t.swaps.compose.noteHint}>
             {({ id, describedBy }) => (

@@ -5,6 +5,7 @@ export const common: Messages['common'] = {
   closePanel: 'Close panel',
   closeNotification: 'Close notification',
   notifications: 'Notifications',
+  undo: 'Undo',
   undoClosed: 'The time to undo has passed',
   undoEmailsSent: 'The e-mails have gone out',
   undo: 'Undo',

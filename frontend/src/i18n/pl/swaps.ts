@@ -7,7 +7,8 @@ export const swaps = {
   summary: {
     awaitingMe: (count: number) => `${pluralPl(count, ['czeka', 'czekają', 'czeka'])} na Twoją decyzję`,
     awaitingOthers: (count: number) => `${pluralPl(count, ['czeka', 'czekają', 'czeka'])} na drugą stronę`,
-    closed: (count: number) => pluralPl(count, ['zamknięta', 'zamknięte', 'zamkniętych']),
+    /** `more`: only the newest closed requests are loaded, so the count is a floor. */
+    closed: (count: number, more = false) => (more ? `${count}+ zamkniętych` : pluralPl(count, ['zamknięta', 'zamknięte', 'zamkniętych'])),
   },
   newSwap: 'Nowa zamiana',
   loading: 'Wczytywanie zamian…',
@@ -28,6 +29,8 @@ export const swaps = {
     nothingToApprove: 'Nic nie czeka na zatwierdzenie',
     noneInProgress: 'Brak zamian w toku',
     noneClosed: 'Brak zamkniętych zamian',
+    /** Loads the next page of closed requests. */
+    showOlder: 'Pokaż starsze',
   },
   table: {
     dayRole: 'Dzień · rola',
@@ -45,7 +48,12 @@ export const swaps = {
     preview: 'Podgląd',
     /** The accessible name of a row's button: "Zdecyduj: pon 14 wrz PRIMARY". */
     rowAction: (verb: string, slot: string) => `${verb}: ${slot}`,
-    footnote: 'Etap zamiany zawsze mówi, kto jest następny; kolumna „skutek” pokazuje osobę, która zyskuje punkty. Zatwierdzenie wpisuje zamianę do grafiku i do audytu w jednym kroku.',
+    /** The hint beside the "effect" column, which only a coordinator who approves swaps sees. */
+    effectHelp: 'Co pokazuje skutek',
+    effectHint: 'Osobę, która zyska punkty, gdy zamiana trafi do grafiku. Zatwierdzenie wpisuje zamianę do grafiku i do audytu w jednym kroku.',
+    /** A row on a phone: "Marek Nowak → Ty · czeka na Ciebie". */
+    parties: (giver: string, taker: string) => `${giver} → ${taker}`,
+    you: 'Ty',
   },
   /** Who acts next, under the status in the inbox table. */
   stage: {
@@ -124,6 +132,9 @@ export const swaps = {
     inSchedule: 'Zamiana wpisana do grafiku',
     rejected: 'Odrzucono zamianę',
     withdrawn: 'Wycofano zamianę',
+    /** The reason "Cofnij" withdraws a request with, right after it was sent. */
+    undoReason: 'cofnięte zaraz po wysłaniu',
+    undoFailed: 'Nie udało się cofnąć prośby',
   },
   compose: {
     title: 'Nowa zamiana',
@@ -131,11 +142,10 @@ export const swaps = {
     form: 'Nowa prośba o zamianę',
     step: 'Krok',
     stepDuty: '1 dyżur',
-    stepCandidate: '2 kandydat',
-    stepReturn: '3 w zamian',
-    stepReason: '4 powód i wysłanie',
+    stepCandidate: '2 zastępca',
+    stepReturn: '3 w zamian (opcjonalnie)',
+    stepSend: '4 wysłanie',
     myDuty: 'Mój dyżur',
-    myDutyHint: 'Dzień z opublikowanego grafiku i wszystko, co tego dnia masz.',
     /** What the request gives of a day with two roles. */
     scope: 'Oddaję',
     wholeDuty: 'Cały dyżur',
@@ -148,24 +158,28 @@ export const swaps = {
     pickDuty: 'Wybierz dyżur',
     unavailableCollision: 'kolizja: nie mogę',
     replacement: 'Zastępca',
-    candidates: 'Kandydaci',
-    candidatesMeta: 'posortowani wg dopasowania',
+    candidatesMeta: 'od najlepszego dopasowania',
+    /** The tag on the first candidate or exchange: the highlight said in words, not only in colour. */
+    bestMatch: 'najlepsze dopasowanie',
     pickDutyFirst: 'Najpierw wybierz swój dyżur.',
     searching: 'Szukam dostępnych osób…',
     noCandidates: 'Brak dostępnych zastępców',
-    onDutyThatDay: 'ma już dyżur tego dnia',
+    /** The facts under the selected candidate, one sentence each. */
+    onDutyThatDay: 'Ma już dyżur tego dnia.',
     /** A candidate who may not hold 11-19 takes the on-call role of the whole duty alone. */
-    takesOnly: (role: string) => `przejmie tylko ${role}, nie pełni 11–19`,
-    splitsDaysOff: 'dzieli blok dni wolnych',
-    blocked: (message: string) => `nie można: ${message}`,
-    breaksRule: (message: string) => `łamie regułę: ${message}`,
+    takesOnly: (role: string) => `Przejmie tylko ${role}, nie pełni 11–19.`,
+    splitsDaysOff: 'Dzieli blok dni wolnych.',
+    breaksRule: (message: string, days: string) => `Łamie regułę: ${message}${days ? ` (${days})` : ''}.`,
+    aboveShare: (points: string) => `Ma już ${points} pkt powyżej udziału.`,
+    belowShare: (points: string) => `Ma ${points} pkt poniżej udziału.`,
+    improvesBalance: 'Zamiana poprawia bilans.',
+    /** The one number on a candidate's card: the balance against the share, "-0,5 pkt". */
+    points: (points: string) => `${points} pkt`,
+    pointsMeaning: 'względem udziału',
     needsAcknowledgement: 'wymaga potwierdzenia',
     /** Who else learns of the violation, under the list of rules the request breaks. */
     seenWithApproval: (name: string) => `Naruszenie zobaczą ${name} i koordynator, który zatwierdza zamianę. Trafi do dziennika audytu.`,
     seenWithoutApproval: (name: string) => `Naruszenie zobaczy ${name}; po akceptacji zamiana od razu trafi do grafiku, a koordynator dostanie o niej powiadomienie. Trafi do dziennika audytu.`,
-    aboveShare: (points: string) => `${points} pkt powyżej udziału`,
-    belowShare: (points: string) => `${points} pkt poniżej udziału`,
-    improvesBalance: 'poprawia bilans',
     hardRule: 'reguła twarda',
     /** The optional step: one of the replacement's duties taken in exchange. */
     inReturn: 'W zamian biorę',
@@ -176,16 +190,29 @@ export const swaps = {
     noReturnDuties: (name: string) => `${name} nie ma nadchodzących dyżurów, które można wziąć w zamian.`,
     nothingInReturn: 'Nic, tylko oddaję dyżur',
     warning: 'ostrzeżenie',
-    noViolations: 'bez naruszeń reguł',
+    noViolations: 'bez naruszeń',
     exchangeCleanBody: 'Prośba idzie zwykłą ścieżką, bez potwierdzeń.',
-    exchangeTitle: (given: string, taken: string) => `Wymiana: ${given} ⇄ ${taken}`,
     exchangeTogether: 'Oba dyżury przechodzą razem albo wcale.',
     bothSlotsWithApproval: 'Jedna akceptacja zastępcy, jedno zatwierdzenie koordynatora.',
     bothSlotsWithoutApproval: 'Jedna akceptacja zastępcy załatwia całość.',
     warningsWithApproval: 'Wyślesz mimo to - koordynator zobaczy ostrzeżenie',
     warningsWithoutApproval: 'Wyślesz mimo to - zamiana nie wymaga zatwierdzenia koordynatora',
-    note: 'Powód',
+    /** Balance and warnings, folded under one line once a replacement is picked. */
+    details: 'Wpływ na bilans i ostrzeżenia',
+    detailsBalance: 'Wpływ na bilans',
+    /** "Ty -1 · Anna +1": the points each side ends up with. */
+    detailsPoints: (name: string, change: string) => `${name} ${change}`,
+    detailsWarnings: (count: number) => pluralPl(count, ['ostrzeżenie', 'ostrzeżenia', 'ostrzeżeń']),
+    note: 'Powód (opcjonalnie)',
     noteHint: 'Zobaczą zastępca i koordynator.',
+    /** The footer line beside a send button that cannot be pressed yet: what is missing. */
+    status: {
+      noSchedule: 'Brak opublikowanego grafiku.',
+      pickDuty: 'Wybierz dyżur, żeby wysłać.',
+      pickReplacement: 'Wybierz zastępcę, żeby wysłać.',
+      hardRule: 'Ta zamiana łamie regułę twardą; wybierz inną osobę albo inny dyżur w zamian.',
+      acknowledge: 'Zaznacz potwierdzenie reguł, żeby wysłać.',
+    },
   },
   /** The points preview (`src/components/SwapImpactPreview.tsx`). */
   impact: {

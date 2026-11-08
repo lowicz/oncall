@@ -139,8 +139,9 @@ Kontrolki są w nagłówku sekcji nad macierzą, na Teraz i na Grafiku tak samo:
 Na Grafiku początek zakresu i długość są częścią adresu strony
 (`/grafik?od=2026-09-14&zoom=8`), więc link do konkretnego widoku można
 przekazać dalej; starsze linki z `od` i `do` nadal działają. Paleta poleceń
-otwiera grafik z podświetloną osobą albo z panelem wskazanego dnia;
-podświetlenie osoby wyłącza znacznik obok nagłówka.
+otwiera grafik z podświetloną osobą albo z panelem wskazanego dnia; wiersz
+podświetlonej osoby ma przy nazwisku znacznik „podświetlona”, a podświetlenie
+wyłącza znacznik obok nagłówka.
 
 Jeśli pierwsze pobranie grafiku nie powiedzie się, pasek „Dyżur teraz” pokazuje **brak danych** i **brak połączenia**, a nie **brak obsady**.
 Błędy pobierania podają następny krok: sprawdzenie połączenia i ponowienie próby.

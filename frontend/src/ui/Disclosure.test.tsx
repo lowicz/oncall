@@ -22,5 +22,11 @@ describe('Disclosure', () => {
 
     fireEvent.click(summary)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(container.querySelector('.details-meta')).toBeNull()
+  })
+
+  it('sums the folded body up on the summary line', () => {
+    render(<Disclosure title="Wpływ na bilans" meta="Ty -1 · Anna +1"><p>Treść</p></Disclosure>)
+    expect(screen.getByRole('button', { name: 'Wpływ na bilans Ty -1 · Anna +1' })).toHaveAttribute('aria-expanded', 'false')
   })
 })

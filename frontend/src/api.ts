@@ -1035,10 +1035,11 @@ export const api = {
       acknowledge_rest_violations: acknowledgeRestViolations,
       change_resolutions: changeResolutions,
     }),
-  swaps: (params: { status?: SwapStatus[]; limit?: number } = {}) => {
+  swaps: (params: { status?: SwapStatus[]; limit?: number; offset?: number } = {}) => {
     const search = new URLSearchParams()
     params.status?.forEach((value) => search.append('status', value))
     if (params.limit) search.set('limit', String(params.limit))
+    if (params.offset) search.set('offset', String(params.offset))
     const query = search.toString()
     return request<SwapRequest[]>(`/api/v1/swaps${query ? `?${query}` : ''}`)
   },

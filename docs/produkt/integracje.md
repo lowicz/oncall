@@ -52,6 +52,10 @@ już dostał, dostaje też wiadomość o korekcie odwrotnej. Po tym czasie treś
 adresaci są takie jak bez opóźnienia. Długość opóźnienia podaje
 `/api/v1/config` (`undo_window_seconds`).
 
+Prośba o zamianę czeka tak samo: wiadomość do zastępcy wychodzi 10 sekund po
+wysłaniu prośby. Wycofanie prośby, zanim wiadomość wyszła, anuluje ją i nie
+wysyła zastępcy wiadomości o wycofaniu; później zastępca dostaje obie.
+
 Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
 zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
 tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje** (`/moje`).

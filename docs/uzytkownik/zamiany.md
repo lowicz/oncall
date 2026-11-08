@@ -5,7 +5,7 @@ także wtedy, gdy bazowa rotacja jest tygodniowa.
 
 ## Skrzynka
 
-Wszystkie wnioski są w jednej tabeli; filtry w nagłówku sekcji **Skrzynka**
+Wszystkie wnioski są w jednej skrzynce; filtry w nagłówku sekcji **Skrzynka**
 mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jest:
 
 | Filtr | Co zawiera |
@@ -19,12 +19,23 @@ Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres
 `/zamiany?skrzynka=moje` otwiera wskazaną. Suma spraw wymagających Twojej
 akcji pojawia się także jako znacznik przy pozycji „Zamiany” w nawigacji.
 
-Wiersz tabeli podaje dzień i role, które przechodzą, kto oddaje, kto przejmuje, **skutek** (osoba,
-która zyska punkty, i ile; „bez zmian”, gdy nikt) oraz **etap** - kto jest
-następny. [Wymiana](#wymiana-dyżur-za-dyżur) ma w pierwszej kolumnie oba dni. Znacznik
+Wiersz tabeli podaje dzień i role, które przechodzą, kto oddaje, kto przejmuje
+oraz **etap** - kto jest następny. Koordynator, który zatwierdza zamiany, ma
+też kolumnę **skutek** (osoba, która zyska punkty, i ile; „bez zmian”, gdy
+nikt); ikona przy jej nagłówku podpowiada, co pokazuje. Gdy zatwierdzanie
+zamian jest wyłączone, tej kolumny nie ma nikt. [Wymiana](#wymiana-dyżur-za-dyżur) ma w pierwszej kolumnie oba dni. Znacznik
 **„łamie reguły”** oznacza wniosek opisany w części
 [Zamiana łamiąca reguły](#zamiana-łamiąca-reguły). Przycisk **Zdecyduj** (gdy
 decyzja należy do Ciebie) albo **Podgląd** otwiera arkusz sprawy.
+
+Na telefonie (ekran węższy niż 900 px) skrzynka jest listą zamiast tabeli:
+wiersz podaje dzień i role, kto komu oddaje dyżur („Ty” zamiast Twojego
+nazwiska) i na kogo sprawa czeka, a status i przycisk są po prawej, w zasięgu
+kciuka.
+
+Zamknięte wnioski wczytują się po 50, od najnowszych; przycisk **Pokaż
+starsze** pod listą wczytuje kolejne. Dopóki są starsze, licznik zamkniętych w
+nagłówku ekranu ma dopisek „+” (na przykład „50+ zamkniętych”).
 
 ## Arkusz decyzji
 
@@ -54,7 +65,9 @@ nie podasz, przy wniosku zostaje „wycofane przez autora”.
 
 Przycisk **Nowa zamiana** w nagłówku ekranu otwiera formularz w panelu; przycisk
 **Poproś o zamianę** na ekranie Moje otwiera go z wybranym dyżurem. Formularz
-prowadzi przez cztery kroki: dyżur, kandydat, w zamian, powód i wysłanie.
+prowadzi przez cztery kroki: dyżur, zastępca, w zamian (opcjonalnie) i
+wysłanie. Po wybraniu zastępcy pasek przechodzi od razu do wysłania, bo
+„Nic, tylko oddaję dyżur” jest już wybrane.
 Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświeżenie wymaga decyzji, czy odrzucić wprowadzone dane.
 
 1. W polu **Mój dyżur** wybierz swój nadchodzący dyżur. Lista ma jedną pozycję
@@ -62,35 +75,50 @@ Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświ
    11–19”) i jak daleko jest ten dzień. Dyżur kolidujący z Twoim wpisem
    „nie mogę” jest oznaczony. Dzień z dwiema rolami ma pod polem wybór
    **Oddaję** (patrz niżej).
-2. Pod polem pojawia się lista **Kandydaci**: osoby eligible i dostępne, które
-   nie mają tego dnia przeciwnej roli, uszeregowane od najlepszego kandydata.
-   Przy każdej widać jej dostępność, odchylenie od należnego udziału i to, czy
-   ma już tego dnia dyżur - dzięki temu dwóch kandydatów porównasz bez
-   otwierania każdego z osobna. Kliknięcie wybiera osobę. Z klawiatury lista
-   to jeden przystanek klawisza Tab: strzałki zmieniają wybór i pomijają
-   zablokowane karty, tak samo na liście **W zamian biorę**.
-   - osoba oznaczona **„nie można: …”** jest zablokowana regułą, której
-     zamiana nie może złamać, i nie da się jej wybrać,
-   - osoba oznaczona **„łamie regułę: …”** i **„wymaga potwierdzenia”** jest do
-     wyboru, ale prośba wymaga wtedy potwierdzenia (patrz
+2. Pod polem pojawia się lista **Zastępca**: osoby eligible i dostępne, które
+   nie mają tego dnia przeciwnej roli, od najlepszego dopasowania. Karta osoby
+   podaje nazwisko, jej dostępność, jeden werdykt i jedną liczbę - odchylenie
+   od należnego udziału w punktach (na przykład „-0,5 pkt”) - więc kilka osób
+   porównasz na pierwszy rzut oka. Pierwsza karta ma znacznik **„najlepsze
+   dopasowanie”**, gdy ta osoba niczego nie łamie, a zamiana najbardziej
+   wyrównuje jej bilans. Kliknięcie wybiera osobę; pod jej kartą pojawia się
+   reszta faktów: reguła, którą prośba złamie, z dniami, dyżur, który ta osoba
+   ma już tego dnia, dzielony blok dni wolnych, jej udział w punktach i to, czy
+   zamiana poprawi bilans. Z klawiatury lista to jeden przystanek klawisza
+   Tab: strzałki zmieniają wybór i pomijają zablokowane karty, tak samo na
+   liście **W zamian biorę**. Werdykt na karcie:
+   - **„reguła twarda”** - osoba jest zablokowana regułą, której zamiana nie
+     może złamać, i nie da się jej wybrać; karta podaje tę regułę w miejscu
+     dostępności,
+   - **„wymaga potwierdzenia”** - osoba jest do wyboru, ale prośba wymaga
+     wtedy potwierdzenia (patrz
      [Zamiana łamiąca reguły](#zamiana-łamiąca-reguły)); takie osoby są na
      liście za tymi, które żadnej reguły nie łamią,
-   - oznaczenie **„poprawia bilans”** mówi, że zamiana zmniejszy nierówność,
-   - oznaczenie **„dzieli blok dni wolnych”** zapowiada ostrzeżenie dla
-     koordynatora,
-   - dopisek **„przejmie tylko SECONDARY, nie pełni 11–19”** (z nazwą Twojej
-     roli on-call) przy całym dyżurze mówi, że ta osoba nie może pełnić zmiany
-     11–19: przejmie samą rolę on-call, a zmiana zostaje u Ciebie. To wyjątek
-     od powiązania, który daje tylko ostrzeżenie.
+   - **„ostrzeżenie”** - zamiana narusza regułę miękką, na przykład dzieli
+     blok dni wolnych; koordynator to zobaczy,
+   - **„bez naruszeń”** - zamiana niczego nie łamie.
+
+   Dopisek **„Przejmie tylko SECONDARY, nie pełni 11–19.”** (z nazwą Twojej
+   roli on-call) pod kartą wybranej osoby przy całym dyżurze mówi, że ta osoba
+   nie może pełnić zmiany 11–19: przejmie samą rolę on-call, a zmiana zostaje
+   u Ciebie. To wyjątek od powiązania, który daje tylko ostrzeżenie.
 3. Opcjonalnie wybierz na liście **W zamian biorę** dzień tej osoby, z którego
    weźmiesz dyżur w zamian (patrz [Wymiana dyżur za dyżur](#wymiana-dyżur-za-dyżur)).
    Bez wyboru prośba dotyczy tylko oddania dyżuru.
-4. Pod listą zobaczysz **Wpływ na bilans**: ile punktów przechodzi między
-   Wami, policzone dla wszystkich przenoszonych slotów.
+4. Pod listą zobaczysz zwiniętą sekcję **Wpływ na bilans** (gdy są
+   ostrzeżenia: **Wpływ na bilans i ostrzeżenia**). Jej wiersz streszcza, ile
+   punktów zyskujecie albo tracicie, i liczy ostrzeżenia (na przykład „Ty -1 ·
+   Piotr +1 · 1 ostrzeżenie”); po rozwinięciu pokazuje bilans obu osób,
+   policzony dla wszystkich przenoszonych slotów, i treść ostrzeżeń.
 5. Opcjonalnie dopisz **Powód**; zobaczą go zastępca i koordynator. Powód nie
    jest wymagany, także gdy zamiana łamie reguły.
-6. „Wyślij prośbę”. Ekran potwierdza wysłanie komunikatem „Wysłano do: …” i
-   przechodzi do skrzynki **Moje**.
+6. „Wyślij prośbę”. Dopóki czegoś brakuje, stopka panelu mówi obok
+   przycisku, czego: dyżuru, zastępcy, potwierdzenia reguł albo
+   opublikowanego grafiku. Ekran potwierdza wysłanie komunikatem „Wysłano do:
+   …” z przyciskiem **Cofnij** i przechodzi do skrzynki **Moje**. „Cofnij” w
+   ciągu 10 sekund wycofuje prośbę z powodem „cofnięte zaraz po wysłaniu”.
+   Wiadomość do zastępcy czeka na koniec tego czasu, więc o prośbie
+   wycofanej w porę zastępca nie dostaje żadnej wiadomości.
 
 Gdy tego dnia masz rolę on-call i zmianę 11–19, pod polem **Mój dyżur**
 pojawia się wybór **Oddaję**: „Cały dyżur”, „Tylko SECONDARY” (albo „Tylko
@@ -114,7 +142,8 @@ bilans są liczone dla tego wyboru. W dzień z jedną rolą wyboru nie ma.
   obu.
 
 Gdy zamiana narusza regułę miękką (na przykład dzieli blok dni wolnych),
-zobaczysz ostrzeżenie „Wyślesz mimo to - koordynator zobaczy ostrzeżenie”.
+w sekcji **Wpływ na bilans i ostrzeżenia** zobaczysz ostrzeżenie „Wyślesz
+mimo to - koordynator zobaczy ostrzeżenie”.
 Wysłanie jest nadal możliwe.
 
 ## Wymiana dyżur za dyżur
@@ -129,13 +158,14 @@ dyżurami z najbliższych 90 dni, jedną pozycją na dzień. Pierwsza pozycja,
 „Nic, tylko oddaję dyżur”, to zwykła prośba w jedną stronę. Każda pozycja ma
 werdykt policzony dla całej wymiany, w obie strony naraz:
 
-- **„bez naruszeń reguł”** - wymiana niczego nie łamie; gdy samo oddanie
-  dyżuru wymagałoby potwierdzenia, pierwsza taka pozycja jest wyróżniona,
+- **„bez naruszeń”** - wymiana niczego nie łamie; gdy samo oddanie dyżuru
+  wymagałoby potwierdzenia, pierwsza taka pozycja ma znacznik **„najlepsze
+  dopasowanie”**,
 - **„ostrzeżenie”** - wymiana narusza regułę miękką; wysłanie jest możliwe,
 - **„wymaga potwierdzenia”** - wymiana łamie regułę odpoczynku albo
   powiązania i przechodzi drogę opisaną w części
   [Zamiana łamiąca reguły](#zamiana-łamiąca-reguły),
-- **„reguła twarda”** z dopiskiem „nie można: …” - tej pozycji nie da się
+- **„reguła twarda”** z regułą w miejscu ról - tej pozycji nie da się
   wybrać.
 
 Gdy zastępca ma tego dnia rolę on-call i zmianę 11–19, pod wybraną pozycją
@@ -195,7 +225,7 @@ Potwierdzić można złamanie czterech reguł odpoczynku i powiązania:
 
 Pozostałe reguły twarde blokują zamianę bez wyjątku: ta sama osoba nie
 obejmie obu dyżurów on-call jednego dnia, a zmiana 11–19 nie trafi na dzień
-wolny od pracy. Takiego kandydata lista oznacza „nie można: …”.
+wolny od pracy. Takiego kandydata lista oznacza werdyktem „reguła twarda”.
 
 Jak to przebiega:
 

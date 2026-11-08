@@ -54,6 +54,11 @@ reverse correction. After that time the content and recipients are the same as
 without the delay. `/api/v1/config` states the length of the delay
 (`undo_window_seconds`).
 
+A swap request waits the same way: the message to the replacement goes out 10
+seconds after the request is sent. Withdrawing the request before the message
+went out cancels it and sends the replacement no message about the withdrawal;
+later the replacement gets both.
+
 The schedule publication message goes to every team member active in its
 range. It lists only their own duties (day and role) or says that there is
 none in this schedule, and leads to the **Mine** screen (`/moje`).

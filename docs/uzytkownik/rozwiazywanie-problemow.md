@@ -109,9 +109,9 @@ optimistic lockingu - chroni przed cichym nadpisaniem cudzej zmiany.
 
 **Nie mogę wybrać zastępcy**
 Lista zawiera tylko osoby eligible, dostępne i niemające tego dnia przeciwnej
-roli. Osoba oznaczona „nie można: …” jest zablokowana regułą, której zamiana
-nie może złamać. Osobę oznaczoną „łamie regułę: …” można wybrać po
-potwierdzeniu - patrz
+roli. Osoba z werdyktem „reguła twarda” jest zablokowana regułą, której
+zamiana nie może złamać. Osobę z werdyktem „wymaga potwierdzenia” można wybrać
+po potwierdzeniu - patrz
 [Zamiana łamiąca reguły](zamiany.md#zamiana-łamiąca-reguły).
 
 **„Termin minął”**

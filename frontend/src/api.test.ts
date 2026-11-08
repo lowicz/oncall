@@ -219,6 +219,8 @@ const CASES: Case[] = [
   get('swaps with no filter', () => api.swaps(), '/api/v1/swaps'),
   get('swaps filtered', () => api.swaps({ status: ['approved', 'rejected'], limit: 20 }),
     '/api/v1/swaps?status=approved&status=rejected&limit=20'),
+  get('swaps of a later page', () => api.swaps({ status: ['cancelled'], limit: 50, offset: 50 }),
+    '/api/v1/swaps?status=cancelled&limit=50&offset=50'),
   get('swapPolicy', () => api.swapPolicy(), '/api/v1/swaps/policy'),
   get('swapImpact', () => api.swapImpact('2026-09-14', 'primary', 'm 2'),
     '/api/v1/swaps/impact?service_date=2026-09-14&role=primary&replacement_member_id=m%202'),

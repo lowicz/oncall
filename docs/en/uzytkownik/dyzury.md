@@ -145,8 +145,8 @@ On the Schedule the start of the range and its length are part of the page
 address (`/grafik?od=2026-09-14&zoom=8`), so a link to a specific view can be
 passed on; older links with `od` and `do` still work. The command palette
 opens the schedule with a person highlighted or with the panel of the given
-day; the highlight of a person is switched off by the badge next to the
-header.
+day; the highlighted person's row carries the tag “highlighted” next to the
+name, and the highlight is switched off by the badge next to the header.
 
 If the first schedule fetch fails, the “On duty now” strip shows **no data** and **no connection**, not **unstaffed**.
 Fetch errors give the next step: check the connection and try again.
