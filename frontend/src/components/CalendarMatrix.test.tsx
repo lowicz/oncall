@@ -1114,7 +1114,7 @@ describe('CalendarMatrix staffing form', () => {
     const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Obsadź')
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
     const confirm = within(dialog).getByRole('button', { name: /^Zapisz zmianę obsady$/ })
     await waitFor(() => expect(confirm).toBeEnabled())
     fireEvent.click(confirm)

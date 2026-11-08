@@ -1081,8 +1081,9 @@ describe('MineScreen availability painting', () => {
       <MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />,
       { route: '/moje?miesiac=2026-11&osoba=m-beata' },
     )
-    expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, listopad 2026' })).toBeInTheDocument()
+    // The calendar is keyed by the person, so it settles once the team names her.
     expect(await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
+    expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, listopad 2026' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Następny miesiąc' }))
     await waitFor(() => expect(router.state.location.search).toBe('?miesiac=2026-12&osoba=m-beata'))
