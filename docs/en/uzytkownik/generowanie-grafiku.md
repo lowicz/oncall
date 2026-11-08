@@ -206,9 +206,10 @@ Draft ──► For approval ──► Published
    “Proposal”; **Publish v*N*…** in the decision panel then publishes the
    proposal in the “Publishing the proposal v*N* · *range*” sheet.
 2. The sheet checks the publication again each time it opens, and while
-   open it checks again when you return to the browser tab; while it is checking it says so next to the buttons and **Publish
-   v*N*** waits. The sheet holds: one sentence of effect (how many assignments
-   become the schedule, an e-mail to the team, the ICS feeds updated, undone
+   open it checks again when you return to the browser tab; while it is
+   checking it says so next to the buttons and **Publish v*N*** waits. The
+   sheet holds: one sentence of effect (how many assignments become the
+   schedule, an e-mail to the team, the ICS feeds updated, undone
    only by a new publication), the same **What the publication changes**
    frame as the proposal page (carried changes, cancelled swaps, entries
    changed since generation, warnings to the audit), and under it what has to
