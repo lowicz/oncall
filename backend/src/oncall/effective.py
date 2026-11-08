@@ -63,6 +63,9 @@ _effective_cache: dict[
     tuple[date, date], tuple[float, dict[tuple[date, AssignmentRole], EffectiveAssignment]]
 ] = {}
 _effective_locks: dict[tuple[date, date], asyncio.Lock] = {}
+#: Bumped by every commit that empties the cache, so a load that started
+#: before it does not store the roster the commit replaced.
+_cache_generation = 0
 _RESOLVED_TABLES = (Assignment.__table__, Schedule.__table__)
 _WROTE_RESOLVED = "oncall.wrote_resolved_assignments"
 
@@ -87,7 +90,9 @@ def _note_bulk_write(state: ORMExecuteState) -> None:
 
 @event.listens_for(Session, "after_commit")
 def _forget_on_commit(session: Session) -> None:
+    global _cache_generation
     if session.info.pop(_WROTE_RESOLVED, False):
+        _cache_generation += 1
         _effective_cache.clear()
 
 
@@ -120,7 +125,10 @@ async def effective_assignments(
             cached = _effective_cache.get(cache_key)
             if cached is not None and cached[0] > now:
                 return cached[1]
+            generation = _cache_generation
             result = await _load_effective_assignments(db, starts_on, ends_on)
+            if generation != _cache_generation:
+                return result
             if len(_effective_cache) >= _CACHE_LIMIT:
                 expired = [key for key, (until, _) in _effective_cache.items() if until <= now]
                 oldest = min(_effective_cache, key=lambda key: _effective_cache[key][0])

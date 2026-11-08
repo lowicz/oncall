@@ -338,10 +338,10 @@ describe('API requests', () => {
     await expect(api.deleteAdminUser('u1')).resolves.toBeUndefined()
   })
 
-  it('answers the batch correction check with the violations it found', async () => {
-    const violation = { rule: 'max_duties_in_window', message: 'Three duties in seven days' }
-    server(() => new Response(JSON.stringify({ violations: [violation], ends_handover: null }), { status: 200 }))
-    await expect(api.batchOverrideCheck({ batches: [] })).resolves.toEqual([violation])
+  it('answers the batch correction check with the violations and the handover it ends', async () => {
+    const answer = { violations: [{ rule: 'max_duties_in_window', message: 'Three duties in seven days' }], ends_handover: null }
+    server(() => new Response(JSON.stringify(answer), { status: 200 }))
+    await expect(api.batchOverrideCheck({ batches: [] })).resolves.toEqual(answer)
   })
 
   it('uploads the history file as a form with the CSRF token and returns the preview', async () => {

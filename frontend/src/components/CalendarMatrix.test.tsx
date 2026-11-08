@@ -1485,7 +1485,7 @@ describe('CalendarMatrix role swap (P6)', () => {
   it('previews, saves without a dialog and undoes from the panel', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
     vi.spyOn(api, 'publicConfig').mockResolvedValue({ undo_window_seconds: 12 } as never)
-    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
     const impact = vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     renderScreen(matrix())
@@ -1548,7 +1548,7 @@ describe('CalendarMatrix role swap (P6)', () => {
 
   it('lets the panel Undo lapse with the window and reports a failed Undo', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     const save = vi.spyOn(api, 'batchOverride')
       .mockResolvedValueOnce([])
@@ -1571,9 +1571,9 @@ describe('CalendarMatrix role swap (P6)', () => {
   it('leaves 11–19 behind only knowingly', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
     const check = vi.spyOn(api, 'batchOverrideCheck').mockImplementation(async ({ batches }) =>
-      batches[0].assignments[1].with_late_shift
+      checked(batches[0].assignments[1].with_late_shift
         ? []
-        : [{ rule: 'late_shift_anchor', member_name: 'Marek Nowak', days: ['2026-09-10'], message: '11–19 bez SECONDARY' }])
+        : [{ rule: 'late_shift_anchor', member_name: 'Marek Nowak', days: ['2026-09-10'], message: '11–19 bez SECONDARY' }]))
     const impact = vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     renderScreen(matrix())
@@ -1606,7 +1606,7 @@ describe('CalendarMatrix role swap (P6)', () => {
       { id: 'm2', display_name: 'Marek Nowak' },
     ]
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members: restricted }))
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     const policy = vi.spyOn(api, 'swapPolicy').mockResolvedValue({ coordinator_approval_required: true, late_shift_anchor: 'secondary' })
     const view = renderScreen(matrix())
@@ -1632,6 +1632,31 @@ describe('CalendarMatrix role swap (P6)', () => {
     await waitFor(() => expect(impact).toHaveBeenLastCalledWith('2026-09-10', 'primary', 'm2', expect.objectContaining({ scope: undefined, returnScope: 'single' })))
   })
 
+  it('says in the frame that the swap ends the open number handover, without asking to acknowledge it', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked([], {
+      id: 'h1',
+      day: '2026-09-10',
+      from_member_id: 'm1',
+      from_name: 'Anna Kowalska',
+      to_member_id: 'm2',
+      to_name: 'Marek Nowak',
+      starts_at: '2026-09-10T09:40:00Z',
+      until: '2026-09-10T11:40:00Z',
+    }))
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+
+    expect(await within(frame).findByText(
+      'Ta korekta zakończy przekazanie numeru on-call Anna Kowalska → Marek Nowak. Numer wróci do osoby na PRIMARY, a obie strony dostaną e-mail.',
+    )).toBeInTheDocument()
+    expect(within(frame).queryByRole('checkbox', { name: /Rozumiem/ })).not.toBeInTheDocument()
+    expectReady(swapButton(dialog))
+  })
+
   it('says in the frame who may not take the other role and holds the swap without checking it', async () => {
     const members = [
       { id: 'm1', display_name: 'Anna Kowalska' },
@@ -1639,7 +1664,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     ]
     const availability = [{ member_id: 'm1', kind: 'unavailable' as const, starts_on: '2026-09-10', ends_on: '2026-09-11', note: 'Urlop' }]
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members, availability }))
-    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
     const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     renderScreen(matrix())
     const dialog = await openDay(THURSDAY)
@@ -1659,7 +1684,7 @@ describe('CalendarMatrix role swap (P6)', () => {
 
   it('asks for a reason in the frame for a day already past', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     const save = vi.spyOn(api, 'batchOverride')
       .mockRejectedValueOnce(new ApiError('Grafik zmienił się; odśwież kalendarz', 409))
@@ -1684,7 +1709,7 @@ describe('CalendarMatrix role swap (P6)', () => {
 
   it('checks again when the write meets a rule the frame did not show', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
-    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     vi.spyOn(api, 'batchOverride').mockRejectedValue(new ApiError('Złamie reguły', 409, [
       { rule: 'three_in_seven', member_name: 'Anna Kowalska', days: ['2026-09-10'], message: 'Trzy dyżury w 7 dni' },
@@ -1715,7 +1740,7 @@ describe('CalendarMatrix role swap (P6)', () => {
 
   it('closes with Cancel, the trigger, a role change or another day', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     renderScreen(matrix())
     const dialog = await openDay(THURSDAY)

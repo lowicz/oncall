@@ -93,7 +93,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
           kind: 'role_swap',
           assignments: lines,
           reason: given,
-          acknowledge_rule_violations: (check.data?.length ?? 0) > 0 && acknowledged,
+          acknowledge_rule_violations: (check.data?.violations.length ?? 0) > 0 && acknowledged,
         }),
         // The inverse swap: the new holders trade back, 11–19 with them.
         undo: async () => {
@@ -137,7 +137,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const blocked = !ref
     || refused
     || check.isLoading
-    || ((check.data?.length ?? 0) > 0 && !acknowledged)
+    || ((check.data?.violations.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
 
   const trigger = swap && (
@@ -156,9 +156,10 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
       <h3 id={`${FRAME_ID}-title`} className="swap-frame-h">{t.title}</h3>
       <RoleSwapPreview swap={swap} carry={carry} onCarry={setCarryChoice} disabled={save.isPending} />
       {!refused && <DecisionFrame
-        violations={check.data}
+        violations={check.data?.violations}
         checkFailed={check.isError}
         violationsTitle={t.breaksRules}
+        endsHandover={check.data?.ends_handover}
         acknowledged={acknowledged}
         onAcknowledge={setAcknowledged}
         error={save.error?.message}

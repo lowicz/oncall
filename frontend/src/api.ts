@@ -912,8 +912,7 @@ export const api = {
       schedule_id: string
       assignments: BatchOverrideLine[]
     }>
-  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/batch/check', input)
-    .then((check) => check.violations),
+  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/batch/check', input),
   batchOverride: (input: {
     schedule_id: string
     expected_version: number

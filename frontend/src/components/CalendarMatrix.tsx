@@ -358,7 +358,6 @@ export function CalendarMatrix({
   // that changed under it.
   useEffect(() => setViolationsAcknowledged(false), [overrideCheck.data])
   const violations = overrideCheck.data?.violations
-  const endsHandover = overrideCheck.data?.ends_handover
   const historical = Boolean(selected && selected.day.service_date < today)
   const saveBlocked = Boolean(staffBlockReason)
     || overrideCheck.isLoading
@@ -705,17 +704,12 @@ export function CalendarMatrix({
                 violations={violations}
                 checkFailed={overrideCheck.isError}
                 violationsTitle={t.confirm.breaksRules}
+                endsHandover={overrideCheck.data?.ends_handover}
                 acknowledged={violationsAcknowledged}
                 onAcknowledge={setViolationsAcknowledged}
                 error={confirmHistorical ? null : override.error?.message}
                 pending={override.isPending}
               >
-                {/* NP-16: the number handover this correction ends, stated
-                    rather than asked about: ending it is the correction's
-                    own effect. */}
-                {endsHandover && (
-                  <Box tone="warn">{t.confirm.endsHandover(endsHandover.from_name, endsHandover.to_name)}</Box>
-                )}
                 {/* MED6-04: the same balance projection a team member sees
                     before a swap, beside the rules it is decided with. */}
                 {selectedAssignment ? (

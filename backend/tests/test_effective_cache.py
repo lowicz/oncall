@@ -200,6 +200,19 @@ async def test_a_committed_bulk_update_of_assignments_is_read_back_at_once(
     assert await _primary(cached) == "Ola"
 
 
+async def test_a_load_overtaken_by_a_commit_is_not_kept(
+    db: AsyncSession, loader: Loader, clock: Clock
+) -> None:
+    loader.gate = asyncio.Event()
+    reading = asyncio.create_task(effective.effective_assignments(POSTGRES, DAY, DAY))
+    await asyncio.sleep(0)
+    await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
+    loader.gate.set()
+
+    assert (await reading)["call"] == 1
+    assert (await effective.effective_assignments(POSTGRES, DAY, DAY))["call"] == 2
+
+
 async def test_a_commit_that_writes_no_assignment_keeps_the_cache(
     db: AsyncSession, clock: Clock
 ) -> None:
