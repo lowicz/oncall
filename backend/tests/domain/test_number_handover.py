@@ -250,16 +250,19 @@ def _change_ports(
     store: _Store | None = None,
     journal: _Journal | None = None,
     *,
+    settling: _Journal | None = None,
     mode: ForwardingMode = ForwardingMode.live,
     duties=None,
     phones=PHONES,
 ) -> HandoverChangePorts:
+    store = store or _Store()
     return HandoverChangePorts(
         settings=_Settings(mode),  # type: ignore[arg-type]
         roster=_Roster(_pair() if duties is None else duties),  # type: ignore[arg-type]
         contacts=_Contacts(phones),
         team=_Team(),  # type: ignore[arg-type]
-        handover=HandoverPorts(store or _Store(), journal or _Journal()),
+        handover=HandoverPorts(store, journal or _Journal()),
+        settling=HandoverPorts(store, settling or _Journal()),
     )
 
 
@@ -322,15 +325,22 @@ async def test_a_second_handover_is_refused_while_the_first_holds() -> None:
 
 
 async def test_an_expired_handover_does_not_block_the_next_one() -> None:
+    """The time ended the old one, not whoever starts the next: its end is
+    recorded in nobody's name, as the worker would have."""
     old = replace(HANDOVER, until=NOW - timedelta(minutes=1))
-    store, journal = _Store(old), _Journal()
+    store, journal, settling = _Store(old), _Journal(), _Journal()
 
     await start_handover(
-        _actor(ANNA_USER), UNTIL, _change_ports(store, journal), now=NOW, reminder_hour=9
+        _actor(ANNA_USER),
+        UNTIL,
+        _change_ports(store, journal, settling=settling),
+        now=NOW,
+        reminder_hour=9,
     )
 
-    assert journal.events[0] == ("ended", HandoverEnd.expired)
-    assert journal.events[1][0] == "started"
+    assert store.ended == [(HandoverEnd.expired, old.until, None)]
+    assert settling.events == [("ended", HandoverEnd.expired)]
+    assert [event[0] for event in journal.events] == ["started"]
 
 
 @pytest.mark.parametrize(
@@ -430,25 +440,19 @@ async def test_a_handover_that_is_not_open_is_not_found(store, handover_id) -> N
 
 async def test_a_correction_of_the_pair_on_its_day_names_the_handover() -> None:
     store = _Store(HANDOVER)
+    late = (DAY, AssignmentRole.late_shift)
+    next_day = (DAY + timedelta(days=1), AssignmentRole.primary)
+
+    async def ends(*slots, handovers=store, now=NOW):
+        return await handover_ended_by_correction(slots, handovers, now=now)
 
     for role in (AssignmentRole.primary, AssignmentRole.secondary):
-        assert await handover_ended_by_correction(DAY, role, store, now=NOW) == HANDOVER
-    assert (
-        await handover_ended_by_correction(DAY, AssignmentRole.late_shift, store, now=NOW) is None
-    )
-    assert (
-        await handover_ended_by_correction(
-            DAY + timedelta(days=1), AssignmentRole.primary, store, now=NOW
-        )
-        is None
-    )
-    assert (
-        await handover_ended_by_correction(DAY, AssignmentRole.primary, store, now=HANDOVER.until)
-        is None
-    )
-    assert (
-        await handover_ended_by_correction(DAY, AssignmentRole.primary, _Store(), now=NOW) is None
-    )
+        assert await ends((DAY, role)) == HANDOVER
+        assert await ends(late, next_day, (DAY, role)) == HANDOVER
+    assert await ends(late, next_day) is None
+    assert await ends() is None
+    assert await ends((DAY, AssignmentRole.primary), now=HANDOVER.until) is None
+    assert await ends((DAY, AssignmentRole.primary), handovers=_Store()) is None
 
 
 # --- where the number rings now ----------------------------------------------
@@ -488,11 +492,12 @@ def _now_ports(
     duties=None,
     state: ForwardingState | None = None,
     published: bool = True,
+    phones=PHONES,
 ) -> ForwardingNowPorts:
     return ForwardingNowPorts(
         settings=_Settings(mode),  # type: ignore[arg-type]
         roster=_Roster(_pair() if duties is None else duties),  # type: ignore[arg-type]
-        contacts=_Contacts(PHONES, published=published),
+        contacts=_Contacts(phones, published=published),
         handovers=_Store(handover),
         state=_State(state or _state()),
     )
@@ -561,6 +566,15 @@ async def test_a_handover_that_no_longer_holds_is_not_read_as_one() -> None:
     now = await _now(handover=HANDOVER, duties=_pair(secondary=JAN))
 
     assert now.holder_name == "Anna Kowalska"
+    assert now.handover is None
+
+
+async def test_a_receiver_who_lost_their_number_shows_no_handover() -> None:
+    """The number rings at the PRIMARY again, so no handover is told: it
+    does not decide where the number rings."""
+    now = await _now(handover=HANDOVER, phones={ANNA: PHONES[ANNA]})
+
+    assert (now.holder_name, now.holder_role) == ("Anna Kowalska", AssignmentRole.primary)
     assert now.handover is None
 
 

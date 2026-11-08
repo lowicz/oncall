@@ -1381,34 +1381,6 @@
         "title": "DirectOverrideCheckRequest",
         "type": "object"
       },
-      "DirectOverrideCheckResponse": {
-        "description": "What a correction would cause: the hard rules it breaks, which ask for\nacknowledgement, and the number handover it would end, which the frame\nonly states.",
-        "properties": {
-          "ends_handover": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/HandoverResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "violations": {
-            "items": {
-              "$ref": "#/components/schemas/RuleViolationResponse"
-            },
-            "title": "Violations",
-            "type": "array"
-          }
-        },
-        "required": [
-          "violations",
-          "ends_handover"
-        ],
-        "title": "DirectOverrideCheckResponse",
-        "type": "object"
-      },
       "DirectOverrideRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3053,6 +3025,34 @@
           "total_points"
         ],
         "title": "MonthlyReportRow",
+        "type": "object"
+      },
+      "OverrideCheckResponse": {
+        "description": "What a correction would cause: the hard rules it breaks, which ask for\nacknowledgement, and the number handover it would end, which the frame\nonly states.",
+        "properties": {
+          "ends_handover": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoverResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "violations",
+          "ends_handover"
+        ],
+        "title": "OverrideCheckResponse",
         "type": "object"
       },
       "PasswordLinkResponse": {
@@ -8394,7 +8394,7 @@
     },
     "/api/v1/calendar/override/batch/check": {
       "post": {
-        "description": "The hard rules the batches would break together, without writing any slot.",
+        "description": "The hard rules the batches would break together, without writing any\nslot, and the number handover they would end.",
         "operationId": "batch_override_check_api_v1_calendar_override_batch_check_post",
         "parameters": [
           {
@@ -8445,11 +8445,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RuleViolationResponse"
-                  },
-                  "title": "Response Batch Override Check Api V1 Calendar Override Batch Check Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/OverrideCheckResponse"
                 }
               }
             },
@@ -8525,7 +8521,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DirectOverrideCheckResponse"
+                  "$ref": "#/components/schemas/OverrideCheckResponse"
                 }
               }
             },

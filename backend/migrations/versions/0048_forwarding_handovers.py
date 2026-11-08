@@ -2,7 +2,7 @@
 number until a time within the duty day.
 
 At most one handover a day is open (`ended_at IS NULL`), held by a partial
-unique index on PostgreSQL. Why one ended is a fixed vocabulary.
+unique index. Why one ended is a fixed vocabulary.
 
 Revision ID: 0048_forwarding_handovers
 Revises: 0047_notification_undo_window
@@ -66,14 +66,14 @@ def upgrade() -> None:
             "(ended_at IS NULL) = (end_reason IS NULL)", name="ck_forwarding_handovers_end"
         ),
     )
-    if op.get_bind().dialect.name == "postgresql":
-        op.create_index(
-            "uq_forwarding_handovers_open_day",
-            "forwarding_handovers",
-            ["day"],
-            unique=True,
-            postgresql_where=sa.text("ended_at IS NULL"),
-        )
+    op.create_index(
+        "uq_forwarding_handovers_open_day",
+        "forwarding_handovers",
+        ["day"],
+        unique=True,
+        postgresql_where=sa.text("ended_at IS NULL"),
+        sqlite_where=sa.text("ended_at IS NULL"),
+    )
 
 
 def downgrade() -> None:

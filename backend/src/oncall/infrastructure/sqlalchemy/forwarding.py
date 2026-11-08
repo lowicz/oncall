@@ -744,9 +744,9 @@ class SqlAlchemyHandovers:
             async with self._session.begin_nested():
                 self._session.add(row)
                 await self._session.flush()
-        except IntegrityError:
+        except IntegrityError as error:
             existing = await self.open()
-            if existing is None:
+            if existing is None or not _unique_violation(error):
                 raise
             raise errors.HandoverActive(existing.to_name) from None
         started = await self.open()
@@ -768,6 +768,14 @@ class SqlAlchemyHandovers:
             .execution_options(synchronize_session=False)
         )
         return cast(CursorResult[Any], ended).rowcount == 1
+
+
+def _unique_violation(error: IntegrityError) -> bool:
+    """Whether a unique index refused the row, as PostgreSQL or SQLite says."""
+    return (
+        getattr(error.orig, "sqlstate", None) == "23505"
+        or getattr(error.orig, "sqlite_errorname", None) == "SQLITE_CONSTRAINT_UNIQUE"
+    )
 
 
 def _clock(moment: datetime) -> str:

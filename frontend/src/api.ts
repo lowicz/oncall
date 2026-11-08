@@ -907,7 +907,8 @@ export const api = {
         replacement_member_id: string
       }>
     }>
-  }) => send<RuleViolation[]>('POST', '/api/v1/calendar/override/batch/check', input),
+  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/batch/check', input)
+    .then((check) => check.violations),
   batchOverride: (input: {
     schedule_id: string
     expected_version: number

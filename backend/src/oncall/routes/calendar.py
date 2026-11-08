@@ -34,16 +34,16 @@ from oncall.presentation.calendar import (
     CalendarResponse,
     calendar_response,
 )
-from oncall.presentation.forwarding import HandoverResponse
 from oncall.presentation.overrides import (
     BatchOverrideCheckRequest,
     BatchOverrideRequest,
     DirectOverrideCheckRequest,
-    DirectOverrideCheckResponse,
     DirectOverrideRequest,
+    OverrideCheckResponse,
     override_assignment_response,
+    override_check_response,
 )
-from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
+from oncall.presentation.rules import rule_violation_responses
 from oncall.routes.domain_edge import (
     SHARED_ERROR_STATUSES,
     actor_from,
@@ -182,7 +182,7 @@ async def direct_override_check(
     ports: OverrideProvider,
     handovers: OpenHandoverReader,
     __: CsrfGuard,
-) -> DirectOverrideCheckResponse:
+) -> OverrideCheckResponse:
     """The hard rules the override would break, computed before the fact so
     the confirmation can show them and ask for their acknowledgement, and the
     number handover it would end, which the confirmation states."""
@@ -197,12 +197,9 @@ async def direct_override_check(
             ports,
         )
     ends = await forwarding_use_cases.handover_ended_by_correction(
-        payload.service_date, payload.role, handovers, now=utc_now()
+        [(payload.service_date, payload.role)], handovers, now=utc_now()
     )
-    return DirectOverrideCheckResponse(
-        violations=rule_violation_responses(violations),
-        ends_handover=HandoverResponse.model_validate(ends) if ends is not None else None,
-    )
+    return override_check_response(violations, ends)
 
 
 @router.post("/override", response_model=AssignmentResponse)
@@ -229,14 +226,16 @@ async def direct_override(
     return override_assignment_response(result)
 
 
-@router.post("/override/batch/check", response_model=list[RuleViolationResponse])
+@router.post("/override/batch/check")
 async def batch_override_check(
     payload: BatchOverrideCheckRequest,
     _: Coordinator,
     ports: OverrideProvider,
+    handovers: OpenHandoverReader,
     __: CsrfGuard,
-) -> list[RuleViolationResponse]:
-    """The hard rules the batches would break together, without writing any slot."""
+) -> OverrideCheckResponse:
+    """The hard rules the batches would break together, without writing any
+    slot, and the number handover they would end."""
     with _override_errors_as_http():
         violations = await override_use_cases.check_batch_override(
             [
@@ -251,7 +250,12 @@ async def batch_override_check(
             ],
             ports,
         )
-    return rule_violation_responses(violations)
+    ends = await forwarding_use_cases.handover_ended_by_correction(
+        [(item.service_date, item.role) for batch in payload.batches for item in batch.assignments],
+        handovers,
+        now=utc_now(),
+    )
+    return override_check_response(violations, ends)
 
 
 @router.post("/override/batch", response_model=list[AssignmentResponse])

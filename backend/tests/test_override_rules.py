@@ -230,7 +230,8 @@ async def test_batch_override_check_reports_rules_without_writing(
     )
 
     assert response.status_code == 200, response.text
-    assert "same_day_oncall" in {item["rule"] for item in response.json()}
+    assert "same_day_oncall" in {item["rule"] for item in response.json()["violations"]}
+    assert response.json()["ends_handover"] is None
     await db.refresh(schedule)
     assert schedule.version == 1
     assert (
@@ -267,7 +268,7 @@ async def test_batch_override_check_sees_a_rule_across_two_schedules(
             "/api/v1/calendar/override/batch/check", json={"batches": list(batches)}
         )
         assert response.status_code == 200, response.text
-        return [(item["rule"], item["member_name"]) for item in response.json()]
+        return [(item["rule"], item["member_name"]) for item in response.json()["violations"]]
 
     # Each week alone is clean; saved one after the other, Ewa has four days in a row.
     assert await check(first_batch) == []

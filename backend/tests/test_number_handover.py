@@ -6,6 +6,7 @@ from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from oncall.domain.forwarding import errors
 from oncall.domain.forwarding.models import ForwardingMode, HandoverEnd
@@ -307,11 +308,54 @@ async def test_the_correction_check_names_the_handover_it_would_end(
     assert late_shift["ends_handover"] is None
 
 
-async def test_the_store_answers_a_refused_insert_as_the_open_handover(
+async def test_the_batch_correction_check_names_the_handover_it_would_end(
+    client, db, pair, frozen_clock
+) -> None:
+    """Taking a person off the roster corrects many slots at once; the one
+    on the pair's day ends the handover there as well (NP-16)."""
+    await _mode(db, ForwardingMode.live)
+    await login(client, "anna")
+    handover = (await _start(client, frozen_clock)).json()
+    await login(client, "koordynator")
+    schedule_id = (await db.scalars(select(Assignment.schedule_id))).first()
+    today = frozen_clock.business_today()
+
+    async def check(*slots: tuple) -> dict:
+        response = await client.post(
+            "/api/v1/calendar/override/batch/check",
+            json={
+                "batches": [
+                    {
+                        "schedule_id": str(schedule_id),
+                        "assignments": [
+                            {
+                                "service_date": day.isoformat(),
+                                "role": role,
+                                "replacement_member_id": str(pair["Jan Wiśniewski"].id),
+                            }
+                            for day, role in slots
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    offboarding = await check((today + timedelta(days=1), "secondary"), (today, "secondary"))
+    later_only = await check((today + timedelta(days=1), "secondary"))
+
+    assert offboarding["ends_handover"]["id"] == handover["id"]
+    assert offboarding["ends_handover"]["to_name"] == "Marek Nowak"
+    assert later_only["ends_handover"] is None
+
+
+async def test_the_store_answers_a_second_open_handover_as_the_first(
     db, pair, frozen_clock
 ) -> None:
-    """The partial unique index exists on PostgreSQL only, so a refused insert
-    is reached here through the period check instead."""
+    """The open handover of the day is refused by the unique index, which a
+    request that passed the check before the other committed runs into. Any
+    other refused row is not a handover already open."""
     store = SqlAlchemyHandovers(db)
     values = {
         "day": frozen_clock.business_today(),
@@ -320,10 +364,13 @@ async def test_the_store_answers_a_refused_insert_as_the_open_handover(
         "now": frozen_clock.instant,
         "by_user_id": pair["Anna Kowalska"].user_id,
     }
-    empty_period = frozen_clock.instant
-
-    with pytest.raises(Exception, match="CHECK constraint"):
-        await store.start(until=empty_period, **values)
     await store.start(until=frozen_clock.instant + timedelta(hours=1), **values)
-    with pytest.raises(errors.HandoverActive):
-        await store.start(until=empty_period, **values)
+
+    with pytest.raises(errors.HandoverActive) as refused:
+        await store.start(until=frozen_clock.instant + timedelta(hours=2), **values)
+    with pytest.raises(IntegrityError, match="ck_forwarding_handovers_period"):
+        await store.start(
+            until=frozen_clock.instant, **values | {"day": values["day"] + timedelta(days=1)}
+        )
+
+    assert "Marek Nowak" in str(refused.value)

@@ -3,6 +3,7 @@ password to an administrator, checking the connection to WCO, reading the
 state, and the day's pair handing the on-call number over."""
 
 import uuid
+from collections.abc import Iterable
 from datetime import date, datetime
 
 from oncall.domain.access.models import SignInRequest
@@ -172,7 +173,7 @@ async def start_handover(
         raise errors.ForwardingOff()
     day = forwarding_day(now.astimezone(BUSINESS_TIMEZONE), reminder_hour)
     duties = await ports.roster.duties_in_force(day, day)
-    active = await settle_handover(day, duties, now, ports.handover)
+    active = await settle_handover(day, duties, now, ports.settling)
     if active is not None:
         raise errors.HandoverActive(active.to_name)
     primary = duties.get((day, AssignmentRole.primary))
@@ -272,24 +273,21 @@ async def forwarding_now(
         holder_member_id=target.holder_id,
         holder_name=target.holder_name,
         holder_role=AssignmentRole.secondary if target.receiver else AssignmentRole.primary,
-        handover=handover,
+        handover=handover if target.receiver is not None else None,
         status=status,
         confirmed_at=confirmed_at,
     )
 
 
 async def handover_ended_by_correction(
-    service_date: date, role: AssignmentRole, handovers: OpenHandover, *, now: datetime
+    slots: Iterable[tuple[date, AssignmentRole]], handovers: OpenHandover, *, now: datetime
 ) -> NumberHandover | None:
-    """The handover a correction of this slot would end (NP-16): the open
-    one, on its day, when the slot is PRIMARY or SECONDARY. The correction
+    """The handover a correction of these slots would end (NP-16): the open
+    one, when a slot is PRIMARY or SECONDARY on its day. The correction
     frame says so before the coordinator saves."""
     handover = await handovers.open()
-    if (
-        handover is None
-        or handover.day != service_date
-        or role not in ONCALL_ROLES
-        or now >= handover.until
-    ):
+    if handover is None or now >= handover.until:
         return None
-    return handover
+    if any(day == handover.day and role in ONCALL_ROLES for day, role in slots):
+        return handover
+    return None

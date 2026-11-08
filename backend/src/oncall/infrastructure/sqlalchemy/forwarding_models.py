@@ -132,14 +132,14 @@ class ForwardingHandover(Base):
 
     __tablename__ = "forwarding_handovers"
     __table_args__ = (
-        # At most one open handover a day. The predicate is PostgreSQL SQL,
-        # so SQLite test databases rely on the use case's check alone.
+        # At most one open handover a day.
         Index(
             "uq_forwarding_handovers_open_day",
             "day",
             unique=True,
             postgresql_where=text("ended_at IS NULL"),
-        ).ddl_if(dialect="postgresql"),
+            sqlite_where=text("ended_at IS NULL"),
+        ),
         CheckConstraint("starts_at < until", name="ck_forwarding_handovers_period"),
         CheckConstraint(
             "(ended_at IS NULL) = (end_reason IS NULL)", name="ck_forwarding_handovers_end"

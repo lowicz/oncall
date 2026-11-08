@@ -207,6 +207,9 @@ class HandoverChangePorts:
     contacts: ForwardingContacts
     team: AccountMembers
     handover: HandoverPorts
+    #: The same handovers in nobody's name, for ending one that the time or
+    #: the roster already ended before a new one starts.
+    settling: HandoverPorts
 
 
 @dataclass(frozen=True)

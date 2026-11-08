@@ -184,12 +184,14 @@ def open_handover_reader(db: DbSession) -> OpenHandover:
 
 
 def handover_changer(db: DbSession, actor: CurrentUser) -> HandoverChangePorts:
+    handovers = SqlAlchemyHandovers(db)
     return HandoverChangePorts(
         settings=SqlAlchemyForwardingSettings(db),
         roster=SqlAlchemyPublishedRoster(db),
         contacts=SqlAlchemyForwardingConfiguration(db),
         team=SqlAlchemyTeamDirectory(db),
-        handover=HandoverPorts(SqlAlchemyHandovers(db), SqlAlchemyHandoverJournal(db, actor)),
+        handover=HandoverPorts(handovers, SqlAlchemyHandoverJournal(db, actor)),
+        settling=HandoverPorts(handovers, SqlAlchemyHandoverJournal(db, None)),
     )
 
 
