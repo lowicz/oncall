@@ -1070,7 +1070,7 @@ export function PeoplePanel() {
               onChange={setTab}
               items={[
                 { value: 'account', label: t.details.tabs.account },
-                { value: 'rotation', label: t.details.tabs.rotation, count: selectedRow.member ? selectedRoles.length : undefined },
+                { value: 'rotation', label: selectedRoles.length > 0 ? t.rotationTab.tabWithRoles(selectedRoles.map((role) => shortRoleLabels()[role]).join(', ')) : t.details.tabs.rotation },
                 { value: 'access', label: t.details.tabs.access },
               ]}
             >

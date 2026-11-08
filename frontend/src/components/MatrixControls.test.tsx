@@ -54,7 +54,7 @@ describe('MatrixControls', () => {
     expect(within(menu).getByRole('menuitemcheckbox', { name: 'Tylko z dyżurem' })).toHaveAttribute('aria-checked', 'true')
     expect(within(menu).getByRole('menuitemcheckbox', { name: 'Lista dni' })).toHaveAttribute('aria-checked', 'false')
     // The ICS export belongs to a member of the rotation only.
-    expect(within(menu).queryByRole('menuitem', { name: 'Eksport ICS' })).not.toBeInTheDocument()
+    expect(within(menu).queryByRole('menuitem', { name: 'Subskrypcja ICS' })).not.toBeInTheDocument()
     fireEvent.click(within(menu).getByRole('menuitemcheckbox', { name: 'Tylko z dyżurem' }))
     expect(matrix.onHideIdle).toHaveBeenCalledWith(false)
     fireEvent.click(within(menu).getByRole('menuitemcheckbox', { name: 'Lista dni' }))
@@ -73,7 +73,7 @@ describe('MatrixControls', () => {
   it('offers a member of the rotation the ICS export, which lives on "Moje"', async () => {
     setup({ icsExport: true })
     const menu = await openMenu('Więcej')
-    expect(within(menu).getByRole('menuitem', { name: 'Eksport ICS' })).toHaveAttribute('href', '/moje#ics')
+    expect(within(menu).getByRole('menuitem', { name: 'Subskrypcja ICS' })).toHaveAttribute('href', '/moje#ics')
   })
 
   it('opens the legend with the availability marks only where availability is shown', async () => {

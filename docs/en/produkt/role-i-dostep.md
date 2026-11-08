@@ -17,7 +17,7 @@ The roles are cumulative: an administrator sees everything a coordinator does.
 | --- | :---: | :---: | :---: | :---: |
 | Now (`/`) | yes | yes | yes | yes |
 | Schedule (`/grafik`) | yes | yes | yes | yes |
-| Mine (`/moje`) | no | yes | yes | yes |
+| My duties (`/moje`) | no | yes | yes | yes |
 | Swaps (`/zamiany`) | no | yes | yes | yes |
 | Generator (`/generator`) | no | no | yes | yes |
 | Fairness (`/sprawiedliwosc`) | no | only themselves | whole team | whole team |
@@ -51,7 +51,7 @@ address of a screen outside your permissions takes you to the “Now” screen;
 regardless of that, every API request is checked on the server side. **The
 interface is not a security boundary.**
 
-The coordinator and the administrator have access to the “Mine” screen even
+The coordinator and the administrator have access to the “My duties” screen even
 when they are not in the rotation themselves: that is where they file
 availability on behalf of a person who cannot do it themselves.
 

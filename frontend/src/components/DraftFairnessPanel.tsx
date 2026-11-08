@@ -3,7 +3,7 @@ import { DraftFairnessImpact, DraftSchedule, FairnessMember } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { lensLabels } from '../lib/labels'
 import { DEVIATION_SCALE, deviationWords, draftFairnessImpactQuery, totalBalance } from '../lib/fairness'
-import { formatDecimal, formatPoints, signedPoints } from '../lib/numbers'
+import { formatDecimal, formatPoints, printedPoints, signedPoints } from '../lib/numbers'
 import { formatDate } from '../lib/dates'
 import { Box, Chip, ChipRow, DeviationBar, ErrorState, LoadingBlock, StatusBadge } from '../ui'
 
@@ -66,7 +66,7 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
           {after.display_name}
           <small>{joined ? t.since(formatDate(after.active_from)) : t.memberChange(signedPoints(beforeTotal.deviation), signedPoints(afterTotal.deviation), impactLabel(beforeTotal.deviation, afterTotal.deviation))}</small>
         </th>
-        <td><DeviationBar value={afterTotal.deviation} max={DEVIATION_SCALE} label={deviationWords(afterTotal.deviation)} /></td>
+        <td><DeviationBar value={afterTotal.deviation} max={DEVIATION_SCALE} label={deviationWords(printedPoints(afterTotal.deviation))} /></td>
         <td className="n">{formatDecimal(afterTotal.actual)}</td>
       </tr>
     )

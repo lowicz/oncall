@@ -17,7 +17,7 @@ Rola, której nikt nie ma, jest w pasku pogrubiona i oznaczona czerwoną
 kropką: **brak obsady**.
 
 Akcje po prawej zależą od roli: członek zespołu ma **Zgłoś dostępność**
-(prowadzi do ekranu Moje), koordynator i administrator mają **Generuj
+(prowadzi do ekranu Moje dyżury), koordynator i administrator mają **Generuj
 kolejny zakres**, który otwiera Generator z zakresem zaczynającym się dzień
 po końcu opublikowanego grafiku.
 
@@ -30,7 +30,7 @@ Niżej jest sekcja **Najbliższe 4 tygodnie** z tą samą macierzą co na ekrani
 Grafik i tym samym pasem kontrolek w nagłówku sekcji: długość 2 / 4 / 8
 tygodni, tydzień wstecz i do przodu, powrót do dziś oraz menu **⋯**
 (**Więcej**) z pozycjami **Tylko z dyżurem**, **Lista dni**, **Legenda** i,
-dla członka zespołu, **Eksport ICS**. Gdy nikt nie jest jeszcze w rotacji, sekcja
+dla członka zespołu, **Subskrypcja ICS**. Gdy nikt nie jest jeszcze w rotacji, sekcja
 zamiast pustej macierzy mówi to wprost i nie pokazuje kontrolek;
 administrator dostaje w niej przycisk **Otwórz Osoby**, żeby dodać zespół.
 Gdy zespół ma osoby, ale żadna nie jest w rotacji w widocznym zakresie,
@@ -97,7 +97,7 @@ kilka sekund przycisk **Cofnij**, który kończy przekazanie. Potem znacznik
 przy nowej osobie mówi **przełączam**, a gdy WCO potwierdzi, **numer
 on-call**.
 
-Gdy przejmująca osoba nie ma numeru telefonu na ekranie Moje, ramka w
+Gdy przejmująca osoba nie ma numeru telefonu na ekranie Moje dyżury, ramka w
 podpowiedzi mówi to z nazwiskiem i blokuje przycisk: numer trzeba najpierw
 uzupełnić. Gdy numer jest już przekazany, znacznik mówi, do której godziny,
 a w miejscu przycisku przekazania stoi przycisk zakończenia opisany niżej.
@@ -142,8 +142,8 @@ przekazanie numeru on-call … zakończone ręcznie”), razem z tym, kto je zle
 
 Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
 koordynatorowi także propozycję czekającą na publikację; przycisk **Otwórz
-propozycję** prowadzi prosto do niej w Generatorze. Eksport ICS członek
-zespołu znajdzie w menu **⋯** nad macierzą i na ekranie Moje.
+propozycję** prowadzi prosto do niej w Generatorze. Subskrypcję ICS członek
+zespołu znajdzie w menu **⋯** nad macierzą i na ekranie Moje dyżury.
 
 Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli opublikowany grafik kończy się wcześniej).
 Jeśli publikacja już wygasła, ekran pokazuje cztery tygodnie od dziś i ostrzeżenie z datą końca, a koordynatorowi także drogę do Generatora (albo do czekającej propozycji).
@@ -292,7 +292,7 @@ Grafiku tak samo:
 | **⋯** → **Tylko z dyżurem** | ukrywa osoby bez przydziału w zakresie |
 | **⋯** → **Lista dni** | przełącza między macierzą a listą dni |
 | **⋯** → **Legenda** | rozwija spis symboli |
-| **⋯** → **Eksport ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje (członek zespołu) |
+| **⋯** → **Subskrypcja ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje dyżury (członek zespołu) |
 
 Na Teraz i na Grafiku początek zakresu, jego długość, filtr **Tylko z
 dyżurem** i wybór między macierzą a listą dni są częścią adresu strony

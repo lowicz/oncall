@@ -503,6 +503,7 @@ export function CalendarMatrix({
           <>
             <Tag>{dayTag(selected.day)}</Tag>
             {!selectedDayPublished && <Tag>{t.inspector.outsidePublication}</Tag>}
+            {selected.member && <Tag>{t.inspector.openedFromRow(selected.member.display_name)}</Tag>}
           </>
         )}
         footer={roleSwap.open ? roleSwap.footer : staffChange.open ? staffChange.footer : (
@@ -636,12 +637,6 @@ export function CalendarMatrix({
                     <span>{item.display_name}: {availabilityLabels()[item.kind]}{item.note ? ` - ${item.note}` : ''}</span>
                   </div>
                 ))}
-              </div>
-            )}
-            {selected.member && !staffChange.open && (
-              <div className="muted small">
-                {t.inspector.fromRow(selected.member.display_name)}
-                {!canCoordinate && !ownRole && ` ${t.inspector.publishedDetails}`}
               </div>
             )}
             {deleteEvent.error && <Box tone="bad" role="alert" title={deleteEvent.error.message} />}

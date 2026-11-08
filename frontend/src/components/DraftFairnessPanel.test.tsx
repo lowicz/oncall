@@ -48,7 +48,7 @@ describe('DraftFairnessPanel criterion summary', () => {
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact())
     renderScreen(<DraftFairnessPanel result={result} />)
     expect(
-      await screen.findByText('rozpiętość ≤ 3 pkt na soczewce'),
+      await screen.findByText('rozpiętość ≤ 3 pkt w każdej roli, w weekendy i święta'),
     ).toBeInTheDocument()
     expect(screen.getByText(/SECONDARY: 10 → 3 · spełnia/)).toBeInTheDocument()
     expect(screen.getByText(/PRIMARY: 6 → 2 · spełnia/)).toBeInTheDocument()
@@ -69,12 +69,12 @@ describe('DraftFairnessPanel criterion summary', () => {
       }),
     )
     renderScreen(<DraftFairnessPanel result={result} />)
-    expect(await screen.findByText(/niespełnione przez zastany dług historyczny/)).toBeInTheDocument()
+    expect(await screen.findByText(/niespełnione przez nierówność sprzed szkicu/)).toBeInTheDocument()
     const box = screen.getByText(/nie wada szkicu/)
     expect(box).toHaveTextContent('Szkic zmniejsza rozrzut z 80 do 74 pkt.')
-    expect(box).toHaveTextContent('najwyżej połowę jej udziału')
+    expect(box).toHaveTextContent('wyrównuje taką nierówność po trochu')
     expect(box).toHaveTextContent('Najniższa rozpiętość osiągalna w tym zakresie to 58,5 pkt.')
-    expect(box).not.toHaveTextContent('popraw komórki')
+    expect(box).not.toHaveTextContent('Popraw komórki')
     expect(screen.getAllByText(/nie spełnia/).length).toBeGreaterThanOrEqual(2)
   })
 
@@ -92,11 +92,11 @@ describe('DraftFairnessPanel criterion summary', () => {
       }),
     )
     renderScreen(<DraftFairnessPanel result={result} />)
-    expect(await screen.findByText(/niespełnione przez zastany dług historyczny/)).toBeInTheDocument()
+    expect(await screen.findByText(/niespełnione przez nierówność sprzed szkicu/)).toBeInTheDocument()
     const box = screen.getByText(/nie wada szkicu/)
     expect(box).toHaveTextContent('Szkic zmniejsza rozrzut z 40 do 35 pkt.')
     expect(box).not.toHaveTextContent('Najniższa rozpiętość osiągalna')
-    expect(screen.queryByText(/popraw komórki/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Popraw komórki/)).not.toBeInTheDocument()
   })
 
   it('points at manual edits when an inherited shortfall got wider instead of narrower', async () => {
@@ -133,8 +133,8 @@ describe('DraftFairnessPanel criterion summary', () => {
     )
     renderScreen(<DraftFairnessPanel result={result} />)
     expect(await screen.findByText('Kryterium niespełnione')).toBeInTheDocument()
-    expect(screen.getByText(/popraw komórki w macierzy albo wygeneruj ponownie/)).toBeInTheDocument()
-    expect(screen.queryByText(/zastany dług/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Popraw komórki w macierzy albo wygeneruj ponownie/)).toBeInTheDocument()
+    expect(screen.queryByText(/nierówność sprzed szkicu/)).not.toBeInTheDocument()
   })
 
   it('puts departed people outside the criterion table section', async () => {
@@ -206,6 +206,6 @@ describe('DraftFairnessPanel people', () => {
     expect(alert).toHaveTextContent('Szkic zmienił wersję')
     load.mockResolvedValue(impact())
     fireEvent.click(within(alert).getByRole('button', { name: 'Spróbuj ponownie' }))
-    expect(await screen.findByText('rozpiętość ≤ 3 pkt na soczewce')).toBeInTheDocument()
+    expect(await screen.findByText('rozpiętość ≤ 3 pkt w każdej roli, w weekendy i święta')).toBeInTheDocument()
   })
 })

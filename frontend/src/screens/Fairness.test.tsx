@@ -112,7 +112,7 @@ describe('FairnessPanel criterion summary', () => {
     renderScreen(<FairnessPanel />)
     expect(await screen.findByText('niespełnione')).toBeInTheDocument()
     expect(screen.getAllByText(/· nie spełnia$/)).toHaveLength(1)
-    expect(screen.getByRole('button', { description: /najwyżej: Anna Kowalska \(\+2,5\).*najniżej: Marek Nowak \(-2\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { description: /najwyżej: Anna Kowalska \(\+2,5\).*najniżej: Marek Nowak \(−2\)/ })).toBeInTheDocument()
   })
 
   it('puts departed people in a separate section', async () => {

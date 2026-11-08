@@ -31,8 +31,8 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   dziewięć cyfr (same cyfry dostają prefiks, spacje i kreski są pomijane);
   numer zagraniczny albo zapisany przed tą regułą ma dopisek „popraw numer”
   w tabeli, a w polu - po wyjściu z niego albo przy zapisie. Każda osoba może też zmienić swój numer sama na ekranie
-  [Moje](dostepnosc.md#mój-telefon),
-- **Rotacja** - „Wejście od” i „Wyjście do”, jedna lista **Kwalifikacje**
+  [Moje dyżury](dostepnosc.md#mój-telefon),
+- **Rotacja** (na zakładce skróty kwalifikacji, na przykład „Rotacja · P, S”) - „Wejście od” i „Wyjście do”, jedna lista **Kwalifikacje**
   (dla każdej roli jej bieżące i przyszłe okresy albo wiersz „brak
   kwalifikacji” z przyciskiem **Dodaj**, na końcu okresy minione jako
   historia) i przycisk **Zakończ rotację…** (patrz niżej). Każdy okres

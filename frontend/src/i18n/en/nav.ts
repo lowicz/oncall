@@ -4,7 +4,7 @@ export const nav: Messages['nav'] = {
   screens: {
     now: 'Now',
     schedule: 'Schedule',
-    mine: 'Mine',
+    mine: 'My duties',
     swaps: 'Swaps',
     generator: 'Generator',
     fairness: 'Fairness',
@@ -16,6 +16,9 @@ export const nav: Messages['nav'] = {
     forwarding: 'Number forwarding',
     audit: 'Audit',
     more: 'More',
+  },
+  tabs: {
+    mine: 'Mine',
   },
   roles: {
     viewer: 'Viewer',

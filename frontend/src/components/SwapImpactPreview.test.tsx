@@ -39,10 +39,10 @@ describe('SwapImpactPreview', () => {
     renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m2" />)
 
     expect(await screen.findByText(/Okno 24-09-2025 – 24-09-2026\./)).toHaveTextContent('czw 24-09-2026 to 1 punkt.')
-    expect(screen.getByText(/punkty 14,5 → 13,5 \(-1\)/)).toBeInTheDocument()
+    expect(screen.getByText(/punkty 14,5 → 13,5 \(−1\)/)).toBeInTheDocument()
     expect(screen.getByText(/punkty 10 → 11 \(\+1\)/)).toBeInTheDocument()
     expect(screen.getByText('+1,25 → +0,25')).toBeInTheDocument()
-    expect(screen.getByText('-2,75 → -1,75')).toBeInTheDocument()
+    expect(screen.getByText('−2,75 → −1,75')).toBeInTheDocument()
     expect(screen.getByText('Tomek Lis · przejmuje dyżur')).toBeInTheDocument()
   })
 

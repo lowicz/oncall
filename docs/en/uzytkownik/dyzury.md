@@ -18,7 +18,7 @@ A role nobody holds is bold in the strip and marked with a red dot:
 **unstaffed**.
 
 The actions on the right depend on the role: a team member has **File
-availability** (it leads to the Mine screen), a coordinator and an
+availability** (it leads to the My duties screen), a coordinator and an
 administrator have **Generate the next range**, which opens the Generator with
 a range starting the day after the end of the published schedule.
 
@@ -30,8 +30,8 @@ leads to a day ends in an arrow.
 Below is the **Next 4 weeks** section with the same matrix as on the Schedule
 screen and the same strip of controls in the section header: length 2 / 4 / 8
 weeks, a week back and forward, back to today and a **⋯** (**More**) menu with
-**On duty only**, **Day list**, **Legend** and, for a team member, **Export
-ICS**. When nobody is in the rotation yet, the section says so plainly
+**On duty only**, **Day list**, **Legend** and, for a team member, **ICS
+subscription**. When nobody is in the rotation yet, the section says so plainly
 instead of showing an empty matrix, and shows no controls; an administrator
 gets an **Open People** button in it to add the team. When the team has
 people but none of them is in the rotation in the visible range, the section
@@ -100,7 +100,7 @@ an **Undo** button for a few seconds, which ends the handover. After that the
 badge by the new person says **switching**, and once WCO confirms, **on-call
 number**.
 
-When the person taking over has no phone number on the Mine screen, the frame
+When the person taking over has no phone number on the My duties screen, the frame
 in the popover says so by name and blocks the button: the number has to be
 filled in first. When the number is already handed over, the badge says until
 when, and the hand-over button is replaced by the end button described below.
@@ -147,7 +147,7 @@ who started it.
 The screen header gives the range and version of the published schedule, and
 for a coordinator also the proposal waiting for publication; the **Open the
 proposal** button leads straight to it in the Generator. A team member finds
-the ICS export in the **⋯** menu above the matrix and on the Mine screen.
+the ICS subscription in the **⋯** menu above the matrix and on the My duties screen.
 
 The default range starts today and covers four weeks (or fewer, if the published schedule ends earlier).
 If the publication has expired, the screen shows four weeks from today and a warning with the end date, and a coordinator also gets the way to the Generator (or to the waiting proposal).
@@ -301,7 +301,7 @@ on Now and on the Schedule:
 | **⋯** → **On duty only** | hides people without an assignment in the range |
 | **⋯** → **Day list** | switches between the matrix and the list of days |
 | **⋯** → **Legend** | expands the list of symbols |
-| **⋯** → **Export ICS** | opens the calendar addresses with your duties on the Mine screen (team member) |
+| **⋯** → **ICS subscription** | opens the calendar addresses with your duties on the My duties screen (team member) |
 
 On Now and on the Schedule the start of the range, its length, the **On
 duty only** filter and the choice between the matrix and the day list are part

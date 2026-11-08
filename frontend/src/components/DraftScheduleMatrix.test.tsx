@@ -152,7 +152,7 @@ describe('DraftScheduleMatrix grid', () => {
     expect(eventCell).toHaveClass('cell-ev')
     expect(eventCell).toHaveStyle('--ev: var(--ev-blue)')
     fireEvent.click(eventCell)
-    const eventPanel = await screen.findByRole('dialog', { name: 'Anna Kowalska · 12-10-2026' })
+    const eventPanel = await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 12-10-2026' })
     expect(within(eventPanel).getByText('Wydarzenia')).toBeInTheDocument()
     expect(within(eventPanel).getByText('Migracja')).toBeInTheDocument()
     expect(within(eventPanel).queryByRole('button', { name: /Usuń/ })).not.toBeInTheDocument()
@@ -243,8 +243,14 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(within(panel).getByText('Dzień wolny / 2X - zmiana 11–19 nie występuje.')).toBeInTheDocument()
     const warning = within(panel).getByText('Marek Nowak: Nie mogę').closest('.box')
     expect(warning).toHaveTextContent('Przydział zostanie odrzucony. „wyjazd”')
-    const role = within(panel).getByRole('combobox', { name: 'Rola do zmiany' })
+    const role = within(panel).getByRole('combobox', { name: 'Rola' })
     expect(within(role).getAllByRole('option').map((option) => option.textContent)).toEqual(['PRIMARY', 'SECONDARY'])
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
+
+    // Nobody holds SECONDARY that day, but Marek cannot take it: nothing promises him the duty.
+    fireEvent.change(role, { target: { value: 'secondary' } })
+    expect(within(panel).getByText('Teraz').nextElementSibling).toHaveTextContent(/^brak$/)
+    expect(within(panel).queryByText(/Nikt nie ma tej roli tego dnia/)).not.toBeInTheDocument()
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
   })
 
@@ -260,24 +266,25 @@ describe('DraftScheduleMatrix inspector', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Anna Kowalska, niedz 27-09-2026/ }))
     let panel = await screen.findByRole('dialog', { name: 'Anna Kowalska · 27-09-2026' })
     expect(within(panel).getByText('2X · Święto testowe')).toBeInTheDocument()
-    expect(within(panel).getByRole('combobox', { name: 'Rola do zmiany' })).toHaveValue('secondary')
+    expect(within(panel).getByRole('combobox', { name: 'Rola' })).toHaveValue('secondary')
     // The person already holds the role: nothing to move.
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: /^Marek Nowak, niedz 27-09-2026/ }))
-    panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 27-09-2026' })
+    panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 27-09-2026' })
     // Marek has no duty that day: the inspector starts on PRIMARY, which nobody holds.
-    expect(within(panel).getByRole('combobox', { name: 'Rola do zmiany' })).toHaveValue('primary')
+    expect(within(panel).getByRole('combobox', { name: 'Rola' })).toHaveValue('primary')
     // The empty role can be filled: currently nobody, after the correction Marek.
     expect(within(panel).getByText('brak')).toBeInTheDocument()
-    expect(within(panel).getByText('Marek Nowak')).toBeInTheDocument()
-    expect(within(panel).getByText(/Ta rola jest pusta tego dnia/)).toBeInTheDocument()
+    expect(within(panel).getByText('Po korekcie').nextElementSibling).toHaveTextContent('Marek Nowak')
+    expect(within(panel).getByText('Nikt nie ma tej roli tego dnia. Marek Nowak dostanie dyżur, nikt go nie straci.')).toBeInTheDocument()
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeEnabled()
     expect(within(panel).getByText('Marek Nowak: Chętnie wezmę').closest('.box')).toHaveTextContent(/^Marek Nowak: Chętnie wezmę$/)
 
-    fireEvent.change(within(panel).getByRole('combobox', { name: 'Rola do zmiany' }), { target: { value: 'secondary' } })
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'Rola' }), { target: { value: 'secondary' } })
+    expect(panel).toHaveAccessibleName('Wstaw: Marek Nowak · 27-09-2026')
     expect(within(panel).getByText('Anna Kowalska')).toBeInTheDocument()
-    expect(within(panel).getByText('Bilans SECONDARY: Marek Nowak').closest('.box')).toHaveTextContent('-1 → +1 (+2 punkty za dzień 2X)')
+    expect(within(panel).getByText('Bilans SECONDARY: Marek Nowak').closest('.box')).toHaveTextContent('−1 → +1 (+2 punkty za dzień 2X)')
   })
 
   it('prices a day shift at one point even on a working day', async () => {
@@ -286,8 +293,8 @@ describe('DraftScheduleMatrix inspector', () => {
     renderScreen(<DraftScheduleMatrix result={{ ...draft, assignments: [...draft.assignments, { service_date: '2026-09-21', role: 'late_shift', assignee_name: 'Anna Kowalska', is_override: false }] }} onChange={() => {}} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
-    const panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })
-    fireEvent.change(within(panel).getByRole('combobox', { name: 'Rola do zmiany' }), { target: { value: 'late_shift' } })
+    const panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 21-09-2026' })
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'Rola' }), { target: { value: 'late_shift' } })
     expect(within(panel).getByText('Bilans 11–19: Marek Nowak').closest('.box')).toHaveTextContent('0 → +1 (+1 punkt)')
   })
 
@@ -300,7 +307,7 @@ describe('DraftScheduleMatrix inspector', () => {
     renderScreen(<DraftScheduleMatrix result={draft} onChange={onChange} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
-    const panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })
+    const panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 21-09-2026' })
     fireEvent.click(within(panel).getByRole('button', { name: 'Przypisz w szkicu' }))
     expect(await within(panel).findByRole('button', { name: /Zapisuję/ })).toBeDisabled()
     expect(save.mock.calls[0][0]).toEqual({ id: 'd1', expected_version: 1, service_date: '2026-09-21', role: 'primary', replacement_member_id: 'm2' })
@@ -308,7 +315,7 @@ describe('DraftScheduleMatrix inspector', () => {
     const next = { ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }, draft.assignments[1]] }
     finish(next)
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(next))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Marek Nowak · 21-09-2026$/ })).not.toBeInTheDocument())
     expect(await screen.findByText('Przypisano w szkicu 21 wrz · PRIMARY: Anna Kowalska → Marek Nowak')).toBeInTheDocument()
     expect(screen.getByText('brak problemów w szkicu')).toBeInTheDocument()
 
@@ -332,10 +339,10 @@ describe('DraftScheduleMatrix inspector', () => {
     const region = await screen.findByRole('region', { name: 'Macierz szkicu' })
     expect(within(region).getByRole('columnheader', { name: 'pon · 21 · luka w obsadzie' })).toHaveClass('gap')
     fireEvent.click(within(region).getByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
-    const panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })
+    const panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 21-09-2026' })
     // An empty cell on a gap day opens on the empty role.
-    expect(within(panel).getByRole('combobox', { name: 'Rola do zmiany' })).toHaveValue('secondary')
-    expect(within(panel).getByText('Obecnie').nextElementSibling).toHaveTextContent('brak')
+    expect(within(panel).getByRole('combobox', { name: 'Rola' })).toHaveValue('secondary')
+    expect(within(panel).getByText('Teraz').nextElementSibling).toHaveTextContent('brak')
     expect(within(panel).getByText('Po korekcie').nextElementSibling).toHaveTextContent('Marek Nowak')
     fireEvent.click(within(panel).getByRole('button', { name: 'Przypisz w szkicu' }))
 
@@ -404,7 +411,7 @@ describe('DraftScheduleMatrix inspector', () => {
 
     const cell = await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ })
     fireEvent.click(cell)
-    let panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })
+    let panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 21-09-2026' })
     expect(cell).toHaveClass('cell-sel')
     fireEvent.click(within(panel).getByRole('button', { name: 'Przypisz w szkicu' }))
     expect(await within(panel).findByRole('alert')).toHaveTextContent('Szkic zmienił wersję')
@@ -413,7 +420,7 @@ describe('DraftScheduleMatrix inspector', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
     fireEvent.click(cell)
-    panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })
+    panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 21-09-2026' })
     fireEvent.click(within(panel).getByRole('button', { name: 'Zamknij panel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
@@ -439,8 +446,8 @@ describe('DraftScheduleMatrix focus from the problems table', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Popraw' }))
-    const panel = await screen.findByRole('dialog', { name: 'Anna Kowalska · 21-09-2026' })
-    expect(within(panel).getByRole('combobox', { name: 'Rola do zmiany' })).toHaveValue('secondary')
+    const panel = await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 21-09-2026' })
+    expect(within(panel).getByRole('combobox', { name: 'Rola' })).toHaveValue('secondary')
     fireEvent.click(within(panel).getByRole('button', { name: 'Anuluj' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
@@ -448,6 +455,6 @@ describe('DraftScheduleMatrix focus from the problems table', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Popraw' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Popraw znowu' }))
-    expect(await screen.findByRole('dialog', { name: 'Anna Kowalska · 21-09-2026' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 21-09-2026' })).toBeInTheDocument()
   })
 })

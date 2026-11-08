@@ -147,7 +147,7 @@ MESSAGES: dict[str, str] = {
         "{latest}, when the number passes to the next PRIMARY."
     ),
     "forwarding.handover_receiver_has_no_phone": (
-        "{name} has no phone number in Mine. Ask for it to be filled in."
+        "{name} has no phone number on the My duties screen. Ask for it to be filled in."
     ),
     "forwarding.handover_not_found": "This on-call number handover has already ended",
     # --- history import (oncall.domain.history, oncall.history_import) -------

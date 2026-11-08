@@ -1,10 +1,10 @@
 # Moje dyżury i dostępność
 
-Ekran **Moje** (`/moje`) odpowiada na trzy pytania członka zespołu, w tej
+Ekran **Moje dyżury** (`/moje`) odpowiada na trzy pytania członka zespołu, w tej
 kolejności: kiedy mam dyżur, co zgłosiłem, jak wyglądam na tle zespołu.
 Tytułem ekranu jest „Moje dyżury”, a pod nim: kto, w jakiej roli konta, ile
 dyżurów w ostatnich 90 dniach i kiedy jest następny. Po prawej są dwie
-akcje: **Eksport ICS (tylko moje)** i **Zaproponuj zamianę** (otwiera
+akcje: **Subskrypcja ICS** i **Zaproponuj zamianę** (otwiera
 Zamiany z najbliższym dyżurem już wybranym).
 
 Na szerokim ekranie lewa kolumna to dyżury i kalendarz dostępności, prawa to
@@ -31,14 +31,15 @@ Dostępność zgłasza się **na kalendarzu miesiąca**, bez formularza z datami
 W nagłówku sekcji jest nazwa miesiąca jako nagłówek kalendarza, ze
 strzałkami zmieniającymi miesiąc po obu stronach. Na telefonie wiersz z
 miesiącem zostaje przyklejony pod górnym paskiem, gdy przewijasz kalendarz.
-Nad kalendarzem jest pędzel z czterema trybami - **nie mogę**, **wolę nie**,
-**chętnie** i **wyczyść** - a obok niego pole **Powód do kolejnych wpisów**:
-najpierw wybierasz, co i dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie
-strony (`/moje?miesiac=2026-10`), więc odświeżenie zostawia ten sam kalendarz.
+Nad kalendarzem wybierasz, jak zaznaczasz (**Zaznaczam jako**): **nie mogę**,
+**wolę nie** albo **chętnie**. Obok jest przycisk gumki **Wyczyść
+zaznaczenie** i pole **Powód do kolejnych wpisów**: najpierw wybierasz, co i
+dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie strony
+(`/moje?miesiac=2026-10`), więc odświeżenie zostawia ten sam kalendarz.
 
 - Kliknięcie dnia zapisuje ten jeden dzień wybranym trybem.
-- Przeciągnięcie po dniach zapisuje cały zakres; Shift+klik domyka zakres od
-  ostatnio zapisanego dnia.
+- Przeciągnięcie po dniach zapisuje cały zakres; na komputerze Shift+klik
+  domyka zakres od ostatnio zapisanego dnia.
 - Na telefonie przeciąganie przewija stronę, więc zakres zaznacza się dwoma
   dotknięciami: pierwsze zaczyna zakres (pod kalendarzem pojawia się ramka
   „Zakres: od 12 paź” z przyciskiem **Anuluj**), drugie domyka go i zapisuje.
@@ -47,7 +48,7 @@ strony (`/moje?miesiac=2026-10`), więc odświeżenie zostawia ten sam kalendarz
   przechodzą między dniami (w górę i w dół o tydzień), Home i End na początek
   i koniec tygodnia, a Enter lub Spacja zapisują dzień wybranym trybem; z
   Shift domykają zakres od ostatnio zapisanego dnia.
-- Tryb **wyczyść** usuwa zgłoszenie z zaznaczonych dni. Jeżeli wpis obejmował
+- Gumka (**Wyczyść zaznaczenie**) usuwa zgłoszenie z zaznaczonych dni. Jeżeli wpis obejmował
   więcej dni, pozostałe zostają.
 - Zapis jest natychmiastowy; potwierdza go jeden komunikat na cały zakres,
   na przykład „Zapisano: 12 – 16 paź „nie mogę”” z powodem pod spodem
@@ -58,9 +59,11 @@ strony (`/moje?miesiac=2026-10`), więc odświeżenie zostawia ten sam kalendarz
   bez zmian. Jeśli cofnięcie się nie uda,
   komunikat o tym mówi, a **Cofnij** można kliknąć ponownie.
 
-Dni już zgłoszone mają kolor trybu i literę (`N`, `W`, `C`); dzień z powodem
-ma w rogu małą ikonę notatki, a sam powód widać po najechaniu na dzień. Kropka
-w rogu dnia to Twój dyżur. Dni minionych nie da się zaznaczyć.
+Pod kalendarzem stoi jedno zdanie o gestach i link **Legenda**, który
+wyjaśnia kropkę, obwódkę i litery. Dni już zgłoszone mają kolor trybu i
+literę (`N` - nie mogę, `W` - wolę nie, `C` - chętnie); dzień z powodem ma w
+rogu małą ikonę notatki, a sam powód widać po najechaniu na dzień. Kropka w
+rogu dnia to Twój dyżur. Dni minionych nie da się zaznaczyć.
 
 Jeśli „nie mogę” trafia na dzień z dyżurem, dzień dostaje bursztynową
 obwódkę, a pod kalendarzem pojawia się ramka, na przykład „Masz dyżur PRIMARY
@@ -115,10 +118,10 @@ samo z siebie - trzeba wtedy skorzystać z [zamiany](zamiany.md).
 
 ## Moje punkty
 
-Jedna liczba: Twoje odchylenie od sprawiedliwego udziału w punktach za
-ostatnie 12 miesięcy (na przykład `+0,5`), pod nią pasek dwukierunkowy i
-werdykt względem progu (**W normie** albo **Poza normą**, z progiem
-podanym w treści). Tabela miesięcy pokazuje punkty, liczbę dyżurów i dni
+Jedna liczba: Twoje odchylenie od sprawiedliwego udziału w punktach za ostatnie
+12 miesięcy (na przykład `+0,5`), pod nią pasek dwukierunkowy i werdykt
+(**W normie** albo **Poza normą**) z jednym zdaniem w rodzaju „Masz o 0,5
+pkt więcej niż Twój sprawiedliwy udział” i podaną normą. Tabela miesięcy pokazuje punkty, liczbę dyżurów i dni
 weekendowych; przełącznik **12 mies.** / **Ten miesiąc** zawęża listę (ten miesiąc jest w
 adresie strony jako `okres=miesiac`). Link
 **Pełny raport sprawiedliwości** prowadzi do ekranu z całym zespołem - jak
@@ -147,9 +150,9 @@ włączyć pobieranie numeru z katalogu: wypełnia ono tylko puste pole, więc
 numer wpisany tu albo przez administratora zostaje, nawet jeśli katalog
 zna inny. Kto chce wrócić do numeru z katalogu, wpisuje go.
 
-## Subskrypcja kalendarza (ICS)
+## Subskrypcja ICS
 
-Przycisk **Eksport ICS (tylko moje)** otwiera panel z adresami, które
+Przycisk **Subskrypcja ICS** (z ikoną linku, bo nie pobiera pliku) otwiera panel z adresami, które
 pokazują **wyłącznie Twoje dyżury**.
 
 1. Wpisz **Nazwę subskrypcji** (na przykład „telefon”) i kliknij

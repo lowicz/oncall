@@ -88,7 +88,7 @@ describe('DraftProblems', () => {
     expect(within(table).getAllByText('twarda · blokuje publikację')).toHaveLength(2)
     expect(within(table).getByText('Przerwa między dyżurami krótsza niż 24 h').parentElement).toHaveTextContent('twarda · wymaga zgody przy publikacji')
     expect(within(table).getByText('Reguły twarde (jedna rola na osobę i dzień, przerwa między dyżurami, kwalifikacje, „nie mogę”): 3 naruszenia.', { exact: false })).toBeInTheDocument()
-    expect(within(table).getByRole('link', { name: 'docs / generator' })).toHaveAttribute('href', '/docs/produkt/generator.html')
+    expect(within(table).getByRole('link', { name: 'Pełna lista reguł w dokumentacji' })).toHaveAttribute('href', '/docs/produkt/generator.html')
 
     fireEvent.click(within(table).getAllByRole('button', { name: 'Popraw' })[1])
     expect(onFocus).toHaveBeenCalledWith({ service_date: '2026-09-18', assignee_name: 'Anna Kowalska', role: 'secondary' })

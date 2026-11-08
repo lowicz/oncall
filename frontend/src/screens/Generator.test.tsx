@@ -191,6 +191,37 @@ describe('GeneratorPanel draft persistence', () => {
     expect(screen.queryByRole('button', { name: 'Przekaż do akceptacji' })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['OPTIMAL', 'rozwiązanie optymalne'],
+    ['FEASIBLE', 'najlepsze znalezione w limicie czasu'],
+    ['INFEASIBLE', 'bez pełnego rozwiązania'],
+  ])('says the %s solver status in words and keeps the engine code in the details', async (status, words) => {
+    stub([summary({ id: 'd1', solver_status: status })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', solver_status: status }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Ustawienia' }))
+    expect(await screen.findByText(words)).toBeInTheDocument()
+    expect(screen.queryByText(/CP-SAT/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Szczegóły solvera' }))
+    const details = await screen.findByRole('dialog', { name: 'Szczegóły solvera' })
+    expect(within(details).getByText(`CP-SAT: ${status}`)).toBeInTheDocument()
+    // No gap was reported, so none is invented.
+    expect(within(details).queryByText(/Luka/)).not.toBeInTheDocument()
+  })
+
+  it('puts the gap to the best possible solution in the solver details', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', solver_status: 'FEASIBLE', continuity_gap: 0.025 }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Ustawienia' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Szczegóły solvera' }))
+    const details = await screen.findByRole('dialog', { name: 'Szczegóły solvera' })
+    // A no-break space before the sign, so a narrow popover never leaves "%" alone on a line.
+    expect(within(details).getByText('Luka do najlepszego możliwego rozwiązania: 2,5\u00a0%', { normalizer: (text) => text })).toBeInTheDocument()
+  })
+
   it('explains a solver status that is not a full solution', async () => {
     stub([summary({ id: 'd1', solver_status: 'INFEASIBLE' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', solver_status: 'INFEASIBLE' }))
@@ -461,7 +492,7 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     expect(within(decision).getByText('potem: Opublikuj…')).toBeInTheDocument()
     fireEvent.click(within(decision).getByRole('button', { name: 'Popraw 2 problemy' }))
     // The first conflict opens in the inspector, ready to correct.
-    expect(await screen.findByRole('dialog', { name: 'Anna Kowalska · 03-11-2026' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 03-11-2026' })).toBeInTheDocument()
     expect(propose).not.toHaveBeenCalled()
   })
 
@@ -676,7 +707,7 @@ describe('GeneratorPanel resuming a generation', () => {
 
     // Not „budżet do 15 s": a hard model is solved several times over, so the
     // counter legitimately passes the number next to it.
-    expect(await screen.findByText(/budżet 15 s na jeden przebieg/)).toBeInTheDocument()
+    expect(await screen.findByText(/jedna próba trwa do 15 s/)).toBeInTheDocument()
   })
 
   it('leaves the form alone when nothing is running', async () => {
@@ -948,9 +979,9 @@ describe('GeneratorPanel open draft details', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Ustawienia' }))
     const settings = await screen.findByRole('tabpanel')
     const solver = within(settings).getByText('Solver').closest('.kv-row') as HTMLElement
-    expect(within(solver).getByText(/^CP-SAT: /)).toBeInTheDocument()
+    expect(within(solver).getByText(/^najlepsze znalezione w limicie czasu/)).toBeInTheDocument()
+    expect(within(settings).queryByText(/CP-SAT/)).not.toBeInTheDocument()
     expect(within(settings).getByText('optymalna (udowodniona)')).toBeInTheDocument()
-    expect(within(settings).getByText('luka 2,5%')).toBeInTheDocument()
   })
 
   it('says a conflict on a proposal blocks the publication and leads back to the draft', async () => {
@@ -1038,23 +1069,24 @@ describe('GeneratorPanel open draft details', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Ustawienia' }))
     const settings = await screen.findByRole('tabpanel')
     expect(within(settings).getByText('17-09-2026 – 18-09-2026')).toBeInTheDocument()
-    expect(within(settings).getByText('CP-SAT: INFEASIBLE')).toBeInTheDocument()
-    // No solution, so no fairness or quality figures to report.
-    expect(within(settings).queryByText('Jakość rozwiązania')).not.toBeInTheDocument()
+    expect(within(settings).getByText('bez pełnego rozwiązania')).toBeInTheDocument()
+    // No solution, so no fairness figure to report.
+    expect(within(settings).queryByText('Sprawiedliwość')).not.toBeInTheDocument()
     expect(within(settings).queryByText(/Waga/)).not.toBeInTheDocument()
     expect(within(settings).getByText(/zmieniane w jednym miejscu/)).toBeInTheDocument()
     fireEvent.click(within(settings).getByRole('button', { name: 'Zmień ustawienia i generuj…' }))
     expect(await screen.findByRole('dialog', { name: 'Ustawienia generatora' })).toBeInTheDocument()
   })
 
-  it('says when the solver gave no estimate of the solution gap', async () => {
+  it('states a fairness the solver did not prove and invents no solution gap', async () => {
     stub([summary({ id: 'd1' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', continuity_gap: null }))
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Ustawienia' }))
-    expect(await screen.findByText('bez oszacowania luki')).toBeInTheDocument()
-    expect(screen.getByText('najlepsza znaleziona')).toBeInTheDocument()
+    expect(await screen.findByText('najlepsza znaleziona')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Szczegóły solvera' }))
+    expect(within(await screen.findByRole('dialog', { name: 'Szczegóły solvera' })).queryByText(/Luka/)).not.toBeInTheDocument()
   })
 
   it('reports a draft that cannot be opened and opens it on retry', async () => {
@@ -1184,7 +1216,7 @@ describe('GeneratorPanel draft correction', () => {
 
   async function correctD1() {
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, czw 17-09-2026/ }))
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Marek Nowak · 17-09-2026' })).getByRole('button', { name: 'Przypisz w szkicu' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 17-09-2026' })).getByRole('button', { name: 'Przypisz w szkicu' }))
     expect(await screen.findByText('Szkic · v2')).toBeInTheDocument()
   }
 
@@ -1245,6 +1277,19 @@ describe('GeneratorPanel settings drawer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Zamknij panel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('says in one sentence who the settings are for and keeps how the weights work in a popover', async () => {
+    stub([])
+    renderScreen(<GeneratorPanel />)
+    fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
+    const drawer = await screen.findByRole('dialog', { name: 'Ustawienia generatora' })
+    expect(within(drawer).getByText('Ustawienia dotyczą całego zespołu i działają od następnego generowania.', { exact: false })).toBeInTheDocument()
+    expect(within(drawer).queryByText(/człon celu/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Jak działają wagi' }))
+    const help = await screen.findByRole('dialog', { name: 'Jak działają wagi' })
+    expect(within(help).getByText(/Liczy się tylko stosunek wag: 6 \/ 4 \/ 2 działa tak samo jak 3 \/ 2 \/ 1\./)).toBeInTheDocument()
   })
 
   it('opens from the proposal settings with the draft range locked', async () => {

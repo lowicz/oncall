@@ -11,7 +11,7 @@ mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jes
 | Filtr | Co zawiera |
 | --- | --- |
 | **Do mnie** | wnioski, w których to Ty masz przyjąć albo odrzucić zastępstwo |
-| **Moje** | Twoje własne, jeszcze otwarte prośby |
+| **Wysłane** | Twoje własne, jeszcze otwarte prośby |
 | **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie. Gdy zatwierdzanie zamian jest wyłączone (patrz [Zatwierdzenie koordynatora](#zatwierdzenie-koordynatora)), także koordynator widzi tu zwykłe **W toku** |
 | **Zamknięte** | zatwierdzone, odrzucone i wycofane, także zamknięte przez aplikację [po terminie](#termin-minął) |
 
@@ -64,8 +64,8 @@ nie podasz, przy wniosku zostaje „wycofane przez autora”.
 ## Zgłoszenie prośby
 
 Przycisk **Nowa zamiana** w nagłówku ekranu otwiera formularz w panelu; przycisk
-**Poproś o zamianę** na ekranie Moje otwiera go z wybranym dyżurem. Formularz
-prowadzi przez cztery kroki: dyżur, zastępca, w zamian (opcjonalnie) i
+**Poproś o zamianę** na ekranie Moje dyżury otwiera go z wybranym dyżurem.
+Formularz prowadzi przez cztery kroki: dyżur, zastępca, w zamian (opcjonalnie) i
 wysłanie. Po wybraniu zastępcy pasek przechodzi od razu do wysłania, bo
 „Nic, tylko oddaję dyżur” jest już wybrane.
 Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświeżenie wymaga decyzji, czy odrzucić wprowadzone dane.
@@ -116,7 +116,7 @@ Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświ
    przycisku, czego: dyżuru, zastępcy, potwierdzenia reguł albo
    opublikowanego grafiku; przy regule twardej - innej osoby albo innego
    dyżuru w zamian. Ekran potwierdza wysłanie komunikatem „Wysłano do:
-   …” z przyciskiem **Cofnij** i przechodzi do skrzynki **Moje**. „Cofnij” w
+   …” z przyciskiem **Cofnij** i przechodzi do skrzynki **Wysłane**. „Cofnij” w
    ciągu 10 sekund wycofuje prośbę z powodem „cofnięte zaraz po wysłaniu”.
    Wiadomość do zastępcy czeka na koniec tego czasu, więc o prośbie
    wycofanej w porę zastępca nie dostaje żadnej wiadomości.

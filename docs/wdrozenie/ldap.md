@@ -55,7 +55,7 @@ Z `ONCALL_LDAP_ATTRIBUTE_PHONE` aplikacja czyta przy każdym logowaniu numer
 telefonu z katalogu i zapisuje go na koncie, **tylko gdy konto nie ma
 numeru** - przy założeniu konta, przy dowiązaniu konta lokalnego bez numeru i
 przy kolejnym logowaniu konta, któremu numer usunięto. Numer wpisany na
-ekranie Moje albo przez administratora zostaje, nawet gdy katalog zna inny;
+ekranie Moje dyżury albo przez administratora zostaje, nawet gdy katalog zna inny;
 kto chce wrócić do numeru z katalogu, wpisuje go sam. Numer jest zapisywany
 jak każdy inny w aplikacji: `+48` i dziewięć cyfr, same cyfry dostają
 prefiks, spacje i kreski są pomijane. Wartość, która nie jest polskim numerem
@@ -178,7 +178,7 @@ Udane logowanie to jeden wiersz `INFO`:
 | `user_bind` | `invalidCredentials` | (`rejected`) `ad_reason`: `invalid_credentials` - złe hasło; `account_locked`, `password_expired`, `password_must_change`, `account_disabled`, `account_expired` - stan konta w AD |
 | `attributes` | `personnel_number_missing`, `personnel_number_not_numeric` | atrybut z `attribute=` jest pusty albo nie same cyfry; w wielu domenach numer jest w `employeeID` - wskaż go w [konfiguracji](#konfiguracja) |
 | `attributes` | `first_name_missing`, `email_invalid`, `attribute_too_long`, `attribute_not_text` | popraw wartość atrybutu w AD albo wskaż inny atrybut |
-| `attributes` | `phone_invalid` | (`skipped`) wartość atrybutu z `attribute=` nie jest polskim numerem (`+48` i dziewięć cyfr, także bez prefiksu); logowanie się udało, numer pozostał pusty - popraw go w AD albo wpisz na ekranie Moje |
+| `attributes` | `phone_invalid` | (`skipped`) wartość atrybutu z `attribute=` nie jest polskim numerem (`+48` i dziewięć cyfr, także bez prefiksu); logowanie się udało, numer pozostał pusty - popraw go w AD albo wpisz na ekranie Moje dyżury |
 | `attributes` | `photo_too_large`, `photo_format_unsupported` | (`ldap_photo`, `skipped`) zdjęcie w atrybucie z `attribute=` jest większe niż `limit=` bajtów albo nie jest plikiem JPEG ani PNG; wgraj mniejsze zdjęcie do katalogu |
 | `search` | `user_not_found` | (`ldap_photo`, `skipped`) zalogowane konto zniknęło z katalogu od czasu logowania |
 | dowolna | `unexpected_error` | błąd w aplikacji albo bibliotece LDAP: zgłoś go z polami `error` i `at` |

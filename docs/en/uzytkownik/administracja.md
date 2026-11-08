@@ -33,8 +33,8 @@ Clicking a person (or **Open**) opens a panel with three tabs:
   dashes are dropped); a foreign number, or one stored before this rule, is
   marked “fix the number” in the table, and in the field once it is left or
   saved. Everyone can also
-  change their own number on the [Mine](dostepnosc.md#my-phone) screen,
-- **Rotation** - “Entry from” and “Exit on”, one **Qualifications** list
+  change their own number on the [My duties](dostepnosc.md#my-phone) screen,
+- **Rotation** (the tab shows the qualified roles in short, for example “Rotation · P, S”) - “Entry from” and “Exit on”, one **Qualifications** list
   (for each role its current and future periods or a “no qualification” row
   with an **Add** button, past periods last as history) and the **End the
   rotation…** button (see below). Every period lies inside the rotation, so a

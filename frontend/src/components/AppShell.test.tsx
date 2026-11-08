@@ -180,6 +180,14 @@ describe('AppShell on a phone', () => {
     expect(screen.getByRole('link', { name: /Więcej/ })).toHaveAttribute('href', '/wiecej')
   })
 
+  it('names the member screen in short on its tab', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderShell({ role: 'member', hasTeamMember: true })
+    const tabs = await screen.findByRole('navigation', { name: 'Nawigacja dolna' })
+    expect(within(tabs).getAllByRole('link').map((link) => link.textContent)).toEqual(['Teraz', 'Grafik', 'Moje', 'Zamiany', 'Więcej'])
+  })
+
   it('renders no bottom tabs on a desktop', async () => {
     pretendNarrow(false)
     vi.spyOn(api, 'swaps').mockResolvedValue([])

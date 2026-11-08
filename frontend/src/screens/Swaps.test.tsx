@@ -244,7 +244,7 @@ describe('SwapPanel inbox', () => {
 
     await screen.findByText('1 czeka na Twoją decyzję · 2 czekają na drugą stronę · 1 zamknięta')
     expect(screen.getByRole('radio', { name: 'Do mnie: 1 sprawa' })).toHaveTextContent('Do mnie1')
-    expect(screen.getByRole('radio', { name: 'Moje: 0 spraw' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Wysłane: 0 spraw' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'W toku: 2 sprawy' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Zamknięte' })).toBeInTheDocument()
   })
@@ -294,13 +294,13 @@ describe('SwapPanel inbox', () => {
     expect(await screen.findByText('Odrzucono zamianę')).toBeInTheDocument()
   })
 
-  it('lets the author withdraw their own open request from "Moje"', async () => {
+  it('lets the author withdraw their own open request from "Wysłane"', async () => {
     stub([swap({ id: '1', requester_name: 'Anna Kowalska' })])
     const cancel = vi.spyOn(api, 'cancelSwap').mockResolvedValue(swap({ id: '1', status: 'cancelled' }))
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
 
     fireEvent.click(await screen.findByRole('button', { name: /Podgląd/ }))
-    expect(inbox(/^Moje/)).toHaveAttribute('aria-checked', 'true')
+    expect(inbox(/^Wysłane/)).toHaveAttribute('aria-checked', 'true')
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
     const withdraw = within(sheet).getByRole('button', { name: 'Wycofaj' })
     expect(withdraw).toBeEnabled()
@@ -416,7 +416,7 @@ describe('SwapPanel new request', () => {
     expect(option).toHaveTextContent('Piotr Zieliński najlepsze dopasowanie')
     expect(option).toHaveTextContent('Chętnie wezmę')
     expect(option).toHaveTextContent('bez naruszeń')
-    expect(option).toHaveTextContent('-1 pkt względem udziału')
+    expect(option).toHaveTextContent('−1 pkt względem udziału')
     expect(screen.queryByText(/poniżej udziału/)).not.toBeInTheDocument()
     fireEvent.click(option)
     // The rest is read under the picked card.
@@ -426,10 +426,10 @@ describe('SwapPanel new request', () => {
     // The balance is folded under one line that sums it up.
     const details = screen.getByRole('button', { name: /^Wpływ na bilans/ })
     expect(details).toHaveAttribute('aria-expanded', 'false')
-    await waitFor(() => expect(details).toHaveAccessibleName('Wpływ na bilans Ty -1 · Piotr +1'))
-    expect(screen.queryByText('punkty 5 → 4 (-1)')).not.toBeInTheDocument()
+    await waitFor(() => expect(details).toHaveAccessibleName('Wpływ na bilans Ty −1 · Piotr +1'))
+    expect(screen.queryByText('punkty 5 → 4 (−1)')).not.toBeInTheDocument()
     fireEvent.click(details)
-    expect(await screen.findByText('punkty 5 → 4 (-1)')).toBeInTheDocument()
+    expect(await screen.findByText('punkty 5 → 4 (−1)')).toBeInTheDocument()
     expect(await screen.findByText('punkty 2 → 3 (+1)')).toBeInTheDocument()
     // A swap is handed over willingly - „oddaje", not the override's „traci".
     expect(await screen.findByText(/oddaje dyżur/)).toBeInTheDocument()
@@ -457,7 +457,7 @@ describe('SwapPanel new request', () => {
     expect(await screen.findByLabelText(/Mój dyżur/)).toHaveValue('')
   })
 
-  it('sends the request, confirms with a toast naming the replacement and moves to "Moje"', async () => {
+  it('sends the request, confirms with a toast naming the replacement and moves to "Wysłane"', async () => {
     stubSchedule()
     vi.spyOn(api, 'swapOptions').mockResolvedValue([
       { member_id: 'p1', display_name: 'Piotr Zieliński', availability: null, on_duty_that_day: false },
@@ -487,12 +487,12 @@ describe('SwapPanel new request', () => {
     expect(screen.getByRole('button', { name: 'Cofnij' })).toBeInTheDocument()
     // The inbox switch goes through the router's search params and can land
     // a render after the toast.
-    await waitFor(() => expect(inbox(/^Moje/)).toHaveAttribute('aria-checked', 'true'))
+    await waitFor(() => expect(inbox(/^Wysłane/)).toHaveAttribute('aria-checked', 'true'))
     await waitFor(() => expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument())
 
     fireEvent.click(inbox(/^Do mnie/))
     await waitFor(() => expect(inbox(/^Do mnie/)).toHaveAttribute('aria-checked', 'true'))
-    expect(inbox(/^Moje/)).toHaveAttribute('aria-checked', 'false')
+    expect(inbox(/^Wysłane/)).toHaveAttribute('aria-checked', 'false')
   })
 
   it('confirms without a name when the replacement left the list while the request was sent', async () => {
@@ -649,7 +649,7 @@ describe('SwapPanel new request', () => {
     expect(await screen.findByRole('option', { name: /PRIMARY/ })).toBeInTheDocument()
   })
 
-  it('opens the form with the duty a link from "Moje" names', async () => {
+  it('opens the form with the duty a link from "Moje dyżury" names', async () => {
     stubSchedule()
     vi.spyOn(api, 'swapOptions').mockResolvedValue([])
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />, { route: '/zamiany?data=2099-09-14&rola=primary' })
@@ -1359,7 +1359,7 @@ describe('SwapPanel composing', () => {
       '1Celina', '2Dorota', '3Beata', '4Ewa', '–Zenon',
     ]))
     const [celina, dorota, , , zenon] = within(group).getAllByRole('radio')
-    expect(celina).toHaveTextContent('-2 pkt')
+    expect(celina).toHaveTextContent('−2 pkt')
     expect(celina).toHaveTextContent('najlepsze dopasowanie')
     expect(celina).toHaveClass('rank-best')
     expect(dorota).toHaveTextContent('Chętnie wezmę')
@@ -1924,13 +1924,13 @@ describe('SwapPanel: what is given of a day', () => {
     expect(await screen.findByRole('heading', { name: 'W zamian biorę' })).toBeInTheDocument()
 
     fireEvent.click(scopeChoice(`Tylko ${label(anchor)}`))
-    expect(scopeGroup()).toHaveAccessibleDescription('Zmiana 11–19 tego dnia zostaje u Ciebie. Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.')
+    expect(scopeGroup()).toHaveAccessibleDescription(`Oddajesz tylko ${label(anchor)}, a 11–19 zostaje u Ciebie. To łamie regułę pary; przed wysłaniem zaznaczysz, że wiesz.`)
     // Another scope is another request: the candidate is picked again.
     expect(screen.queryByRole('heading', { name: 'W zamian biorę' })).not.toBeInTheDocument()
 
     fireEvent.click(scopeChoice('Tylko 11–19'))
     expect(scopeChoice('Tylko 11–19')).toBeChecked()
-    expect(scopeGroup()).toHaveAccessibleDescription(`${label(anchor)} tego dnia zostaje u Ciebie. Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.`)
+    expect(scopeGroup()).toHaveAccessibleDescription(`Oddajesz tylko 11–19, a ${label(anchor)} zostaje u Ciebie. To łamie regułę pary; przed wysłaniem zaznaczysz, że wiesz.`)
     await waitFor(() => expect(search).toHaveBeenCalledWith('2099-09-14', 'late_shift', 'single'))
     // The split is the same for every candidate: said once above, not on each.
     const candidate = await screen.findByRole('radio', { name: /Piotr Zieliński/ })
@@ -1952,6 +1952,28 @@ describe('SwapPanel: what is given of a day', () => {
       acknowledge_rule_violations: true,
       scope: 'single',
     })
+  })
+
+  it('says no acknowledgement is due when the replacement cannot hold the 11-19 kept', async () => {
+    stubDays('secondary').mockImplementation(async (serviceDate, role, scope) => [{
+      member_id: 'p1',
+      display_name: 'Piotr Zieliński',
+      availability: null,
+      on_duty_that_day: false,
+      slots: scope === 'single' ? [{ service_date: serviceDate, role }] : [{ service_date: serviceDate, role }, { service_date: serviceDate, role: 'late_shift' }],
+      blocking_violations: [],
+      // Piotr cannot hold 11-19: the backend tolerates SECONDARY given alone and only warns.
+      rule_violations: [],
+      warning_violations: scope === 'single' && role === 'secondary' ? SPLIT : [],
+      next_step: null,
+    }])
+    await openDay('2099-09-14')
+    fireEvent.click(scopeChoice('Tylko SECONDARY'))
+    fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
+
+    expect(scopeGroup()).toHaveAccessibleDescription('Oddajesz tylko SECONDARY, a 11–19 zostaje u Ciebie. Zastępca nie może tego dnia wziąć 11–19, więc to dozwolony wyjątek od reguły pary.')
+    expect(screen.queryByText('Ta zamiana łamie reguły grafiku')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeInTheDocument()
   })
 
   it('gives two slots nothing binds one at a time, and both when asked', async () => {

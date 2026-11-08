@@ -598,7 +598,7 @@ describe('the Polish interface', () => {
       <Routes><Route path="/grafik" element={<ScheduleScreen role="coordinator" displayName="Ewa Maj" hasTeamMember />} /></Routes>,
       { route: '/grafik?dzien=2026-09-11' },
     )
-    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień obsadę' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień osobę' }))
     fireEvent.change(await screen.findByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm2' } })
     await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
     await screen.findByText('Wpływ na bilans')
@@ -618,7 +618,7 @@ describe('the Polish interface', () => {
       <Routes><Route path="/grafik" element={<ScheduleScreen role="coordinator" displayName="Ewa Maj" hasTeamMember />} /></Routes>,
       { route: '/grafik?dzien=2026-09-11' },
     )
-    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień obsadę' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień osobę' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: /^11–19/ }))
     fireEvent.change(await screen.findByRole('combobox', { name: 'Osoba na PRIMARY i 11–19' }), { target: { value: 'm2' } })
     await screen.findByText('Bez naruszeń reguł twardych po obu zmianach')

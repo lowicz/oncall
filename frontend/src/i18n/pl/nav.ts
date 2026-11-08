@@ -3,7 +3,7 @@ export const nav = {
   screens: {
     now: 'Teraz',
     schedule: 'Grafik',
-    mine: 'Moje',
+    mine: 'Moje dyżury',
     swaps: 'Zamiany',
     generator: 'Generator',
     fairness: 'Sprawiedliwość',
@@ -15,6 +15,10 @@ export const nav = {
     forwarding: 'Przełączanie numeru',
     audit: 'Audyt',
     more: 'Więcej',
+  },
+  /** The phone's bottom tabs: five columns, so a long screen name gets its short form here. */
+  tabs: {
+    mine: 'Moje',
   },
   roles: {
     viewer: 'Podgląd',

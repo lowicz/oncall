@@ -131,8 +131,8 @@ describe('DraftDecision', () => {
     const { panel } = show(draft(), {
       fairness: impact({ criterion_met: false, spreads: [{ lens: 'weekends', before: 2, after: 1.5, meets_criterion: false }] }),
     })
-    expect(await within(panel).findByText('kryterium 1 pkt niespełnione · zastany dług')).toBeInTheDocument()
-    expect(within(panel).getByText(/^Rozrzut 2 → 1,5 pkt; soczewki poza kryterium były poza nim przed szkicem\./)).toBeInTheDocument()
+    expect(await within(panel).findByText('kryterium 1 pkt niespełnione · nierówność sprzed szkicu')).toBeInTheDocument()
+    expect(within(panel).getByText(/^Rozrzut 2 → 1,5 pkt; część ról, weekendy lub święta były poza kryterium już przed szkicem\./)).toBeInTheDocument()
   })
 
   it('blames the draft when a lens that met the criterion stops meeting it', async () => {
@@ -140,7 +140,7 @@ describe('DraftDecision', () => {
       fairness: impact({ criterion_met: false, spreads: [{ lens: 'primary', before: 0.5, after: 1.5, meets_criterion: false }] }),
     })
     expect(await within(panel).findByText('kryterium 1 pkt niespełnione')).toBeInTheDocument()
-    expect(within(panel).getByText('Rozrzut 0,5 → 1,5 pkt; soczewka, która mieściła się w kryterium, po publikacji je przekracza.')).toBeInTheDocument()
+    expect(within(panel).getByText('Rozrzut 0,5 → 1,5 pkt; co najmniej jedna rola, weekendy albo święta mieściły się przed szkicem w kryterium, a po publikacji je przekraczają.')).toBeInTheDocument()
   })
 
   it('lists what the publication changes, with the carried and cancelled ones behind a disclosure', () => {

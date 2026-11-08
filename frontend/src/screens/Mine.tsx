@@ -19,7 +19,7 @@ import { isPolishPhone } from '../lib/phone'
 import { availabilityLabels, firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
-import { formatPoints } from '../lib/numbers'
+import { formatPoints, printedPoints, signedPoints } from '../lib/numbers'
 import { preferredScrollBehavior } from '../lib/motion'
 import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
@@ -49,6 +49,7 @@ import {
   LoadingBlock,
   PageHeader,
   Panel,
+  Popover,
   SectionHeading,
   Segmented,
   Select,
@@ -443,8 +444,9 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
   target: string
   onTarget: (target: string) => void
 }) {
-  const t = useMessages().mine.availability
-  const reasonOf = useMessages().mine.calendar.reason
+  const m = useMessages().mine
+  const t = m.availability
+  const reasonOf = m.calendar.reason
   const roleWords = roleLabels()
   const roleNames = (roles: AssignmentRole[]) => roles.map((item) => roleWords[item]).join(' + ')
   const narrow = useNarrow()
@@ -528,7 +530,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
         windowSeconds: config.data?.undo_window_seconds ?? 10,
       })
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error, command) => toast.error(t.notSaved(rangeText(command.startsOn, command.endsOn)), { description: error.message }),
     onSettled: (_result, _error, command) => reload(command),
   })
   // Paints and Undo steps waiting to be saved are drawn over the list the
@@ -587,9 +589,9 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
                 { value: 'unavailable', label: t.brushes.unavailable, tone: 'na' },
                 { value: 'prefer_not', label: t.brushes.prefer_not, tone: 'wn' },
                 { value: 'prefer', label: t.brushes.prefer, tone: 'ch' },
-                { value: 'clear', label: t.brushes.clear },
               ]}
             />
+            <IconButton size="sm" icon="eraser" label={t.brushes.clear} active={brush === 'clear'} onClick={() => setBrush('clear')} />
             <Field label={t.note} id="availability-note" hint={t.noteHint} className="avail-note">
               {({ id, describedBy }) => <Input id={id} name={id} value={note} onChange={(event) => setNote(event.target.value)} aria-describedby={describedBy} />}
             </Field>
@@ -612,7 +614,25 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
               before: shown.filter((entry) => entry.starts_on <= endsOn && entry.ends_on >= startsOn),
             })}
           />
-          <span className="muted small">{narrow ? t.howToTouch : t.howTo}</span>
+          <span className="muted small">
+            {narrow ? t.howToTouch : <>{t.howTo}<span className="only-pointer">{' '}{t.howToShift}</span></>}
+            {' '}
+            <Popover
+              title={t.legend.title}
+              trigger={<button type="button" className="link-btn">{t.legend.link}</button>}
+            >
+              <div className="legend-grid small">
+                <div className="pop-row"><span className="pop-swatch pop-swatch-duty" aria-hidden="true" /> {t.legend.duty}</div>
+                <div className="pop-row"><span className="pop-swatch pop-swatch-collision" aria-hidden="true" /> {t.legend.collision}</div>
+                {(Object.keys(toneOf) as AvailabilityKind[]).map((kind) => (
+                  <div key={kind} className="pop-row">
+                    <span className={cx('am', `am-${toneOf[kind]}`)} aria-hidden="true">{m.calendar.marks[kind]}</span>
+                    {availabilityLabels()[kind]}
+                  </div>
+                ))}
+              </div>
+            </Popover>
+          </span>
           {targetMember && (
             <div className="small muted">{t.onBehalfBefore} <b>{targetMember.display_name}</b> · {t.onBehalfAfter}</div>
           )}
@@ -666,11 +686,10 @@ function PointsSection({ displayName, compact, onAvailability }: {
   const thisMonth = monthOf(warsawDate())
   const balance = me && fairness.data ? totalBalance(me, fairness.data.late_shift_balanced) : null
   const threshold = fairness.data?.criterion_points ?? 0
-  const within = balance ? Math.abs(balance.deviation) <= threshold : true
   const rows = monthlyTotals(duties.data ?? []).filter((row) => period === '12m' || row.month === thisMonth)
-  const bigNumber = balance
-    ? `${balance.deviation > 0 ? '+' : balance.deviation < 0 ? '−' : ''}${formatPoints(Math.abs(balance.deviation))}`
-    : null
+  const shown = balance ? printedPoints(balance.deviation) : 0
+  const within = Math.abs(shown) <= printedPoints(threshold)
+  const bigNumber = balance ? signedPoints(shown) : null
   return (
     <section className="stack-sm" aria-labelledby="moje-punkty">
       <SectionHeading
@@ -701,13 +720,14 @@ function PointsSection({ displayName, compact, onAvailability }: {
                   : t.againstFairShare}
               </span>
             </div>
-            <DeviationBar value={balance.deviation} max={DEVIATION_SCALE} label={deviationWords(balance.deviation)} />
+            <DeviationBar value={shown} max={DEVIATION_SCALE} label={deviationWords(shown)} />
             {!compact && (
               <Box tone={within ? 'ok' : 'warn'} title={within ? t.within : t.outside}>
-                {t.threshold(formatPoints(threshold))}
-                {' '}{within
+                {shown > 0 ? t.aboveShare(formatPoints(shown)) : shown < 0 ? t.belowShare(formatPoints(-shown)) : t.atShare}
+                {' '}{t.norm(formatPoints(threshold))}
+                {shown !== 0 && <>{' '}{within
                   ? t.generatorEvensOut
-                  : balance.deviation > 0 ? t.generatorFewer : t.generatorMore}
+                  : shown > 0 ? t.generatorFewer : t.generatorMore}</>}
               </Box>
             )}
             {!compact && duties.isLoading && <LoadingBlock label={t.loadingMonths} rows={2} />}
@@ -1043,7 +1063,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
         )}
         actions={inRotation && (
           <>
-            <Button variant="ghost" icon="download" onClick={() => setIcsOpen(true)}>{t.exportIcs}</Button>
+            <Button variant="ghost" icon="link" onClick={() => setIcsOpen(true)}>{t.exportIcs}</Button>
             <LinkButton icon="swap" to={next ? `/zamiany?data=${next.service_date}&rola=${next.roles[0]}` : '/zamiany'}>{t.proposeSwap}</LinkButton>
           </>
         )}

@@ -112,9 +112,9 @@ describe('DutyScreen header', () => {
     expect(await screen.findByRole('link', { name: /Zgłoś dostępność/ })).toHaveAttribute('href', '/moje#dostepnosc')
     expect(screen.queryByRole('link', { name: /Generuj kolejny zakres/ })).not.toBeInTheDocument()
     // The ICS export is no header action here; it waits in the matrix's "more" menu.
-    expect(screen.queryByRole('link', { name: /Eksport ICS/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Subskrypcja ICS/ })).not.toBeInTheDocument()
     const menu = await openMenu('Więcej')
-    expect(within(menu).getByRole('menuitem', { name: 'Eksport ICS' })).toHaveAttribute('href', '/moje#ics')
+    expect(within(menu).getByRole('menuitem', { name: 'Subskrypcja ICS' })).toHaveAttribute('href', '/moje#ics')
   })
 
   it('says when nothing is published', async () => {
@@ -695,7 +695,7 @@ describe('DutyScreen and the on-call number before the reminder hour', () => {
     renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Przekaż numer…' }))
     const popover = await screen.findByRole('dialog', { name: 'Przekaż numer on-call' })
-    expect(popover).toHaveTextContent('Marek Nowak nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie.')
+    expect(popover).toHaveTextContent('Marek Nowak nie ma numeru telefonu na ekranie „Moje dyżury”. Poproś o jego uzupełnienie.')
     expect(within(popover).getByRole('button', { name: 'Przekaż numer' })).toHaveAttribute('aria-disabled', 'true')
   })
 

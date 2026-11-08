@@ -23,6 +23,13 @@ function missingRoles(result: DraftSchedule, serviceDate: string): AssignmentRol
   return REQUIRED_ROLES.filter((role) => !result.assignments.some((item) => item.service_date === serviceDate && item.role === role))
 }
 
+/** The member and day a problems-table focus points at, once the calendar has loaded. */
+function focusTarget(focus: DraftFocus, data?: CalendarData) {
+  const member = data?.members.find((item) => item.display_name === focus.assignee_name)
+  const day = data?.days.find((item) => item.service_date === focus.service_date)
+  return member && day ? { member, day } : null
+}
+
 /** The one member with this name; none when it is missing or shared, so Undo never puts back the wrong person. */
 function soleMember(members: Member[], name?: string) {
   const matches = members.filter((item) => item.display_name === name)
@@ -98,12 +105,11 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   // The problems table hands over a cell to open; each focus is consumed once.
   const consumed = useRef<DraftFocus | null>(null)
   useEffect(() => {
-    if (!focus || !metadata.data || consumed.current === focus) return
-    const member = metadata.data.members.find((item) => item.display_name === focus.assignee_name)
-    const day = metadata.data.days.find((item) => item.service_date === focus.service_date)
-    if (!member || !day) return
+    if (!focus || consumed.current === focus) return
+    const target = focusTarget(focus, metadata.data)
+    if (!target) return
     consumed.current = focus
-    setSelected({ member, day })
+    setSelected(target)
     setSelectedRole(focus.role)
   }, [focus, metadata.data])
 
@@ -114,7 +120,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
   const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
   const selectedCategory = selectedBalance?.[selectedRole]
-  const correctionPoints = selectedRole === 'late_shift' ? 1 : selected?.day.is_day_off ? 2 : 1
+  const correctionPoints = selectedRole !== 'late_shift' && selected?.day.is_day_off ? 2 : 1
   const changesHolder = selectedAssignment?.assignee_name !== selected?.member.display_name
   const cannotAssign = !changesHolder || selectedAvailability?.kind === 'unavailable'
 
@@ -199,7 +205,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
       <Panel
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title={selected ? `${selected.member.display_name} · ${formatDate(selected.day.service_date)}` : ''}
+        title={selected ? (cannotAssign ? t.dayTitle : t.correctionTitle)(selected.member.display_name, formatDate(selected.day.service_date)) : ''}
         meta={selected?.day.is_day_off && <Tag>{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
         footer={selected && (
           <>
@@ -257,7 +263,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               { key: t.currently, value: selectedAssignment?.assignee_name ?? t.noAssignment },
               { key: t.afterCorrection, value: selected.member.display_name },
             ]} />
-            {!selectedAssignment && <p className="muted small">{t.nobodyHoldsRole}</p>}
+            {!selectedAssignment && !cannotAssign && <p className="muted small">{t.nobodyHoldsRole(selected.member.display_name)}</p>}
             {selectedBalance && selectedCategory && changesHolder && (
               <Box tone="sig" title={t.balanceTitle(roleLabels()[selectedRole], selectedBalance.display_name)}>
                 {t.balanceChange(signed(selectedCategory.deviation), signed(roundPoints(selectedCategory.deviation + correctionPoints)), correctionPoints > 1 ? t.twoPoints : t.onePoint)}

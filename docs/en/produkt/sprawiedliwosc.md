@@ -81,7 +81,7 @@ the window - by default to the end of the last publication, so duties already
 scheduled count too.
 
 The coordinator and the administrator see the whole team; a team member sees
-only themselves (a summary of their own result is also on the Mine screen).
+only themselves (a summary of their own result is also on the My duties screen).
 
 ## Effect on the next generation
 
