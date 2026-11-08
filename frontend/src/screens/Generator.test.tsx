@@ -1142,8 +1142,9 @@ describe('GeneratorPanel publication sheet', () => {
     finish(draft({ ...started, status: 'published', version: 3 }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^Publikuję/ })).not.toBeInTheDocument())
     expect(await screen.findByText('grafik opublikowany')).toBeInTheDocument()
-    // The coordinator learns that the team was told, and can go and look.
-    expect(screen.getByText('Opublikowano v3 · 8 – 18 wrz')).toBeInTheDocument()
+    // The coordinator learns that the team was told, and can go and look;
+    // the toast names the version they confirmed, not the bumped row version.
+    expect(screen.getByText('Opublikowano v2 · 8 – 18 wrz')).toBeInTheDocument()
     expect(screen.getByText('E-maile i kanały ICS zaktualizowane.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Otwórz grafik' }))
     expect(screen.getByLabelText('location')).toHaveTextContent('/grafik?od=2026-09-08')

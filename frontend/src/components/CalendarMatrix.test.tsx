@@ -540,6 +540,8 @@ describe('CalendarMatrix event deletion', () => {
     expect(read).toHaveBeenCalledWith(withEvent().days[0].service_date, withEvent().days[0].service_date)
     expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument()
     expect(await screen.findByText('Usunięto „Audyt”')).toBeInTheDocument()
+    // The same words as on the events screen, with every day the event had.
+    expect(screen.getByText('01-09-2026 – 25-09-2026')).toBeInTheDocument()
     expect(screen.queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
@@ -1232,7 +1234,7 @@ describe('CalendarMatrix events', () => {
   it('forgets a deleted event of a day closed in the meantime', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({}, { '2026-09-11': { events: [{ id: 'e1', title: 'Audyt', color: 'red' }] } }))
     let finish: () => void = () => {}
-    vi.spyOn(api, 'calendarEvents').mockResolvedValue([])
+    vi.spyOn(api, 'calendarEvents').mockResolvedValue([{ id: 'e1', starts_on: '2026-09-11', ends_on: '2026-09-11', title: 'Audyt', color: 'red', created_at: '2026-08-01T10:00:00Z' }])
     vi.spyOn(api, 'deleteCalendarEvent').mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openDay()

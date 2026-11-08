@@ -143,7 +143,6 @@ export const schedule: Messages['schedule'] = {
     emailOne: (name: string) => `${name} gets an e-mail about the duty.`,
     violationAudited: 'The rule breach is recorded in the audit log.',
     openDay: 'Open day',
-    eventDeleted: (title: string) => `Deleted “${title}”`,
   },
   confirm: {
     breaksRules: 'This correction will break hard rules',

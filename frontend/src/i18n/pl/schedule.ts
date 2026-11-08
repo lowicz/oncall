@@ -154,7 +154,6 @@ export const schedule = {
     emailOne: (name: string) => `E-mail o dyżurze dostanie ${name}.`,
     violationAudited: 'Naruszenie reguł zapisane w audycie.',
     openDay: 'Otwórz dzień',
-    eventDeleted: (title: string) => `Usunięto „${title}”`,
   },
   confirm: {
     breaksRules: 'Ta korekta złamie reguły twarde',

@@ -2,7 +2,7 @@ import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, CalendarEventColor, CalendarEventRef, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
-import { formatDate, formatDay, formatShortDate, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
+import { eventDates, formatDate, formatDay, formatShortDate, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
   availabilityDutyConflicts,
   coverageGaps,
@@ -114,7 +114,7 @@ export function CalendarMatrix({
 }) {
   const queryClient = useQueryClient()
   const today = warsawDate()
-  const { schedule: t, common } = useMessages()
+  const { schedule: t, calendarEvents, common } = useMessages()
   const calendar = useQuery({
     queryKey: ['calendar', range.starts_on, range.ends_on],
     queryFn: () => api.calendar(range.starts_on, range.ends_on),
@@ -200,7 +200,7 @@ export function CalendarMatrix({
         } : current)
         refreshCalendar()
       },
-      message: () => ({ title: t.toast.eventDeleted(event.title) }),
+      message: (stored) => ({ title: calendarEvents.toast.deleted(event.title), description: eventDates(stored) }),
     }),
     onSuccess: (_result, { event: { id } }) => {
       setSelected((current) => current ? {

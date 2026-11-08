@@ -4,15 +4,11 @@ import { CalendarEvent, CalendarEventInput, api } from '../../api'
 import { useMessages } from '../../i18n'
 import { DateField } from '../../components/DateField'
 import { eventColors } from '../../components/CalendarMatrix'
-import { addDays, formatDate, warsawDate } from '../../lib/dates'
+import { addDays, eventDates, formatDate, warsawDate } from '../../lib/dates'
 import { useUndoable } from '../../hooks/useUndoable'
 import { Box, Button, EmptyState, ErrorState, Field, Input, List, ListRow, LoadingBlock, PageHeader, SectionHeading, cx } from '../../ui'
 
 const emptyInput = (): CalendarEventInput => ({ starts_on: warsawDate(), ends_on: warsawDate(), title: '', color: 'blue' })
-
-/** "24-09-2026", or "24-09-2026 – 26-09-2026" when the event spans several days. */
-const eventDates = (event: { starts_on: string; ends_on: string }) =>
-  event.ends_on === event.starts_on ? formatDate(event.starts_on) : `${formatDate(event.starts_on)} – ${formatDate(event.ends_on)}`
 
 export function CalendarEventsPanel() {
   const t = useMessages()

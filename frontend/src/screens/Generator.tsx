@@ -279,12 +279,12 @@ export function GeneratorPanel() {
   })
   const publish = useMutation({
     mutationFn: (input: Parameters<typeof api.publishSchedule>[0]) => api.publishSchedule(input),
-    onSuccess: (value) => {
+    onSuccess: (value, { expectedVersion }) => {
       settle(value)
       setPublishConfirmOpen(false)
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
-      toast.success(t.toast.published(value.version, formatRange(value.starts_on, value.ends_on)), {
+      toast.success(t.toast.published(expectedVersion, formatRange(value.starts_on, value.ends_on)), {
         description: t.toast.publishedDescription,
         action: { label: t.toast.openSchedule, onClick: () => navigate(`/grafik?od=${value.starts_on}`) },
       })
