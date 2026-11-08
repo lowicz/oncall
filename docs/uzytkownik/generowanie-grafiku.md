@@ -190,7 +190,7 @@ Szkic ──► Do akceptacji ──► Opublikowany
 1. **Opublikuj…** w poprawnym szkicu przekazuje go do akceptacji w tle,
    sprawdza skutki publikacji i dopiero wtedy otwiera arkusz „Publikuję szkic
    v*N* · *zakres*”. Zamknięcie arkusza bez publikacji (**Wróć do szkicu**)
-   albo przejście do innego szkicu cofa przekazanie, więc szkic zostaje taki,
+   albo przejście do innego szkicu lub ekranu cofa przekazanie, więc szkic zostaje taki,
    jak był. Błąd przekazania albo sprawdzenia pojawia się w panelu decyzji, a
    szkic wraca do stanu sprzed kliknięcia.
    **Przekaż do akceptacji** z menu **⋯** zamraża treść szkicu bez

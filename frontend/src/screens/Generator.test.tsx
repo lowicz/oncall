@@ -562,6 +562,52 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     expect(withdraw).toHaveBeenCalledTimes(1)
   })
 
+  it('takes the draft back when the coordinator moved on before its effects were known', async () => {
+    stub([summary({ id: 'd1' }), summary({ id: 'd2', status: 'proposed', version: 4 })])
+    vi.spyOn(api, 'schedule').mockImplementation(async (id) => id === 'd1' ? draft({ id: 'd1' }) : draft({ id: 'd2', status: 'proposed', version: 4 }))
+    vi.spyOn(api, 'proposeSchedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    let answer: (value: PublishPreview) => void = () => {}
+    vi.spyOn(api, 'publishPreview').mockImplementation((id) => id === 'd1' ? new Promise((resolve) => { answer = resolve }) : Promise.resolve(emptyPreview))
+    const withdraw = vi.spyOn(api, 'withdrawSchedule').mockResolvedValue(draft({ id: 'd1', version: 3 }))
+    renderScreen(<><GeneratorPanel /><Go to="/generator?szkic=d2" /></>, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
+    await waitFor(() => expect(api.publishPreview).toHaveBeenCalledWith('d1'))
+    fireEvent.click(screen.getByText('go /generator?szkic=d2'))
+    expect(await screen.findByRole('button', { name: 'Publikuj v4…' })).toBeInTheDocument()
+    act(() => answer(emptyPreview))
+    await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2, quiet: true }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('17 – 18 wrz Do akceptacji · v4')
+  })
+
+  it('takes the draft back when the generator is left with its sheet open', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    vi.spyOn(api, 'proposeSchedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    const withdraw = vi.spyOn(api, 'withdrawSchedule').mockResolvedValue(draft({ id: 'd1', version: 3 }))
+    const { unmount } = renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
+    expect(await screen.findByRole('dialog', { name: /^Publikuję szkic/ })).toBeInTheDocument()
+    unmount()
+    await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2, quiet: true }))
+  })
+
+  it('keeps a failed publication of one draft out of the next one', async () => {
+    stub([summary({ id: 'd1' }), summary({ id: 'd2' })])
+    vi.spyOn(api, 'schedule').mockImplementation(async (id) => draft({ id, name: id }))
+    vi.spyOn(api, 'proposeSchedule').mockRejectedValue(new ApiError('Szkic zmienił się od otwarcia', 409))
+    renderScreen(<><GeneratorPanel /><Go to="/generator?szkic=d2" /></>, { route: '/generator?szkic=d1' })
+
+    const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
+    fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
+    expect(await within(decision).findByRole('alert')).toHaveTextContent('Szkic zmienił się od otwarcia')
+    fireEvent.click(screen.getByText('go /generator?szkic=d2'))
+    expect(await screen.findByRole('heading', { level: 2, name: 'd2' })).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Decyzja o szkicu' })).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('says inline in the decision panel when the draft cannot be readied for publication', async () => {
     stub([summary({ id: 'd1' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))

@@ -204,7 +204,10 @@ export function GeneratorPanel() {
   // A correction or its Undo can land after the coordinator opened another
   // draft or closed this one; it then only refreshes the stored copies.
   const shownId = useRef<string | undefined>(undefined)
-  useEffect(() => { shownId.current = result?.id }, [result?.id])
+  useEffect(() => {
+    shownId.current = result?.id
+    return () => { shownId.current = undefined }
+  }, [result?.id])
   const correct = (value: DraftSchedule) => {
     if (shownId.current === value.id) setResult(value)
     else invalidateDrafts()
@@ -336,6 +339,11 @@ export function GeneratorPanel() {
       }
     },
     onSuccess: ({ proposal, effects }) => {
+      // The coordinator moved on before the effects were known.
+      if (shownId.current !== proposal.id) {
+        withdraw.mutate({ id: proposal.id, expectedVersion: proposal.version, quiet: true })
+        return
+      }
       queryClient.setQueryData(['publish-preview', proposal.id, proposal.version], effects)
       settle(proposal)
       publish.reset()
@@ -355,6 +363,13 @@ export function GeneratorPanel() {
     // Only a change of the shown schedule closes the sheet it was opened for.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result?.id])
+  // Leaving the generator with the sheet open takes the draft back as well.
+  const leftBehind = useRef(backgroundProposal)
+  useEffect(() => { leftBehind.current = backgroundProposal }, [backgroundProposal])
+  useEffect(() => () => {
+    if (leftBehind.current) withdraw.mutate({ ...leftBehind.current, quiet: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error
   const counts = result ? problemCounts(result) : { hard: 0, soft: 0, total: 0 }
   const days = result ? new Set(result.assignments.map((item) => item.service_date)).size : 0
@@ -554,7 +569,7 @@ export function GeneratorPanel() {
             result={result}
             preview={preview}
             busy={generating || propose.isPending || proposeToPublish.isPending || withdraw.isPending || publish.isPending}
-            error={proposeToPublish.error?.message}
+            error={proposeToPublish.variables?.id === result.id ? proposeToPublish.error?.message : undefined}
             onFix={(first) => setFocus({ service_date: first.service_date, assignee_name: first.assignee_name, role: first.role })}
             onPropose={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
             onPublish={() => result.status === 'draft' ? proposeToPublish.mutate({ id: result.id, expectedVersion: result.version }) : openPublication(result.id)}

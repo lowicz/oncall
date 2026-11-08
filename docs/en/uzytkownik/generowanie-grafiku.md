@@ -196,7 +196,7 @@ Draft ──► For approval ──► Published
 1. **Publish…** on a clean draft submits it for approval in the background,
    checks the effects of the publication and only then opens the “Publishing
    the draft v*N* · *range*” sheet. Closing the sheet without publishing
-   (**Back to the draft**) or moving to another draft takes the submission
+   (**Back to the draft**) or moving to another draft or screen takes the submission
    back, so the draft stays as it was. A failed submission or check shows in
    the decision panel, and the draft returns to where it was before the
    click. **Submit for approval** in the **⋯** menu freezes the
