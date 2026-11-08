@@ -396,7 +396,7 @@ Ramki są cienkie (1 px) w
 kolorze linii; stan „na" zmienia kolor ramki na sygnał (`--sig-line`),
 stan zły na róż. Kafelek dnia w kalendarzu dostępności to 40 px wysokości
 z promieniem 8 px. Awatar jest kołem. Wyróżnienie z lewej (3 px) jest
-sygnaturą kart dyżuru (`.dcard::before`) i ramek informacyjnych (`.box`).
+sygnaturą ramek informacyjnych (`.box`).
 
 ## Components
 
@@ -425,7 +425,9 @@ sygnaturą kart dyżuru (`.dcard::before`) i ramek informacyjnych (`.box`).
 - **Style:** pigułka 12/16 px 600, odstęp 5×12 px, tło `s1`, ramka `line2`,
   kropka 8 px z lewej; tony `warn`, `bad`, `ok`, `sig` zmieniają kropkę i
   ramkę.
-- **State:** chip-przycisk ciemnieje na hover; chip filtra
+- **State:** chip-przycisk kończy się chevronem w błękicie sygnału, na
+  hover ciemnieje i podkreśla tekst, a dokąd prowadzi, mówi dymek otwierany
+  też fokusem; chip filtra
   (`.filter-chip`) ma tło i ramkę sygnału i przycisk usunięcia.
 - **Odznaka statusu** (`.st`): pigułka z kropką, tło według stanu (szkic
   `s3`, do akceptacji `sig-soft`, opublikowany `ok-bg`, ostrzeżenie,
@@ -439,8 +441,8 @@ sygnaturą kart dyżuru (`.dcard::before`) i ramek informacyjnych (`.box`).
 - **Shadow Strategy:** brak w spoczynku (sekcja Elevation).
 - **Internal Padding:** 12×14 px (`.panel-padded`); pasek narzędzi 8×10 px z
   dolną linią.
-- **Karta dyżuru** (`.dcard`): jak panel plus pasek 3 px z lewej w kolorze
-  roli, nazwisko 24/28 px, okno dyżuru w mono.
+- **Karta dyżuru** (`.dcard`): jak panel, rola jako pigułka w nagłówku
+  karty (bez paska z boku), nazwisko 24/28 px, okno dyżuru w mono.
 - **Ramka informacyjna** (`.box`): lewy pasek 3 px, tło `s2`, tekst
   12/16 px; tony `warn`, `bad`, `ok`, `sig` barwią pasek, tło i tytuł.
 
@@ -509,7 +511,7 @@ podkład leży na nieprzezroczystym `s2`. Początek tygodnia to lewa linia
 - **Do** oznaczaj rolę kolorem wypełnienia z granatowym atramentem, w obu
   motywach tak samo.
 - **Do** sygnalizuj stan kropką w pigułce (`.st`, `.chip`) albo lewym
-  paskiem 3 px (`.box`, `.dcard`, `.list-row-warn`), nie zmianą całego tła
+  paskiem 3 px (`.box`, `.list-row-warn`), nie zmianą całego tła
   sekcji.
 - **Do** projektuj każdy ekran w trzech szerokościach: ≤900 px (zakładki
   dolne, arkusze od dołu), 901-1100 px (szyna 56 px), >1100 px.
