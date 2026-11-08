@@ -99,8 +99,8 @@ on-call**.
 
 Gdy przejmująca osoba nie ma numeru telefonu na ekranie Moje, ramka w
 podpowiedzi mówi to z nazwiskiem i blokuje przycisk: numer trzeba najpierw
-uzupełnić. Gdy numer jest już przekazany, ramka mówi, u kogo jest i do której
-godziny, i zamiast przekazania proponuje **Zabierz numer z powrotem**.
+uzupełnić. Gdy numer jest już przekazany, znacznik mówi, do której godziny,
+a w miejscu przycisku przekazania stoi przycisk zakończenia opisany niżej.
 
 ### Jak numer wraca
 
@@ -115,8 +115,9 @@ godziny, i zamiast przekazania proponuje **Zabierz numer z powrotem**.
   Zakończenie nie pyta o potwierdzenie, bo ponowne przekazanie to jedno
   kliknięcie; powiadomienie mówi, kto znów odbiera numer. Działa także po
   przestawieniu trybu na **Wyłączone**.
-- **Przez korektę grafiku**: gdy korekta lub zamiana zabiera któregoś z dwojga
-  z pary dnia, przekazanie kończy się samo, a numer wraca do osoby, która
+- **Przez korektę grafiku**: gdy korekta lub zamiana zmienia, kto ma tego dnia
+  `PRIMARY` albo `SECONDARY`, także gdy zamienia te dwie role między sobą,
+  przekazanie kończy się samo, a numer wraca do osoby, która
   według grafiku ma `PRIMARY`. Obie strony dostają wtedy e-mail „Przekazanie
   numeru on-call zakończone przez korektę grafiku”, a ramka korekty uprzedza
   z góry: „Ta korekta zakończy przekazanie numeru on-call Anna Kowalska →

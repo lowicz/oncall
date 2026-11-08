@@ -179,8 +179,8 @@ number over. At most one handover is active at a time.
   (the pair, a coordinator, an administrator; also in **Off** mode) or through
   a schedule change. None of these returns needs starting separately: the worker
   compares the target with WCO's state as ever.
-- **Schedule change.** A correction or swap that leaves either side out of the
-  day's pair ends the handover with the reason "schedule change" and sends the
+- **Schedule change.** A correction or swap that changes who is on PRIMARY or
+  SECONDARY that day, swapping the two roles included, ends the handover with the reason "schedule change" and sends the
   e-mail "Przekazanie numeru on-call zakończone przez korektę grafiku" to both
   sides, saying who is on PRIMARY now. Beforehand the correction check returns a
   warning for the frame in the day panel.

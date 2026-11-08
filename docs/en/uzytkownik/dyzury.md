@@ -102,8 +102,8 @@ number**.
 
 When the person taking over has no phone number on the Mine screen, the frame
 in the popover says so by name and blocks the button: the number has to be
-filled in first. When the number is already handed over, the frame says who has
-it and until when, and offers **Take the number back** instead of a handover.
+filled in first. When the number is already handed over, the badge says until
+when, and the hand-over button is replaced by the end button described below.
 
 ### How the number comes back
 
@@ -118,8 +118,9 @@ it and until when, and offers **Take the number back** instead of a handover.
   screen. Ending asks no confirmation, because handing over again is one click;
   the notification says who answers the number again. It works after the mode
   has been switched to **Off** as well.
-- **Through a schedule correction**: when a correction or swap takes either of
-  the two out of the day's pair, the handover ends by itself and the number
+- **Through a schedule correction**: when a correction or swap changes who is on
+  `PRIMARY` or `SECONDARY` that day, swapping the two roles included, the
+  handover ends by itself and the number
   returns to whoever the schedule has on `PRIMARY`. Both sides then get the
   e-mail “Przekazanie numeru on-call zakończone przez korektę grafiku”, and the
   correction frame warns beforehand: “This correction ends the on-call number

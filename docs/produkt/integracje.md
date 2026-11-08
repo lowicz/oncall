@@ -173,8 +173,8 @@ Najwyżej jedno przekazanie jest aktywne naraz.
   PRIMARY), ręcznie (para, koordynator, administrator; także w trybie
   **Wyłączone**) albo przez zmianę grafiku. Żadnego z tych powrotów nie
   trzeba osobno uruchamiać: proces porównuje cel ze stanem WCO jak zawsze.
-- **Zmiana grafiku.** Korekta lub zamiana, po której któraś ze stron nie jest
-  już w parze dnia, kończy przekazanie z powodem „zmiana grafiku” i wysyła
+- **Zmiana grafiku.** Korekta lub zamiana, która zmienia, kto ma PRIMARY albo
+  SECONDARY dnia, także zamiana tych dwóch ról między sobą, kończy przekazanie z powodem „zmiana grafiku” i wysyła
   e-mail „Przekazanie numeru on-call zakończone przez korektę grafiku” do obu
   stron, z informacją, kto ma teraz PRIMARY. Wcześniej sprawdzenie korekty
   zwraca ostrzeżenie dla ramki w panelu dnia.
