@@ -68,22 +68,20 @@ export function movesOf(item: SwapRequest) {
 /**
  * The projected balances of one move, as a query every place that shows them
  * shares. `inReturn` makes it an exchange; `scope` is what it gives of the
- * day and `returnScope` what it takes of the day in return; `correction`
- * makes it a coordinator's correction instead of a swap.
+ * day and `returnScope` what it takes of the day in return.
  */
 export const swapImpactQuery = (
   serviceDate: string,
   role: AssignmentRole,
   replacementId: string,
-  { inReturn, scope, returnScope, correction = false }: {
+  { inReturn, scope, returnScope }: {
     inReturn?: SwapSlot
     scope?: SwapScope
     returnScope?: SwapScope
-    correction?: boolean
   } = {},
 ) => ({
-  queryKey: ['swap-impact', serviceDate, role, replacementId, inReturn?.service_date, inReturn?.role, scope, returnScope, correction],
-  queryFn: () => api.swapImpact(serviceDate, role, replacementId, { inReturn, scope, returnScope, correction }),
+  queryKey: ['swap-impact', serviceDate, role, replacementId, inReturn?.service_date, inReturn?.role, scope, returnScope],
+  queryFn: () => api.swapImpact(serviceDate, role, replacementId, { inReturn, scope, returnScope }),
 })
 
 /** What the form gives of a day: the whole duty, or one of its roles. */

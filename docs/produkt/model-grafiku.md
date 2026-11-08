@@ -111,9 +111,10 @@ stawek ani raportów** i nie wpływają na solver.
 ## Korekty i zamiany po publikacji
 
 - **Korekta koordynatora (override)** - koordynator lub administrator zmienia
-  przydział w jednej komórce bez zgody zastępcy i bez dodatkowego kroku
-  akceptacji. Zapisuje override, korzysta z wersjonowania i dotyczy wyłącznie
-  wybranego dnia i roli. Reguły twarde są sprawdzane przed zapisem, ale nie
+  przydział bez zgody zastępcy i bez dodatkowego kroku akceptacji. Zapisuje
+  override, korzysta z wersjonowania i dotyczy wyłącznie wybranego dnia: jednej
+  roli albo dwóch ról dla jednej osoby (np. SECONDARY i 11–19), nigdy PRIMARY i
+  SECONDARY razem. Reguły twarde są sprawdzane przed zapisem, ale nie
   blokują korekty bezwarunkowo: w sytuacji awaryjnej koordynator może je
   **świadomie** złamać. Korekta łamiąca regułę twardą przechodzi tylko z jawnym
   potwierdzeniem - w API polem `acknowledge_rule_violations: true`; bez niego

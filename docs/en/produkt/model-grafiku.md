@@ -112,9 +112,10 @@ schedule, the rates nor the reports** and do not affect the solver.
 ## Corrections and swaps after publication
 
 - **Coordinator's correction (override)** - the coordinator or the administrator
-  changes the assignment in one cell without the replacement's consent and
-  without an additional approval step. It records an override, uses versioning
-  and applies only to the chosen day and role. The hard rules are checked
+  changes an assignment without the replacement's consent and without an
+  additional approval step. It records an override, uses versioning and applies
+  only to the chosen day: one role, or two roles for one person (for
+  example SECONDARY and 11–19), never PRIMARY and SECONDARY together. The hard rules are checked
   before saving, but they do not block the correction unconditionally: in an
   emergency the coordinator can **deliberately** break them. A correction that
   breaks a hard rule goes through only with an explicit acknowledgement - in

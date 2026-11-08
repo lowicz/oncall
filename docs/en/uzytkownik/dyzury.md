@@ -105,32 +105,57 @@ From this panel:
 - a **coordinator and an administrator** can change any assignment directly,
   without the replacement's consent and without an acceptance step. Every
   role row in the panel ends in a **Change…** button (an empty role:
-  **Staff…**), and clicking anywhere on the row does the same. The
-  correction concerns only the chosen day and role, and everything there is
-  to know about it appears in the panel right under the choice of person,
-  without a separate confirmation dialog. The **Person for `<role>` ·
-  `<day>`** field lists everyone in the rotation that day; whoever cannot be
-  picked stays on the list with the reason after the name (“Anna Kowalska ·
-  unavailable that day”), and the hint under the field describes the chosen
-  person: the roles they may hold that day and what they reported for it.
-  Under the choice are the rule line (“No hard rule is broken”) and the effect on both people's points balance. If the change
-  breaks a hard rule, the rule line gives way to a “This correction will
-  break hard rules” frame with the list of violations and an “I understand
-  and knowingly break these rules” box; such a violation goes to the audit
-  log. **Save the staffing change** saves only once a person is chosen, the
-  rules are checked and the violations are acknowledged. A correction of a
-  day that has already passed is the exception: **Save the staffing
-  change…** opens a “Confirm the historical correction” dialog that asks for
-  a reason (at least 10 characters, an audit requirement), and the save is
-  made from that dialog. When the save is refused, for example because the
-  schedule changed in the meantime, the reason for the refusal appears in the
-  panel and takes the focus, or in the dialog for a historical correction.
-  The exception is a refusal that names newly broken rules: the dialog then
-  closes, the rules and their acknowledgement appear in the panel, and the
-  reason you typed is kept for the next time the dialog opens. After the
-  save the panel closes and a notification says what changed and who gets
-  an e-mail (“Staffing changed 14 Nov · PRIMARY: Anna Kowalska → Jan
-  Nowak”); its **Open day** button opens that day's panel again,
+  **Staff…**), and clicking anywhere on the row does the same. Under the
+  rows, which stay in place with the changed roles lit, a “Staffing change”
+  frame opens with everything there is to know about the change, without a
+  separate confirmation dialog. The **Roles to change** group has PRIMARY,
+  SECONDARY and 11–19 boxes (the last on working days only); the clicked
+  role is ticked, and one correction can give one person two roles, for
+  example SECONDARY and 11–19. PRIMARY and SECONDARY exclude each other,
+  because one person cannot hold both on-calls that day: while one is
+  ticked, the other is unavailable, with the reason under the group. 11–19
+  is ticked by default exactly when the policy binds it to the ticked role
+  and the person in that role holds 11–19 too; a sentence under the group
+  says why 11–19 is ticked or not. The 11–19 row in the panel carries a
+  “coupled with SECONDARY” (or “coupled with PRIMARY”) tag when the person
+  in the anchor role holds it, and “outside the coupling with SECONDARY”
+  when someone else does; under an “independent” coupling there is no tag.
+  Unticking 11–19 leaves it unchanged, and if that parts it from its anchor
+  role, the frame shows the coupling rule for knowing confirmation. The
+  **Person for `<roles>`** field lists everyone in the rotation that day,
+  and with two roles it says after the name which of them the person can
+  take (“Marek Nowak · SECONDARY, 11–19”). Whoever cannot be picked stays on
+  the list with the reason after the name (“Anna Kowalska · unavailable that
+  day”). A person who can take only part of the ticked roles (“Piotr
+  Zieliński · only SECONDARY (no 11–19)”) stays on the list too, but
+  choosing them does not change what is ticked: the field says what to
+  untick or whom to choose instead, and the save waits. The hint under the
+  field describes the chosen person: the roles they may hold that day and
+  what they reported for it. Under the choice are a row-by-row preview (who
+  gives up which role), the rule line checked on the state after every
+  change (“No hard rule is broken”) and the effect on the points balance of
+  everyone the change touches. If the change breaks a hard rule, the rule
+  line gives way to a “This correction will break hard rules” frame with
+  the list of violations and an “I understand and knowingly break these
+  rules” box; such a violation goes to the audit log. A correction of a day
+  that has already passed asks for a reason (at least 10 characters, an
+  audit requirement) in a field of the same frame. **Save the staffing
+  change** (with two roles **Change staffing (2 roles)**) saves only once a
+  person is chosen, the rules are checked, the violations are acknowledged
+  and the reason is given. Two roles are one schedule change with one
+  “Schedule correction” audit entry and one “Zmiana przydziału” message for
+  each person, listing only their own slots. When the save is refused, for
+  example because the schedule changed in the meantime, the reason for the
+  refusal appears in the frame and takes the focus, and a refusal that
+  names newly broken rules shows them right away for acknowledgement. After
+  the save the panel closes and a notification says what changed (“Staffing
+  changed 11 Mar: Marek Nowak SECONDARY and 11–19”). When every changed role
+  can go back to the person who had it, the notification has an **Undo**
+  button that restores the previous staffing in one change; the e-mails go
+  out only once the “Undo” window closes, and after an undo they do not go
+  out at all. When it cannot be undone (the role was empty, or the previous
+  person cannot take it back that day), the notification says who gets an
+  e-mail, and its **Open day** button opens that day's panel again,
 - a **coordinator and an administrator** can swap the people on PRIMARY and
   SECONDARY of that day in one move, without corrections through a third
   person. The **Swap places…** button sits between the PRIMARY and SECONDARY

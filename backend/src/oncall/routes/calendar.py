@@ -35,11 +35,14 @@ from oncall.presentation.calendar import (
     calendar_response,
 )
 from oncall.presentation.overrides import (
+    BatchOverrideCheckBatch,
     BatchOverrideCheckRequest,
     BatchOverrideRequest,
+    CorrectionImpactResponse,
     DirectOverrideCheckRequest,
     DirectOverrideRequest,
     OverrideCheckResponse,
+    correction_impact_response,
     override_assignment_response,
     override_check_response,
 )
@@ -153,6 +156,8 @@ OVERRIDE_ERROR_STATUSES = {
     override_errors.BatchCorrectionNeedsReason: status.HTTP_422_UNPROCESSABLE_CONTENT,
     override_errors.LateShiftNotCoupled: status.HTTP_422_UNPROCESSABLE_CONTENT,
     override_errors.NotARoleSwap: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    override_errors.RolesOfSeveralDays: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    override_errors.OnCallPairInOneCorrection: status.HTTP_422_UNPROCESSABLE_CONTENT,
     override_errors.RuleViolationsNotAcknowledged: status.HTTP_409_CONFLICT,
 }
 
@@ -228,6 +233,18 @@ async def direct_override(
     return override_assignment_response(result)
 
 
+def _batch_check(batch: BatchOverrideCheckBatch) -> BatchOverrideCheck:
+    return BatchOverrideCheck(
+        schedule_id=batch.schedule_id,
+        lines=tuple(
+            BatchOverrideLine(
+                item.service_date, item.role, item.replacement_member_id, item.with_late_shift
+            )
+            for item in batch.assignments
+        ),
+    )
+
+
 @router.post("/override/batch/check")
 async def batch_override_check(
     payload: BatchOverrideCheckRequest,
@@ -240,22 +257,7 @@ async def batch_override_check(
     slot, and the number handover they would end."""
     with _override_errors_as_http():
         violations = await override_use_cases.check_batch_override(
-            [
-                BatchOverrideCheck(
-                    schedule_id=batch.schedule_id,
-                    lines=tuple(
-                        BatchOverrideLine(
-                            item.service_date,
-                            item.role,
-                            item.replacement_member_id,
-                            item.with_late_shift,
-                        )
-                        for item in batch.assignments
-                    ),
-                )
-                for batch in payload.batches
-            ],
-            ports,
+            [_batch_check(batch) for batch in payload.batches], ports
         )
     ends = await forwarding_use_cases.handover_ended_by_correction(
         [(item.service_date, item.role) for batch in payload.batches for item in batch.assignments],
@@ -263,6 +265,20 @@ async def batch_override_check(
         now=utc_now(),
     )
     return override_check_response(violations, ends)
+
+
+@router.post("/override/batch/impact")
+async def batch_override_impact(
+    payload: BatchOverrideCheckBatch,
+    _: Coordinator,
+    ports: OverrideProvider,
+    __: CsrfGuard,
+) -> CorrectionImpactResponse:
+    """What the batch would do to the balance of everybody it moves a slot
+    from or to, without writing any slot."""
+    with _override_errors_as_http():
+        impact = await override_use_cases.preview_batch_impact(_batch_check(payload), ports)
+    return correction_impact_response(impact)
 
 
 @router.post("/override/batch", response_model=list[AssignmentResponse])

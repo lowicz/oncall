@@ -276,6 +276,7 @@ def override_ports(db: DbSession, actor: CurrentUser) -> OverridePorts:
         roster=SqlAlchemyPublishedRoster(db),
         policy=SqlAlchemyRosterPolicy(db),
         journal=SqlAlchemyOverrideJournal(db, actor),
+        fairness=SqlAlchemyFairnessHistory(db),
     )
 
 

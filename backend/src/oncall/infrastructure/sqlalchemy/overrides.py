@@ -1,11 +1,9 @@
 import uuid
-from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
 from oncall.domain.overrides.models import AssignmentChange, BatchOverrideKind, OverrideMove
-from oncall.domain.vocabulary import AssignmentRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.notifications import triggers
 from oncall.notifications.templates import format_date, swapped_holders
@@ -50,21 +48,17 @@ class SqlAlchemyOverrideJournal:
         self,
         *,
         schedule_id: uuid.UUID,
-        service_date: date,
-        role: AssignmentRole,
-        previous_name: str,
-        new_name: str,
+        changes: list[AssignmentChange],
         reason: str | None,
         historical: bool,
         moves: list[OverrideMove],
         violations: list[RuleViolation],
     ) -> None:
-        await triggers.notify_assignment_overridden(
-            self._session,
-            service_date=service_date,
-            role=role,
-            previous_name=previous_name,
-            new_name=new_name,
+        await triggers.notify_assignment_overridden(self._session, changes=changes)
+        service_date, role = changes[0][:2]
+        handed = ", ".join(
+            f"{changed.value}: {previous_name} → {new_name}"
+            for _, changed, previous_name, new_name in changes
         )
         record_audit(
             self._session,
@@ -72,10 +66,7 @@ class SqlAlchemyOverrideJournal:
             action="schedule.override",
             entity_type="schedule",
             entity_id=schedule_id,
-            summary=(
-                f"Override {service_date} · {role.value}: {previous_name} → {new_name}"
-                + acknowledged_suffix(violations)
-            ),
+            summary=f"Override {service_date} · {handed}" + acknowledged_suffix(violations),
             details={
                 "service_date": service_date.isoformat(),
                 "role": role.value,

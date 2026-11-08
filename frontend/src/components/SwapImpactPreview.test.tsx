@@ -36,14 +36,14 @@ afterEach(() => {
 describe('SwapImpactPreview', () => {
   it('writes the window, points and deviations the way every other screen does', async () => {
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
-    renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m2" mode="override" />)
+    renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m2" />)
 
     expect(await screen.findByText(/Okno 24-09-2025 – 24-09-2026\./)).toHaveTextContent('czw 24-09-2026 to 1 punkt.')
     expect(screen.getByText(/punkty 14,5 → 13,5 \(-1\)/)).toBeInTheDocument()
     expect(screen.getByText(/punkty 10 → 11 \(\+1\)/)).toBeInTheDocument()
     expect(screen.getByText('+1,25 → +0,25')).toBeInTheDocument()
     expect(screen.getByText('-2,75 → -1,75')).toBeInTheDocument()
-    expect(screen.getByText('Marek Nowak · traci dyżur')).toBeInTheDocument()
+    expect(screen.getByText('Tomek Lis · przejmuje dyżur')).toBeInTheDocument()
   })
 
   it('says which side moves away from balance and which stays', async () => {
@@ -73,7 +73,7 @@ describe('SwapImpactPreview', () => {
     )
     expect(screen.getByText('Marek Nowak · oddaje czw 24 wrz, bierze sob 26 wrz')).toBeInTheDocument()
     expect(screen.getByText('Tomek Lis · oddaje sob 26 wrz, bierze czw 24 wrz')).toBeInTheDocument()
-    expect(call).toHaveBeenCalledWith('2026-09-24', 'primary', 'm2', { inReturn, correction: false })
+    expect(call).toHaveBeenCalledWith('2026-09-24', 'primary', 'm2', { inReturn })
   })
 
   it('says so when a side keeps its balance', async () => {

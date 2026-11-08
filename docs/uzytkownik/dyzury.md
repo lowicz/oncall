@@ -102,31 +102,55 @@ Z tego panelu:
 - **koordynator i administrator** mogą zmienić dowolny przydział bezpośrednio,
   bez zgody zastępcy i bez kroku akceptacji. Każdy wiersz roli w panelu ma
   na końcu przycisk **Zmień…** (pusta rola: **Obsadź…**), a kliknięcie
-  całego wiersza działa tak samo. Korekta dotyczy wyłącznie
-  wybranego dnia i roli, a wszystko, co trzeba o niej wiedzieć, pojawia się w
-  panelu tuż pod wyborem osoby, bez osobnego okna potwierdzenia. Pole
-  **Osoba na `<rola>` · `<dzień>`** wymienia wszystkich w rotacji tego dnia;
-  kogo wybrać nie można, ten zostaje na liście z powodem po nazwisku
-  („Anna Kowalska · niedostępna tego dnia”), a podpowiedź pod polem opisuje
-  wybraną osobę: jej uprawnienia tego dnia i to, co zgłosiła na ten dzień.
-  Pod wyborem są linia reguł
-  („Bez naruszeń reguł twardych”) i wpływ na bilans punktów obu osób. Jeśli
-  zmiana złamie regułę twardą, w miejscu linii reguł pojawia się ramka „Ta
-  korekta złamie reguły twarde” z listą naruszeń i polem „Rozumiem i świadomie
-  łamię te reguły”; takie naruszenie trafia do dziennika audytu. Przycisk
-  **Zapisz zmianę obsady** zapisuje dopiero wtedy, gdy wybrana jest osoba,
-  reguły są sprawdzone, a naruszenia potwierdzone. Korekta dnia, który już
-  minął, jest wyjątkiem: przycisk **Zapisz zmianę obsady…** otwiera okno
-  „Potwierdź korektę historyczną”, które prosi o powód (co najmniej 10 znaków,
-  wymóg audytu), a zapis następuje z tego okna. Gdy zapis zostanie odrzucony,
-  na przykład bo grafik zmienił się w międzyczasie, powód odmowy pojawia się w
-  panelu i dostaje fokus, a przy korekcie historycznej w jej oknie. Wyjątkiem
-  jest odmowa wskazująca nowo złamane reguły: okno się wtedy zamyka, reguły i
-  ich potwierdzenie pojawiają się w panelu, a wpisany powód zostaje na
-  następne otwarcie okna. Po zapisie panel się zamyka, a powiadomienie mówi,
-  co zmieniono i kto dostanie e-mail („Zmieniono obsadę 14 lis · PRIMARY:
-  Anna Kowalska → Jan Nowak”); przycisk **Otwórz dzień** otwiera panel tego
-  dnia ponownie,
+  całego wiersza działa tak samo. Pod wierszami, które zostają na miejscu z
+  podświetlonymi zmienianymi rolami, otwiera się ramka „Zmiana obsady”, a
+  wszystko, co trzeba wiedzieć o zmianie, jest w niej, bez osobnego okna
+  potwierdzenia. Grupa **Role do zmiany** ma pola PRIMARY, SECONDARY i 11–19
+  (to ostatnie tylko w dzień roboczy); kliknięta rola jest zaznaczona, a
+  jedna korekta może dać jednej osobie dwie role, na przykład SECONDARY i
+  11–19. PRIMARY i SECONDARY wykluczają się, bo jedna osoba nie może mieć
+  obu on-call tego dnia: gdy jedno jest zaznaczone, drugie jest niedostępne,
+  a powód stoi pod grupą. 11–19 jest zaznaczona domyślnie dokładnie wtedy,
+  gdy polityka wiąże ją z zaznaczoną rolą, a osoba z tej roli ma też 11–19;
+  zdanie pod grupą mówi, dlaczego 11–19 jest zaznaczona albo nie. Wiersz
+  11–19 w panelu ma znacznik „powiązana z SECONDARY” (albo „powiązana z
+  PRIMARY”), gdy ma ją osoba z roli kotwiczącej, a „poza powiązaniem z
+  SECONDARY”, gdy ma ją ktoś inny; przy powiązaniu „niezależnie” znacznika
+  nie ma. Odznaczenie 11–19 zostawia ją bez zmian, a jeśli przez to rozejdzie
+  się z rolą kotwiczącą, ramka pokaże regułę powiązania do świadomego
+  potwierdzenia. Pole **Osoba na `<role>`** wymienia wszystkich w rotacji
+  tego dnia, a przy dwóch rolach przy nazwisku mówi, które z nich ta osoba
+  może przejąć („Marek Nowak · SECONDARY, 11–19”). Kogo wybrać nie można,
+  ten zostaje na liście z powodem po nazwisku („Anna Kowalska · niedostępna
+  tego dnia”). Osoba, która może przejąć tylko część zaznaczonych ról
+  („Piotr Zieliński · tylko SECONDARY (bez 11–19)”), też zostaje na liście,
+  ale jej wybranie nie zmienia zaznaczenia: pod polem pojawia się, co
+  odznaczyć albo kogo wybrać zamiast niej, a zapis czeka. Podpowiedź pod
+  polem opisuje wybraną osobę: jej uprawnienia tego dnia i to, co zgłosiła
+  na ten dzień. Pod wyborem są podgląd wiersz po wierszu (kto oddaje którą
+  rolę), linia reguł sprawdzonych na stanie po wszystkich zmianach („Bez
+  naruszeń reguł twardych”) i wpływ na bilans punktów każdej osoby, której
+  zmiana dotyczy. Jeśli zmiana złamie regułę twardą, w miejscu linii reguł
+  pojawia się ramka „Ta korekta złamie reguły twarde” z listą naruszeń i
+  polem „Rozumiem i świadomie łamię te reguły”; takie naruszenie trafia do
+  dziennika audytu. Korekta dnia, który już minął, prosi o powód (co
+  najmniej 10 znaków, wymóg audytu) w polu tej samej ramki. Przycisk
+  **Zapisz zmianę obsady** (przy dwóch rolach **Zmień obsadę (2 role)**)
+  zapisuje dopiero wtedy, gdy wybrana jest osoba, reguły są sprawdzone,
+  naruszenia potwierdzone, a powód podany. Dwie role to jedna zmiana
+  grafiku z jednym wpisem audytu „Korekta grafiku” i jedną wiadomością
+  „Zmiana przydziału” dla każdej osoby, z listą tylko jej slotów. Gdy zapis
+  zostanie odrzucony, na przykład bo grafik zmienił się w międzyczasie,
+  powód odmowy pojawia się w ramce i dostaje fokus, a odmowa wskazująca
+  nowo złamane reguły pokazuje je od razu do potwierdzenia. Po zapisie panel
+  się zamyka, a powiadomienie mówi, co zmieniono („Zmieniono obsadę 11 mar:
+  Marek Nowak SECONDARY i 11–19”). Gdy każdą zmienioną rolę da się oddać
+  osobie, która ją miała, powiadomienie ma przycisk **Cofnij**, który jedną
+  zmianą przywraca poprzednią obsadę; e-maile wychodzą dopiero po
+  zamknięciu okna „Cofnij”, a po cofnięciu nie wychodzą wcale. Gdy cofnąć
+  się nie da (rola była pusta albo poprzednia osoba nie może jej tego dnia
+  przejąć), powiadomienie mówi, kto dostanie e-mail, a przycisk **Otwórz
+  dzień** otwiera panel tego dnia ponownie,
 - **koordynator i administrator** mogą zamienić miejscami osoby z PRIMARY i
   SECONDARY tego dnia jednym ruchem, bez korekt przez osobę trzecią. Przycisk
   **Zamień miejscami…** stoi między wierszami PRIMARY i SECONDARY, gdy obie
