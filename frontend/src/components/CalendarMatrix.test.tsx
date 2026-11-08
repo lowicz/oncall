@@ -1243,7 +1243,7 @@ describe('CalendarMatrix day correction', () => {
 
   it('frames a duty held on a day its holder cannot take, above the roles, and changes the person from it', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({ availability: [urlop] }))
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openFriday()
 
@@ -1292,7 +1292,7 @@ describe('CalendarMatrix day correction', () => {
       ],
       availability: [{ member_id: 'm3', kind: 'prefer', starts_on: '2026-09-11', ends_on: '2026-09-11', note: null }],
     }))
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openFriday()
