@@ -665,7 +665,8 @@
         "description": "What one batch decision is, which decides its reason, audit and e-mail.",
         "enum": [
           "correction",
-          "role_swap"
+          "role_swap",
+          "multi_role"
         ],
         "title": "BatchOverrideKind",
         "type": "string"
@@ -1235,6 +1236,46 @@
           "detail"
         ],
         "title": "ConnectionTestResponse",
+        "type": "object"
+      },
+      "CorrectionImpactResponse": {
+        "description": "What a correction would do to the balance of everybody it moves a slot\nfrom or to, in the fairness report's window.",
+        "properties": {
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SwapImpactMemberResponse"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "points": {
+            "title": "Points",
+            "type": "number"
+          },
+          "service_date": {
+            "format": "date",
+            "title": "Service Date",
+            "type": "string"
+          },
+          "window_end": {
+            "format": "date",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_date",
+          "points",
+          "window_start",
+          "window_end",
+          "members"
+        ],
+        "title": "CorrectionImpactResponse",
         "type": "object"
       },
       "CurrentDutyResponse": {
@@ -8486,6 +8527,82 @@
           }
         },
         "summary": "Batch Override Check",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/override/batch/impact": {
+      "post": {
+        "description": "What the batch would do to the balance of everybody it moves a slot\nfrom or to, without writing any slot.",
+        "operationId": "batch_override_impact_api_v1_calendar_override_batch_impact_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchOverrideCheckBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionImpactResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Override Impact",
         "tags": [
           "calendar"
         ]

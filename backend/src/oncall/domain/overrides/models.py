@@ -5,6 +5,7 @@ from enum import StrEnum
 
 from oncall.domain.team import Actor
 from oncall.domain.vocabulary import AssignmentRole
+from oncall.fairness import MemberBalance
 from oncall.rules import RuleViolation
 
 #: How the audit trail names a slot that had nobody in it.
@@ -44,6 +45,11 @@ class BatchOverrideKind(StrEnum):
     #: The PRIMARY and SECONDARY holders of one day trade places: a reason
     #: only for a past day, like a single correction.
     role_swap = "role_swap"
+    #: The roles of one day the coordinator hands over in one correction
+    #: (P7): PRIMARY or SECONDARY and 11-19, each to the person on its line, a
+    #: reason only for a past day, audited and e-mailed like a single
+    #: correction.
+    multi_role = "multi_role"
 
 
 @dataclass(frozen=True)
@@ -95,3 +101,27 @@ class DutyOverridden:
     assignee_name: str
     #: Hard rules the correction knowingly broke.
     violations: tuple[RuleViolation, ...]
+
+
+@dataclass(frozen=True)
+class BalanceChange:
+    """One person's balance before and after a correction."""
+
+    member_id: uuid.UUID
+    display_name: str
+    before: MemberBalance
+    after: MemberBalance
+
+
+@dataclass(frozen=True)
+class CorrectionImpact:
+    """What a correction does to the balance of everybody it moves a slot
+    from or to, in the fairness report's window."""
+
+    service_date: date
+    #: What the first corrected day is worth.
+    points: float
+    window_start: date
+    window_end: date
+    #: The people taking slots first, then the people giving them up.
+    members: list[BalanceChange]

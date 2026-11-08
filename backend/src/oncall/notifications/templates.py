@@ -776,33 +776,40 @@ def availability_created_on_behalf(
 
 def assignment_overridden(
     *,
-    service_date: date,
-    role: AssignmentRole,
-    previous_name: str,
-    new_name: str,
+    changes: list[tuple[date, AssignmentRole, str, str]],
     app: Brand,
     automatic: bool = False,
 ) -> RenderedEmail:
-    """`automatic` while the worker switches the number: a changed PRIMARY is
+    """One correction of a day's roles, as it involves the recipient: one
+    slot, or the roles one person takes over together (SECONDARY and 11-19).
+    `automatic` while the worker switches the number: a changed PRIMARY is
     then told so rather than asked to switch it."""
+    service_date, role, previous_name, new_name = changes[0]
     day = format_day(service_date)
-    subject = f"Zmiana przydziału: {day} · {ROLE_LABELS[role]}"
-    advice = _AUTOMATIC_SWITCH if automatic and role is AssignmentRole.primary else _SWITCH_NUMBER
+    roles = " i ".join(ROLE_LABELS[change[1]] for change in changes)
+    single = len(changes) == 1
+    primary_changed = any(change[1] is AssignmentRole.primary for change in changes)
+    advice = _AUTOMATIC_SWITCH if automatic and primary_changed else _SWITCH_NUMBER
+    detail = (
+        f"Dyżur: {new_name} (poprzednio: {previous_name}).\n"
+        if single
+        else (f"{_change_lines(changes)}\n")
+    )
     body = (
-        f"Koordynator zmienił przydział {ROLE_LABELS[role]} w dniu {day}.\n"
-        f"Dyżur: {new_name} (poprzednio: {previous_name}).\n\n"
+        f"Koordynator zmienił przydział {roles} w dniu {day}.\n"
+        f"{detail}\n"
         f"{advice}\n"
         f"Aktualny grafik: {app.url}/\n"
     )
     return _render(
         app=app,
-        subject=subject,
+        subject=f"Zmiana przydziału: {day} · {roles}",
         body=body,
         eyebrow="Korekta grafiku",
         title="Zmiana przydziału",
         lead=join(
             text("Koordynator zmienił przydział "),
-            strong(ROLE_LABELS[role]),
+            strong(roles),
             text(" w dniu "),
             _day(service_date),
             text("."),
@@ -812,7 +819,10 @@ def assignment_overridden(
             Fact("Rola", _role(role)),
             Fact("Dyżur", strong(new_name)),
             Fact("Poprzednio", text(previous_name)),
-        ],
+        ]
+        if single
+        else None,
+        slots=None if single else _change_slots(changes),
         note=Note(advice),
         action=_schedule_action(app),
     )

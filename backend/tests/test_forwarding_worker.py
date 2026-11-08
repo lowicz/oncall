@@ -606,11 +606,7 @@ async def test_a_correction_mail_says_the_number_is_automatic_only_when_live(
     await _settings(db, fake, mode)
 
     await notify_assignment_overridden(
-        db,
-        service_date=_now(frozen_clock).date(),
-        role=role,
-        previous_name="Marek Nowak",
-        new_name=member.display_name,
+        db, changes=[(_now(frozen_clock).date(), role, "Marek Nowak", member.display_name)]
     )
     await db.commit()
 
