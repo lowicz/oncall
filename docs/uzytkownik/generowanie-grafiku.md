@@ -156,8 +156,9 @@ panel otworzy się na pustej roli i pokaże „brak obsady → *osoba*”.
 
 Gdy PRIMARY i SECONDARY dnia mają różne osoby, panel ma też **Zamień
 miejscami…**. Ramka „Zamiana miejscami” pokazuje obie role po zamianie, a gdy
-osoba z SECONDARY ma też `11–19`, pole „razem z SECONDARY” zaznaczone według
-powiązania; odznaczenie zostawia `11–19` bez zmian. W szkicu zamiana nie
+polityka wiąże `11–19` z rolą, którą oddaje osoba pełniąca też `11–19`, pole
+„razem z SECONDARY” (albo „razem z PRIMARY”), zaznaczone, gdy druga osoba ma
+uprawnienia do `11–19`; odznaczenie zostawia `11–19` bez zmian. W szkicu zamiana nie
 sprawdza reguł twardych w ramce i nie wysyła e-maili: to, co złamie, pokaże
 tabela problemów. **Zamień miejscami** zapisuje obie role (i `11–19`) jedną
 korektą. Każda korekta, także zamiana:

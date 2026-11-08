@@ -163,8 +163,10 @@ cell of a day marked as a gap, and the panel opens on the empty role and shows
 
 When the day's PRIMARY and SECONDARY are held by different people, the panel
 also has **Swap places…**. The “Swapping places” frame shows both roles after the
-swap and, when the SECONDARY holder also has `11–19`, a “together with SECONDARY” box
-ticked according to the coupling; unticking it leaves `11–19` unchanged. In a
+swap and, when the policy binds `11–19` to the role given up by the person who
+also holds `11–19`, a “together with SECONDARY” (or “together with PRIMARY”)
+box, ticked when the other person is eligible for `11–19`; unticking it leaves
+`11–19` unchanged. In a
 draft the swap checks no hard rules in the frame and sends no e-mail: what it
 breaks shows in the problems table. **Swap places** saves both roles (and
 `11–19`) as one correction. Every correction, a swap included:
