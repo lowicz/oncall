@@ -22,8 +22,9 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import Delete, Update, event, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import ORMExecuteState, Session, UOWTransaction
 
 from oncall.domain.roster import SlotOrigin
 from oncall.domain.vocabulary import AssignmentRole, ScheduleOrigin, ScheduleStatus
@@ -62,6 +63,32 @@ _effective_cache: dict[
     tuple[date, date], tuple[float, dict[tuple[date, AssignmentRole], EffectiveAssignment]]
 ] = {}
 _effective_locks: dict[tuple[date, date], asyncio.Lock] = {}
+_RESOLVED_TABLES = (Assignment.__table__, Schedule.__table__)
+_WROTE_RESOLVED = "oncall.wrote_resolved_assignments"
+
+
+# A committed write to assignments or schedules empties this process's cache,
+# so the writer's next read sees it. Other processes keep theirs until the TTL.
+@event.listens_for(Session, "after_flush")
+def _note_flushed_write(session: Session, _flush: UOWTransaction) -> None:
+    if any(
+        isinstance(row, (Assignment, Schedule))
+        for row in (*session.new, *session.dirty, *session.deleted)
+    ):
+        session.info[_WROTE_RESOLVED] = True
+
+
+@event.listens_for(Session, "do_orm_execute")
+def _note_bulk_write(state: ORMExecuteState) -> None:
+    statement = state.statement
+    if isinstance(statement, (Update, Delete)) and statement.table in _RESOLVED_TABLES:
+        state.session.info[_WROTE_RESOLVED] = True
+
+
+@event.listens_for(Session, "after_commit")
+def _forget_on_commit(session: Session) -> None:
+    if session.info.pop(_WROTE_RESOLVED, False):
+        _effective_cache.clear()
 
 
 async def effective_assignments(
