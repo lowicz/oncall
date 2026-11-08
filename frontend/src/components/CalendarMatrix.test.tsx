@@ -205,6 +205,7 @@ describe('CalendarMatrix override decision frame', () => {
       to_name: 'Marek Nowak',
       starts_at: `${day(1)}T09:40:00Z`,
       until: `${day(1)}T11:40:00Z`,
+      started_by_name: 'Anna Kowalska',
     }))
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     renderScreen(matrix())

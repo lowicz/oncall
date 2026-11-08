@@ -122,6 +122,8 @@ class HandoverResponse(BaseModel):
     to_name: str
     starts_at: datetime
     until: datetime
+    #: Who started it; null once their account is gone.
+    started_by_name: str | None
 
 
 class ForwardingNowResponse(BaseModel):
@@ -132,6 +134,8 @@ class ForwardingNowResponse(BaseModel):
 
     mode: ForwardingMode
     day: date | None
+    #: The latest `until` a handover may have: the end of the duty day.
+    day_ends_at: datetime | None
     holder_member_id: uuid.UUID | None
     holder_name: str | None
     holder_role: AssignmentRole | None

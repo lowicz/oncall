@@ -196,6 +196,8 @@ class NumberHandover:
     to_name: str
     starts_at: datetime
     until: datetime
+    #: Who started it; None once their account is gone.
+    started_by_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -206,6 +208,9 @@ class ForwardingNow:
 
     mode: ForwardingMode
     day: date | None = None
+    #: When the duty day ends and the number passes to the next PRIMARY: the
+    #: latest a handover may last.
+    day_ends_at: datetime | None = None
     holder_member_id: uuid.UUID | None = None
     holder_name: str | None = None
     #: PRIMARY, or SECONDARY while a handover holds.

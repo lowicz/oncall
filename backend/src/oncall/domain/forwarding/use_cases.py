@@ -268,12 +268,14 @@ async def forwarding_now(
     if handover is not None and handover_end(handover, day, duties, now) is not None:
         handover = None
     target = await target_of(day, duties, handover, ports.contacts)
+    ends_at = duty_day_end(day, reminder_hour)
     if target is None:
-        return ForwardingNow(mode=mode, day=day)
+        return ForwardingNow(mode=mode, day=day, day_ends_at=ends_at)
     status, confirmed_at = _status(mode, target, await ports.state.current())
     return ForwardingNow(
         mode=mode,
         day=day,
+        day_ends_at=ends_at,
         holder_member_id=target.holder_id,
         holder_name=target.holder_name,
         holder_role=AssignmentRole.secondary if target.receiver else AssignmentRole.primary,

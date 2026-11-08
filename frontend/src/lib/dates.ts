@@ -203,3 +203,14 @@ export function isoWeek(value: string) {
   const dayOfYear = Math.floor((date.getTime() - yearStart) / 86_400_000)
   return Math.floor(dayOfYear / 7) + 1
 }
+
+/**
+ * A moment as "HH:MM", or "09:00 jutro" on a later day than `from`: the end
+ * of a number handover, which never outlasts the next morning. Local time,
+ * like the strip's countdown.
+ */
+export function formatClock(value: string | Date, from = new Date()) {
+  const moment = new Date(value)
+  const clock = `${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`
+  return moment.toDateString() === from.toDateString() ? clock : `${clock} ${messages().dates.tomorrow}`
+}

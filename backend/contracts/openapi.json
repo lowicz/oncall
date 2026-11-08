@@ -2221,6 +2221,18 @@
             ],
             "title": "Day"
           },
+          "day_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Ends At"
+          },
           "handover": {
             "anyOf": [
               {
@@ -2281,6 +2293,7 @@
         "required": [
           "mode",
           "day",
+          "day_ends_at",
           "holder_member_id",
           "holder_name",
           "holder_role",
@@ -2696,6 +2709,17 @@
             "title": "Id",
             "type": "string"
           },
+          "started_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started By Name"
+          },
           "starts_at": {
             "format": "date-time",
             "title": "Starts At",
@@ -2724,7 +2748,8 @@
           "to_member_id",
           "to_name",
           "starts_at",
-          "until"
+          "until",
+          "started_by_name"
         ],
         "title": "HandoverResponse",
         "type": "object"

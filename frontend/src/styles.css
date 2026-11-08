@@ -84,6 +84,12 @@ small, .small { font-size: 12px; line-height: 16px; }
 .now-gap::before, .now-stale::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn-dot); box-shadow: 0 0 0 1.5px var(--band-ink); margin-right: 6px; vertical-align: middle; }
 /* A real gap outweighs the name beside it: bold, with the alarm dot. */
 .now-gap::before { background: var(--bad-dot); }
+/* The number pill keeps all its words and the name beside it stays whole:
+   the "do …" text gives way first, and where even then the row is too short
+   the pill and that text take a second row of the slot. */
+.now .pill { background: var(--band-chip); color: var(--rail-active-ink); flex: 0 0 auto; }
+.now-slot:has(.pill) { flex-wrap: wrap; row-gap: 4px; }
+.now-slot:has(.pill) .now-who { flex: 0 0 auto; }
 .now-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--band-edge); border-radius: 999px; padding: 5px 12px; color: var(--band-ink); min-width: 150px; font-size: 12px; line-height: 16px; background: transparent; cursor: pointer; }
 .now-search:hover { border-color: var(--band-ink); }
 .now-search .kbd { margin-left: auto; }
@@ -271,6 +277,8 @@ small, .small { font-size: 12px; line-height: 16px; }
 .inline-list li + li::before { content: '· '; color: var(--dim); }
 .kv { margin: 0; display: grid; gap: 6px; font-size: 12px; line-height: 16px; }
 .kv-row { display: flex; justify-content: space-between; gap: 12px; }
+/* A value with an action beside it (the open handover and "Zakończ") centres its key on the button. */
+.kv-row:has(.btn) { align-items: center; }
 .kv-row dt { color: var(--muted); }
 .kv-row dd { margin: 0; text-align: right; }
 .steps { display: flex; align-items: center; gap: 8px; font: 600 12px/16px var(--label); color: var(--dim); flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
@@ -412,6 +420,13 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .pop-positioner { z-index: 50; }
 .pop { background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-lg); padding: 10px 12px; display: grid; gap: 6px; font-size: 12px; line-height: 16px; box-shadow: var(--shadow-sm); width: max-content; max-width: min(320px, calc(100vw - 24px)); outline: none; }
 .pop-title { font: 700 12px/16px var(--font); }
+.pop-handover { width: min(380px, calc(100vw - 24px)); max-width: none; padding: 14px; gap: 12px; font-size: 14px; line-height: 21px; }
+.pop-handover .pop-title { font: 700 20px/24px var(--font); }
+.handover-result { font-size: 14px; line-height: 21px; }
+.handover-tel { color: inherit; text-decoration: none; white-space: nowrap; }
+.handover-tel:hover { text-decoration: underline; }
+.handover-actions { justify-content: flex-end; }
+.dcard-num { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px dashed var(--line); padding-top: 7px; margin-top: 4px; }
 .pop-h { font: 600 12px/16px var(--label); color: var(--dim); margin-top: 4px; }
 .pop-row { display: flex; align-items: center; gap: 8px; }
 .pop-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; flex: 0 0 auto; border: 1px solid var(--line); }

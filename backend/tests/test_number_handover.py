@@ -83,6 +83,7 @@ async def test_while_forwarding_is_off_nothing_can_be_handed_over_or_read(
     assert now.json() == {
         "mode": "off",
         "day": None,
+        "day_ends_at": None,
         "holder_member_id": None,
         "holder_name": None,
         "holder_role": None,
@@ -106,12 +107,14 @@ async def test_the_primary_hands_the_number_over_and_everyone_reads_where_it_rin
     assert started.status_code == 201, started.text
     handover = started.json()
     assert (handover["from_name"], handover["to_name"]) == ("Anna Kowalska", "Marek Nowak")
+    assert handover["started_by_name"] == "Anna Kowalska"
     await login(client, "jan")
     now = await client.get(NOW)
     assert now.status_code == 200
     assert now.json() | {"handover": None} == {
         "mode": "live",
         "day": frozen_clock.business_today().isoformat(),
+        "day_ends_at": f"{frozen_clock.business_today() + timedelta(days=1)}T09:00:00+02:00",
         "holder_member_id": str(pair["Marek Nowak"].id),
         "holder_name": "Marek Nowak",
         "holder_role": "secondary",
@@ -382,3 +385,20 @@ async def test_the_store_answers_a_second_open_handover_as_the_first(
         await pending
 
     assert "Marek Nowak" in str(refused.value)
+
+
+async def test_a_handover_whose_starter_is_gone_names_nobody(db, pair, frozen_clock) -> None:
+    store = SqlAlchemyHandovers(db)
+    started = await store.start(
+        day=frozen_clock.business_today(),
+        from_member_id=pair["Anna Kowalska"].id,
+        to_member_id=pair["Marek Nowak"].id,
+        until=frozen_clock.instant + timedelta(hours=1),
+        now=frozen_clock.instant,
+        by_user_id=pair["Anna Kowalska"].user_id,
+    )
+    (await db.get(ForwardingHandover, started.id)).created_by_user_id = None
+    await db.flush()
+
+    assert started.started_by_name == "Anna Kowalska"
+    assert (await store.open()).started_by_name is None

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isMonday, isoWeek, monthFromName, relativeDay, warsawDate, weekdays, weekdaysFromMonday, formatMoment, formatDate, formatDateLong, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, formatWeekday, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
+import { isMonday, isoWeek, monthFromName, relativeDay, warsawDate, weekdays, weekdaysFromMonday, formatMoment, formatClock, formatDate, formatDateLong, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, formatWeekday, fourWeekRangeEnd, isIsoDate, daysBetween, weeksBetween, weeksWord } from './dates'
 
 describe('global date formatting', () => {
   it('formats API dates and timestamps as DD-MM-YYYY', () => {
@@ -166,5 +166,13 @@ describe('isMonday', () => {
     expect(isMonday('2026-09-14')).toBe(true)
     expect(isMonday('2026-09-13')).toBe(false)
     expect(isMonday('2026-09-15')).toBe(false)
+  })
+})
+
+describe('formatClock', () => {
+  it('prints the hour and minute, and says "jutro" for the next day', () => {
+    const from = new Date('2026-09-10T11:40:00+02:00')
+    expect(formatClock('2026-09-10T11:40:00Z', from)).toBe('13:40')
+    expect(formatClock(new Date('2026-09-11T09:00:00+02:00'), from)).toBe('09:00 jutro')
   })
 })

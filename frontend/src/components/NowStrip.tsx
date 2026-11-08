@@ -5,6 +5,8 @@ import { roleLabels } from '../lib/labels'
 import { weekdays } from '../lib/dates'
 import { locale, messages, useMessages } from '../i18n'
 import { RoleLabel, Skeleton, cx } from '../ui'
+import { heldNumber, useForwardingNow } from '../hooks/useForwardingNow'
+import { NumberPill } from './NumberHandover'
 
 const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 
@@ -51,7 +53,8 @@ function useMinuteTick() {
  * The strip at the top of every screen: who holds each role right now, how
  * to call them, and until when. It is the one thing an operator needs during
  * an incident, so it is always there and keeps the last known staffing when
- * the network is gone.
+ * the network is gone. While forwarding is on, a pill beside one of them
+ * says the on-call number rings there.
  */
 export function NowStrip({ children }: { children?: React.ReactNode }) {
   const schedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
@@ -63,6 +66,8 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
   const updated = schedule.dataUpdatedAt ? new Date(schedule.dataUpdatedAt) : null
   const dayOff = schedule.data?.today_is_day_off ?? false
   const holiday = schedule.data?.today_holiday_name ?? null
+  const held = heldNumber(useForwardingNow().data)
+  const pill = useMessages().duty.handover.pill
 
   return (
     <div className="now" role="region" aria-label={t.region}>
@@ -84,6 +89,9 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
                   <a className="now-tel" href={`tel:${duty.contact_phone.replace(/\s+/g, '')}`}>
                     {duty.contact_phone}
                   </a>
+                )}
+                {held && held.holder_role === role && held.holder_name === duty.assignee_name && (
+                  <NumberPill now={held} where={pill} />
                 )}
                 <span className={cx('now-until', stale && 'now-stale')} title={stale && updated ? t.asOf(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })) : undefined}>
                   {stale && updated

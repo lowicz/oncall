@@ -189,6 +189,45 @@ describe('NowStrip', () => {
     expect(dot?.style.width).toBe('8px')
   })
 
+  it('puts the number pill beside whoever the number rings at, and keeps the PRIMARY phone', async () => {
+    loadRealStylesheet()
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
+      duty({ contact_phone: '+48 601 220 118' }),
+      duty({ role: 'secondary', assignee_name: 'Marek Nowak', member_id: 'm2', contact_phone: '+48 602 345 678' }),
+    ]))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+      handover: {
+        id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+        starts_at: '2026-09-10T07:00:00Z', until: '2026-09-10T11:40:00Z', started_by_name: 'Anna Kowalska',
+      },
+      status: 'switching', confirmed_at: null,
+    })
+    renderScreen(<NowStrip />)
+
+    const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
+    const pill = await within(strip).findByRole('button', { name: 'numer on-call · przełączam · do 13:40' })
+    expect(pill.closest('.now-slot')).toHaveAttribute('data-role', 'secondary')
+    expect(within(strip).getAllByRole('button', { name: /numer on-call/ })).toHaveLength(1)
+    expect(within(strip).getByRole('link', { name: '+48 601 220 118' })).toBeInTheDocument()
+    // The name beside the pill stays whole and the slot may wrap the pill to a second row.
+    expect(getComputedStyle(pill.closest('.now-slot')!).flexWrap).toBe('wrap')
+    expect(getComputedStyle(within(strip).getByText('Marek Nowak')).flexShrink).toBe('0')
+  })
+
+  it('shows no pill while forwarding is off', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({})]))
+    const now = vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'off', day: null, day_ends_at: null, holder_member_id: null, holder_name: null, holder_role: null,
+      handover: null, status: null, confirmed_at: null,
+    })
+    renderScreen(<NowStrip />)
+    await screen.findByText('Anna Kowalska')
+    await waitFor(() => expect(now).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /numer on-call/ })).not.toBeInTheDocument()
+  })
+
   it('leaves the end out when the window cannot be read', () => {
     const end = coverageEnd(duty({ coverage_starts_at: '', coverage_ends_at: 'x' }))
     expect(end).toBeNull()

@@ -698,9 +698,10 @@ class SqlAlchemyHandovers:
         giver, receiver = aliased(TeamMember), aliased(TeamMember)
         row = (
             await self._session.execute(
-                select(ForwardingHandover, giver.display_name, receiver.display_name)
+                select(ForwardingHandover, giver.display_name, receiver.display_name, User)
                 .join(giver, giver.id == ForwardingHandover.from_member_id)
                 .join(receiver, receiver.id == ForwardingHandover.to_member_id)
+                .outerjoin(User, User.id == ForwardingHandover.created_by_user_id)
                 .where(ForwardingHandover.ended_at.is_(None))
                 .order_by(ForwardingHandover.starts_at.desc())
                 .limit(1)
@@ -708,7 +709,7 @@ class SqlAlchemyHandovers:
         ).first()
         if row is None:
             return None
-        handover, from_name, to_name = row
+        handover, from_name, to_name, starter = row
         return NumberHandover(
             id=handover.id,
             day=handover.day,
@@ -718,6 +719,7 @@ class SqlAlchemyHandovers:
             to_name=to_name,
             starts_at=as_utc(handover.starts_at),
             until=as_utc(handover.until),
+            started_by_name=starter.display_name if starter is not None else None,
         )
 
     async def start(

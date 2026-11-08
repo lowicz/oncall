@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../../test/render'
 import { ForwardingPanel } from './Forwarding'
-import { ForwardingSettings, ForwardingState, RevealedPasswords, api } from '../../api'
+import { ForwardingNow, ForwardingSettings, ForwardingState, RevealedPasswords, api } from '../../api'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -234,6 +234,48 @@ const openReveal = async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Pokaż hasło' }))
   return screen.findByRole('dialog', { name: 'Pokaż hasło WCO' })
 }
+
+describe('ForwardingPanel and a number handover', () => {
+  const now = (startedBy: string | null): ForwardingNow => ({
+    mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+    holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+    handover: {
+      id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+      starts_at: '2026-09-10T09:40:00Z', until: '2026-09-10T11:40:00Z', started_by_name: startedBy,
+    },
+    status: 'confirmed', confirmed_at: '2026-09-10T09:41:00Z',
+  })
+
+  it('shows the open handover on the state card and ends it at once, without a dialog', async () => {
+    stub()
+    const read = vi.spyOn(api, 'forwardingNow').mockResolvedValueOnce(now('Anna Kowalska')).mockResolvedValue({
+      ...now(null), handover: null, holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+    })
+    const end = vi.spyOn(api, 'endHandover').mockResolvedValue(undefined)
+    renderScreen(<ForwardingPanel />)
+
+    expect(await screen.findByText('Przekazanie')).toBeInTheDocument()
+    expect(row('Przekazanie')).toHaveTextContent('Anna Kowalska → Marek Nowak · do 13:40 · zlecone przez: Anna Kowalska, 11:40')
+    fireEvent.click(within(row('Przekazanie')).getByRole('button', { name: 'Zakończ' }))
+
+    expect(await screen.findByText('Zakończono przekazanie numeru; numer on-call znów odbiera Anna Kowalska')).toBeInTheDocument()
+    expect(end).toHaveBeenCalledWith('h1')
+    await waitFor(() => expect(screen.queryByText('Przekazanie')).not.toBeInTheDocument())
+    expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves out who started it once their account is gone, and reports a refusal', async () => {
+    stub()
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue(now(null))
+    vi.spyOn(api, 'endHandover').mockRejectedValue(new Error('To przekazanie numeru on-call już się zakończyło'))
+    renderScreen(<ForwardingPanel />)
+
+    expect(await screen.findByText('Przekazanie')).toBeInTheDocument()
+    expect(row('Przekazanie')).not.toHaveTextContent('zlecone')
+    fireEvent.click(within(row('Przekazanie')).getByRole('button', { name: 'Zakończ' }))
+    expect(await screen.findByText('To przekazanie numeru on-call już się zakończyło')).toBeInTheDocument()
+  })
+})
 
 describe('ForwardingPanel reveal dialog', () => {
   it('asks for the administrator\'s own password and shows the value masked, copied as it is, for 60 seconds', async () => {

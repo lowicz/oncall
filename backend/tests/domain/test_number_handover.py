@@ -554,6 +554,7 @@ async def test_before_any_publication_there_is_nobody_to_name() -> None:
     now = await _now(duties={}, published=False)
 
     assert (now.day, now.holder_name, now.status) == (DAY, None, None)
+    assert now.day_ends_at == datetime(2026, 3, 11, 9, tzinfo=WARSAW)
 
 
 async def test_the_primary_holds_the_number_once_wco_confirmed_it() -> None:
@@ -570,6 +571,7 @@ async def test_the_primary_holds_the_number_once_wco_confirmed_it() -> None:
     assert (confirmed.holder_member_id, confirmed.holder_role) == (ANNA, AssignmentRole.primary)
     assert (confirmed.status, confirmed.confirmed_at) == (SwitchStatus.confirmed, CONFIRMED_AT)
     assert confirmed.handover is None
+    assert confirmed.day_ends_at == datetime(2026, 3, 11, 9, tzinfo=WARSAW)
 
 
 async def test_during_a_handover_the_receiver_holds_it_and_the_old_number_is_switching() -> None:
