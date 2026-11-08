@@ -87,7 +87,7 @@ Once a request has been started, closing the panel, going to another screen, or 
    person's card gives the name, their availability, one verdict and one
    number - the deviation from the fair share in points (for example
    “-0.5 pts”) - so you compare several people at a glance. The first card
-   carries the **“best match”** tag when that person breaks nothing and the
+   carries the **“best match”** tag when that person breaks no hard rule and the
    swap evens out their balance the most. Clicking picks the person; under
    their card appear the remaining facts: the rule the request would break,
    with its days, a duty the person already has that day, a split block of
@@ -124,7 +124,8 @@ Once a request has been started, closing the panel, going to another screen, or 
    it. The reason is not required, also when the swap breaks rules.
 6. “Send request”. While something is missing, the panel footer says what
    next to the button: the duty, the replacement, the rule confirmation or a
-   published schedule. The screen confirms the sending with the message
+   published schedule; with a hard rule - another person or another duty in
+   return. The screen confirms the sending with the message
    “Sent to: …” with an **Undo** button and moves to the **Mine** inbox.
    “Undo” within 10 seconds withdraws the request with the reason “cofnięte
    zaraz po wysłaniu” (undone right after sending). The message to the replacement waits for the end of

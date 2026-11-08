@@ -80,7 +80,7 @@ Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświ
    podaje nazwisko, jej dostępność, jeden werdykt i jedną liczbę - odchylenie
    od należnego udziału w punktach (na przykład „-0,5 pkt”) - więc kilka osób
    porównasz na pierwszy rzut oka. Pierwsza karta ma znacznik **„najlepsze
-   dopasowanie”**, gdy ta osoba niczego nie łamie, a zamiana najbardziej
+   dopasowanie”**, gdy ta osoba nie łamie żadnej reguły twardej, a zamiana najbardziej
    wyrównuje jej bilans. Kliknięcie wybiera osobę; pod jej kartą pojawia się
    reszta faktów: reguła, którą prośba złamie, z dniami, dyżur, który ta osoba
    ma już tego dnia, dzielony blok dni wolnych, jej udział w punktach i to, czy
@@ -114,7 +114,8 @@ Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświ
    jest wymagany, także gdy zamiana łamie reguły.
 6. „Wyślij prośbę”. Dopóki czegoś brakuje, stopka panelu mówi obok
    przycisku, czego: dyżuru, zastępcy, potwierdzenia reguł albo
-   opublikowanego grafiku. Ekran potwierdza wysłanie komunikatem „Wysłano do:
+   opublikowanego grafiku; przy regule twardej - innej osoby albo innego
+   dyżuru w zamian. Ekran potwierdza wysłanie komunikatem „Wysłano do:
    …” z przyciskiem **Cofnij** i przechodzi do skrzynki **Moje**. „Cofnij” w
    ciągu 10 sekund wycofuje prośbę z powodem „cofnięte zaraz po wysłaniu”.
    Wiadomość do zastępcy czeka na koniec tego czasu, więc o prośbie
