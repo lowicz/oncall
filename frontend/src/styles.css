@@ -166,7 +166,7 @@ small, .small { font-size: 12px; line-height: 16px; }
 .risk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .tag { font: 600 12px/16px var(--label); padding: 1px 9px; border-radius: 999px; background: var(--s3); color: var(--muted); white-space: nowrap; }
-.tag-late { color: var(--late); }
+.tag-late { color: var(--late-text); }
 .tag-sig { color: var(--sig); }
 .tag-bad { color: var(--bad-text); }
 .st { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/16px var(--label); padding: 1px 9px 1px 8px; border-radius: 999px; color: var(--fg); white-space: nowrap; }
