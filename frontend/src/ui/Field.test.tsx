@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { Checkbox, Field, Input, Segmented, Select, Textarea } from './Field'
+import { Checkbox, Field, Fieldset, Input, Segmented, Select, Textarea } from './Field'
+import { expectNoAxeViolations } from '../test/axe'
 import { navigateRadioGroup, radioTabIndex } from './radioNavigation'
 
 describe('Field', () => {
@@ -242,5 +243,93 @@ describe('Segmented', () => {
   it('lets the options wrap onto further rows when asked', () => {
     render(<Segmented label="Filtry" value="a" onChange={() => {}} options={[{ value: 'a', label: 'A' }]} wrap />)
     expect(screen.getByRole('radiogroup', { name: 'Filtry' })).toHaveClass('seg', 'seg-wrap')
+  })
+})
+
+describe('Fieldset', () => {
+  function Roles({ error }: { error?: string }) {
+    const [late, setLate] = useState(false)
+    return (
+      <Fieldset legend="Role do zmiany" hint="PRIMARY niedostępna: Jan Wiśniewski ma już drugi on-call tego dnia." error={error} className="roles">
+        <Checkbox label="PRIMARY" blocked />
+        <Checkbox label="SECONDARY" defaultChecked />
+        <Checkbox label="11–19" checked={late} onChange={(event) => setLate(event.target.checked)} />
+      </Fieldset>
+    )
+  }
+
+  it('names the group by its legend and describes it with the hint', async () => {
+    const { container } = render(<Roles />)
+    const group = screen.getByRole('group', { name: 'Role do zmiany' })
+    expect(group.tagName).toBe('FIELDSET')
+    expect(group).toHaveClass('field', 'fieldset', 'roles')
+    expect(group).toHaveAccessibleDescription('PRIMARY niedostępna: Jan Wiśniewski ma już drugi on-call tego dnia.')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await expectNoAxeViolations(container)
+  })
+
+  it('keeps a blocked choice in the tab order but never checks it', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<Roles />)
+    const primary = screen.getByRole('checkbox', { name: 'PRIMARY' })
+    expect(primary).toHaveAttribute('aria-disabled', 'true')
+    expect(primary).toBeEnabled()
+    expect(primary.closest('label')).toHaveClass('check', 'check-off')
+    await user.tab()
+    expect(primary).toHaveFocus()
+    await user.keyboard(' ')
+    await user.click(screen.getByText('PRIMARY'))
+    expect(primary).not.toBeChecked()
+    await user.tab()
+    await user.tab()
+    const late = screen.getByRole('checkbox', { name: '11–19' })
+    expect(late).toHaveFocus()
+    expect(late).not.toHaveAttribute('aria-disabled')
+    await user.keyboard(' ')
+    expect(late).toBeChecked()
+  })
+
+  it('announces an error in place of the hint', () => {
+    render(<Roles error="Wybierz co najmniej jedną rolę" />)
+    const group = screen.getByRole('group', { name: 'Role do zmiany' })
+    expect(group).toHaveClass('field-invalid')
+    expect(group).toHaveAccessibleDescription('Wybierz co najmniej jedną rolę')
+    expect(screen.getByRole('alert')).toHaveTextContent('Wybierz co najmniej jedną rolę')
+  })
+
+  it('describes nothing when there is nothing to say', () => {
+    render(<Fieldset legend="Role"><Checkbox label="PRIMARY" /></Fieldset>)
+    expect(screen.getByRole('group', { name: 'Role' })).not.toHaveAttribute('aria-describedby')
+  })
+})
+
+describe('Segmented named by a visible label', () => {
+  it('takes its name from the label, a single tab stop and the arrows', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    function Duration() {
+      const [value, setValue] = useState('2h')
+      return (
+        <div className="field">
+          <span className="field-label" id="dur">Na jak długo</span>
+          <Segmented label="Na jak długo" labelId="dur" value={value} onChange={setValue} options={[
+            { value: '1h', label: '1 h' },
+            { value: '2h', label: '2 h' },
+            { value: 'end', label: 'do 09:00 jutro' },
+          ]} />
+        </div>
+      )
+    }
+    const { container } = render(<><button>Przed</button><Duration /></>)
+    const group = screen.getByRole('radiogroup', { name: 'Na jak długo' })
+    expect(group).not.toHaveAttribute('aria-label')
+    await user.tab()
+    await user.tab()
+    expect(screen.getByRole('radio', { name: '2 h' })).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'do 09:00 jutro' })).toHaveFocus()
+    expect(screen.getByRole('radio', { name: 'do 09:00 jutro' })).toBeChecked()
+    await user.tab({ shift: true })
+    expect(screen.getByRole('button', { name: 'Przed' })).toHaveFocus()
+    await expectNoAxeViolations(container)
   })
 })

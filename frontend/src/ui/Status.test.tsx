@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { AvailabilityMark, Avatar, Chip, ChipRow, DeviationBar, RoleLabel, RoleMark, StatusBadge, Tag } from './Status'
+import { AvailabilityMark, Avatar, Chip, ChipRow, DeviationBar, RoleLabel, RoleMark, StatusBadge, StatusLine, Tag } from './Status'
+import { expectNoAxeViolations } from '../test/axe'
 
 describe('badges and tags', () => {
   it('draw a status badge in its tone, muted by default', () => {
@@ -15,6 +16,16 @@ describe('badges and tags', () => {
     expect(screen.getByText('11–19')).toHaveClass('tag', 'tag-late', 't')
     rerender(<Tag>v3</Tag>)
     expect(screen.getByText('v3').className).toBe('tag')
+  })
+})
+
+describe('StatusLine', () => {
+  it('states the outcome of a check as a status, read out when it changes', async () => {
+    const { container } = render(<StatusLine className="swap-rules">Bez naruszeń reguł twardych po zamianie</StatusLine>)
+    const line = screen.getByRole('status')
+    expect(line).toHaveTextContent('Bez naruszeń reguł twardych po zamianie')
+    expect(line).toHaveClass('status-line', 'swap-rules')
+    await expectNoAxeViolations(container)
   })
 })
 

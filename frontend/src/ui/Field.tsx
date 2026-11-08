@@ -37,12 +37,40 @@ export function Field({ label, hint, error, children, className, required, id: g
         {required && <span className="field-req" aria-hidden="true"> *</span>}
       </label>
       {children({ id, labelId, describedBy: hasMessage ? messageId : undefined, invalid: Boolean(error) })}
-      {error ? (
-        <p className="field-msg" id={messageId} role="alert">{error}</p>
-      ) : hint ? (
-        <p className="field-hint" id={messageId}>{hint}</p>
-      ) : null}
+      <FieldMessage id={messageId} hint={hint} error={error} />
     </div>
+  )
+}
+
+/** The error (announced) or else the hint under a field or a group. */
+function FieldMessage({ id, hint, error }: { id: string; hint?: ReactNode; error?: ReactNode }) {
+  if (error) return <p className="field-msg" id={id} role="alert">{error}</p>
+  if (hint) return <p className="field-hint" id={id}>{hint}</p>
+  return null
+}
+
+/**
+ * A group of controls under one legend: the roles a correction changes. The
+ * hint or error under the group describes the whole group, so the reason a
+ * choice is blocked is read together with it.
+ */
+export function Fieldset({ legend, hint, error, children, className }: {
+  legend: ReactNode
+  hint?: ReactNode
+  error?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  const messageId = `${useId()}-msg`
+  return (
+    <fieldset
+      className={cx('field', 'fieldset', Boolean(error) && 'field-invalid', className)}
+      aria-describedby={error || hint ? messageId : undefined}
+    >
+      <legend className="field-label">{legend}</legend>
+      {children}
+      <FieldMessage id={messageId} hint={hint} error={error} />
+    </fieldset>
   )
 }
 
@@ -87,13 +115,21 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
   },
 )
 
-export function Checkbox({ label, hint, className, ...rest }: {
+export function Checkbox({ label, hint, className, blocked, ...rest }: {
   label: ReactNode
   hint?: ReactNode
+  /** Unavailable, but kept in the tab order (`aria-disabled`, not `disabled`)
+   *  so the reason, said under the group, is reached with it. */
+  blocked?: boolean
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
   return (
-    <label className={cx('check', className)}>
-      <input type="checkbox" {...rest} />
+    <label className={cx('check', blocked && 'check-off', className)}>
+      <input
+        type="checkbox"
+        aria-disabled={blocked || undefined}
+        onClickCapture={blocked ? (event) => event.preventDefault() : undefined}
+        {...rest}
+      />
       <span className="check-body">
         <span>{label}</span>
         {hint && <small>{hint}</small>}

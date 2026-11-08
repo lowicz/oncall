@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isPolishPhone } from './phone'
+import { isPolishPhone, phoneText, telHref } from './phone'
 
 describe('isPolishPhone', () => {
   it.each(['600100200', '600 100 200', '600-100-200', '48600100200', '+48 600 100 200', ' +48600100200 '])(
@@ -13,4 +13,14 @@ describe('isPolishPhone', () => {
       expect(isPolishPhone(value)).toBe(false)
     },
   )
+})
+
+describe('a number as dialled and as printed', () => {
+  it('dials only the digits and the plus', () => {
+    expect(telHref('+48 602-345 678')).toBe('tel:+48602345678')
+  })
+
+  it('prints the groups held together by no-break spaces', () => {
+    expect(phoneText(' +48 602  345 678 ')).toBe('+48 602 345 678')
+  })
 })

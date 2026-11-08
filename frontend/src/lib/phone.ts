@@ -9,3 +9,13 @@ const POLISH_NUMBER = /^(\+?48)?\d{9}$/
 export function isPolishPhone(value: string): boolean {
   return POLISH_NUMBER.test(value.trim().replace(/[ -]/g, ''))
 }
+
+/** The `tel:` address of a number as stored or typed: the digits and the plus. */
+export function telHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`
+}
+
+/** A number as printed, its groups held by no-break spaces so it never wraps. */
+export function phoneText(phone: string): string {
+  return phone.trim().replace(/\s+/g, '\u00a0')
+}
