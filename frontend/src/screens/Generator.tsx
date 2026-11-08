@@ -184,6 +184,14 @@ export function GeneratorPanel() {
     // for the global 30s staleTime and the effect above would rewind `result`.
     queryClient.invalidateQueries({ queryKey: ['schedule'] })
   }
+  // A correction or its Undo can land after the coordinator opened another
+  // draft or closed this one; it then only refreshes the stored copies.
+  const shownId = useRef<string | undefined>(undefined)
+  useEffect(() => { shownId.current = result?.id }, [result?.id])
+  const correct = (value: DraftSchedule) => {
+    if (shownId.current === value.id) setResult(value)
+    else invalidateDrafts()
+  }
   // Rotation mode, the 11–19 anchor and the swap approval are stored policy,
   // not request parameters; they are written only on an explicit save, never
   // on change.
@@ -534,7 +542,7 @@ export function GeneratorPanel() {
                 meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? t.draft.clickToCorrect : ''}`}
                 controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">{t.draft.legend}</button>} />}
               />
-              <DraftScheduleMatrix result={result} onChange={setResult} focus={focus} />
+              <DraftScheduleMatrix result={result} onChange={correct} focus={focus} />
               <div ref={problemsRef}>
                 <SectionHeading
                   as="h3"
