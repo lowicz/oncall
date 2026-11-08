@@ -118,10 +118,10 @@ samo z siebie - trzeba wtedy skorzystać z [zamiany](zamiany.md).
 
 ## Moje punkty
 
-Jedna liczba: Twoje odchylenie od średniej zespołu w punktach za ostatnie
+Jedna liczba: Twoje odchylenie od sprawiedliwego udziału w punktach za ostatnie
 12 miesięcy (na przykład `+0,5`), pod nią pasek dwukierunkowy i werdykt
 (**W normie** albo **Poza normą**) z jednym zdaniem w rodzaju „Masz o 0,5
-pkt więcej niż średnia zespołu” i podaną normą. Tabela miesięcy pokazuje punkty, liczbę dyżurów i dni
+pkt więcej niż Twój sprawiedliwy udział” i podaną normą. Tabela miesięcy pokazuje punkty, liczbę dyżurów i dni
 weekendowych; przełącznik **12 mies.** / **Ten miesiąc** zawęża listę (ten miesiąc jest w
 adresie strony jako `okres=miesiac`). Link
 **Pełny raport sprawiedliwości** prowadzi do ekranu z całym zespołem - jak

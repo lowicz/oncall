@@ -690,8 +690,9 @@ function PointsSection({ displayName, compact, onAvailability }: {
   const threshold = fairness.data?.criterion_points ?? 0
   const within = balance ? Math.abs(balance.deviation) <= threshold : true
   const rows = monthlyTotals(duties.data ?? []).filter((row) => period === '12m' || row.month === thisMonth)
+  const shown = balance ? Number(balance.deviation.toFixed(1)) : 0
   const bigNumber = balance
-    ? `${balance.deviation > 0 ? '+' : balance.deviation < 0 ? '−' : ''}${formatPoints(Math.abs(balance.deviation))}`
+    ? `${shown > 0 ? '+' : shown < 0 ? '−' : ''}${formatPoints(Math.abs(shown))}`
     : null
   return (
     <section className="stack-sm" aria-labelledby="moje-punkty">
@@ -726,7 +727,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
             <DeviationBar value={balance.deviation} max={DEVIATION_SCALE} label={deviationWords(balance.deviation)} />
             {!compact && (
               <Box tone={within ? 'ok' : 'warn'} title={within ? t.within : t.outside}>
-                {balance.deviation > 0 ? t.aboveAverage(formatPoints(balance.deviation)) : balance.deviation < 0 ? t.belowAverage(formatPoints(-balance.deviation)) : t.atAverage}
+                {shown > 0 ? t.aboveShare(formatPoints(shown)) : shown < 0 ? t.belowShare(formatPoints(-shown)) : t.atShare}
                 {' '}{t.norm(formatPoints(threshold))}
                 {' '}{within
                   ? t.generatorEvensOut

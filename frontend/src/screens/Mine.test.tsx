@@ -180,7 +180,7 @@ describe('MineScreen points and swaps', () => {
     renderScreen(<MineScreen displayName="Julia Nowak" />)
     expect(await screen.findByText('+0,5', { selector: '.big' })).toBeInTheDocument()
     expect(screen.getByText('W normie')).toBeInTheDocument()
-    expect(screen.getByText(/Masz o 0,5 pkt więcej niż średnia zespołu\. Norma to ±2,0 pkt od średniej\./)).toBeInTheDocument()
+    expect(screen.getByText(/Masz o 0,5 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\./)).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: 'Punkty miesiąc po miesiącu' })
     expect(within(table).getByText('wrzesień')).toBeInTheDocument()
     expect(within(table).getByText('sierpień')).toBeInTheDocument()
@@ -772,8 +772,8 @@ describe('MineScreen on a phone', () => {
 
 describe('MineScreen points states', () => {
   it.each([
-    ['above the average', 3, '+3,0', 'Masz o 3,0 pkt więcej niż średnia zespołu.', 'Generator da Ci mniej dyżurów w kolejnym zakresie.'],
-    ['below the average', -3, '−3,0', 'Masz o 3,0 pkt mniej niż średnia zespołu.', 'Generator da Ci więcej dyżurów w kolejnym zakresie.'],
+    ['above the fair share', 3, '+3,0', 'Masz o 3,0 pkt więcej niż Twój sprawiedliwy udział.', 'Generator da Ci mniej dyżurów w kolejnym zakresie.'],
+    ['below the fair share', -3, '−3,0', 'Masz o 3,0 pkt mniej niż Twój sprawiedliwy udział.', 'Generator da Ci więcej dyżurów w kolejnym zakresie.'],
   ])('tells a member %s outside the norm what the generator will do', async (_, deviation, big, sentence, plan) => {
     stub()
     vi.spyOn(api, 'fairness').mockResolvedValue({ ...REPORT, members: [{ ...REPORT.members[0], primary: balance(4, deviation) }] })
@@ -785,12 +785,12 @@ describe('MineScreen points states', () => {
     expect(screen.getByText(plan, { exact: false })).toBeInTheDocument()
   })
 
-  it('prints an even balance without a sign', async () => {
+  it.each([0, 0.03, -0.04])('prints a balance of %s, which rounds to zero, as even and without a sign', async (deviation) => {
     stub()
-    vi.spyOn(api, 'fairness').mockResolvedValue({ ...REPORT, members: [{ ...REPORT.members[0], primary: balance(4, 0) }] })
+    vi.spyOn(api, 'fairness').mockResolvedValue({ ...REPORT, members: [{ ...REPORT.members[0], primary: balance(4, deviation) }] })
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     expect(await screen.findByText('0,0', { selector: '.big' })).toBeInTheDocument()
-    expect(screen.getByText('Masz tyle punktów, ile wynosi średnia zespołu.', { exact: false })).toBeInTheDocument()
+    expect(screen.getByText('Masz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział.', { exact: false })).toBeInTheDocument()
   })
 
   it('says when the month has no duties and switches back to twelve months', async () => {

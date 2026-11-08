@@ -120,10 +120,10 @@ the schedule by itself - you then have to use a [swap](zamiany.md).
 
 ## My points
 
-One number: your deviation from the team average of points over the last 12
+One number: your deviation from your fair share of points over the last 12
 months (for example `+0.5`), under it a two-way bar and the verdict
 (**Within limits** or **Outside limits**) with one sentence such as “You have
-0.5 pts more than the team average” and the norm. The table of months shows points, the number of duties
+0.5 pts more than your fair share” and the norm. The table of months shows points, the number of duties
 and weekend days; the **12 months** / **This month** switch narrows the list (this month is in
 the page address as `okres=miesiac`).
 The **Full fairness report** link leads to the screen with the whole team -

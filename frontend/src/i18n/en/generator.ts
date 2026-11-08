@@ -133,7 +133,7 @@ export const generator: Messages['generator'] = {
     fairnessProven: 'optimal (proven)',
     fairnessBestFound: 'best found',
     /** The distance from the best solution the engine could not rule out; only in the solver details. */
-    gap: (percent: string) => `Gap to the best possible solution: ${percent} %`,
+    gap: (percent: string) => `Gap to the best possible solution: ${percent}%`,
     proposedStaffing: 'Proposed staffing',
     clickToCorrect: ' · click a cell to correct',
     legend: 'Legend',
