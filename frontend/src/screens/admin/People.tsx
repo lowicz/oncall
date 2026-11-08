@@ -614,11 +614,19 @@ export function PeoplePanel() {
         )}
         footer={selectedRow && (
           <>
-            {dirty && <span className="panel-foot-note small muted">{t.details.unsaved(pendingChanges.join(' · '))}</span>}
             <Button size="sm" variant="ghost" className="btn-bad" onClick={() => { setDeleteTyped(''); setDeleteOpen(true) }}>{t.details.deleteAccount}</Button>
-            <span className="sp" />
-            {/* Named for its effect, so it needs no dialog; closing by Escape or the corner button still asks. */}
-            <Button size="sm" onClick={dirty ? () => setSelectedId(null) : requestClose}>{dirty ? t.details.discard : m.common.close}</Button>
+            {dirty ? (
+              <span className="panel-foot-note small muted">
+                {t.details.unsaved(pendingChanges.join(' · '))}
+                {/* Named for its effect, so it needs no dialog; closing by Escape or the corner button still asks. */}
+                <button type="button" className="link-btn" onClick={() => setSelectedId(null)}>{t.details.discard}</button>
+              </span>
+            ) : (
+              <>
+                <span className="sp" />
+                <Button size="sm" onClick={requestClose}>{m.common.close}</Button>
+              </>
+            )}
             <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending} loading={saveAll.isPending}>
               {saveAll.isPending ? m.common.saving : dirty ? t.details.saveCount(pendingChanges.length) : t.details.save}
             </Button>
