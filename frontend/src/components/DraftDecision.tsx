@@ -14,9 +14,8 @@ export const SOLVER_OK = new Set(['OPTIMAL', 'FEASIBLE'])
 
 /**
  * The one panel above the draft matrix: the verdict (hard rules, the fairness
- * criterion), why, and the one action that moves the draft on. What the
- * publication will change is said here, before the publication sheet opens,
- * so the sheet itself holds only decisions and consents.
+ * criterion), why, and the one action that moves the draft on. On a proposal
+ * it also says what the publication will change, before the sheet opens.
  */
 export function DraftDecision({ result, preview, busy, error, onFix, onPropose, onPublish, onWithdraw }: Readonly<{
   result: DraftSchedule
