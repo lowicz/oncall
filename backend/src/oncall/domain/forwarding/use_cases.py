@@ -4,7 +4,6 @@ state, and the day's pair handing the on-call number over."""
 
 import uuid
 from collections.abc import Iterable
-from dataclasses import replace
 from datetime import date, datetime
 
 from oncall.domain.access.models import SignInRequest
@@ -254,7 +253,7 @@ def _status(
 
 def _without_starter(handover: NumberHandover) -> NumberHandover:
     """The handover as told to anyone but the administrator (NP-11)."""
-    return replace(handover, started_by_name=None)
+    return NumberHandover(**{**vars(handover), "started_by_name": None})
 
 
 async def forwarding_now(
