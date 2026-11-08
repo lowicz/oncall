@@ -19,6 +19,7 @@ interface Problem {
 }
 
 const KIND_TONE: Record<Kind, StatusTone> = { conflict: 'bad', rule: 'bad', solver: 'warn', gap: 'warn', stale: 'warn' }
+const KIND_SEVERITY: Record<Kind, 'hardBlocks' | 'hardConsent' | 'soft'> = { conflict: 'hardBlocks', rule: 'hardConsent', solver: 'soft', gap: 'soft', stale: 'soft' }
 /** Hard problems: a conflict blocks the publication, a broken rule needs consent in the sheet; the rest is advice. */
 const HARD = new Set<Kind>(['conflict', 'rule'])
 
@@ -136,7 +137,7 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
                 <span className="problems-cell">
                   {problem.role && <RoleMark role={problem.role} size="sm" />}
                   {problem.detail}
-                  <small className="muted">{problem.kind === 'conflict' ? t.hardBlocks : problem.kind === 'rule' ? t.hardConsent : t.soft}</small>
+                  <small className="muted">{t[KIND_SEVERITY[problem.kind]]}</small>
                 </span>
               </td>
               <td className="n">
