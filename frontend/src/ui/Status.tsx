@@ -4,7 +4,7 @@ import { Icon } from './Icon'
 import { Tooltip } from './Tooltip'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
-import { signedPoints } from '../lib/numbers'
+import { printedPoints, signedPoints } from '../lib/numbers'
 import { useMessages } from '../i18n/messages'
 
 export type StatusTone = 'draft' | 'prop' | 'pub' | 'ok' | 'warn' | 'bad' | 'sig' | 'muted'
@@ -144,8 +144,9 @@ export function DeviationBar({ value, max, label, className }: {
   label?: string
   className?: string
 }) {
-  const width = Math.min(100, Math.abs(value) / Math.max(max, 0.01) * 100)
-  const over = value > 0
+  const printed = printedPoints(value)
+  const width = Math.min(100, Math.abs(printed) / Math.max(max, 0.01) * 100)
+  const over = printed > 0
   const formatted = signedPoints(value)
   const { common } = useMessages()
   return (
@@ -153,7 +154,7 @@ export function DeviationBar({ value, max, label, className }: {
       <span className="dev-track">
         <i className={over ? 'dev-over' : 'dev-under'} style={{ width: `${width / 2}%` }} />
       </span>
-      <span className={cx('dev-v', over ? 'dev-v-over' : value < 0 ? 'dev-v-under' : '')}>{formatted}</span>
+      <span className={cx('dev-v', over ? 'dev-v-over' : printed < 0 ? 'dev-v-under' : '')}>{formatted}</span>
     </span>
   )
 }

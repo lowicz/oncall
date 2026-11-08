@@ -309,7 +309,7 @@ describe('DraftScheduleMatrix inspector', () => {
     const next = { ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }, draft.assignments[1]] }
     finish(next)
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(next))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Marek Nowak · 21-09-2026$/ })).not.toBeInTheDocument())
     expect(await screen.findByText('Przypisano w szkicu 21 wrz · PRIMARY: Anna Kowalska → Marek Nowak')).toBeInTheDocument()
     expect(screen.getByText('brak problemów w szkicu')).toBeInTheDocument()
 

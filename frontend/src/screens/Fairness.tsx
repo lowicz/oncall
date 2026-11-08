@@ -4,7 +4,7 @@ import { FairnessCategory, FairnessMember, FairnessReport, api } from '../api'
 import { firstName, lensLabels, roleLabels } from '../lib/labels'
 import { docsHref } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, roundPoints, totalBalance } from '../lib/fairness'
-import { formatDecimal, formatPoints, signed } from '../lib/numbers'
+import { formatDecimal, formatPoints, printedPoints, signed } from '../lib/numbers'
 import { formatDate, formatDayShort, formatShortDate, monthsShort, shiftMonth, warsawDate } from '../lib/dates'
 import { csvCell, downloadBlob } from '../lib/download'
 import { locale, messages, useLanguage, useMessages } from '../i18n'
@@ -219,7 +219,7 @@ export function FairnessPanel() {
           </th>
           <td>
             {holds(member, lens)
-              ? <DeviationBar value={current.deviation} max={DEVIATION_SCALE} label={deviationWords(current.deviation)} />
+              ? <DeviationBar value={current.deviation} max={DEVIATION_SCALE} label={deviationWords(printedPoints(current.deviation))} />
               : <span className="muted small">{t.notHoldingRole}</span>}
           </td>
           <td className="n"><Share category={totalBalance(member, lateShiftBalanced)} /></td>

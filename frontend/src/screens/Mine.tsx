@@ -19,7 +19,7 @@ import { isPolishPhone } from '../lib/phone'
 import { availabilityLabels, firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
-import { formatPoints, signedPoints } from '../lib/numbers'
+import { formatPoints, printedPoints, signedPoints } from '../lib/numbers'
 import { preferredScrollBehavior } from '../lib/motion'
 import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
@@ -689,8 +689,8 @@ function PointsSection({ displayName, compact, onAvailability }: {
   const balance = me && fairness.data ? totalBalance(me, fairness.data.late_shift_balanced) : null
   const threshold = fairness.data?.criterion_points ?? 0
   const rows = monthlyTotals(duties.data ?? []).filter((row) => period === '12m' || row.month === thisMonth)
-  const shown = balance ? Number(balance.deviation.toFixed(1)) : 0
-  const within = Math.abs(shown) <= Number(threshold.toFixed(1))
+  const shown = balance ? printedPoints(balance.deviation) : 0
+  const within = Math.abs(shown) <= printedPoints(threshold)
   const bigNumber = balance ? signedPoints(shown) : null
   return (
     <section className="stack-sm" aria-labelledby="moje-punkty">

@@ -179,4 +179,11 @@ describe('DeviationBar', () => {
     expect(container.querySelector('i')!.style.width).toBe('0%')
     expect(screen.getByText('0,0').className).toBe('dev-v')
   })
+
+  it.each([0.03, -0.03])('treats %s, which prints as 0,0, as no deviation', (value) => {
+    const { container } = render(<DeviationBar value={value} max={3} />)
+    expect(bar()).toHaveAccessibleName('odchylenie 0,0')
+    expect(container.querySelector('i')!.style.width).toBe('0%')
+    expect(screen.getByText('0,0').className).toBe('dev-v')
+  })
 })
