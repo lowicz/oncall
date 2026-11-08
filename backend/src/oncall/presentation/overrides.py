@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from oncall.domain.clock import business_today
 from oncall.domain.forwarding.models import NumberHandover
-from oncall.domain.overrides.models import DutyOverridden
+from oncall.domain.overrides.models import BatchOverrideKind, DutyOverridden
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
@@ -73,6 +73,9 @@ class BatchOverrideItem(BaseModel):
     service_date: date
     role: AssignmentRole
     replacement_member_id: uuid.UUID
+    #: Take 11-19 along with this role: the coordinator's choice, accepted
+    #: where a single correction of the role would carry it too.
+    with_late_shift: bool = False
 
 
 class BatchOverrideCheckBatch(BaseModel):
@@ -96,8 +99,11 @@ class BatchOverrideRequest(BaseModel):
     schedule_id: uuid.UUID
     expected_version: int = Field(ge=1)
     assignments: list[BatchOverrideItem] = Field(min_length=1, max_length=200)
-    reason: str = Field(min_length=10, max_length=500)
+    #: At least 10 characters for a `correction`, and for a `role_swap` of a
+    #: past day; a `role_swap` of today or later may go without one.
+    reason: str | None = Field(default=None, max_length=500)
     acknowledge_rule_violations: bool = False
+    kind: BatchOverrideKind = BatchOverrideKind.correction
 
 
 def override_assignment_response(result: DutyOverridden) -> AssignmentResponse:

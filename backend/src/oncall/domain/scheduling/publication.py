@@ -68,6 +68,7 @@ _SWAP_ACTIONS = (
     "swap.cancelled",
     "swap.approved",
 )
+_BATCH_OVERRIDE_ACTIONS = ("schedule.override_batch", "schedule.role_swap")
 _SINGLE_DAY_OVERRIDE_ACTIONS = (
     "schedule.override",
     "schedule.draft_override",
@@ -81,7 +82,7 @@ STALE_INPUT_ACTIONS = (
     *_MEMBERSHIP_ACTIONS,
     *_SWAP_ACTIONS,
     *_SINGLE_DAY_OVERRIDE_ACTIONS,
-    "schedule.override_batch",
+    *_BATCH_OVERRIDE_ACTIONS,
 )
 
 
@@ -176,10 +177,11 @@ async def stale_changes_count(schedule: Schedule, changes: ChangeLog) -> int:
             if any(relevant(day) for day in slot_days.get(entity_id, []))
         )
 
-    for event in by_action.pop("schedule.override_batch", []):
-        slots = (event.details or {}).get("slots", [])
-        if any(relevant(date.fromisoformat(slot.split(":", 1)[0])) for slot in slots):
-            count += 1
+    for action in _BATCH_OVERRIDE_ACTIONS:
+        for event in by_action.pop(action, []):
+            slots = (event.details or {}).get("slots", [])
+            if any(relevant(date.fromisoformat(slot.split(":", 1)[0])) for slot in slots):
+                count += 1
 
     for action in _SINGLE_DAY_OVERRIDE_ACTIONS:
         for event in by_action.pop(action, []):

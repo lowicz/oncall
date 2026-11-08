@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 
 from oncall.domain.clock import business_today
@@ -8,7 +9,9 @@ from oncall.domain.overrides.errors import (
     BatchCorrectionNeedsReason,
     EmptyBatch,
     HistoricalCorrectionNeedsReason,
+    LateShiftNotCoupled,
     LateShiftOnlyOnWorkingDays,
+    NotARoleSwap,
     PersonAlreadyHoldsRole,
     PersonAlreadyOnCall,
     PersonNotEligible,
@@ -26,6 +29,8 @@ from oncall.domain.overrides.models import (
     AssignmentChange,
     BatchOverrideCheck,
     BatchOverrideInput,
+    BatchOverrideKind,
+    BatchOverrideLine,
     DutyOverridden,
     OverrideCheck,
     OverrideInput,
@@ -207,22 +212,64 @@ async def override_duty(
 Move = tuple[date, AssignmentRole, str]
 
 
-async def _batch_plan(
-    check: BatchOverrideCheck, ports: OverridePorts
-) -> tuple[ScheduleRef, dict[uuid.UUID, Member], list[Duty], list[Move]]:
+@dataclass(frozen=True)
+class _BatchPlan:
+    schedule: ScheduleRef
+    replacements: dict[uuid.UUID, Member]
+    #: The batch's lines and, after them, the 11-19 lines they carry along.
+    lines: list[BatchOverrideLine]
+    #: Who holds each of `lines` now, in the same order.
+    assignments: list[Duty]
+    projected_moves: list[Move]
+
+
+async def _with_late_shifts(
+    lines: Sequence[BatchOverrideLine],
+    schedule: ScheduleRef,
+    replacements: dict[uuid.UUID, Member],
+    ports: OverridePorts,
+) -> list[BatchOverrideLine]:
+    """The lines plus the 11-19 each one takes along by the coordinator's
+    choice. The choice is honoured only where `override_duty` would make the
+    same move by itself, so the two corrections never disagree on coupling."""
+    expanded = list(lines)
+    anchor = await ports.policy.late_shift_anchor()
+    for line in lines:
+        if not line.with_late_shift:
+            continue
+        replacement = replacements.get(line.replacement_member_id)
+        holidays = polish_holidays(line.service_date, line.service_date)
+        assignment = await ports.roster.duty(schedule.id, (line.service_date, line.role))
+        partner = await ports.roster.duty(
+            schedule.id, (line.service_date, AssignmentRole.late_shift)
+        )
+        if (
+            replacement is None
+            or not _couples_late_shift(line.role, line.service_date, replacement, anchor, holidays)
+            or not _same_holder(assignment, partner)
+        ):
+            raise LateShiftNotCoupled()
+        expanded.append(
+            BatchOverrideLine(line.service_date, AssignmentRole.late_shift, replacement.id)
+        )
+    return expanded
+
+
+async def _batch_plan(check: BatchOverrideCheck, ports: OverridePorts) -> _BatchPlan:
     """Resolve and validate a batch without changing the roster."""
     if not check.lines:
         raise EmptyBatch()
     schedule = await ports.roster.schedule(check.schedule_id)
     if schedule is None or not schedule.published:
         raise PublishedScheduleNotFound()
-    slots = [(line.service_date, line.role) for line in check.lines]
+    replacements = await ports.team.members(line.replacement_member_id for line in check.lines)
+    lines = await _with_late_shifts(check.lines, schedule, replacements, ports)
+    slots = [(line.service_date, line.role) for line in lines]
     if len(slots) != len(set(slots)):
         raise RepeatedSlotInBatch()
-    replacements = await ports.team.members(line.replacement_member_id for line in check.lines)
     assignments: list[Duty] = []
     projected_moves: list[Move] = []
-    for line in check.lines:
+    for line in lines:
         replacement = replacements.get(line.replacement_member_id)
         if replacement is None or not replacement.is_eligible(line.role, line.service_date):
             raise PersonNotEligible()
@@ -233,7 +280,24 @@ async def _batch_plan(
             raise ScheduleSlotNotFound()
         assignments.append(assignment)
         projected_moves.append((line.service_date, line.role, replacement.display_name))
-    return schedule, replacements, assignments, projected_moves
+    return _BatchPlan(schedule, replacements, lines, assignments, projected_moves)
+
+
+def _swaps_roles(plan: _BatchPlan, lines: Sequence[BatchOverrideLine]) -> bool:
+    """Whether two lines trade one day's PRIMARY and SECONDARY between the
+    two people holding them."""
+    if len(lines) != 2:
+        return False
+    first, second = lines
+    held_first, held_second = plan.assignments[:2]
+    taker_first = plan.replacements[first.replacement_member_id]
+    taker_second = plan.replacements[second.replacement_member_id]
+    return (
+        first.service_date == second.service_date
+        and {first.role, second.role} == {AssignmentRole.primary, AssignmentRole.secondary}
+        and held_first.held_by(taker_second.id, taker_second.display_name)
+        and held_second.held_by(taker_first.id, taker_first.display_name)
+    )
 
 
 async def _violations(moves: list[Move], ports: OverridePorts) -> list[RuleViolation]:
@@ -252,8 +316,7 @@ async def check_batch_override(
     """
     moves: list[Move] = []
     for check in checks:
-        *_, schedule_moves = await _batch_plan(check, ports)
-        moves.extend(schedule_moves)
+        moves.extend((await _batch_plan(check, ports)).projected_moves)
     slots = [(day, role) for day, role, _name in moves]
     if len(slots) != len(set(slots)):
         raise RepeatedSlotInBatch()
@@ -261,56 +324,63 @@ async def check_batch_override(
 
 
 async def override_duties_in_batch(
-    batch: BatchOverrideInput, ports: OverridePorts
+    batch: BatchOverrideInput, ports: OverridePorts, *, today: date | None = None
 ) -> list[DutyOverridden]:
-    """Rewrite several slots of one schedule as one decision (e.g. offboarding)."""
+    """Rewrite several slots of one schedule as one decision: an offboarding,
+    or two people trading one day's on-call roles."""
+    today = today or business_today()
     if not batch.lines:
         raise EmptyBatch()
-    if len(batch.reason) < MIN_REASON_LENGTH:
+    reason = (batch.reason or "").strip()
+    if batch.kind is BatchOverrideKind.correction and len(reason) < MIN_REASON_LENGTH:
         raise BatchCorrectionNeedsReason()
-    check = BatchOverrideCheck(batch.schedule_id, batch.lines)
-    schedule, replacements, assignments, projected_moves = await _batch_plan(check, ports)
-    unique_violations = await _violations(projected_moves, ports)
+    plan = await _batch_plan(BatchOverrideCheck(batch.schedule_id, batch.lines), ports)
+    if batch.kind is BatchOverrideKind.role_swap:
+        if not _swaps_roles(plan, batch.lines):
+            raise NotARoleSwap()
+        if batch.lines[0].service_date < today and len(reason) < MIN_REASON_LENGTH:
+            raise HistoricalCorrectionNeedsReason()
+    unique_violations = await _violations(plan.projected_moves, ports)
     if unique_violations and not batch.acknowledge_rule_violations:
         raise RuleViolationsNotAcknowledged(unique_violations)
-    slots = [(line.service_date, line.role) for line in batch.lines]
+    pairs = list(zip(plan.lines, plan.assignments, strict=True))
     moves = [
         OverrideMove(line.service_date, line.role, assignment.assignee_name)
-        for line, assignment in zip(batch.lines, assignments, strict=True)
+        for line, assignment in pairs
     ]
     changes: list[AssignmentChange] = [
         (
             line.service_date,
             line.role,
             assignment.assignee_name,
-            replacements[line.replacement_member_id].display_name,
+            plan.replacements[line.replacement_member_id].display_name,
         )
-        for line, assignment in zip(batch.lines, assignments, strict=True)
+        for line, assignment in pairs
     ]
     if not await ports.roster.advance_version(
-        schedule.id, expected_version=batch.expected_version, only_if_published=False
+        plan.schedule.id, expected_version=batch.expected_version, only_if_published=False
     ):
         raise RosterChangedMeanwhile()
-    for line in batch.lines:
+    for line in plan.lines:
         await ports.roster.hand_over(
-            schedule.id,
+            plan.schedule.id,
             [(line.service_date, line.role)],
-            replacements[line.replacement_member_id],
+            plan.replacements[line.replacement_member_id],
         )
     await ports.journal.duties_overridden_in_batch(
-        schedule_id=schedule.id,
-        slots=slots,
+        schedule_id=plan.schedule.id,
+        kind=batch.kind,
         moves=moves,
         changes=changes,
         violations=unique_violations,
-        reason=batch.reason,
+        reason=reason or None,
     )
     return [
         DutyOverridden(
             service_date=line.service_date,
             role=line.role,
-            assignee_name=replacements[line.replacement_member_id].display_name,
+            assignee_name=plan.replacements[line.replacement_member_id].display_name,
             violations=tuple(unique_violations),
         )
-        for line in batch.lines
+        for line in plan.lines
     ]
