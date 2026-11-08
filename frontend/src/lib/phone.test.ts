@@ -20,7 +20,13 @@ describe('a number as dialled and as printed', () => {
     expect(telHref('+48 602-345 678')).toBe('tel:+48602345678')
   })
 
-  it('prints the groups held together by no-break spaces', () => {
-    expect(phoneText(' +48 602  345 678 ')).toBe('+48 602 345 678')
+  it.each(['+48602345678', ' +48 602  345 678 ', '602-345-678'])(
+    'prints %s as +48 and three groups held by no-break spaces', (value) => {
+      expect(phoneText(value)).toBe('+48\u00a0602\u00a0345\u00a0678')
+    },
+  )
+
+  it('prints a number that is not Polish as written, its spaces held', () => {
+    expect(phoneText(' +49 170  1234567 ')).toBe('+49\u00a0170\u00a01234567')
   })
 })
