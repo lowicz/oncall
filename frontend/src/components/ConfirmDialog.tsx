@@ -77,7 +77,7 @@ export function ConfirmDialog({
       )}
     >
       {description && <div className="stack-sm">{description}</div>}
-      {error && <Box tone="bad" role="alert" title={error} />}
+      {error && <Box tone="bad" role="alert" title={error} focus />}
       {reasonLabel && (
         <Field label={reasonLabel} required error={tooShort ? t.common.reasonTooShort(reasonMinLength) : undefined}>
           {({ id, describedBy, invalid }) => (

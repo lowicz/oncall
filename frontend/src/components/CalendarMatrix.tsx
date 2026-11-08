@@ -780,7 +780,7 @@ export function CalendarMatrix({
         initialReason={historicalReason}
         confirmDisabled={saveBlocked}
         pending={override.isPending}
-        error={override.error?.message}
+        error={confirmHistorical ? override.error?.message : null}
         onCancel={() => setConfirmHistorical(false)}
         onConfirm={(reason) => { setHistoricalReason(reason); saveOverride(reason) }}
       />

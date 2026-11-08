@@ -994,7 +994,9 @@ describe('CalendarMatrix staffing form', () => {
     fireEvent.click(confirmSave)
 
     // A refusal is shown in the dialog that covers the panel.
-    expect(await within(confirm).findByRole('alert')).toHaveTextContent('Grafik zmienił wersję')
+    const dialogRefusal = await within(confirm).findByRole('alert')
+    expect(dialogRefusal).toHaveTextContent('Grafik zmienił wersję')
+    expect(dialogRefusal).toHaveFocus()
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
     // Cancel returns to the panel, which keeps the refusal.
     fireEvent.click(within(confirm).getByRole('button', { name: 'Anuluj' }))
