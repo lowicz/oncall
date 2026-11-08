@@ -344,6 +344,7 @@ async def test_the_correction_check_names_the_handover_it_would_end(
 
     assert secondary["ends_handover"]["id"] == handover["id"]
     assert secondary["ends_handover"]["to_name"] == "Marek Nowak"
+    assert secondary["ends_handover"]["started_by_name"] is None
     assert late_shift["ends_handover"] is None
 
     settings = await db.scalar(select(CallForwardingSettings))
@@ -391,6 +392,7 @@ async def test_the_batch_correction_check_names_the_handover_it_would_end(
 
     assert offboarding["ends_handover"]["id"] == handover["id"]
     assert offboarding["ends_handover"]["to_name"] == "Marek Nowak"
+    assert offboarding["ends_handover"]["started_by_name"] is None
     assert later_only["ends_handover"] is None
 
 

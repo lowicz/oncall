@@ -294,13 +294,14 @@ async def handover_ended_by_correction(
 ) -> NumberHandover | None:
     """The handover a correction of these slots would end (NP-16): the open
     one, when a slot is PRIMARY or SECONDARY on its day. The correction
-    frame says so before the coordinator saves. Nothing while forwarding is
-    off (D5): the worker ends no handover then."""
+    frame says so before the coordinator saves, without who started it
+    (NP-11). Nothing while forwarding is off (D5): the worker ends no
+    handover then."""
     if (await ports.settings.current()).mode is ForwardingMode.off:
         return None
     handover = await ports.handovers.open()
     if handover is None or now >= handover.until:
         return None
     if any(day == handover.day and role in ONCALL_ROLES for day, role in slots):
-        return handover
+        return replace(handover, started_by_name=None)
     return None
