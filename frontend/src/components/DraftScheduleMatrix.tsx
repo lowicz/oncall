@@ -19,7 +19,7 @@ const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 export interface DraftFocus { service_date: string; assignee_name: string; role: AssignmentRole }
 
 /** The required roles nobody holds on a day of the draft: what the solver left empty. */
-export function missingRoles(result: DraftSchedule, serviceDate: string): AssignmentRole[] {
+function missingRoles(result: DraftSchedule, serviceDate: string): AssignmentRole[] {
   return REQUIRED_ROLES.filter((role) => !result.assignments.some((item) => item.service_date === serviceDate && item.role === role))
 }
 
