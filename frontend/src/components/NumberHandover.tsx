@@ -41,7 +41,6 @@ export function NumberPill({ now, where }: Readonly<{ now: HeldNumber; where: st
     <Popover title={t.title} className="pop-handover" trigger={<StatusPill state={PILL_STATES[now.status]}>{pillWords(now, where)}</StatusPill>}>
       <p>{t.holder(now.holder_name, roleLabels()[now.holder_role])}</p>
       {now.handover && <p>{t.period(formatClock(now.handover.starts_at), formatClock(now.handover.until))}</p>}
-      {now.handover?.started_by_name && <p>{t.startedBy(now.handover.started_by_name)}</p>}
       {statusLine && <p>{statusLine}</p>}
       {now.mode === 'dry_run' && <p>{t.dryRun}</p>}
     </Popover>

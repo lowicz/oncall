@@ -100,7 +100,7 @@ describe('NumberPill', () => {
     await expectNoAxeViolations(container)
   })
 
-  it('says a handover is still switching, until when it holds and who started it, in a dry run too', async () => {
+  it('says a handover is still switching and until when it holds, in a dry run too, but not who started it', async () => {
     renderScreen(<NumberPill now={handedOver({ mode: 'dry_run', status: 'switching', confirmed_at: null })} where="numer on-call u Ciebie" />)
     const pill = screen.getByRole('button', { name: 'numer on-call u Ciebie · przełączam · do 11:00' })
     expect(pill).toHaveClass('pill-pending')
@@ -108,7 +108,7 @@ describe('NumberPill', () => {
     const details = await screen.findByRole('dialog', { name: 'Numer on-call' })
     expect(details).toHaveTextContent('Odbiera Marek Nowak (SECONDARY).')
     expect(details).toHaveTextContent('Przekazany od 09:00 do 11:00.')
-    expect(details).toHaveTextContent('Zlecone przez: Anna Kowalska.')
+    expect(details).not.toHaveTextContent('Anna Kowalska')
     expect(details).toHaveTextContent('Przełączam numer: WCO jeszcze nie potwierdziło przekierowania.')
     expect(details).toHaveTextContent('Tryb próbny: WCO nie zostanie zmienione.')
   })
@@ -120,12 +120,10 @@ describe('NumberPill', () => {
     expect(await screen.findByRole('dialog')).toHaveTextContent('Nie udało się przełączyć numeru.')
   })
 
-  it('says nothing of a confirmation it has no time for, nor of a starter whose account is gone', async () => {
-    renderScreen(<NumberPill now={handedOver({ confirmed_at: null, handover: { ...HANDOVER, started_by_name: null } })} where="numer on-call" />)
+  it('says nothing of a confirmation it has no time for', async () => {
+    renderScreen(<NumberPill now={handedOver({ confirmed_at: null })} where="numer on-call" />)
     fireEvent.click(screen.getByRole('button', { name: 'numer on-call · do 11:00' }))
-    const details = await screen.findByRole('dialog')
-    expect(details).not.toHaveTextContent('Zlecone przez')
-    expect(details).not.toHaveTextContent('WCO')
+    expect(await screen.findByRole('dialog')).not.toHaveTextContent('WCO')
   })
 })
 

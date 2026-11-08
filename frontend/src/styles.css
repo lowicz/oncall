@@ -86,10 +86,13 @@ small, .small { font-size: 12px; line-height: 16px; }
 .now-gap::before { background: var(--bad-dot); }
 /* The number pill keeps all its words and the name beside it stays whole:
    the "do …" text gives way first, and where even then the row is too short
-   the pill and that text take a second row of the slot. */
+   the pill and that text take a second row of the slot, as they always do
+   below 1100 px, after `.now-break`. */
 .now .pill { background: var(--band-chip); color: var(--rail-active-ink); flex: 0 0 auto; }
 .now-slot:has(.pill) { flex-wrap: wrap; row-gap: 4px; }
 .now-slot:has(.pill) .now-who { flex: 0 0 auto; }
+.now-break { flex-basis: 100%; height: 0; }
+.now-slot:has(.now-break) { row-gap: 2px; }
 .now-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--band-edge); border-radius: 999px; padding: 5px 12px; color: var(--band-ink); min-width: 150px; font-size: 12px; line-height: 16px; background: transparent; cursor: pointer; }
 .now-search:hover { border-color: var(--band-ink); }
 .now-search .kbd { margin-left: auto; }

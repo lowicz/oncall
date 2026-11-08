@@ -4,6 +4,7 @@ state, and the day's pair handing the on-call number over."""
 
 import uuid
 from collections.abc import Iterable
+from dataclasses import replace
 from datetime import date, datetime
 
 from oncall.domain.access.models import SignInRequest
@@ -48,7 +49,7 @@ from oncall.domain.forwarding.ports import (
     SettingsPorts,
 )
 from oncall.domain.team import Actor
-from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, UserRole
 
 
 async def current_settings(settings: CurrentSettings) -> ForwardingSettings:
@@ -255,7 +256,8 @@ async def forwarding_now(
     who has it, until when, whether WCO confirmed it. No phone number: the
     duty cards already show the ones the reader may see. Nothing while
     forwarding is off (D5), and nothing to a share link whose range leaves
-    the duty day out. Read only: the worker ends a handover that ran out."""
+    the duty day out. Who started a handover only for an administrator
+    (NP-11). Read only: the worker ends a handover that ran out."""
     mode = (await ports.settings.current()).mode
     day = forwarding_day(now.astimezone(BUSINESS_TIMEZONE), reminder_hour)
     if mode is ForwardingMode.off or (
@@ -272,6 +274,8 @@ async def forwarding_now(
     if target is None:
         return ForwardingNow(mode=mode, day=day, day_ends_at=ends_at)
     status, confirmed_at = _status(mode, target, await ports.state.current())
+    if handover is not None and audience.role is not UserRole.admin:
+        handover = replace(handover, started_by_name=None)
     return ForwardingNow(
         mode=mode,
         day=day,

@@ -19,3 +19,8 @@ export function useMediaQuery(query: string): boolean {
 export const NARROW_QUERY = '(max-width: 900px)'
 
 export const useNarrow = () => useMediaQuery(NARROW_QUERY)
+
+/** Below this width the rail shows only icons and the strip's number pill takes a second row of its slot. */
+export const BELOW_WIDE_QUERY = '(max-width: 1100px)'
+
+export const useBelowWide = () => useMediaQuery(BELOW_WIDE_QUERY)

@@ -214,6 +214,32 @@ describe('NowStrip', () => {
     // The name beside the pill stays whole and the slot may wrap the pill to a second row.
     expect(getComputedStyle(pill.closest('.now-slot')!).flexWrap).toBe('wrap')
     expect(getComputedStyle(within(strip).getByText('Marek Nowak')).flexShrink).toBe('0')
+    expect([...pill.closest('.now-slot')!.children].map((child) => getComputedStyle(child).flexBasis)).not.toContain('100%')
+  })
+
+  it('puts the number pill on the second row of its slot below 1100 px', async () => {
+    loadRealStylesheet()
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: query.includes('max-width: 1100px'),
+      media: query, onchange: null, addListener: () => {}, removeListener: () => {},
+      addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+    }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ contact_phone: '+48 601 220 118' })]))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+      handover: null, status: 'confirmed', confirmed_at: '2026-09-10T07:00:00Z',
+    })
+    renderScreen(<NowStrip />)
+
+    const pill = await screen.findByRole('button', { name: 'numer on-call' })
+    const slot = pill.closest<HTMLElement>('.now-slot')!
+    const children = [...slot.children]
+    const breakAt = children.findIndex((child) => getComputedStyle(child).flexBasis === '100%')
+    expect(getComputedStyle(slot).flexWrap).toBe('wrap')
+    expect(children.indexOf(within(slot).getByText('Anna Kowalska'))).toBeLessThan(breakAt)
+    expect(children.indexOf(within(slot).getByRole('link', { name: '+48 601 220 118' }))).toBeLessThan(breakAt)
+    expect(children.indexOf(pill)).toBeGreaterThan(breakAt)
   })
 
   it('shows no pill while forwarding is off', async () => {

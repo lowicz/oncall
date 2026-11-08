@@ -65,7 +65,6 @@ export const duty = {
       title: 'Numer on-call',
       holder: (name: string, role: string) => `Odbiera ${name} (${role}).`,
       period: (since: string, until: string) => `Przekazany od ${since} do ${until}.`,
-      startedBy: (name: string) => `Zlecone przez: ${name}.`,
       confirmed: (clock: string) => `WCO potwierdziło przekierowanie o ${clock}.`,
       switching: 'Przełączam numer: WCO jeszcze nie potwierdziło przekierowania.',
       failed: 'Nie udało się przełączyć numeru. Alarm e-mail poszedł do koordynatorów i do pary dyżurnej; proces próbuje dalej sam.',

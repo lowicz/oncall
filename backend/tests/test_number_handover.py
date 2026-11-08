@@ -284,6 +284,41 @@ async def test_a_share_link_reads_the_holder_only_within_its_range(
     assert await holder(today + timedelta(days=1), today + timedelta(days=3)) is None
 
 
+async def test_only_an_administrator_reads_who_started_the_handover(
+    client, db, pair, frozen_clock
+) -> None:
+    await _mode(db, ForwardingMode.live)
+    await create_user(db, "admin", role=UserRole.admin)
+    await create_user(db, "widz", role=UserRole.viewer)
+    await login(client, "anna")
+    assert (await _start(client, frozen_clock)).status_code == 201
+
+    async def started_by(username):
+        await login(client, username)
+        return (await client.get(NOW)).json()["handover"]["started_by_name"]
+
+    assert await started_by("admin") == "Anna Kowalska"
+    for username in ("koordynator", "anna", "marek", "jan", "widz"):
+        assert await started_by(username) is None, username
+    await login(client, "admin")
+    today = frozen_clock.business_today()
+    created = await client.post(
+        "/api/v1/admin/share-links",
+        json={
+            "label": "Dyspozytor",
+            "starts_on": str(today),
+            "ends_on": str(today),
+            "expires_days": 7,
+        },
+    )
+    token = created.json()["url"].rsplit("/share/", 1)[1]
+    guest = client.__class__(transport=client._transport, base_url="http://test")
+    await guest.post("/api/v1/share/exchange", json={"token": token})
+    shared = (await guest.get(NOW)).json()
+    assert shared["holder_name"] == "Marek Nowak"
+    assert shared["handover"]["started_by_name"] is None
+
+
 async def test_the_correction_check_names_the_handover_it_would_end(
     client, db, pair, frozen_clock
 ) -> None:

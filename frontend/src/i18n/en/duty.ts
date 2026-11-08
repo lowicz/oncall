@@ -59,7 +59,6 @@ export const duty: Messages['duty'] = {
       title: 'On-call number',
       holder: (name: string, role: string) => `${name} answers it (${role}).`,
       period: (since: string, until: string) => `Handed over from ${since} until ${until}.`,
-      startedBy: (name: string) => `Handover started by ${name}.`,
       confirmed: (clock: string) => `WCO confirmed the forwarding at ${clock}.`,
       switching: 'Switching the number: WCO has not confirmed the forwarding yet.',
       failed: 'The number could not be switched. An alert e-mail went to the coordinators and the pair on duty; the process keeps trying by itself.',

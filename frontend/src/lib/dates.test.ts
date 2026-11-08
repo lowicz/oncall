@@ -175,4 +175,11 @@ describe('formatClock', () => {
     expect(formatClock('2026-09-10T11:40:00Z', from)).toBe('13:40')
     expect(formatClock(new Date('2026-09-11T09:00:00+02:00'), from)).toBe('09:00 jutro')
   })
+
+  it('says "wczoraj" for the day before, and names a day further off', () => {
+    const afterMidnight = new Date('2026-09-11T00:30:00+02:00')
+    expect(formatClock('2026-09-10T09:00:00+02:00', afterMidnight)).toBe('09:00 wczoraj')
+    expect(formatClock('2026-09-08T09:00:00+02:00', afterMidnight)).toBe('09:00 8 wrz')
+    expect(formatClock('2026-09-13T09:00:00+02:00', afterMidnight)).toBe('09:00 13 wrz')
+  })
 })

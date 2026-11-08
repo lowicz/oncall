@@ -6,6 +6,7 @@ import { weekdays } from '../lib/dates'
 import { locale, messages, useMessages } from '../i18n'
 import { RoleLabel, Skeleton, cx } from '../ui'
 import { heldNumber, useForwardingNow } from '../hooks/useForwardingNow'
+import { useBelowWide } from '../hooks/useMediaQuery'
 import { NumberPill } from './NumberHandover'
 
 const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
@@ -54,7 +55,8 @@ function useMinuteTick() {
  * to call them, and until when. It is the one thing an operator needs during
  * an incident, so it is always there and keeps the last known staffing when
  * the network is gone. While forwarding is on, a pill beside one of them
- * says the on-call number rings there.
+ * says the on-call number rings there; below 1100 px it takes the slot's
+ * second row.
  */
 export function NowStrip({ children }: { children?: React.ReactNode }) {
   const schedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
@@ -68,6 +70,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
   const holiday = schedule.data?.today_holiday_name ?? null
   const held = heldNumber(useForwardingNow().data)
   const pill = useMessages().duty.handover.pill
+  const belowWide = useBelowWide()
 
   return (
     <div className="now" role="region" aria-label={t.region}>
@@ -91,7 +94,10 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
                   </a>
                 )}
                 {held && held.holder_role === role && held.holder_name === duty.assignee_name && (
-                  <NumberPill now={held} where={pill} />
+                  <>
+                    {belowWide && <span className="now-break" />}
+                    <NumberPill now={held} where={pill} />
+                  </>
                 )}
                 <span className={cx('now-until', stale && 'now-stale')} title={stale && updated ? t.asOf(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })) : undefined}>
                   {stale && updated

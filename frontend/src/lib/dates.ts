@@ -205,12 +205,23 @@ export function isoWeek(value: string) {
 }
 
 /**
- * A moment as "HH:MM", or "09:00 jutro" on a later day than `from`: the end
- * of a number handover, which never outlasts the next morning. Local time,
- * like the strip's countdown.
+ * A moment as "HH:MM" on the day of `from`, "09:00 jutro" or "23:30 wczoraj"
+ * a day either side of it, and "09:00 3 paź" further off. Local time, like
+ * the strip's countdown.
  */
 export function formatClock(value: string | Date, from = new Date()) {
   const moment = new Date(value)
-  const clock = `${String(moment.getHours()).padStart(2, '0')}:${String(moment.getMinutes()).padStart(2, '0')}`
-  return moment.toDateString() === from.toDateString() ? clock : `${clock} ${messages().dates.tomorrow}`
+  const clock = `${pad(moment.getHours())}:${pad(moment.getMinutes())}`
+  const day = localDay(moment)
+  const t = messages().dates
+  const days = daysBetween(localDay(from), day)
+  if (days === 0) return clock
+  if (days === 1) return `${clock} ${t.tomorrow}`
+  if (days === -1) return `${clock} ${t.yesterday}`
+  return `${clock} ${formatShortDate(day)}`
 }
+
+const pad = (part: number) => String(part).padStart(2, '0')
+
+/** The local calendar day of a moment, as YYYY-MM-DD. */
+const localDay = (moment: Date) => `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}`
