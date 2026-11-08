@@ -1506,7 +1506,7 @@ async def test_two_workers_pruning_at_once_delete_every_row_once(
 
 
 async def test_both_of_the_pair_handing_the_number_over_at_once_open_one_handover(
-    pg, monkeypatch
+    pg, monkeypatch, frozen_clock
 ) -> None:
     """The partial unique index on the open day is the one guard here: both
     requests pass the check for an open handover before either commits."""
@@ -1524,7 +1524,7 @@ async def test_both_of_the_pair_handing_the_number_over_at_once_open_one_handove
         members[name] = await create_member(pg, user, display_name=name)
     await create_published_schedule(
         pg,
-        starts_on=date.today() - timedelta(days=2),
+        starts_on=frozen_clock.business_today() - timedelta(days=2),
         days=5,
         primary=["Anna Kowalska"],
         secondary=["Marek Nowak"],
@@ -1535,7 +1535,7 @@ async def test_both_of_the_pair_handing_the_number_over_at_once_open_one_handove
     await pg.commit()
     clients = [await _client("anna"), await _client("marek")]
     _hold_commits(monkeypatch)
-    until = (datetime.now(UTC) + timedelta(minutes=1)).isoformat()
+    until = (frozen_clock.instant + timedelta(hours=1)).isoformat()
     try:
         responses = await asyncio.gather(
             *(
