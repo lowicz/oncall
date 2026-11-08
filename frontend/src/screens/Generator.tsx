@@ -51,7 +51,7 @@ const SOLVER_OK = new Set(['OPTIMAL', 'FEASIBLE'])
 const GENERATION_BUDGET_PASSES = 4
 
 /** Count of generations ahead in the queue, in the current language. */
-export function jobsAhead(count: number): string {
+function jobsAhead(count: number): string {
   return messages().generator.jobsAhead(count)
 }
 

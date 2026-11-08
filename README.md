@@ -226,7 +226,7 @@ already on the opposite role are offered. The replacement accepts first, then
 by default a coordinator or administrator approves; the team policy
 `coordinator_swap_approval_required` turns that stage off, so the acceptance
 itself writes the swap in and coordinators get an informational notification
-instead. Rejection and withdrawal need a reason, and writing the swap in
+instead. A rejection needs a reason, a withdrawal does not, and writing the swap in
 changes only the selected slot and increments the published version.
 [Swaps](docs/uzytkownik/zamiany.md) · [EN](docs/en/uzytkownik/zamiany.md).
 
