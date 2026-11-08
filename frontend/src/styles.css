@@ -619,7 +619,7 @@ table.report-table td.key { font-weight: 600; }
 /* White surfaces use the same restrained shadow throughout the light theme. */
 :root[data-theme='light'] :is(.panel, .dcard, .login-card) { box-shadow: var(--shadow-sm); border-color: transparent; }
 :root[data-theme='light'] :is(.ph-title, .sech-title, .panel-title, .login-title) { color: var(--hd); }
-:root[data-density='compact'] .rm { width: auto; min-width: 22px; padding: 1px 4px; }
+:root[data-density='compact'] table.m .rm { width: auto; min-width: 22px; padding: 1px 4px; }
 
 /* ---------- 7 phone ---------- */
 .tabs-bottom { display: none; }

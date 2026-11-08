@@ -90,4 +90,19 @@ describe('shared interaction styles', () => {
     expect(getComputedStyle(container.querySelector('.frow')!).alignItems).toBe('end')
     expect(getComputedStyle(container.querySelector('a')!).textDecoration).toBe('none')
   })
+
+  it('narrows role marks under compact density only inside the matrix', () => {
+    loadRealStylesheet()
+    document.documentElement.dataset.density = 'compact'
+    const { container } = render(
+      <>
+        <table className="m"><tbody><tr><td><span className="rm">P</span></td></tr></tbody></table>
+        <span className="rm">S</span>
+      </>,
+    )
+    const [inMatrix, outside] = Array.from(container.querySelectorAll('.rm'))
+    expect(getComputedStyle(inMatrix).width).toBe('auto')
+    expect(getComputedStyle(outside).width).toBe('32px')
+    delete document.documentElement.dataset.density
+  })
 })
