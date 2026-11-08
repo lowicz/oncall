@@ -1435,7 +1435,8 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
 
     const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
-    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY + 11–19 ⇄ śr 16 wrz SECONDARY + 11–19za 4 dni · wymiana')
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY + 11–19 ⇄ zamiana z śr 16 wrz SECONDARY + 11–19za 4 dni · wymiana')
+    expect(within(row).getByRole('rowheader', { name: /^pon 14 wrz PRIMARY \+ 11–19 zamiana z śr 16 wrz SECONDARY/ })).not.toHaveAccessibleName(/⇄/)
     expect(await within(row).findByText('bez zmian')).toBeInTheDocument()
     expect(impactCall).toHaveBeenCalledWith('2026-09-14', 'primary', 'p1', {
       inReturn: { service_date: '2026-09-16', role: 'secondary' }, scope: 'whole', returnScope: 'whole', correction: false,
@@ -1481,7 +1482,7 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
     renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
 
     const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
-    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY + 11–19 ⇄ śr 16 wrz SECONDARY + 11–19 łamie regułyza 4 dni · wymiana')
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY + 11–19 ⇄ zamiana z śr 16 wrz SECONDARY + 11–19 łamie regułyza 4 dni · wymiana')
     fireEvent.click(within(row).getByRole('button', { name: /^Zdecyduj/ }))
     const sheet = await screen.findByRole('dialog', { name: /^Wymiana ·/ })
     expect(rowsOf(sheet)).toEqual([
@@ -1505,7 +1506,7 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />, { route: '/zamiany?skrzynka=zamkniete' })
 
     const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
-    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY + 11–19 ⇄ śr 16 wrz SECONDARYza 4 dni · wymiana')
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('pon 14 wrz PRIMARY + 11–19 ⇄ zamiana z śr 16 wrz SECONDARYza 4 dni · wymiana')
     fireEvent.click(within(row).getByRole('button', { name: /^Podgląd/ }))
     const sheet = await screen.findByRole('dialog', { name: /^Wymiana ·/ })
     expect(stepsOf(sheet).at(-1)).toBe(outcome)
