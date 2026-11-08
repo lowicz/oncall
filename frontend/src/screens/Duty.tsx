@@ -1,6 +1,7 @@
+import { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AssignmentRole, CurrentDuty, ShareSession, UserRole, api } from '../api'
+import { AssignmentRole, CurrentDuty, HandoverPair, ShareSession, UserRole, api } from '../api'
 import { roleLabels } from '../lib/labels'
 import { groupSwaps } from '../lib/swaps'
 import { addDays, daysBetween, formatDateLong, formatDayShort, formatRange, formatShortDate, isIsoDate, relativeDay, warsawDate, weeksWord } from '../lib/dates'
@@ -9,6 +10,8 @@ import { useNarrow } from '../hooks/useMediaQuery'
 import { CalendarMatrix, CalendarRange, MatrixSummary, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../components/MatrixControls'
 import { useUrlParams } from '../hooks/useUrlParams'
+import { HandoverActions, HandoverViewer, NumberPill } from '../components/NumberHandover'
+import { heldNumber, useForwardingNow } from '../hooks/useForwardingNow'
 import { AnchorButton, Box, LinkButton, PageHeader, RoleLabel, SectionHeading, StatusBadge, Tag, cx } from '../ui'
 
 const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
@@ -17,13 +20,15 @@ const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
  * One role's duty right now, as a card for a phone: who, until when, a
  * "call" button, who is next. The 11–19 shift does not exist on days off
  * (PLAN.md §3), so an empty card there says "not applicable", not "somebody
- * forgot to staff it".
+ * forgot to staff it". The card of the reader's own role in the day's pair
+ * (the PRIMARY's for anyone else) says where the on-call number rings.
  */
-export function DutyCard({ duty, role, todayDayOff, holidayName }: {
+export function DutyCard({ duty, role, todayDayOff, holidayName, numberRow }: {
   duty?: CurrentDuty
   role: AssignmentRole
   todayDayOff?: boolean
   holidayName?: string | null
+  numberRow?: ReactNode
 }) {
   const t = useMessages().duty.card
   const notApplicable = !duty && role === 'late_shift' && Boolean(todayDayOff)
@@ -62,6 +67,7 @@ export function DutyCard({ duty, role, todayDayOff, holidayName }: {
               )}
             </div>
           )}
+          {numberRow && <div className="dcard-num">{numberRow}</div>}
           {duty.next_assignee_name && duty.next_service_date && (
             <div className="dcard-next">
               {t.next(roleLabel)} <b>{duty.next_assignee_name}</b>, {relativeDay(duty.next_service_date)}
@@ -73,6 +79,13 @@ export function DutyCard({ duty, role, todayDayOff, holidayName }: {
       )}
     </article>
   )
+}
+
+/** Which side of the duty day's pair the reader is; a pair told to neither side is a coordinator's. */
+function handoverViewer(pair: HandoverPair | null): HandoverViewer {
+  if (!pair) return null
+  if (pair.primary.is_you) return 'primary'
+  return pair.secondary.is_you ? 'secondary' : 'coordinator'
 }
 
 /**
@@ -155,6 +168,30 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const upcoming = offset === 0 && !share
   const current = schedule.data?.current ?? []
   const byRole = (value: AssignmentRole) => current.find((item) => item.role === value)
+  const primary = byRole('primary')
+  const secondary = byRole('secondary')
+  const held = heldNumber(useForwardingNow().data)
+  // The pair of the duty day the number belongs to, which before the
+  // reminder hour is yesterday's, not the calendar day's `current`.
+  const pair = held?.pair ?? null
+  const viewer = handoverViewer(pair)
+  // Where the number rings and what the pair may do about it: in the header
+  // on a desktop, on the reader's card in the pair on a phone.
+  const numberPill = held && (
+    <NumberPill now={held} where={hasTeamMember && held.holder_name === displayName ? t.duty.handover.atYou : t.duty.handover.at(held.holder_name)} />
+  )
+  const receiverPhone = pair && current.find((duty) => duty.assignee_name === pair.secondary.name && duty.contact_phone)?.contact_phone
+  const handoverActions = held && pair && viewer && (
+    <HandoverActions now={held} pair={pair} receiverPhone={receiverPhone ?? null} viewer={viewer} />
+  )
+  const numberRow = numberPill && <>{numberPill}{handoverActions}</>
+  // On a phone the row goes on the card of the reader's side of the pair (the
+  // PRIMARY's for anyone else) while that card shows that person; before the
+  // reminder hour it may show the next pair, or nobody, so the row stands
+  // above the cards instead.
+  const rowRole: AssignmentRole = viewer === 'secondary' ? 'secondary' : 'primary'
+  const rowPerson = viewer === 'secondary' ? pair?.secondary.name : held?.handover?.from_name ?? held?.holder_name
+  const rowOnCard = byRole(rowRole)?.assignee_name === rowPerson
   // Not `Boolean(schedule.data?.id)`: imported history is stored as a
   // superseded schedule and fills `id` too (MED5-01).
   const published = schedule.data?.is_published ? schedule.data : null
@@ -181,6 +218,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
         {fairness.data && fairness.data.members.length > 0 && ` · ${fairness.data.criterion_met ? t.duty.fairnessMet : t.duty.fairnessNotMet}`}
       </span>
       {role === 'viewer' && <StatusBadge>{t.duty.readOnly}</StatusBadge>}
+      {!narrow && numberPill}
     </>
   )
 
@@ -192,6 +230,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
         actions={(inRotation || canCoordinate) && (
           <>
             {hasTeamMember && <LinkButton to="/moje#dostepnosc" icon="calendar">{t.duty.reportAvailability}</LinkButton>}
+            {!narrow && handoverActions}
             {canCoordinate && <LinkButton to={generatorHref} variant="primary" icon="wand">{t.schedule.actions.generateNext}</LinkButton>}
           </>
         )}
@@ -201,10 +240,11 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
           {canCoordinate ? t.duty.notPublishedCoordinator : t.duty.notPublishedMember}
         </Box>
       )}
+      {narrow && schedule.data && numberRow && !rowOnCard && <div className="row">{numberRow}</div>}
       {narrow && schedule.data && (
         <div className="dcards">
-          <DutyCard role="primary" duty={byRole('primary')} />
-          <DutyCard role="secondary" duty={byRole('secondary')} />
+          <DutyCard role="primary" duty={primary} numberRow={rowOnCard && rowRole === 'primary' && numberRow} />
+          <DutyCard role="secondary" duty={secondary} numberRow={rowOnCard && rowRole === 'secondary' && numberRow} />
           <DutyCard
             role="late_shift"
             duty={byRole('late_shift')}

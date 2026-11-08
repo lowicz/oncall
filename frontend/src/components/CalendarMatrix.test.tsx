@@ -218,6 +218,7 @@ describe('CalendarMatrix override decision frame', () => {
       to_name: 'Marek Nowak',
       starts_at: `${day(1)}T09:40:00Z`,
       until: `${day(1)}T11:40:00Z`,
+      started_by_name: 'Anna Kowalska',
     }))
     renderScreen(matrix())
 
@@ -1866,6 +1867,7 @@ describe('CalendarMatrix role swap (P6)', () => {
       to_name: 'Marek Nowak',
       starts_at: '2026-09-10T09:40:00Z',
       until: '2026-09-10T11:40:00Z',
+      started_by_name: null,
     }))
     vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
     renderScreen(matrix())

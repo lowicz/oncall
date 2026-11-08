@@ -2262,6 +2262,18 @@
             ],
             "title": "Day"
           },
+          "day_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day Ends At"
+          },
           "handover": {
             "anyOf": [
               {
@@ -2308,6 +2320,16 @@
           "mode": {
             "$ref": "#/components/schemas/ForwardingMode"
           },
+          "pair": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoverPairResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "anyOf": [
               {
@@ -2322,12 +2344,14 @@
         "required": [
           "mode",
           "day",
+          "day_ends_at",
           "holder_member_id",
           "holder_name",
           "holder_role",
           "handover",
           "status",
-          "confirmed_at"
+          "confirmed_at",
+          "pair"
         ],
         "title": "ForwardingNowResponse",
         "type": "object"
@@ -2700,6 +2724,23 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HandoverPairResponse": {
+        "description": "The duty day's PRIMARY and SECONDARY, between whom the number is\nhanded over.",
+        "properties": {
+          "primary": {
+            "$ref": "#/components/schemas/PairMemberResponse"
+          },
+          "secondary": {
+            "$ref": "#/components/schemas/PairMemberResponse"
+          }
+        },
+        "required": [
+          "primary",
+          "secondary"
+        ],
+        "title": "HandoverPairResponse",
+        "type": "object"
+      },
       "HandoverRequest": {
         "additionalProperties": false,
         "description": "Hand the on-call number to the day's SECONDARY until `until`.",
@@ -2737,6 +2778,17 @@
             "title": "Id",
             "type": "string"
           },
+          "started_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started By Name"
+          },
           "starts_at": {
             "format": "date-time",
             "title": "Starts At",
@@ -2765,7 +2817,8 @@
           "to_member_id",
           "to_name",
           "starts_at",
-          "until"
+          "until",
+          "started_by_name"
         ],
         "title": "HandoverResponse",
         "type": "object"
@@ -3117,6 +3170,29 @@
           "ends_handover"
         ],
         "title": "OverrideCheckResponse",
+        "type": "object"
+      },
+      "PairMemberResponse": {
+        "properties": {
+          "has_phone": {
+            "title": "Has Phone",
+            "type": "boolean"
+          },
+          "is_you": {
+            "title": "Is You",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "is_you",
+          "has_phone"
+        ],
+        "title": "PairMemberResponse",
         "type": "object"
       },
       "PasswordLinkResponse": {

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ConnectionTest, ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, api } from '../../api'
+import { ConnectionTest, ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, NumberHandover, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
+import { FORWARDING_NOW_KEY, useForwardingNow } from '../../hooks/useForwardingNow'
 import { messages, useMessages } from '../../i18n'
-import { formatDate, formatMoment } from '../../lib/dates'
+import { formatClock, formatDate, formatMoment } from '../../lib/dates'
 import {
   Box,
   Button,
@@ -40,6 +41,7 @@ export function ForwardingPanel() {
   const t = useMessages().forwarding
   const settings = useQuery({ queryKey: SETTINGS_KEY, queryFn: api.forwardingSettings })
   const state = useQuery({ queryKey: STATE_KEY, queryFn: api.forwardingState })
+  const handover = useForwardingNow().data?.handover ?? null
   return (
     <div className="page">
       <PageHeader title={t.title} sub={t.subtitle} />
@@ -49,7 +51,7 @@ export function ForwardingPanel() {
       <SectionHeading title={t.state.title} />
       {state.isLoading && <LoadingBlock label={t.state.loading} rows={3} />}
       {state.error && <ErrorState error={state.error} onRetry={() => state.refetch()} />}
-      {state.data && settings.data && <StateCard settings={settings.data} state={state.data} />}
+      {state.data && settings.data && <StateCard settings={settings.data} state={state.data} handover={handover} />}
     </div>
   )
 }
@@ -171,7 +173,36 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
   )
 }
 
-function StateCard({ settings, state }: Readonly<{ settings: ForwardingSettings; state: ForwardingState }>) {
+/** The open handover and "Zakończ", which ends it at once: starting it again is one click (PT-25). */
+function HandoverRow({ handover }: Readonly<{ handover: NumberHandover }>) {
+  const t = useMessages().forwarding.state
+  const toast = useToast()
+  const queryClient = useQueryClient()
+  const end = useMutation({
+    mutationFn: () => api.endHandover(handover.id),
+    onSuccess: () => {
+      toast.success(t.handoverEnded(handover.from_name))
+      queryClient.invalidateQueries({ queryKey: FORWARDING_NOW_KEY })
+      queryClient.invalidateQueries({ queryKey: STATE_KEY })
+    },
+    onError: (error) => toast.error(error.message),
+  })
+  return (
+    <span className="row">
+      <span>
+        {t.handoverValue(handover.from_name, handover.to_name, formatClock(handover.until))}
+        {handover.started_by_name && t.handoverStartedBy(handover.started_by_name, formatClock(handover.starts_at))}
+      </span>
+      <Button size="sm" loading={end.isPending} onClick={() => end.mutate()}>{t.endHandover}</Button>
+    </span>
+  )
+}
+
+function StateCard({ settings, state, handover }: Readonly<{
+  settings: ForwardingSettings
+  state: ForwardingState
+  handover: NumberHandover | null
+}>) {
   const t = useMessages().forwarding.state
   const none = messages().common.none
   let desired = none
@@ -184,6 +215,7 @@ function StateCard({ settings, state }: Readonly<{ settings: ForwardingSettings;
     applied = state.applied_member_name === null ? state.applied_number : t.appliedBy(state.applied_number, state.applied_member_name)
   }
   const items = [
+    ...(handover ? [{ key: t.handover, value: <HandoverRow handover={handover} /> }] : []),
     { key: t.desired, value: desired, mono: true },
     { key: t.applied, value: applied, mono: true },
     { key: t.appliedAt, value: moment(state.applied_at), mono: true },

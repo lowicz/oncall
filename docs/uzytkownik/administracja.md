@@ -266,6 +266,11 @@ haseł. Historia przebiegów jest w [Audycie](#audyt-audyt-administrator) pod
 akcjami „Przełączono numer on-call”, „Nie udało się przełączyć numeru”,
 „Pominięto przełączenie numeru” i „Zmieniono hasło WCO”.
 
+W czasie przekazania numeru karta zaczyna się wierszem **Przekazanie**: kto
+oddał numer, kto go odbiera, do której godziny, kto i kiedy przekazanie
+zlecił. **Zakończ** kończy je od razu, bez pytania, i numer wraca do osoby na
+PRIMARY.
+
 ### Ręczne przełączenie numeru
 
 Gdy automatyczne przełączanie zawiedzie - przyjdzie alarm e-mail „Numer

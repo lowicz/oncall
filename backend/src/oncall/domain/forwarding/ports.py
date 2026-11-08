@@ -225,3 +225,4 @@ class ForwardingNowPorts:
     contacts: ForwardingContacts
     handovers: OpenHandover
     state: CurrentState
+    team: AccountMembers

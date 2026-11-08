@@ -176,6 +176,7 @@ def forwarding_now_reader(db: DbSession) -> ForwardingNowPorts:
         contacts=SqlAlchemyForwardingConfiguration(db),
         handovers=SqlAlchemyHandovers(db),
         state=SqlAlchemyForwardingState(db),
+        team=SqlAlchemyTeamDirectory(db),
     )
 
 

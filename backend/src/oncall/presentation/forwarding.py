@@ -122,6 +122,28 @@ class HandoverResponse(BaseModel):
     to_name: str
     starts_at: datetime
     until: datetime
+    #: Who started it; null once their account is gone.
+    started_by_name: str | None
+
+
+class PairMemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    #: Whether the reader is this person.
+    is_you: bool
+    #: Whether a phone number is set; the number itself is never told here.
+    has_phone: bool
+
+
+class HandoverPairResponse(BaseModel):
+    """The duty day's PRIMARY and SECONDARY, between whom the number is
+    handed over."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    primary: PairMemberResponse
+    secondary: PairMemberResponse
 
 
 class ForwardingNowResponse(BaseModel):
@@ -132,9 +154,14 @@ class ForwardingNowResponse(BaseModel):
 
     mode: ForwardingMode
     day: date | None
+    #: The latest `until` a handover may have: the end of the duty day.
+    day_ends_at: datetime | None
     holder_member_id: uuid.UUID | None
     holder_name: str | None
     holder_role: AssignmentRole | None
     handover: HandoverResponse | None
     status: SwitchStatus | None
     confirmed_at: datetime | None
+    #: The duty day's pair, only for either of them or a coordinator: the
+    #: ones who may hand the number over (D1).
+    pair: HandoverPairResponse | None

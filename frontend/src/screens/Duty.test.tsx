@@ -5,10 +5,16 @@ import { renderScreen } from '../test/render'
 import { chooseFromMenu, openMenu } from '../test/menu'
 import { DutyScreen } from './Duty'
 import { api } from '../api'
-import type { CalendarData, FairnessMember, FairnessReport, PublishedSchedule, ShareSession, SwapRequest } from '../api'
+import type { CalendarData, CurrentDuty, FairnessMember, FairnessReport, ForwardingNow, HandoverPair, PublishedSchedule, ShareSession, SwapRequest } from '../api'
 
 // The suite clock is 2026-09-10 (src/test/setup.ts), a Thursday.
 const TODAY = '2026-09-10'
+
+/** Thursday's pair, Anna and Marek, as the API tells it to `you`: one of them or a coordinator. */
+const pairFor = (you: 'primary' | 'secondary' | 'coordinator', marekHasPhone = true): HandoverPair => ({
+  primary: { name: 'Anna Kowalska', is_you: you === 'primary', has_phone: true },
+  secondary: { name: 'Marek Nowak', is_you: you === 'secondary', has_phone: marekHasPhone },
+})
 
 const publication = (over: Partial<PublishedSchedule> = {}): PublishedSchedule => ({
   generated_at: '2026-09-01T10:00:00Z',
@@ -513,5 +519,205 @@ describe('DutyScreen states not covered above', () => {
     expect(within(secondaryCard).queryByRole('link', { name: 'E-mail' })).not.toBeInTheDocument()
 
     expect(screen.getByRole('article', { name: '11–19' })).toHaveTextContent('nie dotyczy: święto - Dzień Niepodległości')
+  })
+})
+
+describe('DutyScreen and the on-call number', () => {
+  const marek: CurrentDuty = {
+    role: 'secondary', service_date: TODAY, assignee_name: 'Marek Nowak', member_id: 'm2',
+    contact_email: null, contact_phone: '+48 602 345 678',
+    coverage_starts_at: '19:00', coverage_ends_at: '09:00', is_day_off: false, is_override: false,
+    next_assignee_name: null, next_service_date: null,
+  }
+  const atAnna: ForwardingNow = {
+    mode: 'live', day: TODAY, day_ends_at: '2026-09-11T09:00:00+02:00',
+    holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+    handover: null, status: 'confirmed', confirmed_at: '2026-09-10T06:55:00Z', pair: null,
+  }
+  const atMarek: ForwardingNow = {
+    ...atAnna, holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+    handover: {
+      id: 'h1', day: TODAY, from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+      starts_at: '2026-09-10T07:00:00Z', until: '2026-09-10T09:00:00Z', started_by_name: 'Anna Kowalska',
+    },
+  }
+
+  function stub(now: ForwardingNow, withSecondary = true) {
+    const base = publication()
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ current: withSecondary ? [...base.current, marek] : base.current }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue(now)
+  }
+
+  it('tells the PRIMARY the number is with them and offers to hand it over', async () => {
+    stub({ ...atAnna, pair: pairFor('primary') })
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    expect(await screen.findByRole('button', { name: 'numer on-call u Ciebie' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Przekaż numer…' })).not.toHaveClass('btn-pri')
+  })
+
+  it('names the holder to a coordinator, who may act for the pair', async () => {
+    stub({ ...atAnna, pair: pairFor('coordinator') })
+    renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
+    expect(await screen.findByRole('button', { name: 'numer on-call: Anna Kowalska' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Przekaż numer…' })).toBeInTheDocument()
+  })
+
+  it('offers no action to anyone outside the pair, nor while the day has no pair', async () => {
+    stub(atAnna)
+    const { unmount } = renderScreen(<DutyScreen role="member" displayName="Ola Wiśniewska" hasTeamMember />)
+    expect(await screen.findByRole('button', { name: 'numer on-call: Anna Kowalska' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /numer…/ })).not.toBeInTheDocument()
+    unmount()
+
+    stub(atAnna, false)
+    renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
+    expect(await screen.findByRole('button', { name: 'numer on-call: Anna Kowalska' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /numer…/ })).not.toBeInTheDocument()
+  })
+
+  it('shows neither the pill nor the action while forwarding is off', async () => {
+    stub({ ...atAnna, day: null, day_ends_at: null, holder_member_id: null, holder_name: null, holder_role: null, status: null, confirmed_at: null, mode: 'off' })
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    await screen.findByRole('link', { name: /Zgłoś dostępność/ })
+    await waitFor(() => expect(api.forwardingNow).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /numer on-call/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Przekaż numer/ })).not.toBeInTheDocument()
+  })
+
+  it('puts the number on the card of the SECONDARY holding it on a phone, with a way to give it back', async () => {
+    pretendNarrow(true)
+    stub({ ...atMarek, pair: pairFor('secondary') })
+    renderScreen(<DutyScreen role="member" displayName="Marek Nowak" hasTeamMember />)
+    const card = await screen.findByRole('article', { name: 'SECONDARY' })
+    expect(await within(card).findByRole('button', { name: 'numer on-call u Ciebie · do 11:00' })).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'Oddaj numer' })).toHaveClass('btn-sm')
+    expect(within(screen.getByRole('article', { name: 'PRIMARY' })).queryByRole('button', { name: /numer on-call/ })).not.toBeInTheDocument()
+  })
+
+  it('tells anyone else on a phone, on the PRIMARY card, where the number rings', async () => {
+    pretendNarrow(true)
+    stub(atMarek)
+    renderScreen(<DutyScreen role="viewer" displayName="Service Desk" hasTeamMember={false} />)
+    const card = await screen.findByRole('article', { name: 'PRIMARY' })
+    expect(await within(card).findByRole('button', { name: 'numer on-call: Marek Nowak · do 11:00' })).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: /numer$/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('DutyScreen and the on-call number before the reminder hour', () => {
+  // 02:00 on Friday: the calendar day's pair is Jan and Ola, but the number
+  // still belongs to Thursday's duty day, Anna's and Marek's.
+  const NIGHT = new Date('2026-09-11T02:00:00+02:00')
+  const friday = (role: 'primary' | 'secondary', name: string, memberId: string, phone: string): CurrentDuty => ({
+    role, service_date: '2026-09-11', assignee_name: name, member_id: memberId,
+    contact_email: null, contact_phone: phone,
+    coverage_starts_at: '19:00', coverage_ends_at: '09:00', is_day_off: false, is_override: false,
+    next_assignee_name: null, next_service_date: null,
+  })
+  const atAnna = (pair: HandoverPair | null): ForwardingNow => ({
+    mode: 'live', day: TODAY, day_ends_at: '2026-09-11T09:00:00+02:00',
+    holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+    handover: null, status: 'confirmed', confirmed_at: '2026-09-10T17:00:00Z', pair,
+  })
+  const atMarek = (pair: HandoverPair | null): ForwardingNow => ({
+    ...atAnna(pair), holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+    handover: {
+      id: 'h1', day: TODAY, from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+      starts_at: '2026-09-10T23:00:00Z', until: '2026-09-11T05:00:00Z', started_by_name: null,
+    },
+  })
+
+  const FRIDAY_PAIR = [
+    friday('primary', 'Jan Wiśniewski', 'm3', '+48 603 456 789'),
+    friday('secondary', 'Ola Wiśniewska', 'm4', '+48 604 567 890'),
+  ]
+
+  function stub(now: ForwardingNow, current = FRIDAY_PAIR) {
+    vi.setSystemTime(NIGHT)
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ current }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue(now)
+  }
+
+  it('lets the night holder hand the number to the duty day\'s SECONDARY', async () => {
+    stub(atAnna(pairFor('primary')))
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    expect(await screen.findByRole('button', { name: 'numer on-call u Ciebie' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Przekaż numer…' }))
+    const popover = await screen.findByRole('dialog', { name: 'Przekaż numer on-call' })
+    expect(popover).toHaveTextContent('Odbierze Marek Nowak · SECONDARY')
+    expect(popover).not.toHaveTextContent('Ola')
+    expect(popover).toHaveTextContent('Numer wraca do Ciebie o 04:00.')
+  })
+
+  it('offers nothing to the calendar day\'s PRIMARY, whom the API does not tell the pair', async () => {
+    stub(atAnna(null))
+    renderScreen(<DutyScreen role="member" displayName="Jan Wiśniewski" hasTeamMember />)
+    expect(await screen.findByRole('button', { name: 'numer on-call: Anna Kowalska' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /numer…/ })).not.toBeInTheDocument()
+  })
+
+  it('names the duty day\'s receiver to a coordinator, with no number the duty list does not show', async () => {
+    stub(atAnna(pairFor('coordinator')))
+    renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Przekaż numer…' }))
+    const popover = await screen.findByRole('dialog', { name: 'Przekaż numer on-call' })
+    expect(popover).toHaveTextContent('Odbierze Marek Nowak · SECONDARY')
+    expect(popover).toHaveTextContent('Numer wraca do osoby na PRIMARY (Anna Kowalska) o 04:00.')
+    expect(within(popover).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(popover).getByRole('button', { name: 'Przekaż numer' })).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('gives the end of a night handover to the duty day\'s pair and not to the calendar day\'s', async () => {
+    stub(atMarek(pairFor('primary')))
+    const anna = renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    expect(await screen.findByRole('button', { name: 'Zabierz numer z powrotem' })).toBeInTheDocument()
+    anna.unmount()
+
+    stub(atMarek(pairFor('secondary')))
+    const marek = renderScreen(<DutyScreen role="member" displayName="Marek Nowak" hasTeamMember />)
+    expect(await screen.findByRole('button', { name: 'Oddaj numer' })).toBeInTheDocument()
+    marek.unmount()
+
+    stub(atMarek(null))
+    renderScreen(<DutyScreen role="member" displayName="Jan Wiśniewski" hasTeamMember />)
+    expect(await screen.findByRole('button', { name: 'numer on-call: Marek Nowak · do 07:00' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Zabierz numer|Oddaj numer|Zakończ przekazanie/ })).not.toBeInTheDocument()
+  })
+
+  it('blocks the handover by the duty day\'s receiver having no phone, whatever the calendar day\'s has', async () => {
+    stub(atAnna(pairFor('coordinator', false)))
+    renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Przekaż numer…' }))
+    const popover = await screen.findByRole('dialog', { name: 'Przekaż numer on-call' })
+    expect(popover).toHaveTextContent('Marek Nowak nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie.')
+    expect(within(popover).getByRole('button', { name: 'Przekaż numer' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('keeps the night holder\'s number row on a phone when the calendar day has no duties', async () => {
+    pretendNarrow(true)
+    stub(atAnna(pairFor('primary')), [])
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    const pill = await screen.findByRole('button', { name: 'numer on-call u Ciebie' })
+    const hand = screen.getByRole('button', { name: 'Przekaż numer…' })
+    expect(pill.closest('article')).toBeNull()
+    expect(hand.closest('article')).toBeNull()
+  })
+
+  it('keeps the number row of a night SECONDARY off the card of the calendar day\'s SECONDARY on a phone', async () => {
+    pretendNarrow(true)
+    stub(atMarek(pairFor('secondary')))
+    renderScreen(<DutyScreen role="member" displayName="Marek Nowak" hasTeamMember />)
+    const giveBack = await screen.findByRole('button', { name: 'Oddaj numer' })
+    const olaCard = screen.getByRole('article', { name: 'SECONDARY' })
+    expect(olaCard).toHaveTextContent('Ola Wiśniewska')
+    expect(olaCard).not.toContainElement(giveBack)
+    expect(within(olaCard).queryByRole('button', { name: /numer on-call/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'numer on-call u Ciebie · do 07:00' }).closest('article')).toBeNull()
   })
 })

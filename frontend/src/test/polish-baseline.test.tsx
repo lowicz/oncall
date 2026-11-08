@@ -29,6 +29,7 @@ import type {
   DraftSchedule,
   FairnessMember,
   FairnessReport,
+  ForwardingNow,
   PublishedSchedule,
   ScheduleSummary,
   SwapRequest,
@@ -325,6 +326,21 @@ const AUDIT: AuditEvent[] = [
   { id: 'a4', occurred_at: '2026-09-07T09:00:00Z', actor_label: 'system', action: 'auth.throttled', entity_type: null, entity_id: null, summary: 'Ograniczono liczbę prób logowania', details: { login: 'anna' } },
 ]
 
+/** Forwarding off: no pill, no handover action (D5). */
+const FORWARDING_OFF: ForwardingNow = {
+  mode: 'off', day: null, day_ends_at: null, holder_member_id: null, holder_name: null, holder_role: null,
+  handover: null, status: null, confirmed_at: null, pair: null,
+}
+const FORWARDING_AT_ANNA: ForwardingNow = {
+  mode: 'live', day: TODAY, day_ends_at: '2026-09-11T09:00:00+02:00',
+  holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+  handover: null, status: 'confirmed', confirmed_at: '2026-09-10T06:55:00Z',
+  pair: {
+    primary: { name: 'Anna Kowalska', is_you: true, has_phone: true },
+    secondary: { name: 'Marek Nowak', is_you: false, has_phone: false },
+  },
+}
+
 const CONFIG = { ldap_enabled: true, app_name: 'On-call', app_subtitle: 'Zespół infrastruktury', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false }
 
 /** Every query any screen makes, answered with the fixtures above. */
@@ -415,6 +431,7 @@ function stubApi() {
     last_attempt_at: '2026-09-10T07:00:30Z', last_outcome: 'skipped_no_phone', last_error: 'Osoba na dyżurze PRIMARY nie ma zapisanego numeru telefonu',
     failing_since: '2026-09-10T07:00:30Z', attempts: 0, next_attempt_at: null,
   })
+  vi.spyOn(api, 'forwardingNow').mockResolvedValue(FORWARDING_OFF)
   vi.spyOn(api, 'passwordTokenInfo').mockResolvedValue({ username: 'marek', display_name: 'Marek Nowak' })
   vi.spyOn(api, 'exchangeShare').mockRejectedValue(new Error('Link wygasł lub został odwołany'))
 }
@@ -525,6 +542,32 @@ describe('the Polish interface', () => {
     await screen.findByText('Anna Kowalska', { exact: false })
     await waitFor(() => expect(api.fairness).toHaveBeenCalled())
     await snapshotOf('duty-coordinator-day-off')
+  })
+
+  it('handing the on-call number over from the dashboard of the PRIMARY', async () => {
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue(FORWARDING_AT_ANNA)
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Przekaż numer…' }))
+    await screen.findByRole('dialog', { name: 'Przekaż numer on-call' })
+    await snapshotOf('duty-number-handover')
+  })
+
+  it('the on-call number handed over to the SECONDARY, on a phone', async () => {
+    pretendNarrow()
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      ...FORWARDING_AT_ANNA, holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+      pair: {
+        primary: { name: 'Anna Kowalska', is_you: false, has_phone: true },
+        secondary: { name: 'Marek Nowak', is_you: true, has_phone: true },
+      },
+      handover: {
+        id: 'h1', day: TODAY, from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+        starts_at: '2026-09-10T07:00:00Z', until: '2026-09-10T09:00:00Z', started_by_name: 'Anna Kowalska',
+      },
+    })
+    renderScreen(<DutyScreen role="member" displayName="Marek Nowak" hasTeamMember />)
+    await screen.findByRole('button', { name: 'Oddaj numer' })
+    await snapshotOf('duty-number-handed-over-phone')
   })
 
   it('schedule of a coordinator', async () => {
