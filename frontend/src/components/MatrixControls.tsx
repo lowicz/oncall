@@ -16,7 +16,7 @@ export const ONLY_ON_DUTY = { key: 'tylko', value: 'z-dyzurem' }
 export const VIEW_KEY = 'widok'
 export const VIEW_SLUGS: Record<MatrixView, string> = { matrix: 'macierz', list: 'lista' }
 export const viewOf = (slug: string | null, narrow: boolean): MatrixView =>
-  slug === VIEW_SLUGS.list ? 'list' : slug === VIEW_SLUGS.matrix ? 'matrix' : narrow ? 'list' : 'matrix'
+  (Object.keys(VIEW_SLUGS) as MatrixView[]).find((view) => VIEW_SLUGS[view] === slug) ?? (narrow ? 'list' : 'matrix')
 
 /** The legend as a popover hanging off the "Legend" link in a section heading,
  *  or, opened from a menu, off the menu's button. */
