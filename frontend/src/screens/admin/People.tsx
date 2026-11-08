@@ -408,7 +408,7 @@ export function PeoplePanel() {
   const deleteAccount = useMutation({
     mutationFn: async (row: Row) => {
       await api.deleteAdminUser(row.user.id)
-      return row.member ? (await api.team()).find((item) => item.id === row.member!.id)?.display_name : undefined
+      return row.member ? (await api.team().catch(() => [])).find((item) => item.id === row.member!.id)?.display_name : undefined
     },
     onSuccess: (pseudonym, row) => {
       setDeleteOpen(false)

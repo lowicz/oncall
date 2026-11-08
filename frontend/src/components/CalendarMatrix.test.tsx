@@ -546,6 +546,25 @@ describe('CalendarMatrix event deletion', () => {
     // The event comes back over every day it had, not only the one it was deleted from.
     await waitFor(() => expect(create).toHaveBeenCalledWith({ starts_on: '2026-09-01', ends_on: '2026-09-25', title: 'Audyt', color: 'red' }))
     await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
+    // The inspector still open on that day shows the event again.
+    expect(await within(screen.getByRole('dialog')).findByText('Audyt', { selector: 'span' })).toBeInTheDocument()
+  })
+
+  it('leaves a restored event out of an inspector open on a day outside its range', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(withEvent())
+    vi.spyOn(api, 'calendarEvents').mockResolvedValue([{ ...stored, starts_on: day(0), ends_on: day(0) }])
+    vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    const create = vi.spyOn(api, 'createCalendarEvent').mockResolvedValue({ ...stored, id: 'e2' })
+    renderScreen(matrix())
+
+    await deleteFromDay()
+    expect(await screen.findByText('Usunięto „Audyt”')).toBeInTheDocument()
+    fireEvent.click((await screen.findAllByRole('button', { name: /Anna Kowalska/ }))[1])
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(create).toHaveBeenCalled())
+    await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
+    expect(within(screen.getByRole('dialog')).queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
   })
 })
 

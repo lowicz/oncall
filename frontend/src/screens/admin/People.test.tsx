@@ -341,6 +341,24 @@ describe('PeoplePanel person panel', () => {
     expect(screen.getByText('W grafiku: Osoba usunięta #12')).toBeInTheDocument()
   })
 
+  it('reports a delete that went through even when the pseudonym cannot be read back', async () => {
+    mockData([user({ id: 'u1' })], [member({ id: 'm1' })])
+    const remove = vi.spyOn(api, 'deleteAdminUser').mockImplementation(async () => {
+      vi.mocked(api.team).mockRejectedValueOnce(new Error('Failed to fetch'))
+    })
+    renderScreen(<PeoplePanel />)
+    fireEvent.click(within(await openRow('anna')).getByRole('button', { name: 'Usuń konto…' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })
+
+    fireEvent.change(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić'), { target: { value: 'anna' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Usuń konto i dane' }))
+
+    expect(await screen.findByText('Usunięto konto Anna Kowalska')).toBeInTheDocument()
+    expect(screen.queryByText(/W grafiku:/)).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })).not.toBeInTheDocument())
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
+
   it('names no pseudonym after deleting an account outside the rotation', async () => {
     mockData()
     vi.spyOn(api, 'deleteAdminUser').mockResolvedValue(undefined)

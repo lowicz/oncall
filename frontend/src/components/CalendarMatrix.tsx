@@ -193,7 +193,11 @@ export function CalendarMatrix({
         return stored
       },
       undo: async ({ starts_on, ends_on, title, color }) => {
-        await api.createCalendarEvent({ starts_on, ends_on, title, color })
+        const restored = await api.createCalendarEvent({ starts_on, ends_on, title, color })
+        setSelected((current) => current && current.day.service_date >= starts_on && current.day.service_date <= ends_on ? {
+          ...current,
+          day: { ...current.day, events: [...current.day.events, restored] },
+        } : current)
         refreshCalendar()
       },
       message: () => ({ title: t.toast.eventDeleted(event.title) }),

@@ -9,7 +9,7 @@ import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
 import { signed } from '../lib/numbers'
 import { useUndoable } from '../hooks/useUndoable'
 import { problemCounts } from './DraftProblems'
-import { AvailabilityMark, Box, Button, ErrorState, Field, KeyValue, LoadingBlock, Panel, RoleMark, Select, Tag, cx } from '../ui'
+import { AvailabilityMark, Box, Button, ErrorState, Field, KeyValue, LoadingBlock, Panel, RoleMark, Select, Tag, cx, useToast } from '../ui'
 
 type Member = CalendarData['members'][number]
 type Day = CalendarData['days'][number]
@@ -38,21 +38,31 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   })
   const fairness = useQuery(draftFairnessImpactQuery(result))
   const undoable = useUndoable()
+  const toast = useToast()
   // The inverse is the same correction back to the person it replaced; the
   // cell stays marked as corrected, the rest of the draft is untouched.
   const override = useMutation({
-    mutationFn: ({ previous, next, ...input }: Parameters<typeof api.overrideDraft>[0] & { previous: Member; next: Member }) => undoable({
-      execute: () => api.overrideDraft(input),
-      undo: async (value) => onChange(await api.overrideDraft({
-        ...input,
-        expected_version: value.version,
-        replacement_member_id: previous.id,
-      })),
-      message: (value) => ({
-        title: t.assigned(formatShortDate(input.service_date), roleLabels()[input.role], previous.display_name, next.display_name),
+    mutationFn: async ({ previousName, previous, next, ...input }: Parameters<typeof api.overrideDraft>[0] & { previousName: string; previous?: Member; next: Member }) => {
+      const message = (value: DraftSchedule) => ({
+        title: t.assigned(formatShortDate(input.service_date), roleLabels()[input.role], previousName, next.display_name),
         description: t.remainingProblems(problemCounts(value).total),
-      }),
-    }),
+      })
+      if (!previous) {
+        const value = await api.overrideDraft(input)
+        const { title, description } = message(value)
+        toast.success(title, { description })
+        return value
+      }
+      return undoable({
+        execute: () => api.overrideDraft(input),
+        undo: async (value) => onChange(await api.overrideDraft({
+          ...input,
+          expected_version: value.version,
+          replacement_member_id: previous.id,
+        })),
+        message,
+      })
+    },
     onSuccess: (value) => {
       onChange(value)
       setSelected(null)
@@ -89,7 +99,6 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const selectedCategory = selectedBalance?.[selectedRole]
   const correctionPoints = selectedRole === 'late_shift' ? 1 : selected?.day.is_day_off ? 2 : 1
   const cannotAssign = !selectedAssignment
-    || !previousMember
     || selectedAssignment.assignee_name === selected?.member.display_name
     || selectedAvailability?.kind === 'unavailable'
 
@@ -180,7 +189,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               variant="primary"
               disabled={cannotAssign || override.isPending}
               loading={override.isPending}
-              onClick={() => previousMember && override.mutate({
+              onClick={() => selectedAssignment && override.mutate({
+                previousName: selectedAssignment.assignee_name,
                 previous: previousMember,
                 next: selected.member,
                 id: result.id,
