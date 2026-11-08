@@ -65,8 +65,6 @@ export function coverageWindowText(day: Pick<Day, 'is_day_off'>, role: Assignmen
   return day.is_day_off ? messages().schedule.allDay : '19:00–09:00'
 }
 
-const NO_ASSIGNMENTS: CalendarData['assignments'] = []
-
 /** What the hint under the person picker says about the chosen person: the
  *  roles they may hold that day and what they reported for it. */
 function candidateHint(candidate: StaffingCandidate, serviceDate: string) {
@@ -540,7 +538,7 @@ export function CalendarMatrix({
                         <span className="sr-only">{t.grid.dutiesInRange(count)}</span>
                       </th>
                       {data.days.map((day, colIndex) => {
-                        const assignments = cellAssignments.get(`${day.service_date}|${member.display_name}`) ?? NO_ASSIGNMENTS
+                        const assignments = cellAssignments.get(`${day.service_date}|${member.display_name}`) ?? []
                         const availability = cellAvailability.get(`${member.id}|${day.service_date}`)
                         const isSelected = selected?.day.service_date === day.service_date && selected.member?.id === member.id
                         return (

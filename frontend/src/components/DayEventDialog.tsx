@@ -45,8 +45,8 @@ export function DayEventDialog({ serviceDate, onClose, onCreated }: Readonly<{
         className="stack-sm"
         onSubmit={(event) => {
           event.preventDefault()
-          if (!title.trim() || !serviceDate) return
-          create.mutate({ starts_on: serviceDate, ends_on: serviceDate, title: title.trim(), color })
+          if (!title.trim()) return
+          create.mutate({ starts_on: serviceDate!, ends_on: serviceDate!, title: title.trim(), color })
         }}
       >
         <Field label={t.inspector.name} id="calendar-event-title">
