@@ -1,39 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
-import { messages, useMessages } from '../i18n'
+import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
-import {
-  OnCall,
-  REQUIRED_ROLES,
-  Roster,
-  StaffChange,
-  StaffingCandidate,
-  availabilityByDay,
-  correctionRoles,
-  groupByKey,
-  isCurrentAssignee,
-  lateShiftLink,
-  monthGroups,
-  slotOf,
-  staffChanges,
-  staffingCandidates,
-  startsWeek,
-} from '../lib/calendar'
-import { formatDate, formatShortDate, formatWeekday, warsawDate } from '../lib/dates'
-import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
-import { signed } from '../lib/numbers'
-import { useUndoable } from '../hooks/useUndoable'
+import { REQUIRED_ROLES, Roster, availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
+import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
 import { useDraftRoleSwap } from '../hooks/useDraftRoleSwap'
-import { problemCounts } from './DraftProblems'
-import { RolesFieldset, StaffChangePreview } from './StaffChangePreview'
-import { AvailabilityMark, Box, Button, ErrorState, LoadingBlock, Panel, RoleMark, Tag, cx, useToast } from '../ui'
+import { useDraftStaffChange } from '../hooks/useDraftStaffChange'
+import { AvailabilityMark, Box, ErrorState, LoadingBlock, Panel, RoleMark, Tag, cx } from '../ui'
 
 type Member = CalendarData['members'][number]
 type Day = CalendarData['days'][number]
-/** The roles ticked in the panel: an on-call role, and the coordinator's own
- *  choice about 11–19 (null follows the policy). */
-interface RolesPick { onCall: OnCall | null; lateChoice: boolean | null }
 
 /** A cell the problems table asked the matrix to open. */
 export interface DraftFocus { service_date: string; assignee_name: string; role: AssignmentRole }
@@ -50,45 +27,6 @@ function focusTarget(focus: DraftFocus, data?: CalendarData) {
   return member && day ? { member, day } : null
 }
 
-/** The roles a cell opens on: its role, 11–19 alone included. */
-function pickFor(role: AssignmentRole): RolesPick {
-  return role === 'late_shift' ? { onCall: null, lateChoice: true } : { onCall: role, lateChoice: null }
-}
-
-/** What stops `member` taking `roles` of the day, said under the roles: the
- *  roles they cannot take of several, or why they take none. Nothing when the
- *  roles are theirs already or their availability already says why. */
-function memberError(
-  candidate: StaffingCandidate | undefined,
-  roster: Roster,
-  serviceDate: string,
-  roles: AssignmentRole[],
-  member: Member,
-  unavailable: boolean,
-) {
-  const t = messages().generator.matrix
-  const { roleList } = messages().schedule.staffChange
-  if (candidate?.partial) {
-    const { notEligible, holds } = candidate.partial
-    return notEligible.length > 0
-      ? t.notEligible(member.display_name, roleList(notEligible.map((role) => roleLabels()[role])))
-      : t.holds(member.display_name, roleList(holds.map((role) => roleLabels()[role])))
-  }
-  const reason = candidate ? candidate.disabledReason : messages().calendar.disabledReasons.notEligible
-  const holdsAll = roles.every((role) => isCurrentAssignee(member, slotOf(roster, serviceDate, role)))
-  return reason && !holdsAll && !unavailable ? t.cannot(member.display_name, reason) : undefined
-}
-
-/** The toast title of a saved correction: the roles it moved, or its one slot. */
-function assignedTitle(changes: StaffChange[], serviceDate: string, name: string) {
-  const t = messages().generator.matrix
-  const date = formatShortDate(serviceDate)
-  if (changes.length > 1) {
-    return t.assignedRoles(date, name, messages().schedule.staffChange.roleList(changes.map((item) => roleLabels()[item.role])))
-  }
-  return t.assigned(date, roleLabels()[changes[0].role], changes[0].from ?? t.noAssignment, name)
-}
-
 /**
  * The draft as a matrix. A coordinator corrects one day at a time from the
  * panel, as the published day inspector does: the roles to change for the
@@ -102,18 +40,14 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   onChange: (value: DraftSchedule) => void
   focus?: DraftFocus | null
 }) {
-  const { generator: { matrix: t }, common } = useMessages()
+  const { generator: { matrix: t } } = useMessages()
   const today = warsawDate()
   const [selected, setSelected] = useState<{ member: Member; day: Day } | null>(null)
-  const [pick, setPick] = useState<RolesPick>({ onCall: 'primary', lateChoice: null })
   const metadata = useQuery({
     queryKey: ['draft-matrix-metadata', result.starts_on, result.ends_on],
     queryFn: () => api.calendar(result.starts_on, result.ends_on),
   })
-  const fairness = useQuery(draftFairnessImpactQuery(result))
   const policy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy, enabled: Boolean(selected) })
-  const undoable = useUndoable()
-  const toast = useToast()
   // The draft's assignments over the calendar's team: what the inspector's
   // helpers read the published days from.
   const roster = useMemo<Roster | undefined>(
@@ -132,41 +66,6 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
     },
     onUndone: onChange,
   })
-  // The inverse hands each slot back to the person it was taken from; the
-  // cells stay marked as corrected, the rest of the draft is untouched.
-  const override = useMutation({
-    mutationFn: async ({ serviceDate, changes, next }: { serviceDate: string; changes: StaffChange[]; next: Member }) => {
-      const input = {
-        id: result.id,
-        expected_version: result.version,
-        service_date: serviceDate,
-        assignments: changes.map((item) => ({ role: item.role, replacement_member_id: next.id })),
-      }
-      const message = (value: DraftSchedule) => ({
-        title: assignedTitle(changes, serviceDate, next.display_name),
-        description: t.remainingProblems(problemCounts(value).total),
-      })
-      if (changes.some((item) => !item.restoreTo)) {
-        const value = await api.overrideDraft(input)
-        const { title, description } = message(value)
-        toast.success(title, { description })
-        return value
-      }
-      return undoable({
-        execute: () => api.overrideDraft(input),
-        undo: async (value) => onChange(await api.overrideDraft({
-          ...input,
-          expected_version: value.version,
-          assignments: changes.map((item) => ({ role: item.role, replacement_member_id: item.restoreTo! })),
-        })),
-        message,
-      })
-    },
-    onSuccess: (value) => {
-      onChange(value)
-      setSelected(null)
-    },
-  })
   const editable = result.status === 'draft'
   const days = useMemo(() => metadata.data?.days ?? [], [metadata.data])
   const members = metadata.data?.members ?? []
@@ -178,6 +77,22 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   )
   const cellAvailability = useMemo(() => availabilityByDay(metadata.data?.availability ?? [], days), [metadata.data, days])
   const availabilityOf = (memberId: string, serviceDate: string) => cellAvailability.get(`${memberId}|${serviceDate}`)
+  const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
+  const unavailable = selectedAvailability?.kind === 'unavailable'
+  const staffChange = useDraftStaffChange({
+    draft: result,
+    roster,
+    selected,
+    unavailable,
+    anchor: policy.data?.late_shift_anchor,
+    onSaved: (value) => {
+      onChange(value)
+      setSelected(null)
+    },
+    onUndone: onChange,
+    onClose: () => closePanel(),
+  })
+  const { openFor } = staffChange
   const conflictKeys = useMemo(
     () => new Set((result.unavailability_conflicts ?? []).map((item) => `${item.service_date}:${item.assignee_name}`)),
     [result.unavailability_conflicts],
@@ -190,29 +105,18 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
     if (!target) return
     consumed.current = focus
     setSelected(target)
-    setPick(pickFor(focus.role))
-  }, [focus, metadata.data])
+    openFor(focus.role)
+  }, [focus, metadata.data, openFor])
   const openCell = (member: Member, day: Day, role: AssignmentRole) => {
     roleSwap.close()
-    override.reset()
     setSelected({ member, day })
-    setPick(pickFor(role))
+    openFor(role)
   }
   const closePanel = () => {
     roleSwap.close()
     setSelected(null)
   }
-
-  const link = roster && serviceDate && policy.data ? lateShiftLink(roster, serviceDate, policy.data.late_shift_anchor) : null
-  const { late, roles } = correctionRoles(pick.onCall, pick.lateChoice, link)
-  const changes = roster && serviceDate ? staffChanges(roster, serviceDate, roles) : []
-  const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
-  const unavailable = selectedAvailability?.kind === 'unavailable'
-  const candidate = roster && selected
-    ? staffingCandidates(roster, selected.day.service_date, roles).find((item) => item.id === selected.member.id)
-    : undefined
-  const ready = roles.length > 0 && Boolean(candidate && !candidate.disabledReason && !candidate.partial)
-  const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
+  const panelTitle = staffChange.ready && !roleSwap.open ? t.correctionTitle : t.dayTitle
 
   return (
     <div className="stack-sm">
@@ -292,24 +196,11 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
       <Panel
         open={Boolean(selected)}
         onClose={closePanel}
-        title={selected ? (ready && !roleSwap.open ? t.correctionTitle : t.dayTitle)(selected.member.display_name, formatDate(selected.day.service_date)) : ''}
+        title={selected ? panelTitle(selected.member.display_name, formatDate(selected.day.service_date)) : ''}
         meta={selected?.day.is_day_off && <Tag>{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
-        footer={roleSwap.open ? roleSwap.footer : selected && (
-          <>
-            <Button onClick={closePanel}>{common.cancel}</Button>
-            <span className="sp" />
-            <Button
-              variant="primary"
-              disabled={!ready || override.isPending}
-              loading={override.isPending}
-              onClick={() => override.mutate({ serviceDate: selected.day.service_date, changes, next: selected.member })}
-            >
-              {override.isPending ? common.saving : roles.length > 1 ? t.assignRoles(roles.length) : t.assign}
-            </Button>
-          </>
-        )}
+        footer={roleSwap.open ? roleSwap.footer : staffChange.footer}
       >
-        {selected && roster && (
+        {selected && (
           <>
             {selected.day.is_day_off && <Box tone="muted">{t.noLateShift}</Box>}
             {selected.day.events.length > 0 && (
@@ -329,38 +220,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               </Box>
             )}
             {roleSwap.trigger}
-            {roleSwap.frame || (
-              <>
-                <RolesFieldset
-                  data={roster}
-                  serviceDate={selected.day.service_date}
-                  link={link}
-                  onCall={pick.onCall}
-                  late={late}
-                  dayOff={selected.day.is_day_off}
-                  disabled={override.isPending}
-                  error={memberError(candidate, roster, selected.day.service_date, roles, selected.member, unavailable)}
-                  onOnCall={(onCall) => setPick({ ...pick, onCall })}
-                  onLate={(lateChoice) => setPick({ ...pick, lateChoice })}
-                />
-                {ready && (
-                  <>
-                    <StaffChangePreview changes={changes} name={selected.member.display_name} onCall={pick.onCall} link={link} />
-                    {changes.every((item) => item.from === null) && <p className="muted small">{t.nobodyHoldsRole(selected.member.display_name)}</p>}
-                    {selectedBalance && changes.map((item) => {
-                      const points = item.role !== 'late_shift' && selected.day.is_day_off ? 2 : 1
-                      const category = selectedBalance[item.role]
-                      return (
-                        <Box key={item.role} tone="sig" title={t.balanceTitle(roleLabels()[item.role], selectedBalance.display_name)}>
-                          {t.balanceChange(signed(category.deviation), signed(roundPoints(category.deviation + points)), points > 1 ? t.twoPoints : t.onePoint)}
-                        </Box>
-                      )
-                    })}
-                  </>
-                )}
-                {override.error && <Box tone="bad" role="alert" title={override.error.message} />}
-              </>
-            )}
+            {roleSwap.frame || staffChange.form}
           </>
         )}
       </Panel>

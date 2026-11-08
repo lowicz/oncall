@@ -34,6 +34,7 @@ export function RoleSwapPreview({ swap, carry, onCarry, disabled, inDraft = fals
 }>) {
   const t = useMessages().schedule.roleSwap
   const late = swap.lateShift
+  const carries = inDraft ? t.carriesInDraft : t.carries
   return (
     <div className="swap-preview">
       <PreviewRow role="primary" from={swap.primary.name} to={swap.secondary.name} refusal={swap.refused.primary} />
@@ -47,7 +48,7 @@ export function RoleSwapPreview({ swap, carry, onCarry, disabled, inDraft = fals
             </span>
             <Checkbox
               label={t.withAnchor(roleLabels()[late.anchor])}
-              hint={late.eligible ? (inDraft ? t.carriesInDraft : t.carries)(roleLabels()[late.anchor], late.to.name) : t.notEligible(late.to.name)}
+              hint={late.eligible ? carries(roleLabels()[late.anchor], late.to.name) : t.notEligible(late.to.name)}
               checked={carry}
               blocked={!late.eligible}
               disabled={disabled}
