@@ -187,25 +187,34 @@ Tryb tygodniowy pokazuje osobne ostrzeżenie z mierzonymi skutkami (serie
 Szkic ──► Do akceptacji ──► Opublikowany
 ```
 
-1. **Opublikuj…** w poprawnym szkicu przekazuje go do akceptacji w tle i od
-   razu otwiera arkusz „Publikuję szkic v*N* · *zakres*”. Zamknięcie arkusza
-   bez publikacji (**Wróć do szkicu**) cofa przekazanie, więc szkic zostaje
-   taki, jak był. Błąd przekazania pojawia się w panelu decyzji.
+1. **Opublikuj…** w poprawnym szkicu przekazuje go do akceptacji w tle,
+   sprawdza skutki publikacji i dopiero wtedy otwiera arkusz „Publikuję szkic
+   v*N* · *zakres*”. Zamknięcie arkusza bez publikacji (**Wróć do szkicu**)
+   albo przejście do innego szkicu cofa przekazanie, więc szkic zostaje taki,
+   jak był. Błąd przekazania albo sprawdzenia pojawia się w panelu decyzji, a
+   szkic wraca do stanu sprzed kliknięcia.
    **Przekaż do akceptacji** z menu **⋯** zamraża treść szkicu bez
    publikacji, a tytuł zmienia się na „Propozycja”; propozycję publikuje
    potem **Publikuj v*N*…** w panelu decyzji, w arkuszu „Publikuję propozycję
    v*N* · *zakres*”.
-2. Arkusz za każdym otwarciem sprawdza publikację od nowa; dopóki sprawdza,
-   mówi to obok przycisków, a **Publikuj v*N*** czeka. Arkusz zawiera tylko to, co trzeba rozstrzygnąć: jedno
-   zdanie skutku (ile przydziałów stanie się grafikiem, e-mail do zespołu,
-   aktualizacja kanałów ICS, cofnięcie tylko nową publikacją), konflikty ze
+2. Arkusz za każdym otwarciem sprawdza publikację od nowa, a otwarty
+   ponawia sprawdzenie co pół minuty i po powrocie do karty przeglądarki;
+   dopóki sprawdza, mówi to obok przycisków, a **Publikuj v*N*** czeka.
+   Arkusz zawiera: jedno zdanie skutku (ile przydziałów stanie się grafikiem,
+   e-mail do zespołu, aktualizacja kanałów ICS, cofnięcie tylko nową
+   publikacją), tę samą ramkę **Co zmieni publikacja** co strona propozycji
+   (przeniesione zmiany, anulowane zamiany, wpisy zmienione od wygenerowania,
+   ostrzeżenia do audytu), a pod nią to, co trzeba rozstrzygnąć: konflikty ze
    zmianami z licznikiem „Do rozstrzygnięcia”, zgody i - jeśli zakres już się
    zaczął - pole, że zespół zobaczy zmianę od razu. Naruszenia reguł
    odpoczynku i luka przed grafikiem mają każde własną ramkę z polem wyboru
    („Rozumiem i świadomie łamię te reguły”, „Rozumiem, że te dni zostają bez
    obsady”). Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
    rozstrzygnięcia: 1 konflikt, 2 zgody.”), a **Publikuj v*N*** działa dopiero,
-   gdy niczego nie brakuje. **Wróć do propozycji** zamyka arkusz otwarty z
+   gdy niczego nie brakuje. Jeśli skutki zmienią się, gdy arkusz jest otwarty
+   (na przykład ktoś złoży zamianę w tym zakresie), arkusz mówi „Skutki
+   publikacji zmieniły się.” i nie publikuje, dopóki koordynator nie kliknie
+   **Przyjmuję nowe skutki**. **Wróć do propozycji** zamyka arkusz otwarty z
    propozycji bez zmian.
    Publikacja sprawdza pełne pokrycie zakresu; brak obsady któregokolwiek
    dnia zatrzymuje operację.

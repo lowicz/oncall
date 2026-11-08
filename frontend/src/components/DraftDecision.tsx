@@ -91,13 +91,6 @@ export function DraftDecision({ result, preview, busy, error, onFix, onPropose, 
     )
   }
 
-  const effects = preview && [
-    preview.carried_changes.length > 0 && t.effects.carried(preview.carried_changes.length),
-    preview.pending_swaps.length > 0 && t.effects.cancelled(preview.pending_swaps.length),
-    preview.stale_changes_count > 0 && t.effects.stale(preview.stale_changes_count),
-    counts.soft > 0 && t.effects.audited(counts.soft),
-  ].filter((item): item is string => Boolean(item))
-
   return (
     <section className="panel draft-decision" aria-label={t.label}>
       <div className="draft-decision-main">
@@ -115,29 +108,45 @@ export function DraftDecision({ result, preview, busy, error, onFix, onPropose, 
         {spread && cause && (
           <div className="muted small">{t.spread[cause](formatDecimal(spread.before), formatDecimal(spread.after))}</div>
         )}
-        {effects && (
-          <div className="draft-decision-effects">
-            <b>{t.effects.title}</b>
-            <ul className="inline-list">
-              {effects.map((item) => <li key={item}>{item}</li>)}
-              <li>{t.effects.earlierSchedule}</li>
-            </ul>
-            {(preview.carried_changes.length > 0 || preview.pending_swaps.length > 0) && (
-              <Disclosure title={t.effects.details}>
-                <ul className="box-list">
-                  {preview.carried_changes.map((change) => (
-                    <li key={`carried-${change.service_date}-${change.role}`}>{t.effects.carriedItem(formatDayShort(change.service_date), roleLabels()[change.role], change.previous_assignee_name)}</li>
-                  ))}
-                  {preview.pending_swaps.map((swap) => (
-                    <li key={swap.id}>{t.effects.cancelledItem(formatDayShort(swap.service_date), roleLabels()[swap.role], swap.requester_name, swap.replacement_name)}</li>
-                  ))}
-                </ul>
-              </Disclosure>
-            )}
-          </div>
-        )}
+        {preview && <PublicationEffects preview={preview} soft={counts.soft} />}
       </div>
       {action && <div className="draft-decision-acts">{action}</div>}
     </section>
+  )
+}
+
+/**
+ * What publishing changes beyond the draft itself: carried-over changes,
+ * cancelled swaps, entries changed since generation and soft warnings going
+ * to the audit. Shown on the proposal page and again in the publication sheet.
+ */
+export function PublicationEffects({ preview, soft }: Readonly<{ preview: PublishPreview; soft: number }>) {
+  const t = useMessages().generator.decision.effects
+  const effects = [
+    preview.carried_changes.length > 0 && t.carried(preview.carried_changes.length),
+    preview.pending_swaps.length > 0 && t.cancelled(preview.pending_swaps.length),
+    preview.stale_changes_count > 0 && t.stale(preview.stale_changes_count),
+    soft > 0 && t.audited(soft),
+  ].filter((item): item is string => Boolean(item))
+  return (
+    <div className="draft-decision-effects">
+      <b>{t.title}</b>
+      <ul className="inline-list">
+        {effects.map((item) => <li key={item}>{item}</li>)}
+        <li>{t.earlierSchedule}</li>
+      </ul>
+      {(preview.carried_changes.length > 0 || preview.pending_swaps.length > 0) && (
+        <Disclosure title={t.details}>
+          <ul className="box-list">
+            {preview.carried_changes.map((change) => (
+              <li key={`carried-${change.service_date}-${change.role}`}>{t.carriedItem(formatDayShort(change.service_date), roleLabels()[change.role], change.previous_assignee_name)}</li>
+            ))}
+            {preview.pending_swaps.map((swap) => (
+              <li key={swap.id}>{t.cancelledItem(formatDayShort(swap.service_date), roleLabels()[swap.role], swap.requester_name, swap.replacement_name)}</li>
+            ))}
+          </ul>
+        </Disclosure>
+      )}
+    </div>
   )
 }

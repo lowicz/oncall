@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { useLocation } from 'react-router-dom'
+import { focusManager } from '@tanstack/react-query'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { chooseFromMenu } from '../test/menu'
 import { GeneratorPanel } from './Generator'
@@ -32,6 +33,11 @@ const summary = (over: Partial<ScheduleSummary> & { id: string }): ScheduleSumma
   created_at: '2026-09-02T10:00:00Z',
   ...over,
 })
+
+function Go({ to }: Readonly<{ to: string }>) {
+  const navigate = useNavigate()
+  return <button type="button" onClick={() => navigate(to)}>{`go ${to}`}</button>
+}
 
 function Location() {
   const location = useLocation()
@@ -298,7 +304,9 @@ describe('GeneratorPanel transitions', () => {
     fireEvent.click(within(decision).getByRole('button', { name: 'Publikuj v2…' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/Zespół dostanie e-mail, kanały ICS zaktualizują się od razu\./)).toBeInTheDocument()
-    expect(within(dialog).queryByText('Co zmieni publikacja')).not.toBeInTheDocument()
+    // The same effects stand in the sheet, above the decisions.
+    expect(within(dialog).getByText('Co zmieni publikacja')).toBeInTheDocument()
+    expect(within(dialog).getByText('1 zamiana anulowana')).toBeInTheDocument()
     expect(within(dialog).getByText('Do rozstrzygnięcia: 1 konflikt ze zmianami')).toBeInTheDocument()
     expect(within(dialog).getByText(/korekta: Anna Kowalska, szkic: Marek Nowak/)).toBeInTheDocument()
     expect(within(dialog).getByText('Nowy szkic ma w tym slocie innego pierwotnego wykonawcę')).toHaveClass('box-next')
@@ -476,12 +484,19 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
     const proposal = draft({ id: 'd1', status: 'proposed', version: 2 })
     const propose = vi.spyOn(api, 'proposeSchedule').mockResolvedValue(proposal)
+    let answer: (value: PublishPreview) => void = () => {}
+    const check = vi.spyOn(api, 'publishPreview').mockReturnValue(new Promise((resolve) => { answer = resolve }))
     const publish = vi.spyOn(api, 'publishSchedule').mockResolvedValue(draft({ id: 'd1', status: 'published', version: 3 }))
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Publikuję szkic v2 · 17 – 18 wrz' })
+    // The sheet waits for the effects of the proposal made in the background.
+    await waitFor(() => expect(check).toHaveBeenCalledWith('d1'))
     expect(propose).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 1 })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    act(() => answer({ ...emptyPreview, pending_swaps: [{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }] }))
+    const dialog = await screen.findByRole('dialog', { name: 'Publikuję szkic v2 · 17 – 18 wrz' })
+    expect(within(dialog).getByText('1 zamiana anulowana')).toBeInTheDocument()
     expect(screen.queryByText('Przekazano do akceptacji: 17 – 18 wrz')).not.toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Wróć do szkicu' })).toBeInTheDocument()
     const confirm = within(dialog).getByRole('button', { name: 'Publikuj v2' })
@@ -508,6 +523,43 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByText(/^Cofnięto do szkicu/)).not.toBeInTheDocument()
     expect(publish).not.toHaveBeenCalled()
+  })
+
+  it('takes the draft back when its effects cannot be read, saying so inline', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    vi.spyOn(api, 'proposeSchedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    vi.spyOn(api, 'publishPreview').mockRejectedValue(new ApiError('Błąd serwera', 500))
+    const withdraw = vi.spyOn(api, 'withdrawSchedule').mockResolvedValue(draft({ id: 'd1', version: 3 }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
+    fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
+    expect(await within(decision).findByRole('alert')).toHaveTextContent('Błąd serwera')
+    expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2 })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('takes the draft back when the page leaves its sheet, and opens no sheet for the next schedule', async () => {
+    stub([summary({ id: 'd1' }), summary({ id: 'd2', status: 'proposed', version: 4 })])
+    vi.spyOn(api, 'schedule').mockImplementation(async (id) => id === 'd1' ? draft({ id: 'd1' }) : draft({ id: 'd2', status: 'proposed', version: 4 }))
+    vi.spyOn(api, 'proposeSchedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    const withdraw = vi.spyOn(api, 'withdrawSchedule').mockResolvedValue(draft({ id: 'd1', version: 3 }))
+    renderScreen(<><GeneratorPanel /><Go to="/generator" /><Go to="/generator?szkic=d2" /><Location /></>, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
+    expect(await screen.findByRole('dialog', { name: /^Publikuję szkic/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('go /generator'))
+    await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2, quiet: true }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // The take-back does not reopen the draft the coordinator left.
+    expect(screen.getByLabelText('location')).toHaveTextContent(/^\/generator$/)
+    expect(await screen.findByRole('form', { name: 'Nowy szkic' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('go /generator?szkic=d2'))
+    expect(await screen.findByRole('button', { name: 'Publikuj v4…' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(withdraw).toHaveBeenCalledTimes(1)
   })
 
   it('says inline in the decision panel when the draft cannot be readied for publication', async () => {
@@ -1501,7 +1553,19 @@ describe('GeneratorPanel publication sheet', () => {
     act(() => answer({ ...emptyPreview, pending_swaps: [{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }] }))
     expect(await within(dialog).findByText('Gotowe do publikacji.')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeEnabled()
+    expect(within(dialog).getByText('1 zamiana anulowana')).toBeInTheDocument()
     expect(within(decision).getByText('1 zamiana anulowana')).toBeInTheDocument()
+
+    // A swap filed while the sheet is open changes the effects it showed.
+    check.mockResolvedValueOnce({ ...emptyPreview, pending_swaps: [{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }, { ...{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }, id: 's2', service_date: '2026-09-17' }] })
+    act(() => { focusManager.setFocused(false); focusManager.setFocused(true) })
+    expect(await within(dialog).findByText('Skutki publikacji zmieniły się.')).toBeInTheDocument()
+    expect(within(dialog).getByText('2 zamiany anulowane')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
+    focusManager.setFocused(undefined)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Przyjmuję nowe skutki' }))
+    expect(within(dialog).getByText('Gotowe do publikacji.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeEnabled()
   })
 
   it('refuses to publish when the consequences cannot be checked', async () => {

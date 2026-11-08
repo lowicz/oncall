@@ -193,26 +193,36 @@ windows with more than three duties) - switch it on deliberately.
 Draft ──► For approval ──► Published
 ```
 
-1. **Publish…** on a clean draft submits it for approval in the background
-   and at once opens the “Publishing the draft v*N* · *range*” sheet. Closing
-   the sheet without publishing (**Back to the draft**) takes the submission
-   back, so the draft stays as it was. A failed submission shows in the
-   decision panel. **Submit for approval** in the **⋯** menu freezes the
+1. **Publish…** on a clean draft submits it for approval in the background,
+   checks the effects of the publication and only then opens the “Publishing
+   the draft v*N* · *range*” sheet. Closing the sheet without publishing
+   (**Back to the draft**) or moving to another draft takes the submission
+   back, so the draft stays as it was. A failed submission or check shows in
+   the decision panel, and the draft returns to where it was before the
+   click. **Submit for approval** in the **⋯** menu freezes the
    content of the draft without publishing it, and the title changes to
    “Proposal”; **Publish v*N*…** in the decision panel then publishes the
    proposal in the “Publishing the proposal v*N* · *range*” sheet.
-2. The sheet checks the publication again each time it opens; while it is
-   checking it says so next to the buttons and **Publish v*N*** waits. The sheet holds only what has to be settled: one
-   sentence of effect (how many assignments become the schedule, an e-mail to
-   the team, the ICS feeds updated, undone only by a new publication), the
-   conflicts with changes with a “To settle” counter, the consents and - if
+2. The sheet checks the publication again each time it opens, and while
+   open it checks again every half minute and when you return to the browser
+   tab; while it is checking it says so next to the buttons and **Publish
+   v*N*** waits. The sheet holds: one sentence of effect (how many assignments
+   become the schedule, an e-mail to the team, the ICS feeds updated, undone
+   only by a new publication), the same **What the publication changes**
+   frame as the proposal page (carried changes, cancelled swaps, entries
+   changed since generation, warnings to the audit), and under it what has to
+   be settled: the conflicts with changes with a “To settle” counter, the consents and - if
    the range has already started - a box saying the team will see the change
    immediately. Rest rule violations and a gap before the schedule each have
    their own frame with a checkbox (“I understand and knowingly break these
    rules”, “I understand that these days stay unstaffed”). Next to the buttons
    the sheet says what is still missing (“To settle: 1 conflict, 2
-   consents.”), and **Publish v*N*** works only when nothing is. **Back to the
-   proposal** closes a sheet opened from a proposal without changes. Publication checks the full
+   consents.”), and **Publish v*N*** works only when nothing is. If the effects
+   change while the sheet is open (for example someone files a swap in the
+   range), the sheet says “The effects of the publication changed.” and does
+   not publish until the coordinator clicks **I accept the new effects**.
+   **Back to the proposal** closes a sheet opened from a proposal without
+   changes. Publication checks the full
    coverage of the range; missing staffing on any day stops the operation.
 3. The schedule becomes visible to everyone, notifications go out, and the
    ICS feeds get updates. The “Published v*N* · *range*” notification says
