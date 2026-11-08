@@ -72,7 +72,6 @@ small, .small { font-size: 12px; line-height: 16px; }
 .now .ava, .mob-top .ava { background: var(--band-ink); color: var(--rail-active-ink); }
 .now .kbd { color: var(--band-ink); border-color: var(--band-kbd); }
 .now .lbl { background-color: var(--band-chip); }
-.now .pill { background: var(--band-chip); color: var(--rail-active-ink); }
 .now .lbl-p { color: var(--band-p); }
 .now .lbl-s { color: var(--band-sec); }
 .now .lbl-l { color: var(--band-late); }

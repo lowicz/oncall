@@ -8,7 +8,7 @@ import { StatusPill } from './StatusPill'
 describe('StatusPill', () => {
   it('is a button with its words visible that opens a dialog, read out politely', async () => {
     const { container } = render(
-      <StatusPill detail=", u Anny Kowalskiej, potwierdzone 09:00" className="now-pill">numer on-call</StatusPill>,
+      <StatusPill className="now-pill">numer on-call<span className="sr-only">, u Anny Kowalskiej, potwierdzone 09:00</span></StatusPill>,
     )
     const pill = screen.getByRole('button', { name: 'numer on-call, u Anny Kowalskiej, potwierdzone 09:00' })
     expect(pill).toHaveAttribute('type', 'button')
