@@ -133,6 +133,7 @@ class ScheduleSummaryResponse(BaseModel):
     rotation_mode: RotationMode
     solver_status: str
     assignment_count: int
+    override_count: int
     created_at: datetime | None
 
 
@@ -288,5 +289,6 @@ def schedule_summary_response(item: ScheduleSummary) -> ScheduleSummaryResponse:
         rotation_mode=item.rotation_mode or RotationMode.hybrid,
         solver_status=item.solver_status or "UNKNOWN",
         assignment_count=item.assignment_count,
+        override_count=item.override_count,
         created_at=item.created_at,
     )

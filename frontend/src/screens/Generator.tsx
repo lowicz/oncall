@@ -52,7 +52,7 @@ const SOLVER_OK = new Set(['OPTIMAL', 'FEASIBLE'])
 const GENERATION_BUDGET_PASSES = 4
 
 /** Count of generations ahead in the queue, in the current language. */
-export function jobsAhead(count: number): string {
+function jobsAhead(count: number): string {
   return messages().generator.jobsAhead(count)
 }
 
@@ -567,7 +567,7 @@ export function GeneratorPanel() {
         title={t.deleteDialog.title}
         confirmLabel={t.deleteDialog.confirm}
         confirmColor="error"
-        description={toDelete && t.deleteDialog.description(toDelete.name, formatDate(toDelete.starts_on), formatDate(toDelete.ends_on))}
+        description={toDelete && t.deleteDialog.description(toDelete.name, formatDate(toDelete.starts_on), formatDate(toDelete.ends_on), toDelete.version, toDelete.override_count)}
         error={remove.error ? remove.error.message : null}
       />
       <Panel

@@ -27,6 +27,7 @@ const summary = (over: Partial<ScheduleSummary> & { id: string }): ScheduleSumma
   rotation_mode: 'hybrid',
   solver_status: 'OPTIMAL',
   assignment_count: 41,
+  override_count: 0,
   created_at: '2026-09-02T10:00:00Z',
   ...over,
 })
@@ -344,6 +345,20 @@ describe('GeneratorPanel draft deletion', () => {
     fireEvent.click(screen.getByRole('button', { name: /Usuń szkic/ }))
     const reopened = await screen.findByRole('dialog', { name: 'Usunąć szkic?' })
     expect(within(reopened).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    [0, /^Szkic v2 \(.*\)\. Tej operacji nie da się cofnąć\.$/],
+    [1, /Szkic v2 ma 1 ręczną korektę; przepadnie\./],
+    [3, /Szkic v2 ma 3 ręczne korekty; przepadną\./],
+    [5, /Szkic v2 ma 5 ręcznych korekt; przepadnie\./],
+  ])('names the %i manual corrections that go with the draft', async (count, expected) => {
+    stub([summary({ id: 'd1', name: 'Szkic v2', version: 2, override_count: count })])
+    renderScreen(<GeneratorPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Usuń szkic/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(expected)).toBeInTheDocument()
   })
 
   it('does not delete anything when the confirmation is dismissed', async () => {

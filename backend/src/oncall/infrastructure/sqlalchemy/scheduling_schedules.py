@@ -139,6 +139,7 @@ class SqlAlchemySchedules:
                 rotation_mode=row.rotation_mode,
                 solver_status=row.solver_status,
                 assignment_count=len(row.assignments),
+                override_count=sum(item.is_override for item in row.assignments),
                 created_at=row.created_at,
             )
             for row in rows

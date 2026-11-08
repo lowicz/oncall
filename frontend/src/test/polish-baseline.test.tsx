@@ -283,6 +283,7 @@ const summary = (over: Partial<ScheduleSummary> & { id: string }): ScheduleSumma
   rotation_mode: 'hybrid',
   solver_status: 'OPTIMAL',
   assignment_count: 84,
+  override_count: 0,
   created_at: '2026-09-09T09:12:00Z',
   ...over,
 })

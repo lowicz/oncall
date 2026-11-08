@@ -615,10 +615,19 @@ export function PeoplePanel() {
         footer={selectedRow && (
           <>
             <Button size="sm" variant="ghost" className="btn-bad" onClick={() => { setDeleteTyped(''); setDeleteOpen(true) }}>{t.details.deleteAccount}</Button>
-            <span className="sp" />
-            {dirty && <span className="small muted">{t.details.unsaved(pendingChanges.join(' · '))}</span>}
-            <Button onClick={requestClose}>{dirty ? m.common.cancel : m.common.close}</Button>
-            <Button type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending} loading={saveAll.isPending}>
+            {dirty ? (
+              <span className="panel-foot-note small muted">
+                {t.details.unsaved(pendingChanges.join(' · '))}
+                {/* Named for its effect, so it needs no dialog; closing by Escape or the corner button still asks. */}
+                <button type="button" className="link-btn" onClick={() => setSelectedId(null)}>{t.details.discard}</button>
+              </span>
+            ) : (
+              <>
+                <span className="sp" />
+                <Button size="sm" onClick={requestClose}>{m.common.close}</Button>
+              </>
+            )}
+            <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending} loading={saveAll.isPending}>
               {saveAll.isPending ? m.common.saving : dirty ? t.details.saveCount(pendingChanges.length) : t.details.save}
             </Button>
           </>
@@ -887,7 +896,7 @@ export function PeoplePanel() {
             </ul>
             {deleteAccount.error && <Box tone="bad" role="alert" title={deleteAccount.error.message} />}
             <Field label={t.deleteDialog.typeUsername} id="delete-confirm">
-              {({ id }) => <Input id={id} name="username-confirmation" mono autoComplete="off" autoCapitalize="none" spellCheck={false} value={deleteTyped} placeholder={selectedRow.user.username} onChange={(event) => setDeleteTyped(event.target.value)} />}
+              {({ id }) => <Input id={id} name="username-confirmation" mono autoComplete="off" autoCapitalize="none" spellCheck={false} value={deleteTyped} placeholder={t.deleteDialog.typeUsernamePlaceholder} onChange={(event) => setDeleteTyped(event.target.value)} />}
             </Field>
           </>
         )}

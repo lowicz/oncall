@@ -144,7 +144,10 @@ export const generator = {
   deleteDialog: {
     title: 'Usunąć szkic?',
     confirm: 'Usuń',
-    description: (name: string, startsOn: string, endsOn: string) => `${name} (${startsOn} - ${endsOn}). Tej operacji nie da się cofnąć.`,
+    description: (name: string, startsOn: string, endsOn: string, version: number, corrections: number) => {
+      const lost = `Szkic v${version} ma ${pluralPl(corrections, ['ręczną korektę', 'ręczne korekty', 'ręcznych korekt'])}; ${pluralFormPl(corrections, ['przepadnie', 'przepadną', 'przepadnie'])}. `
+      return `${name} (${startsOn} - ${endsOn}). ${corrections > 0 ? lost : ''}Tej operacji nie da się cofnąć.`
+    },
   },
   settings: {
     title: 'Ustawienia generatora',

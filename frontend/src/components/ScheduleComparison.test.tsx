@@ -15,6 +15,7 @@ const summary = (id: string, rotation_mode: RotationMode): ScheduleSummary => ({
   rotation_mode,
   solver_status: 'OPTIMAL',
   assignment_count: 76,
+  override_count: 0,
   created_at: '2026-09-10T08:00:00Z',
 })
 

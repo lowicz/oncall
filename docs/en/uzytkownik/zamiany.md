@@ -41,15 +41,21 @@ the same place:
 
 - The **replacement** clicks “Accept” or “Reject”. With approval switched off,
   the sheet announces that acceptance will write the swap into the schedule
-  right away.
+  right away, and the confirmation says the same (“Accepted. The swap is
+  written into the schedule.”, with an **Open the day** button). With approval
+  switched on, the confirmation reads “Accepted. Waiting for the coordinator to
+  approve.”.
 - A **coordinator or administrator** clicks “Approve and write into the
   schedule” or “Reject” - only when swap approval is switched on.
 - The **author** can “Withdraw” their own request as long as no decision has
   been made.
 
-Rejection and withdrawal require **giving a reason** in a field visible right
-away in the sheet; both sides see the reason, it stays with the request and
-in the audit. The “Reject” button is inactive as long as the reason is empty.
+**Rejection** requires a reason, but the field appears only after you click
+“Reject”: “Confirm rejection” takes its place in the same row of buttons and
+stays inactive as long as the reason is empty. Both sides see the reason, it
+stays with the request and in the audit. **Withdrawing** your own request needs
+no reason; if you give none, “wycofane przez autora” (withdrawn by the author)
+stays with the request.
 
 ## Filing a request
 
@@ -208,7 +214,8 @@ day off work. The list marks such a candidate “not possible: …”.
 How it goes:
 
 1. The **requester**, after picking the candidate, sees the box “This swap
-   breaks the schedule rules” with a list: who, which rule and on which days.
+   breaks the schedule rules” with a list: who, which rule and on which days,
+   and a link “Which rules can be confirmed?” to this chapter.
    The “Send request” button works only after ticking “I understand and
    knowingly break these rules”; the **reason** is optional. Picking another
    candidate, or another duty in return, including another **I take** choice,

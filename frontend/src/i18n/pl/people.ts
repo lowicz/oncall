@@ -93,6 +93,7 @@ export const people = {
     disabled: 'wyłączone',
     deleteAccount: 'Usuń konto…',
     unsaved: (changes: string) => `Niezapisane: ${changes}`,
+    discard: 'Odrzuć zmiany',
     save: 'Zapisz',
     saveCount: (count: number) => `Zapisz (${count})`,
     sections: 'Sekcje konta',
@@ -192,6 +193,7 @@ export const people = {
     publishedDutiesRest: 'pozostaną bez obsady i pojawią się w ryzykach. Zalecane: najpierw ustaw „wyjście do” i przepisz dyżury.',
     irreversible: 'Operacji nie da się cofnąć. Audyt zachowuje imię i nazwisko: we wcześniejszych wpisach i we wpisie „Usunięto konto”, który zapisze też pseudonim.',
     typeUsername: 'Wpisz login, żeby potwierdzić',
+    typeUsernamePlaceholder: 'wpisz login',
   },
   confirmReissue: {
     title: 'Wygenerować nowy link aktywacyjny?',

@@ -1,11 +1,12 @@
 import { Fragment, ReactNode, useCallback, useEffect, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { formatDecimal, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
+import { docsHref } from '../lib/nav'
 import {
   SwapChoice,
   SwapViewer,
@@ -24,6 +25,7 @@ import {
   slotsOf,
   swapHeadline,
   swapImpactQuery,
+  WITHDRAWN_BY_AUTHOR,
 } from '../lib/swaps'
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
@@ -296,6 +298,18 @@ function ExchangeRows({ item, viewer }: { item: SwapRequest; viewer: SwapViewer 
   )
 }
 
+/** Focus and bring into view a field that has just appeared; `autoFocus` leaves it half under the panel footer. */
+const focusOnMount = (element: HTMLElement | null) => {
+  element?.focus()
+  element?.scrollIntoView({ block: 'nearest' })
+}
+
+/** Which of the broken rules a person may knowingly break, in the user documentation; opens apart so a half-written request survives. */
+function RulesDocsLink() {
+  const t = useMessages().swaps.rules
+  return <a href={`${docsHref()}${t.docsPath}`} target="_blank" rel="noreferrer">{t.whichRules}</a>
+}
+
 /**
  * The decision sheet: who gives, who takes, the requester's reason, the
  * stage, the effect on both balances, and the reason for a rejection or a
@@ -303,11 +317,13 @@ function ExchangeRows({ item, viewer }: { item: SwapRequest; viewer: SwapViewer 
  * hard rule names it, and whoever decides acknowledges it here. The buttons
  * sit in the panel footer, rendered by the screen.
  */
-function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, acknowledged, onAcknowledged, busy }: {
+function SwapSheet({ item, viewer, approvalRequired, error, rejecting, reason, onReason, acknowledged, onAcknowledged, busy }: {
   item: SwapRequest
   viewer: SwapViewer
   approvalRequired: boolean
   error: Error | null
+  /** The decider has clicked Reject: the reason field is shown. */
+  rejecting: boolean
   reason: string
   onReason: (value: string) => void
   acknowledged: boolean
@@ -345,7 +361,7 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
       <ViolationList violations={brokenRules(item)} title={item.status === 'approved' ? rules.broken : rules.breaks} me={viewer.displayName}>
         {mustDecide && (
           <>
-            <div className="box-next">{item.status === 'pending_replacement' ? rules.acceptanceAcknowledges : rules.approvalAcknowledges}</div>
+            <div className="box-next">{item.status === 'pending_replacement' ? rules.acceptanceAcknowledges : rules.approvalAcknowledges} <RulesDocsLink /></div>
             <Checkbox label={rules.acknowledge} checked={acknowledged} onChange={(event) => onAcknowledged(event.target.checked)} disabled={busy} />
           </>
         )}
@@ -361,10 +377,10 @@ function SwapSheet({ item, viewer, approvalRequired, error, reason, onReason, ac
           {t.immediateBody}
         </Box>
       )}
-      {(mustDecide || withdrawable) && (
+      {(mustDecide ? rejecting : withdrawable) && (
         <Field label={reasonLabel} id={`swap-reason-${item.id}`} hint={mustDecide ? t.rejectionReasonHint : t.withdrawalReasonHint}>
           {({ id, describedBy }) => (
-            <Textarea id={id} rows={2} value={reason} aria-describedby={describedBy} onChange={(event) => onReason(event.target.value)} />
+            <Textarea id={id} rows={2} ref={mustDecide ? focusOnMount : undefined} value={reason} aria-describedby={describedBy} onChange={(event) => onReason(event.target.value)} />
           )}
         </Field>
       )}
@@ -383,6 +399,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const statuses = swapStatusLabels()
   const queryClient = useQueryClient()
   const toast = useToast()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const viewer = { displayName, role }
   const coordinator = canCoordinate(role)
@@ -423,7 +440,8 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const closeComposer = () => unsavedChanges.requestAction(() => setComposing(false))
   const [openId, setOpenId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
-  const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setSheetAcknowledgedFor(null) }
+  const [rejecting, setRejecting] = useState(false)
+  const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setRejecting(false); setSheetAcknowledgedFor(null) }
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps() })
   const publishedSchedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
   const schedule = publishedSchedule.data
@@ -558,20 +576,26 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     setInbox('moje')
     resetCreate()
   }, [sent, resetCreate, setInbox])
-  const settle = (message: string) => ({
-    onSuccess: () => {
+  const settle = (notify: (result: SwapRequest) => void) => ({
+    onSuccess: (result: SwapRequest) => {
       openSheet(null)
       refresh()
-      toast.success(message)
+      notify(result)
     },
     // A refusal may mean the request or the roster moved: read both again, so
     // the sheet shows what the decision is about now.
     onError: refresh,
   })
-  const accept = useMutation({ mutationFn: api.acceptSwap, ...settle(approvalRequired ? t.swaps.toasts.dutyTaken : t.swaps.toasts.inSchedule) })
-  const approve = useMutation({ mutationFn: api.approveSwap, ...settle(t.swaps.toasts.inSchedule) })
-  const reject = useMutation({ mutationFn: api.rejectSwap, ...settle(t.swaps.toasts.rejected) })
-  const cancel = useMutation({ mutationFn: api.cancelSwap, ...settle(t.swaps.toasts.withdrawn) })
+  // The server reads the approval policy again on acceptance, so the swap it returns says where it went.
+  const accept = useMutation({
+    mutationFn: api.acceptSwap,
+    ...settle((result) => result.status === 'approved'
+      ? toast.success(t.swaps.toasts.acceptedInSchedule, { action: { label: t.swaps.toasts.openDay, onClick: () => navigate(`/grafik?dzien=${result.service_date}`) } })
+      : toast.success(t.swaps.toasts.dutyTaken)),
+  })
+  const approve = useMutation({ mutationFn: api.approveSwap, ...settle(() => toast.success(t.swaps.toasts.inSchedule)) })
+  const reject = useMutation({ mutationFn: api.rejectSwap, ...settle(() => toast.success(t.swaps.toasts.rejected)) })
+  const cancel = useMutation({ mutationFn: api.cancelSwap, ...settle(() => toast.success(t.swaps.toasts.withdrawn)) })
   const busy = accept.isPending || approve.isPending || reject.isPending || cancel.isPending
   const decisionError = [accept.error, approve.error, reject.error, cancel.error].find(Boolean) ?? null
 
@@ -753,11 +777,13 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             <Button size="sm" variant="ghost" onClick={() => openSheet(null)}>{t.common.close}</Button>
             <span className="sp" />
             {decision.withdrawable && !decision.mustDecide && (
-              <Button size="sm" disabled={busy || !reason.trim()} loading={busy} onClick={() => cancel.mutate({ id: openItem.id, reason: reason.trim() })}>{t.swaps.sheet.withdraw}</Button>
+              <Button size="sm" disabled={busy} loading={busy} onClick={() => cancel.mutate({ id: openItem.id, reason: reason.trim() || WITHDRAWN_BY_AUTHOR })}>{t.swaps.sheet.withdraw}</Button>
             )}
             {decision.mustDecide && (
               <>
-                <Button size="sm" variant="danger" disabled={busy || !reason.trim()} onClick={() => reject.mutate({ id: openItem.id, reason: reason.trim() })}>{t.swaps.sheet.reject}</Button>
+                {rejecting
+                  ? <Button size="sm" variant="danger" disabled={busy || !reason.trim()} loading={reject.isPending} onClick={() => reject.mutate({ id: openItem.id, reason: reason.trim() })}>{t.swaps.sheet.confirmReject}</Button>
+                  : <Button size="sm" disabled={busy} onClick={() => setRejecting(true)}>{t.swaps.sheet.reject}</Button>}
                 <Button
                   size="sm"
                   variant="primary"
@@ -778,6 +804,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             viewer={viewer}
             approvalRequired={approvalRequired}
             error={decisionError}
+            rejecting={rejecting}
             reason={reason}
             onReason={setReason}
             acknowledged={sheetAcknowledged}
@@ -1003,7 +1030,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               {selectedReturn && !breaksRules && <Box tone="ok" title={t.swaps.rules.exchangeClean}>{t.swaps.compose.exchangeCleanBody}</Box>}
               <ViolationList violations={composeRules} title={t.swaps.rules.breaks}>
                 <div className="box-next">
-                  {(approvalRequired ? t.swaps.compose.seenWithApproval : t.swaps.compose.seenWithoutApproval)(firstName(selectedOption.display_name))}
+                  {(approvalRequired ? t.swaps.compose.seenWithApproval : t.swaps.compose.seenWithoutApproval)(firstName(selectedOption.display_name))} <RulesDocsLink />
                 </div>
                 <Checkbox
                   label={t.swaps.rules.acknowledge}

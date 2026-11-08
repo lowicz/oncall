@@ -92,6 +92,7 @@ export const people: Messages['people'] = {
     disabled: 'disabled',
     deleteAccount: 'Delete account…',
     unsaved: (changes: string) => `Unsaved: ${changes}`,
+    discard: 'Discard changes',
     save: 'Save',
     saveCount: (count: number) => `Save (${count})`,
     sections: 'Account sections',
@@ -190,6 +191,7 @@ export const people: Messages['people'] = {
     publishedDutiesRest: 'will be left unstaffed and will show up in the risks. Recommended: set the “exit on” date first and rewrite the duties.',
     irreversible: 'The operation cannot be undone. The audit keeps the name: in earlier entries and in the “Account deleted” entry, which also records the pseudonym.',
     typeUsername: 'Type the username to confirm',
+    typeUsernamePlaceholder: 'type the username',
   },
   confirmReissue: {
     title: 'Generate a new activation link?',

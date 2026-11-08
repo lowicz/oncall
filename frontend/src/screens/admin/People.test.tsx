@@ -243,7 +243,7 @@ describe('PeoplePanel person panel', () => {
     fireEvent.change(within(dialog).getByLabelText('E-mail'), {
       target: { value: 'new@example.com' },
     })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Anuluj' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij panel' }))
     const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
     expect(within(warning).getByText(/e-mail/)).toBeInTheDocument()
     fireEvent.click(within(warning).getByRole('button', { name: 'Odrzuć zmiany' }))
@@ -270,6 +270,18 @@ describe('PeoplePanel person panel', () => {
     expect(await screen.findByRole('dialog', { name: /Ewa Maj/ })).toBeInTheDocument()
   })
 
+  it('discards unsaved changes from the footer without asking', async () => {
+    mockData()
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRow('anna')
+    fireEvent.change(within(dialog).getByLabelText('E-mail'), {
+      target: { value: 'new@example.com' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Odrzuć zmiany' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+    expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument()
+  })
+
   it('deletes an account only after the login is typed into the red sheet', async () => {
     mockData([user({ id: 'u1' })], [member({ id: 'm1' })])
     const remove = vi.spyOn(api, 'deleteAdminUser').mockResolvedValue(undefined)
@@ -282,6 +294,7 @@ describe('PeoplePanel person panel', () => {
     expect(within(sheet).getByText(/Audyt zachowuje imię i nazwisko/)).toBeInTheDocument()
     const confirm = within(sheet).getByRole('button', { name: 'Usuń konto i dane' })
     expect(confirm).toBeDisabled()
+    expect(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić')).toHaveAttribute('placeholder', 'wpisz login')
     fireEvent.change(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić'), { target: { value: 'ann' } })
     expect(confirm).toBeDisabled()
     fireEvent.change(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić'), { target: { value: 'anna' } })
