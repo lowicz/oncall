@@ -55,6 +55,11 @@ MAX_ERROR_LENGTH = 500
 #: configured `notification_lease_seconds`.
 DEFAULT_LEASE = timedelta(minutes=5)
 
+#: Reversible changes stay in force immediately, but their messages wait for
+#: Undo to close. `/api/v1/config` publishes it, so the toast withdraws Undo
+#: at the same deadline.
+UNDO_WINDOW = timedelta(seconds=10)
+
 
 def retry_delay(attempts: int) -> timedelta:
     """Exponential backoff: 1 min, 2 min, 4 min, ... capped at 1 hour."""
@@ -66,6 +71,7 @@ async def enqueue_notification(
     message: NotificationMessage,
     *,
     dedup_key: str | None = None,
+    send_after: datetime | None = None,
 ) -> uuid.UUID | None:
     """Add a pending outbox row; returns None when dedup_key already exists.
 
@@ -78,6 +84,7 @@ async def enqueue_notification(
         )
         if existing is not None:
             return None
+    available_at = send_after or utc_now()
     row = NotificationOutbox(
         channel=message.channel,
         recipient=message.recipient,
@@ -86,10 +93,43 @@ async def enqueue_notification(
         html_body=message.html_body,
         context=message.context or None,
         dedup_key=dedup_key,
+        send_after=available_at,
+        next_attempt_at=available_at,
     )
     db.add(row)
     await db.flush()
     return row.id
+
+
+async def cancel_notifications(
+    db: AsyncSession,
+    *,
+    undo_key: str,
+    now: datetime | None = None,
+) -> set[str]:
+    """Cancel an operation's messages that no worker has claimed yet and
+    return the members whose message was withdrawn.
+
+    Only `pending` rows match, and a drain claims a row before sending it, so
+    each person's message is withdrawn exactly while it is still unsent, also
+    when the inverse arrives just after the Undo window. A round can be partly
+    sent (a retry, a claimed batch, a disabled channel), so the caller tells
+    everyone else about the inverse. The business change and audit trail are
+    untouched. A cancellation only marks the queued side effect so the worker
+    and outbox metrics ignore it.
+    """
+    cancelled_at = now or utc_now()
+    result = await db.execute(
+        update(NotificationOutbox)
+        .where(
+            NotificationOutbox.status == NotificationStatus.pending,
+            NotificationOutbox.cancelled_at.is_(None),
+            NotificationOutbox.context["undo_key"].as_string() == undo_key,
+        )
+        .values(cancelled_at=cancelled_at)
+        .returning(NotificationOutbox.context["member"].as_string())
+    )
+    return set(result.scalars())
 
 
 #: Outbox rows a drain may take: never delivered, delivered nowhere because the
@@ -132,7 +172,10 @@ async def outbox_health(db: AsyncSession, *, now: datetime) -> OutboxHealth:
     timer for the life of the worker, so its cost must not grow with the size
     of the table.
     """
-    claimable = NotificationOutbox.status.in_(CLAIMABLE_STATES)
+    claimable = and_(
+        NotificationOutbox.status.in_(CLAIMABLE_STATES),
+        NotificationOutbox.cancelled_at.is_(None),
+    )
     eligible = and_(claimable, NotificationOutbox.next_attempt_at <= now)
     row = (
         await db.execute(
@@ -189,6 +232,7 @@ async def _claim_batch(
             select(NotificationOutbox)
             .where(
                 NotificationOutbox.status.in_(CLAIMABLE_STATES),
+                NotificationOutbox.cancelled_at.is_(None),
                 NotificationOutbox.next_attempt_at <= now,
             )
             .order_by(NotificationOutbox.created_at)

@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Self, cast
 
-from sqlalchemy import CursorResult, Select, delete, select
+from sqlalchemy import CursorResult, Select, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oncall.config import Settings
@@ -57,8 +57,9 @@ LOGIN_ACTIONS = (
     "auth.sso_unavailable",
 )
 
-#: Outbox rows nobody will deliver again: delivered, given up on, or parked
-#: because the channel is off. A pending or claimed row is live work.
+#: Outbox rows nobody will deliver again: delivered, given up on, parked
+#: because the channel is off, or cancelled during an Undo window. An
+#: uncancelled pending or claimed row is live work.
 FINISHED_OUTBOX = (
     NotificationStatus.sent,
     NotificationStatus.failed,
@@ -106,7 +107,10 @@ def _expired_outbox(cutoff: datetime) -> IdSelect:
         select(NotificationOutbox.id)
         .where(
             NotificationOutbox.created_at < cutoff,
-            NotificationOutbox.status.in_(FINISHED_OUTBOX),
+            or_(
+                NotificationOutbox.status.in_(FINISHED_OUTBOX),
+                NotificationOutbox.cancelled_at.is_not(None),
+            ),
         )
         .order_by(NotificationOutbox.created_at)
     )

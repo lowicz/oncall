@@ -23,7 +23,7 @@ afterEach(() => vi.restoreAllMocks())
 describe('useBranding', () => {
   it('names the product from the deployment configuration and titles the tab with it', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      ldap_enabled: true, app_name: 'Dyżury NOC', app_subtitle: 'Zespół utrzymania', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: true,
+      ldap_enabled: true, app_name: 'Dyżury NOC', app_subtitle: 'Zespół utrzymania', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: true,
     })
     renderScreen(<Probe screenName="Teraz" />)
     expect(await screen.findByText('Dyżury NOC')).toBeInTheDocument()
@@ -35,7 +35,7 @@ describe('useBranding', () => {
   })
 
   it('falls back to the neutral default while the configuration is missing or blank', async () => {
-    vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false, app_name: '   ', app_subtitle: '', version: ' ', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false })
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({ ldap_enabled: false, app_name: '   ', app_subtitle: '', version: ' ', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false })
     renderScreen(<Probe screenName={null} />)
     expect(screen.getByTestId('name')).toHaveTextContent('On-call')
     // Neither way in is offered until the configuration says so.

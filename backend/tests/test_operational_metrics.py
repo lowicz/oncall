@@ -160,7 +160,15 @@ async def test_a_finished_run_is_no_longer_the_queue_s_problem(db) -> None:
 # ---------------------------------------------------------------- the outbox
 
 
-async def _message(db, *, status, attempts: int, created: datetime, due: datetime) -> None:
+async def _message(
+    db,
+    *,
+    status,
+    attempts: int,
+    created: datetime,
+    due: datetime,
+    cancelled_at: datetime | None = None,
+) -> None:
     db.add(
         NotificationOutbox(
             channel="email",
@@ -171,6 +179,8 @@ async def _message(db, *, status, attempts: int, created: datetime, due: datetim
             attempts=attempts,
             created_at=created,
             next_attempt_at=due,
+            send_after=due,
+            cancelled_at=cancelled_at,
         )
     )
     await db.commit()
@@ -225,6 +235,21 @@ async def test_a_disabled_channel_does_not_make_the_age_scream_for_ever(db) -> N
     assert health.eligible == 0
     assert health.oldest_eligible_seconds == 0.0
     assert health.waiting == 2
+
+
+async def test_cancelled_messages_are_not_live_worker_debt(db) -> None:
+    await _message(
+        db,
+        status=NotificationStatus.pending,
+        attempts=0,
+        created=NOW - timedelta(seconds=120),
+        due=NOW - timedelta(seconds=10),
+        cancelled_at=NOW - timedelta(seconds=20),
+    )
+
+    health = await outbox_health(db, now=NOW)
+
+    assert (health.eligible, health.waiting, health.dead) == (0, 0, 0)
 
 
 async def test_messages_nobody_will_retry_are_counted_apart(db) -> None:

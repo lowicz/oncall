@@ -3009,6 +3009,10 @@
             "title": "Sso Enabled",
             "type": "boolean"
           },
+          "undo_window_seconds": {
+            "title": "Undo Window Seconds",
+            "type": "integer"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -3021,7 +3025,8 @@
           "app_subtitle",
           "version",
           "audit_retention_days",
-          "login_audit_retention_days"
+          "login_audit_retention_days",
+          "undo_window_seconds"
         ],
         "title": "PublicConfigResponse",
         "type": "object"

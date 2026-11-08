@@ -91,7 +91,7 @@ The full list with comments is in `.env.example`.
 | `ONCALL_GENERATION_CONCURRENCY` | `1` | parallel generations in the worker process |
 | `ONCALL_RETENTION_AUDIT_DAYS` | `365` | after how many days audit entries about operations disappear; `0` = indefinitely, see [Data retention](#data-retention) |
 | `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | the same for routine sign-ins and refused attempts |
-| `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | sent, failed and skipped e-mails |
+| `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | sent, failed, skipped and cancelled e-mails |
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | finished generator runs |
 | `ONCALL_SMTP_HOST` | empty | the outgoing mail server; empty disables e-mail sending, see [SMTP server](#smtp-server) |
 | `ONCALL_SECRETS_KEY` | empty | the Fernet key `api` and `worker` encrypt the secrets kept in the database with (the Orange WCO password of the automatic on-call number forwarding); several comma-separated keys rotate it: the first encrypts, every one decrypts; empty turns off the features that need it; the key protects a value an administrator can reveal on the number forwarding screen, so its boundary is the same as an administrator account's; `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` prints a new key |
@@ -230,7 +230,7 @@ is not retention: the request stays in the database as a closed one.
 | --- | --- | --- |
 | audit: operations (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 days | nothing; a republish reads whom a schedule correction replaced from the duty itself, not from the log |
 | audit: sign-ins and refused attempts (`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`) | 90 days | the last five minutes, which the sign-in throttle reads |
-| sent, failed and skipped e-mails (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 days | messages waiting or being sent, whatever their age |
+| sent, failed, skipped and cancelled e-mails (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 days | messages waiting or being sent, whatever their age |
 | finished generator runs (`ONCALL_RETENTION_RUNS_DAYS`) | 30 days | queued and running runs |
 | expired sessions and activation or password reset links | a day after expiry, no setting | sessions and links still valid |
 

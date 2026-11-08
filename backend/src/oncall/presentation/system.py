@@ -26,3 +26,7 @@ class PublicConfigResponse(BaseModel):
     #: travel with the settings anyone may read.
     audit_retention_days: int
     login_audit_retention_days: int
+    #: How long Undo stays open after a reversible change, in seconds: the
+    #: worker holds that change's e-mails for this long, and the toast
+    #: withdraws Undo when it ends.
+    undo_window_seconds: int

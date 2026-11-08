@@ -36,7 +36,7 @@ describe('the English interface', () => {
 
   it('offers single sign-on in English, with its refusal', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: true,
+      ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: true,
     })
     setLanguage('en')
     renderScreen(<Login />, { route: '/?sso=no_account' })
