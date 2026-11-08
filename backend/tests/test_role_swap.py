@@ -141,7 +141,8 @@ async def test_a_role_swap_is_checked_saved_and_told_as_one_decision(
         AssignmentRole.late_shift: "Marek Nowak",
     }
     rows = (await db.scalars(select(NotificationOutbox))).all()
-    assert rows and all(row.cancelled_at is not None for row in rows)
+    assert rows
+    assert all(row.cancelled_at is not None for row in rows)
 
 
 async def test_a_role_swap_of_a_past_day_asks_for_a_reason(

@@ -3,13 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, LateShiftAnchor, api } from '../api'
 import { usePublicConfig } from './usePublicConfig'
 import { useMessages } from '../i18n'
-import { RoleSwap, roleSwapLines, roleSwapOf } from '../lib/calendar'
+import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders } from '../lib/calendar'
 import { formatDay, warsawDate } from '../lib/dates'
-import { roleLabels } from '../lib/labels'
 import { undoable } from '../lib/undo'
-import { Button, Checkbox, Field, Input, RoleMark, useToast } from '../ui'
+import { Button, Field, Input, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
-import { SwapImpactPreview } from '../components/SwapImpactPreview'
+import { RoleSwapImpact, RoleSwapPreview, RoleSwapTrigger } from '../components/RoleSwapPreview'
 
 const MIN_REASON_LENGTH = 10
 const FRAME_ID = 'role-swap-frame'
@@ -111,14 +110,14 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         },
         toast,
         message: () => ({
-          title: t.toast(formatDay(serviceDate), holders(swap, carry, true, t)),
+          title: t.toast(formatDay(serviceDate), swapHolders(swap, carry, true)),
           description: t.emailsLater,
           expired: common.undoEmailsSent,
         }),
         undoLabel: t.undoAction,
         onUndoError: (error) => toast.error(t.undoFailed, { description: (error as Error).message }),
         windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_SECONDS,
-        onOffer: (undo, until) => setOffered({ serviceDate, undo, until, restores: holders(swap, carry, false, t) }),
+        onOffer: (undo, until) => setOffered({ serviceDate, undo, until, restores: swapHolders(swap, carry, false) }),
       })
     },
     onSuccess: () => {
@@ -138,56 +137,22 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
     || check.isLoading
     || ((check.data?.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
-  const undoHere = offered?.serviceDate === serviceDate ? offered : null
 
   const trigger = swap && (
-    <div className="swap-row">
-      {undoHere ? (
-        <Button size="sm" icon="swap" onClick={undoHere.undo} aria-label={t.undoLabel(undoHere.restores)}>
-          {t.undo}
-        </Button>
-      ) : (
-        <Button
-          size="sm"
-          icon="swap"
-          aria-expanded={open}
-          aria-controls={FRAME_ID}
-          aria-label={t.triggerLabel(swap.primary.name, swap.secondary.name)}
-          disabled={save.isPending}
-          onClick={() => (open ? close() : setOpen(true))}
-        >
-          {t.trigger}
-        </Button>
-      )}
-    </div>
+    <RoleSwapTrigger
+      swap={swap}
+      open={open}
+      controls={FRAME_ID}
+      undo={offered?.serviceDate === serviceDate ? offered : null}
+      disabled={save.isPending}
+      onToggle={() => (open ? close() : setOpen(true))}
+    />
   )
 
-  const late = swap?.lateShift
   const frame = open && swap && serviceDate && (
     <section id={FRAME_ID} className="swap-frame" aria-labelledby={`${FRAME_ID}-title`}>
       <h3 id={`${FRAME_ID}-title`} className="swap-frame-h">{t.title}</h3>
-      <div className="swap-preview">
-        {previewRow('primary', swap.primary.name, swap.secondary.name)}
-        {previewRow('secondary', swap.secondary.name, swap.primary.name)}
-        {late && (
-          <div className="swap-preview-row">
-            <RoleMark role="late_shift" />
-            <div className="swap-late">
-              <span>
-                {carry ? <>{late.from.name} → <b>{late.to.name}</b></> : <>{late.from.name} ({t.unchanged})</>}
-              </span>
-              <Checkbox
-                label={t.withAnchor(roleLabels()[late.anchor])}
-                hint={late.eligible ? t.carries(roleLabels()[late.anchor], late.to.name) : t.notEligible(late.to.name)}
-                checked={carry}
-                blocked={!late.eligible}
-                disabled={save.isPending}
-                onChange={(event) => setCarryChoice(event.target.checked)}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      <RoleSwapPreview swap={swap} carry={carry} onCarry={setCarryChoice} disabled={save.isPending} />
       <DecisionFrame
         violations={check.data}
         checkFailed={check.isError}
@@ -197,18 +162,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         error={save.error?.message}
         pending={save.isPending}
       >
-        <SwapImpactPreview
-          serviceDate={serviceDate}
-          role="primary"
-          replacementId={swap.secondary.id}
-          inReturn={{ service_date: serviceDate, role: 'secondary' }}
-          scope={carry && late?.anchor === 'primary' ? undefined : 'single'}
-          returnScope={carry && late?.anchor === 'secondary' ? undefined : 'single'}
-          directions={{
-            requester: direction(swap, swap.primary.id, carry, t),
-            replacement: direction(swap, swap.secondary.id, carry, t),
-          }}
-        />
+        <RoleSwapImpact swap={swap} serviceDate={serviceDate} carry={carry} />
         {historical && (
           <Field label={t.reason} id="role-swap-reason">
             {({ id }) => (
@@ -249,37 +203,4 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const covers = (role: AssignmentRole) => role !== 'late_shift' || carry
 
   return { trigger, frame, footer, open: Boolean(frame), covers, close }
-}
-
-type Words = ReturnType<typeof useMessages>['schedule']['roleSwap']
-
-function previewRow(role: AssignmentRole, from: string, to: string) {
-  return (
-    <div className="swap-preview-row">
-      <RoleMark role={role} />
-      <span>{from} → <b>{to}</b></span>
-    </div>
-  )
-}
-
-/** The roles `memberId` holds of the swap, before (`after` false) or after it. */
-function rolesOf(swap: RoleSwap, memberId: string, carry: boolean, after: boolean) {
-  const labels = roleLabels()
-  const holdsPrimary = (swap.primary.id === memberId) !== after
-  const roles = [labels[holdsPrimary ? 'primary' : 'secondary']]
-  const late = swap.lateShift
-  if (late && carry && (after ? late.to : late.from).id === memberId) roles.push(labels.late_shift)
-  return roles
-}
-
-function direction(swap: RoleSwap, memberId: string, carry: boolean, t: Words) {
-  return `${t.roles(rolesOf(swap, memberId, carry, false))} → ${t.roles(rolesOf(swap, memberId, carry, true))}`
-}
-
-/** „Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19": who holds what
- *  after the swap, or before it, PRIMARY first. */
-function holders(swap: RoleSwap, carry: boolean, after: boolean, t: Words) {
-  return (after ? [swap.secondary, swap.primary] : [swap.primary, swap.secondary])
-    .map((person) => t.holder(person.name, t.roles(rolesOf(swap, person.id, carry, after))))
-    .join(', ')
 }

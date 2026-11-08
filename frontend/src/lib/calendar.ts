@@ -307,3 +307,22 @@ export function roleSwapLines(swap: RoleSwap, serviceDate: string, withLateShift
     with_late_shift: withLateShift && swap.lateShift?.anchor === role,
   }))
 }
+
+/** The role labels `memberId` holds of `swap`, before it (`after` false) or after it. */
+export function swapRoles(swap: RoleSwap, memberId: string, carry: boolean, after: boolean) {
+  const labels = messages().labels.roles
+  const holdsPrimary = (swap.primary.id === memberId) !== after
+  const roles = [labels[holdsPrimary ? 'primary' : 'secondary']]
+  const late = swap.lateShift
+  if (late && carry && (after ? late.to : late.from).id === memberId) roles.push(labels.late_shift)
+  return roles
+}
+
+/** „Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19": who holds what
+ *  after the swap, or before it, PRIMARY first. */
+export function swapHolders(swap: RoleSwap, carry: boolean, after: boolean) {
+  const t = messages().schedule.roleSwap
+  return (after ? [swap.secondary, swap.primary] : [swap.primary, swap.secondary])
+    .map((person) => t.holder(person.name, t.roles(swapRoles(swap, person.id, carry, after))))
+    .join(', ')
+}
