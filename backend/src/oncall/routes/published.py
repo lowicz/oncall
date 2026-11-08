@@ -55,6 +55,7 @@ async def published_schedule(
             current=current,
             today_is_day_off=board.today_is_day_off,
             today_holiday_name=board.today_holiday_name,
+            last_published_ends_on=board.last_published_ends_on,
         )
     owner = board.duties[0]
     return PublishedScheduleResponse(
@@ -76,4 +77,5 @@ async def published_schedule(
         current=current,
         today_is_day_off=board.today_is_day_off,
         today_holiday_name=board.today_holiday_name,
+        last_published_ends_on=board.last_published_ends_on,
     )

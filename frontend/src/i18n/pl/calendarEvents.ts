@@ -7,7 +7,7 @@ export const calendarEvents = {
     range: 'Zakres listy',
     showFrom: 'Pokaż od',
     showTo: 'Pokaż do',
-    loading: 'Wczytywanie wydarzeń',
+    loading: 'Wczytywanie wydarzeń…',
     empty: 'Brak wydarzeń w wybranym zakresie',
     edit: 'Edytuj',
     delete: 'Usuń',

@@ -48,9 +48,10 @@ for a coordinator also the proposal waiting for publication; the **Open the
 proposal** button leads straight to it in the Generator. A team member has
 **Export ICS** here.
 
-The default range starts today and covers four weeks (or fewer, if the
-published schedule ends earlier). The section header above the matrix names
-the range, its length and the number of people in the rotation. People are on
+The default range starts today and covers four weeks (or fewer, if the published schedule ends earlier).
+If the publication has expired, the screen shows four weeks from today and a warning with the end date, and a coordinator also gets the way to the Generator (or to the waiting proposal).
+An invalid range from the address shows a **Show from today** action instead of leaving the screen without controls.
+The section header above the matrix names the range, its length and the number of people in the rotation. People are on
 the vertical axis, consecutive days on the horizontal one. The people column
 and the date headers stay visible while scrolling.
 
@@ -129,6 +130,9 @@ passed on; older links with `od` and `do` still work. The command palette
 opens the schedule with a person highlighted or with the panel of the given
 day; the highlight of a person is switched off by the badge next to the
 header.
+
+If the first schedule fetch fails, the “On duty now” strip shows **no data** and **no connection**, not **unstaffed**.
+Fetch errors give the next step: check the connection and try again.
 
 ## Small screens
 

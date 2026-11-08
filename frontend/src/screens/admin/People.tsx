@@ -12,6 +12,8 @@ import { csvCell, downloadBlob } from '../../lib/download'
 import { isPolishPhone } from '../../lib/phone'
 import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
+import { UnsavedChangesDialog } from '../../components/UnsavedChangesDialog'
 import {
   Avatar,
   Box,
@@ -194,7 +196,6 @@ export function PeoplePanel() {
   const [reissueConfirmation, setReissueConfirmation] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTyped, setDeleteTyped] = useState('')
-  const [closeConfirmation, setCloseConfirmation] = useState(false)
   const [rotationFrom, setRotationFrom] = useState(today)
   const [rotationUntil, setRotationUntil] = useState('')
   const [offboardingOpen, setOffboardingOpen] = useState(false)
@@ -240,7 +241,7 @@ export function PeoplePanel() {
     queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     queryClient.invalidateQueries({ queryKey: ['team'] })
   }
-  const openDetails = ({ user, member }: Row, section: DetailTab = 'account') => {
+  const applyDetails = ({ user, member }: Row, section: DetailTab = 'account') => {
     setSelectedId(user.id)
     setTab(section)
     setAccountForm({
@@ -257,7 +258,6 @@ export function PeoplePanel() {
     setEligibilityEdits({})
     setEditingPeriod(null)
     setAddingPeriod(false)
-    setCloseConfirmation(false)
     setResetUrl('')
     setReissuedUrl('')
   }
@@ -316,6 +316,10 @@ export function PeoplePanel() {
   }, [selectedRow, eligibilityEdits, t])
   const pendingChanges = [...accountChanges, ...rotationChanges, ...eligibilityChanges]
   const dirty = pendingChanges.length > 0
+  const unsavedChanges = useUnsavedChanges(dirty)
+  const openDetails = (row: Row, section: DetailTab = 'account') => {
+    unsavedChanges.requestAction(() => applyDetails(row, section))
+  }
 
   const saveAll = useMutation({
     mutationFn: async () => {
@@ -405,10 +409,7 @@ export function PeoplePanel() {
     if (dangerous) setConfirmation(true)
     else saveAll.mutate()
   }
-  const requestClose = () => {
-    if (dirty) setCloseConfirmation(true)
-    else setSelectedId(null)
-  }
+  const requestClose = () => unsavedChanges.requestAction(() => setSelectedId(null))
   const error = users.error || team.error || createRotation.error || addEligibility.error || deleteEligibility.error || dropQualification.error
   const ldapFieldsLocked = selectedRow?.user.auth_source === 'ldap'
   const selectedState = rotationState(selectedRow?.member, today)
@@ -850,15 +851,7 @@ export function PeoplePanel() {
         onCancel={() => setConfirmation(false)}
         onConfirm={() => saveAll.mutate()}
       />
-      <ConfirmDialog
-        open={closeConfirmation && dirty}
-        title={t.confirmClose.title}
-        description={<>{t.confirmClose.unsaved(pendingChanges.join(' · '))}<br />{t.confirmClose.text}</>}
-        confirmLabel={t.confirmClose.confirm}
-        confirmColor="warning"
-        onCancel={() => setCloseConfirmation(false)}
-        onConfirm={() => { setCloseConfirmation(false); setSelectedId(null) }}
-      />
+      <UnsavedChangesDialog guard={unsavedChanges} detail={t.details.unsaved(pendingChanges.join(' · '))} />
       <Dialog
         open={deleteOpen && Boolean(selectedRow)}
         onClose={() => setDeleteOpen(false)}

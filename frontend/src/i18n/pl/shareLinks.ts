@@ -11,7 +11,7 @@ export const shareLinks = {
   form: {
     title: 'Nowy link',
     recipient: 'Odbiorca',
-    recipientPlaceholder: 'np. dyspozytornia',
+    recipientPlaceholder: 'np. dyspozytornia…',
     scheduleFrom: 'Grafik od',
     scheduleTo: 'Grafik do',
     validity: 'Ważność linku',
@@ -22,7 +22,7 @@ export const shareLinks = {
   list: {
     title: 'Linki',
     showRevoked: 'Pokaż odwołane',
-    loading: 'Wczytywanie linków',
+    loading: 'Wczytywanie linków…',
     empty: 'Nie utworzono jeszcze żadnych linków',
     emptyDescription: 'Link daje osobie spoza zespołu wgląd w opublikowany grafik na wskazany zakres dat.',
     copyIcs: 'Kopiuj ICS',

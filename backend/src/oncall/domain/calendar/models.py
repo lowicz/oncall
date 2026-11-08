@@ -166,6 +166,9 @@ class Dashboard:
     current: list[CurrentDuty]
     today_is_day_off: bool
     today_holiday_name: str | None
+    #: Where the most recent publication ends, even in the past, so a screen
+    #: can say the published schedule has run out.
+    last_published_ends_on: date | None = None
 
     @property
     def is_published(self) -> bool:

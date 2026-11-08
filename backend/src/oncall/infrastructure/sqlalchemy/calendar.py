@@ -16,6 +16,7 @@ from oncall.domain.calendar.models import (
 )
 from oncall.domain.team import RolePeriod
 from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, SwapStatus
+from oncall.fairness_data import latest_publish_end
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.calendar_model import CalendarEvent as CalendarEventRow
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
@@ -177,6 +178,9 @@ class SqlAlchemyCalendarRoster:
             )
         )
         return [(starts, ends) for starts, ends in rows]
+
+    async def latest_publication_end(self) -> date | None:
+        return await latest_publish_end(self._session)
 
     async def contacts(self) -> list[Contact]:
         rows = await self._session.scalars(

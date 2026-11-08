@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { api } from '../api'
 import { renderScreen } from '../test/render'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { MoreScreen } from './More'
 
 const config = (version: string) => ({
@@ -9,6 +10,17 @@ const config = (version: string) => ({
 })
 
 afterEach(() => vi.restoreAllMocks())
+
+function DirtyForm() {
+  useUnsavedChanges(true)
+  return null
+}
+
+const unloadPrevented = () => {
+  const event = new Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(event)
+  return event.defaultPrevented
+}
 
 describe('MoreScreen', () => {
   it('lists only the groups a member can open', async () => {
@@ -52,17 +64,21 @@ describe('MoreScreen', () => {
     expect(screen.queryByText('Wersja')).not.toBeInTheDocument()
   })
 
-  it('signs out and reloads the application from its root', async () => {
+  it('signs out and reloads the application from its root, past unsaved work', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue(config('1.4.0'))
     const logout = vi.spyOn(api, 'logout').mockResolvedValue(undefined)
     const assign = vi.fn()
     const original = window.location
     Object.defineProperty(window, 'location', { value: { ...original, assign }, configurable: true })
     try {
-      renderScreen(<MoreScreen displayName="Ola Zielińska" access={{ role: 'member', hasTeamMember: true }} />)
-      fireEvent.click(await screen.findByRole('button', { name: /Wyloguj/ }))
+      renderScreen(<><MoreScreen displayName="Ola Zielińska" access={{ role: 'member', hasTeamMember: true }} /><DirtyForm /></>)
+      const signOut = await screen.findByRole('button', { name: /Wyloguj/ })
+      expect(unloadPrevented()).toBe(true)
+      fireEvent.click(signOut)
       await waitFor(() => expect(assign).toHaveBeenCalledWith('/'))
       expect(logout).toHaveBeenCalledTimes(1)
+      // The session is gone: a "Leave site?" prompt here could only strand the user.
+      expect(unloadPrevented()).toBe(false)
     } finally {
       Object.defineProperty(window, 'location', { value: original, configurable: true })
     }

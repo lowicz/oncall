@@ -78,6 +78,7 @@ describe('dates in running text', () => {
 
   it('writes a range once per month and adds the year only across one', () => {
     expect(formatRange('2026-09-20', '2026-10-17')).toBe('20 wrz – 17 paź')
+    expect(formatRange('2026-10-04', '2026-10-04')).toBe('4 paź')
     expect(formatRange('2026-10-04', '2026-10-31')).toBe('4 – 31 paź')
     expect(formatRange('2026-12-20', '2027-01-03')).toBe('20 gru 2026 – 3 sty 2027')
   })

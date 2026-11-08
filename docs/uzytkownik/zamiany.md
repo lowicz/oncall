@@ -50,6 +50,7 @@ arkuszu; powód widzą obie strony, zostaje przy wniosku i w audycie. Przycisk
 Przycisk **Nowa zamiana** w nagłówku ekranu otwiera formularz w panelu; przycisk
 **Poproś o zamianę** na ekranie Moje otwiera go z wybranym dyżurem. Formularz
 prowadzi przez cztery kroki: dyżur, kandydat, w zamian, powód i wysłanie.
+Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświeżenie wymaga decyzji, czy odrzucić wprowadzone dane.
 
 1. W polu **Mój dyżur** wybierz swój nadchodzący dyżur. Lista ma jedną pozycję
    na dzień: datę, wszystkie Twoje role tego dnia (na przykład „SECONDARY +

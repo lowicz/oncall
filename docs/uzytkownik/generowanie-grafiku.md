@@ -127,8 +127,8 @@ Kliknij komórkę, w panelu dnia wybierz rolę i osobę, zapisz. Korekta:
 Przycisk **Ustawienia generatora** otwiera panel boczny z zakresem **Od** /
 **Do** i ustawieniami solvera. **Zapisz ustawienia generowania** zapisuje je
 **globalnie dla całego zespołu**; obowiązują od następnego generowania.
-**Generuj** uruchamia generowanie od razu z zakresem z panelu, a **Przywróć
-zapisane** cofa niezapisane zmiany.
+**Generuj** uruchamia generowanie od razu z zakresem z panelu, a **Przywróć zapisane** cofa niezapisane zmiany.
+Zamknięcie panelu, przejście na inny ekran, odświeżenie albo otwarcie innego szkicu przy niezapisanych ustawieniach wymaga decyzji, czy je odrzucić.
 
 | Ustawienie | Zakres | Uwagi |
 | --- | --- | --- |
@@ -171,6 +171,9 @@ ze szkicem, arkusz publikacji wypisze każdy taki przypadek z polem
 **Decyzja**, w którym wybierasz, która wersja ma obowiązywać - dopiero wtedy
 publikuje. Propozycję można też cofnąć przyciskiem **Wróć do szkicu** albo
 usunąć z listy szkiców.
+
+Błąd publikacji pozostaje w otwartym arkuszu jako alarm z komunikatem i następnym krokiem.
+Błąd usunięcia szkicu pozostaje w oknie potwierdzenia, które wywołało operację.
 
 Publikacja zastępuje wyłącznie te opublikowane grafiki, które w całości mieszczą
 się w nowym zakresie; częściowe nakładanie rozstrzyga się per slot, a pokrycie

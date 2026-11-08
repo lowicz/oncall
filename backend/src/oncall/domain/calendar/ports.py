@@ -53,6 +53,10 @@ class CalendarRoster(Protocol):
 
     async def published_ranges(self, starts_on: date, ends_on: date) -> list[tuple[date, date]]: ...
 
+    async def latest_publication_end(self) -> date | None:
+        """The last day the most recent published schedule covers, even a past one."""
+        ...
+
     async def contacts(self) -> list[Contact]:
         """Every member, with their account's contact details."""
         ...

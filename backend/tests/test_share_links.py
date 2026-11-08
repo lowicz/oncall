@@ -103,6 +103,8 @@ async def test_exchange_starts_limited_viewer_session(client, db) -> None:
     assert dates
     assert min(dates) >= str(today - timedelta(days=2))
     assert max(dates) <= str(today + timedelta(days=5))
+    # A link sees its own window, not where the team's publication ends.
+    assert published["last_published_ends_on"] is None
 
     second = await guest.post("/api/v1/share/exchange", json={"token": token})
     assert second.status_code == 410

@@ -20,7 +20,7 @@ export const fairness = {
   asOf: 'Stan na dzień',
   today: 'Dziś',
   exportCsv: 'Eksport CSV',
-  loadingReport: 'Wczytywanie raportu',
+  loadingReport: 'Wczytywanie raportu…',
   /** The lens the table sums across, and the label of the totals row. */
   total: 'Razem',
   lensCriteria: 'Kryterium odbioru na soczewkach',
@@ -58,7 +58,7 @@ export const fairness = {
   },
   drilldown: {
     monthByMonth: (name: string, average: string) => `${name} · miesiąc po miesiącu (pkt / średnia ${average})`,
-    loadingMonths: 'Wczytywanie miesięcy',
+    loadingMonths: 'Wczytywanie miesięcy…',
     barsLabel: (values: string) => `Punkty miesiąc po miesiącu: ${values}`,
     barTitle: (month: string, points: number) => `${month}: ${points} pkt`,
     points: (value: string) => `${value} pkt`,

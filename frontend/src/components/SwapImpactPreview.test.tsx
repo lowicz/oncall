@@ -87,7 +87,7 @@ describe('SwapImpactPreview', () => {
     vi.spyOn(api, 'swapImpact').mockRejectedValue(new ApiError('Nie można zastąpić samego siebie', 422))
     renderScreen(<SwapImpactPreview serviceDate="2026-09-24" role="primary" replacementId="m1" />)
 
-    expect(screen.getByRole('status', { name: 'Przeliczanie wpływu zamiany' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Przeliczanie wpływu zamiany…' })).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent('Nie można zastąpić samego siebie')
   })
 

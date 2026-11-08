@@ -8,7 +8,7 @@ export const reports = {
   downloaded: 'Raport został pobrany.',
   /** The name of the downloaded file; `month` is "2026-08". */
   fileName: (month: string) => `oncall-${month}.csv`,
-  loadingPreview: 'Wczytywanie podglądu',
+  loadingPreview: 'Wczytywanie podglądu…',
   noPublishedDuties: 'Wybrany miesiąc nie ma żadnych opublikowanych dyżurów.',
   partialCoverage: (staffedDays: number, daysInMonth: number) =>
     `Opublikowany grafik pokrywa ${staffedDays} z ${daysInMonth} dni tego miesiąca.`,

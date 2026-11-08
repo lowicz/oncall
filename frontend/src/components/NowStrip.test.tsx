@@ -120,10 +120,13 @@ describe('NowStrip', () => {
     expect(await screen.findByText('dzień wolny · 2X')).toBeInTheDocument()
   })
 
-  it('says the connection is gone when nothing was ever loaded', async () => {
+  it('distinguishes a failed first load from unstaffed roles', async () => {
     vi.spyOn(api, 'publishedSchedule').mockRejectedValue(new Error('offline'))
     renderScreen(<NowStrip />)
-    expect(await screen.findAllByText('brak połączenia')).toHaveLength(3)
+    expect(await screen.findAllByText('brak danych')).toHaveLength(3)
+    expect(screen.getAllByText('brak danych')[0]).toHaveClass('now-stale')
+    expect(screen.getAllByText('brak połączenia')).toHaveLength(3)
+    expect(screen.queryByText('brak obsady')).not.toBeInTheDocument()
   })
 
   it('keeps the last known staffing and its time when a refresh fails', async () => {
@@ -138,6 +141,20 @@ describe('NowStrip', () => {
     await waitFor(() => expect(screen.getByText('stan z 09:00')).toHaveClass('now-stale'))
     expect(screen.getByText('stan z 09:00')).toHaveAttribute('title', 'Stan z 09:00')
     expect(screen.getByText('Anna Kowalska')).toBeInTheDocument()
+  })
+
+  it('keeps saying the connection is gone on an empty slot when a refresh fails', async () => {
+    const published = vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ service_date: '2026-09-10' })]))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}><NowStrip /></QueryClientProvider>)
+    expect(await screen.findAllByText('brak obsady')).toHaveLength(2)
+    expect(screen.queryByText('brak połączenia')).not.toBeInTheDocument()
+
+    published.mockRejectedValue(new Error('offline'))
+    await act(async () => { await queryClient.refetchQueries({ queryKey: ['published-schedule'] }) })
+
+    await waitFor(() => expect(screen.getAllByText('brak połączenia')).toHaveLength(2))
+    expect(screen.getAllByText('brak obsady')).toHaveLength(2)
   })
 
   it('draws a ringed warn dot before a stale timestamp so it reads on the header band', async () => {

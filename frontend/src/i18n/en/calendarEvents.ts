@@ -8,7 +8,7 @@ export const calendarEvents: Messages['calendarEvents'] = {
     range: 'List range',
     showFrom: 'Show from',
     showTo: 'Show to',
-    loading: 'Loading events',
+    loading: 'Loading events…',
     empty: 'No events in the selected range',
     edit: 'Edit',
     delete: 'Delete',

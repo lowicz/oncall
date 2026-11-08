@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { BrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 // Self-hosted: an internal application must not fetch fonts from a third-party CDN.
 import '@fontsource-variable/inter'
 import '@fontsource-variable/geist-mono'
@@ -18,17 +18,19 @@ applyPreferences()
 applyLanguage()
 
 const queryClient = createQueryClient()
+const router = createBrowserRouter([
+  {
+    path: '*',
+    element: <ErrorBoundary scope="app"><App /></ErrorBoundary>,
+  },
+])
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ToastProvider>
-          <BrowserRouter>
-            <ErrorBoundary scope="app">
-              <App />
-            </ErrorBoundary>
-          </BrowserRouter>
+          <RouterProvider router={router} />
         </ToastProvider>
       </TooltipProvider>
     </QueryClientProvider>

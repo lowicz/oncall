@@ -58,6 +58,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
   const t = useMessages().duty.nowStrip
   const now = useMinuteTick()
   const current = schedule.data?.current ?? []
+  const noData = schedule.isError && schedule.data === undefined
   const stale = schedule.isError && schedule.data !== undefined
   const updated = schedule.dataUpdatedAt ? new Date(schedule.dataUpdatedAt) : null
   const dayOff = schedule.data?.today_is_day_off ?? false
@@ -90,11 +91,16 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
                     : formatUntil(coverageEnd(duty), now)}
                 </span>
               </>
+            ) : noData ? (
+              <>
+                <span className="now-who now-who-none now-stale">{t.noData}</span>
+                <span className="now-until">{t.offline}</span>
+              </>
             ) : (
               <>
                 <span className="now-who now-who-none">{notApplicable ? t.notApplicable : t.unstaffed}</span>
                 <span className="now-until">
-                  {notApplicable ? (holiday ? t.holiday(holiday) : t.dayOff) : schedule.isError ? t.offline : ''}
+                  {notApplicable ? (holiday ? t.holiday(holiday) : t.dayOff) : stale ? t.offline : ''}
                 </span>
               </>
             )}

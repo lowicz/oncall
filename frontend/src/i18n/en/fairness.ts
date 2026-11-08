@@ -19,7 +19,7 @@ export const fairness: Messages['fairness'] = {
   asOf: 'As of',
   today: 'Today',
   exportCsv: 'Export CSV',
-  loadingReport: 'Loading report',
+  loadingReport: 'Loading report…',
   total: 'Total',
   lensCriteria: 'Acceptance criterion per lens',
   criterionChip: (points: string) => `criterion ${points} pts`,
@@ -55,7 +55,7 @@ export const fairness: Messages['fairness'] = {
   },
   drilldown: {
     monthByMonth: (name: string, average: string) => `${name} · month by month (pts / average ${average})`,
-    loadingMonths: 'Loading months',
+    loadingMonths: 'Loading months…',
     barsLabel: (values: string) => `Points month by month: ${values}`,
     barTitle: (month: string, points: number) => `${month}: ${points} pts`,
     points: (value: string) => `${value} pts`,

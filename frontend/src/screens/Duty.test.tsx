@@ -307,7 +307,7 @@ describe('DutyScreen with nobody in the rotation', () => {
     vi.spyOn(api, 'calendar').mockImplementation(() => new Promise(() => {}))
     renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
 
-    expect(await screen.findByLabelText('Wczytywanie grafiku')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Wczytywanie grafiku…')).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: '4 tyg.' })).toBeInTheDocument()
     expect(screen.queryByText('Brak osób w rotacji')).not.toBeInTheDocument()
   })

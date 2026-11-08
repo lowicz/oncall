@@ -31,7 +31,7 @@ export const audit = {
   emptyLogins: (label: string) => `W wybranym zakresie nie ma zdarzeń „${label}”. Zmień zakres dat albo pozostałe filtry.`,
   emptyHint: 'Zmień albo wyczyść filtry, żeby zobaczyć więcej zdarzeń.',
   details: 'Szczegóły',
-  loading: 'Wczytywanie zdarzeń',
+  loading: 'Wczytywanie zdarzeń…',
   loadMore: 'Załaduj więcej',
   /**
    * Where the trail ends: what the worker deletes and after how many days,

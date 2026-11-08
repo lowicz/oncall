@@ -27,7 +27,7 @@ export const historyImport: Messages['historyImport'] = {
   moreRows: (rows: string) => `+ ${rows} more`,
   previous: {
     title: 'Earlier imports',
-    loading: 'Loading imports',
+    loading: 'Loading imports…',
     empty: 'No earlier imports',
     undo: 'Undo import',
   },

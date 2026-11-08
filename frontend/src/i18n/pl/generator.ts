@@ -81,7 +81,7 @@ export const generator = {
   drafts: {
     heading: 'Szkice',
     compareVariants: 'Porównaj wariant dzienny i tygodniowy',
-    loading: 'Wczytywanie szkiców',
+    loading: 'Wczytywanie szkiców…',
     empty: 'Brak szkiców',
     emptyHint: 'Utwórz nowy, wybierając zakres dat powyżej.',
     opened: 'Otwarty',
@@ -180,6 +180,8 @@ export const generator = {
     title: (isProposal: boolean, version: number, range: string) => `Publikuję ${isProposal ? 'propozycję' : 'szkic'} v${version} · ${range}`,
     back: 'Wróć do propozycji',
     publishing: 'Publikuję…',
+    failed: 'Nie udało się opublikować',
+    failedNext: 'Wróć do propozycji, sprawdź zmiany i opublikuj ponownie.',
     publishVersion: (version: number) => `Publikuj v${version}`,
     assignments: (count: number) => pluralPl(count, ['przydział', 'przydziały', 'przydziałów']),
     becomePublished: (assignments: number, days: number) =>
@@ -214,7 +216,7 @@ export const generator = {
     undoNote: 'Publikację można cofnąć tylko nową publikacją. Operacja trafia do audytu jako „Opublikowano grafik”.',
   },
   matrix: {
-    loading: 'Wczytywanie macierzy szkicu',
+    loading: 'Wczytywanie macierzy szkicu…',
     region: 'Macierz szkicu',
     caption: 'Szkic grafiku. Osoby w wierszach, dni w kolumnach. Kliknij komórkę, aby skorygować przydział.',
     person: 'Osoba',
@@ -252,7 +254,7 @@ export const generator = {
     },
     since: (date: string) => `od ${date}`,
     memberChange: (before: string, after: string, impact: string) => `${before} → ${after} · ${impact}`,
-    loading: 'Przeliczanie sprawiedliwości',
+    loading: 'Przeliczanie sprawiedliwości…',
     spread: (before: string) => `rozrzut punktów (było ${before})`,
     criterion: 'Kryterium odbioru',
     criterionTag: (points: string) => `rozpiętość ≤ ${points} pkt na soczewce`,

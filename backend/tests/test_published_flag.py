@@ -83,6 +83,24 @@ async def test_a_real_publication_is_reported_as_published(client, db) -> None:
     await login(client, "anna.pub")
     body = (await client.get("/api/v1/schedules/published")).json()
     assert body["is_published"] is True, body
+    assert body["last_published_ends_on"] == TODAY.isoformat(), body
+
+
+async def test_an_ended_publication_still_reports_where_it_ended(client, db) -> None:
+    anna = await _member(db, "anna.pub", "Anna Pub")
+    marek = await _member(db, "marek.pub", "Marek Pub")
+    ended = _schedule(ScheduleStatus.published, "Grafik hybrydowy", anna, marek)
+    ended.starts_on = ended.ends_on = TODAY - timedelta(days=8)
+    for assignment in ended.assignments:
+        assignment.service_date = ended.starts_on
+    db.add(ended)
+    await db.commit()
+
+    await login(client, "anna.pub")
+    body = (await client.get("/api/v1/schedules/published")).json()
+    # Nothing ahead is published any more, but the screen can still say when it ran out.
+    assert body["is_published"] is False and body["ends_on"] is None, body
+    assert body["last_published_ends_on"] == (TODAY - timedelta(days=8)).isoformat(), body
 
 
 async def test_nothing_covered_reports_no_publication(client, db) -> None:
@@ -90,3 +108,4 @@ async def test_nothing_covered_reports_no_publication(client, db) -> None:
     await login(client, "anna.pub")
     body = (await client.get("/api/v1/schedules/published")).json()
     assert body["id"] is None and body["is_published"] is False, body
+    assert body["last_published_ends_on"] is None, body

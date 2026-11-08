@@ -1,4 +1,4 @@
-import { Fragment, ReactNode, useState } from 'react'
+import { Fragment, ReactNode, useCallback, useEffect, useState } from 'react'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
@@ -26,6 +26,8 @@ import {
   swapImpactQuery,
 } from '../lib/swaps'
 import { SwapImpactPreview } from '../components/SwapImpactPreview'
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
+import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import {
   AvailabilityMark,
   Box,
@@ -409,6 +411,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const pickChoice = (value: SwapChoice | '') => { setChoice(value); pickReplacement('') }
   const pickDay = (value: string) => { setServiceDate(value); pickChoice('') }
   const [composing, setComposing] = useState(Boolean(linkedDay) && hasTeamMember)
+  const composeDirty = composing && Boolean((serviceDate && serviceDate !== linkedDay) || choice || replacementId || note || composeAcknowledgedFor || inReturn)
+  const resetCompose = () => {
+    pickDay('')
+    setNote('')
+    setComposing(false)
+  }
+  const unsavedChanges = useUnsavedChanges(composeDirty, resetCompose)
+  const closeComposer = () => unsavedChanges.requestAction(() => setComposing(false))
   const [openId, setOpenId] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setSheetAcknowledgedFor(null) }
@@ -517,21 +527,18 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
     queryClient.invalidateQueries({ queryKey: ['calendar'] })
   }
-  const setInbox = (value: Inbox) => {
+  const setInbox = useCallback((value: Inbox) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current)
       next.set('skrzynka', value)
       return next
     }, { replace: true })
-  }
+  }, [setSearchParams])
   const create = useMutation({
     mutationFn: api.createSwap,
     onSuccess: (_result, input) => {
       const name = options.data?.find((option) => option.member_id === input.replacement_member_id)?.display_name
-      pickDay('')
-      setNote('')
-      setComposing(false)
-      setInbox('moje')
+      resetCompose()
       refresh()
       toast.success(name ? t.swaps.toasts.sentTo(name) : t.swaps.toasts.sent)
     },
@@ -541,6 +548,14 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       queryClient.invalidateQueries({ queryKey: ['swap-return-options'] })
     },
   })
+  const { isSuccess: sent, reset: resetCreate } = create
+  useEffect(() => {
+    // Run after the cleared form has rendered, so its own success navigation is
+    // not mistaken for abandoning unfinished work.
+    if (!sent) return
+    setInbox('moje')
+    resetCreate()
+  }, [sent, resetCreate, setInbox])
   const settle = (message: string) => ({
     onSuccess: () => {
       openSheet(null)
@@ -772,12 +787,12 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
 
       <Panel
         open={composing}
-        onClose={() => setComposing(false)}
+        onClose={closeComposer}
         title={t.swaps.compose.title}
         wide
         footer={(
           <>
-            <Button variant="ghost" onClick={() => setComposing(false)}>{t.common.cancel}</Button>
+            <Button variant="ghost" onClick={closeComposer}>{t.common.cancel}</Button>
             <span className="sp" />
             <Button type="submit" form="new-swap" variant="primary" icon="send" disabled={submitDisabled} loading={create.isPending}>{t.swaps.compose.send}</Button>
           </>
@@ -1024,6 +1039,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           ) : create.error && <Box tone="bad" role="alert" title={create.error.message} />}
         </form>
       </Panel>
+      <UnsavedChangesDialog guard={unsavedChanges} />
     </div>
   )
 }
