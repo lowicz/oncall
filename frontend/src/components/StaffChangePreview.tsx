@@ -17,7 +17,7 @@ export function StaffChangePreview({ changes, name, onCall, link }: Readonly<{
 }>) {
   const t = useMessages().schedule.staffChange
   // 11–19 goes to the person taking its anchor role: with it, or back to it.
-  const anchored = link && onCall === link.anchor ? link : null
+  const anchored = onCall === link?.anchor ? link : null
   return (
     <div className="swap-preview">
       {changes.map((change) => (

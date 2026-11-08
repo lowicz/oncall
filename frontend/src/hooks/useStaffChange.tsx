@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, api } from '../api'
 import { useUndoable } from './useUndoable'
 import { messages, useMessages } from '../i18n'
-import { StaffChange, StaffingCandidate, lateShiftLink, slotOf, staffChanges, staffingCandidates } from '../lib/calendar'
+import { LateShiftLink, StaffChange, StaffingCandidate, lateShiftLink, slotOf, staffChanges, staffingCandidates } from '../lib/calendar'
 import { formatShortDate, warsawDate } from '../lib/dates'
 import { availabilityLabels, roleLabels } from '../lib/labels'
 import { Button, Checkbox, Field, Fieldset, Input, Select, useToast } from '../ui'
@@ -33,6 +33,103 @@ function candidateHint(candidate: StaffingCandidate, serviceDate: string) {
     candidate.roles && t.roles(candidate.display_name, labels(candidate.roles).join(', ')),
     candidate.availability ? t.reported(date, availabilityLabels()[candidate.availability]) : t.notReported(date),
   ].filter(Boolean).join(' ')
+}
+
+/** The change the form describes: its roles, who may take them, the person
+ *  chosen, the slots they take over and the lines sent to the API. */
+function selection({ data, serviceDate, link, onCall, lateChoice, memberId, open }: {
+  data: CalendarData | undefined
+  serviceDate: string | undefined
+  link: LateShiftLink | null
+  onCall: OnCall | null
+  lateChoice: boolean | null
+  memberId: string | null
+  open: boolean
+}) {
+  // 11–19 goes along by default exactly where the API would carry it: with
+  // its anchor role, from the person holding both.
+  const late = lateChoice ?? Boolean(link?.coupled && link.anchor === onCall)
+  const roles = rolesOf(onCall, late)
+  const candidates = open && data && serviceDate && roles.length > 0 ? staffingCandidates(data, serviceDate, roles) : []
+  const chosen = candidates.find((item) => item.id === memberId)
+  const ref = data?.assignments.find((item) => item.service_date === serviceDate)
+  const changes: StaffChange[] = data && serviceDate ? staffChanges(data, serviceDate, roles) : []
+  const lines = chosen && serviceDate
+    ? roles.map((role) => ({ service_date: serviceDate, role, replacement_member_id: chosen.id }))
+    : []
+  const ready = Boolean(ref && chosen && !chosen.disabledReason && !chosen.partial)
+  return { late, roles, candidates, chosen, ref, changes, lines, ready }
+}
+
+/** The toast title of a saved change: the roles it moved, or its one slot. */
+function savedTitle(changes: StaffChange[], roles: AssignmentRole[], date: string, name: string) {
+  const { toast, staffChange } = messages().schedule
+  const [first] = changes
+  if (changes.length > 1) return toast.changedRoles(date, name, staffChange.roleList(labels(roles)))
+  if (first.from) return toast.changed(date, roleLabels()[first.role], first.from, name)
+  return toast.filled(roleLabels()[first.role], date, name)
+}
+
+/** Who the e-mails of a saved change go to. */
+function emailsTo(people: number, name: string) {
+  const { toast } = messages().schedule
+  if (people === 1) return toast.emailOne(name)
+  if (people === 2) return toast.emailBoth
+  return toast.emailMany(people)
+}
+
+/** What the 11–19 row says about its slot, and why 11–19 is ticked or not,
+ *  said only while its anchor role is changed. */
+function lateTexts(
+  data: CalendarData | undefined,
+  serviceDate: string | undefined,
+  link: LateShiftLink | null,
+  onCall: OnCall | null,
+  late: boolean,
+) {
+  const t = messages().schedule.staffChange
+  const lateSlot = data && serviceDate ? slotOf(data, serviceDate, 'late_shift') : undefined
+  const anchorLabel = link && roleLabels()[link.anchor]
+  let note = t.unstaffed
+  if (link?.coupled) note = t.withAnchor(anchorLabel!)
+  else if (lateSlot) note = t.heldBy(lateSlot.assignee_name)
+  let hint: string | undefined
+  if (onCall === link?.anchor) {
+    if (late) hint = link.coupled ? t.lateByPolicy(link.holder, anchorLabel!) : t.lateByYou(anchorLabel!, link.anchorHolder)
+    else if (link.coupled) hint = t.lateStays(link.holder)
+  }
+  return { note, hint }
+}
+
+/** What the person picker says about the chosen person: why they take only
+ *  some of the roles, and the hint under it. */
+function personTexts(chosen: StaffingCandidate | undefined, roles: AssignmentRole[], serviceDate: string | undefined) {
+  const { staffChange: t, staffBlock } = messages().schedule
+  let error: string | undefined
+  if (chosen?.partial) {
+    const { notEligible, holds } = chosen.partial
+    error = notEligible.length > 0
+      ? t.notEligible(chosen.display_name, t.roleList(labels(notEligible)))
+      : t.holds(chosen.display_name, t.roleList(labels(holds)))
+  }
+  let hint = staffBlock.pickPerson(roles.length)
+  if (chosen?.disabledReason) hint = staffBlock.chosenPerson(chosen.disabledReason)
+  else if (chosen && serviceDate) hint = candidateHint(chosen, serviceDate)
+  return { error, hint }
+}
+
+/** A candidate's line in the person picker, with the roles they cannot take. */
+function optionText(candidate: StaffingCandidate, roles: AssignmentRole[]) {
+  const t = messages().schedule.staffChange
+  if (candidate.disabledReason) return `${candidate.display_name} · ${candidate.disabledReason}`
+  if (candidate.partial) {
+    const { notEligible, holds } = candidate.partial
+    const takes = roles.filter((role) => !notEligible.includes(role) && !holds.includes(role))
+    return notEligible.length > 0
+      ? t.optionOnly(candidate.display_name, labels(takes), labels(notEligible))
+      : t.optionHolds(candidate.display_name, labels(holds))
+  }
+  return roles.length > 1 ? t.option(candidate.display_name, labels(roles)) : candidate.display_name
 }
 
 /**
@@ -73,18 +170,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
   const [acknowledged, setAcknowledged] = useState(false)
   const [reason, setReason] = useState('')
 
-  // 11–19 goes along by default exactly where the API would carry it: with
-  // its anchor role, from the person holding both.
-  const late = lateChoice ?? Boolean(link?.coupled && link.anchor === onCall)
-  const roles = rolesOf(onCall, late)
-  const candidates = open && data && serviceDate && roles.length > 0 ? staffingCandidates(data, serviceDate, roles) : []
-  const chosen = candidates.find((item) => item.id === memberId)
-  const ref = data?.assignments.find((item) => item.service_date === serviceDate)
-  const changes: StaffChange[] = data && serviceDate ? staffChanges(data, serviceDate, roles) : []
-  const lines = chosen && serviceDate
-    ? roles.map((role) => ({ service_date: serviceDate, role, replacement_member_id: chosen.id }))
-    : []
-  const ready = Boolean(ref && chosen && !chosen.disabledReason && !chosen.partial)
+  const { late, roles, candidates, chosen, ref, changes, lines, ready } = selection({ data, serviceDate, link, onCall, lateChoice, memberId, open })
   const historical = Boolean(serviceDate && serviceDate < warsawDate())
 
   const check = useQuery({
@@ -122,12 +208,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
       const given = historical ? reason.trim() : undefined
       const acknowledge = (violations?.length ?? 0) > 0 && acknowledged
       const people = new Set([...changes.flatMap((item) => (item.from ? [item.from] : [])), name]).size
-      const [first] = changes
-      const title = changes.length > 1
-        ? schedule.toast.changedRoles(date, name, t.roleList(labels(roles)))
-        : first.from
-          ? schedule.toast.changed(date, roleLabels()[first.role], first.from, name)
-          : schedule.toast.filled(roleLabels()[first.role], date, name)
+      const title = savedTitle(changes, roles, date, name)
       const audited = acknowledge ? schedule.toast.violationAudited : ''
       const execute = () => api.batchOverride({
         schedule_id: scheduleId,
@@ -141,12 +222,9 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
       // who could not take it back, leaves nothing to undo it with.
       if (changes.some((item) => !item.restoreTo)) {
         const result = await execute()
-        const emails = people === 1
-          ? schedule.toast.emailOne(name)
-          : people === 2 ? schedule.toast.emailBoth : schedule.toast.emailMany(people)
         toast.success(title, {
-          description: [emails, audited].filter(Boolean).join(' '),
-          action: { label: schedule.toast.openDay, onClick: () => onOpenDay(first.role) },
+          description: [emailsTo(people, name), audited].filter(Boolean).join(' '),
+          action: { label: schedule.toast.openDay, onClick: () => onOpenDay(changes[0].role) },
         })
         return result
       }
@@ -189,42 +267,11 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
     || ((violations?.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
 
-  const lateSlot = data && serviceDate ? slotOf(data, serviceDate, 'late_shift') : undefined
-  const anchorLabel = link && roleLabels()[link.anchor]
-  let lateNote = t.unstaffed
-  if (link?.coupled) lateNote = t.withAnchor(anchorLabel!)
-  else if (lateSlot) lateNote = t.heldBy(lateSlot.assignee_name)
-  // Why 11–19 is ticked or not, said only while its anchor role is changed.
-  let lateHint: string | undefined
-  if (link && onCall === link.anchor) {
-    if (late) lateHint = link.coupled ? t.lateByPolicy(link.holder, anchorLabel!) : t.lateByYou(anchorLabel!, link.anchorHolder)
-    else if (link.coupled) lateHint = t.lateStays(link.holder)
-  }
+  const { note: lateNote, hint: lateHint } = lateTexts(data, serviceDate, link, onCall, late)
   const other: OnCall | null = onCall && (onCall === 'primary' ? 'secondary' : 'primary')
   const groupHint = [other && t.excluded(roleLabels()[other]), lateHint].filter(Boolean).join(' ') || undefined
 
-  let personError: string | undefined
-  if (chosen?.partial) {
-    const { notEligible, holds } = chosen.partial
-    personError = notEligible.length > 0
-      ? t.notEligible(chosen.display_name, t.roleList(labels(notEligible)))
-      : t.holds(chosen.display_name, t.roleList(labels(holds)))
-  }
-  const staffBlock = schedule.staffBlock
-  let personHint = staffBlock.pickPerson(roles.length)
-  if (chosen?.disabledReason) personHint = staffBlock.chosenPerson(chosen.disabledReason)
-  else if (chosen && serviceDate) personHint = candidateHint(chosen, serviceDate)
-  const optionText = (candidate: StaffingCandidate) => {
-    if (candidate.disabledReason) return `${candidate.display_name} · ${candidate.disabledReason}`
-    if (candidate.partial) {
-      const { notEligible, holds } = candidate.partial
-      const takes = roles.filter((role) => !notEligible.includes(role) && !holds.includes(role))
-      return notEligible.length > 0
-        ? t.optionOnly(candidate.display_name, labels(takes), labels(notEligible))
-        : t.optionHolds(candidate.display_name, labels(holds))
-    }
-    return roles.length > 1 ? t.option(candidate.display_name, labels(roles)) : candidate.display_name
-  }
+  const { error: personError, hint: personHint } = personTexts(chosen, roles, serviceDate)
   const pending = save.isPending
 
   const onCallCheck = (role: OnCall) => (
@@ -273,7 +320,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
               <option value="">{schedule.inspector.pickPerson}</option>
               {candidates.map((candidate) => (
                 <option key={candidate.id} value={candidate.id} disabled={Boolean(candidate.disabledReason)}>
-                  {optionText(candidate)}
+                  {optionText(candidate, roles)}
                 </option>
               ))}
             </Select>
