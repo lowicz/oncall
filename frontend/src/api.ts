@@ -61,6 +61,23 @@ export interface RuleViolation {
   days: string[]
 }
 
+/** The open number handover a correction would end (`/forwarding/handover`). */
+export interface NumberHandover {
+  id: string
+  day: string
+  from_member_id: string
+  from_name: string
+  to_member_id: string
+  to_name: string
+  starts_at: string
+  until: string
+}
+
+export interface OverrideCheck {
+  violations: RuleViolation[]
+  ends_handover: NumberHandover | null
+}
+
 export interface Assignment {
   service_date: string
   role: AssignmentRole
@@ -890,7 +907,8 @@ export const api = {
         replacement_member_id: string
       }>
     }>
-  }) => send<RuleViolation[]>('POST', '/api/v1/calendar/override/batch/check', input),
+  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/batch/check', input)
+    .then((check) => check.violations),
   batchOverride: (input: {
     schedule_id: string
     expected_version: number
@@ -926,7 +944,7 @@ export const api = {
     service_date: string
     role: AssignmentRole
     replacement_member_id: string
-  }) => send<RuleViolation[]>('POST', '/api/v1/calendar/override/check', input),
+  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/check', input),
   availability: () => request<AvailabilityEntry[]>('/api/v1/availability/me'),
   createAvailability: (input: AvailabilityInput) =>
     send<AvailabilityEntry>('POST', '/api/v1/availability/me', input),

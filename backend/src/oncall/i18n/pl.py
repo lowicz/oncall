@@ -132,6 +132,28 @@ MESSAGES: dict[str, str] = {
         "Zmiana adresu WCO wymaga ponownego podania hasła, aby zapisane hasło "
         "nie trafiło na inny serwer."
     ),
+    "forwarding.handover_forwarding_off": (
+        "Przełączanie numeru jest wyłączone, więc numeru on-call nie można przekazać w aplikacji."
+    ),
+    "forwarding.handover_not_in_pair": (
+        "Numer on-call przekazuje osoba na dyżurze PRIMARY albo SECONDARY tego "
+        "dnia albo koordynator."
+    ),
+    "forwarding.handover_needs_pair": (
+        "Dziś w grafiku nie ma pary PRIMARY i SECONDARY, między którą można "
+        "przekazać numer on-call."
+    ),
+    "forwarding.handover_active": (
+        "Numer on-call jest już przekazany: odbiera {name}. Najpierw zakończ to przekazanie."
+    ),
+    "forwarding.handover_until_out_of_range": (
+        "Wybierz koniec przekazania późniejszy niż teraz i najpóźniej {latest}: "
+        "wtedy numer przechodzi na kolejnego PRIMARY."
+    ),
+    "forwarding.handover_receiver_has_no_phone": (
+        "{name} nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie."
+    ),
+    "forwarding.handover_not_found": "To przekazanie numeru on-call już się zakończyło",
     # --- history import (oncall.domain.history, oncall.history_import) -------
     "history.rejected": "Import historii zawiera błędy",
     "history.file_not_utf8": "Plik musi być zapisany jako UTF-8",

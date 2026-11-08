@@ -12,7 +12,7 @@ from oncall.config import get_settings
 from oncall.domain.clock import as_utc, utc_now
 from oncall.domain.digest import DutyDigest
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
-from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome
+from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome, NumberHandover
 from oncall.domain.handover import NoticeTiming, RotationNotice
 from oncall.domain.roster import Slot
 from oncall.domain.scheduling.models import ScheduledDuty
@@ -154,7 +154,8 @@ async def enqueue_forwarding_alert(
     applied_at: datetime | None,
     dedup_prefix: str,
 ) -> int:
-    """Queue one critical copy for every operator and the PRIMARY person."""
+    """Queue one critical copy for every operator, the PRIMARY person and,
+    during a handover, the person who took the number over."""
     settings = get_settings()
     rendered = templates.forwarding_failed(
         target=target,
@@ -165,18 +166,9 @@ async def enqueue_forwarding_alert(
         app=Brand.from_settings(settings),
     )
     recipients = {user.id: user for user in await _active_coordinators(db)}
-    if target.member_id is not None:
-        primary = await db.scalar(
-            select(User)
-            .join(TeamMember, TeamMember.user_id == User.id)
-            .where(
-                TeamMember.id == target.member_id,
-                User.is_active.is_(True),
-                User.email.is_not(None),
-            )
-        )
-        if primary is not None:
-            recipients[primary.id] = primary
+    people = [target.member_id, target.receiver.member_id if target.receiver else None]
+    for person in await _member_accounts(db, [each for each in people if each is not None]):
+        recipients[person.id] = person
     queued = 0
     for recipient in recipients.values():
         row = await enqueue_notification(
@@ -194,6 +186,42 @@ async def enqueue_forwarding_alert(
         )
         queued += row is not None
     return queued
+
+
+async def _member_accounts(db: AsyncSession, member_ids: list[uuid.UUID]) -> list[User]:
+    """The active accounts of these members that can be written to."""
+    return list(
+        (
+            await db.scalars(
+                select(User)
+                .join(TeamMember, TeamMember.user_id == User.id)
+                .where(
+                    TeamMember.id.in_(member_ids),
+                    User.is_active.is_(True),
+                    User.email.is_not(None),
+                )
+            )
+        ).all()
+    )
+
+
+async def notify_handover_ended_by_roster_change(
+    db: AsyncSession, handover: NumberHandover, *, primary_name: str | None
+) -> None:
+    """Tell both people of a handover that a correction ended it."""
+    rendered = templates.handover_ended_by_roster_change(
+        handover=handover, primary_name=primary_name, app=Brand.from_settings(get_settings())
+    )
+    for person in await _member_accounts(db, [handover.from_member_id, handover.to_member_id]):
+        await enqueue_notification(
+            db,
+            _message(
+                person.email or "",
+                rendered,
+                {"event": "handover_ended", "day": handover.day.isoformat()},
+            ),
+            dedup_key=f"handover-ended:{handover.id}:{person.id}",
+        )
 
 
 async def enqueue_forwarding_recovered(

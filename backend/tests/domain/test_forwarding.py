@@ -1,5 +1,6 @@
 """The WCO password rules: what a generated password holds and which step of
-the rotation follows a login."""
+the rotation follows a login; and where the number should ring, with the
+number handovers of the day's pair."""
 
 import uuid
 from dataclasses import replace
@@ -23,6 +24,7 @@ from oncall.domain.forwarding.passwords import (
     Passwords,
     generate_password,
 )
+from oncall.domain.forwarding.ports import HandoverPorts
 from oncall.domain.roster import Duty
 from oncall.domain.vocabulary import AssignmentRole
 
@@ -83,6 +85,14 @@ class _Roster:
         return {} if self.duty is None else {(starts_on, AssignmentRole.primary): self.duty}
 
 
+class _NoHandovers:
+    async def open(self):
+        return None
+
+
+NO_HANDOVERS = HandoverPorts(_NoHandovers(), None)  # type: ignore[arg-type]
+
+
 class _Contacts:
     def __init__(self, number: str | None, *, published: bool = True) -> None:
         self.number = number
@@ -115,6 +125,7 @@ async def test_the_desired_target_maps_the_primary_phone_to_wco_unchanged() -> N
         9,
         _Roster(duty),
         contacts,
+        NO_HANDOVERS,
     )
 
     assert target == ForwardingTarget(day, member_id, "Anna Kowalska", "+48500500500")
@@ -128,7 +139,7 @@ async def test_the_desired_target_maps_the_primary_phone_to_wco_unchanged() -> N
 
 async def test_a_missing_or_imported_primary_has_no_target_number() -> None:
     now = datetime(2026, 9, 15, 12, 0, tzinfo=ZoneInfo("Europe/Warsaw"))
-    no_primary = await desired_target(now, 9, _Roster(None), _Contacts("unused"))
+    no_primary = await desired_target(now, 9, _Roster(None), _Contacts("unused"), NO_HANDOVERS)
     imported = Duty(
         now.date(),
         AssignmentRole.primary,
@@ -137,7 +148,7 @@ async def test_a_missing_or_imported_primary_has_no_target_number() -> None:
         False,
         uuid.uuid4(),
     )
-    no_account = await desired_target(now, 9, _Roster(imported), _Contacts("unused"))
+    no_account = await desired_target(now, 9, _Roster(imported), _Contacts("unused"), NO_HANDOVERS)
 
     assert no_primary is not None
     assert no_account is not None
@@ -152,4 +163,7 @@ async def test_a_missing_or_imported_primary_has_no_target_number() -> None:
 async def test_before_the_first_publication_there_is_no_target_at_all() -> None:
     now = datetime(2026, 9, 15, 12, 0, tzinfo=ZoneInfo("Europe/Warsaw"))
 
-    assert await desired_target(now, 9, _Roster(None), _Contacts(None, published=False)) is None
+    assert (
+        await desired_target(now, 9, _Roster(None), _Contacts(None, published=False), NO_HANDOVERS)
+        is None
+    )

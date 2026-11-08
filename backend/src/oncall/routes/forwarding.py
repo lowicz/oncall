@@ -1,15 +1,21 @@
-"""Administration of forwarding the on-call number through Orange WCO."""
+"""Forwarding the on-call number through Orange WCO: its administration,
+and the day's pair handing the number over."""
+
+import uuid
 
 from fastapi import APIRouter, Request, Response, status
 
-from oncall.auth import CsrfGuard
+from oncall.auth import CsrfGuard, CurrentPrincipal, CurrentUser
 from oncall.bootstrap.providers import (
     ForwardingConnectionTester,
+    ForwardingNowReader,
     ForwardingPasswordRevealer,
     ForwardingSettingsReader,
     ForwardingSettingsWriter,
     ForwardingStateReader,
+    HandoverChanger,
 )
+from oncall.config import get_settings
 from oncall.domain.access import errors as access_errors
 from oncall.domain.access.models import SignInRequest
 from oncall.domain.clock import utc_now
@@ -19,22 +25,35 @@ from oncall.infrastructure.sqlalchemy.access import account_from_row
 from oncall.permissions import Admin
 from oncall.presentation.forwarding import (
     ConnectionTestResponse,
+    ForwardingNowResponse,
     ForwardingSettingsResponse,
     ForwardingSettingsUpdate,
     ForwardingStateResponse,
+    HandoverRequest,
+    HandoverResponse,
     PasswordRevealRequest,
     PasswordRevealResponse,
 )
 from oncall.routes.access import ACCESS_ERROR_HEADERS, client_ip
-from oncall.routes.domain_edge import domain_errors_as_http
+from oncall.routes.domain_edge import actor_from, audience_of, domain_errors_as_http
 
 router = APIRouter(prefix="/api/v1/admin/forwarding", tags=["admin"])
+member_router = APIRouter(prefix="/api/v1/forwarding", tags=["forwarding"])
 FORWARDING_ERROR_STATUSES = {
     errors.SecretsKeyMissing: status.HTTP_409_CONFLICT,
     errors.StoredPasswordUnreadable: status.HTTP_409_CONFLICT,
     errors.CredentialsRefused: status.HTTP_409_CONFLICT,
     errors.SettingsIncomplete: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.NewAddressNeedsPassword: status.HTTP_422_UNPROCESSABLE_CONTENT,
+}
+HANDOVER_ERROR_STATUSES = {
+    errors.ForwardingOff: status.HTTP_409_CONFLICT,
+    errors.HandoverActive: status.HTTP_409_CONFLICT,
+    errors.NotInThePair: status.HTTP_403_FORBIDDEN,
+    errors.HandoverNotFound: status.HTTP_404_NOT_FOUND,
+    errors.HandoverNeedsPair: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    errors.HandoverUntilOutOfRange: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    errors.ReceiverHasNoPhone: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 REVEAL_ERROR_STATUSES = {
     errors.PasswordNotSet: status.HTTP_404_NOT_FOUND,
@@ -116,3 +135,44 @@ async def test_forwarding_connection(
 @router.get("/state")
 async def forwarding_state(_: Admin, store: ForwardingStateReader) -> ForwardingStateResponse:
     return ForwardingStateResponse.model_validate(await use_cases.current_state(store))
+
+
+@member_router.get("/now")
+async def forwarding_now(
+    principal: CurrentPrincipal, ports: ForwardingNowReader
+) -> ForwardingNowResponse:
+    """Where the on-call number rings now, for every role and share link."""
+    return ForwardingNowResponse.model_validate(
+        await use_cases.forwarding_now(
+            audience_of(principal),
+            ports,
+            now=utc_now(),
+            reminder_hour=get_settings().handover_reminder_hour,
+        )
+    )
+
+
+@member_router.post("/handover", status_code=status.HTTP_201_CREATED)
+async def start_handover(
+    payload: HandoverRequest, user: CurrentUser, ports: HandoverChanger, __: CsrfGuard
+) -> HandoverResponse:
+    """Hand the on-call number to the day's SECONDARY: the day's PRIMARY or
+    SECONDARY, or a coordinator."""
+    with domain_errors_as_http(HANDOVER_ERROR_STATUSES):
+        handover = await use_cases.start_handover(
+            actor_from(user),
+            payload.until,
+            ports,
+            now=utc_now(),
+            reminder_hour=get_settings().handover_reminder_hour,
+        )
+    return HandoverResponse.model_validate(handover)
+
+
+@member_router.delete("/handover/{handover_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def end_handover(
+    handover_id: uuid.UUID, user: CurrentUser, ports: HandoverChanger, __: CsrfGuard
+) -> None:
+    """End the handover early: either of its people, or a coordinator."""
+    with domain_errors_as_http(HANDOVER_ERROR_STATUSES):
+        await use_cases.end_handover(actor_from(user), handover_id, ports, now=utc_now())

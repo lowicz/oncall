@@ -7,7 +7,7 @@ import { renderScreen } from '../test/render'
 import { CalendarMatrix } from './CalendarMatrix'
 import { ScheduleScreen } from '../screens/Schedule'
 import { ApiError, api } from '../api'
-import type { CalendarData, SwapImpact } from '../api'
+import type { CalendarData, NumberHandover, OverrideCheck, RuleViolation, SwapImpact } from '../api'
 
 const day = (offset: number): string => {
   const base = new Date()
@@ -188,10 +188,39 @@ const confirmHandOver = async () => {
   return saveButton()
 }
 
+const checked = (
+  violations: RuleViolation[] = [],
+  ends_handover: NumberHandover | null = null,
+): OverrideCheck => ({ violations, ends_handover })
+
 describe('CalendarMatrix override decision frame', () => {
+  it('says which number handover the correction ends, without asking to acknowledge it', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked([], {
+      id: 'h1',
+      day: day(1),
+      from_member_id: 'm1',
+      from_name: 'Anna Kowalska',
+      to_member_id: 'm2',
+      to_name: 'Marek Nowak',
+      starts_at: `${day(1)}T09:40:00Z`,
+      until: `${day(1)}T11:40:00Z`,
+    }))
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
+    renderScreen(matrix())
+
+    const save = await confirmHandOver()
+
+    expect(await screen.findByText(
+      'Ta korekta zakończy przekazanie numeru on-call Anna Kowalska → Marek Nowak. Numer wróci do osoby na PRIMARY, a obie strony dostaną e-mail.',
+    )).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    await waitFor(() => expectReady(save))
+  })
+
   it('shows the hard rules the override would break before confirming', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
-    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([threeInSeven])
+    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked([threeInSeven]))
     renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
@@ -210,7 +239,7 @@ describe('CalendarMatrix override decision frame', () => {
 
   it('sends the acknowledgement only once the coordinator ticks it', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([threeInSeven])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked([threeInSeven]))
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     const override = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(matrix())
@@ -237,8 +266,8 @@ describe('CalendarMatrix override decision frame', () => {
   it('checks again and asks for the acknowledgement when the write finds a new violation', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
     const check = vi.spyOn(api, 'directOverrideCheck')
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([threeInSeven])
+      .mockResolvedValueOnce(checked())
+      .mockResolvedValue(checked([threeInSeven]))
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     const override = vi.spyOn(api, 'directOverride').mockRejectedValueOnce(
       new ApiError('Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie', 409, [threeInSeven]),
@@ -264,7 +293,7 @@ describe('CalendarMatrix override decision frame', () => {
 
   it('locks the change form while the save is in flight', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     let finish: (value: never) => void = () => {}
     const override = vi.spyOn(api, 'directOverride').mockReturnValue(new Promise((resolve) => { finish = resolve }))
@@ -289,7 +318,7 @@ describe('CalendarMatrix override decision frame', () => {
 
   it('keeps the change form open while the save is in flight, so its refusal is seen', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     let refuse: (error: Error) => void = () => {}
     vi.spyOn(api, 'directOverride').mockReturnValue(new Promise((_, reject) => { refuse = reject }))
@@ -315,7 +344,7 @@ describe('CalendarMatrix override decision frame', () => {
 
   it('shows no warning when the override is clean', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
@@ -346,7 +375,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
 
   it('lets the coordinator remove a duty from the person whose cell they clicked', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     const override = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(matrix())
@@ -438,7 +467,7 @@ describe('CalendarMatrix override balance preview (MED6-04)', () => {
 
   it('shows the balance impact for both people alongside the hard-rule check', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     const impact = vi.spyOn(api, 'swapImpact')
       .mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
     renderScreen(matrix())
@@ -458,7 +487,7 @@ describe('CalendarMatrix override balance preview (MED6-04)', () => {
   it('says nobody loses a duty when the slot was empty', async () => {
     // calendar() has no primary assignment on day(0): filling it is a pure add.
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     const impact = vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('x', 'y'))
     renderScreen(matrix())
 
@@ -485,7 +514,7 @@ describe('CalendarMatrix hard unavailability', () => {
 
   it('offers an unavailable person only as a disabled option that says why', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(withUnavailability())
-    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     renderScreen(matrix())
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
@@ -502,7 +531,7 @@ describe('CalendarMatrix hard unavailability', () => {
     const data = withUnavailability()
     data.availability[0].kind = 'prefer_not'
     vi.spyOn(api, 'calendar').mockResolvedValue(data)
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
@@ -984,7 +1013,7 @@ describe('CalendarMatrix staffing form', () => {
 
   it('asks for a reason in a dialog before correcting a day already past', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week())
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
     const save = vi.spyOn(api, 'directOverride')
       .mockRejectedValueOnce(new ApiError('Grafik zmienił wersję', 409))
@@ -1049,7 +1078,7 @@ describe('CalendarMatrix staffing form', () => {
         { id: 'm3', display_name: 'Ola Wiśniewska' },
       ],
     }))
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Zmień obsadę')
@@ -1066,8 +1095,8 @@ describe('CalendarMatrix staffing form', () => {
   it('closes the past-day dialog on a new violation so the panel can take the acknowledgement', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week())
     vi.spyOn(api, 'directOverrideCheck')
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([threeInSeven])
+      .mockResolvedValueOnce(checked())
+      .mockResolvedValue(checked([threeInSeven]))
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
     const save = vi.spyOn(api, 'directOverride')
       .mockRejectedValueOnce(new ApiError('Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie', 409, [threeInSeven]))
@@ -1124,7 +1153,7 @@ describe('CalendarMatrix staffing form', () => {
 
   it('shows a refused change in the frame and moves focus to it', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week())
-    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
     vi.spyOn(api, 'directOverride').mockRejectedValue(new ApiError('Grafik zmienił wersję', 409))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)

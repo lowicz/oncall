@@ -538,9 +538,12 @@ describe('the Polish interface', () => {
   })
 
   it('a day correction that breaks a hard rule, decided in the panel', async () => {
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([
-      { rule: 'three_in_seven', message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.', member_name: 'Marek Nowak', days: ['2026-09-10', '2026-09-11'] },
-    ])
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue({
+      violations: [
+        { rule: 'three_in_seven', message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.', member_name: 'Marek Nowak', days: ['2026-09-10', '2026-09-11'] },
+      ],
+      ends_handover: null,
+    })
     vi.spyOn(api, 'swapImpact').mockResolvedValue({
       service_date: '2026-09-11', role: 'primary', points: 1, window_start: '2025-09-11', window_end: '2026-09-10',
       requester: { member_id: 'm3', display_name: 'Ola Wiśniewska', before: member('m3', 'Ola Wiśniewska'), after: member('m3', 'Ola Wiśniewska', { primary: balance(3, 3.5) }) },
