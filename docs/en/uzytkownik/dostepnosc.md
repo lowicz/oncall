@@ -32,7 +32,11 @@ not**, **willing** and **clear** - and arrows that change the month.
 
 - Clicking a day saves that one day with the chosen mode.
 - Dragging across days saves the whole range; Shift+click closes the range
-  from the last saved day (useful from the keyboard).
+  from the last saved day.
+- From the keyboard the calendar is a single Tab stop. The arrow keys move
+  between days (up and down by a week), Home and End to the start and end of
+  the week, and Enter or Space save the day with the chosen mode; with Shift
+  they close the range from the last saved day.
 - The **clear** mode removes the entry from the selected days. If the entry
   covered more days, the rest remain.
 - Saving is immediate; it is confirmed by the message “Saved: 12 – 16 Oct

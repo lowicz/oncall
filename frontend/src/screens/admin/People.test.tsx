@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { focusManager } from '@tanstack/react-query'
 import { api } from '../../api'
 import type { AdminUser, TeamMember } from '../../api'
@@ -85,16 +86,30 @@ describe('PeoplePanel table', () => {
     )
     renderScreen(<PeoplePanel />)
     await rowOf('anna')
-    fireEvent.click(screen.getByRole('button', { name: 'Wyłączone' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Wyłączone' }))
     expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
     expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'W rotacji' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'W rotacji' }))
     expect(screen.getByText('anna', { selector: 'td' })).toBeInTheDocument()
     expect(screen.queryByText('ewa', { selector: 'td' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Wszystkie' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Wszystkie' }))
     fireEvent.change(screen.getByRole('searchbox', { name: /Szukaj osoby/ }), { target: { value: 'maj' } })
     expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
     expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
+  })
+
+  it('uses one tab stop and arrow keys for the account filters', async () => {
+    const user = userEvent.setup()
+    mockData()
+    renderScreen(<PeoplePanel />)
+    const filters = await screen.findByRole('radiogroup', { name: 'Konta' })
+    const choices = within(filters).getAllByRole('radio')
+    expect(choices.filter((choice) => choice.tabIndex === 0)).toHaveLength(1)
+
+    screen.getByRole('radio', { name: 'Wszystkie' }).focus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('radio', { name: 'W rotacji' })).toHaveFocus()
+    expect(screen.getByRole('radio', { name: 'W rotacji' })).toHaveAttribute('aria-checked', 'true')
   })
 })
 
@@ -297,13 +312,13 @@ describe('PeoplePanel pending activation', () => {
     }
     expect(screen.getByText(/5 kont · 0 w rotacji · 1 wyłączone · 3 oczekują na aktywację/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Oczekujące' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Oczekujące' }))
     expect(screen.getByText('anna', { selector: 'td' })).toBeInTheDocument()
     expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
     expect(screen.getByText('olek', { selector: 'td' })).toBeInTheDocument()
     expect(screen.queryByText('tomasz', { selector: 'td' })).not.toBeInTheDocument()
     expect(screen.queryByText('widz', { selector: 'td' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Wyłączone' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Wyłączone' }))
     expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
     expect(screen.getByText('olek', { selector: 'td' })).toBeInTheDocument()
   })
@@ -436,7 +451,7 @@ describe('PeoplePanel table states and export', () => {
     const olek = await rowOf('olek')
     expect(within(olek).getByText('nie dotyczy')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Poza rotacją' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Poza rotacją' }))
     expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
     expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
     expect(screen.getByText('olek', { selector: 'td' })).toBeInTheDocument()

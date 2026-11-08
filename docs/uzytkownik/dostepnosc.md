@@ -32,7 +32,11 @@ nie**, **chętnie** i **wyczyść** - oraz strzałki zmieniające miesiąc.
 
 - Kliknięcie dnia zapisuje ten jeden dzień wybranym trybem.
 - Przeciągnięcie po dniach zapisuje cały zakres; Shift+klik domyka zakres od
-  ostatnio zapisanego dnia (przydatne z klawiatury).
+  ostatnio zapisanego dnia.
+- Z klawiatury kalendarz to jeden przystanek klawisza Tab. Strzałki
+  przechodzą między dniami (w górę i w dół o tydzień), Home i End na początek
+  i koniec tygodnia, a Enter lub Spacja zapisują dzień wybranym trybem; z
+  Shift domykają zakres od ostatnio zapisanego dnia.
 - Tryb **wyczyść** usuwa zgłoszenie z zaznaczonych dni. Jeżeli wpis obejmował
   więcej dni, pozostałe zostają.
 - Zapis jest natychmiastowy; potwierdza go komunikat „Zapisano: 12 – 16 paź

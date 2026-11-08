@@ -20,7 +20,8 @@ strip needs it) and the sign-in method (local or LDAP / AD, and for a local
 account without a password the `AWAITING ACTIVATION` badge - see below). The
 section header has a search field (person, username, number, phone) and the
 filters **All**, **In the rotation**, **Outside the rotation**, **Disabled**,
-**Pending**. **Export CSV** saves the visible rows, **New account** opens the
+**Pending** - a single Tab stop from the keyboard, where the arrow keys change
+the filter. **Export CSV** saves the visible rows, **New account** opens the
 panel for creating a local account.
 
 Clicking a person (or **Open**) opens a panel with three tabs:

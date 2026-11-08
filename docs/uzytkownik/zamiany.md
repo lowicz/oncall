@@ -60,7 +60,9 @@ prowadzi przez cztery kroki: dyżur, kandydat, w zamian, powód i wysłanie.
    nie mają tego dnia przeciwnej roli, uszeregowane od najlepszego kandydata.
    Przy każdej widać jej dostępność, odchylenie od należnego udziału i to, czy
    ma już tego dnia dyżur - dzięki temu dwóch kandydatów porównasz bez
-   otwierania każdego z osobna. Kliknięcie wybiera osobę.
+   otwierania każdego z osobna. Kliknięcie wybiera osobę. Z klawiatury lista
+   to jeden przystanek klawisza Tab: strzałki zmieniają wybór i pomijają
+   zablokowane karty, tak samo na liście **W zamian biorę**.
    - osoba oznaczona **„nie można: …”** jest zablokowana regułą, której
      zamiana nie może złamać, i nie da się jej wybrać,
    - osoba oznaczona **„łamie regułę: …”** i **„wymaga potwierdzenia”** jest do

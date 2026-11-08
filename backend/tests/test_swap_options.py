@@ -5,18 +5,21 @@ wymagało wybrania każdej osobno. Saldo zostaje w `/swaps/impact`, które ekran
 tak pobiera dla każdej opcji; tutaj jadą tylko fakty, których to nie zawiera.
 """
 
-from datetime import timedelta
+from datetime import UTC, date, datetime
+
+import pytest
 
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleStatus
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
-from tests.conftest import FROZEN_AT, create_member, create_user, login
+from tests.conftest import create_member, create_user, login
 
-# A working day three days after the frozen clock's today: the 11-19 shift
-# exists only on working days, so a day counted from the real clock failed the
-# suite whenever it landed on a weekend or a public holiday.
-DAY = FROZEN_AT.date() + timedelta(days=3)
+# The 11-19 shift exists only on working days, so the day is fixed: one
+# counted from today landed on weekends and public holidays. A Friday three
+# days after the frozen clock's Tuesday.
+pytestmark = pytest.mark.usefixtures("frozen_clock")
+DAY = date(2026, 9, 18)
 
 
 async def _team(db) -> dict[str, TeamMember]:
@@ -34,7 +37,7 @@ async def _team(db) -> dict[str, TeamMember]:
         starts_on=DAY,
         ends_on=DAY,
         status=ScheduleStatus.published,
-        published_at=FROZEN_AT,
+        published_at=datetime.now(UTC),
         assignments=[
             Assignment(
                 service_date=DAY,
@@ -54,9 +57,7 @@ async def _team(db) -> dict[str, TeamMember]:
     return members
 
 
-async def test_options_flag_a_candidate_who_already_has_a_duty_that_day(
-    client, db, frozen_clock
-) -> None:
+async def test_options_flag_a_candidate_who_already_has_a_duty_that_day(client, db) -> None:
     await _team(db)
     await login(client, "anna.opt")
     response = await client.get(
@@ -72,9 +73,7 @@ async def test_options_flag_a_candidate_who_already_has_a_duty_that_day(
     assert by_name["Piotr Opt"]["on_duty_that_day"] is False, by_name
 
 
-async def test_options_carry_the_soft_preference_but_never_a_hard_one(
-    client, db, frozen_clock
-) -> None:
+async def test_options_carry_the_soft_preference_but_never_a_hard_one(client, db) -> None:
     members = await _team(db)
     db.add_all(
         (
@@ -110,7 +109,7 @@ async def test_options_carry_the_soft_preference_but_never_a_hard_one(
     assert all(item["availability"] != "unavailable" for item in body), body
 
 
-async def test_options_report_no_preference_when_none_was_entered(client, db, frozen_clock) -> None:
+async def test_options_report_no_preference_when_none_was_entered(client, db) -> None:
     await _team(db)
     await login(client, "anna.opt")
     body = (

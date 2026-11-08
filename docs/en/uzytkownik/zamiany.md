@@ -68,7 +68,9 @@ and sending.
    candidate. Next to each you see their availability, their deviation from
    the fair share and whether they already have a duty that day - so you can
    compare two candidates without opening each one separately. Clicking picks
-   the person.
+   the person. From the keyboard the list is a single Tab stop: the arrow keys
+   change the selection and skip blocked cards, the same as in the **In return
+   I take** list.
    - a person marked **“not possible: …”** is blocked by a rule a swap may
      not break, and cannot be picked,
    - a person marked **“breaks a rule: …”** and **“needs confirmation”** can
