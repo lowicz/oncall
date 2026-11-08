@@ -10,14 +10,14 @@ import { useMessages } from '../i18n/messages'
  * title; its close button, Escape and the backdrop close it, and focus
  * returns to where it was.
  */
-export function Sheet({ open, onClose, title, children, className }: {
+export function Sheet({ open, onClose, title, children, className }: Readonly<{
   open: boolean
   /** Opened by the page through `open`, so the only change it asks for is to close. */
   onClose: () => void
   title: ReactNode
   children: ReactNode
   className?: string
-}) {
+}>) {
   const t = useMessages()
   return (
     <BaseDialog.Root open={open} onOpenChange={() => onClose()} modal>

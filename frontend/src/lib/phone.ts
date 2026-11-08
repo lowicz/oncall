@@ -6,8 +6,8 @@
  */
 const POLISH_NUMBER = /^(?:\+?48)?(\d{3})(\d{3})(\d{3})$/
 
-function polishGroups(value: string): RegExpMatchArray | null {
-  return value.trim().replace(/[ -]/g, '').match(POLISH_NUMBER)
+function polishGroups(value: string): RegExpExecArray | null {
+  return POLISH_NUMBER.exec(value.trim().replace(/[ -]/g, ''))
 }
 
 export function isPolishPhone(value: string): boolean {
