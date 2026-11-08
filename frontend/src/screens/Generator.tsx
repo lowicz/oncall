@@ -449,7 +449,7 @@ export function GeneratorPanel() {
       {!result && rangeForm}
       {result && (
         <section className="stack" aria-labelledby="generator-draft-title">
-          <SectionHeading id="generator-draft-title" title={result.name} />
+          <h2 id="generator-draft-title" className="sr-only">{result.name}</h2>
           <Steps
             label={t.draft.stage}
             steps={STAGES.map((stage) => ({

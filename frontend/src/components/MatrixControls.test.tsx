@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
-import { MatrixControls, MatrixView } from './MatrixControls'
+import { LegendPopover, MatrixControls, MatrixView } from './MatrixControls'
 import type { MatrixZoom } from './CalendarMatrix'
 
 function setup(over: Partial<Parameters<typeof MatrixControls>[0]> = {}) {
@@ -82,5 +82,27 @@ describe('MatrixControls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Legenda' }))
     const legend = await screen.findByRole('dialog', { name: 'Legenda' })
     expect(within(legend).queryByText('Dostępność')).not.toBeInTheDocument()
+  })
+
+  it('names the grid keys in the matrix legend', async () => {
+    setup()
+    fireEvent.click(screen.getByRole('button', { name: 'Legenda' }))
+    const legend = await screen.findByRole('dialog', { name: 'Legenda' })
+    expect(within(legend).getByText('Klawisze')).toBeInTheDocument()
+    expect(within(legend).getByText(/PageUp i PageDown/)).toBeInTheDocument()
+  })
+
+  it('leaves the grid keys out of the legend over the day list', async () => {
+    setup({ view: 'list' })
+    fireEvent.click(screen.getByRole('button', { name: 'Legenda' }))
+    const legend = await screen.findByRole('dialog', { name: 'Legenda' })
+    expect(within(legend).queryByText('Klawisze')).not.toBeInTheDocument()
+  })
+
+  it('leaves the grid keys out of a legend over a grid without key navigation', async () => {
+    renderScreen(<LegendPopover showAvailability trigger={<button type="button">Legenda</button>} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Legenda' }))
+    const legend = await screen.findByRole('dialog', { name: 'Legenda' })
+    expect(within(legend).queryByText('Klawisze')).not.toBeInTheDocument()
   })
 })

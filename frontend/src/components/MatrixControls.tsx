@@ -7,7 +7,7 @@ export type MatrixView = 'matrix' | 'list'
 export const WEEKS: Record<MatrixZoom, number> = { '2': 2, '4': 4, '8': 8 }
 
 /** The legend as a popover hanging off the "Legend" link in a section heading. */
-export function LegendPopover({ showAvailability, trigger }: { showAvailability: boolean; trigger: React.ReactElement }) {
+export function LegendPopover({ showAvailability, gridKeys = false, trigger }: { showAvailability: boolean; gridKeys?: boolean; trigger: React.ReactElement }) {
   const t = useMessages().schedule
   return (
     <Popover title={t.controls.legend} trigger={trigger}>
@@ -31,8 +31,12 @@ export function LegendPopover({ showAvailability, trigger }: { showAvailability:
         <div className="pop-row"><span className="pop-swatch pop-swatch-gap" /> {t.legend.unstaffedDay}</div>
         <div className="pop-row"><span className="pop-swatch pop-swatch-weekend" /> {t.legend.weekendHoliday}</div>
         <div className="pop-row"><span className="pop-swatch pop-swatch-event" /> {t.legend.event}</div>
-        <div className="pop-h">{t.legend.keys}</div>
-        <div className="pop-row">{t.legend.keysText}</div>
+        {gridKeys && (
+          <>
+            <div className="pop-h">{t.legend.keys}</div>
+            <div className="pop-row">{t.legend.keysText}</div>
+          </>
+        )}
       </div>
     </Popover>
   )
@@ -96,7 +100,7 @@ export function MatrixControls({
         </>
       )}
       <button type="button" className="sech-link" aria-pressed={hideIdle} onClick={() => onHideIdle(!hideIdle)}>{t.onlyOnDuty}</button>
-      <LegendPopover showAvailability={showAvailability} trigger={<button type="button" className="sech-link">{t.legend}</button>} />
+      <LegendPopover showAvailability={showAvailability} gridKeys={view === 'matrix'} trigger={<button type="button" className="sech-link">{t.legend}</button>} />
       <button
         type="button"
         className={cx('sech-link', view === 'list' && 'on')}
