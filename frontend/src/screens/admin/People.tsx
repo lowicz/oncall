@@ -135,7 +135,7 @@ interface NewRotation { on: boolean; from: string; roles: AssignmentRole[] }
  * always, the rotation and the qualifications saved for it, and why the rest
  * of the rotation is missing when that failed.
  */
-interface Created { user: AdminUser; url: string; member?: TeamMember; roles: AssignmentRole[]; rotationError?: string }
+interface Created { user: AdminUser; url: string; member?: TeamMember; roles: AssignmentRole[]; missing?: AssignmentRole[]; rotationError?: string }
 
 const inRoleOrder = (picked: AssignmentRole[]) => dutyRoles.filter((role) => picked.includes(role))
 const roleList = (picked: AssignmentRole[]) =>
@@ -429,7 +429,8 @@ export function PeoplePanel() {
         }
         return { user, url, member, roles }
       } catch (error) {
-        return { user, url, member, roles, rotationError: (error as Error).message }
+        const missing = inRoleOrder(rotation.roles).filter((role) => !roles.includes(role))
+        return { user, url, member, roles, missing, rotationError: (error as Error).message }
       }
     },
     onSuccess: (result, { input }) => {
@@ -492,8 +493,8 @@ export function PeoplePanel() {
   const dirty = pendingChanges.length > 0
   // An exit date with published duties after it is saved through the
   // offboarding dialog, which picks their replacements first.
-  const exitDuties = useDutiesAfterExit(selectedRow?.member, rotationUntil, Boolean(rotationUntil))
   const exitPending = Boolean(selectedRow?.member) && Boolean(rotationUntil) && rotationUntil !== selectedRow!.member!.active_until
+  const exitDuties = useDutiesAfterExit(selectedRow?.member, rotationUntil, exitPending)
   const exitChecking = exitPending && exitDuties.calendar.isLoading
   const needsOffboarding = exitPending && (exitDuties.duties.length > 0 || exitDuties.calendar.isError)
   const unsavedChanges = useUnsavedChanges(dirty)
@@ -686,6 +687,19 @@ export function PeoplePanel() {
     setOffboardingDate(date)
     setOffboardingOpen(true)
   }
+  // The dialog closed every period at the exit date, so what is still pending
+  // ends there too, and what would start after it is dropped.
+  const finishOffboarding = () => {
+    const date = offboardingDate
+    const clamp = <T extends PeriodValue>(value: T): T => (!value.ends_on || value.ends_on > date ? { ...value, ends_on: date } : value)
+    setOffboardingOpen(false)
+    setRotationUntil(date)
+    setEligibilityEdits((current) => Object.fromEntries(Object.entries(current)
+      .filter(([, edit]) => !edit || edit.starts_on <= date)
+      .map(([id, edit]) => [id, edit && clamp(edit)])))
+    setNewPeriods((current) => current.filter((period) => period.starts_on <= date).map(clamp))
+    refresh()
+  }
   const setPeriodEdit = (item: Eligibility, edit: PeriodEdit | undefined) => setEligibilityEdits((current) => {
     const copy = { ...current }
     if (edit === undefined) delete copy[item.id]
@@ -862,7 +876,7 @@ export function PeoplePanel() {
               <div className="box-next">{t.newAccountPanel.linkNext}</div>
             </Box>
             {created.rotationError && (
-              <Box tone="bad" role="alert" title={t.newAccountPanel.rotationFailed}>{created.rotationError}</Box>
+              <Box tone="bad" role="alert" title={created.member ? t.newAccountPanel.qualificationsFailed(roleList(created.missing!), created.missing!.length) : t.newAccountPanel.rotationFailed}>{created.rotationError}</Box>
             )}
             <div className="row">
               <Button size="sm" onClick={() => { setNewOpen(false); openDetails({ user: created.user, member: created.member }, 'rotation') }}>
@@ -954,7 +968,7 @@ export function PeoplePanel() {
           member={selectedRow.member}
           activeUntil={offboardingDate}
           onClose={() => setOffboardingOpen(false)}
-          onDone={() => { setOffboardingOpen(false); setRotationUntil(offboardingDate); refresh() }}
+          onDone={finishOffboarding}
           onChanged={refresh}
         />
       )}

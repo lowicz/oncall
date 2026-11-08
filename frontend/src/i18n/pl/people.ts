@@ -99,6 +99,8 @@ export const people = {
     noQualifications: 'bez kwalifikacji',
     linkNext: 'Link aktywacyjny ważny 24 godziny. Przekaż go bezpiecznym kanałem.',
     rotationFailed: 'Konto jest gotowe, ale rotacji nie zapisano',
+    qualificationsFailed: (roles: string, count: number) =>
+      `Konto i rotację zapisano, ale ${count === 1 ? `kwalifikacja ${roles} nie została zapisana` : `kwalifikacje ${roles} nie zostały zapisane`}`,
     openRotation: 'Otwórz rotację',
     afterCreationLdap: 'Przy pierwszym logowaniu LDAP z tym numerem pracownika konto dowiąże się do AD, a hasło lokalne przestanie działać.',
   },

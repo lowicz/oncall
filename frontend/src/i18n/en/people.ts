@@ -98,6 +98,8 @@ export const people: Messages['people'] = {
     noQualifications: 'no qualifications',
     linkNext: 'Activation link valid for 24 hours. Pass it on through a secure channel.',
     rotationFailed: 'The account is ready, but the rotation was not saved',
+    qualificationsFailed: (roles: string, count: number) =>
+      `The account and the rotation are saved, but not the ${roles} ${count === 1 ? 'qualification' : 'qualifications'}`,
     openRotation: 'Open the rotation',
     afterCreationLdap: 'On the first LDAP sign-in with this personnel number the account will link to AD and the local password will stop working.',
   },
