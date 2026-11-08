@@ -27,29 +27,43 @@ header opens the matrix with your row highlighted.
 ## My availability
 
 Availability is filed **on the month calendar**, without a form with dates.
-The section header has a brush with four modes - **unavailable**, **prefer
-not**, **willing** and **clear** - and arrows that change the month.
+The arrows in the section header change the month. Above the calendar is a
+brush with four modes - **unavailable**, **prefer not**, **willing** and
+**clear** - and next to it the **Reason for the next entries** field: first
+you choose what and why, then you mark the days.
 
 - Clicking a day saves that one day with the chosen mode.
 - Dragging across days saves the whole range; Shift+click closes the range
   from the last saved day.
+- On a phone dragging scrolls the page, so a range is marked with two taps:
+  the first starts the range (a “Range: from 12 Oct” frame with a **Cancel**
+  button appears under the calendar), the second closes and saves it. One day
+  is two taps on the same day.
 - From the keyboard the calendar is a single Tab stop. The arrow keys move
   between days (up and down by a week), Home and End to the start and end of
   the week, and Enter or Space save the day with the chosen mode; with Shift
   they close the range from the last saved day.
 - The **clear** mode removes the entry from the selected days. If the entry
   covered more days, the rest remain.
-- Saving is immediate; it is confirmed by the message “Saved: 12 – 16 Oct
-  “unavailable”” in the corner of the screen.
+- Saving is immediate; one message confirms the whole range, for example
+  “Saved: 12 – 16 Oct “unavailable”” with the reason under it (“reason:
+  leave”) when one was given.
+- The message has an **Undo** button, active for 10 seconds. Undo returns the
+  marked days to how they were before the save: the entries that were there
+  come back whole, with their mode and reason. If Undo fails, the message
+  says so and **Undo** can be clicked again.
 
-Days already filed carry the colour of the mode and a letter (`U`, `P`, `W`).
-A dot in the corner of a day is your duty; if “unavailable” lands on a day
-with a duty, the day gets an amber outline and a warning appears under the
-calendar - the entry does not take the duty away, you have to hand it over by
-a swap or ask the coordinator. Past days cannot be selected.
+Days already filed carry the colour of the mode and a letter (`U`, `P`, `W`);
+a day with a reason has a small note icon in its corner, and the reason itself
+is shown when you hover over the day. A dot in the corner of a day is your
+duty. Past days cannot be selected.
 
-The **Reason** field under the calendar is optional and applies to the next
-entries; the reason is shown when you hover over a day.
+If “unavailable” lands on a day with a duty, the day gets an amber outline and
+a frame appears under the calendar, for example “You have a PRIMARY duty on 9
+Mar and are filing “unavailable””. The entry does not take the duty away, so
+the frame has a **Request a swap** button for each such day, which opens the
+Swaps screen with that duty already chosen. The frame covers every upcoming
+collision in the month shown and disappears when there is none.
 
 ### What each mode means
 

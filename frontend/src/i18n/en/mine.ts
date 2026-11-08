@@ -55,13 +55,37 @@ export const mine: Messages['mine'] = {
     pickTitle: 'Pick a person',
     pickDescription: 'Your account is not in the rotation. Pick the person on whose behalf you want to file availability.',
     howTo: 'Click or drag across the days (Shift+click closes a range); saved automatically. A dot is a duty, an amber outline is an “unavailable” entry colliding with a duty.',
-    note: 'Reason',
-    noteHint: 'Optional, applies to the next entries; visible to coordinators and administrators.',
+    howToTouch: 'Tap the first and the last day of a range (one day: the same day twice); saved automatically. A dot is a duty, an amber outline is an “unavailable” entry colliding with a duty.',
+    note: 'Reason for the next entries',
+    noteHint: 'Optional · visible to coordinators and administrators.',
+    range: {
+      from: (day: string) => `Range: from ${day}`,
+      closeToSave: (kind: string) => `Tap the last day to save “${kind}” for the whole range.`,
+      closeToClear: 'Tap the last day to clear the whole range.',
+    },
+    collision: {
+      title: (count: number, roles: string, day: string) => (count === 1
+        ? `You have a ${roles} duty on ${day} and are filing “unavailable”`
+        : `You have ${pluralEn(count, ['duty', 'duties'])} on “unavailable” days`),
+      titleFor: (name: string, count: number, roles: string, day: string) => (count === 1
+        ? `${name} has a ${roles} duty on ${day} and the entry is “unavailable”`
+        : `${name} has ${pluralEn(count, ['duty', 'duties'])} on “unavailable” days`),
+      askForSwap: (count: number) => (count === 1
+        ? 'The entry does not lift the duty. Ask someone to swap that day.'
+        : 'The entry does not lift the duties. Ask someone to swap those days.'),
+      fixInSchedule: (count: number) => (count === 1
+        ? 'The entry does not lift the duty. Change who covers that day in the schedule.'
+        : 'The entry does not lift the duties. Change who covers those days in the schedule.'),
+      requestSwap: (day: string) => `Request a swap · ${day}`,
+      openDay: (day: string) => `Open the day · ${day}`,
+    },
     onBehalfBefore: 'Filing on behalf of:',
     onBehalfAfter: 'they will be notified and can remove the entry.',
     notInRotation: 'Your account is not in the rotation - pick the person you are filing for.',
     cleared: (range: string) => `Cleared: ${range}`,
     saved: (range: string, kind: string) => `Saved: ${range} “${kind}”`,
+    undo: 'Undo',
+    undoFailed: (range: string) => `Not undone: ${range}. Try again.`,
   },
   points: {
     heading: 'My points',

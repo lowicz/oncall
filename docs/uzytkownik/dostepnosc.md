@@ -27,29 +27,42 @@ nagłówku sekcji otwiera macierz z podświetleniem Twojego wiersza.
 ## Moja dostępność
 
 Dostępność zgłasza się **na kalendarzu miesiąca**, bez formularza z datami.
-W nagłówku sekcji jest pędzel z czterema trybami - **nie mogę**, **wolę
-nie**, **chętnie** i **wyczyść** - oraz strzałki zmieniające miesiąc.
+Strzałki w nagłówku sekcji zmieniają miesiąc. Nad kalendarzem jest pędzel z
+czterema trybami - **nie mogę**, **wolę nie**, **chętnie** i **wyczyść** - a
+obok niego pole **Powód do kolejnych wpisów**: najpierw wybierasz, co i
+dlaczego, potem zaznaczasz dni.
 
 - Kliknięcie dnia zapisuje ten jeden dzień wybranym trybem.
 - Przeciągnięcie po dniach zapisuje cały zakres; Shift+klik domyka zakres od
   ostatnio zapisanego dnia.
+- Na telefonie przeciąganie przewija stronę, więc zakres zaznacza się dwoma
+  dotknięciami: pierwsze zaczyna zakres (pod kalendarzem pojawia się ramka
+  „Zakres: od 12 paź” z przyciskiem **Anuluj**), drugie domyka go i zapisuje.
+  Jeden dzień to dwa dotknięcia tego samego dnia.
 - Z klawiatury kalendarz to jeden przystanek klawisza Tab. Strzałki
   przechodzą między dniami (w górę i w dół o tydzień), Home i End na początek
   i koniec tygodnia, a Enter lub Spacja zapisują dzień wybranym trybem; z
   Shift domykają zakres od ostatnio zapisanego dnia.
 - Tryb **wyczyść** usuwa zgłoszenie z zaznaczonych dni. Jeżeli wpis obejmował
   więcej dni, pozostałe zostają.
-- Zapis jest natychmiastowy; potwierdza go komunikat „Zapisano: 12 – 16 paź
-  „nie mogę”” w rogu ekranu.
+- Zapis jest natychmiastowy; potwierdza go jeden komunikat na cały zakres,
+  na przykład „Zapisano: 12 – 16 paź „nie mogę”” z powodem pod spodem
+  („powód: urlop”), jeśli go podano.
+- Komunikat ma przycisk **Cofnij**, aktywny przez 10 sekund. Cofnięcie
+  przywraca zaznaczone dni do stanu sprzed zapisu: wpisy, które tam były,
+  wracają w całości, z rodzajem i powodem. Jeśli cofnięcie się nie uda,
+  komunikat o tym mówi, a **Cofnij** można kliknąć ponownie.
 
-Dni już zgłoszone mają kolor trybu i literę (`N`, `W`, `C`). Kropka w rogu
-dnia to Twój dyżur; jeśli „nie mogę” trafia na dzień z dyżurem, dzień dostaje
-bursztynową obwódkę, a pod kalendarzem pojawia się ostrzeżenie - zgłoszenie
-nie zdejmuje dyżuru, trzeba go oddać zamianą albo poprosić koordynatora.
-Dni minionych nie da się zaznaczyć.
+Dni już zgłoszone mają kolor trybu i literę (`N`, `W`, `C`); dzień z powodem
+ma w rogu małą ikonę notatki, a sam powód widać po najechaniu na dzień. Kropka
+w rogu dnia to Twój dyżur. Dni minionych nie da się zaznaczyć.
 
-Pole **Powód** pod kalendarzem jest opcjonalne i dotyczy kolejnych zapisów;
-powód widać po najechaniu na dzień.
+Jeśli „nie mogę” trafia na dzień z dyżurem, dzień dostaje bursztynową
+obwódkę, a pod kalendarzem pojawia się ramka, na przykład „Masz dyżur PRIMARY
+9 mar, a zgłaszasz „nie mogę””. Zgłoszenie nie zdejmuje dyżuru, dlatego
+ramka ma dla każdego takiego dnia przycisk **Poproś o zamianę**, który
+otwiera ekran Zamiany z tym dyżurem już wybranym. Ramka obejmuje wszystkie
+nadchodzące kolizje w wyświetlanym miesiącu i znika, gdy żadnej nie ma.
 
 ### Co znaczy który tryb
 

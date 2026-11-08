@@ -6,7 +6,7 @@ import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { MineScreen } from './Mine'
 import { api, ApiError } from '../api'
-import type { CalendarData, CurrentUser, FairnessReport, SwapRequest } from '../api'
+import type { AvailabilityRangeInput, CalendarData, CurrentUser, FairnessReport, SwapRequest } from '../api'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -226,11 +226,26 @@ describe('MineScreen availability calendar', () => {
     await idleCalendar()
 
     fireEvent.click(screen.getByRole('radio', { name: 'wolę nie' }))
-    fireEvent.change(screen.getByLabelText('Powód'), { target: { value: 'szkolenie' } })
+    fireEvent.change(screen.getByLabelText('Powód do kolejnych wpisów'), { target: { value: 'szkolenie' } })
     fireEvent.click(cell(/niedz 20-09-2026/))
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie' }))
     expect(await screen.findByText('Zapisano: niedz 20 wrz „wolę nie”')).toBeInTheDocument()
+    // The toast repeats the reason, so it is plain the reason went with the entry.
+    expect(screen.getByText('powód: szkolenie')).toBeInTheDocument()
+  })
+
+  it('marks a day whose entry has a reason', async () => {
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'urlop', created_at: '2026-09-01T10:00:00Z' },
+      { id: 'a2', kind: 'prefer', starts_on: '2026-09-21', ends_on: '2026-09-21', note: null, created_at: '2026-09-01T10:00:00Z' },
+    ])
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+
+    const noted = await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: urlop/ })
+    expect(noted.querySelector('.avail-day-note')).not.toBeNull()
+    expect(cell(/pon 21-09-2026/).querySelector('.avail-day-note')).toBeNull()
   })
 
   it('keeps focus on the day while a save runs', async () => {
@@ -303,18 +318,46 @@ describe('MineScreen availability calendar', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
   })
 
-  it('warns when a saved hard unavailability overlaps an existing duty', async () => {
+  it('names a duty on an unavailable day and leads to a swap of that day', async () => {
     stub()
-    vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue({
-      id: 'a1', kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: null, created_at: '2026-09-01T10:00:00Z',
-      warning: 'Masz w tym czasie dyżur. Zgłoszenie go nie zdejmuje, poproś o zamianę albo skontaktuj się z koordynatorem.',
-    })
-    renderScreen(<MineScreen displayName="Julia Nowak" />)
+    vi.spyOn(api, 'calendar').mockResolvedValue({ ...EMPTY_CALENDAR, assignments: [
+      assignment('2026-09-20', 'primary', 'Julia Nowak'),
+      assignment('2026-09-22', 'secondary', 'Julia Nowak'),
+      assignment('2026-09-20', 'secondary', 'Ola Wiśniewska'),
+    ] })
+    vi.spyOn(api, 'availability').mockResolvedValue([])
+    vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await idleCalendar()
+    expect(screen.queryByText(/a zgłaszasz/)).not.toBeInTheDocument()
 
     fireEvent.click(cell(/niedz 20-09-2026/))
 
-    expect(await screen.findByText(/Masz w tym czasie dyżur/)).toBeInTheDocument()
+    const frame = (await screen.findByText('Masz dyżur PRIMARY 20 wrz, a zgłaszasz „nie mogę”')).closest('.box') as HTMLElement
+    expect(frame).toHaveClass('box-warn')
+    expect(frame).toHaveTextContent('Wpis nie zdejmuje dyżuru. Poproś kogoś o zamianę tego dnia.')
+    expect(within(frame).getByRole('link', { name: 'Poproś o zamianę · 20 wrz' })).toHaveAttribute('href', '/zamiany?data=2026-09-20&rola=primary')
+  })
+
+  it('lists every future collision of the month and leaves the past ones out', async () => {
+    stub()
+    vi.spyOn(api, 'calendar').mockResolvedValue({ ...EMPTY_CALENDAR, assignments: [
+      assignment('2026-09-05', 'primary', 'Julia Nowak'),
+      assignment('2026-09-20', 'late_shift', 'Julia Nowak'),
+      assignment('2026-09-20', 'secondary', 'Julia Nowak'),
+      assignment('2026-09-22', 'primary', 'Julia Nowak'),
+    ] })
+    vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'unavailable', starts_on: '2026-09-01', ends_on: '2026-09-25', note: null, created_at: '2026-08-20T10:00:00Z' },
+    ])
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+
+    const frame = (await screen.findByText('Masz 2 dyżury w dni „nie mogę”')).closest('.box') as HTMLElement
+    expect(frame).toHaveTextContent('Wpis nie zdejmuje dyżurów. Poproś kogoś o zamianę tych dni.')
+    expect(within(frame).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      '/zamiany?data=2026-09-20&rola=secondary',
+      '/zamiany?data=2026-09-22&rola=primary',
+    ])
   })
 
   it('lets a coordinator file availability on behalf of another member', async () => {
@@ -970,6 +1013,170 @@ describe('MineScreen availability painting', () => {
     expect(await screen.findByText('Twoje konto nie jest w rotacji - wskaż osobę, w imieniu której wpisujesz.')).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Wskaż osobę' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Adam Nowicki' })).toBeInTheDocument()
+  })
+})
+
+describe('MineScreen availability Undo', () => {
+  const cell = (label: RegExp) => screen.getByRole('gridcell', { name: label })
+  const echo = vi.fn(async (input: AvailabilityRangeInput) => (input.kind ? {
+    id: `${input.starts_on}:${input.kind}`, kind: input.kind, starts_on: input.starts_on, ends_on: input.ends_on, note: input.note ?? null, created_at: '2026-09-10T10:00:00Z',
+  } : null))
+
+  it('undoes a paint on empty days by clearing the range again', async () => {
+    stub()
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({
+      ldap_enabled: false, sso_enabled: false, app_name: 'On-call', app_subtitle: '', version: 'dev',
+      audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 30,
+    })
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await idleCalendar()
+
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    const toast = (await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).closest('.toast') as HTMLElement
+    fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
+    expect(replace).toHaveBeenLastCalledWith({ kind: null, starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined })
+    await waitFor(() => expect(screen.queryByText('Zapisano: niedz 20 wrz „nie mogę”')).not.toBeInTheDocument())
+  })
+
+  it('writes back the whole entry a paint cut into, with its kind and reason', async () => {
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: 'szkolenie', created_at: '2026-08-20T10:00:00Z' },
+      { id: 'a2', kind: 'prefer', starts_on: '2026-09-24', ends_on: '2026-09-24', note: null, created_at: '2026-08-20T10:00:00Z' },
+      { id: 'a3', kind: 'prefer', starts_on: '2026-09-28', ends_on: '2026-09-28', note: null, created_at: '2026-08-20T10:00:00Z' },
+    ])
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Wolę nie/ })
+    await idleCalendar()
+
+    fireEvent.change(screen.getByLabelText('Powód do kolejnych wpisów'), { target: { value: 'urlop' } })
+    fireEvent.pointerDown(cell(/pon 21-09-2026/), { button: 0 })
+    fireEvent.pointerEnter(cell(/pt 25-09-2026/))
+    fireEvent.pointerUp(window)
+    const toast = (await screen.findByText('Zapisano: 21 – 25 wrz „nie mogę”')).closest('.toast') as HTMLElement
+    expect(toast).toHaveTextContent('powód: urlop')
+    fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(4))
+    expect(replace.mock.calls.slice(1).map(([input]) => input)).toEqual([
+      { kind: null, starts_on: '2026-09-21', ends_on: '2026-09-25', note: undefined },
+      { kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: 'szkolenie' },
+      { kind: 'prefer', starts_on: '2026-09-24', ends_on: '2026-09-24', note: undefined },
+    ])
+  })
+
+  it('keeps Undo after a failed attempt and says what was not undone', async () => {
+    stub()
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new ApiError('Brak połączenia', 503))
+      .mockResolvedValue(null)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await idleCalendar()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
+    fireEvent.change(screen.getByLabelText('Powód do kolejnych wpisów'), { target: { value: 'urlop' } })
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    const toast = (await screen.findByText('Wyczyszczono: niedz 20 wrz')).closest('.toast') as HTMLElement
+    // Clearing writes no reason, so the toast names none.
+    expect(toast).not.toHaveTextContent('powód')
+    fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
+
+    expect(await screen.findByText('Nie cofnięto: niedz 20 wrz. Spróbuj ponownie.')).toBeInTheDocument()
+    fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(3))
+  })
+
+  it('undoes a paint on behalf of another member through that member', async () => {
+    stub()
+    vi.spyOn(api, 'team').mockResolvedValue(TEAM)
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    const replace = vi.spyOn(api, 'replaceMemberAvailabilityRange').mockResolvedValue(null)
+    renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
+    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+    await screen.findByRole('option', { name: 'Beata Lis' })
+    fireEvent.change(picker, { target: { value: 'm-beata' } })
+    await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })
+    await idleCalendar()
+
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    const toast = (await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).closest('.toast') as HTMLElement
+    fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(replace).toHaveBeenLastCalledWith('m-beata', { kind: null, starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined }))
+  })
+
+  it('points a coordinator to the schedule for a duty on a day filed as unavailable', async () => {
+    stub()
+    vi.spyOn(api, 'team').mockResolvedValue(TEAM)
+    vi.spyOn(api, 'calendar').mockResolvedValue({ ...EMPTY_CALENDAR, assignments: [assignment('2026-09-20', 'primary', 'Beata Lis')] })
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([
+      { id: 'b1', kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: null, created_at: '2026-08-20T10:00:00Z' },
+    ])
+    renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
+    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+    await screen.findByRole('option', { name: 'Beata Lis' })
+    fireEvent.change(picker, { target: { value: 'm-beata' } })
+
+    const frame = (await screen.findByText('Beata Lis ma dyżur PRIMARY 20 wrz, a wpis to „nie mogę”')).closest('.box') as HTMLElement
+    expect(frame).toHaveTextContent('Wpis nie zdejmuje dyżuru. Zmień obsadę tego dnia w grafiku.')
+    expect(within(frame).getByRole('link', { name: 'Otwórz dzień · 20 wrz' })).toHaveAttribute('href', '/grafik?dzien=2026-09-20')
+  })
+})
+
+describe('MineScreen availability on a phone', () => {
+  const cell = (label: RegExp) => screen.getByRole('gridcell', { name: label })
+
+  it('starts a range with the first tap and saves it with the second', async () => {
+    pretendNarrow()
+    stub()
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await idleCalendar()
+    expect(screen.getByText(/Dotykasz pierwszego i ostatniego dnia zakresu/)).toBeInTheDocument()
+
+    // A drag scrolls the page on a phone; it paints nothing.
+    fireEvent.pointerDown(cell(/wt 22-09-2026/), { button: 0 })
+    fireEvent.pointerUp(window)
+    expect(replace).not.toHaveBeenCalled()
+
+    fireEvent.click(cell(/wt 22-09-2026/), { detail: 1 })
+    expect(cell(/wt 22-09-2026/)).toHaveClass('avail-day-sel', 'avail-day-na')
+    const frame = screen.getByText('Zakres: od 22 wrz').closest('.box') as HTMLElement
+    expect(frame).toHaveTextContent('Dotknij ostatni dzień, żeby zapisać „nie mogę” dla całego zakresu.')
+    // A passed day never joins the range, even if the browser reports the pointer over it.
+    fireEvent.pointerEnter(cell(/wt 08-09-2026/))
+    expect(cell(/pt 18-09-2026/)).not.toHaveClass('avail-day-sel')
+    fireEvent.pointerEnter(cell(/czw 24-09-2026/))
+    expect(cell(/śr 23-09-2026/)).toHaveClass('avail-day-sel', 'avail-day-na')
+    expect(replace).not.toHaveBeenCalled()
+
+    fireEvent.click(cell(/pt 25-09-2026/), { detail: 1 })
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-22', ends_on: '2026-09-25', note: undefined }))
+    expect(replace).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Zakres: od 22 wrz')).not.toBeInTheDocument()
+    expect(await screen.findByText('Zapisano: 22 – 25 wrz „nie mogę”')).toBeInTheDocument()
+  })
+
+  it('drops a started range on Cancel and says a cleared range is cleared', async () => {
+    pretendNarrow()
+    stub()
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await idleCalendar()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
+    fireEvent.click(cell(/wt 22-09-2026/), { detail: 1 })
+    expect(screen.getByText('Dotknij ostatni dzień, żeby wyczyścić cały zakres.', { exact: false })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))
+
+    expect(screen.queryByText(/Zakres: od/)).not.toBeInTheDocument()
+    expect(cell(/wt 22-09-2026/)).not.toHaveClass('avail-day-sel')
+    expect(replace).not.toHaveBeenCalled()
   })
 })
 
