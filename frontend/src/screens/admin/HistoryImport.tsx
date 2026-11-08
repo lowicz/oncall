@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { HistoryImportPreview, api } from '../../api'
+import { HistoryImportPreview, HistoryImportRecord, api } from '../../api'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useMessages } from '../../i18n'
 import { formatDate } from '../../lib/dates'
 import { roleLabels } from '../../lib/labels'
@@ -32,9 +33,15 @@ export function HistoryImportPanel() {
       queryClient.invalidateQueries({ queryKey: ['fairness'] })
     },
   })
+  // Undoing an import deletes its rows for good, so it is confirmed first.
+  const [toRevoke, setToRevoke] = useState<HistoryImportRecord | null>(null)
   const revoke = useMutation({
     mutationFn: api.deleteSchedule,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['history-imports'] }),
+    onSuccess: () => {
+      setToRevoke(null)
+      queryClient.invalidateQueries({ queryKey: ['history-imports'] })
+      queryClient.invalidateQueries({ queryKey: ['fairness'] })
+    },
   })
   const stage = commit.isSuccess ? 3 : preview ? 2 : 1
   const errors = preview ? inFileOrder(preview.errors) : []
@@ -116,15 +123,25 @@ export function HistoryImportPanel() {
         {imports.data && imports.data.length > 0 && (
           <List className="panel">
             {imports.data.map((item) => (
-              <ListRow key={item.id} aside={<Button size="sm" variant="ghost" icon="undo" disabled={revoke.isPending} onClick={() => revoke.mutate(item.id)}>{t.previous.undo}</Button>}>
+              <ListRow key={item.id} aside={<Button size="sm" variant="ghost" icon="undo" disabled={revoke.isPending} onClick={() => { revoke.reset(); setToRevoke(item) }}>{t.previous.undo}</Button>}>
                 <b>{item.name}</b>
                 <small>{formatDate(item.starts_on)} – {formatDate(item.ends_on)} · {t.rows(item.rows)} · <Tag>{formatDate(item.created_at)}</Tag></small>
               </ListRow>
             ))}
           </List>
         )}
-        {revoke.error && <Box tone="bad" role="alert" title={revoke.error.message} />}
       </section>
+      <ConfirmDialog
+        open={Boolean(toRevoke)}
+        title={toRevoke ? t.revokeDialog.title(toRevoke.name) : ''}
+        description={toRevoke && t.revokeDialog.description(toRevoke.rows)}
+        confirmLabel={t.previous.undo}
+        confirmColor="error"
+        pending={revoke.isPending}
+        error={revoke.error ? revoke.error.message : null}
+        onCancel={() => setToRevoke(null)}
+        onConfirm={() => toRevoke && revoke.mutate(toRevoke.id)}
+      />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, SchedulingPolicy, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
@@ -42,6 +42,7 @@ import {
   Tag,
   Tooltip,
   cx,
+  useToast,
 } from '../ui'
 
 /** CP-SAT statuses that mean the model was actually solved. */
@@ -107,6 +108,8 @@ const settingsOf = (policy: SchedulingPolicy): Settings => ({
 export function GeneratorPanel() {
   const { generator: t, common, nav } = useMessages()
   const queryClient = useQueryClient()
+  const toast = useToast()
+  const navigate = useNavigate()
   const today = warsawDate()
   const policy = useQuery({ queryKey: ['scheduling-policy'], queryFn: api.schedulingPolicy })
   const drafts = useQuery({ queryKey: ['draft-schedules'], queryFn: api.draftSchedules })
@@ -198,7 +201,10 @@ export function GeneratorPanel() {
   }, [policy.data])
   const savePolicy = useMutation({
     mutationFn: (input: Settings) => api.updateSchedulingPolicy(input),
-    onSuccess: (value) => queryClient.setQueryData(['scheduling-policy'], value),
+    onSuccess: (value) => {
+      queryClient.setQueryData(['scheduling-policy'], value)
+      toast.success(t.toast.settingsSaved)
+    },
   })
   const settingsDirty = Boolean(policy.data && SETTINGS_KEYS.some((key) => settings[key] !== policy.data[key]))
   const unsavedChanges = useUnsavedChanges(settingsDirty, () => setSettings(settingsOf(policy.data!)))
@@ -257,8 +263,20 @@ export function GeneratorPanel() {
     setResult(value)
     invalidateDrafts()
   }
-  const propose = useMutation({ mutationFn: (input: { id: string; expectedVersion: number }) => api.proposeSchedule(input), onSuccess: settle })
-  const withdraw = useMutation({ mutationFn: (input: { id: string; expectedVersion: number }) => api.withdrawSchedule(input), onSuccess: settle })
+  const propose = useMutation({
+    mutationFn: (input: { id: string; expectedVersion: number }) => api.proposeSchedule(input),
+    onSuccess: (value) => {
+      settle(value)
+      toast.success(t.toast.proposed(formatRange(value.starts_on, value.ends_on)))
+    },
+  })
+  const withdraw = useMutation({
+    mutationFn: (input: { id: string; expectedVersion: number }) => api.withdrawSchedule(input),
+    onSuccess: (value) => {
+      settle(value)
+      toast.success(t.toast.withdrawn(formatRange(value.starts_on, value.ends_on)))
+    },
+  })
   const publish = useMutation({
     mutationFn: (input: Parameters<typeof api.publishSchedule>[0]) => api.publishSchedule(input),
     onSuccess: (value) => {
@@ -266,6 +284,10 @@ export function GeneratorPanel() {
       setPublishConfirmOpen(false)
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      toast.success(t.toast.published(value.version, formatRange(value.starts_on, value.ends_on)), {
+        description: t.toast.publishedDescription,
+        action: { label: t.toast.openSchedule, onClick: () => navigate(`/grafik?od=${value.starts_on}`) },
+      })
     },
   })
   const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error
@@ -642,7 +664,7 @@ export function GeneratorPanel() {
           <Box tone="sig" title={t.settings.startingPointsTitle}>
             {t.settings.startingPointsBody}
           </Box>
-          {savePolicy.isSuccess && !settingsDirty && <span className="small muted">{t.settings.saved}</span>}
+          {savePolicy.isSuccess && !settingsDirty && <span className="small muted" role="status">{t.settings.saved}</span>}
         </form>
       </Panel>
       {result && (

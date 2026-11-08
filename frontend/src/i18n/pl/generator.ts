@@ -179,6 +179,14 @@ export const generator = {
     startingPointsBody: 'Solver wyrównuje wobec 12 miesięcy historii, także zaimportowanej. Weekendy i bloki świąteczne są regułą twardą: cały blok trafia do jednej osoby w danej roli; podział bloku jest możliwy tylko korektą albo zamianą po publikacji.',
     saved: 'Zapisano.',
   },
+  toast: {
+    proposed: (range: string) => `Przekazano do akceptacji: ${range}`,
+    withdrawn: (range: string) => `Cofnięto do szkicu: ${range}`,
+    published: (version: number, range: string) => `Opublikowano v${version} · ${range}`,
+    publishedDescription: 'E-maile i kanały ICS zaktualizowane.',
+    openSchedule: 'Otwórz grafik',
+    settingsSaved: 'Zapisano ustawienia generowania',
+  },
   publish: {
     title: (isProposal: boolean, version: number, range: string) => `Publikuję ${isProposal ? 'propozycję' : 'szkic'} v${version} · ${range}`,
     back: 'Wróć do propozycji',
@@ -230,6 +238,8 @@ export const generator = {
     dayOffTag: (name: string) => `2X · ${name}`,
     dayOff: 'dzień wolny',
     assign: 'Przypisz w szkicu',
+    assigned: (day: string, role: string, previous: string, next: string) => `Przypisano w szkicu ${day} · ${role}: ${previous} → ${next}`,
+    remainingProblems: (count: number) => count === 0 ? 'brak problemów w szkicu' : `zostało: ${pluralPl(count, ['problem', 'problemy', 'problemów'])}`,
     noLateShift: 'Dzień wolny / 2X - zmiana 11–19 nie występuje.',
     availabilityTitle: (name: string, kind: string) => `${name}: ${kind}`,
     willBeRejected: 'Przydział zostanie odrzucony.',

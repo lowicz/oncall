@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarEvent, CalendarEventInput, api } from '../../api'
 import { useMessages } from '../../i18n'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateField } from '../../components/DateField'
 import { eventColors } from '../../components/CalendarMatrix'
 import { addDays, formatDate, warsawDate } from '../../lib/dates'
+import { useUndoable } from '../../hooks/useUndoable'
 import { Box, Button, EmptyState, ErrorState, Field, Input, List, ListRow, LoadingBlock, PageHeader, SectionHeading, cx } from '../../ui'
 
 const emptyInput = (): CalendarEventInput => ({ starts_on: warsawDate(), ends_on: warsawDate(), title: '', color: 'blue' })
@@ -20,7 +20,6 @@ export function CalendarEventsPanel() {
   const [range, setRange] = useState({ starts_on: today, ends_on: addDays(today, 89) })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<CalendarEventInput>(emptyInput)
-  const [toDelete, setToDelete] = useState<CalendarEvent | null>(null)
   const queryClient = useQueryClient()
   const queryKey = ['calendar-events', range.starts_on, range.ends_on]
   const events = useQuery({ queryKey, queryFn: () => api.calendarEvents(range.starts_on, range.ends_on) })
@@ -33,9 +32,21 @@ export function CalendarEventsPanel() {
     mutationFn: () => (editingId ? api.updateCalendarEvent({ id: editingId, ...form }) : api.createCalendarEvent(form)),
     onSuccess: () => { reset(); refresh() },
   })
+  const undoable = useUndoable()
+  // Deleting is undone by creating the event again with what it had.
   const remove = useMutation({
-    mutationFn: api.deleteCalendarEvent,
-    onSuccess: () => { setToDelete(null); refresh() },
+    mutationFn: (event: CalendarEvent) => undoable({
+      execute: () => api.deleteCalendarEvent(event.id),
+      undo: async () => {
+        await api.createCalendarEvent({ starts_on: event.starts_on, ends_on: event.ends_on, title: event.title, color: event.color })
+        refresh()
+      },
+      message: () => ({ title: t.calendarEvents.toast.deleted(event.title), description: eventDates(event) }),
+    }),
+    onSuccess: (_result, event) => {
+      if (editingId === event.id) reset()
+      refresh()
+    },
   })
   const edit = (event: CalendarEvent) => {
     setEditingId(event.id)
@@ -68,7 +79,7 @@ export function CalendarEventsPanel() {
                   aside={(
                     <>
                       <Button size="sm" onClick={() => edit(event)}>{t.calendarEvents.list.edit}</Button>
-                      <Button size="sm" variant="ghost" icon="trash" disabled={remove.isPending} onClick={() => { remove.reset(); setToDelete(event) }}>{t.calendarEvents.list.delete}</Button>
+                      <Button size="sm" variant="ghost" icon="trash" disabled={remove.isPending} onClick={() => { remove.reset(); remove.mutate(event) }}>{t.calendarEvents.list.delete}</Button>
                     </>
                   )}
                 >
@@ -118,17 +129,6 @@ export function CalendarEventsPanel() {
           </div>
         </form>
       </div>
-      <ConfirmDialog
-        open={Boolean(toDelete)}
-        pending={remove.isPending}
-        error={remove.error ? remove.error.message : null}
-        onCancel={() => setToDelete(null)}
-        onConfirm={() => toDelete && remove.mutate(toDelete.id)}
-        title={t.calendarEvents.deleteDialog.title}
-        confirmLabel={t.calendarEvents.deleteDialog.confirm}
-        confirmColor="error"
-        description={toDelete && t.calendarEvents.deleteDialog.description(toDelete.title, eventDates(toDelete))}
-      />
     </div>
   )
 }

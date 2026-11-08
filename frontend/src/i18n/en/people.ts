@@ -122,7 +122,6 @@ export const people: Messages['people'] = {
     eligibilityPeriod: (role: string) => `${role} period`,
   },
   errors: {
-    noAccountSelected: 'No account selected',
     periodNeedsStart: 'Every qualification period needs a start date',
   },
   rotationTab: {
@@ -171,15 +170,8 @@ export const people: Messages['people'] = {
     disabledNoLink: 'The account is disabled; enable it to send a link.',
     newActivationLink: 'New activation link (valid for 24 hours)',
     issueReset: 'Generate a password reset',
-    resetHint: 'A one-time link valid for an hour; pass it on through a secure channel.',
+    resetHint: 'A one-time link valid for an hour; pass it on through a secure channel. Once the new password is set, this person\'s sessions end.',
     resetLink: 'Password reset link (valid for an hour)',
-  },
-  generateLink: 'Generate link',
-  confirmAccess: {
-    title: 'Confirm the access change',
-    text: 'Changing the role or disabling the account affects the user\'s access to the system.',
-    toSave: (changes: string) => `To save: ${changes}`,
-    confirm: 'Confirm and save',
   },
   deleteDialog: {
     title: (name: string) => `Deleting the account ${name} and its personal data`,
@@ -193,13 +185,19 @@ export const people: Messages['people'] = {
     typeUsername: 'Type the username to confirm',
     typeUsernamePlaceholder: 'type the username',
   },
-  confirmReissue: {
-    title: 'Generate a new activation link?',
-    text: 'This person\'s previous activation link will stop working. The new one will be valid for 24 hours; pass it on through a secure channel.',
-  },
-  confirmReset: {
-    title: 'Generate a password reset?',
-    text: 'The user\'s existing sessions will be invalidated once the new password is set.',
+  toast: {
+    saved: (changes: string) => `Saved: ${changes}`,
+    roleChanged: (name: string, role: string) => `Role changed: ${name} → ${role}`,
+    disabled: (name: string) => `Account disabled: ${name}`,
+    enabled: (name: string) => `Account enabled: ${name}`,
+    alsoSaved: (changes: string) => `Also saved: ${changes}`,
+    created: (name: string) => `Account created for ${name}`,
+    addedToRotation: (name: string, date: string) => `Added to the rotation: ${name} · from ${date}`,
+    qualificationAdded: (role: string, date: string) => `${role} qualification added from ${date}`,
+    qualificationDropped: (role: string) => `${role} qualification removed from today`,
+    periodDeleted: (role: string) => `${role} period deleted`,
+    deleted: (name: string) => `Account deleted: ${name}`,
+    deletedPseudonym: (pseudonym: string) => `In the schedule: ${pseudonym}`,
   },
   csv: {
     fileName: (date: string) => `people-${date}.csv`,
@@ -225,20 +223,21 @@ export const people: Messages['people'] = {
   },
   offboarding: {
     title: (name: string) => `Ending the rotation: ${name}`,
-    description: (date: string, count: number) =>
-      `${pluralFormEn(count, ['Duty', 'Duties'])} after ${date}: ${count}. Each gets a replacement, then this person's qualifications end on the exit date.`,
+    description: (date: string, count: number) => count === 0
+      ? `This person's qualifications end on ${date}.`
+      : `${pluralEn(count, ['duty', 'duties'])} after ${date} ${pluralFormEn(count, ['gets', 'get'])} the replacement picked below, and this person's qualifications end on ${date}.`,
     reason: (name: string) => `Rotation ended for ${name}`,
-    confirmEnd: 'Confirm ending the rotation',
-    rewriteAndEnd: 'Rewrite duties and end the rotation',
+    rewriteAndEnd: (count: number) => count === 0 ? 'End the rotation' : `Rewrite ${pluralEn(count, ['duty', 'duties'])} and end the rotation`,
     searchingDuties: 'Looking for future duties…',
     refusalTitle: 'The rewrite would break hard rules',
     refusalNext: 'Pick other replacements or confirm a deliberate violation; it will go into the audit log.',
     acknowledge: 'I understand and am deliberately breaking these rules',
-    confirmText: (count: number, date: string) =>
-      `Confirm rewriting ${pluralEn(count, ['duty', 'duties'])} and ending all of this person's qualifications on ${date}.`,
     noDuties: 'No duties after the exit date; ending the rotation needs no rewrite.',
     pickReplacement: 'Pick a replacement',
     alreadyRewritten: (count: number) =>
-      `${pluralEn(count, ['duty', 'duties'])} already rewritten. Confirm again to rewrite the rest and end the rotation.`,
+      `${pluralEn(count, ['duty', 'duties'])} already rewritten. Click again to rewrite the rest and end the rotation.`,
+    ended: (name: string, count: number) => `Rotation ended: ${name}${count > 0 ? ` · ${pluralEn(count, ['duty', 'duties'])} rewritten` : ''}`,
+    endedReplacements: (replacements: string) => `${replacements} · e-mails about the change are going out`,
+    openSchedule: 'Open schedule',
   },
 }

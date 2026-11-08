@@ -24,9 +24,7 @@ export const calendarEvents: Messages['calendarEvents'] = {
     save: 'Save',
     add: 'Add',
   },
-  deleteDialog: {
-    title: 'Delete this event?',
-    confirm: 'Delete',
-    description: (title: string, dates: string) => `${title} (${dates}). This cannot be undone.`,
+  toast: {
+    deleted: (title: string) => `Deleted “${title}”`,
   },
 }

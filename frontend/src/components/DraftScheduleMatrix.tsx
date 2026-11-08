@@ -4,9 +4,11 @@ import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
 import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
 import { monthGroups, startsWeek } from '../lib/calendar'
-import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
+import { formatDate, formatShortDate, formatWeekday, warsawDate } from '../lib/dates'
 import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
 import { signed } from '../lib/numbers'
+import { useUndoable } from '../hooks/useUndoable'
+import { problemCounts } from './DraftProblems'
 import { AvailabilityMark, Box, Button, ErrorState, Field, KeyValue, LoadingBlock, Panel, RoleMark, Select, Tag, cx } from '../ui'
 
 type Member = CalendarData['members'][number]
@@ -35,8 +37,22 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
     queryFn: () => api.calendar(result.starts_on, result.ends_on),
   })
   const fairness = useQuery(draftFairnessImpactQuery(result))
+  const undoable = useUndoable()
+  // The inverse is the same correction back to the person it replaced; the
+  // cell stays marked as corrected, the rest of the draft is untouched.
   const override = useMutation({
-    mutationFn: api.overrideDraft,
+    mutationFn: ({ previous, next, ...input }: Parameters<typeof api.overrideDraft>[0] & { previous: Member; next: Member }) => undoable({
+      execute: () => api.overrideDraft(input),
+      undo: async (value) => onChange(await api.overrideDraft({
+        ...input,
+        expected_version: value.version,
+        replacement_member_id: previous.id,
+      })),
+      message: (value) => ({
+        title: t.assigned(formatShortDate(input.service_date), roleLabels()[input.role], previous.display_name, next.display_name),
+        description: t.remainingProblems(problemCounts(value).total),
+      }),
+    }),
     onSuccess: (value) => {
       onChange(value)
       setSelected(null)
@@ -67,11 +83,13 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const selectedAssignment = selected
     ? result.assignments.find((item) => item.service_date === selected.day.service_date && item.role === selectedRole)
     : undefined
+  const previousMember = members.find((item) => item.display_name === selectedAssignment?.assignee_name)
   const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
   const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
   const selectedCategory = selectedBalance?.[selectedRole]
   const correctionPoints = selectedRole === 'late_shift' ? 1 : selected?.day.is_day_off ? 2 : 1
   const cannotAssign = !selectedAssignment
+    || !previousMember
     || selectedAssignment.assignee_name === selected?.member.display_name
     || selectedAvailability?.kind === 'unavailable'
 
@@ -162,7 +180,9 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               variant="primary"
               disabled={cannotAssign || override.isPending}
               loading={override.isPending}
-              onClick={() => override.mutate({
+              onClick={() => previousMember && override.mutate({
+                previous: previousMember,
+                next: selected.member,
                 id: result.id,
                 expected_version: result.version,
                 service_date: selected.day.service_date,

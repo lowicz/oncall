@@ -114,9 +114,14 @@ From this panel:
   panel and takes the focus, or in the dialog for a historical correction.
   The exception is a refusal that names newly broken rules: the dialog then
   closes, the rules and their acknowledgement appear in the panel, and the
-  reason you typed is kept for the next time the dialog opens,
+  reason you typed is kept for the next time the dialog opens. After the
+  save the panel closes and a notification says what changed and who gets
+  an e-mail (“Staffing changed 14 Nov · PRIMARY: Anna Kowalska → Jan
+  Nowak”); its **Open day** button opens that day's panel again,
 - a **coordinator and an administrator** can add a calendar event on that day
-  from the same panel.
+  from the same panel, or delete one; deleting works at once, and the
+  notification has an **Undo** button that brings the event back for a few
+  seconds.
 
 Reasons for unavailability stay private: a coordinator sees them in the
 details, a team member only on their own entries, and a viewer account gets

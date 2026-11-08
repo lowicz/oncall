@@ -1,7 +1,6 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AdminUser, AdminUserInput, AdminUserUpdate, AssignmentRole, Eligibility, TeamMember, UserRole, api } from '../../api'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { CopyButton } from '../../components/CopyButton'
 import { DateField } from '../../components/DateField'
 import { OffboardingDialog } from '../../components/OffboardingDialog'
@@ -14,6 +13,7 @@ import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 import { UnsavedChangesDialog } from '../../components/UnsavedChangesDialog'
+import { useUndoable } from '../../hooks/useUndoable'
 import {
   Avatar,
   Box,
@@ -37,6 +37,7 @@ import {
   Tabs,
   Tag,
   cx,
+  useToast,
 } from '../../ui'
 
 const roles: UserRole[] = ['viewer', 'member', 'coordinator', 'admin']
@@ -183,7 +184,12 @@ export function PeoplePanel() {
   const users = useQuery({ queryKey: ['admin-users'], queryFn: api.adminUsers })
   const team = useQuery({ queryKey: ['team'], queryFn: api.team })
   const branding = useBranding()
+  const toast = useToast()
+  const undoable = useUndoable()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Undo runs after the save, when another person may be open in the panel.
+  const openedId = useRef<string | null>(null)
+  useEffect(() => { openedId.current = selectedId }, [selectedId])
   const [tab, setTab] = useState<DetailTab>('account')
   const [accountForm, setAccountForm] = useState<AccountForm>(emptyAccountForm)
   const [newOpen, setNewOpen] = useState(false)
@@ -191,9 +197,6 @@ export function PeoplePanel() {
   const [activationUrl, setActivationUrl] = useState('')
   const [resetUrl, setResetUrl] = useState('')
   const [reissuedUrl, setReissuedUrl] = useState('')
-  const [confirmation, setConfirmation] = useState(false)
-  const [resetConfirmation, setResetConfirmation] = useState(false)
-  const [reissueConfirmation, setReissueConfirmation] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTyped, setDeleteTyped] = useState('')
   const [rotationFrom, setRotationFrom] = useState(today)
@@ -269,8 +272,9 @@ export function PeoplePanel() {
 
   const createAccount = useMutation({
     mutationFn: (input: AdminUserInput) => api.createAdminUser(input),
-    onSuccess: ({ activation_url }) => {
+    onSuccess: ({ activation_url }, input) => {
       setActivationUrl(activation_url)
+      toast.success(t.toast.created([input.first_name, input.last_name].filter(Boolean).join(' ')))
       refresh()
     },
   })
@@ -286,6 +290,12 @@ export function PeoplePanel() {
     }
     // Not managed by LDAP even for a directory account (decision D8).
     if (accountForm.phone !== user.phone) changes.push(t.changes.phone)
+    return changes
+  }, [selectedRow, accountForm, t])
+  const accessChanges = useMemo(() => {
+    if (!selectedRow) return [] as string[]
+    const user = selectedRow.user
+    const changes: string[] = []
     if (accountForm.role !== user.role) {
       changes.push(t.changes.role(accountRoleLabels()[user.role], accountRoleLabels()[accountForm.role]))
     }
@@ -314,77 +324,123 @@ export function PeoplePanel() {
       return changed ? [t.changes.eligibilityPeriod(dutyRoleLabels()[item.role])] : []
     })
   }, [selectedRow, eligibilityEdits, t])
-  const pendingChanges = [...accountChanges, ...rotationChanges, ...eligibilityChanges]
+  const pendingChanges = [...accountChanges, ...accessChanges, ...rotationChanges, ...eligibilityChanges]
   const dirty = pendingChanges.length > 0
   const unsavedChanges = useUnsavedChanges(dirty)
   const openDetails = (row: Row, section: DetailTab = 'account') => {
     unsavedChanges.requestAction(() => applyDetails(row, section))
   }
 
+  const saveChanges = async ({ user, member }: Row) => {
+    const tasks: Array<Promise<unknown>> = []
+    let updated: AdminUser | undefined
+    if (accountChanges.length > 0 || accessChanges.length > 0) {
+      // Phone travels even for an LDAP account: unlike name/email it is not
+      // an AD-managed identity field (decision D8). An untouched number stays
+      // home, so a legacy value the stricter rule refuses blocks no other edit.
+      const { phone, ...rest } = user.auth_source === 'ldap'
+        ? { role: accountForm.role, is_active: accountForm.is_active, phone: accountForm.phone }
+        : accountForm
+      const input: AdminUserUpdate = phone === user.phone ? rest : { ...rest, phone }
+      tasks.push(api.updateAdminUser({ id: user.id, input }).then((saved) => { updated = saved }))
+    }
+    if (rotationChanges.length > 0 && member) {
+      tasks.push(api.updateTeamMember({ id: member.id, input: { active_from: rotationFrom, active_until: rotationUntil || null } }))
+    }
+    for (const item of member?.eligibility ?? []) {
+      const edit = eligibilityEdits[item.id]
+      if (!edit) continue
+      if (edit.starts_on === item.starts_on && (edit.ends_on || null) === item.ends_on) continue
+      if (!edit.starts_on) throw new Error(t.errors.periodNeedsStart)
+      tasks.push(api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } }))
+    }
+    await Promise.all(tasks)
+    return updated
+  }
+  // A role change and switching the account off or on save at once like
+  // everything else; the toast offers to put the access back.
   const saveAll = useMutation({
-    mutationFn: async () => {
-      if (!selectedRow) throw new Error(t.errors.noAccountSelected)
-      const tasks: Array<Promise<unknown>> = []
-      let updated: AdminUser | undefined
-      if (accountChanges.length > 0) {
-        // Phone travels even for an LDAP account: unlike name/email it is not
-        // an AD-managed identity field (decision D8). An untouched number stays
-        // home, so a legacy value the stricter rule refuses blocks no other edit.
-        const { phone, ...rest } = selectedRow.user.auth_source === 'ldap'
-          ? { role: accountForm.role, is_active: accountForm.is_active, phone: accountForm.phone }
-          : accountForm
-        const input: AdminUserUpdate = phone === selectedRow.user.phone ? rest : { ...rest, phone }
-        tasks.push(api.updateAdminUser({ id: selectedRow.user.id, input }).then((user) => { updated = user }))
+    mutationFn: async (row: Row) => {
+      const before = row.user
+      const others = [...accountChanges, ...rotationChanges, ...eligibilityChanges]
+      if (accessChanges.length === 0) {
+        const updated = await saveChanges(row)
+        toast.success(t.toast.saved(others.join(', ')))
+        return updated
       }
-      if (rotationChanges.length > 0 && selectedRow.member) {
-        tasks.push(api.updateTeamMember({ id: selectedRow.member.id, input: { active_from: rotationFrom, active_until: rotationUntil || null } }))
-      }
-      for (const item of selectedRow.member?.eligibility ?? []) {
-        const edit = eligibilityEdits[item.id]
-        if (!edit) continue
-        if (edit.starts_on === item.starts_on && (edit.ends_on || null) === item.ends_on) continue
-        if (!edit.starts_on) throw new Error(t.errors.periodNeedsStart)
-        tasks.push(api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } }))
-      }
-      await Promise.all(tasks)
-      return updated
+      const role = accountForm.role
+      const active = accountForm.is_active
+      return undoable({
+        execute: () => saveChanges(row),
+        undo: async () => {
+          await api.updateAdminUser({ id: before.id, input: { role: before.role, is_active: before.is_active } })
+          if (openedId.current === before.id) setAccountForm((form) => ({ ...form, role: before.role, is_active: before.is_active }))
+          refresh()
+        },
+        message: () => ({
+          title: role !== before.role
+            ? t.toast.roleChanged(before.display_name, accountRoleLabels()[role])
+            : active ? t.toast.enabled(before.display_name) : t.toast.disabled(before.display_name),
+          description: others.length > 0 ? t.toast.alsoSaved(others.join(', ')) : undefined,
+        }),
+      })
     },
     onSuccess: (updated) => {
       // The API stores the number in its +48 form, so the form follows it.
       if (updated) setAccountForm((form) => ({ ...form, phone: updated.phone }))
-      setConfirmation(false)
       setEligibilityEdits({})
       setEditingPeriod(null)
       refresh()
     },
   })
+  // Both links are shown beside their button; issuing one changes nothing
+  // until it is used, so neither asks first.
   const resetPassword = useMutation({ mutationFn: (id: string) => api.issuePasswordReset(id), onSuccess: ({ url }) => setResetUrl(url) })
   const reissueActivation = useMutation({
     mutationFn: (id: string) => api.reissueActivation(id),
     onSuccess: ({ url }) => {
       setReissuedUrl(url)
-      setReissueConfirmation(false)
       refresh()
     },
   })
+  // The API answers 204; the pseudonym the member keeps in the schedule is
+  // read back from the team list by the member's id.
   const deleteAccount = useMutation({
-    mutationFn: (id: string) => api.deleteAdminUser(id),
-    onSuccess: () => { setDeleteOpen(false); setSelectedId(null); refresh() },
+    mutationFn: async (row: Row) => {
+      await api.deleteAdminUser(row.user.id)
+      return row.member ? (await api.team()).find((item) => item.id === row.member!.id)?.display_name : undefined
+    },
+    onSuccess: (pseudonym, row) => {
+      setDeleteOpen(false)
+      setSelectedId(null)
+      toast.success(t.toast.deleted(row.user.display_name), { description: pseudonym ? t.toast.deletedPseudonym(pseudonym) : undefined })
+      refresh()
+    },
   })
   const createRotation = useMutation({
     mutationFn: () => api.createTeamMember({ user_id: selectedId!, active_from: rotationFrom }),
-    onSuccess: refresh,
+    onSuccess: () => {
+      toast.success(t.toast.addedToRotation(selectedRow!.user.display_name, formatDate(rotationFrom)))
+      refresh()
+    },
   })
   const addEligibility = useMutation({
     mutationFn: (input: { role: AssignmentRole; starts_on: string; ends_on: string | null }) =>
       api.createEligibility({ memberId: selectedRow!.member!.id, input }),
-    onSuccess: () => {
+    onSuccess: (_result, input) => {
       setEligibilityUntil('')
       setAddingPeriod(false)
+      toast.success(t.toast.qualificationAdded(dutyRoleLabels()[input.role], formatDate(input.starts_on)))
       refresh()
     },
   })
-  const deleteEligibility = useMutation({ mutationFn: (id: string) => api.deleteEligibility(id), onSuccess: refresh })
+  const deleteEligibility = useMutation({
+    mutationFn: (item: Eligibility) => api.deleteEligibility(item.id),
+    onSuccess: (_result, item) => {
+      toast.success(t.toast.periodDeleted(dutyRoleLabels()[item.role]))
+      refresh()
+    },
+  })
   // Taking a chip off ends the open period today (a period that has not
   // started yet is dropped); the published schedule is not touched.
   const dropQualification = useMutation({
@@ -396,18 +452,16 @@ export function PeoplePanel() {
         else await api.updateEligibility({ id: item.id, input: { ends_on: addDays(today, -1) } })
       }
     },
-    onSuccess: refresh,
+    onSuccess: (_result, role) => {
+      toast.success(t.toast.qualificationDropped(dutyRoleLabels()[role]))
+      refresh()
+    },
   })
 
-  // Role change and deactivation get a confirmation; everything else saves at once.
-  const dangerous = Boolean(selectedRow)
-    && (accountForm.role !== selectedRow!.user.role
-      || (selectedRow!.user.is_active && accountForm.is_active === false))
   const submitAll = (event: FormEvent) => {
     event.preventDefault()
     if (!selectedRow || !dirty) return
-    if (dangerous) setConfirmation(true)
-    else saveAll.mutate()
+    saveAll.mutate(selectedRow)
   }
   const requestClose = () => unsavedChanges.requestAction(() => setSelectedId(null))
   const error = users.error || team.error || createRotation.error || addEligibility.error || deleteEligibility.error || dropQualification.error
@@ -772,7 +826,7 @@ export function PeoplePanel() {
                                     else copy[item.id] = next
                                     return copy
                                   })}
-                                  onDelete={(id) => deleteEligibility.mutate(id)}
+                                  onDelete={() => deleteEligibility.mutate(item)}
                                   onDone={() => setEditingPeriod(null)}
                                 />
                               </div>
@@ -830,18 +884,20 @@ export function PeoplePanel() {
                     {` ${sentence(activationLinkText(selectedRow.user, selectedActivation))}. `}
                     {t.accessTab.newLinkInvalidates}
                     <div className="row mt-6">
-                      <Button size="sm" icon="send" disabled={!selectedRow.user.is_active} onClick={() => setReissueConfirmation(true)}>{t.accessTab.reissueActivation}</Button>
+                      <Button size="sm" icon="send" disabled={!selectedRow.user.is_active || reissueActivation.isPending} loading={reissueActivation.isPending} onClick={() => reissueActivation.mutate(selectedRow.user.id)}>{t.accessTab.reissueActivation}</Button>
                       {!selectedRow.user.is_active && <span className="muted small">{t.accessTab.disabledNoLink}</span>}
                     </div>
                   </Box>
                 )}
+                {reissueActivation.error && <Box tone="bad" role="alert" title={reissueActivation.error.message} />}
                 {reissuedUrl && <LinkResult value={reissuedUrl} label={t.accessTab.newActivationLink} />}
                 {selectedRow.user.auth_source === 'local' && !selectedActivation && (
                   <div className="row">
-                    <Button size="sm" icon="lock" onClick={() => setResetConfirmation(true)}>{t.accessTab.issueReset}</Button>
+                    <Button size="sm" icon="lock" disabled={resetPassword.isPending} loading={resetPassword.isPending} onClick={() => resetPassword.mutate(selectedRow.user.id)}>{t.accessTab.issueReset}</Button>
                     <span className="muted small">{t.accessTab.resetHint}</span>
                   </div>
                 )}
+                {resetPassword.error && <Box tone="bad" role="alert" title={resetPassword.error.message} />}
                 {resetUrl && <LinkResult value={resetUrl} label={t.accessTab.resetLink} />}
               </TabPanel>
             </Tabs>
@@ -849,17 +905,6 @@ export function PeoplePanel() {
         )}
       </Panel>
 
-      <ConfirmDialog
-        open={confirmation}
-        title={t.confirmAccess.title}
-        description={<>{t.confirmAccess.text}<br />{t.confirmAccess.toSave(pendingChanges.join(' · '))}</>}
-        confirmLabel={t.confirmAccess.confirm}
-        confirmColor={accountForm.is_active === false ? 'warning' : 'primary'}
-        pending={saveAll.isPending}
-        error={saveAll.error ? saveAll.error.message : null}
-        onCancel={() => setConfirmation(false)}
-        onConfirm={() => saveAll.mutate()}
-      />
       <UnsavedChangesDialog guard={unsavedChanges} detail={t.details.unsaved(pendingChanges.join(' · '))} />
       <Dialog
         open={deleteOpen && Boolean(selectedRow)}
@@ -874,7 +919,7 @@ export function PeoplePanel() {
               variant="danger"
               disabled={deleteTyped.trim() !== selectedRow.user.username || deleteAccount.isPending}
               loading={deleteAccount.isPending}
-              onClick={() => deleteAccount.mutate(selectedRow.user.id)}
+              onClick={() => deleteAccount.mutate(selectedRow)}
             >
               {t.deleteDialog.confirm}
             </Button>
@@ -901,26 +946,6 @@ export function PeoplePanel() {
           </>
         )}
       </Dialog>
-      <ConfirmDialog
-        open={reissueConfirmation}
-        title={t.confirmReissue.title}
-        description={t.confirmReissue.text}
-        confirmLabel={t.generateLink}
-        pending={reissueActivation.isPending}
-        error={reissueActivation.error ? reissueActivation.error.message : null}
-        onCancel={() => setReissueConfirmation(false)}
-        onConfirm={() => selectedRow && reissueActivation.mutate(selectedRow.user.id)}
-      />
-      <ConfirmDialog
-        open={resetConfirmation}
-        title={t.confirmReset.title}
-        description={t.confirmReset.text}
-        confirmLabel={t.generateLink}
-        pending={resetPassword.isPending}
-        error={resetPassword.error ? resetPassword.error.message : null}
-        onCancel={() => setResetConfirmation(false)}
-        onConfirm={() => selectedRow && resetPassword.mutate(selectedRow.user.id, { onSuccess: () => setResetConfirmation(false) })}
-      />
     </div>
   )
 }

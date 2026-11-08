@@ -6,6 +6,8 @@ export const common = {
   notifications: 'Powiadomienia',
   undoClosed: 'Czas na cofnięcie minął',
   undoEmailsSent: 'E-maile już wyszły',
+  undo: 'Cofnij',
+  undoFailed: 'Nie udało się cofnąć',
   loading: 'Wczytywanie…',
   loadingScreen: 'Wczytywanie ekranu…',
   scrollHint: 'Przewiń w poziomie, aby zobaczyć więcej',

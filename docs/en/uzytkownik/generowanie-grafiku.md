@@ -129,7 +129,10 @@ correction:
 - uses versioning,
 - is marked as manual,
 - does not mark the draft as out of date: that warning concerns only changes
-  outside the draft, e.g. availability entered after generation.
+  outside the draft, e.g. availability entered after generation,
+- ends with a notification saying who was replaced and how many problems are
+  left in the draft; its **Undo** button puts the previous person back for a
+  few seconds (the cell stays marked as manual).
 
 ## Generator settings
 
@@ -138,6 +141,7 @@ The **Generator settings** button opens a side panel with the **From** /
 **globally for the whole team**; they apply from the next generation.
 **Generate** starts a generation right away with the range from the panel, and **Restore saved** reverts the unsaved changes.
 Closing the panel, going to another screen, reloading, or opening another draft with unsaved settings requires a decision whether to discard them.
+A “Generation settings saved” notification confirms the save.
 
 | Setting | Range | Notes |
 | --- | --- | --- |
@@ -178,7 +182,11 @@ Draft ──► For approval ──► Published
    proposal** closes the sheet without changes. Publication checks the full
    coverage of the range; missing staffing on any day stops the operation.
 3. The schedule becomes visible to everyone, notifications go out, and the
-   ICS feeds get updates.
+   ICS feeds get updates. The “Published v*N* · *range*” notification says
+   the same and has an **Open schedule** button.
+
+Sending for approval and returning to the draft end with a notification with
+the range too (“Sent for approval: 4 – 31 Oct”).
 
 If in the meantime someone has changed the schedule or an approved swap
 collides with the draft, the publication sheet lists every such case with a
