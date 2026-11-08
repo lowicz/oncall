@@ -209,9 +209,13 @@ describe('DutyScreen schedule section', () => {
     expect(await screen.findByRole('heading', { level: 2, name: '17 wrz – 11 lis' })).toBeInTheDocument()
     expect(calendarCall).toHaveBeenCalledWith('2026-09-17', '2026-11-11')
     expect(screen.getByRole('radio', { name: '8 tyg.' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('button', { name: 'Tylko z dyżurem' })).toHaveAttribute('aria-pressed', 'true')
+    const menu = await openMenu('Więcej')
+    const filter = within(menu).getByRole('menuitemcheckbox', { name: 'Tylko z dyżurem' })
+    expect(filter).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tylko z dyżurem' }))
+    fireEvent.click(filter)
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('radio', { name: '2 tyg.' }))
     await waitFor(() => expect(router.state.location.search).toBe('?od=2026-09-17&zoom=2'))
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
@@ -219,7 +223,7 @@ describe('DutyScreen schedule section', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Najbliższe 2 tygodnie' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'dziś' }))
     await waitFor(() => expect(router.state.location.search).toBe('?zoom=2'))
-    fireEvent.click(screen.getByRole('button', { name: 'Tylko z dyżurem' }))
+    await chooseFromMenu('Więcej', 'Tylko z dyżurem')
     await waitFor(() => expect(router.state.location.search).toBe('?zoom=2&tylko=z-dyzurem'))
   })
 
@@ -231,9 +235,11 @@ describe('DutyScreen schedule section', () => {
       { route: '/?widok=lista' },
     )
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Lista dni' })).toHaveAttribute('aria-pressed', 'true')
+    const menu = await openMenu('Więcej')
+    const toggle = within(menu).getByRole('menuitemcheckbox', { name: 'Lista dni' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lista dni' }))
+    fireEvent.click(toggle)
     await waitFor(() => expect(router.state.location.search).toBe('?widok=macierz'))
     expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
 

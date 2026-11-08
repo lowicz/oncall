@@ -152,12 +152,14 @@ describe('ScheduleScreen range in the URL', () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
     renderSchedule('/grafik?od=2026-09-10&zoom=2&tylko=z-dyzurem')
-    const filter = await screen.findByRole('button', { name: 'Tylko z dyżurem' })
-    expect(filter).toHaveAttribute('aria-pressed', 'true')
+    const menu = await openMenu('Więcej')
+    const filter = within(menu).getByRole('menuitemcheckbox', { name: 'Tylko z dyżurem' })
+    expect(filter).toHaveAttribute('aria-checked', 'true')
 
     fireEvent.click(filter)
     await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent(/^\/grafik\?od=2026-09-10&zoom=2$/))
-    fireEvent.click(screen.getByRole('button', { name: 'Tylko z dyżurem' }))
+    // An on/off setting keeps the menu open.
+    fireEvent.click(filter)
     await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=2&tylko=z-dyzurem'))
   })
 
@@ -168,9 +170,12 @@ describe('ScheduleScreen range in the URL', () => {
     const { router } = renderSchedule('/grafik?od=2026-09-10&zoom=2&widok=lista')
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lista dni' }))
+    const menu = await openMenu('Więcej')
+    fireEvent.click(within(menu).getByRole('menuitemcheckbox', { name: 'Lista dni' }))
     await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=2&widok=macierz'))
     expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
     // Moving the window keeps the view.
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
     await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-03&zoom=2&widok=macierz'))
