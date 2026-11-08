@@ -44,34 +44,47 @@ const preview = (over: Partial<PublishPreview> = {}): PublishPreview => ({
   ...over,
 })
 
-function show(result: DraftSchedule, { fairness = impact(), effects }: { fairness?: DraftFairnessImpact; effects?: PublishPreview } = {}) {
+function show(result: DraftSchedule, { fairness = impact(), effects, error }: { fairness?: DraftFairnessImpact; effects?: PublishPreview; error?: string } = {}) {
   vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(fairness)
   const actions = { onFix: vi.fn(), onPropose: vi.fn(), onPublish: vi.fn(), onWithdraw: vi.fn() }
-  renderScreen(<DraftDecision result={result} preview={effects} busy={false} {...actions} />)
+  renderScreen(<DraftDecision result={result} preview={effects} busy={false} error={error} {...actions} />)
   return { panel: screen.getByRole('region', { name: 'Decyzja o szkicu' }), ...actions }
 }
 
 afterEach(() => vi.restoreAllMocks())
 
 describe('DraftDecision', () => {
-  it('sends a draft with conflicts to fixing them, the hand-off after', async () => {
+  it('sends a draft with conflicts to fixing them, the publication after', async () => {
     const { panel, onFix } = show(draft({
       unavailability_conflicts: [{ service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska' }],
     }))
     expect(await within(panel).findByText('kryterium 1 pkt spełnione')).toBeInTheDocument()
     expect(within(panel).getByText('1 naruszenie reguł twardych')).toBeInTheDocument()
-    expect(panel).toHaveTextContent('Blokują przekazanie: Anna Kowalska · PRIMARY czw 17 wrz.')
+    expect(panel).toHaveTextContent('Blokują publikację: Anna Kowalska · PRIMARY czw 17 wrz.')
     expect(within(panel).getByText('Rozrzut 1 → 0,5 pkt.')).toBeInTheDocument()
+    expect(within(panel).getByText('potem: Opublikuj…')).toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Opublikuj…' })).not.toBeInTheDocument()
     fireEvent.click(within(panel).getByRole('button', { name: 'Popraw 1 problem' }))
     expect(onFix).toHaveBeenCalledWith({ service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska' })
   })
 
-  it('hands a clean draft over for approval', async () => {
-    const { panel, onPropose } = show(draft())
+  it('publishes a clean draft straight away and keeps the hand-off in the menu', async () => {
+    const { panel, onPublish, onPropose } = show(draft())
     expect(within(panel).getByText('Reguły twarde spełnione')).toBeInTheDocument()
-    expect(within(panel).getByText('nadal można go cofnąć do szkicu')).toBeInTheDocument()
-    fireEvent.click(within(panel).getByRole('button', { name: 'Przekaż do akceptacji' }))
+    expect(within(panel).getByText('Szkic spełnia reguły twarde i można go opublikować.')).toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Przekaż do akceptacji' })).not.toBeInTheDocument()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Opublikuj…' }))
+    expect(onPublish).toHaveBeenCalled()
+    expect(onPropose).not.toHaveBeenCalled()
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Inne akcje' }))
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Przekaż do akceptacji' }))
     expect(onPropose).toHaveBeenCalled()
+  })
+
+  it('says inline why the draft could not be readied for publication', () => {
+    const { panel } = show(draft(), { error: 'Szkic zmienił się od otwarcia' })
+    expect(within(panel).getByRole('alert')).toHaveTextContent('Szkic zmienił się od otwarcia')
   })
 
   it('sends a proposal with a conflict back to the draft as its one action', () => {

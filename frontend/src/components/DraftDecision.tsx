@@ -5,7 +5,7 @@ import { roleLabels } from '../lib/labels'
 import { formatDayShort } from '../lib/dates'
 import { formatDecimal } from '../lib/numbers'
 import { draftFairnessImpactQuery } from '../lib/fairness'
-import { Button, Disclosure, StatusBadge } from '../ui'
+import { Box, Button, Disclosure, IconButton, Menu, MenuItem, StatusBadge } from '../ui'
 import { problemCounts } from './DraftProblems'
 import { shortfallCause, worstSpread } from './DraftFairnessPanel'
 
@@ -18,14 +18,18 @@ export const SOLVER_OK = new Set(['OPTIMAL', 'FEASIBLE'])
  * publication will change is said here, before the publication sheet opens,
  * so the sheet itself holds only decisions and consents.
  */
-export function DraftDecision({ result, preview, busy, onFix, onPropose, onPublish, onWithdraw }: Readonly<{
+export function DraftDecision({ result, preview, busy, error, onFix, onPropose, onPublish, onWithdraw }: Readonly<{
   result: DraftSchedule
   /** What publishing the proposal changes; only a proposal has one. */
   preview?: PublishPreview
   busy: boolean
+  /** Why the draft could not be readied for publication. */
+  error?: string
   /** Opens the first conflict the draft has to lose. */
   onFix: (conflict: UnavailabilityConflict) => void
+  /** Hands the draft over to a second person for approval. */
   onPropose: () => void
+  /** Opens the publication sheet, from a draft or a proposal. */
   onPublish: () => void
   onWithdraw: () => void
 }>) {
@@ -43,7 +47,7 @@ export function DraftDecision({ result, preview, busy, onFix, onPropose, onPubli
   if (conflicts.length > 0) {
     why = (
       <>
-        {editable ? t.blockingPropose : t.blockingPublish}{' '}
+        {t.blockingPublish}{' '}
         {conflicts.map((item, index) => (
           <span key={`${item.service_date}:${item.role}`}>
             {index > 0 && ', '}
@@ -64,14 +68,16 @@ export function DraftDecision({ result, preview, busy, onFix, onPropose, onPubli
     action = (
       <>
         <Button variant="primary" disabled={busy} onClick={() => onFix(conflicts[0])}>{t.fix(conflicts.length)}</Button>
-        <span className="muted small">{t.thenPropose}</span>
+        <span className="muted small">{t.thenPublish}</span>
       </>
     )
   } else if (editable) {
     action = (
       <>
-        <Button variant="primary" icon="send" disabled={busy} onClick={onPropose}>{t.propose}</Button>
-        <span className="muted small">{t.proposeHint}</span>
+        <Button variant="primary" icon="send" disabled={busy} onClick={onPublish}>{t.publishDraft}</Button>
+        <Menu trigger={<IconButton icon="more" label={t.more} disabled={busy} />}>
+          <MenuItem onClick={onPropose}>{t.propose}</MenuItem>
+        </Menu>
       </>
     )
   } else if (result.status === 'proposed' && conflicts.length > 0) {
@@ -105,6 +111,7 @@ export function DraftDecision({ result, preview, busy, onFix, onPropose, onPubli
           {cause === 'draft' && <StatusBadge tone="warn">{t.criterionMissed(criterion)}</StatusBadge>}
         </div>
         <div>{why}</div>
+        {error && <Box tone="bad" role="alert" title={error} />}
         {spread && cause && (
           <div className="muted small">{t.spread[cause](formatDecimal(spread.before), formatDecimal(spread.after))}</div>
         )}

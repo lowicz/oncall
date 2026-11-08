@@ -168,6 +168,7 @@ export function GeneratorPanel() {
     if (!openId) setResult(null)
   }, [openId])
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false)
+  const [publishFromDraft, setPublishFromDraft] = useState(false)
   const [publishAcknowledged, setPublishAcknowledged] = useState(false)
   const [changeResolutions, setChangeResolutions] = useState<Record<string, 'draft' | 'change'>>({})
   const publishPreview = useQuery({
@@ -286,10 +287,10 @@ export function GeneratorPanel() {
     },
   })
   const withdraw = useMutation({
-    mutationFn: (input: { id: string; expectedVersion: number }) => api.withdrawSchedule(input),
-    onSuccess: (value) => {
+    mutationFn: (input: { id: string; expectedVersion: number; quiet?: boolean }) => api.withdrawSchedule(input),
+    onSuccess: (value, { quiet }) => {
       settle(value)
-      toast.success(t.toast.withdrawn(formatRange(value.starts_on, value.ends_on)))
+      if (!quiet) toast.success(t.toast.withdrawn(formatRange(value.starts_on, value.ends_on)))
     },
   })
   const publish = useMutation({
@@ -297,6 +298,7 @@ export function GeneratorPanel() {
     onSuccess: (value, { expectedVersion }) => {
       settle(value)
       setPublishConfirmOpen(false)
+      setPublishFromDraft(false)
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       toast.success(t.toast.published(expectedVersion, formatRange(value.starts_on, value.ends_on)), {
@@ -305,6 +307,28 @@ export function GeneratorPanel() {
       })
     },
   })
+  const openPublication = () => {
+    publish.reset()
+    setPublishConfirmOpen(true)
+    // What the sheet asks to settle is read again each time it opens.
+    queryClient.invalidateQueries({ queryKey: ['publish-preview'] })
+  }
+  // Publishing straight from a draft hands it over in the background; closing
+  // the sheet without publishing takes it back, so the draft stays as it was.
+  const proposeToPublish = useMutation({
+    mutationFn: (input: { id: string; expectedVersion: number }) => api.proposeSchedule(input),
+    onSuccess: (value) => {
+      settle(value)
+      setPublishFromDraft(true)
+      openPublication()
+    },
+  })
+  const closePublication = () => {
+    setPublishConfirmOpen(false)
+    if (!publishFromDraft || !result) return
+    setPublishFromDraft(false)
+    withdraw.mutate({ id: result.id, expectedVersion: result.version, quiet: true })
+  }
   const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error
   const counts = result ? problemCounts(result) : { hard: 0, soft: 0, total: 0 }
   const days = result ? new Set(result.assignments.map((item) => item.service_date)).size : 0
@@ -502,10 +526,11 @@ export function GeneratorPanel() {
           <DraftDecision
             result={result}
             preview={preview}
-            busy={generating || propose.isPending || withdraw.isPending || publish.isPending}
+            busy={generating || propose.isPending || proposeToPublish.isPending || withdraw.isPending || publish.isPending}
+            error={proposeToPublish.error?.message}
             onFix={(first) => setFocus({ service_date: first.service_date, assignee_name: first.assignee_name, role: first.role })}
             onPropose={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
-            onPublish={() => { publish.reset(); setPublishConfirmOpen(true) }}
+            onPublish={() => result.status === 'draft' ? proposeToPublish.mutate({ id: result.id, expectedVersion: result.version }) : openPublication()}
             onWithdraw={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}
           />
           <ChipRow label={t.draft.state}>
@@ -689,23 +714,25 @@ export function GeneratorPanel() {
       {result && (
         <Dialog
           open={publishConfirmOpen}
-          onClose={() => setPublishConfirmOpen(false)}
+          onClose={closePublication}
           dismissible={!publish.isPending}
           size="lg"
-          title={t.publish.title(result.status === 'proposed', result.version, formatRange(result.starts_on, result.ends_on))}
+          title={t.publish.title(!publishFromDraft, result.version, formatRange(result.starts_on, result.ends_on))}
           description={t.publish.effect(result.assignments.length, days)}
           actions={(
             <>
-              {preview && (
+              {(preview || publishPreview.isFetching) && (
                 <output className="dialog-foot-status">
-                  {unresolvedConflicts + missingConsents > 0 ? t.publish.pending(unresolvedConflicts, missingConsents) : t.publish.ready}
+                  {publishPreview.isFetching
+                    ? t.publish.checking
+                    : unresolvedConflicts + missingConsents > 0 ? t.publish.pending(unresolvedConflicts, missingConsents) : t.publish.ready}
                 </output>
               )}
-              <Button onClick={() => setPublishConfirmOpen(false)} disabled={publish.isPending}>{t.publish.back}</Button>
+              <Button onClick={closePublication} disabled={publish.isPending}>{t.publish.back(publishFromDraft)}</Button>
               <Button
                 variant="primary"
                 loading={publish.isPending}
-                disabled={publish.isPending || !preview || unresolvedConflicts + missingConsents > 0}
+                disabled={publish.isPending || publishPreview.isFetching || !preview || unresolvedConflicts + missingConsents > 0}
                 onClick={() => publish.mutate({
                   id: result.id,
                   expectedVersion: result.version,
@@ -723,10 +750,9 @@ export function GeneratorPanel() {
           {publish.error && (
             <Box tone="bad" role="alert" title={t.publish.failed}>
               {publish.error.message}
-              <div className="box-next">{t.publish.failedNext}</div>
+              <div className="box-next">{t.publish.failedNext(publishFromDraft)}</div>
             </Box>
           )}
-          {publishPreview.isLoading && <p className="muted">{t.publish.checking}</p>}
           {publishPreview.error && <Box tone="bad" role="alert" title={t.publish.checkFailed} />}
           {preview?.lost_changes.length ? (
             <Box tone="warn" title={t.publish.resolveConflicts(preview.lost_changes.length)}>

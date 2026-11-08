@@ -81,13 +81,15 @@ Above the matrix there is **one decision panel**:
 
 - **the verdict** - the number of hard rule violations and the state of the
   fairness criterion (met, missed, or missed through **inherited debt**),
-- **why** - the people on duty on an “Unavailable” day who block the hand-off,
+- **why** - the people on duty on an “Unavailable” day who block the publication,
   with the role and the day; with an incomplete solver solution, a hint to
   click a cell with a gap and enter a person; under it the points spread
   before and after the draft,
 - **one main action**: **Fix *N* problems** opens the first clashing cell
-  (then **Submit for approval**), on a clean draft **Submit for approval**,
-  and on a proposal **Publish v*N*…** next to **Back to draft**.
+  (then **Publish…**), on a clean draft **Publish…**, and on a proposal
+  **Publish v*N*…** next to **Back to draft**. Next to **Publish…** the **⋯**
+  menu (**Other actions**) has **Submit for approval** for teams where a second person
+  checks the draft.
 
 On a proposal the panel also has a **What the publication changes** frame:
 how many changes will be carried over, how many pending swaps cancelled, how
@@ -191,10 +193,16 @@ windows with more than three duties) - switch it on deliberately.
 Draft ──► For approval ──► Published
 ```
 
-1. **Submit for approval** - the content of the draft is frozen and the title
-   changes to “Proposal”.
-2. **Publish v*N*…** in the decision panel opens the “Publishing the proposal
-   v*N* · *range*” sheet. The sheet holds only what has to be settled: one
+1. **Publish…** on a clean draft submits it for approval in the background
+   and at once opens the “Publishing the draft v*N* · *range*” sheet. Closing
+   the sheet without publishing (**Back to the draft**) takes the submission
+   back, so the draft stays as it was. A failed submission shows in the
+   decision panel. **Submit for approval** in the **⋯** menu freezes the
+   content of the draft without publishing it, and the title changes to
+   “Proposal”; **Publish v*N*…** in the decision panel then publishes the
+   proposal in the “Publishing the proposal v*N* · *range*” sheet.
+2. The sheet checks the publication again each time it opens; while it is
+   checking it says so next to the buttons and **Publish v*N*** waits. The sheet holds only what has to be settled: one
    sentence of effect (how many assignments become the schedule, an e-mail to
    the team, the ICS feeds updated, undone only by a new publication), the
    conflicts with changes with a “To settle” counter, the consents and - if
@@ -204,14 +212,16 @@ Draft ──► For approval ──► Published
    rules”, “I understand that these days stay unstaffed”). Next to the buttons
    the sheet says what is still missing (“To settle: 1 conflict, 2
    consents.”), and **Publish v*N*** works only when nothing is. **Back to the
-   proposal** closes the sheet without changes. Publication checks the full
+   proposal** closes a sheet opened from a proposal without changes. Publication checks the full
    coverage of the range; missing staffing on any day stops the operation.
 3. The schedule becomes visible to everyone, notifications go out, and the
    ICS feeds get updates. The “Published v*N* · *range*” notification says
    the same and has an **Open schedule** button.
 
-Sending for approval and returning to the draft end with a notification with
-the range too (“Sent for approval: 4 – 31 Oct”).
+Submitting for approval from the **⋯** menu and returning to the draft end
+with a notification with the range too (“Sent for approval: 4 – 31 Oct”).
+The background submission and taking it back when the sheet is closed have
+no notification.
 
 If in the meantime someone has changed the schedule or an approved swap
 collides with the draft, the publication sheet lists every such case (the day,

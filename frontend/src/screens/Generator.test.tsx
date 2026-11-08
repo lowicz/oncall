@@ -5,7 +5,7 @@ import { renderScreen } from '../test/render'
 import { chooseFromMenu } from '../test/menu'
 import { GeneratorPanel } from './Generator'
 import { api, ApiError } from '../api'
-import type { DraftSchedule, ScheduleRun, ScheduleSummary, SchedulingPolicy } from '../api'
+import type { DraftSchedule, PublishPreview, ScheduleRun, ScheduleSummary, SchedulingPolicy } from '../api'
 
 const policy: SchedulingPolicy = {
   rotation_mode: 'hybrid',
@@ -242,7 +242,8 @@ describe('GeneratorPanel transitions', () => {
       .mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
 
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
-    fireEvent.click(await screen.findByRole('button', { name: 'Przekaż do akceptacji' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Inne akcje' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Przekaż do akceptacji' }))
 
     // The decision must follow the server, not the pre-transition cache entry.
     expect(await screen.findByRole('button', { name: 'Publikuj v2…' })).toBeInTheDocument()
@@ -303,7 +304,7 @@ describe('GeneratorPanel transitions', () => {
     expect(within(dialog).getByText('Nowy szkic ma w tym slocie innego pierwotnego wykonawcę')).toHaveClass('box-next')
     expect(within(dialog).getByRole('option', { name: 'Zachowaj korektę: Anna Kowalska' })).toBeInTheDocument()
     expect(within(dialog).getByText('Publikacja naruszy reguły odpoczynku')).toBeInTheDocument()
-    expect(within(dialog).getByText('Do rozstrzygnięcia: 1 konflikt, 2 zgody.')).toBeInTheDocument()
+    expect(await within(dialog).findByText('Do rozstrzygnięcia: 1 konflikt, 2 zgody.')).toBeInTheDocument()
 
     fireEvent.change(within(dialog).getByLabelText('Decyzja'), { target: { value: 'draft' } })
     expect(within(dialog).getByText('Do rozstrzygnięcia: 2 zgody.')).toBeInTheDocument()
@@ -426,7 +427,7 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
 
     const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
     expect(within(decision).getByText('2 naruszenia reguł twardych')).toBeInTheDocument()
-    expect(decision).toHaveTextContent('Blokują przekazanie: Anna Kowalska · PRIMARY wt 3 lis, Anna Kowalska · SECONDARY śr 4 lis.')
+    expect(decision).toHaveTextContent('Blokują publikację: Anna Kowalska · PRIMARY wt 3 lis, Anna Kowalska · SECONDARY śr 4 lis.')
     expect(screen.queryByText('Reguły twarde spełnione')).not.toBeInTheDocument()
     // The problems table lists both conflicts by person, with a way to the cell.
     expect(screen.getAllByText('Dyżur w dniu „nie mogę”')).toHaveLength(2)
@@ -449,25 +450,76 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
-    expect(within(decision).queryByRole('button', { name: 'Przekaż do akceptacji' })).not.toBeInTheDocument()
-    expect(within(decision).getByText('potem: Przekaż do akceptacji')).toBeInTheDocument()
+    expect(within(decision).queryByRole('button', { name: 'Opublikuj…' })).not.toBeInTheDocument()
+    expect(within(decision).getByText('potem: Opublikuj…')).toBeInTheDocument()
     fireEvent.click(within(decision).getByRole('button', { name: 'Popraw 2 problemy' }))
     // The first conflict opens in the inspector, ready to correct.
     expect(await screen.findByRole('dialog', { name: 'Anna Kowalska · 03-11-2026' })).toBeInTheDocument()
     expect(propose).not.toHaveBeenCalled()
   })
 
-  it('offers the hand-off when nothing conflicts', async () => {
+  it('offers the hand-off in the menu when nothing conflicts', async () => {
     stub([summary({ id: 'd1' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', solver_status: 'FEASIBLE' }))
     const propose = vi.spyOn(api, 'proposeSchedule').mockReturnValue(new Promise(() => {}))
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
-    expect(within(decision).getByText('Szkic spełnia reguły twarde i można go przekazać do akceptacji.')).toBeInTheDocument()
-    fireEvent.click(within(decision).getByRole('button', { name: 'Przekaż do akceptacji' }))
+    fireEvent.click(within(decision).getByRole('button', { name: 'Inne akcje' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Przekaż do akceptacji' }))
     await waitFor(() => expect(propose).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 1 }))
-    expect(await within(decision).findByRole('button', { name: 'Przekaż do akceptacji' })).toBeDisabled()
+    expect(await within(decision).findByRole('button', { name: 'Opublikuj…' })).toBeDisabled()
+  })
+
+  it('publishes a clean draft straight away, handing it over in the background', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    const proposal = draft({ id: 'd1', status: 'proposed', version: 2 })
+    const propose = vi.spyOn(api, 'proposeSchedule').mockResolvedValue(proposal)
+    const publish = vi.spyOn(api, 'publishSchedule').mockResolvedValue(draft({ id: 'd1', status: 'published', version: 3 }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Publikuję szkic v2 · 17 – 18 wrz' })
+    expect(propose).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 1 })
+    expect(screen.queryByText('Przekazano do akceptacji: 17 – 18 wrz')).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Wróć do szkicu' })).toBeInTheDocument()
+    const confirm = within(dialog).getByRole('button', { name: 'Publikuj v2' })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+    await waitFor(() => expect(publish.mock.calls[0][0]).toMatchObject({ id: 'd1', expectedVersion: 2 }))
+    expect(await screen.findByText('Opublikowano v2 · 17 – 18 wrz')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Otwórz grafik' })).toBeInTheDocument()
+  })
+
+  it('takes a draft back quietly when its publication sheet is closed', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    vi.spyOn(api, 'proposeSchedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    const withdraw = vi.spyOn(api, 'withdrawSchedule').mockResolvedValue(draft({ id: 'd1', version: 3 }))
+    const publish = vi.spyOn(api, 'publishSchedule')
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
+    const dialog = await screen.findByRole('dialog', { name: /^Publikuję szkic/ })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć do szkicu' }))
+    await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2, quiet: true }))
+    expect(await screen.findByRole('button', { name: 'Opublikuj…' })).toBeEnabled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Cofnięto do szkicu/)).not.toBeInTheDocument()
+    expect(publish).not.toHaveBeenCalled()
+  })
+
+  it('says inline in the decision panel when the draft cannot be readied for publication', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    vi.spyOn(api, 'proposeSchedule').mockRejectedValue(new ApiError('Szkic zmienił się od otwarcia', 409))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
+    fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
+    expect(await within(decision).findByRole('alert')).toHaveTextContent('Szkic zmienił się od otwarcia')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
 
@@ -935,7 +987,7 @@ describe('GeneratorPanel lifecycle actions', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Wróć do szkicu' }))
     await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2 }))
-    expect(await screen.findByRole('button', { name: 'Przekaż do akceptacji' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Opublikuj…' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Publikuj v/ })).not.toBeInTheDocument()
     expect(screen.getByText('Cofnięto do szkicu: 17 – 18 wrz')).toBeInTheDocument()
   })
@@ -951,7 +1003,7 @@ describe('GeneratorPanel lifecycle actions', () => {
     await waitFor(() => expect(generate).toHaveBeenCalledWith({ starts_on: '2026-09-17', ends_on: '2026-09-18' }, expect.anything()))
     expect(await screen.findByRole('heading', { level: 1, name: 'Generuję 17 – 18 wrz' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Generuj nowy szkic' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Przekaż do akceptacji' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Opublikuj…' })).toBeDisabled()
   })
 
   it('says where the open draft went once a new one is generated over its range', async () => {
@@ -1336,7 +1388,7 @@ describe('GeneratorPanel publication sheet', () => {
     const dialog = await screen.findByRole('dialog')
     const confirm = within(dialog).getByRole('button', { name: 'Publikuj v2' })
     expect(confirm).toBeDisabled()
-    expect(within(dialog).getByText('Do rozstrzygnięcia: 1 zgoda.')).toBeInTheDocument()
+    expect(await within(dialog).findByText('Do rozstrzygnięcia: 1 zgoda.')).toBeInTheDocument()
 
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Rozumiem, że zmieniam dzień/ }))
     expect(confirm).toBeEnabled()
@@ -1380,7 +1432,7 @@ describe('GeneratorPanel publication sheet', () => {
     expect(within(dialog).getByRole('option', { name: 'Zachowaj zamianę: Anna Kowalska' })).toBeInTheDocument()
     expect(within(dialog).getByRole('option', { name: 'Zachowaj szkic: Marek Nowak' })).toBeInTheDocument()
     expect(within(dialog).queryByRole('checkbox', { name: /Rozumiem, że zmieniam dzień/ })).not.toBeInTheDocument()
-    expect(within(dialog).getByText('Do rozstrzygnięcia: 1 konflikt.')).toBeInTheDocument()
+    expect(await within(dialog).findByText('Do rozstrzygnięcia: 1 konflikt.')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć do propozycji' }))
@@ -1426,6 +1478,30 @@ describe('GeneratorPanel publication sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Publikuj v2…' }))
     const reopened = await screen.findByRole('dialog', { name: /Publikuję propozycję/ })
     expect(within(reopened).queryByText('Nie udało się opublikować')).not.toBeInTheDocument()
+  })
+
+  it('checks the publication again each time the sheet opens and waits for it', async () => {
+    stub([summary({ id: 'd1', status: 'proposed', version: 2 })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1', status: 'proposed', version: 2 }))
+    let answer: (value: PublishPreview) => void = () => {}
+    const check = vi.spyOn(api, 'publishPreview')
+      .mockResolvedValueOnce(emptyPreview)
+      .mockReturnValueOnce(new Promise((resolve) => { answer = resolve }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
+    expect(await within(decision).findByText('Co zmieni publikacja')).toBeInTheDocument()
+    expect(check).toHaveBeenCalledTimes(1)
+    fireEvent.click(within(decision).getByRole('button', { name: 'Publikuj v2…' }))
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() => expect(check).toHaveBeenCalledTimes(2))
+    expect(within(dialog).getByText('Sprawdzam zmiany i oczekujące zamiany…')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
+
+    act(() => answer({ ...emptyPreview, pending_swaps: [{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }] }))
+    expect(await within(dialog).findByText('Gotowe do publikacji.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeEnabled()
+    expect(within(decision).getByText('1 zamiana anulowana')).toBeInTheDocument()
   })
 
   it('refuses to publish when the consequences cannot be checked', async () => {

@@ -79,13 +79,14 @@ Nad macierzą jest **jeden panel decyzji**:
   sprawiedliwości (spełnione, niespełnione albo niespełnione przez **zastany
   dług**),
 - **dlaczego** - osoby, które mają dyżur w dniu „nie mogę” i blokują
-  przekazanie, z rolą i dniem; przy niepełnym rozwiązaniu solvera wskazówka,
+  publikację, z rolą i dniem; przy niepełnym rozwiązaniu solvera wskazówka,
   aby kliknąć komórkę z luką i wpisać osobę; pod spodem rozrzut punktów przed
   i po szkicu,
 - **jedna akcja główna**: **Popraw *N* problemy** otwiera pierwszą kolidującą
-  komórkę (potem **Przekaż do akceptacji**), w poprawnym szkicu
-  **Przekaż do akceptacji**, a w propozycji **Publikuj v*N*…** obok
-  **Wróć do szkicu**.
+  komórkę (potem **Opublikuj…**), w poprawnym szkicu **Opublikuj…**, a w
+  propozycji **Publikuj v*N*…** obok **Wróć do szkicu**. Obok
+  **Opublikuj…** menu **⋯** (**Inne akcje**) ma **Przekaż do akceptacji** dla
+  zespołów, w których szkic sprawdza druga osoba.
 
 Propozycja ma w tym panelu także ramkę **Co zmieni publikacja**: ile zmian
 zostanie przeniesionych, ile oczekujących zamian anulowanych, ile wpisów
@@ -186,10 +187,16 @@ Tryb tygodniowy pokazuje osobne ostrzeżenie z mierzonymi skutkami (serie
 Szkic ──► Do akceptacji ──► Opublikowany
 ```
 
-1. **Przekaż do akceptacji** - treść szkicu zostaje zamrożona, a tytuł
-   zmienia się na „Propozycja”.
-2. **Publikuj v*N*…** w panelu decyzji otwiera arkusz „Publikuję propozycję
-   v*N* · *zakres*”. Arkusz zawiera tylko to, co trzeba rozstrzygnąć: jedno
+1. **Opublikuj…** w poprawnym szkicu przekazuje go do akceptacji w tle i od
+   razu otwiera arkusz „Publikuję szkic v*N* · *zakres*”. Zamknięcie arkusza
+   bez publikacji (**Wróć do szkicu**) cofa przekazanie, więc szkic zostaje
+   taki, jak był. Błąd przekazania pojawia się w panelu decyzji.
+   **Przekaż do akceptacji** z menu **⋯** zamraża treść szkicu bez
+   publikacji, a tytuł zmienia się na „Propozycja”; propozycję publikuje
+   potem **Publikuj v*N*…** w panelu decyzji, w arkuszu „Publikuję propozycję
+   v*N* · *zakres*”.
+2. Arkusz za każdym otwarciem sprawdza publikację od nowa; dopóki sprawdza,
+   mówi to obok przycisków, a **Publikuj v*N*** czeka. Arkusz zawiera tylko to, co trzeba rozstrzygnąć: jedno
    zdanie skutku (ile przydziałów stanie się grafikiem, e-mail do zespołu,
    aktualizacja kanałów ICS, cofnięcie tylko nową publikacją), konflikty ze
    zmianami z licznikiem „Do rozstrzygnięcia”, zgody i - jeśli zakres już się
@@ -198,15 +205,18 @@ Szkic ──► Do akceptacji ──► Opublikowany
    („Rozumiem i świadomie łamię te reguły”, „Rozumiem, że te dni zostają bez
    obsady”). Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
    rozstrzygnięcia: 1 konflikt, 2 zgody.”), a **Publikuj v*N*** działa dopiero,
-   gdy niczego nie brakuje. **Wróć do propozycji** zamyka arkusz bez zmian.
+   gdy niczego nie brakuje. **Wróć do propozycji** zamyka arkusz otwarty z
+   propozycji bez zmian.
    Publikacja sprawdza pełne pokrycie zakresu; brak obsady któregokolwiek
    dnia zatrzymuje operację.
 3. Grafik staje się widoczny dla wszystkich, rozchodzą się powiadomienia, a
    kanały ICS dostają aktualizacje. Powiadomienie „Opublikowano v*N* ·
    *zakres*” mówi to samo i ma przycisk **Otwórz grafik**.
 
-Przekazanie do akceptacji i powrót do szkicu też kończą się powiadomieniem z
-zakresem („Przekazano do akceptacji: 4 – 31 paź”).
+Przekazanie do akceptacji z menu **⋯** i powrót do szkicu też kończą się
+powiadomieniem z zakresem („Przekazano do akceptacji: 4 – 31 paź”).
+Przekazanie w tle i jego cofnięcie po zamknięciu arkusza nie mają
+powiadomienia.
 
 Jeśli w międzyczasie ktoś zmienił grafik albo zatwierdzona zamiana koliduje
 ze szkicem, arkusz publikacji wypisze każdy taki przypadek (dzień, rola, kto
