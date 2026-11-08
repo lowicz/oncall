@@ -110,6 +110,30 @@ describe('MineScreen duties', () => {
     expect(scroll).toHaveBeenCalled()
   })
 
+  it('leads a coordinator from their own clash back to their own calendar while a colleague is picked', async () => {
+    stub()
+    stubScroll()
+    vi.spyOn(api, 'team').mockResolvedValue(TEAM)
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    vi.spyOn(api, 'calendar').mockResolvedValue({
+      ...EMPTY_CALENDAR,
+      days: [{ service_date: '2026-09-19', weekday: 'sob', is_day_off: true, holiday_name: null, published: true, events: [] }],
+      members: [{ id: 'm-adam', display_name: 'Adam Nowicki' }],
+      team_has_members: true,
+      assignments: [{ schedule_id: 's1', schedule_version: 1, service_date: '2026-09-19', role: 'primary', assignee_name: 'Adam Nowicki', member_id: 'm-adam', is_override: false, change_kind: null }],
+      availability: [{ member_id: 'm-adam', kind: 'unavailable', starts_on: '2026-09-19', ends_on: '2026-09-19', note: null }],
+    })
+    renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
+    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+    await screen.findByRole('option', { name: 'Beata Lis' })
+    fireEvent.change(picker, { target: { value: 'm-beata' } })
+    expect(await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Kolizja z Twoją niedostępnością sob 19 wrz/ }))
+    expect(await screen.findByRole('heading', { name: 'Moja dostępność' })).toBeInTheDocument()
+    expect(picker).toHaveValue('')
+  })
+
   it('lists the upcoming duties with hours, multiplier, partner and a swap link', async () => {
     stub()
     vi.spyOn(api, 'calendar').mockResolvedValue({

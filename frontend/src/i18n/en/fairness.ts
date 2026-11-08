@@ -31,7 +31,6 @@ export const fairness: Messages['fairness'] = {
   averageChip: (points: string) => `Average ${points} pts / person`,
   weekendsChip: (duties: number, people: number, perPerson: string) => `Weekends: ${duties} / ${people} people = ${perPerson}`,
   team: 'Team',
-  lens: 'Lens',
   tableLabel: 'Duty balance',
   caption: (windowStart: string, windowEnd: string, lens: string) =>
     `Window ${windowStart} – ${windowEnd}; the deviation column shows the ${lens} lens.`,

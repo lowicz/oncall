@@ -96,7 +96,7 @@ export const schedule = {
     outsideNotPublished: 'Koordynator jeszcze nie opublikował tego okresu',
     outsideDays: (count: number) => pluralPl(count, ['dzień poza opublikowanym grafikiem', 'dni poza opublikowanym grafikiem', 'dni poza opublikowanym grafikiem']),
     showFirstConflict: 'Pokaż pierwszy taki dzień',
-    conflicts: (count: number) => pluralPl(count, ['kolizja z niedostępnością', 'kolizje z niedostępnością', 'kolizji z niedostępnością']),
+    conflictPeople: (count: number) => count === 1 ? '1 osoba z dyżurem w dniu niedostępności' : `${count} osób z dyżurem w dniu niedostępności`,
     fullCoverage: 'Pełna obsada w całym zakresie',
   },
   loading: 'Wczytywanie grafiku…',

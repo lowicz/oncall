@@ -85,7 +85,7 @@ export const schedule: Messages['schedule'] = {
     outsideNotPublished: 'The coordinator has not published this period yet',
     outsideDays: (count: number) => pluralEn(count, ['day outside the published schedule', 'days outside the published schedule']),
     showFirstConflict: 'Show the first such day',
-    conflicts: (count: number) => pluralEn(count, ['clash with unavailability', 'clashes with unavailability']),
+    conflictPeople: (count: number) => `${pluralEn(count, ['person', 'people'])} on duty on a day of unavailability`,
     fullCoverage: 'Full coverage across the whole range',
   },
   loading: 'Loading the schedule…',

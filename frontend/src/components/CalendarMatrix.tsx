@@ -219,7 +219,10 @@ export function CalendarMatrix({
 
   const gaps = useMemo(() => (data ? coverageGaps(data) : []), [data])
   const dutyConflicts = useMemo(() => (data ? availabilityDutyConflicts(data) : []), [data])
-  const firstConflict = useMemo(() => dutyConflicts.map((item) => item.service_date).sort()[0], [dutyConflicts])
+  const dutyConflictPeople = useMemo(
+    () => new Set(dutyConflicts.map((item) => item.member_id)).size,
+    [dutyConflicts],
+  )
   const gapDates = useMemo(() => new Set(gaps.map((gap) => gap.service_date)), [gaps])
   const dayByDate = useMemo(() => new Map((data?.days ?? []).map((day) => [day.service_date, day])), [data])
   // A gap inside a published schedule is staffable by an override; a gap beyond
@@ -401,10 +404,8 @@ export function CalendarMatrix({
             </Chip>
           )}
           {canCoordinate && dutyConflicts.length > 0 && (
-            <Chip tone="warn" onClick={() => jumpToDate(data.days, firstConflict)} title={t.risks.showFirstConflict}>
-              {t.risks.conflicts(dutyConflicts.length)}
-              {' · '}
-              {formatDate(firstConflict).slice(0, 5)}
+            <Chip tone="bad" onClick={() => jumpToDate(data.days, dutyConflicts[0].service_date)} title={t.risks.showFirstConflict}>
+              {t.risks.conflictPeople(dutyConflictPeople)}
             </Chip>
           )}
           {gaps.length === 0 && (!canCoordinate || dutyConflicts.length === 0) && (

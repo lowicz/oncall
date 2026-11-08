@@ -22,7 +22,7 @@ export const generator: Messages['generator'] = {
       `${pluralEn(assignments, ['assignment', 'assignments'])} over ${pluralEn(days, ['day', 'days'])} · ${rotation}`,
     solverStatus: (status: string) => `CP-SAT: ${status}`,
     newDraft: 'Generate a new draft',
-    newDraftHint: 'This draft and its corrections stay in the draft list',
+    newDraftHint: 'The open schedule and its corrections stay in the draft list',
     newDraftCreated: 'New draft created · the previous one stays in the draft list',
     more: 'More',
     proposeHint: 'The draft goes for approval; it can still be taken back',

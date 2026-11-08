@@ -427,13 +427,17 @@ const availabilityKey = (member: string) => (member ? ['availability', 'member',
  * into is re-created around it) and is saved immediately. A coordinator can
  * paint another person's calendar from the person picker.
  */
-function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth }: {
+function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth, target, onTarget }: {
   role: UserRole
   hasTeamMember: boolean
   displayName: string
-  /** The month shown, held by the screen so a duty in the list can open its own. */
+  /** The month and the person shown, held by the screen so a duty in the list
+   *  can open its own day in the user's own calendar. */
   month: string
   onMonth: (month: string) => void
+  /** '' means "myself"; a member id means "on behalf of that person". */
+  target: string
+  onTarget: (target: string) => void
 }) {
   const t = useMessages().mine.availability
   const reasonOf = useMessages().mine.calendar.reason
@@ -446,8 +450,6 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth 
   const canActOnBehalf = role === 'coordinator' || role === 'admin'
   const team = useQuery({ queryKey: ['team'], queryFn: api.team, enabled: canActOnBehalf })
   const ownMember = team.data?.find((member) => member.display_name === displayName)
-  // '' means "myself"; a member id means "on behalf of that person".
-  const [target, setTarget] = useState('')
   // The person picked, unless it is the user themself or has left the team
   // since (a reload of the team drops them, and the section returns to the
   // user's own availability).
@@ -548,7 +550,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth 
               <Select
                 aria-label={t.person}
                 value={target}
-                onChange={(event) => setTarget(event.target.value)}
+                onChange={(event) => onTarget(event.target.value)}
               >
                 <option value="">{ownMember ? t.myself(displayName) : t.pickPerson}</option>
                 {team.data?.filter((member) => member.id !== ownMember?.id).map((member) => (
@@ -981,8 +983,10 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
     if (location.hash === '#dostepnosc') document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start' })
   }, [location.hash])
   const [month, setMonth] = useState(monthOf(today))
+  const [target, setTarget] = useState('')
   const showCollision = (serviceDate: string) => {
     setMonth(monthOf(serviceDate))
+    setTarget('')
     scrollToAvailability()
   }
   const scrollToAvailability = () => document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
@@ -1006,7 +1010,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
       {calendar.data && <DutyList duties={upcoming} today={today} collides={collides} onShowCollision={showCollision} />}
     </section>
   )
-  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} month={month} onMonth={setMonth} />
+  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} month={month} onMonth={setMonth} target={target} onTarget={setTarget} />
   const phone = <PhoneSection inRotation={inRotation} />
 
   return (

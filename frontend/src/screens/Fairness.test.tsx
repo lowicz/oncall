@@ -50,7 +50,7 @@ describe('FairnessPanel 11-19 column', () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(report(true))
     renderScreen(<FairnessPanel />)
     expect(await screen.findByRole('columnheader', { name: /11–19/ })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: '11–19' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '11–19' })).toBeInTheDocument()
   })
 
   it('hides the 11-19 column when the shift follows the anchor role', async () => {
@@ -58,7 +58,7 @@ describe('FairnessPanel 11-19 column', () => {
     renderScreen(<FairnessPanel />)
     expect(await screen.findByText('Anna Kowalska')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: /11–19/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('radio', { name: '11–19' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '11–19' })).not.toBeInTheDocument()
     // The other lenses stay put.
     expect(screen.getByRole('columnheader', { name: /PRIMARY/ })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Weekendy/ })).toBeInTheDocument()
@@ -150,7 +150,7 @@ describe('FairnessPanel lens links', () => {
     expect(names()[0]).toContain('Jakub Polak')
     expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 ponad udział' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('radio', { name: 'PRIMARY' }))
+    fireEvent.click(screen.getByRole('button', { name: 'PRIMARY' }))
     expect(screen.getByRole('columnheader', { name: /Odchylenie · PRIMARY/ })).toBeInTheDocument()
     expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 poniżej udziału' })).toBeInTheDocument()
     expect(within(rowOf('Anna Kowalska')).getByRole('img', { name: '0,5 ponad udział' })).toBeInTheDocument()
@@ -300,9 +300,9 @@ describe('FairnessPanel roles a person does not hold', () => {
     // Exactly the wording DraftFairnessPanel has always used (MED5-05).
     expect(screen.getByText('nie pełni tej roli')).toBeInTheDocument()
     // The roles they do hold still get a verdict when the bar follows them.
-    fireEvent.click(screen.getByRole('radio', { name: 'SECONDARY' }))
+    fireEvent.click(screen.getByRole('button', { name: 'SECONDARY' }))
     expect(screen.getByRole('img', { name: '0,5 poniżej udziału' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('radio', { name: 'PRIMARY' }))
+    fireEvent.click(screen.getByRole('button', { name: 'PRIMARY' }))
     expect(screen.getAllByText('nie pełni tej roli')).toHaveLength(2)
   })
 })
@@ -415,13 +415,13 @@ describe('FairnessPanel report states', () => {
   it('falls back to the total lens when the 11-19 shift stops being its own lens', async () => {
     vi.spyOn(api, 'fairness').mockImplementation(async (asOf) => report(asOf === undefined))
     renderScreen(<FairnessPanel />)
-    fireEvent.click(await screen.findByRole('radio', { name: '11–19' }))
+    fireEvent.click(await screen.findByRole('button', { name: '11–19' }))
     expect(screen.getByRole('columnheader', { name: /Odchylenie · 11–19/ })).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Stan na dzień'), { target: { value: '2026-06-30' } })
     expect(await screen.findByRole('columnheader', { name: /Odchylenie · Razem/ })).toBeInTheDocument()
-    expect(screen.queryByRole('radio', { name: '11–19' })).not.toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Razem' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByRole('button', { name: '11–19' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Razem' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('switches the lens from a spread chip and names a lens it does not know by its key', async () => {
@@ -433,7 +433,7 @@ describe('FairnessPanel report states', () => {
     expect(await screen.findByText('nights: rozpiętość 0,5 · spełnia')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'PRIMARY: rozpiętość 1,5 · spełnia' }))
     expect(screen.getByRole('columnheader', { name: /Odchylenie · PRIMARY/ })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'PRIMARY', checked: true })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'PRIMARY', pressed: true })).toBeInTheDocument()
   })
 
   it('treats roles missing from the eligible days as not held', async () => {

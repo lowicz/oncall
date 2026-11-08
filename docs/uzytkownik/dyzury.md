@@ -23,8 +23,8 @@ po końcu opublikowanego grafiku.
 
 Pod nagłówkiem jest rząd znaczników ryzyka, tylko o widocznym zakresie: dni
 bez pełnej obsady, dni poza opublikowanym zakresem i, dla koordynatora,
-kolizje dyżurów ze zgłoszonym „nie mogę”. Znacznik, który prowadzi do dnia,
-podaje datę pierwszego takiego dnia i kończy się strzałką.
+osoby z dyżurem w dniu zgłoszonego „nie mogę”. Znacznik, który prowadzi do
+dnia, kończy się strzałką.
 
 Niżej jest sekcja **Najbliższe 4 tygodnie** z tą samą macierzą co na ekranie
 Grafik i tym samym pasem kontrolek w nagłówku sekcji: długość 2 / 4 / 8
@@ -82,9 +82,9 @@ tekstową, czytaną również przez czytnik ekranu. Pozycja **Legenda** w menu
 
 Na ekranie Teraz nad macierzą jest rząd znaczników: dni opublikowanego
 grafiku bez pełnej obsady (kliknięcie przeskakuje do pierwszego takiego dnia),
-dni poza opublikowanym zakresem, kolizje dyżurów ze zgłoszonym „nie mogę”
-(kliknięcie przeskakuje do pierwszej) albo **Pełna obsada**, gdy wszystko
-gra. Zawężenie widoku nie może ukryć aktywnego konfliktu bez tego
+dni poza opublikowanym zakresem, osoby z dyżurem w dniu zgłoszonego „nie
+mogę” (kliknięcie przeskakuje do pierwszego takiego dnia) albo **Pełna
+obsada**, gdy wszystko gra. Zawężenie widoku nie może ukryć aktywnego konfliktu bez tego
 komunikatu. Grafik pokazuje tę samą macierz bez rzędu ryzyk; dni bez obsady
 są w nim zaznaczone na czerwono w nagłówku kolumny i w panelu dnia, a
 nagłówek sekcji podaje ich liczbę z linkiem do pierwszego.

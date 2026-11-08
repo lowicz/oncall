@@ -33,7 +33,6 @@ export const fairness = {
   averageChip: (points: string) => `Średnia ${points} pkt / os.`,
   weekendsChip: (duties: number, people: number, perPerson: string) => `Weekendy: ${duties} / ${people} os. = ${perPerson}`,
   team: 'Zespół',
-  lens: 'Soczewka',
   tableLabel: 'Bilans dyżurów',
   caption: (windowStart: string, windowEnd: string, lens: string) =>
     `Okno ${windowStart} – ${windowEnd}; kolumna odchylenia pokazuje soczewkę ${lens}.`,

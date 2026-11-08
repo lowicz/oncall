@@ -24,8 +24,8 @@ a range starting the day after the end of the published schedule.
 
 Under the header is a row of risk badges, about the visible range only: days
 without full coverage, days outside the published range and, for a
-coordinator, duties clashing with a filed “Unavailable”. A badge that leads to
-a day gives the date of the first such day and ends in an arrow.
+coordinator, people on duty on a day of a filed “Unavailable”. A badge that
+leads to a day ends in an arrow.
 
 Below is the **Next 4 weeks** section with the same matrix as on the Schedule
 screen and the same strip of controls in the section header: length 2 / 4 / 8
@@ -84,8 +84,9 @@ above the matrix expands the list of symbols; `Esc` closes it.
 
 On the Now screen, above the matrix, is a row of badges: days of the published
 schedule without full coverage (clicking jumps to the first such day), days
-outside the published range, clashes of duties with a filed “Unavailable”
-(clicking jumps to the first), or **Full coverage** when everything is fine.
+outside the published range, people on duty on a day of a filed
+“Unavailable” (clicking jumps to the first such day), or **Full coverage**
+when everything is fine.
 Narrowing the view cannot hide an active conflict without this message. The
 Schedule shows the same matrix without the risk row; days without coverage
 are marked in red in the column header and in the day panel there, and the

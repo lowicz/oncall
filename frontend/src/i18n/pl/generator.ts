@@ -22,7 +22,6 @@ export const generator = {
     published: 'widoczny dla zespołu',
     superseded: 'zastąpiony',
   },
-  /** The word before the range in the title: "Szkic 4 – 31 paź", "Propozycja 4 – 31 paź". */
   header: {
     generating: (range: string) => `Generuję ${range}`,
     statusPill: (status: string, version: number) => `${status} · v${version}`,
@@ -30,7 +29,7 @@ export const generator = {
       `${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])} w ${pluralPl(days, ['dniu', 'dniach', 'dniach'])} · ${rotation}`,
     solverStatus: (status: string) => `CP-SAT: ${status}`,
     newDraft: 'Generuj nowy szkic',
-    newDraftHint: 'Ten szkic z poprawkami zostaje na liście szkiców',
+    newDraftHint: 'Otwarty grafik z poprawkami zostaje na liście szkiców',
     newDraftCreated: 'Utworzono nowy szkic · poprzedni zostaje na liście szkiców',
     more: 'Więcej',
     proposeHint: 'Szkic trafi do akceptacji; nadal można go cofnąć',

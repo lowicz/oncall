@@ -657,8 +657,8 @@ describe('CalendarMatrix risk chips', () => {
     expect(screen.getAllByRole('button', { name: /^Anna Kowalska, wt 08-09-2026/ })[0]).toHaveAttribute('tabindex', '0')
 
     // A chip that leads to a day names it, ends in a chevron and says where it leads.
-    const clash = within(riskRow()).getByRole('button', { name: '1 kolizja z niedostępnością · 07-09' })
-    expect(clash).toHaveClass('chip-warn')
+    const clash = within(riskRow()).getByRole('button', { name: '1 osoba z dyżurem w dniu niedostępności' })
+    expect(clash).toHaveClass('chip-bad')
     expect(clash).toHaveAccessibleDescription('Pokaż pierwszy taki dzień')
     expect(clash.querySelector('.chip-go')).toBeInTheDocument()
     fireEvent.click(clash)
@@ -673,7 +673,7 @@ describe('CalendarMatrix risk chips', () => {
 
     // Sunday has duties but is outside the publication: no gap, so full coverage.
     expect(await within(await screen.findByRole('list', { name: 'Ryzyka w zakresie' })).findByText('Pełna obsada w całym zakresie')).toBeInTheDocument()
-    expect(screen.queryByText(/z niedostępnością/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/z dyżurem w dniu niedostępności/)).not.toBeInTheDocument()
   })
 
   it('tells a member that unstaffed days past the publication wait for the coordinator', async () => {
@@ -688,7 +688,7 @@ describe('CalendarMatrix risk chips', () => {
       availability: [{ member_id: 'm2', kind: 'unavailable', starts_on: '2026-09-09', ends_on: '2026-09-09', note: null }],
     }))
     renderScreen(<CalendarMatrix role="admin" displayName="Administrator" range={WEEK_OF_TODAY} />)
-    expect(await screen.findByRole('button', { name: /1 kolizja z niedostępnością/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /1 osoba z dyżurem w dniu niedostępności/ })).toBeInTheDocument()
     expect(within(riskRow()).queryByText('Pełna obsada w całym zakresie')).not.toBeInTheDocument()
   })
 

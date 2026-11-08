@@ -23,7 +23,6 @@ import {
   PageHeader,
   RoleMark,
   SectionHeading,
-  Segmented,
   StatusBadge,
   Tag,
   cx,
@@ -302,15 +301,17 @@ export function FairnessPanel() {
           <SectionHeading
             title={t.team}
             meta={`${formatDate(report.data.window_start)} – ${formatDate(report.data.window_end)}`}
-            controls={(
-              <Segmented<Lens>
-                label={t.lens}
-                wrap
-                value={lens}
-                onChange={setLens}
-                options={lenses.map((item) => ({ value: item, label: lensLabel(item) }))}
-              />
-            )}
+            controls={lenses.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={cx('sech-link', lens === item && 'on')}
+                aria-pressed={lens === item}
+                onClick={() => setLens(item)}
+              >
+                {lensLabel(item)}
+              </button>
+            ))}
           />
           <div className="panel wide-scroll">
             <table className="lg fairness-table" aria-label={t.tableLabel}>
