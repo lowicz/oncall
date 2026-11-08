@@ -59,7 +59,7 @@ of the application that is currently running (the same as at the bottom of
 the rail).
 
 On a phone the rail disappears and the bottom of the screen has the tabs
-**Now**, **Schedule**, **My duties**, **Swaps** and **More**. Under “More” are the
+**Now**, **Schedule**, **Mine** (the My duties screen), **Swaps** and **More**. Under “More” are the
 remaining screens of your role, the theme, density, language, documentation,
 sign-out and the version number.
 

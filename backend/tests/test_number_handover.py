@@ -192,10 +192,10 @@ async def test_a_receiver_without_a_number_is_refused_in_the_request_language(
 
     assert polish.status_code == 422
     assert polish.json()["detail"] == (
-        "Marek Nowak nie ma numeru telefonu w Moje dyżury. Poproś o jego uzupełnienie."
+        "Marek Nowak nie ma numeru telefonu na ekranie „Moje dyżury”. Poproś o jego uzupełnienie."
     )
     assert english.json()["detail"] == (
-        "Marek Nowak has no phone number in My duties. Ask for it to be filled in."
+        "Marek Nowak has no phone number on the My duties screen. Ask for it to be filled in."
     )
 
 

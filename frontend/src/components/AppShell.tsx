@@ -251,7 +251,7 @@ export function AppShell({ displayName, avatar = null, access, share }: {
             {tabItems.map((item) => (
               <NavLink key={item.path} to={item.path} end={item.path === '/'} className={({ isActive }) => cx('tab-link', isActive && 'active')}>
                 <Icon name={item.icon} size={18} />
-                {navLabel(item)}
+                {item.label === 'mine' ? t.nav.tabs.mine : navLabel(item)}
                 {badge(item.path) ? <><span className="nav-cnt" aria-hidden="true">{badge(item.path)}</span><span className="sr-only">{t.shell.pendingDecisions(badge(item.path))}</span></> : null}
               </NavLink>
             ))}

@@ -17,6 +17,9 @@ export const nav: Messages['nav'] = {
     audit: 'Audit',
     more: 'More',
   },
+  tabs: {
+    mine: 'Mine',
+  },
   roles: {
     viewer: 'Viewer',
     member: 'Team member',

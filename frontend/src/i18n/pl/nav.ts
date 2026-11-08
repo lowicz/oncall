@@ -16,6 +16,10 @@ export const nav = {
     audit: 'Audyt',
     more: 'Więcej',
   },
+  /** The phone's bottom tabs: five columns, so a long screen name gets its short form here. */
+  tabs: {
+    mine: 'Moje',
+  },
   roles: {
     viewer: 'Podgląd',
     member: 'Członek zespołu',
