@@ -34,11 +34,12 @@ own: it is an action on the Now screen, described below.
 
 ## Handing over the on-call number
 
-| Action | viewer and share link | member | coordinator | admin |
+| Action | viewer | member | coordinator | admin |
 | --- | :---: | :---: | :---: | :---: |
-| See where the number rings (`GET /api/v1/forwarding/now`) | yes | yes | yes | yes |
+| See where the number rings | yes | yes | yes | yes |
 | Hand the number over and end a handover | no | only as the day's PRIMARY or SECONDARY | yes | yes |
 
+Where the number rings is also seen by the recipient of a share link.
 A team member hands the number over only when they are the PRIMARY or the
 SECONDARY of the duty day; the server checks it on every request, so a button
 the interface does not show opens no way through the API. The state response

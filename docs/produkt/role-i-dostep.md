@@ -34,11 +34,12 @@ na ekranie Teraz, opisana niżej.
 
 ## Przekazanie numeru on-call
 
-| Działanie | viewer i link podglądowy | member | coordinator | admin |
+| Działanie | viewer | member | coordinator | admin |
 | --- | :---: | :---: | :---: | :---: |
-| Zobaczyć, u kogo dzwoni numer (`GET /api/v1/forwarding/now`) | tak | tak | tak | tak |
+| Zobaczyć, u kogo dzwoni numer | tak | tak | tak | tak |
 | Przekazać numer i zakończyć przekazanie | nie | tylko jako PRIMARY lub SECONDARY dnia | tak | tak |
 
+To, u kogo dzwoni numer, widzi także odbiorca linku podglądowego.
 Członek zespołu przekazuje numer tylko wtedy, gdy jest PRIMARY albo SECONDARY
 dnia dyżuru; serwer sprawdza to przy każdym żądaniu, więc przycisk, którego
 interfejs nie pokazuje, nie otwiera drogi przez API. Odpowiedź o stanie nie
