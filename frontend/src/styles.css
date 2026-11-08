@@ -373,7 +373,7 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .dialog-desc { color: var(--muted); font-size: 14px; line-height: 21px; }
 .dialog-body { display: grid; gap: 12px; font-size: 14px; line-height: 21px; }
 .dialog-body .box, .dialog-body .box > b { font-size: 14px; line-height: 21px; }
-.dialog-body ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.dialog-body ul:not(.inline-list) { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
 .dialog-actions .sp { flex: 1; }
 .dialog-foot-status { flex: 1; min-width: 0; font-size: 12px; line-height: 16px; color: var(--muted); }

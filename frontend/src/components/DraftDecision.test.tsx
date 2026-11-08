@@ -3,7 +3,8 @@ import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { api } from '../api'
 import type { DraftFairnessImpact, DraftSchedule, PublishPreview } from '../api'
-import { DraftDecision } from './DraftDecision'
+import { loadRealStylesheet } from '../test/stylesheet'
+import { DraftDecision, PublicationEffects } from './DraftDecision'
 
 const draft = (over: Partial<DraftSchedule> = {}): DraftSchedule => ({
   id: 'd1',
@@ -183,5 +184,14 @@ describe('DraftDecision', () => {
     expect(within(panel).getByText('Co zmieni publikacja')).toBeInTheDocument()
     expect(within(panel).getByRole('list')).toHaveTextContent(/^wcześniejszy grafik obowiązuje dalej poza tym zakresem$/)
     expect(within(panel).queryByRole('button', { name: 'Przeniesione zmiany i anulowane zamiany' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the effects on one wrapping line inside the publication sheet', () => {
+    loadRealStylesheet()
+    renderScreen(<div className="dialog-body"><PublicationEffects preview={preview({ stale_changes_count: 1 })} soft={2} /></div>)
+    const list = screen.getByText('1 wpis zmieniony od wygenerowania').closest('ul') as HTMLElement
+    // The sheet's own list rule must not turn the sentence into an indented column.
+    expect(getComputedStyle(list).display).toBe('flex')
+    expect(getComputedStyle(list).paddingLeft).toBe('0px')
   })
 })
