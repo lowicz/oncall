@@ -537,7 +537,7 @@ export function CalendarMatrix({
         )}
         footer={staffOpen ? (
           <>
-            <Button onClick={() => { setStaffOpen(false); override.reset() }}>{t.inspector.back}</Button>
+            <Button disabled={override.isPending} onClick={() => { setStaffOpen(false); override.reset() }}>{t.inspector.back}</Button>
             <span className="sp" />
             {/* Focusable while blocked, so the frame above says what is missing. */}
             <Button
@@ -602,6 +602,7 @@ export function CalendarMatrix({
                   id={id}
                   name={id}
                   value={selectedRole}
+                  disabled={override.isPending}
                   onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null); setHistoricalReason(''); override.reset() }}
                 >
                   {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
@@ -618,6 +619,7 @@ export function CalendarMatrix({
                   name={id}
                   value={staffMemberId ?? ''}
                   aria-describedby={describedBy}
+                  disabled={override.isPending}
                   onChange={(event) => { setStaffMemberId(event.target.value || null); setHistoricalReason(''); override.reset() }}
                 >
                   <option value="">{t.inspector.pickPerson}</option>

@@ -261,6 +261,31 @@ describe('CalendarMatrix override decision frame', () => {
     expectBlocked(saveButton())
   })
 
+  it('locks the change form while the save is in flight', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
+    let finish: (value: never) => void = () => {}
+    const override = vi.spyOn(api, 'directOverride').mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    renderScreen(matrix())
+
+    const confirm = await confirmHandOver()
+    expect(await screen.findByRole('status')).toHaveTextContent('Bez naruszeń reguł twardych')
+    fireEvent.click(confirm)
+    await waitFor(() => expect(override).toHaveBeenCalledTimes(1))
+
+    // Nothing may change the choice the pending request was made for.
+    const panel = screen.getByRole('dialog')
+    expect(within(panel).getByRole('combobox', { name: 'Rola' })).toBeDisabled()
+    expect(within(panel).getByRole('combobox', { name: 'Osoba' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Wróć' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: /Zapisz/ })).toBeDisabled()
+
+    finish({} as never)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(override).toHaveBeenCalledTimes(1)
+  })
+
   it('shows no warning when the override is clean', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
