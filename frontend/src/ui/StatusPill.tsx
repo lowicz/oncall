@@ -22,6 +22,9 @@ export const StatusPill = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTM
   useImperativeHandle(ref, () => button.current!)
   const shown = useRef<string>(undefined)
   const [said, setSaid] = useState('')
+  // The words are read from the rendered button, whatever children made them,
+  // so this runs after every render; it sets state only when they change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const text = button.current!.textContent!
     const now = `${state} ${text}`
