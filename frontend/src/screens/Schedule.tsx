@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { UserRole, api } from '../api'
+import { PublishedSchedule, UserRole, api } from '../api'
 import { addDays, daysBetween, formatDate, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
-import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
+import { MatrixControls, ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../components/MatrixControls'
 import { useNarrow } from '../hooks/useMediaQuery'
+import { useUrlParams } from '../hooks/useUrlParams'
 import { Box, Button, EmptyState, LinkButton, PageHeader, SectionHeading } from '../ui'
 
 /** The zoom the range fits; an arbitrary od/do still gets sensible cells. */
@@ -17,15 +17,34 @@ function zoomFor(range: CalendarRange): MatrixZoom {
   return '8'
 }
 
-const isZoom = (value: string | null): value is MatrixZoom => value === '2' || value === '4' || value === '8'
+/** The days a query names; with no start or day, those `published` covers. */
+function rangeOf(query: URLSearchParams, today: string, published: PublishedSchedule | undefined): CalendarRange {
+  const od = query.get('od')
+  const legacyEnd = query.get('do')
+  const dayParam = query.get('dzien')
+  if (isIsoDate(od) && isIsoDate(legacyEnd)) return { starts_on: od, ends_on: legacyEnd }
+  if (isIsoDate(od)) return { starts_on: od, ends_on: addDays(od, WEEKS[zoomOf(query, null)] * 7 - 1) }
+  if (isIsoDate(dayParam)) return { starts_on: addDays(dayParam, -7), ends_on: addDays(dayParam, 20) }
+  const coveredEnd = published?.ends_on
+  const fourWeeks = addDays(today, 27)
+  const defaultEnd = published?.is_published && coveredEnd && coveredEnd >= today && coveredEnd < fourWeeks
+    ? coveredEnd
+    : fourWeeks
+  return { starts_on: today, ends_on: defaultEnd }
+}
+
+function zoomOf(query: URLSearchParams, range: CalendarRange | null): MatrixZoom {
+  const zoom = query.get('zoom')
+  return isZoom(zoom) ? zoom : range ? zoomFor(range) : '4'
+}
 
 /**
  * The full schedule: the same matrix as on "Teraz" without the risk row,
  * over any range, two to eight weeks per screen, as a matrix or a day list,
- * with the day inspector. The start and the zoom live in the URL
- * (`grafik?od=2026-09-14&zoom=8`) so a view can be sent as a link; an older
- * link with `od` and `do` still works. `dzien` and `osoba` come from the
- * command palette.
+ * with the day inspector. The start, the zoom, the "only on duty" filter and
+ * the view live in the URL (`grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem&widok=lista`)
+ * so a view survives a refresh and can be sent as a link; an older link with `od` and
+ * `do` still works. `dzien` and `osoba` come from the command palette.
  */
 export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   role: UserRole
@@ -36,10 +55,9 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   const narrow = useNarrow()
   const t = useMessages()
   const canCoordinate = role === 'coordinator' || role === 'admin'
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [hideIdle, setHideIdle] = useState(false)
-  const [view, setView] = useState<MatrixView>(narrow ? 'list' : 'matrix')
-  useEffect(() => { setView(narrow ? 'list' : 'matrix') }, [narrow])
+  const [searchParams, setSearchParams] = useUrlParams()
+  const hideIdle = searchParams.get(ONLY_ON_DUTY.key) === ONLY_ON_DUTY.value
+  const view = viewOf(searchParams.get(VIEW_KEY), narrow)
   // The default range ends where the published coverage ends (LOW5-05) rather
   // than painting weeks of "no coverage" over days nobody published yet; an
   // empty installation falls back to four weeks (QA7-L01).
@@ -48,36 +66,15 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   const dayParam = searchParams.get('dzien')
   const focusDay = isIsoDate(dayParam) ? dayParam : null
   const focusPerson = searchParams.get('osoba')
-  const od = searchParams.get('od')
-  const legacyEnd = searchParams.get('do')
-  const zoomParam = searchParams.get('zoom')
-  const explicitStart = isIsoDate(od)
-  const range = useMemo<CalendarRange>(() => {
-    if (explicitStart && isIsoDate(legacyEnd)) return { starts_on: od, ends_on: legacyEnd }
-    if (explicitStart) {
-      const weeks = WEEKS[isZoom(zoomParam) ? zoomParam : '4']
-      return { starts_on: od, ends_on: addDays(od, weeks * 7 - 1) }
-    }
-    if (focusDay) {
-      return { starts_on: addDays(focusDay, -7), ends_on: addDays(focusDay, 20) }
-    }
-    const coveredEnd = published.data?.ends_on
-    const fourWeeks = addDays(today, 27)
-    const defaultEnd = published.data?.is_published && coveredEnd && coveredEnd >= today && coveredEnd < fourWeeks
-      ? coveredEnd
-      : fourWeeks
-    return { starts_on: today, ends_on: defaultEnd }
-  }, [explicitStart, od, legacyEnd, zoomParam, focusDay, published.data, today])
-  const zoom: MatrixZoom = isZoom(zoomParam) ? zoomParam : zoomFor(range)
-  const setStart = (startsOn: string, nextZoom: MatrixZoom = zoom) => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current)
-      next.set('od', startsOn)
-      next.set('zoom', nextZoom)
-      next.delete('do')
-      next.delete('dzien')
-      return next
-    }, { replace: true })
+  const explicitStart = isIsoDate(searchParams.get('od'))
+  const range = useMemo(() => rangeOf(searchParams, today, published.data), [searchParams, today, published.data])
+  const zoom = zoomOf(searchParams, range)
+  // From the latest query, which a render of quick clicks may not show yet.
+  const setStart = (startsOn: (current: CalendarRange) => string, nextZoom?: MatrixZoom) => {
+    setSearchParams((latest) => {
+      const current = rangeOf(latest, today, published.data)
+      return { od: startsOn(current), zoom: nextZoom ?? zoomOf(latest, current), do: null, dzien: null }
+    })
   }
   const ready = explicitStart || Boolean(focusDay) || published.isSuccess || published.isError
   const rangeValid = range.starts_on <= range.ends_on
@@ -117,7 +114,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
             {focusPerson && (
               <span className="filter-chip">
                 {focusPerson}
-                <button type="button" aria-label={t.schedule.clearHighlight(focusPerson)} onClick={() => setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('osoba'); return next }, { replace: true })}>×</button>
+                <button type="button" aria-label={t.schedule.clearHighlight(focusPerson)} onClick={() => setSearchParams({ osoba: null })}>×</button>
               </span>
             )}
             {canCoordinate && nextStep()}
@@ -139,7 +136,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
           <EmptyState
             icon="alert"
             title={t.schedule.rangeInvalid}
-            action={<Button variant="primary" size="sm" onClick={() => setStart(today, '4')}>{t.schedule.showFromToday}</Button>}
+            action={<Button variant="primary" size="sm" onClick={() => setStart(() => today, '4')}>{t.schedule.showFromToday}</Button>}
           />
         </div>
       )}
@@ -172,13 +169,13 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
               controls={(
                 <MatrixControls
                   zoom={zoom}
-                  onZoom={(value) => setStart(range.starts_on, value)}
-                  onShift={(days) => setStart(addDays(range.starts_on, days))}
-                  onToday={() => setStart(today)}
+                  onZoom={(value) => setStart((current) => current.starts_on, value)}
+                  onShift={(days) => setStart((current) => addDays(current.starts_on, days))}
+                  onToday={() => setStart(() => today)}
                   hideIdle={hideIdle}
-                  onHideIdle={setHideIdle}
+                  onHideIdle={(value) => setSearchParams({ [ONLY_ON_DUTY.key]: value ? ONLY_ON_DUTY.value : null })}
                   view={view}
-                  onView={setView}
+                  onView={(value) => setSearchParams({ [VIEW_KEY]: VIEW_SLUGS[value] })}
                   showAvailability={role !== 'viewer'}
                   icsExport={hasTeamMember}
                 />

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { api } from '../../api'
 import type { AdminUser, TeamMember } from '../../api'
@@ -95,6 +95,87 @@ describe('PeoplePanel table', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /Szukaj osoby/ }), { target: { value: 'maj' } })
     expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
     expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
+  })
+
+  it('keeps the search and the filter in the URL, so a refresh, Back and Forward show the same list', async () => {
+    mockData(
+      [
+        user({ id: 'u1' }),
+        user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj', is_active: false }),
+        user({ id: 'u3', username: 'olek', first_name: 'Olek', last_name: 'Maj', display_name: 'Olek Maj' }),
+      ],
+      [member({ id: 'm1', user_id: 'u1' })],
+    )
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby?szukaj=maj&filtr=wylaczone' })
+    await rowOf('ewa')
+    expect(screen.getByRole('searchbox', { name: /Szukaj osoby/ })).toHaveValue('maj')
+    expect(screen.getByRole('radio', { name: 'Wyłączone' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Wszystkie' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?szukaj=maj'))
+    await rowOf('olek')
+    expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox', { name: /Szukaj osoby/ }), { target: { value: '' } })
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    await rowOf('anna')
+
+    await act(() => router.navigate('/osoby?filtr=w-rotacji'))
+    await waitFor(() => expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument())
+    expect(screen.getByText('anna', { selector: 'td' })).toBeInTheDocument()
+    await act(() => router.navigate(-1))
+    await rowOf('olek')
+    await act(() => router.navigate(1))
+    await waitFor(() => expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument())
+  })
+
+  it('keeps every character typed quickly in a row, in the box and in the URL', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby' })
+    await rowOf('anna')
+
+    // Each key lands on what the box holds, before the router has caught up.
+    const box = screen.getByRole('searchbox', { name: /Szukaj osoby/ }) as HTMLInputElement
+    for (const key of 'ewa maj') fireEvent.change(box, { target: { value: box.value + key } })
+    expect(box).toHaveValue('ewa maj')
+    await waitFor(() => expect(router.state.location.search).toBe('?szukaj=ewa+maj'))
+    expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
+    expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
+  })
+
+  it('clears the search when the address drops it, as the side navigation does', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby?szukaj=maj' })
+    await rowOf('ewa')
+    expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
+
+    await act(() => router.navigate('/osoby'))
+    expect(screen.getByRole('searchbox', { name: /Szukaj osoby/ })).toHaveValue('')
+    await rowOf('anna')
+  })
+
+  it('clears the search typed back and forth quickly when the address drops it, and Back brings it again', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby' })
+    await rowOf('anna')
+    const box = screen.getByRole('searchbox', { name: /Szukaj osoby/ }) as HTMLInputElement
+    for (const value of ['e', '', 'e']) fireEvent.change(box, { target: { value } })
+    await waitFor(() => expect(router.state.location.search).toBe('?szukaj=e'))
+    expect(box).toHaveValue('e')
+
+    await act(() => router.navigate('/osoby'))
+    expect(box).toHaveValue('')
+    await rowOf('anna')
+    await act(() => router.navigate(-1))
+    expect(box).toHaveValue('e')
+  })
+
+  it('shows every account for a filter the URL names but the screen does not know', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj', is_active: false })])
+    renderScreen(<PeoplePanel />, { route: '/osoby?filtr=nieznany' })
+    await rowOf('ewa')
+    expect(screen.getByText('anna', { selector: 'td' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Wszystkie' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('uses one tab stop and arrow keys for the account filters', async () => {
@@ -281,6 +362,46 @@ describe('PeoplePanel person panel', () => {
     expect(within(warning).getByText(/e-mail/)).toBeInTheDocument()
     fireEvent.click(within(warning).getByRole('button', { name: 'Odrzuć zmiany' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+  })
+
+  it('keeps the open person and tab in the URL, so a refresh or a link opens the same panel', async () => {
+    mockData([user({ id: 'u1', phone: '+48 601 220 118' })], [member({ id: 'm1' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby?osoba=u1&karta=rotacja' })
+
+    const dialog = await screen.findByRole('dialog', { name: /Anna Kowalska/ })
+    expect(within(dialog).getByRole('tab', { name: /^Rotacja/ })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Konto' }))
+    // The form is filled from the account the URL named.
+    expect(await within(dialog).findByLabelText(/^Telefon/)).toHaveValue('+48 601 220 118')
+    await waitFor(() => expect(router.state.location.search).toBe('?osoba=u1&karta=konto'))
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    fireEvent.click(within(await rowOf('anna')).getByRole('button', { name: 'Otwórz' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?osoba=u1&karta=konto'))
+  })
+
+  it('opens no panel for a person the URL names but the list does not hold', async () => {
+    mockData()
+    renderScreen(<PeoplePanel />, { route: '/osoby?osoba=gone&karta=nieznana' })
+    await rowOf('anna')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('fills the panel afresh when Back reopens a person whose edits were discarded on leaving', async () => {
+    mockData()
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby' })
+    const dialog = await openRow('anna')
+    fireEvent.change(within(dialog).getByLabelText('E-mail'), { target: { value: 'new@example.com' } })
+
+    act(() => { void router.navigate('/osoby') })
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
+    fireEvent.click(within(warning).getByRole('button', { name: 'Odrzuć zmiany' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+
+    await act(() => router.navigate(-1))
+    const reopened = await screen.findByRole('dialog', { name: /Anna Kowalska/ })
+    expect(within(reopened).getByLabelText('E-mail')).toHaveValue('anna@example.com')
   })
 
   it('does not switch rows until unsaved edits are explicitly discarded', async () => {

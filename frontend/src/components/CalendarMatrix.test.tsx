@@ -162,7 +162,7 @@ const startStaffChange = async (cellName: RegExp, replacement: string) => {
   const cells = await screen.findAllByRole('button', { name: cellName })
   fireEvent.click(cells[0])
   fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
-  const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+  const picker = await screen.findByRole('combobox', { name: /^Osoba na / })
   const option = await screen.findByRole('option', { name: replacement })
   fireEvent.change(picker, { target: { value: option.getAttribute('value') } })
 }
@@ -184,7 +184,7 @@ const confirmHandOver = async () => {
   const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
   fireEvent.click(annaCells[0])
   fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
-  fireEvent.change(await screen.findByRole('combobox', { name: 'Osoba' }), { target: { value: 'm2' } })
+  fireEvent.change(await screen.findByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm2' } })
   return saveButton()
 }
 
@@ -307,7 +307,7 @@ describe('CalendarMatrix override decision frame', () => {
     // Nothing may change the choice the pending request was made for.
     const panel = screen.getByRole('dialog')
     expect(within(panel).getByRole('combobox', { name: 'Rola' })).toBeDisabled()
-    expect(within(panel).getByRole('combobox', { name: 'Osoba' })).toBeDisabled()
+    expect(within(panel).getByRole('combobox', { name: /^Osoba na / })).toBeDisabled()
     expect(within(panel).getByRole('button', { name: 'Wróć' })).toBeDisabled()
     expect(within(panel).getByRole('button', { name: /Zapisz/ })).toBeDisabled()
 
@@ -334,7 +334,7 @@ describe('CalendarMatrix override decision frame', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Zamknij panel' }))
     fireEvent.click(screen.getAllByRole('button', { name: /^Marek Nowak, / })[0])
     expect(screen.getByRole('dialog')).toBe(panel)
-    expect(within(panel).getByRole('combobox', { name: 'Osoba' })).toHaveValue('m2')
+    expect(within(panel).getByRole('combobox', { name: /^Osoba na / })).toHaveValue('m2')
 
     refuse(new ApiError('Grafik zmienił wersję', 409))
     const refusal = await within(panel).findByRole('alert')
@@ -384,9 +384,9 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
     fireEvent.click(annaCells[0])
     fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
-    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+    const picker = await screen.findByRole('combobox', { name: /^Osoba na / })
     // Anna is the current holder, so she is offered but disabled with a reason.
-    expect(screen.getByRole('option', { name: /Anna Kowalska - już pełni tę rolę/ })).toBeDisabled()
+    expect(screen.getByRole('option', { name: /Anna Kowalska · już pełni tę rolę/ })).toBeDisabled()
     fireEvent.change(picker, { target: { value: 'm2' } })
     await screen.findByText('Bez naruszeń reguł twardych')
     fireEvent.click(saveButton())
@@ -449,7 +449,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Wydarzenie' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Wydarzenie…' }))
     fireEvent.change(await screen.findByRole('textbox', { name: /^Nazwa/ }), {
       target: { value: 'Release' },
     })
@@ -522,8 +522,8 @@ describe('CalendarMatrix hard unavailability', () => {
     // The day drawer names the unavailability as day context.
     expect(await screen.findByText(/Marek Nowak: Nie mogę - Urlop/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zmień obsadę…' }))
-    await screen.findByRole('combobox', { name: 'Osoba' })
-    expect(screen.getByRole('option', { name: /Marek Nowak - niedostępna tego dnia/ })).toBeDisabled()
+    await screen.findByRole('combobox', { name: /^Osoba na / })
+    expect(screen.getByRole('option', { name: /Marek Nowak · niedostępna tego dnia/ })).toBeDisabled()
     expect(check).not.toHaveBeenCalled()
   })
 
@@ -605,6 +605,12 @@ type Day = CalendarData['days'][number]
 /** Monday 07-09 to Sunday 13-09-2026, the week of the pinned "today" (Thursday 10-09). */
 const WEEK_OF_TODAY = { starts_on: '2026-09-07', ends_on: '2026-09-13' }
 const DATES = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13']
+
+const addDaysIso = (date: string, days: number) => {
+  const value = new Date(`${date}T00:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
+}
 
 const duty = (service_date: string, role: Row['role'], assignee_name: string, member_id: string, over: Partial<Row> = {}): Row => ({
   service_date, role, assignee_name, member_id, is_override: false, schedule_id: 's1', schedule_version: 4, change_kind: null, ...over,
@@ -1021,7 +1027,7 @@ describe('CalendarMatrix staffing form', () => {
     expect(within(dialog).getByText('Obecnie: brak opublikowanego przydziału')).toBeInTheDocument()
     expectBlocked(saveButton())
 
-    const person = within(dialog).getByRole('combobox', { name: 'Osoba' })
+    const person = within(dialog).getByRole('combobox', { name: /^Osoba na / })
     fireEvent.change(person, { target: { value: 'm3' } })
     await waitFor(() => expectReady(saveButton()))
     fireEvent.change(person, { target: { value: '' } })
@@ -1033,7 +1039,7 @@ describe('CalendarMatrix staffing form', () => {
     expect(within(dialog).getByText('Obecnie: Marek Nowak')).toBeInTheDocument()
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć' }))
-    expect(within(dialog).queryByRole('combobox', { name: 'Osoba' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('combobox', { name: /^Osoba na / })).not.toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień obsadę' })).toHaveClass('role-row-sel')
   })
 
@@ -1046,7 +1052,7 @@ describe('CalendarMatrix staffing form', () => {
       .mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     // The rules and the balance stay in the panel; only the reason has a dialog of its own.
     await within(dialog).findByText('Bez naruszeń reguł twardych')
@@ -1108,7 +1114,7 @@ describe('CalendarMatrix staffing form', () => {
     const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Obsadź')
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
     const confirm = within(dialog).getByRole('button', { name: /^Zapisz zmianę obsady$/ })
     await waitFor(() => expect(confirm).toBeEnabled())
     fireEvent.click(confirm)
@@ -1129,7 +1135,7 @@ describe('CalendarMatrix staffing form', () => {
       .mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
     await within(dialog).findByText('Bez naruszeń reguł twardych')
     const openConfirm = async () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz zmianę obsady…' }))
@@ -1167,7 +1173,7 @@ describe('CalendarMatrix staffing form', () => {
     const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     expect(await within(dialog).findByRole('status')).toHaveTextContent('Nie udało się sprawdzić reguł twardych; zapis sprawdzi je ponownie.')
     expect(within(dialog).getByRole('status')).toHaveClass('rule-line-warn')
@@ -1184,7 +1190,7 @@ describe('CalendarMatrix staffing form', () => {
     vi.spyOn(api, 'directOverride').mockRejectedValue(new ApiError('Grafik zmienił wersję', 409))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     await within(dialog).findByText('Bez naruszeń reguł twardych')
     fireEvent.click(saveButton())
@@ -1198,7 +1204,7 @@ describe('CalendarMatrix staffing form', () => {
 
     // The refusal was about the person it was made for: choosing again drops
     // it, and the frame that reappears leaves the focus where it is.
-    const person = within(dialog).getByRole('combobox', { name: 'Osoba' })
+    const person = within(dialog).getByRole('combobox', { name: /^Osoba na / })
     person.focus()
     fireEvent.change(person, { target: { value: '' } })
     fireEvent.change(person, { target: { value: 'm3' } })
@@ -1211,7 +1217,7 @@ describe('CalendarMatrix staffing form', () => {
     const load = vi.spyOn(api, 'calendar').mockResolvedValue(week())
     renderScreen(<CalendarMatrix role="admin" displayName="Administrator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
-    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     // Meanwhile Ola marks the day as one she cannot take; the screen refreshes when the window regains focus.
     load.mockResolvedValue(week({ availability: [{ member_id: 'm3', kind: 'unavailable', starts_on: '2026-09-11', ends_on: '2026-09-11', note: null }] }))
@@ -1227,51 +1233,203 @@ describe('CalendarMatrix staffing form', () => {
   })
 })
 
+describe('CalendarMatrix day correction', () => {
+  const urlop = { member_id: 'm1', kind: 'unavailable' as const, starts_on: '2026-09-11', ends_on: '2026-09-11', note: 'urlop' }
+  const openFriday = async () => {
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Marek Nowak, pt 11-09-2026/ }))[0])
+    return screen.findByRole('dialog')
+  }
+  const COLLISION = 'Kolizja: Anna Kowalska ma PRIMARY 11 wrz mimo zgłoszenia „Nie mogę”'
+
+  it('frames a duty held on a day its holder cannot take, above the roles, and changes the person from it', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week({ availability: [urlop] }))
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openFriday()
+
+    const frame = within(dialog).getByText(COLLISION, { selector: 'b' }).closest('.box')!
+    expect(frame).toHaveClass('box-warn')
+    expect(frame).toHaveTextContent('Powód: „urlop”.')
+    expect(frame.compareDocumentPosition(within(dialog).getByRole('group', { name: 'Obsada dnia' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The role row reads the same words to a screen reader.
+    expect(within(dialog).getByRole('button', { name: `PRIMARY: Anna Kowalska. Zmień obsadę. ${COLLISION}` })).toBeInTheDocument()
+
+    fireEvent.click(within(frame as HTMLElement).getByRole('button', { name: 'Zmień osobę' }))
+    expect(await within(dialog).findByRole('combobox', { name: 'Rola' })).toHaveValue('primary')
+    expect(within(dialog).getByRole('combobox', { name: 'Osoba na PRIMARY · 11 wrz' })).toBeInTheDocument()
+  })
+
+  it('names the conflict without a reason or an exit where there is none to give', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week({ availability: [{ ...urlop, note: null }] }, { '2026-09-11': { published: false } }))
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openFriday()
+
+    const frame = within(dialog).getByText(COLLISION, { selector: 'b' }).closest('.box')!
+    expect(frame).not.toHaveTextContent('Powód')
+    expect(within(frame as HTMLElement).queryByRole('button')).not.toBeInTheDocument()
+    // Off the publication the role rows are not buttons; the text is still read.
+    expect(within(dialog).getByRole('group', { name: 'Obsada dnia' })).toHaveTextContent(COLLISION)
+  })
+
+  it('keeps the conflict frame to coordinators, like the risk chip', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week({ availability: [urlop] }))
+    renderScreen(<CalendarMatrix role="member" displayName="Marek Nowak" range={WEEK_OF_TODAY} />)
+    const dialog = await openFriday()
+    expect(within(dialog).queryByText(COLLISION)).not.toBeInTheDocument()
+  })
+
+  it('says why a person is blocked in the option and describes the chosen one under the field', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week({
+      members: [
+        { id: 'm1', display_name: 'Anna Kowalska', eligibility: [{ role: 'primary', starts_on: '2026-01-01', ends_on: null }] },
+        { id: 'm2', display_name: 'Marek Nowak', eligibility: [{ role: 'primary', starts_on: '2026-01-01', ends_on: null }, { role: 'secondary', starts_on: '2026-01-01', ends_on: null }] },
+        { id: 'm3', display_name: 'Ola Wiśniewska', eligibility: [
+          { role: 'primary', starts_on: '2026-01-01', ends_on: null },
+          { role: 'secondary', starts_on: '2026-01-01', ends_on: '2026-09-01' },
+          { role: 'late_shift', starts_on: '2026-01-01', ends_on: null },
+        ] },
+        { id: 'm4', display_name: 'Piotr Zieliński' },
+      ],
+      availability: [{ member_id: 'm3', kind: 'prefer', starts_on: '2026-09-11', ends_on: '2026-09-11', note: null }],
+    }))
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openFriday()
+    fireEvent.click(within(dialog).getByRole('button', { name: /^PRIMARY: Anna Kowalska/ }))
+    const person = await within(dialog).findByRole('combobox', { name: 'Osoba na PRIMARY · 11 wrz' })
+
+    // The reason is the option's own words, after the name, and the option stays listed.
+    expect(within(dialog).getByRole('option', { name: 'Anna Kowalska · już pełni tę rolę tego dnia' })).toBeDisabled()
+    expect(within(dialog).getByRole('option', { name: 'Marek Nowak · ma już drugi on-call tego dnia' })).toBeDisabled()
+    expect(person).toHaveAccessibleDescription('Wybierz osobę, która ma objąć tę rolę.')
+
+    fireEvent.change(person, { target: { value: 'm3' } })
+    expect(person).toHaveAccessibleDescription('Ola Wiśniewska: uprawnienia PRIMARY, 11–19. Zgłoszenie na 11 wrz: „Chętnie wezmę”.')
+    fireEvent.change(person, { target: { value: 'm4' } })
+    // No eligibility in the payload: only what the person reported is said.
+    expect(person).toHaveAccessibleDescription('Bez zgłoszenia na 11 wrz.')
+  })
+
+  it('looks every cell up instead of searching the payload for it', async () => {
+    const dates = Array.from({ length: 56 }, (_, index) => addDaysIso('2026-09-07', index))
+    const people = Array.from({ length: 12 }, (_, index) => ({ id: `p${index}`, display_name: `Osoba ${index}` }))
+    const data = week({
+      starts_on: dates[0],
+      ends_on: dates[55],
+      members: people,
+      assignments: dates.flatMap((date, index) => [
+        duty(date, 'primary', people[index % 12].display_name, people[index % 12].id),
+        duty(date, 'secondary', people[(index + 1) % 12].display_name, people[(index + 1) % 12].id),
+      ]),
+      availability: people.map((person, index) => ({ member_id: person.id, kind: 'prefer_not' as const, starts_on: dates[index], ends_on: dates[index + 3], note: null })),
+    })
+    data.days = dates.map((service_date) => ({ service_date, weekday: '', is_day_off: false, holiday_name: null, published: true, events: [] }))
+    // Count the searches of the payload's own lists, wherever they come from.
+    let searches = 0
+    for (const list of [data.assignments, data.availability] as unknown[][]) {
+      for (const method of ['filter', 'find'] as const) {
+        Object.defineProperty(list, method, {
+          value: (...args: Parameters<unknown[]['filter']>) => {
+            searches += 1
+            return (Array.prototype[method] as (...rest: unknown[]) => unknown).apply(list, args)
+          },
+        })
+      }
+    }
+    vi.spyOn(api, 'calendar').mockResolvedValue(data)
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={{ starts_on: dates[0], ends_on: dates[55] }} zoom="8" />)
+    expect(await screen.findAllByRole('button', { name: /^Osoba 0, / })).toHaveLength(56)
+
+    // A handful per render for the whole range, never one per cell (672 of them).
+    expect(searches).toBeGreaterThan(0)
+    expect(searches).toBeLessThan(people.length)
+  })
+
+  it('keeps the last range on screen while the next one loads', async () => {
+    const nextWeek = { starts_on: '2026-09-14', ends_on: '2026-09-20' }
+    let finish: (value: CalendarData) => void = () => {}
+    vi.spyOn(api, 'calendar').mockImplementation((startsOn) => (startsOn === nextWeek.starts_on
+      ? new Promise((resolve) => { finish = resolve })
+      : Promise.resolve(week())))
+    function Harness() {
+      const [range, setRange] = useState(WEEK_OF_TODAY)
+      return (
+        <>
+          <button type="button" onClick={() => setRange(nextWeek)}>Następny tydzień</button>
+          <CalendarMatrix role="member" displayName="Anna Kowalska" range={range} />
+        </>
+      )
+    }
+    renderScreen(<Harness />)
+    await screen.findByRole('region', { name: 'Macierz grafiku' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Następny tydzień' }))
+    await waitFor(() => expect(api.calendar).toHaveBeenCalledWith(nextWeek.starts_on, nextWeek.ends_on))
+    expect(screen.getByRole('region', { name: 'Macierz grafiku' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByRole('status', { name: 'Wczytywanie grafiku…' })).not.toBeInTheDocument()
+    // A day of the range being left opens no inspector over the one coming.
+    fireEvent.click(screen.getAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ })[0])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    act(() => finish({ ...week(), ...nextWeek }))
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Macierz grafiku' })).not.toHaveAttribute('aria-busy'))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ })[0])
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+})
+
 describe('CalendarMatrix events', () => {
   const openDay = async () => {
     fireEvent.click((await screen.findAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ }))[0])
     return screen.findByRole('dialog')
   }
 
-  it('closes the event form on cancel and shows why an event was not added', async () => {
+  it('adds an event in its own window and keeps the day inspector open behind it', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week())
     const create = vi.spyOn(api, 'createCalendarEvent').mockRejectedValue(new ApiError('Tytuł jest za długi', 422))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openDay()
+    const inspector = await openDay()
 
-    const toggle = within(dialog).getByRole('button', { name: 'Wydarzenie' })
-    fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Anuluj' }))
-    expect(within(dialog).queryByRole('textbox', { name: /^Nazwa/ })).not.toBeInTheDocument()
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Wydarzenie…' }))
+    let form = await screen.findByRole('dialog', { name: 'Dodaj wydarzenie tego dnia' })
+    expect(form).toHaveTextContent('pt 11-09-2026')
+    await waitFor(() => expect(within(form).getByRole('textbox', { name: /^Nazwa/ })).toHaveFocus())
+    expect(within(inspector).queryByRole('textbox', { name: /^Nazwa/ })).not.toBeInTheDocument()
+    fireEvent.click(within(form).getByRole('button', { name: 'Anuluj' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Dodaj wydarzenie tego dnia' })).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: 'pt 11-09-2026' })).toBeInTheDocument()
 
-    fireEvent.click(toggle)
-    const title = within(dialog).getByRole('textbox', { name: /^Nazwa/ })
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Wydarzenie…' }))
+    form = await screen.findByRole('dialog', { name: 'Dodaj wydarzenie tego dnia' })
+    const title = within(form).getByRole('textbox', { name: /^Nazwa/ })
     fireEvent.change(title, { target: { value: '   ' } })
-    expect(within(dialog).getByRole('button', { name: 'Dodaj wydarzenie' })).toBeDisabled()
+    expect(within(form).getByRole('button', { name: 'Dodaj wydarzenie' })).toBeDisabled()
     // Enter in the field submits the form past the disabled button.
     fireEvent.submit(title.closest('form')!)
     expect(create).not.toHaveBeenCalled()
     fireEvent.change(title, { target: { value: 'Bardzo długi tytuł' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Dodaj wydarzenie' }))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Tytuł jest za długi')
+    fireEvent.click(within(form).getByRole('button', { name: 'Dodaj wydarzenie' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent('Tytuł jest za długi')
   })
 
-  it('keeps nothing of a day closed before its new event was saved', async () => {
+  it('lists the new event on the open day once it is saved', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week())
     let finish: (value: Awaited<ReturnType<typeof api.createCalendarEvent>>) => void = () => {}
     vi.spyOn(api, 'createCalendarEvent').mockImplementation(() => new Promise((resolve) => { finish = resolve }))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openDay()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Wydarzenie' }))
-    fireEvent.change(within(dialog).getByRole('textbox', { name: /^Nazwa/ }), { target: { value: 'Release' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Dodaj wydarzenie' }))
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij panel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const inspector = await openDay()
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Wydarzenie…' }))
+    const form = await screen.findByRole('dialog', { name: 'Dodaj wydarzenie tego dnia' })
+    fireEvent.change(within(form).getByRole('textbox', { name: /^Nazwa/ }), { target: { value: 'Release' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Dodaj wydarzenie' }))
+    // A save in flight cannot be abandoned from the window.
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Anuluj' })).toBeDisabled())
+    expect(within(form).queryByRole('button', { name: 'Zamknij' })).not.toBeInTheDocument()
 
     finish({ id: 'e1', title: 'Release', color: 'blue', starts_on: '2026-09-11', ends_on: '2026-09-11', created_at: '2026-09-10T07:00:00Z' })
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Dodaj wydarzenie tego dnia' })).not.toBeInTheDocument())
+    expect(within(inspector).getByText('Release')).toBeInTheDocument()
     await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(2))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('shows on the day why an event was not deleted', async () => {

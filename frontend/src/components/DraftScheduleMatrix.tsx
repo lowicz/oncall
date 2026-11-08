@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
 import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
-import { monthGroups, startsWeek } from '../lib/calendar'
+import { availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
 import { formatDate, formatShortDate, formatWeekday, warsawDate } from '../lib/dates'
 import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
 import { signed } from '../lib/numbers'
@@ -78,8 +78,13 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const days = useMemo(() => metadata.data?.days ?? [], [metadata.data])
   const members = metadata.data?.members ?? []
   const months = useMemo(() => monthGroups(days), [days])
-  const availabilityOf = (memberId: string, serviceDate: string) =>
-    metadata.data?.availability.find((item) => item.member_id === memberId && item.starts_on <= serviceDate && item.ends_on >= serviceDate)
+  // Every cell looks its duties and availability up instead of searching the payload.
+  const cellAssignments = useMemo(
+    () => groupByKey(result.assignments, (item) => `${item.service_date}|${item.assignee_name}`),
+    [result.assignments],
+  )
+  const cellAvailability = useMemo(() => availabilityByDay(metadata.data?.availability ?? [], days), [metadata.data, days])
+  const availabilityOf = (memberId: string, serviceDate: string) => cellAvailability.get(`${memberId}|${serviceDate}`)
   const conflictKeys = useMemo(
     () => new Set((result.unavailability_conflicts ?? []).map((item) => `${item.service_date}:${item.assignee_name}`)),
     [result.unavailability_conflicts],
@@ -146,7 +151,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                 <tr key={member.id}>
                   <th scope="row" className="who"><span className="who-name" title={member.display_name}>{member.display_name}</span></th>
                   {days.map((day) => {
-                    const assignments = result.assignments.filter((item) => item.service_date === day.service_date && item.assignee_name === member.display_name)
+                    const assignments = cellAssignments.get(`${day.service_date}|${member.display_name}`) ?? []
                     const availability = availabilityOf(member.id, day.service_date)
                     const conflict = conflictKeys.has(`${day.service_date}:${member.display_name}`)
                     const isSelected = selected?.day.service_date === day.service_date && selected.member.id === member.id

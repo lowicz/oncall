@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useLocation, useNavigationType } from 'react-router-dom'
 import { AdminUser, AdminUserInput, AdminUserUpdate, AssignmentRole, Eligibility, TeamMember, UserRole, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
 import { DateField } from '../../components/DateField'
@@ -9,6 +10,7 @@ import { roleLabels as accountRoleLabels } from '../../lib/nav'
 import { addDays, formatDate, formatMoment, formatShortDate, warsawDate } from '../../lib/dates'
 import { csvCell, downloadBlob } from '../../lib/download'
 import { isPolishPhone } from '../../lib/phone'
+import { useUrlParams } from '../../hooks/useUrlParams'
 import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
@@ -167,7 +169,15 @@ function csvOf(rows: Row[], today: string, now: number) {
 
 type Filter = 'all' | 'rotation' | 'outside' | 'inactive' | 'pending'
 const FILTERS: Filter[] = ['all', 'rotation', 'outside', 'inactive', 'pending']
+/** The filter as the URL names it: `osoby?filtr=w-rotacji`; none is all. */
+const FILTER_SLUGS: Record<Exclude<Filter, 'all'>, string> = { rotation: 'w-rotacji', outside: 'poza-rotacja', inactive: 'wylaczone', pending: 'oczekujace' }
+const filterOf = (slug: string | null): Filter =>
+  (Object.keys(FILTER_SLUGS) as Exclude<Filter, 'all'>[]).find((item) => FILTER_SLUGS[item] === slug) ?? 'all'
 type DetailTab = 'account' | 'rotation' | 'access'
+/** The open tab as the URL names it: `osoby?osoba=<id>&karta=rotacja`. */
+const TAB_SLUGS: Record<DetailTab, string> = { account: 'konto', rotation: 'rotacja', access: 'dostep' }
+const tabOf = (slug: string | null): DetailTab =>
+  (Object.keys(TAB_SLUGS) as DetailTab[]).find((item) => TAB_SLUGS[item] === slug) ?? 'account'
 
 /**
  * One table with the columns an administrator reads, a panel with three
@@ -186,11 +196,28 @@ export function PeoplePanel() {
   const branding = useBranding()
   const toast = useToast()
   const undoable = useUndoable()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // The open person and tab, the search and the filter live in the URL, so a
+  // refresh keeps the panel open and the list as it was, and a link opens it.
+  const [params, setParams] = useUrlParams()
+  const selectedId = params.get('osoba')
+  const tab = tabOf(params.get('karta'))
+  const filter = filterOf(params.get('filtr'))
+  const searchParam = params.get('szukaj') ?? ''
+  // Typed into its own state, which a router update lags behind; the URL
+  // takes it back only after a navigation the screen did not make itself. The
+  // screen only ever replaces its address, while a link pushes one and Back
+  // or Forward pops one.
+  const [search, setSearch] = useState(searchParam)
+  const { key: locationKey } = useLocation()
+  const navigationType = useNavigationType()
+  useEffect(() => {
+    if (navigationType !== 'REPLACE') setSearch(searchParam)
+  }, [locationKey, navigationType, searchParam])
+  // Whose details the forms hold, so a person named by the URL gets them once.
+  const filledFor = useRef<string | null>(null)
   // Undo runs after the save, when another person may be open in the panel.
   const openedId = useRef<string | null>(null)
   useEffect(() => { openedId.current = selectedId }, [selectedId])
-  const [tab, setTab] = useState<DetailTab>('account')
   const [accountForm, setAccountForm] = useState<AccountForm>(emptyAccountForm)
   // The phone is judged once the field is left or the form saved, not while it is typed or as the panel opens.
   const [phoneChecked, setPhoneChecked] = useState(false)
@@ -210,8 +237,6 @@ export function PeoplePanel() {
   const [eligibilityRole, setEligibilityRole] = useState<AssignmentRole>('primary')
   const [eligibilityFrom, setEligibilityFrom] = useState(today)
   const [eligibilityUntil, setEligibilityUntil] = useState('')
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
 
   const allRows = useMemo<Row[]>(() => {
     const byUser = new Map((team.data ?? []).map((member) => [member.user_id, member]))
@@ -245,27 +270,6 @@ export function PeoplePanel() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     queryClient.invalidateQueries({ queryKey: ['team'] })
-  }
-  const applyDetails = ({ user, member }: Row, section: DetailTab = 'account') => {
-    setSelectedId(user.id)
-    setTab(section)
-    setAccountForm({
-      personnel_number: user.personnel_number,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      is_active: user.is_active,
-    })
-    setRotationFrom(member?.active_from ?? today)
-    setRotationUntil(member?.active_until ?? '')
-    setEligibilityEdits({})
-    setPhoneChecked(false)
-    setEditingPeriod(null)
-    setAddingPeriod(false)
-    setResetUrl('')
-    setReissuedUrl('')
   }
   const openNew = () => {
     setNewForm(emptyAccount)
@@ -330,6 +334,45 @@ export function PeoplePanel() {
   const pendingChanges = [...accountChanges, ...accessChanges, ...rotationChanges, ...eligibilityChanges]
   const dirty = pendingChanges.length > 0
   const unsavedChanges = useUnsavedChanges(dirty)
+  // The panel's own moves in the URL leave nothing unsaved behind: the
+  // guard asks before the panel changes person, not on every tab.
+  const setDetails = (changes: Record<string, string | null>) => unsavedChanges.bypass(() => setParams(changes))
+  const setTab = (value: DetailTab) => setDetails({ karta: TAB_SLUGS[value] })
+  const closeDetails = () => {
+    filledFor.current = null
+    setDetails({ osoba: null, karta: null })
+  }
+  const applyDetails = ({ user, member }: Row, section: DetailTab = 'account') => {
+    filledFor.current = user.id
+    setDetails({ osoba: user.id, karta: TAB_SLUGS[section] })
+    setAccountForm({
+      personnel_number: user.personnel_number,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      is_active: user.is_active,
+    })
+    setRotationFrom(member?.active_from ?? today)
+    setRotationUntil(member?.active_until ?? '')
+    setEligibilityEdits({})
+    setPhoneChecked(false)
+    setEditingPeriod(null)
+    setAddingPeriod(false)
+    setResetUrl('')
+    setReissuedUrl('')
+  }
+  useEffect(() => {
+    if (!selectedId) {
+      filledFor.current = null
+      return
+    }
+    if (filledFor.current === selectedId) return
+    const row = allRows.find(({ user }) => user.id === selectedId)
+    if (row) applyDetails(row, tab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, allRows])
   const openDetails = (row: Row, section: DetailTab = 'account') => {
     unsavedChanges.requestAction(() => applyDetails(row, section))
   }
@@ -415,7 +458,7 @@ export function PeoplePanel() {
     },
     onSuccess: (pseudonym, row) => {
       setDeleteOpen(false)
-      setSelectedId(null)
+      closeDetails()
       toast.success(t.toast.deleted(row.user.display_name), { description: pseudonym ? t.toast.deletedPseudonym(pseudonym) : undefined })
       refresh()
     },
@@ -467,7 +510,7 @@ export function PeoplePanel() {
     if (!selectedRow || !dirty) return
     saveAll.mutate(selectedRow)
   }
-  const requestClose = () => unsavedChanges.requestAction(() => setSelectedId(null))
+  const requestClose = () => unsavedChanges.requestAction(closeDetails)
   const error = users.error || team.error || createRotation.error || addEligibility.error || deleteEligibility.error || dropQualification.error
   const ldapFieldsLocked = selectedRow?.user.auth_source === 'ldap'
   const selectedState = rotationState(selectedRow?.member, today)
@@ -507,7 +550,10 @@ export function PeoplePanel() {
               aria-label={t.searchPlaceholder}
               placeholder={t.searchPlaceholder}
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setDetails({ szukaj: event.target.value || null })
+              }}
               className="sech-search"
             />
             <Segmented
@@ -515,7 +561,7 @@ export function PeoplePanel() {
               wrap
               label={t.accounts}
               value={filter}
-              onChange={setFilter}
+              onChange={(value) => setDetails({ filtr: value === 'all' ? null : FILTER_SLUGS[value] })}
               options={FILTERS.map((item) => ({ value: item, label: t.filters[item] }))}
             />
           </>
@@ -646,7 +692,7 @@ export function PeoplePanel() {
           member={selectedRow.member}
           activeUntil={rotationUntil}
           onClose={() => setOffboardingOpen(false)}
-          onDone={() => { setOffboardingOpen(false); setSelectedId(null); refresh() }}
+          onDone={() => { setOffboardingOpen(false); closeDetails(); refresh() }}
           onChanged={refresh}
         />
       )}
@@ -677,7 +723,7 @@ export function PeoplePanel() {
               <span className="panel-foot-note small muted">
                 {t.details.unsaved(pendingChanges.join(' · '))}
                 {/* Named for its effect, so it needs no dialog; closing by Escape or the corner button still asks. */}
-                <button type="button" className="link-btn" onClick={() => setSelectedId(null)}>{t.details.discard}</button>
+                <button type="button" className="link-btn" onClick={closeDetails}>{t.details.discard}</button>
               </span>
             ) : (
               <>

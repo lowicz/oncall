@@ -204,7 +204,12 @@ bez zgody zastępcy i bez kroku akceptacji. Każdy wiersz roli w panelu ma
 na końcu przycisk <strong>Zmień…</strong> (pusta rola: <strong>Obsadź…</strong>), a kliknięcie
 całego wiersza działa tak samo. Korekta dotyczy wyłącznie
 wybranego dnia i roli, a wszystko, co trzeba o niej wiedzieć, pojawia się w
-panelu tuż pod wyborem osoby, bez osobnego okna potwierdzenia: linia reguł
+panelu tuż pod wyborem osoby, bez osobnego okna potwierdzenia. Pole
+<strong>Osoba na <code>&lt;rola&gt;</code> · <code>&lt;dzień&gt;</code></strong> wymienia wszystkich w rotacji tego dnia;
+kogo wybrać nie można, ten zostaje na liście z powodem po nazwisku
+(„Anna Kowalska · niedostępna tego dnia”), a podpowiedź pod polem opisuje
+wybraną osobę: jej uprawnienia tego dnia i to, co zgłosiła na ten dzień.
+Pod wyborem są linia reguł
 („Bez naruszeń reguł twardych”) i wpływ na bilans punktów obu osób. Jeśli
 zmiana złamie regułę twardą, w miejscu linii reguł pojawia się ramka „Ta
 korekta złamie reguły twarde” z listą naruszeń i polem „Rozumiem i świadomie
@@ -222,11 +227,16 @@ następne otwarcie okna. Po zapisie panel się zamyka, a powiadomienie mówi,
 co zmieniono i kto dostanie e-mail („Zmieniono obsadę 14 lis · PRIMARY:
 Anna Kowalska → Jan Nowak”); przycisk <strong>Otwórz dzień</strong> otwiera panel tego
 dnia ponownie,</li>
-<li><strong>koordynator i administrator</strong> mogą z tego samego panelu dodać wydarzenie
-kalendarza na ten dzień albo je usunąć; usunięcie działa od razu, a
-powiadomienie ma przycisk <strong>Cofnij</strong>, który przez kilka sekund przywraca
-wydarzenie.</li>
+<li><strong>koordynator i administrator</strong> mogą przyciskiem <strong>Wydarzenie…</strong> otworzyć
+osobne okno i dodać w nim wydarzenie kalendarza na ten dzień; panel dnia
+czeka pod spodem i po zapisie pokazuje nowe wydarzenie. Wydarzenie usuwa
+się z panelu dnia; usunięcie działa od razu, a powiadomienie ma przycisk
+<strong>Cofnij</strong>, który przez kilka sekund przywraca wydarzenie.</li>
 </ul>
+<p>Gdy ktoś ma dyżur w dniu, na który zgłosił „nie mogę”, koordynator widzi nad
+obsadą dnia ramkę „Kolizja: Jan Wiśniewski ma PRIMARY 14 mar mimo zgłoszenia
+„Nie mogę””, z powodem zgłoszenia i przyciskiem <strong>Zmień osobę</strong>, który otwiera
+zmianę obsady tej roli. Czytnik ekranu czyta ten sam tekst przy wierszu roli.</p>
 <p>Powody niedostępności pozostają prywatne: koordynator widzi je w szczegółach,
 członek zespołu tylko przy własnych wpisach, a konto podglądowe nie dostaje
 danych o dostępności w ogóle.</p>
@@ -270,9 +280,13 @@ Grafiku tak samo:</p>
 </tr>
 </tbody></table>
 </div>
-<p>Na Grafiku początek zakresu i długość są częścią adresu strony
-(<code>/grafik?od=2026-09-14&amp;zoom=8</code>), więc link do konkretnego widoku można
-przekazać dalej; starsze linki z <code>od</code> i <code>do</code> nadal działają. Paleta poleceń
+<p>Na Teraz i na Grafiku początek zakresu, jego długość, filtr <strong>Tylko z
+dyżurem</strong> i wybór między macierzą a listą dni są częścią adresu strony
+(<code>/grafik?od=2026-09-14&amp;zoom=8&amp;tylko=z-dyzurem&amp;widok=lista</code>, na Teraz
+<code>/?od=2026-09-14&amp;zoom=8</code>; bez <code>widok</code> wąski ekran zaczyna od listy dni, a
+szeroki od macierzy), więc odświeżenie strony zachowuje widok,
+a link do niego można przekazać dalej; starsze linki z <code>od</code> i <code>do</code> nadal
+działają. Paleta poleceń
 otwiera grafik z podświetloną osobą albo z panelem wskazanego dnia; wiersz
 podświetlonej osoby ma przy nazwisku znacznik „podświetlona”, a podświetlenie
 wyłącza znacznik obok nagłówka.</p>

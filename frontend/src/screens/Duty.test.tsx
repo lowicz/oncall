@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { chooseFromMenu, openMenu } from '../test/menu'
@@ -184,6 +184,73 @@ describe('DutyScreen schedule section', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Najbliższe 8 tygodni' })).toBeInTheDocument()
   })
 
+  it('keeps every step of quick clicks made before the window renders', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    const { router } = renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
+    await screen.findByRole('heading', { level: 2, name: 'Najbliższe 4 tygodnie' })
+
+    // Three clicks in one task: none of them sees the window the one before it moved.
+    act(() => {
+      for (let step = 0; step < 3; step += 1) fireEvent.click(screen.getByRole('button', { name: 'Do przodu o tydzień' }))
+    })
+    expect(await screen.findByRole('heading', { level: 2, name: '1 – 28 paź' })).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?od=2026-10-01')
+  })
+
+  it('keeps the window, the zoom and the filter in the URL, so a refresh shows the same view', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    const { router } = renderScreen(
+      <DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />,
+      { route: '/?od=2026-09-17&zoom=8&tylko=z-dyzurem' },
+    )
+
+    expect(await screen.findByRole('heading', { level: 2, name: '17 wrz – 11 lis' })).toBeInTheDocument()
+    expect(calendarCall).toHaveBeenCalledWith('2026-09-17', '2026-11-11')
+    expect(screen.getByRole('radio', { name: '8 tyg.' })).toHaveAttribute('aria-checked', 'true')
+    const menu = await openMenu('Więcej')
+    const filter = within(menu).getByRole('menuitemcheckbox', { name: 'Tylko z dyżurem' })
+    expect(filter).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(filter)
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('radio', { name: '2 tyg.' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?od=2026-09-17&zoom=2'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?od=2026-09-10&zoom=2'))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Najbliższe 2 tygodnie' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'dziś' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?zoom=2'))
+    await chooseFromMenu('Więcej', 'Tylko z dyżurem')
+    await waitFor(() => expect(router.state.location.search).toBe('?zoom=2&tylko=z-dyzurem'))
+  })
+
+  it('keeps the matrix or list view in the URL, so a refresh, Back and Forward show it again', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    const { router } = renderScreen(
+      <DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />,
+      { route: '/?widok=lista' },
+    )
+    expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+    const menu = await openMenu('Więcej')
+    const toggle = within(menu).getByRole('menuitemcheckbox', { name: 'Lista dni' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(toggle)
+    await waitFor(() => expect(router.state.location.search).toBe('?widok=macierz'))
+    expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+
+    await act(() => router.navigate('/?widok=lista'))
+    expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+    await act(() => router.navigate(-1))
+    expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+    await act(() => router.navigate(1))
+    expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+  })
+
   it('opens the legend from its link and switches to the day list', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
@@ -224,6 +291,16 @@ describe('DutyScreen on a phone', () => {
     expect(screen.getByText(/Twój następny dyżur:/)).toHaveTextContent('sob 12 wrz · SECONDARY')
     // The phone reads the schedule as a list.
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+  })
+
+  it('opens the matrix the URL names instead of the day list a phone starts with', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />, { route: '/?widok=macierz' })
+    expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Grafik dzień po dniu' })).not.toBeInTheDocument()
   })
 
   it('lets a viewer call and text the person on duty without their e-mail', async () => {

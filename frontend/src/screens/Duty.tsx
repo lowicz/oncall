@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CurrentDuty, ShareSession, UserRole, api } from '../api'
 import { roleLabels } from '../lib/labels'
 import { groupSwaps } from '../lib/swaps'
-import { addDays, daysBetween, formatDateLong, formatDayShort, formatRange, formatShortDate, relativeDay, warsawDate, weeksWord } from '../lib/dates'
+import { addDays, daysBetween, formatDateLong, formatDayShort, formatRange, formatShortDate, isIsoDate, relativeDay, warsawDate, weeksWord } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { CalendarMatrix, CalendarRange, MatrixSummary, MatrixZoom } from '../components/CalendarMatrix'
-import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
+import { MatrixControls, ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../components/MatrixControls'
+import { useUrlParams } from '../hooks/useUrlParams'
 import { AnchorButton, Box, LinkButton, PageHeader, RoleLabel, SectionHeading, StatusBadge, Tag, cx } from '../ui'
 
 const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
@@ -114,7 +114,9 @@ function matrixWindow(today: string, offset: number, zoom: MatrixZoom, share: Sh
  * of the published schedule; the strip above the page already says who is
  * on duty, so on a desktop the page goes straight to the risks and the
  * next weeks of the schedule. A phone has no strip and gets the duties as
- * cards with a call button instead.
+ * cards with a call button instead. The window's start, its zoom and the
+ * "only on duty" filter live in the URL (`?od=2026-09-14&zoom=8`), with the
+ * matrix or list view, so a refresh keeps the view.
  */
 export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   role: UserRole
@@ -131,16 +133,20 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const schedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps(), enabled: inRotation })
   const fairness = useQuery({ queryKey: ['fairness', undefined], queryFn: () => api.fairness(), enabled: canCoordinate })
-  const [zoom, setZoom] = useState<MatrixZoom>('4')
-  const [offset, setOffset] = useState(0)
-  const [hideIdle, setHideIdle] = useState(false)
-  const [view, setView] = useState<MatrixView>(narrow ? 'list' : 'matrix')
-  useEffect(() => { setView(narrow ? 'list' : 'matrix') }, [narrow])
-
-  const { range, wholeLink, canShiftBack, canShiftForward } = matrixWindow(today, offset, zoom, share)
-  // From the window actually shown: a share link may have clamped it away
-  // from where the offset alone would put it.
-  const shift = (days: number) => setOffset(daysBetween(today, range.starts_on) + days)
+  const [params, setParams] = useUrlParams()
+  const windowOf = (query: URLSearchParams) => {
+    const zoomParam = query.get('zoom')
+    const zoom: MatrixZoom = isZoom(zoomParam) ? zoomParam : '4'
+    const start = query.get('od')
+    const offset = isIsoDate(start) ? daysBetween(today, start) : 0
+    return { zoom, offset, ...matrixWindow(today, offset, zoom, share) }
+  }
+  const { zoom, offset, range, wholeLink, canShiftBack, canShiftForward } = windowOf(params)
+  const hideIdle = params.get(ONLY_ON_DUTY.key) === ONLY_ON_DUTY.value
+  const view = viewOf(params.get(VIEW_KEY), narrow)
+  // From the window the latest query shows: a share link may have clamped it
+  // away from where the offset alone would put it.
+  const shift = (days: number) => setParams((latest) => ({ od: addDays(windowOf(latest).range.starts_on, days) }))
   // The team holds nobody at all: no range has a row to zoom, filter or list,
   // so the empty state stands alone. A team that simply has no member active in
   // this window keeps its controls, so the view can move to where duties are.
@@ -226,13 +232,13 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
             controls={!nobodyNow(summary) && (
               <MatrixControls
                 zoom={zoom}
-                onZoom={setZoom}
+                onZoom={(value) => setParams({ zoom: value })}
                 onShift={shift}
-                onToday={() => setOffset(0)}
+                onToday={() => setParams({ od: null })}
                 hideIdle={hideIdle}
-                onHideIdle={setHideIdle}
+                onHideIdle={(value) => setParams({ [ONLY_ON_DUTY.key]: value ? ONLY_ON_DUTY.value : null })}
                 view={view}
-                onView={setView}
+                onView={(value) => setParams({ [VIEW_KEY]: VIEW_SLUGS[value] })}
                 showAvailability={role !== 'viewer'}
                 showRange={!wholeLink}
                 canShiftBack={canShiftBack}

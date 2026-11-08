@@ -44,6 +44,12 @@ Clicking a person (or **Open**) opens a panel with three tabs:
   local account, a **one-time** password reset link or - as long as the
   account is awaiting activation - a new activation link.
 
+The open person and tab, the search typed and the filter are part of the page
+address (`/osoby?osoba=<id>&karta=rotacja`, tabs `konto`, `rotacja`, `dostep`;
+`szukaj=<text>`, `filtr=w-rotacji`, `poza-rotacja`, `wylaczone`,
+`oczekujace`), so refreshing the page keeps the panel open and the list the
+same, and a link opens it straight away.
+
 An account without a rotation has an **Add to the rotation** button with an
 entry date on the Rotation tab. The activation link of a new account is shown
 once, after creation; pass the link on to the person through a secure

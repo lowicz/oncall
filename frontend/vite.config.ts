@@ -39,6 +39,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Whole screens rendered to a snapshot take a few seconds each; on a
+    // loaded machine or under coverage the default five made them flaky.
+    testTimeout: 20_000,
     // `npm test -- --coverage` (CI) writes coverage/lcov.info for SonarCloud.
     // Paths in it are relative to the repository root, where the scan runs.
     // Every line and branch of the application is exercised, and the

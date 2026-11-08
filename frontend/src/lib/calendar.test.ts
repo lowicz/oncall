@@ -127,6 +127,7 @@ describe('availabilityDutyConflicts', () => {
       display_name: 'Anna',
       service_date: '2026-09-01',
       role: 'primary',
+      note: null,
     }])
   })
 })

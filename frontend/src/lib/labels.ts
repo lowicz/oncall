@@ -1,4 +1,4 @@
-import { AssignmentRole, AvailabilityKind, DraftSchedule, LateShiftAnchor, RotationMode, SwapStatus } from '../api'
+import { AssignmentRole, AvailabilityKind, CalendarEventColor, DraftSchedule, LateShiftAnchor, RotationMode, SwapStatus } from '../api'
 import { messages } from '../i18n/messages'
 import { formatDay } from './dates'
 
@@ -13,6 +13,12 @@ export const roleLabels = (): Record<AssignmentRole, string> => messages().label
 export const lensLabels = (): Record<string, string> => messages().labels.lenses
 
 export const availabilityLabels = (): Record<AvailabilityKind, string> => messages().labels.availability
+
+const EVENT_COLOR_VALUES: CalendarEventColor[] = ['blue', 'green', 'amber', 'red', 'violet', 'teal']
+
+/** The colours a calendar event can wear, named in the current language, for a colour picker. */
+export const eventColors = (): Array<{ value: CalendarEventColor; label: string }> =>
+  EVENT_COLOR_VALUES.map((value) => ({ value, label: messages().schedule.eventColors[value] }))
 
 export const rotationLabels = (): Record<RotationMode, string> => messages().labels.rotation
 

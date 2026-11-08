@@ -759,10 +759,33 @@ describe('MineScreen points states', () => {
 
     const period = screen.getByRole('radiogroup', { name: 'Okres' })
     fireEvent.click(within(period).getByRole('radio', { name: 'Ten miesiąc' }))
-    expect(within(table).getByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
+    expect(await within(table).findByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
     fireEvent.click(within(period).getByRole('radio', { name: '12 mies.' }))
+    expect(await within(table).findByText('sierpień')).toBeInTheDocument()
     expect(within(period).getByRole('radio', { name: '12 mies.' })).toHaveAttribute('aria-checked', 'true')
-    expect(within(table).getByText('sierpień')).toBeInTheDocument()
+  })
+
+  it('keeps the period in the URL, so a refresh, Back and Forward show it again', async () => {
+    stub()
+    vi.spyOn(api, 'fairnessDuties').mockResolvedValue([
+      { service_date: '2026-08-12', role: 'secondary', points: 1, is_day_off: false },
+    ])
+    const { router } = renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />, { route: '/moje?okres=miesiac' })
+    const table = await screen.findByRole('table', { name: 'Punkty miesiąc po miesiącu' })
+    expect(within(table).getByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
+    const period = screen.getByRole('radiogroup', { name: 'Okres' })
+    expect(within(period).getByRole('radio', { name: 'Ten miesiąc' })).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(within(period).getByRole('radio', { name: '12 mies.' }))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(await within(table).findByText('sierpień')).toBeInTheDocument()
+
+    await act(() => router.navigate('/moje?okres=miesiac'))
+    expect(await within(table).findByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
+    await act(() => router.navigate(-1))
+    expect(await within(table).findByText('sierpień')).toBeInTheDocument()
+    await act(() => router.navigate(1))
+    expect(await within(table).findByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
   })
 
   it('shows failed points and loads them again on retry', async () => {
@@ -1048,6 +1071,56 @@ describe('MineScreen availability painting', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Poprzedni miesiąc' }))
     fireEvent.click(screen.getByRole('button', { name: 'Poprzedni miesiąc' }))
     expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, sierpień 2026' })).toBeInTheDocument()
+  })
+
+  it('keeps the month and the person in the URL, so a refresh shows the same calendar', async () => {
+    stub()
+    vi.spyOn(api, 'team').mockResolvedValue(TEAM)
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    const { router } = renderScreen(
+      <MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />,
+      { route: '/moje?miesiac=2026-11&osoba=m-beata' },
+    )
+    // The calendar is keyed by the person, so it settles once the team names her.
+    expect(await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
+    expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, listopad 2026' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Następny miesiąc' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?miesiac=2026-12&osoba=m-beata'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Osoba' }), { target: { value: '' } })
+    await waitFor(() => expect(router.state.location.search).toBe('?miesiac=2026-12'))
+    expect(await screen.findByRole('heading', { name: 'Moja dostępność' })).toBeInTheDocument()
+  })
+
+  it('paints nobody while the person named by the URL waits for the team', async () => {
+    stub()
+    let resolveTeam: (team: typeof TEAM) => void = () => {}
+    vi.spyOn(api, 'team').mockReturnValue(new Promise((resolve) => { resolveTeam = resolve }))
+    const own = vi.spyOn(api, 'availability')
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
+    const replaceMember = vi.spyOn(api, 'replaceMemberAvailabilityRange').mockResolvedValue(null)
+    renderScreen(
+      <MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />,
+      { route: '/moje?miesiac=2026-09&osoba=m-beata' },
+    )
+    const grid = await screen.findByRole('grid', { name: 'Kalendarz dostępności, wrzesień 2026' })
+    expect(grid).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(screen.getByRole('gridcell', { name: /niedz 20-09-2026/ }))
+    expect(own).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+    expect(replaceMember).not.toHaveBeenCalled()
+
+    await act(async () => resolveTeam(TEAM))
+    expect(await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
+    await idleCalendar()
+    expect(own).not.toHaveBeenCalled()
+  })
+
+  it('opens on the current month when the URL names no real one', async () => {
+    stub()
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />, { route: '/moje?miesiac=2026-13' })
+    expect(await screen.findByRole('grid', { name: 'Kalendarz dostępności, wrzesień 2026' })).toBeInTheDocument()
   })
 
   it('loads failed entries again on retry', async () => {

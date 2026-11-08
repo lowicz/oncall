@@ -554,7 +554,7 @@ describe('the Polish interface', () => {
       { route: '/grafik?dzien=2026-09-11' },
     )
     fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień obsadę' }))
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Osoba' }), { target: { value: 'm2' } })
+    fireEvent.change(await screen.findByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm2' } })
     await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
     await screen.findByText('Wpływ na bilans')
     await snapshotOf('schedule-coordinator-correction')

@@ -1,10 +1,39 @@
-import { AssignmentRole, CalendarData } from '../api'
+import { AssignmentRole, AvailabilityKind, CalendarData } from '../api'
 import { formatMonth, isMonday, monthsShort } from './dates'
 import { messages } from '../i18n/messages'
 
 /** Roles that must be staffed every single day. The 11-19 shift is working-days
  *  only (archive/docs/PLAN.md §3), so a missing one is not a coverage gap. */
 export const REQUIRED_ROLES: AssignmentRole[] = ['primary', 'secondary']
+
+const ALL_ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
+
+/** `items` grouped under `key`, each group in the original order: what a grid
+ *  reads per cell, built once per payload instead of a `filter` per cell. */
+export function groupByKey<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>()
+  for (const item of items) {
+    const group = groups.get(key(item))
+    if (group) group.push(item)
+    else groups.set(key(item), [item])
+  }
+  return groups
+}
+
+/** The availability entry covering each person's day among `days`, keyed
+ *  `member_id|service_date` (a person's entries never overlap). */
+export function availabilityByDay<T extends { member_id: string; starts_on: string; ends_on: string }>(
+  entries: readonly T[],
+  days: readonly { service_date: string }[],
+): Map<string, T> {
+  const byDay = new Map<string, T>()
+  for (const entry of entries) {
+    for (const { service_date } of days) {
+      if (entry.starts_on <= service_date && entry.ends_on >= service_date) byDay.set(`${entry.member_id}|${service_date}`, entry)
+    }
+  }
+  return byDay
+}
 
 export interface CoverageGap {
   service_date: string
@@ -16,20 +45,18 @@ export interface AvailabilityDutyConflict {
   display_name: string
   service_date: string
   role: AssignmentRole
+  /** The reason the person gave, if any. */
+  note: string | null
 }
 
 export function availabilityDutyConflicts(data: CalendarData): AvailabilityDutyConflict[] {
   const members = new Map(data.members.map((member) => [member.id, member.display_name]))
   const memberIds = new Map(data.members.map((member) => [member.display_name, member.id]))
+  const unavailableOn = availabilityByDay(data.availability.filter((entry) => entry.kind === 'unavailable'), data.days)
   return data.assignments.flatMap((assignment) => {
     const member_id = assignment.member_id ?? memberIds.get(assignment.assignee_name)
     if (!member_id) return []
-    const unavailable = data.availability.some(
-      (entry) => entry.member_id === member_id
-        && entry.kind === 'unavailable'
-        && entry.starts_on <= assignment.service_date
-        && entry.ends_on >= assignment.service_date,
-    )
+    const unavailable = unavailableOn.get(`${member_id}|${assignment.service_date}`)
     const display_name = members.get(member_id)
     return unavailable && display_name
       ? [{
@@ -37,6 +64,7 @@ export function availabilityDutyConflicts(data: CalendarData): AvailabilityDutyC
           display_name,
           service_date: assignment.service_date,
           role: assignment.role,
+          note: unavailable.note,
         }]
       : []
   })
@@ -121,6 +149,11 @@ export interface StaffingCandidate {
   /** Undefined when the person can be moved into the slot. Otherwise the reason
    *  the option is disabled, worded so it can be shown next to the control. */
   disabledReason?: string
+  /** The roles the person may hold that day; undefined when the payload
+   *  carries no eligibility. */
+  roles?: AssignmentRole[]
+  /** What the person reported for that day, if anything. */
+  availability?: AvailabilityKind
 }
 
 /**
@@ -148,28 +181,29 @@ export function staffingCandidates(
     )
     .map((member) => {
       const isCurrent = isCurrentAssignee(member, current)
-      const unavailable = data.availability.some(
+      const availability = data.availability.find(
         (item) => item.member_id === member.id
-          && item.kind === 'unavailable'
           && item.starts_on <= serviceDate
           && item.ends_on >= serviceDate,
-      )
+      )?.kind
+      const unavailable = availability === 'unavailable'
       const oppositeClash = opposite !== null && data.assignments.some(
         (item) => item.service_date === serviceDate
           && item.role === opposite
           && isCurrentAssignee(member, item),
       )
-      const eligible = member.eligibility?.some(
-        (item) => item.role === role && item.starts_on <= serviceDate
-          && (!item.ends_on || item.ends_on >= serviceDate),
-      ) ?? true
+      const roles = member.eligibility && ALL_ROLES.filter((item) => member.eligibility!.some(
+        (period) => period.role === item && period.starts_on <= serviceDate
+          && (!period.ends_on || period.ends_on >= serviceDate),
+      ))
+      const eligible = roles?.includes(role) ?? true
       let disabledReason: string | undefined
       const reasons = messages().calendar.disabledReasons
       if (isCurrent) disabledReason = reasons.alreadyHoldsRole
       else if (!eligible) disabledReason = reasons.notEligible
       else if (unavailable) disabledReason = reasons.unavailable
       else if (oppositeClash) disabledReason = reasons.otherOnCall
-      return { id: member.id, display_name: member.display_name, isCurrent, disabledReason }
+      return { id: member.id, display_name: member.display_name, isCurrent, disabledReason, roles, availability }
     })
     .sort((a, b) => {
       if (Boolean(a.disabledReason) !== Boolean(b.disabledReason)) {

@@ -33,7 +33,8 @@ strzałkami zmieniającymi miesiąc po obu stronach. Na telefonie wiersz z
 miesiącem zostaje przyklejony pod górnym paskiem, gdy przewijasz kalendarz.
 Nad kalendarzem jest pędzel z czterema trybami - **nie mogę**, **wolę nie**,
 **chętnie** i **wyczyść** - a obok niego pole **Powód do kolejnych wpisów**:
-najpierw wybierasz, co i dlaczego, potem zaznaczasz dni.
+najpierw wybierasz, co i dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie
+strony (`/moje?miesiac=2026-10`), więc odświeżenie zostawia ten sam kalendarz.
 
 - Kliknięcie dnia zapisuje ten jeden dzień wybranym trybem.
 - Przeciągnięcie po dniach zapisuje cały zakres; Shift+klik domyka zakres od
@@ -90,7 +91,7 @@ widzą dostępności w ogóle.
 
 Koordynator i administrator mają w nagłówku sekcji pole **Osoba**. Po
 wybraniu kogoś kalendarz pokazuje dostępność tej osoby i zapisuje wpisy w jej
-imieniu:
+imieniu (wybrana osoba też jest w adresie strony, jako `osoba=`):
 
 - osoba dostaje o tym powiadomienie,
 - może wpis usunąć,
@@ -118,7 +119,8 @@ Jedna liczba: Twoje odchylenie od sprawiedliwego udziału w punktach za
 ostatnie 12 miesięcy (na przykład `+0,5`), pod nią pasek dwukierunkowy i
 werdykt względem progu (**W normie** albo **Poza normą**, z progiem
 podanym w treści). Tabela miesięcy pokazuje punkty, liczbę dyżurów i dni
-weekendowych; przełącznik **12 mies.** / **Ten miesiąc** zawęża listę. Link
+weekendowych; przełącznik **12 mies.** / **Ten miesiąc** zawęża listę (ten miesiąc jest w
+adresie strony jako `okres=miesiac`). Link
 **Pełny raport sprawiedliwości** prowadzi do ekranu z całym zespołem - jak
 liczone są punkty, opisuje [Sprawiedliwość](../produkt/sprawiedliwosc.md).
 

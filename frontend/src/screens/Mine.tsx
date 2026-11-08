@@ -26,6 +26,7 @@ import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRang
 import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { usePublicConfig } from '../hooks/usePublicConfig'
+import { useUrlParams } from '../hooks/useUrlParams'
 import { undoable } from '../lib/undo'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
@@ -67,6 +68,8 @@ type Brush = AvailabilityKind | 'clear'
 function monthOf(iso: string) {
   return iso.slice(0, 7)
 }
+
+const isMonth = (value: string | null): value is string => Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value))
 function monthDays(month: string) {
   const [y, m] = month.split('-').map(Number)
   const count = new Date(Date.UTC(y, m, 0)).getUTCDate()
@@ -427,14 +430,14 @@ const availabilityKey = (member: string) => (member ? ['availability', 'member',
  * into is re-created around it) and is saved immediately. A coordinator can
  * paint another person's calendar from the person picker.
  */
-function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth, target, onTarget }: {
+function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMonth, target, onTarget }: {
   role: UserRole
   hasTeamMember: boolean
   displayName: string
   /** The month and the person shown, held by the screen so a duty in the list
    *  can open its own day in the user's own calendar. */
   month: string
-  onMonth: (month: string) => void
+  onStepMonth: (months: number) => void
   /** '' means "myself"; a member id means "on behalf of that person". */
   target: string
   onTarget: (target: string) => void
@@ -455,16 +458,19 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth,
   // user's own availability).
   const targetMember = team.data?.find((member) => member.id === target && member.id !== ownMember?.id)
   const onBehalf = Boolean(targetMember)
+  // A person named by the URL is only known once the team has loaded; until
+  // then the section neither reads nor paints anyone's availability.
+  const resolving = Boolean(target) && canActOnBehalf && team.isPending
   // An admin who is not in the rotation has no availability of their own to
   // show, so the section only works once a person is picked.
-  const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf
+  const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf && !resolving
 
   // Whose list the brush paints: '' is the user's own.
   const member = onBehalf ? target : ''
   const entries = useQuery({
     queryKey: availabilityKey(member),
     queryFn: onBehalf ? () => api.memberAvailability(target) : api.availability,
-    enabled: onBehalf || hasTeamMember,
+    enabled: !resolving && (onBehalf || hasTeamMember),
   })
   const calendarStart = `${month}-01`
   const calendarEnd = addDays(`${shiftMonth(month, 1)}-01`, -1)
@@ -559,9 +565,9 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth,
               </Select>
             )}
             <span className="pager avail-month">
-              <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => onMonth(shiftMonth(month, -1))} />
+              <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => onStepMonth(-1)} />
               <h3 className="month-title">{formatMonth(month)}</h3>
-              <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => onMonth(shiftMonth(month, 1))} />
+              <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => onStepMonth(1)} />
             </span>
           </>
         )}
@@ -597,7 +603,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth,
             duties={duties}
             brush={brush}
             today={today}
-            disabled={entries.isLoading}
+            disabled={resolving || entries.isLoading}
             narrow={narrow}
             onPaint={(startsOn, endsOn) => paint.mutate({
               member,
@@ -656,7 +662,9 @@ function PointsSection({ displayName, compact, onAvailability }: {
     queryFn: () => api.fairnessDuties(me!.member_id),
     enabled: Boolean(me) && !compact,
   })
-  const [period, setPeriod] = useState<'12m' | 'month'>('12m')
+  // The period lives in the URL (`?okres=miesiac`), so a refresh keeps it.
+  const [params, setParams] = useUrlParams()
+  const period = params.get('okres') === 'miesiac' ? 'month' : '12m'
   const thisMonth = monthOf(warsawDate())
   const balance = me && fairness.data ? totalBalance(me, fairness.data.late_shift_balanced) : null
   const threshold = fairness.data?.criterion_points ?? 0
@@ -674,7 +682,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
           <Segmented<'12m' | 'month'>
             label={t.period}
             value={period}
-            onChange={setPeriod}
+            onChange={(value) => setParams({ okres: value === 'month' ? 'miesiac' : null })}
             options={[{ value: '12m', label: t.twelveMonths }, { value: 'month', label: t.thisMonth }]}
           />
         )}
@@ -980,11 +988,20 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
     if (location.hash === '#ics') setIcsOpen(true)
     if (location.hash === '#dostepnosc') document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start' })
   }, [location.hash])
-  const [month, setMonth] = useState(monthOf(today))
-  const [target, setTarget] = useState('')
+  // The month and the person of the availability calendar live in the URL
+  // (`?osoba=<id>&miesiac=2026-09`), so a refresh keeps them.
+  const [params, setParams] = useUrlParams()
+  const target = params.get('osoba') ?? ''
+  const monthIn = (query: URLSearchParams) => {
+    const value = query.get('miesiac')
+    return isMonth(value) ? value : monthOf(today)
+  }
+  const month = monthIn(params)
+  // From the latest query, which a render of quick clicks may not show yet.
+  const stepMonth = (months: number) => setParams((latest) => ({ miesiac: shiftMonth(monthIn(latest), months) }))
+  const setTarget = (value: string) => setParams({ osoba: value || null })
   const showCollision = (serviceDate: string) => {
-    setMonth(monthOf(serviceDate))
-    setTarget('')
+    setParams({ miesiac: monthOf(serviceDate), osoba: null })
     scrollToAvailability()
   }
   const scrollToAvailability = () => document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
@@ -1008,7 +1025,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
       {calendar.data && <DutyList duties={upcoming} today={today} collides={collides} onShowCollision={showCollision} />}
     </section>
   )
-  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} month={month} onMonth={setMonth} target={target} onTarget={setTarget} />
+  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} month={month} onStepMonth={stepMonth} target={target} onTarget={setTarget} />
   const phone = <PhoneSection inRotation={inRotation} />
 
   return (
