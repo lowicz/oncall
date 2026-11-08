@@ -94,7 +94,7 @@ function lateTexts(
   if (link?.coupled) note = t.withAnchor(anchorLabel!)
   else if (lateSlot) note = t.heldBy(lateSlot.assignee_name)
   let hint: string | undefined
-  if (link && onCall === link.anchor) {
+  if (onCall === link?.anchor) {
     if (late) hint = link.coupled ? t.lateByPolicy(link.holder, anchorLabel!) : t.lateByYou(anchorLabel!, link.anchorHolder)
     else if (link.coupled) hint = t.lateStays(link.holder)
   }
