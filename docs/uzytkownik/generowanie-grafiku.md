@@ -160,8 +160,11 @@ Szkic ──► Do akceptacji ──► Opublikowany
    listą skutków: ile przydziałów stanie się grafikiem, co z wcześniejszymi
    grafikami, ile ostrzeżeń miękkich trafi do audytu jako zaakceptowane i ile
    oczekujących zamian zostanie anulowanych. Jeżeli zakres już się zaczął,
-   trzeba dodatkowo zaznaczyć, że zespół zobaczy zmianę od razu. Publikuje
-   przycisk **Publikuj v*N***; **Wróć do propozycji** zamyka arkusz bez zmian.
+   trzeba dodatkowo zaznaczyć, że zespół zobaczy zmianę od razu. Naruszenia
+   reguł odpoczynku i luka przed grafikiem mają każde własną ramkę z polem
+   wyboru („Rozumiem i świadomie łamię te reguły”, „Rozumiem, że te dni
+   zostają bez obsady”), a przycisk publikacji działa dopiero po ich zaznaczeniu.
+   Publikuje przycisk **Publikuj v*N***; **Wróć do propozycji** zamyka arkusz bez zmian.
    Publikacja sprawdza pełne pokrycie zakresu; brak obsady któregokolwiek
    dnia zatrzymuje operację.
 3. Grafik staje się widoczny dla wszystkich, rozchodzą się powiadomienia, a

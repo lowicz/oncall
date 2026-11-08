@@ -723,7 +723,9 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
     fireEvent.click(sendButton())
 
-    expect(await screen.findByText('Zamiana złamie reguły twarde grafiku; potwierdź świadome naruszenie')).toBeInTheDocument()
+    const refusal = await screen.findByText('Zamiana złamie reguły twarde grafiku; potwierdź świadome naruszenie')
+    // The refusal with its rules is announced and focused like any other submit error.
+    expect(refusal.closest('[role="alert"]')).toHaveFocus()
     expect(await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeChecked()
     expect(search).toHaveBeenCalledTimes(2)
     expect(sendButton()).toBeDisabled()
@@ -1487,7 +1489,9 @@ describe('SwapPanel exchange: the "in return" step', () => {
     fireEvent.click(await choice(/śr 16 wrz/))
     fireEvent.click(sendButton())
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Zamiana złamie reguły twarde grafiku')
+    const refusal = await screen.findByRole('alert')
+    expect(refusal).toHaveTextContent('Zamiana złamie reguły twarde grafiku')
+    expect(refusal).toHaveFocus()
     await waitFor(() => expect(search).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(sendButton()).toBeDisabled())
     expect(await choice(/śr 16 wrz/)).toHaveTextContent('reguła twarda')
