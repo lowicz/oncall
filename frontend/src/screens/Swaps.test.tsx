@@ -401,7 +401,7 @@ describe('SwapPanel new request', () => {
     expect(option).toHaveTextContent('Piotr Zieliński najlepsze dopasowanie')
     expect(option).toHaveTextContent('Chętnie wezmę')
     expect(option).toHaveTextContent('bez naruszeń')
-    expect(option).toHaveTextContent('-1,0 pkt względem udziału')
+    expect(option).toHaveTextContent('-1 pkt względem udziału')
     expect(screen.queryByText(/poniżej udziału/)).not.toBeInTheDocument()
     fireEvent.click(option)
     // The rest is read under the picked card.
@@ -1262,11 +1262,11 @@ describe('SwapPanel composing', () => {
       '1Celina', '2Dorota', '3Beata', '4Ewa', '–Zenon',
     ]))
     const [celina, dorota, , , zenon] = within(group).getAllByRole('radio')
-    expect(celina).toHaveTextContent('-2,0 pkt')
+    expect(celina).toHaveTextContent('-2 pkt')
     expect(celina).toHaveTextContent('najlepsze dopasowanie')
     expect(celina).toHaveClass('rank-best')
     expect(dorota).toHaveTextContent('Chętnie wezmę')
-    expect(dorota).toHaveTextContent('bez naruszeń+2,0 pkt')
+    expect(dorota).toHaveTextContent('bez naruszeń+2 pkt')
     expect(dorota).not.toHaveTextContent('najlepsze dopasowanie')
     expect(dorota).not.toHaveClass('rank-best')
     expect(zenon).toHaveAttribute('aria-disabled', 'true')
@@ -1297,7 +1297,7 @@ describe('SwapPanel composing', () => {
     const candidate = await screen.findByRole('radio', { name: /Piotr Zieliński/ })
     expect(candidate).toHaveTextContent('ostrzeżenie')
     fireEvent.click(candidate)
-    expect(await screen.findByText('Dzieli blok dni wolnych.')).toHaveClass('rank-sub')
+    expect(await screen.findByText('Dzieli blok dni wolnych.')).toHaveClass('rank-detail')
     // The warning waits under the folded line, which counts it.
     const details = screen.getByRole('button', { name: /^Wpływ na bilans i ostrzeżenia/ })
     expect(details).toHaveTextContent('1 ostrzeżenie')
@@ -2061,7 +2061,7 @@ describe('SwapPanel on a phone', () => {
     const decide = await screen.findByRole('button', { name: 'Zdecyduj: pon 14 wrz PRIMARY' })
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     const row = decide.closest('.list-row') as HTMLElement
-    expect(row).toHaveTextContent('pon 14 wrz · PRIMARYMarek Nowak → Ty · czeka na Ciebie')
+    expect(row).toHaveTextContent('pon 14 wrz · PRIMARY Oczekuje na zastępcęMarek Nowak → Ty · czeka na Ciebie')
     expect(within(row).getByText('Oczekuje na zastępcę')).toBeInTheDocument()
     expect(row).not.toHaveClass('list-row-hl')
 
@@ -2085,7 +2085,7 @@ describe('SwapPanel on a phone', () => {
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />, { route: '/zamiany?skrzynka=moje' })
 
     const exchange = (await screen.findByRole('button', { name: /^Podgląd: pon 14 wrz/ })).closest('.list-row') as HTMLElement
-    expect(exchange).toHaveTextContent('pon 14 wrz · PRIMARY ⇄ zamiana z śr 16 wrz · SECONDARY łamie regułyTy → Ola Wiśniewska · czeka na: Ola Wiśniewska')
+    expect(exchange).toHaveTextContent('pon 14 wrz · PRIMARY ⇄ zamiana z śr 16 wrz · SECONDARY Oczekuje na zastępcę łamie regułyTy → Ola Wiśniewska · czeka na: Ola Wiśniewska')
 
     fireEvent.click(inbox(/^Zamknięte/))
     const lapsed = (await screen.findByRole('button', { name: /^Podgląd: wt 8 wrz/ })).closest('.list-row') as HTMLElement

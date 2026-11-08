@@ -224,7 +224,7 @@ function CandidateFacts({ option, breaks, deviation, benefit, takesOnly }: {
     (benefit ?? 0) > 0 && t.improvesBalance,
   ].filter(Boolean)
   if (facts.length === 0) return null
-  return <p className="rank-sub muted small">{facts.join(' ')}</p>
+  return <p className="rank-detail">{facts.join(' ')}</p>
 }
 
 /**
@@ -797,15 +797,13 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               {visible.map((item) => {
                 const returned = returnOf(item)
                 return (
-                  <ListRow
-                    key={item.id}
-                    highlight={openId === item.id}
-                    aside={<><StatusBadge tone={statusTone[item.status]}>{statuses[item.status]}</StatusBadge>{rowAction(item)}</>}
-                  >
+                  // The status rides with the day, so the narrow main column keeps its width.
+                  <ListRow key={item.id} highlight={openId === item.id} aside={rowAction(item)}>
                     <b>
                       {slotSummary(slotsOf(item))}
                       {returned && <> <span aria-hidden="true">⇄</span> <span className="sr-only">{t.common.swapWith}</span> {slotSummary(returnSlotsOf(item))}</>}
                     </b>
+                    {' '}<StatusBadge tone={statusTone[item.status]}>{statuses[item.status]}</StatusBadge>
                     {brokenRules(item).length > 0 && <> <Tag tone="late">{t.swaps.rules.tag}</Tag></>}
                     <small>
                       {[
@@ -1044,7 +1042,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                         best={index === 0 && tierOf(option) === 0 && (benefit ?? 0) > 0}
                         points={deviation !== null && (
                           <span className={deviation > 0 ? 'rank-fact-warn' : 'rank-fact-ok'}>
-                            {t.swaps.compose.points(signedPoints(deviation))}
+                            {t.swaps.compose.points(signed(deviation))}
                             <span className="sr-only"> {t.swaps.compose.pointsMeaning}</span>
                           </span>
                         )}

@@ -520,6 +520,8 @@ button.rank-c:hover:not(:disabled):not([aria-disabled='true']) { background: var
 .rank-sel { box-shadow: 0 0 0 2px var(--sig-line); }
 /* How a selected row's day is taken: under the row, kept apart from the next one. */
 .rank-sub { padding: 0 0 6px 12px; }
+/* The facts of the picked card, hung under it. */
+.rank-detail { margin: -8px 0 0; padding: 0 12px 8px; font-size: 12px; line-height: 16px; color: var(--muted); border: 1px solid var(--sig-line); border-top: 0; border-radius: 0 0 10px 10px; background: var(--s1); }
 /* Blocked but still focusable, so its reason is read: muted, not faded. */
 button.rank-c.rank-blocked { cursor: not-allowed; }
 .rank-blocked .rank-no, .rank-blocked .rank-nm { color: var(--muted); }
