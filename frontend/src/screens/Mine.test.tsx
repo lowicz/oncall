@@ -455,7 +455,8 @@ describe('MineScreen phone', () => {
     expect(screen.getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
     expect(screen.queryByText('Wymagany dla osób w rotacji.')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zapisz numer' }))
-    expect(await screen.findByText('Numer telefonu to +48 i dziewięć cyfr')).toBeInTheDocument()
+    const refusal = await screen.findByText('Numer telefonu to +48 i dziewięć cyfr')
+    expect(refusal.closest('[role="alert"]')).toHaveFocus()
     expect(update).toHaveBeenCalledWith('+49 170 1234567')
   })
 

@@ -95,13 +95,20 @@ From this panel:
 
 - a **team member** can start a swap request for their own slot,
 - a **coordinator and an administrator** can change any assignment directly,
-  without the replacement's consent and without an acceptance step. The change
-  shows the effect on both people's points balance, saves a correction and
-  concerns only the chosen day and role. A correction of a day that has
-  already passed requires giving a reason. If the change breaks a hard rule,
-  the confirmation lists the violations under the heading “This correction
-  will break hard rules”, and the save button works only once you tick that
-  you are breaking them knowingly; such a violation goes to the audit log,
+  without the replacement's consent and without an acceptance step. The
+  correction concerns only the chosen day and role, and everything there is
+  to know about it appears in the panel right under the choice of person,
+  without a separate confirmation dialog: the rule line (“No hard rule is
+  broken”) and the effect on both people's points balance. If the change
+  breaks a hard rule, the rule line gives way to a “This correction will
+  break hard rules” frame with the list of violations and an “I understand
+  and knowingly break these rules” box; such a violation goes to the audit
+  log. A correction of a day that has already passed has a reason field in
+  the same place (at least 10 characters). **Save the staffing change** saves
+  only once a person is chosen, the rules are checked, the violations are
+  acknowledged and the reason is entered. When the save is refused, for
+  example because the schedule changed in the meantime, the reason for the
+  refusal appears in the panel and takes the focus,
 - a **coordinator and an administrator** can add a calendar event on that day
   from the same panel.
 

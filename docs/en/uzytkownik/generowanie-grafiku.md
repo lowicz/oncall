@@ -169,7 +169,11 @@ Draft ──► For approval ──► Published
    happens to the earlier schedules, how many soft warnings go to the audit
    as accepted and how many pending swaps will be cancelled. If the range has
    already started, you additionally have to tick that the team will see the
-   change immediately. The **Publish v*N*** button publishes; **Back to the
+   change immediately. Rest rule violations and a gap before the schedule
+   each have their own frame with a checkbox (“I understand and knowingly
+   break these rules”, “I understand that these days stay unstaffed”), and
+   the publish button works only once they are ticked. The **Publish v*N*** button
+   publishes; **Back to the
    proposal** closes the sheet without changes. Publication checks the full
    coverage of the range; missing staffing on any day stops the operation.
 3. The schedule becomes visible to everyone, notifications go out, and the

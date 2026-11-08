@@ -14,6 +14,7 @@ import { DraftList } from '../components/DraftList'
 import { DraftProblems, ProblemGrouping, problemCounts } from '../components/DraftProblems'
 import { LegendPopover } from '../components/MatrixControls'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { AcknowledgeBox } from '../components/DecisionFrame'
 import { DateField } from '../components/DateField'
 import { ScheduleComparison } from '../components/ScheduleComparison'
 import {
@@ -164,6 +165,11 @@ export function GeneratorPanel() {
     enabled: publishConfirmOpen && result?.status === 'proposed',
   })
   useEffect(() => { setChangeResolutions({}); setPublishAcknowledged(false) }, [result?.id, result?.version])
+  // Each kind of violation the publication carries is consented to on its own,
+  // and only for the preview it was shown with.
+  const [restAcknowledged, setRestAcknowledged] = useState(false)
+  const [gapAcknowledged, setGapAcknowledged] = useState(false)
+  useEffect(() => { setRestAcknowledged(false); setGapAcknowledged(false) }, [publishPreview.data])
   const impact = useQuery(draftFairnessImpactQuery(result))
   const [toDelete, setToDelete] = useState<ScheduleSummary | null>(null)
   const invalidateDrafts = () => {
@@ -644,6 +650,8 @@ export function GeneratorPanel() {
                 loading={publish.isPending}
                 disabled={publish.isPending || publishPreview.isLoading || publishPreview.isError
                   || (result.starts_on <= today && !publishAcknowledged)
+                  || (Boolean(publishPreview.data?.rest_violations.length) && !restAcknowledged)
+                  || (Boolean(publishPreview.data?.uncovered_before.length) && !gapAcknowledged)
                   || Boolean(publishPreview.data?.lost_changes.some((item) => !changeResolutions[`${item.service_date}:${item.role}`]))}
                 onClick={() => publish.mutate({
                   id: result.id,
@@ -715,19 +723,21 @@ export function GeneratorPanel() {
             </Box>
           ) : null}
           {publishPreview.data?.uncovered_before.length ? (
-            <Box tone="warn" title={t.publish.gapTitle}>{t.publish.gapBody(publishPreview.data.uncovered_before.map(formatDate).join(', '))}</Box>
+            <AcknowledgeBox title={t.publish.gapTitle} label={t.publish.acknowledgeGap} checked={gapAcknowledged} onChange={setGapAcknowledged}>
+              {t.publish.gapBody(publishPreview.data.uncovered_before.map(formatDate).join(', '))}
+            </AcknowledgeBox>
           ) : null}
           {publishPreview.data?.stale_changes_count ? (
             <Box tone="warn" title={t.publish.staleTitle(publishPreview.data.stale_changes_count)} />
           ) : null}
           {publishPreview.data?.rest_violations.length ? (
-            <Box tone="bad" title={t.publish.restTitle}>
+            <AcknowledgeBox title={t.publish.restTitle} label={t.publish.acknowledgeRest} checked={restAcknowledged} onChange={setRestAcknowledged}>
               <ul className="box-list">
                 {publishPreview.data.rest_violations.map((violation) => (
                   <li key={`${violation.member_name}-${violation.rule}`}>{t.publish.restItem(violation.member_name, violation.message, violation.days.map(formatDate).join(', '))}</li>
                 ))}
               </ul>
-            </Box>
+            </AcknowledgeBox>
           ) : null}
           {result.starts_on <= today && (
             <Checkbox

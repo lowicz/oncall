@@ -539,7 +539,7 @@ export function PeoplePanel() {
         )}
       >
         <form id="new-account-form" className="stack-sm" onSubmit={(event: FormEvent) => { event.preventDefault(); createAccount.mutate(newForm) }}>
-          {createAccount.error && <Box tone="bad" role="alert" title={createAccount.error.message} />}
+          {createAccount.error && <Box tone="bad" role="alert" focus title={createAccount.error.message} />}
           {activationUrl && <LinkResult value={activationUrl} label={t.newAccountPanel.activationLink} />}
           {!activationUrl && (
             <>
@@ -618,7 +618,7 @@ export function PeoplePanel() {
       >
         {selectedRow && (
           <form id="person-form" onSubmit={submitAll} className="stack-sm">
-            {saveAll.error && <Box tone="bad" role="alert" title={saveAll.error.message} />}
+            {saveAll.error && <Box tone="bad" role="alert" focus title={saveAll.error.message} />}
             <Tabs<DetailTab>
               label={t.details.sections}
               value={tab}

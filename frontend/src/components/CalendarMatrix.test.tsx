@@ -174,33 +174,38 @@ const threeInSeven = {
   days: [day(1), day(2), day(3), day(4)],
 }
 
-/** Open the confirmation for handing Anna's primary duty on day(1) to Marek. */
+/** The save button of the change form: blocked through `aria-disabled`, so it stays focusable. */
+const saveButton = () => screen.getByRole('button', { name: 'Zapisz zmianę obsady' })
+const expectBlocked = (button: HTMLElement) => expect(button).toHaveAttribute('aria-disabled', 'true')
+const expectReady = (button: HTMLElement) => expect(button).not.toHaveAttribute('aria-disabled')
+
+/** Pick Marek for Anna's primary duty on day(1); the decision frame opens under him. */
 const confirmHandOver = async () => {
   const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
   fireEvent.click(annaCells[0])
   fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
   fireEvent.change(await screen.findByRole('combobox', { name: 'Osoba' }), { target: { value: 'm2' } })
-  fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…/ }))
-  return screen.findByRole('button', { name: /^Zmień obsadę$/ })
+  return saveButton()
 }
 
-describe('CalendarMatrix override confirmation', () => {
+describe('CalendarMatrix override decision frame', () => {
   it('shows the hard rules the override would break before confirming', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
     const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([threeInSeven])
     renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
-    fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
 
+    // No confirmation dialog: the rules sit in the panel under the chosen person.
     expect(await screen.findByText(/Ta korekta złamie reguły twarde/)).toBeInTheDocument()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(screen.getByText(/Więcej niż 3 dyżury on-call w okresie 7 dni/)).toBeInTheDocument()
     expect(screen.getByText(/Naruszenie trafi do dziennika audytu/)).toBeInTheDocument()
     expect(check).toHaveBeenCalledWith(
       expect.objectContaining({ replacement_member_id: 'm2', role: 'primary' }),
     )
     // Saving waits for the explicit acknowledgement.
-    expect(screen.getByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })).toBeDisabled()
+    expectBlocked(saveButton())
   })
 
   it('sends the acknowledgement only once the coordinator ticks it', async () => {
@@ -213,10 +218,13 @@ describe('CalendarMatrix override confirmation', () => {
     const confirm = await confirmHandOver()
     const acknowledgement = await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
     expect(acknowledgement).not.toBeChecked()
-    expect(confirm).toBeDisabled()
+    expectBlocked(confirm)
+    // A blocked save is a no-op, not a request.
+    fireEvent.click(confirm)
+    expect(override).not.toHaveBeenCalled()
 
     fireEvent.click(acknowledgement)
-    expect(confirm).toBeEnabled()
+    expectReady(confirm)
     fireEvent.click(confirm)
 
     await waitFor(() => expect(override).toHaveBeenCalled())
@@ -237,15 +245,20 @@ describe('CalendarMatrix override confirmation', () => {
     renderScreen(matrix())
 
     const confirm = await confirmHandOver()
-    await waitFor(() => expect(confirm).toBeEnabled())
+    expect(await screen.findByRole('status')).toHaveTextContent('Bez naruszeń reguł twardych')
+    expectReady(confirm)
     fireEvent.click(confirm)
 
     await waitFor(() => expect(override).toHaveBeenCalledTimes(1))
     expect(override.mock.calls[0][0]).toMatchObject({ acknowledge_rule_violations: false })
     expect(await screen.findByText(/Ta korekta złamie reguły twarde/)).toBeInTheDocument()
     expect(check).toHaveBeenCalledTimes(2)
+    // The refusal is announced and focused in the frame.
+    const refusal = screen.getByRole('alert')
+    expect(refusal).toHaveTextContent('Korekta złamie reguły twarde grafiku')
+    expect(refusal).toHaveFocus()
     expect(screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeChecked()
-    expect(screen.getByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })).toBeDisabled()
+    expectBlocked(saveButton())
   })
 
   it('shows no warning when the override is clean', async () => {
@@ -254,12 +267,14 @@ describe('CalendarMatrix override confirmation', () => {
     renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
-    fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
 
-    const confirm = await screen.findByRole('button', { name: /^(Zmień obsadę|Obsadź)$/ })
+    // The line says the rules are being checked, then that none is broken.
+    expect(screen.getByRole('status')).toHaveTextContent('Sprawdzam reguły twarde…')
+    expectBlocked(saveButton())
+    expect(await screen.findByText('Bez naruszeń reguł twardych')).toHaveAttribute('role', 'status')
     expect(screen.queryByText(/Ta korekta złamie reguły twarde/)).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /świadomie łamię/ })).not.toBeInTheDocument()
-    await waitFor(() => expect(confirm).toBeEnabled())
+    expectReady(saveButton())
   })
 })
 
@@ -292,8 +307,8 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     // Anna is the current holder, so she is offered but disabled with a reason.
     expect(screen.getByRole('option', { name: /Anna Kowalska - już pełni tę rolę/ })).toBeDisabled()
     fireEvent.change(picker, { target: { value: 'm2' } })
-    fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…/ }))
-    fireEvent.click(await screen.findByRole('button', { name: /^Zmień obsadę$/ }))
+    await screen.findByText('Bez naruszeń reguł twardych')
+    fireEvent.click(saveButton())
 
     await waitFor(() => expect(override).toHaveBeenCalled())
     expect(override.mock.calls[0][0]).toMatchObject({
@@ -311,7 +326,8 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
 
     expect(await screen.findByText('Wybierz osobę, która ma objąć tę rolę.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Zmień obsadę…|Obsadź…/ })).toBeDisabled()
+    expectBlocked(saveButton())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('never opens the change form on „11-19" for a day off', async () => {
@@ -366,10 +382,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
 })
 
 describe('CalendarMatrix override balance preview (MED6-04)', () => {
-  const reachConfirm = async (replacement: string) => {
-    await startStaffChange(/Anna Kowalska.*PRIMARY/, replacement)
-    fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
-  }
+  const reachConfirm = (replacement: string) => startStaffChange(/Anna Kowalska.*PRIMARY/, replacement)
 
   it('shows the balance impact for both people alongside the hard-rule check', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
@@ -398,7 +411,6 @@ describe('CalendarMatrix override balance preview (MED6-04)', () => {
     renderScreen(matrix())
 
     await startStaffChange(/Marek Nowak/, 'Anna Kowalska')
-    fireEvent.click(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ }))
 
     expect(await screen.findByText(/Slot był pusty/)).toBeInTheDocument()
     expect(impact).not.toHaveBeenCalled()
@@ -442,7 +454,7 @@ describe('CalendarMatrix hard unavailability', () => {
     renderScreen(matrix())
 
     await startStaffChange(/Anna Kowalska/, 'Marek Nowak')
-    expect(await screen.findByRole('button', { name: /Zmień obsadę…|Obsadź…/ })).toBeEnabled()
+    await waitFor(() => expectReady(saveButton()))
   })
 })
 
@@ -881,13 +893,13 @@ describe('CalendarMatrix staffing form', () => {
     const role = within(dialog).getByRole('combobox', { name: 'Rola' })
     expect(role).toHaveValue('late_shift')
     expect(within(dialog).getByText('Obecnie: brak opublikowanego przydziału')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Obsadź…' })).toBeDisabled()
+    expectBlocked(saveButton())
 
     const person = within(dialog).getByRole('combobox', { name: 'Osoba' })
     fireEvent.change(person, { target: { value: 'm3' } })
-    expect(within(dialog).getByRole('button', { name: 'Obsadź…' })).toBeEnabled()
+    await waitFor(() => expectReady(saveButton()))
     fireEvent.change(person, { target: { value: '' } })
-    expect(within(dialog).getByRole('button', { name: 'Obsadź…' })).toBeDisabled()
+    expectBlocked(saveButton())
 
     fireEvent.change(person, { target: { value: 'm3' } })
     fireEvent.change(role, { target: { value: 'secondary' } })
@@ -907,14 +919,18 @@ describe('CalendarMatrix staffing form', () => {
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Zmień obsadę…' }))
 
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę obsady' })
-    expect(confirmation).toHaveTextContent('Przypiszesz: Ola Wiśniewska zamiast Anna Kowalska')
-    fireEvent.change(within(confirmation).getByRole('textbox', { name: /Powód korekty historycznej/ }), { target: { value: 'Zamiana ustalona telefonicznie' } })
-    const confirm = within(confirmation).getByRole('button', { name: 'Zmień obsadę' })
-    await waitFor(() => expect(confirm).toBeEnabled())
-    fireEvent.click(confirm)
+    // The reason is a field of the frame, not a dialog of its own.
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    const reason = within(dialog).getByRole('textbox', { name: /Powód korekty historycznej/ })
+    expectBlocked(saveButton())
+    fireEvent.change(reason, { target: { value: 'za mało' } })
+    expect(within(dialog).getByText('Wpisz co najmniej 10 znaków')).toBeInTheDocument()
+    expectBlocked(saveButton())
+    fireEvent.change(reason, { target: { value: '  Zamiana ustalona telefonicznie ' } })
+    expectReady(saveButton())
+    fireEvent.click(saveButton())
 
     await waitFor(() => expect(save).toHaveBeenCalled())
     expect(save.mock.calls[0][0]).toEqual({
@@ -932,17 +948,16 @@ describe('CalendarMatrix staffing form', () => {
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Zmień obsadę…' }))
 
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę obsady' })
-    const confirm = within(confirmation).getByRole('button', { name: 'Zmień obsadę' })
-    await waitFor(() => expect(confirm).toBeEnabled())
-    fireEvent.click(confirm)
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Nie udało się sprawdzić reguł twardych; zapis sprawdzi je ponownie.')
+    expect(within(dialog).getByRole('status')).toHaveClass('rule-line-warn')
+    expectReady(saveButton())
+    fireEvent.click(saveButton())
     await waitFor(() => expect(save).toHaveBeenCalled())
     expect(save.mock.calls[0][0]).toMatchObject({ reason: undefined, acknowledge_rule_violations: false })
   })
 
-  it('shows a refused change in the confirmation, then in the form once it is cancelled', async () => {
+  it('shows a refused change in the frame and moves focus to it', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week())
     const check = vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
@@ -950,19 +965,14 @@ describe('CalendarMatrix staffing form', () => {
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Zmień obsadę…' }))
 
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę obsady' })
-    const confirm = within(confirmation).getByRole('button', { name: 'Zmień obsadę' })
-    await waitFor(() => expect(confirm).toBeEnabled())
-    fireEvent.click(confirm)
-    expect(await within(confirmation).findByRole('alert')).toHaveTextContent('Grafik zmienił wersję')
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+    fireEvent.click(saveButton())
+    const refusal = await within(dialog).findByRole('alert')
+    expect(refusal).toHaveTextContent('Grafik zmienił wersję')
+    expect(refusal).toHaveFocus()
     // A refusal without rule violations is not re-checked.
     expect(check).toHaveBeenCalledTimes(1)
-
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Anuluj' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź zmianę obsady' })).not.toBeInTheDocument())
-    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Grafik zmienił wersję')
   })
 
   it('explains a block that appears while the form is open', async () => {
@@ -975,7 +985,7 @@ describe('CalendarMatrix staffing form', () => {
     load.mockResolvedValue(week({ availability: [{ member_id: 'm3', kind: 'unavailable', starts_on: '2026-09-11', ends_on: '2026-09-11', note: null }] }))
     act(() => { focusManager.setFocused(false); focusManager.setFocused(true) })
     expect(await within(dialog).findByText('Wybrana osoba niedostępna tego dnia.')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Zmień obsadę…' })).toBeDisabled()
+    expectBlocked(saveButton())
 
     // Then the day drops out of the publication altogether.
     load.mockResolvedValue(week({}, { '2026-09-11': { published: false } }))

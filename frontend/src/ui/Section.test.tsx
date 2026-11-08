@@ -45,6 +45,18 @@ describe('surfaces', () => {
     expect(container.querySelector('b')).toBeNull()
     expect(container.firstElementChild).not.toHaveAttribute('role')
   })
+
+  it('takes focus when it appears with `focus`, and only then', () => {
+    const { rerender } = render(<><button type="button">Zapisz</button><Box role="alert" title="Błąd" focus /></>)
+    const box = screen.getByRole('alert')
+    expect(box).toHaveFocus()
+    expect(box).toHaveAttribute('tabindex', '-1')
+    screen.getByRole('button').focus()
+    rerender(<><button type="button">Zapisz</button><Box role="alert" title="Błąd" focus /></>)
+    expect(screen.getByRole('button')).toHaveFocus()
+    rerender(<><button type="button">Zapisz</button><Box role="alert" title="Błąd" /></>)
+    expect(screen.getByRole('alert')).not.toHaveAttribute('tabindex')
+  })
 })
 
 describe('KeyValue', () => {

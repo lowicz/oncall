@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 import { cx } from './cx'
 
 /** The title of a screen: the fact first (a date, a range, a name), the
@@ -38,16 +38,23 @@ export function SectionHeading({ title, meta, controls, className, as: Heading =
   )
 }
 
-/** A callout with a coloured left rule: a rule result, a consequence, a note. */
-export function Box({ tone = 'muted', title, children, className, role }: {
+/** A callout with a coloured left rule: a rule result, a consequence, a note.
+ *  `focus` moves focus to it when it appears: a submit error rendered after
+ *  the click, so it is announced and the next step is in reach. */
+export function Box({ tone = 'muted', title, children, className, role, focus = false }: {
   tone?: 'muted' | 'ok' | 'warn' | 'bad' | 'sig'
   title?: ReactNode
   children?: ReactNode
   className?: string
   role?: 'alert' | 'status'
+  focus?: boolean
 }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focus) ref.current?.focus()
+  }, [focus])
   return (
-    <div className={cx('box', `box-${tone}`, className)} role={role}>
+    <div ref={ref} className={cx('box', `box-${tone}`, className)} role={role} tabIndex={focus ? -1 : undefined}>
       {title && <b>{title}</b>}
       {children}
     </div>

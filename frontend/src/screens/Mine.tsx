@@ -797,7 +797,7 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
             <Input id={id} type="tel" mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onChange={(event) => setDraft(event.target.value)} />
           )}
         </Field>
-        {save.error && <Box tone="bad" role="alert" title={save.error.message} />}
+        {save.error && <Box tone="bad" role="alert" focus title={save.error.message} />}
         <div><Button type="submit" size="sm" loading={save.isPending} disabled={draft === null}>{t.save}</Button></div>
       </form>
     </section>

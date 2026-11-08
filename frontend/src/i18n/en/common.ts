@@ -17,6 +17,13 @@ export const common: Messages['common'] = {
   copy: 'Copy',
   copied: 'Copied',
   none: '-',
+  decision: {
+    checking: 'Checking the hard rules…',
+    clean: 'No hard rule is broken',
+    checkFailed: 'The hard rules could not be checked; saving checks them again.',
+    auditNote: 'The violation will be written to the audit log.',
+    acknowledge: 'I understand and knowingly break these rules',
+  },
   reasonTooShort: (minLength: number) => `Enter at least ${minLength} characters`,
   httpError: (status: number) => `HTTP error ${status}`,
   imageReadFailed: 'Could not read the image',

@@ -90,17 +90,20 @@ const rulesKey = (violations: RuleViolation[]) =>
  * line; `children` follow the list inside the box, which is where a broken
  * rule is acknowledged.
  */
-function ViolationList({ violations, title, tone = 'warn', me, children }: {
+function ViolationList({ violations, title, tone = 'warn', me, children, role, focus }: {
   violations: RuleViolation[]
   title: string
   tone?: 'warn' | 'bad'
   me?: string
   children?: ReactNode
+  /** A refused submit: announced and focused like any other submit error. */
+  role?: 'alert'
+  focus?: boolean
 }) {
   const t = useMessages().swaps.rules
   if (violations.length === 0) return null
   return (
-    <Box tone={tone} title={title}>
+    <Box tone={tone} title={title} role={role} focus={focus}>
       <ul className="box-list">
         {violations.map((violation, index) => (
           <li key={`${violation.rule}-${index}`}>
@@ -1017,10 +1020,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
           </Field>
           {create.error instanceof ApiError && create.error.violations.length > 0 ? (
             <>
-              <ViolationList violations={create.error.violations} title={create.error.message} tone="bad" />
+              <ViolationList violations={create.error.violations} title={create.error.message} tone="bad" role="alert" focus />
               {create.error.nextStep && <Box tone="sig" title={create.error.nextStep} />}
             </>
-          ) : create.error && <Box tone="bad" role="alert" title={create.error.message} />}
+          ) : create.error && <Box tone="bad" role="alert" focus title={create.error.message} />}
         </form>
       </Panel>
     </div>

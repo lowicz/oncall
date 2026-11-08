@@ -17,6 +17,14 @@ export const common = {
   copied: 'Skopiowano',
   /** A value that was not recorded. */
   none: '-',
+  /** The decision frame a change is saved from: its rule line and consent. */
+  decision: {
+    checking: 'Sprawdzam reguły twarde…',
+    clean: 'Bez naruszeń reguł twardych',
+    checkFailed: 'Nie udało się sprawdzić reguł twardych; zapis sprawdzi je ponownie.',
+    auditNote: 'Naruszenie trafi do dziennika audytu.',
+    acknowledge: 'Rozumiem i świadomie łamię te reguły',
+  },
   reasonTooShort: (minLength: number) => `Wpisz co najmniej ${minLength} znaków`,
   httpError: (status: number) => `Błąd HTTP ${status}`,
   imageReadFailed: 'Nie udało się odczytać obrazu',

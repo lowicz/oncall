@@ -584,7 +584,9 @@ describe('PeoplePanel new account form', () => {
     fireEvent.change(within(dialog).getByLabelText(/^Login/), { target: { value: 'anna' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Utwórz konto' }))
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Login jest już zajęty')
+    const refusal = await within(dialog).findByRole('alert')
+    expect(refusal).toHaveTextContent('Login jest już zajęty')
+    expect(refusal).toHaveFocus()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Anuluj' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nowe konto lokalne' })).not.toBeInTheDocument())
   })
@@ -669,7 +671,9 @@ describe('PeoplePanel account tab', () => {
     fireEvent.change(within(dialog).getByLabelText('E-mail'), { target: { value: 'ewa@example.com' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (1)' }))
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('E-mail jest już używany')
+    const refusal = await within(dialog).findByRole('alert')
+    expect(refusal).toHaveTextContent('E-mail jest już używany')
+    expect(refusal).toHaveFocus()
     expect(within(dialog).getByLabelText('E-mail')).toHaveValue('ewa@example.com')
   })
 

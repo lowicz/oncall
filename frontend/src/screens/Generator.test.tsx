@@ -286,7 +286,21 @@ describe('GeneratorPanel transitions', () => {
     expect(within(dialog).getByText('Publikacja naruszy reguły odpoczynku')).toBeInTheDocument()
 
     fireEvent.change(within(dialog).getByLabelText('Decyzja'), { target: { value: 'draft' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Publikuj v2' }))
+    // Each kind of violation is consented to in its own frame before publishing.
+    const publishButton = within(dialog).getByRole('button', { name: 'Publikuj v2' })
+    const rest = within(dialog).getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
+    const gap = within(dialog).getByRole('checkbox', { name: 'Rozumiem, że te dni zostają bez obsady' })
+    expect(rest.closest('.box')).toHaveTextContent('Publikacja naruszy reguły odpoczynku')
+    expect(gap.closest('.box')).toHaveTextContent('Przed grafikiem pozostanie luka')
+    expect(publishButton).toBeDisabled()
+    fireEvent.click(rest)
+    expect(publishButton).toBeDisabled()
+    fireEvent.click(gap)
+    fireEvent.click(rest)
+    expect(publishButton).toBeDisabled()
+    fireEvent.click(rest)
+    expect(publishButton).toBeEnabled()
+    fireEvent.click(publishButton)
     await waitFor(() => expect(publish.mock.calls[0][0]).toEqual({
       id: 'd1',
       expectedVersion: 2,
