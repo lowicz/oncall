@@ -173,8 +173,9 @@ korektą. Każda korekta, także zamiana:
   wszystkich zmienionych ról (komórki zostają oznaczone jako ręczne).
   Przycisku nie ma, gdy poprzedniej osoby którejś z ról nie da się wskazać
   jednoznacznie, np. po zakończeniu jej rotacji, usunięciu konta albo gdy w
-  zespole jest kilka osób o tym samym imieniu i nazwisku, ani po obsadzeniu
-  pustej roli - wtedy popraw komórkę ponownie albo wygeneruj szkic od nowa.
+  zespole jest kilka osób o tym samym imieniu i nazwisku, ani gdy poprzednia
+  osoba nie może tego dnia wrócić do roli (jest niedostępna albo nie ma do niej
+  uprawnień), ani po obsadzeniu pustej roli - wtedy popraw komórkę ponownie albo wygeneruj szkic od nowa.
 
 ## Ustawienia generatora
 

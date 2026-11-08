@@ -412,6 +412,20 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
   })
 
+  it('offers no Undo when the person replaced is unavailable that day', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue({ ...calendar, availability: [{ member_id: 'm1', kind: 'unavailable', starts_on: '2026-09-21', ends_on: '2026-09-21', note: null }] })
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
+    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue({ ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }, draft.assignments[1]] })
+    renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Przypisz w szkicu' }))
+
+    expect(await screen.findByText('Przypisano w szkicu 21 wrz · PRIMARY: Anna Kowalska → Marek Nowak')).toBeInTheDocument()
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+  })
+
   it('shows a refused correction and closes on cancel or the close button', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar)
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)

@@ -51,7 +51,7 @@ function focusTarget(focus: DraftFocus, data?: CalendarData) {
 }
 
 /** The one member with this name; none when it is missing or shared, so Undo never puts back the wrong person. */
-function soleMember(members: Member[], name?: string) {
+function soleMember(members: Member[], name: string | null) {
   const matches = members.filter((item) => item.display_name === name)
   return matches.length === 1 ? matches[0] : undefined
 }
@@ -152,8 +152,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
         title: assignedTitle(changes, serviceDate, next.display_name),
         description: t.remainingProblems(problemCounts(value).total),
       })
-      const previous = changes.map((item) => soleMember(members, item.from ?? undefined))
-      if (!previous.every(Boolean)) {
+      const restorable = changes.every((item) => item.restoreTo && soleMember(members, item.from)?.id === item.restoreTo)
+      if (!restorable) {
         const value = await api.overrideDraft(input)
         const { title, description } = message(value)
         toast.success(title, { description })
@@ -164,7 +164,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
         undo: async (value) => onChange(await api.overrideDraft({
           ...input,
           expected_version: value.version,
-          assignments: changes.map((item, index) => ({ role: item.role, replacement_member_id: previous[index]!.id })),
+          assignments: changes.map((item) => ({ role: item.role, replacement_member_id: item.restoreTo! })),
         })),
         message,
       })

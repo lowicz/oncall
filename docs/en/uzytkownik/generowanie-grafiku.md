@@ -180,7 +180,9 @@ breaks shows in the problems table. **Swap places** saves both roles (and
   role back for a few seconds (the cells stay marked as manual). The button is
   missing when the previous person of a role cannot be told apart, e.g. after
   their rotation ended, their account was deleted, or when several team
-  members share the same name, nor after filling an empty role - then correct
+  members share the same name, nor when the previous person cannot take the
+  role back that day (they are unavailable or not eligible for it), nor after
+  filling an empty role - then correct
   the cell again or generate the draft anew.
 
 ## Generator settings
