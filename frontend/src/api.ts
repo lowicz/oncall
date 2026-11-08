@@ -534,8 +534,6 @@ export interface ForwardingState {
 /** Whether WCO already rings where the number should ring now. */
 export type SwitchStatus = 'confirmed' | 'switching' | 'failed'
 
-/** Where the on-call number rings now, for every role and share link: names
- *  and roles, never a number. Only `mode` is set while forwarding is off. */
 /** One side of the duty day's pair: whether a phone number is set, never the number. */
 export interface PairMember {
   name: string
@@ -550,6 +548,8 @@ export interface HandoverPair {
   secondary: PairMember
 }
 
+/** Where the on-call number rings now, for every role and share link: names
+ *  and roles, never a number. Only `mode` is set while forwarding is off. */
 export interface ForwardingNow {
   mode: ForwardingMode
   day: string | null

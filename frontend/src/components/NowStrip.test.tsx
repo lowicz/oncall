@@ -48,11 +48,16 @@ describe('NowStrip', () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
       duty({ assignee_name: 'Katarzyna Dąbrowska-Wróblewska', contact_phone: '+48 600 100 005' }),
     ]))
+    loadRealStylesheet()
     renderScreen(<NowStrip />)
 
     const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
-    // The name may be cut with an ellipsis on a narrow bar; its title still carries it whole.
-    expect(await within(strip).findByTitle('Katarzyna Dąbrowska-Wróblewska')).toHaveTextContent('Katarzyna Dąbrowska-Wróblewska')
+    const name = await within(strip).findByTitle('Katarzyna Dąbrowska-Wróblewska')
+    expect(name).toHaveTextContent('Katarzyna Dąbrowska-Wróblewska')
+    // Never cut: where the row is too short the slot wraps, and the name breaks between its words.
+    expect(getComputedStyle(name).textOverflow).not.toBe('ellipsis')
+    expect(getComputedStyle(name).whiteSpace).toBe('normal')
+    expect(getComputedStyle(name.closest('.now-slot')!).flexWrap).toBe('wrap')
     expect(within(strip).getByRole('link', { name: '+48 600 100 005' })).toHaveAttribute('href', 'tel:+48600100005')
   })
 
@@ -213,7 +218,7 @@ describe('NowStrip', () => {
     expect(within(strip).getByRole('link', { name: '+48 601 220 118' })).toBeInTheDocument()
     // The name beside the pill stays whole and the slot may wrap the pill to a second row.
     expect(getComputedStyle(pill.closest('.now-slot')!).flexWrap).toBe('wrap')
-    expect(getComputedStyle(within(strip).getByText('Marek Nowak')).flexShrink).toBe('0')
+    expect(getComputedStyle(within(strip).getByText('Marek Nowak')).textOverflow).not.toBe('ellipsis')
     expect([...pill.closest('.now-slot')!.children].map((child) => getComputedStyle(child).flexBasis)).not.toContain('100%')
   })
 
