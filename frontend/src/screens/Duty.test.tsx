@@ -695,7 +695,7 @@ describe('DutyScreen and the on-call number before the reminder hour', () => {
     renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Przekaż numer…' }))
     const popover = await screen.findByRole('dialog', { name: 'Przekaż numer on-call' })
-    expect(popover).toHaveTextContent('Marek Nowak nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie.')
+    expect(popover).toHaveTextContent('Marek Nowak nie ma numeru telefonu na ekranie „Moje dyżury”. Poproś o jego uzupełnienie.')
     expect(within(popover).getByRole('button', { name: 'Przekaż numer' })).toHaveAttribute('aria-disabled', 'true')
   })
 

@@ -100,7 +100,7 @@ an **Undo** button for a few seconds, which ends the handover. After that the
 badge by the new person says **switching**, and once WCO confirms, **on-call
 number**.
 
-When the person taking over has no phone number on the Mine screen, the frame
+When the person taking over has no phone number on the My duties screen, the frame
 in the popover says so by name and blocks the button: the number has to be
 filled in first. When the number is already handed over, the badge says until
 when, and the hand-over button is replaced by the end button described below.

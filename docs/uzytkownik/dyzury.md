@@ -97,7 +97,7 @@ kilka sekund przycisk **Cofnij**, który kończy przekazanie. Potem znacznik
 przy nowej osobie mówi **przełączam**, a gdy WCO potwierdzi, **numer
 on-call**.
 
-Gdy przejmująca osoba nie ma numeru telefonu na ekranie Moje, ramka w
+Gdy przejmująca osoba nie ma numeru telefonu na ekranie Moje dyżury, ramka w
 podpowiedzi mówi to z nazwiskiem i blokuje przycisk: numer trzeba najpierw
 uzupełnić. Gdy numer jest już przekazany, znacznik mówi, do której godziny,
 a w miejscu przycisku przekazania stoi przycisk zakończenia opisany niżej.

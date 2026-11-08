@@ -89,8 +89,8 @@ export const duty = {
     customInvalid: (clock: string) => `Wybierz godzinę późniejszą niż teraz, najpóźniej ${clock}.`,
     returnsToYou: (clock: string) => `Numer wraca do Ciebie o ${clock}.`,
     returnsTo: (name: string, clock: string) => `Numer wraca do osoby na PRIMARY (${name}) o ${clock}.`,
-    noPhone: (name: string) => `${name} nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie.`,
-    noPhoneYou: 'Nie masz numeru telefonu w Moje. Uzupełnij go, żeby przejąć numer.',
+    noPhone: (name: string) => `${name} nie ma numeru telefonu na ekranie „Moje dyżury”. Poproś o jego uzupełnienie.`,
+    noPhoneYou: 'Nie masz numeru telefonu na ekranie „Moje dyżury”. Uzupełnij go, żeby przejąć numer.',
     dryRun: 'Tryb próbny: przekazanie zostanie zapisane, ale WCO nie zostanie zmienione.',
     /** The toast while WCO switches: what is happening, not that it worked. */
     switchingToast: (name: string, clock: string) => `Przełączam numer · odbiera ${name} · do ${clock}`,
