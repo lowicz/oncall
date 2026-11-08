@@ -18,7 +18,6 @@ export const schedule = {
   peopleInRotation: (count: number) => `${pluralPl(count, ['osoba', 'osoby', 'osób'])} w rotacji`,
   /** The header actions; the dashboard shows the first two as well. */
   actions: {
-    exportIcs: 'Eksport ICS',
     generateNext: 'Generuj kolejny zakres',
     openProposal: 'Otwórz propozycję',
   },

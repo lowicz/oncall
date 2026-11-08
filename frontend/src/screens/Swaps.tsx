@@ -585,6 +585,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const composeRules = verdict?.rule_violations ?? []
   const composeWarnings = verdict?.warning_violations ?? []
   const breaksRules = composeRules.length > 0
+  const pairTolerated = splitsPair && composeWarnings.some((violation) => violation.rule === 'late_shift_anchor' && violation.days.includes(serviceDate))
   const composeAcknowledged = composeAcknowledgedFor === rulesKey(composeRules)
   const exchangeLine = `${approvalRequired ? t.swaps.compose.bothSlotsWithApproval : t.swaps.compose.bothSlotsWithoutApproval} ${t.swaps.compose.exchangeTogether}`
   // The one line the folded balance and warnings show: "Ty -1 · Anna +1 · 1 ostrzeżenie".
@@ -1020,7 +1021,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                 {given === 'whole'
                   ? t.swaps.compose.wholeHint(dayRoles.map((role) => roles[role]).join(' + '))
                   : splitsPair
-                    ? t.swaps.compose.splitsPair(roles[given], roles[dayRoles.find((role) => role !== given)!])
+                    ? (pairTolerated ? t.swaps.compose.splitsPairTolerated : t.swaps.compose.splitsPair)(roles[given], roles[dayRoles.find((role) => role !== given)!])
                     : given === 'late_shift'
                       ? t.swaps.compose.keeps(roles[dayRoles[0]])
                       : t.swaps.compose.keepsLateShift}

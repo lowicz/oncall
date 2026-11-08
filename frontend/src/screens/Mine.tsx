@@ -688,9 +688,9 @@ function PointsSection({ displayName, compact, onAvailability }: {
   const thisMonth = monthOf(warsawDate())
   const balance = me && fairness.data ? totalBalance(me, fairness.data.late_shift_balanced) : null
   const threshold = fairness.data?.criterion_points ?? 0
-  const within = balance ? Math.abs(balance.deviation) <= threshold : true
   const rows = monthlyTotals(duties.data ?? []).filter((row) => period === '12m' || row.month === thisMonth)
   const shown = balance ? Number(balance.deviation.toFixed(1)) : 0
+  const within = Math.abs(shown) <= Number(threshold.toFixed(1))
   const bigNumber = balance
     ? `${shown > 0 ? '+' : shown < 0 ? '−' : ''}${formatPoints(Math.abs(shown))}`
     : null
@@ -731,7 +731,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
                 {' '}{t.norm(formatPoints(threshold))}
                 {shown !== 0 && <>{' '}{within
                   ? t.generatorEvensOut
-                  : balance.deviation > 0 ? t.generatorFewer : t.generatorMore}</>}
+                  : shown > 0 ? t.generatorFewer : t.generatorMore}</>}
               </Box>
             )}
             {!compact && duties.isLoading && <LoadingBlock label={t.loadingMonths} rows={2} />}

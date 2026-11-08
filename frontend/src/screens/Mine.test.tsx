@@ -768,9 +768,27 @@ describe('MineScreen on a phone', () => {
     expect(await screen.findByText('poza normą (±2,0)')).toBeInTheDocument()
     expect(screen.getByText('−3,0', { selector: '.big' })).toBeInTheDocument()
   })
+
+  it('judges the printed balance, so a printed 3,0 is within a printed ±3,0', async () => {
+    pretendNarrow()
+    stub()
+    vi.spyOn(api, 'fairness').mockResolvedValue({ ...REPORT, criterion_points: 3, members: [{ ...REPORT.members[0], primary: balance(4, 3.04) }] })
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    expect(await screen.findByText('w normie (±3,0)')).toBeInTheDocument()
+    expect(screen.getByText('+3,0', { selector: '.big' })).toBeInTheDocument()
+  })
 })
 
 describe('MineScreen points states', () => {
+  it('keeps a balance that prints as the norm within it', async () => {
+    stub()
+    vi.spyOn(api, 'fairness').mockResolvedValue({ ...REPORT, criterion_points: 3, members: [{ ...REPORT.members[0], primary: balance(4, 3.04) }] })
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    const box = (await screen.findByText('W normie')).closest('.box')
+    expect(box).toHaveClass('box-ok')
+    expect(box).toHaveTextContent(/^W normieMasz o 3,0 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±3,0 pkt od udziału należnego\. Generator wyrówna to w kolejnym zakresie\.$/)
+  })
+
   it.each([
     ['above the fair share', 3, '+3,0', 'Masz o 3,0 pkt więcej niż Twój sprawiedliwy udział.', 'Generator da Ci mniej dyżurów w kolejnym zakresie.'],
     ['below the fair share', -3, '−3,0', 'Masz o 3,0 pkt mniej niż Twój sprawiedliwy udział.', 'Generator da Ci więcej dyżurów w kolejnym zakresie.'],

@@ -13,7 +13,6 @@ export const schedule: Messages['schedule'] = {
   publicationExpiredHint: 'Publish the next range.',
   peopleInRotation: (count: number) => `${pluralEn(count, ['person', 'people'])} in the rotation`,
   actions: {
-    exportIcs: 'Export ICS',
     generateNext: 'Generate the next range',
     openProposal: 'Open the proposal',
   },

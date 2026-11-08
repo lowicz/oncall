@@ -30,7 +30,7 @@ Niżej jest sekcja **Najbliższe 4 tygodnie** z tą samą macierzą co na ekrani
 Grafik i tym samym pasem kontrolek w nagłówku sekcji: długość 2 / 4 / 8
 tygodni, tydzień wstecz i do przodu, powrót do dziś oraz menu **⋯**
 (**Więcej**) z pozycjami **Tylko z dyżurem**, **Lista dni**, **Legenda** i,
-dla członka zespołu, **Eksport ICS**. Gdy nikt nie jest jeszcze w rotacji, sekcja
+dla członka zespołu, **Subskrypcja ICS**. Gdy nikt nie jest jeszcze w rotacji, sekcja
 zamiast pustej macierzy mówi to wprost i nie pokazuje kontrolek;
 administrator dostaje w niej przycisk **Otwórz Osoby**, żeby dodać zespół.
 Gdy zespół ma osoby, ale żadna nie jest w rotacji w widocznym zakresie,
@@ -48,7 +48,7 @@ kartami członek zespołu widzi swój najbliższy dyżur, a grafik jest listą d
 
 Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
 koordynatorowi także propozycję czekającą na publikację; przycisk **Otwórz
-propozycję** prowadzi prosto do niej w Generatorze. Eksport ICS członek
+propozycję** prowadzi prosto do niej w Generatorze. Subskrypcję ICS członek
 zespołu znajdzie w menu **⋯** nad macierzą i na ekranie Moje dyżury.
 
 Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli opublikowany grafik kończy się wcześniej).
@@ -174,7 +174,7 @@ Grafiku tak samo:
 | **⋯** → **Tylko z dyżurem** | ukrywa osoby bez przydziału w zakresie |
 | **⋯** → **Lista dni** | przełącza między macierzą a listą dni |
 | **⋯** → **Legenda** | rozwija spis symboli |
-| **⋯** → **Eksport ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje dyżury (członek zespołu) |
+| **⋯** → **Subskrypcja ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje dyżury (członek zespołu) |
 
 Na Teraz i na Grafiku początek zakresu, jego długość, filtr **Tylko z
 dyżurem** i wybór między macierzą a listą dni są częścią adresu strony

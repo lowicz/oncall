@@ -157,6 +157,8 @@ export const swaps = {
     keepsLateShift: 'Zmiana 11–19 tego dnia zostaje u Ciebie.',
     /** Said instead of the "stays with you" line when the request splits the pair the 11-19 anchor binds. */
     splitsPair: (given: string, kept: string) => `Oddajesz tylko ${given}, a ${kept} zostaje u Ciebie. To łamie regułę pary; przed wysłaniem zaznaczysz, że wiesz.`,
+    /** Said instead when the replacement cannot hold the kept role that day: the split is the tolerated exception, nothing to acknowledge. */
+    splitsPairTolerated: (given: string, kept: string) => `Oddajesz tylko ${given}, a ${kept} zostaje u Ciebie. Zastępca nie może tego dnia wziąć ${kept}, więc to dozwolony wyjątek od reguły pary.`,
     noUpcomingDuties: 'Brak nadchodzących dyżurów',
     pickDuty: 'Wybierz dyżur',
     unavailableCollision: 'kolizja: nie mogę',

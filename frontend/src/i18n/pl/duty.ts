@@ -40,7 +40,7 @@ export const duty = {
   todayHoliday: (name: string) => `święto: ${name}`,
   todayDayOff: 'dzień wolny',
   readOnly: 'tylko odczyt',
-  /** The ICS export and the generator actions are `schedule.actions`, shared with the schedule screen. */
+  /** The generator actions are `schedule.actions`, shared with the schedule screen. */
   reportAvailability: 'Zgłoś dostępność',
   notPublishedYet: 'Grafik na ten okres nie został jeszcze opublikowany.',
   notPublishedCoordinator: 'Wygeneruj i opublikuj grafik w Generatorze, żeby dyżury pojawiły się tutaj.',

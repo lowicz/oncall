@@ -1954,6 +1954,28 @@ describe('SwapPanel: what is given of a day', () => {
     })
   })
 
+  it('says no acknowledgement is due when the replacement cannot hold the 11-19 kept', async () => {
+    stubDays('secondary').mockImplementation(async (serviceDate, role, scope) => [{
+      member_id: 'p1',
+      display_name: 'Piotr Zieliński',
+      availability: null,
+      on_duty_that_day: false,
+      slots: scope === 'single' ? [{ service_date: serviceDate, role }] : [{ service_date: serviceDate, role }, { service_date: serviceDate, role: 'late_shift' }],
+      blocking_violations: [],
+      // Piotr cannot hold 11-19: the backend tolerates SECONDARY given alone and only warns.
+      rule_violations: [],
+      warning_violations: scope === 'single' && role === 'secondary' ? SPLIT : [],
+      next_step: null,
+    }])
+    await openDay('2099-09-14')
+    fireEvent.click(scopeChoice('Tylko SECONDARY'))
+    fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
+
+    expect(scopeGroup()).toHaveAccessibleDescription('Oddajesz tylko SECONDARY, a 11–19 zostaje u Ciebie. Zastępca nie może tego dnia wziąć 11–19, więc to dozwolony wyjątek od reguły pary.')
+    expect(screen.queryByText('Ta zamiana łamie reguły grafiku')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeInTheDocument()
+  })
+
   it('gives two slots nothing binds one at a time, and both when asked', async () => {
     const search = stubDays('secondary')
     await openDay('2099-09-15')

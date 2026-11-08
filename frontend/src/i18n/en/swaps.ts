@@ -133,6 +133,7 @@ export const swaps: Messages['swaps'] = {
     keeps: (role: string) => `${role} that day stays with you.`,
     keepsLateShift: 'The 11–19 shift that day stays with you.',
     splitsPair: (given: string, kept: string) => `You give only ${given}, and ${kept} stays with you. This breaks the pair rule; before sending you will confirm that you know.`,
+    splitsPairTolerated: (given: string, kept: string) => `You give only ${given}, and ${kept} stays with you. The replacement cannot take ${kept} that day, so this is an allowed exception to the pair rule.`,
     noUpcomingDuties: 'No upcoming duties',
     pickDuty: 'Pick a duty',
     unavailableCollision: 'conflict: unavailable',
