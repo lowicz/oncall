@@ -369,7 +369,11 @@ describe('staffingCandidates for the secondary role', () => {
 describe('roleSwapOf (P6)', () => {
   const members = [
     { id: 'm1', display_name: 'Anna' },
-    { id: 'm2', display_name: 'Marek', eligibility: [{ role: 'late_shift' as const, starts_on: '2026-01-01', ends_on: '2026-08-31' }] },
+    { id: 'm2', display_name: 'Marek', eligibility: [
+      { role: 'primary' as const, starts_on: '2026-01-01', ends_on: null },
+      { role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null },
+      { role: 'late_shift' as const, starts_on: '2026-01-01', ends_on: '2026-08-31' },
+    ] },
   ]
   const pair = (over: Partial<CalendarData> = {}) => data({
     members,
@@ -385,6 +389,7 @@ describe('roleSwapOf (P6)', () => {
     expect(roleSwapOf(pair(), '2026-09-01', 'secondary')).toEqual({
       primary: { id: 'm1', name: 'Anna' },
       secondary: { id: 'm2', name: 'Marek' },
+      ineligible: [],
       lateShift: { anchor: 'secondary', from: { id: 'm2', name: 'Marek' }, to: { id: 'm1', name: 'Anna' }, eligible: true },
     })
     const anchoredToPrimary = pair({ assignments: [
@@ -405,6 +410,13 @@ describe('roleSwapOf (P6)', () => {
     expect(roleSwapOf(pair({ days: [] }), '2026-09-01', 'secondary')?.lateShift).toBeNull()
     const noLate = pair({ assignments: pair().assignments.slice(0, 2) })
     expect(roleSwapOf(noLate, '2026-09-01', 'secondary')?.lateShift).toBeNull()
+  })
+
+  it('names the roles the other person may not hold that day', () => {
+    const onlyPrimary = [{ role: 'primary' as const, starts_on: '2026-01-01', ends_on: null }]
+    const expired = [{ role: 'primary' as const, starts_on: '2026-01-01', ends_on: '2026-08-31' }, { role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }]
+    expect(roleSwapOf(pair({ members: [{ ...members[0], eligibility: onlyPrimary }, members[1]] }), '2026-09-01', 'secondary')?.ineligible).toEqual(['secondary'])
+    expect(roleSwapOf(pair({ members: [members[0], { ...members[1], eligibility: expired }] }), '2026-09-01', 'secondary')?.ineligible).toEqual(['primary'])
   })
 
   it('needs two team members in two roles', () => {

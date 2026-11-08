@@ -55,7 +55,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const check = useQuery({
     queryKey: ['role-swap-check', serviceDate, ref?.schedule_id, ref?.schedule_version, carry],
     queryFn: () => api.batchOverrideCheck({ batches: [{ schedule_id: ref!.schedule_id, assignments: lines }] }),
-    enabled: open && Boolean(swap && ref),
+    enabled: open && Boolean(ref) && swap?.ineligible.length === 0,
   })
   // An acknowledgement covers the violations it was given for.
   useEffect(() => setAcknowledged(false), [check.data])
@@ -96,7 +96,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         }),
         // The inverse swap: the new holders trade back, 11–19 with them.
         undo: async () => {
-          const back = { primary: swap.secondary, secondary: swap.primary, lateShift: swap.lateShift }
+          const back = { ...swap, primary: swap.secondary, secondary: swap.primary }
           await api.batchOverride({
             schedule_id: scheduleId,
             expected_version: version + 1,
@@ -134,6 +134,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   })
 
   const blocked = !ref
+    || Boolean(swap?.ineligible.length)
     || check.isLoading
     || ((check.data?.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
@@ -153,7 +154,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
     <section id={FRAME_ID} className="swap-frame" aria-labelledby={`${FRAME_ID}-title`}>
       <h3 id={`${FRAME_ID}-title`} className="swap-frame-h">{t.title}</h3>
       <RoleSwapPreview swap={swap} carry={carry} onCarry={setCarryChoice} disabled={save.isPending} />
-      <DecisionFrame
+      {swap.ineligible.length === 0 && <DecisionFrame
         violations={check.data}
         checkFailed={check.isError}
         violationsTitle={t.breaksRules}
@@ -177,7 +178,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
             )}
           </Field>
         )}
-      </DecisionFrame>
+      </DecisionFrame>}
     </section>
   )
 

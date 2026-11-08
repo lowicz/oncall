@@ -258,6 +258,9 @@ export interface SwapHolder { id: string; name: string }
 export interface RoleSwap {
   primary: SwapHolder
   secondary: SwapHolder
+  /** The on-call roles whose new holder may not hold them that day: the
+   *  swap cannot be made while any is listed. */
+  ineligible: ('primary' | 'secondary')[]
   /** 11–19 is the anchor holder's and may go along with the anchor role:
    *  the coordinator's choice, offered exactly where the API would carry it
    *  in a single correction (`_couples_late_shift` with `_same_holder`).
@@ -274,15 +277,21 @@ export interface RoleSwap {
 /** The swap of `serviceDate`'s on-call pair, or null when one role is empty,
  *  one person holds both, or a holder is not a team member. */
 export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): RoleSwap | null {
-  const holder = (role: AssignmentRole): SwapHolder | null => {
+  const memberOf = (role: AssignmentRole) => {
     const slot = data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
-    const member = slot && data.members.find((item) => isCurrentAssignee(item, slot))
-    return member ? { id: member.id, name: member.display_name } : null
+    return slot && data.members.find((item) => isCurrentAssignee(item, slot))
   }
-  const primary = holder('primary')
-  const secondary = holder('secondary')
+  const holder = (member: CalendarData['members'][number] | undefined): SwapHolder | null =>
+    member ? { id: member.id, name: member.display_name } : null
+  const primaryMember = memberOf('primary')
+  const secondaryMember = memberOf('secondary')
+  const primary = holder(primaryMember)
+  const secondary = holder(secondaryMember)
   if (!primary || !secondary || primary.id === secondary.id) return null
-  const late = holder('late_shift')
+  const ineligible = (['primary', 'secondary'] as const).filter(
+    (role) => !isEligible((role === 'primary' ? secondaryMember : primaryMember)!, role, serviceDate),
+  )
+  const late = holder(memberOf('late_shift'))
   const day = data.days.find((item) => item.service_date === serviceDate)
   let lateShift: RoleSwap['lateShift'] = null
   if (anchor !== 'independent' && day && !day.is_day_off && late) {
@@ -293,7 +302,7 @@ export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: Late
       lateShift = { anchor, from, to, eligible: isEligible(member, 'late_shift', serviceDate) }
     }
   }
-  return { primary, secondary, lateShift }
+  return { primary, secondary, ineligible, lateShift }
 }
 
 /** The batch that performs `swap` (or, with the roles' holders as they were,

@@ -5,11 +5,15 @@ import { roleLabels } from '../lib/labels'
 import { Button, Checkbox, RoleMark } from '../ui'
 import { SwapImpactPreview } from './SwapImpactPreview'
 
-function PreviewRow({ role, from, to }: Readonly<{ role: AssignmentRole; from: string; to: string }>) {
+function PreviewRow({ role, from, to, eligible = true }: Readonly<{ role: AssignmentRole; from: string; to: string; eligible?: boolean }>) {
+  const t = useMessages().schedule.roleSwap
   return (
     <div className="swap-preview-row">
       <RoleMark role={role} />
-      <span>{from} → <b>{to}</b></span>
+      <div className="swap-cell">
+        <span>{from} → <b>{to}</b></span>
+        {!eligible && <p className="field-msg" role="alert">{t.roleNotEligible(to, roleLabels()[role])}</p>}
+      </div>
     </div>
   )
 }
@@ -25,12 +29,12 @@ export function RoleSwapPreview({ swap, carry, onCarry, disabled }: Readonly<{
   const late = swap.lateShift
   return (
     <div className="swap-preview">
-      <PreviewRow role="primary" from={swap.primary.name} to={swap.secondary.name} />
-      <PreviewRow role="secondary" from={swap.secondary.name} to={swap.primary.name} />
+      <PreviewRow role="primary" from={swap.primary.name} to={swap.secondary.name} eligible={!swap.ineligible.includes('primary')} />
+      <PreviewRow role="secondary" from={swap.secondary.name} to={swap.primary.name} eligible={!swap.ineligible.includes('secondary')} />
       {late && (
         <div className="swap-preview-row">
           <RoleMark role="late_shift" />
-          <div className="swap-late">
+          <div className="swap-cell">
             <span>
               {carry ? <>{late.from.name} → <b>{late.to.name}</b></> : <>{late.from.name} ({t.unchanged})</>}
             </span>

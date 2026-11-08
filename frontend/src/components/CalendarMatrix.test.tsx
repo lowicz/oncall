@@ -1602,7 +1602,7 @@ describe('CalendarMatrix role swap (P6)', () => {
 
   it('keeps 11–19 where the person taking SECONDARY may not hold it, and with PRIMARY where the policy binds it there', async () => {
     const restricted = [
-      { id: 'm1', display_name: 'Anna Kowalska', eligibility: [{ role: 'primary' as const, starts_on: '2026-01-01', ends_on: null }] },
+      { id: 'm1', display_name: 'Anna Kowalska', eligibility: (['primary', 'secondary'] as const).map((role) => ({ role, starts_on: '2026-01-01', ends_on: null })) },
       { id: 'm2', display_name: 'Marek Nowak' },
     ]
     vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members: restricted }))
@@ -1630,6 +1630,27 @@ describe('CalendarMatrix role swap (P6)', () => {
     late = await within(dialog).findByRole('checkbox', { name: /razem z PRIMARY/ })
     expect(late).toBeChecked()
     await waitFor(() => expect(impact).toHaveBeenLastCalledWith('2026-09-10', 'primary', 'm2', expect.objectContaining({ scope: undefined, returnScope: 'single' })))
+  })
+
+  it('says in the frame who may not take the other role and holds the swap without checking it', async () => {
+    const members = [
+      { id: 'm1', display_name: 'Anna Kowalska' },
+      { id: 'm2', display_name: 'Marek Nowak', eligibility: [{ role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }] },
+    ]
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members }))
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+
+    expect(within(frame).getByRole('alert')).toHaveTextContent('Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.')
+    expect(within(frame).queryByText(/reguł twardych/)).not.toBeInTheDocument()
+    expectBlocked(swapButton(dialog))
+    fireEvent.click(swapButton(dialog))
+    expect(save).not.toHaveBeenCalled()
+    expect(check).not.toHaveBeenCalled()
   })
 
   it('asks for a reason in the frame for a day already past', async () => {

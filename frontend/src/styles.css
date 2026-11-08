@@ -515,7 +515,7 @@ button.role-row:hover .btn-ghost { color: var(--fg); }
 .swap-frame-h { margin: 0; font: 700 14px/21px var(--font); }
 .swap-preview { display: grid; gap: 4px; font-size: 14px; line-height: 21px; }
 .swap-preview-row { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; align-items: baseline; }
-.swap-late { display: grid; gap: 4px; min-width: 0; }
+.swap-cell { display: grid; gap: 4px; min-width: 0; }
 .avail { font-size: 12px; line-height: 16px; display: grid; gap: 4px; }
 .avail-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .impact { border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; display: grid; gap: 8px; background: var(--s2); }
