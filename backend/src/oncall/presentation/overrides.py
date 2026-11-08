@@ -10,7 +10,8 @@ from oncall.domain.overrides.models import DutyOverridden
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
-from oncall.presentation.rules import rule_violation_responses
+from oncall.presentation.forwarding import HandoverResponse
+from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
 
 
 class DirectOverrideRequest(BaseModel):
@@ -31,6 +32,15 @@ class DirectOverrideRequest(BaseModel):
         if self.service_date < business_today() and len((self.reason or "").strip()) < 10:
             raise ValueError(translate("overrides.historical_correction_needs_reason"))
         return self
+
+
+class DirectOverrideCheckResponse(BaseModel):
+    """What a correction would cause: the hard rules it breaks, which ask for
+    acknowledgement, and the number handover it would end, which the frame
+    only states."""
+
+    violations: list[RuleViolationResponse]
+    ends_handover: HandoverResponse | None
 
 
 class DirectOverrideCheckRequest(BaseModel):

@@ -14,9 +14,14 @@ from sqlalchemy import select
 
 from oncall import worker
 from oncall.database import SqlAlchemyUnitOfWork
-from oncall.domain.clock import utc_now
+from oncall.domain.clock import as_utc, utc_now
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
-from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome, SettingsChange
+from oncall.domain.forwarding.models import (
+    ForwardingMode,
+    ForwardingOutcome,
+    HandoverEnd,
+    SettingsChange,
+)
 from oncall.domain.forwarding.passwords import Passwords
 from oncall.domain.handover import NoticeTiming, RotationNotice, Segment
 from oncall.domain.vocabulary import AssignmentRole, ScheduleOrigin, ScheduleStatus, UserRole
@@ -29,6 +34,7 @@ from oncall.infrastructure.sqlalchemy.forwarding import (
 from oncall.infrastructure.sqlalchemy.forwarding_models import (
     CallForwardingSettings,
     CallForwardingState,
+    ForwardingHandover,
 )
 from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
@@ -1367,3 +1373,151 @@ async def test_missing_primary_recipient_is_ignored(db, frozen_clock) -> None:
         )
         == 1
     )
+
+
+# --- number handovers ----------------------------------------------------------
+
+
+async def _pair(db, frozen_clock, *, marek_phone: str | None = "+48600700800"):
+    """Anna on PRIMARY and Marek on SECONDARY for two days from today, and
+    Anna's number already confirmed by WCO."""
+    anna = await create_user(
+        db, "anna", email="anna@example.com", phone="+48500500500", display_name="Anna Kowalska"
+    )
+    marek = await create_user(
+        db, "marek", email="marek@example.com", phone=marek_phone, display_name="Marek Nowak"
+    )
+    members = {
+        user.display_name: await create_member(db, user, display_name=user.display_name)
+        for user in (anna, marek)
+    }
+    await create_published_schedule(
+        db,
+        starts_on=_now(frozen_clock).date(),
+        days=2,
+        primary=["Anna Kowalska"],
+        secondary=["Marek Nowak"],
+    )
+    for row in (await db.scalars(select(Assignment))).all():
+        row.member_id = members[row.assignee_name].id
+    await db.commit()
+    return members["Anna Kowalska"], members["Marek Nowak"]
+
+
+async def _hand_over(db, frozen_clock, anna, marek, *, hours: int = 2) -> ForwardingHandover:
+    row = ForwardingHandover(
+        day=_now(frozen_clock).date(),
+        from_member_id=anna.id,
+        to_member_id=marek.id,
+        starts_at=frozen_clock.instant,
+        until=frozen_clock.instant + timedelta(hours=hours),
+    )
+    db.add(row)
+    await db.commit()
+    return row
+
+
+async def test_a_handover_forwards_to_the_receiver_without_any_mail(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    anna, marek = await _pair(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    await _hand_over(db, frozen_clock, anna, marek)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.user["number"] == "+48600700800"
+    state = await _one(db_factory, CallForwardingState)
+    assert (state.applied_member_id, state.applied_member_name) == (marek.id, "Marek Nowak")
+    assert state.desired_member_name == "Marek Nowak"
+    events = await _all(db_factory, AuditEvent)
+    assert [event.summary for event in events] == ["Numer on-call przełączono na Marek Nowak"]
+    # Both people were in the conversation: success writes to nobody (D4).
+    assert await _all(db_factory, NotificationOutbox) == []
+
+
+async def test_after_its_end_the_number_goes_back_to_the_primary(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    anna, marek = await _pair(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    handover = await _hand_over(db, frozen_clock, anna, marek)
+    await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+
+    frozen_clock.advance(timedelta(hours=2, minutes=3))
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.user["number"] == "+48500500500"
+    ended = await _one(db_factory, ForwardingHandover)
+    assert ended.end_reason is HandoverEnd.expired
+    assert ended.ended_at is not None
+    assert as_utc(ended.ended_at) == as_utc(handover.until)
+    events = await _all(db_factory, AuditEvent)
+    assert [event.action for event in events] == [
+        "forwarding.applied",
+        "forwarding.handover_ended",
+        "forwarding.applied",
+    ]
+    assert events[1].summary == (
+        "Zakończono przekazanie numeru on-call: Anna Kowalska → Marek Nowak, minął czas przekazania"
+    )
+    assert await _all(db_factory, NotificationOutbox) == []
+
+
+async def test_a_correction_out_of_the_pair_ends_it_and_mails_both_people(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    anna, marek = await _pair(db, frozen_clock)
+    jan = await create_user(db, "jan", phone="+48700700700", display_name="Jan Wiśniewski")
+    jan_member = await create_member(db, jan, display_name="Jan Wiśniewski")
+    await _settings(db, fake, ForwardingMode.live)
+    await _hand_over(db, frozen_clock, anna, marek)
+    secondary = await db.scalar(
+        select(Assignment).where(
+            Assignment.service_date == _now(frozen_clock).date(),
+            Assignment.role == AssignmentRole.secondary,
+        )
+    )
+    assert secondary is not None
+    secondary.member_id, secondary.assignee_name = jan_member.id, "Jan Wiśniewski"
+    await db.commit()
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.user["number"] == "+48500500500"
+    ended = await _one(db_factory, ForwardingHandover)
+    assert ended.end_reason is HandoverEnd.roster_change
+    mails = await _all(db_factory, NotificationOutbox)
+    assert {mail.recipient for mail in mails} == {"anna@example.com", "marek@example.com"}
+    assert all(mail.context["event"] == "handover_ended" for mail in mails)
+    assert all("PRIMARY: Anna Kowalska" in mail.body for mail in mails)
+    # Another pass finds nothing open and writes nothing twice.
+    await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+    assert len(await _all(db_factory, NotificationOutbox)) == 2
+
+
+async def test_a_failure_during_a_handover_alerts_the_receiver_too(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco(faults={USER: 403})
+    _use_fake(monkeypatch, fake)
+    anna, marek = await _pair(db, frozen_clock)
+    await create_user(db, "coordinator", role=UserRole.coordinator, email="koord@example.com")
+    await _settings(db, fake, ForwardingMode.live)
+    await _hand_over(db, frozen_clock, anna, marek)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    alerts = await _all(db_factory, NotificationOutbox)
+    assert {alert.recipient for alert in alerts} == {
+        "anna@example.com",
+        "marek@example.com",
+        "koord@example.com",
+    }
+    assert all("Numer przejął: Marek Nowak" in alert.body for alert in alerts)

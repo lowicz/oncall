@@ -130,6 +130,26 @@ MESSAGES: dict[str, str] = {
         "Changing the WCO address requires entering the password again, so the "
         "stored password is not sent to another server."
     ),
+    "forwarding.handover_forwarding_off": (
+        "Number forwarding is off, so the on-call number cannot be handed over in the application."
+    ),
+    "forwarding.handover_not_in_pair": (
+        "The on-call number is handed over by the day's PRIMARY or SECONDARY, or by a coordinator."
+    ),
+    "forwarding.handover_needs_pair": (
+        "Today's roster has no PRIMARY and SECONDARY pair to hand the on-call number between."
+    ),
+    "forwarding.handover_active": (
+        "The on-call number is already handed over: {name} answers it. End that handover first."
+    ),
+    "forwarding.handover_until_out_of_range": (
+        "Choose an end for the handover later than now and no later than "
+        "{latest}, when the number passes to the next PRIMARY."
+    ),
+    "forwarding.handover_receiver_has_no_phone": (
+        "{name} has no phone number in Mine. Ask for it to be filled in."
+    ),
+    "forwarding.handover_not_found": "This on-call number handover has already ended",
     # --- history import (oncall.domain.history, oncall.history_import) -------
     "history.rejected": "The history import contains errors",
     "history.file_not_utf8": "The file must be saved as UTF-8",

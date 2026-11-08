@@ -1381,6 +1381,34 @@
         "title": "DirectOverrideCheckRequest",
         "type": "object"
       },
+      "DirectOverrideCheckResponse": {
+        "description": "What a correction would cause: the hard rules it breaks, which ask for\nacknowledgement, and the number handover it would end, which the frame\nonly states.",
+        "properties": {
+          "ends_handover": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoverResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "violations",
+          "ends_handover"
+        ],
+        "title": "DirectOverrideCheckResponse",
+        "type": "object"
+      },
       "DirectOverrideRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2171,6 +2199,103 @@
         "title": "ForwardingMode",
         "type": "string"
       },
+      "ForwardingNowResponse": {
+        "description": "Where the on-call number rings now: names and roles, never a number.\nOnly `mode` is set while forwarding is off.",
+        "properties": {
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "handover": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoverResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "holder_member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Member Id"
+          },
+          "holder_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Name"
+          },
+          "holder_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssignmentRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ForwardingMode"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SwitchStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "day",
+          "holder_member_id",
+          "holder_name",
+          "holder_role",
+          "handover",
+          "status",
+          "confirmed_at"
+        ],
+        "title": "ForwardingNowResponse",
+        "type": "object"
+      },
       "ForwardingOutcome": {
         "description": "What the last forwarding pass did.",
         "enum": [
@@ -2537,6 +2662,76 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HandoverRequest": {
+        "additionalProperties": false,
+        "description": "Hand the on-call number to the day's SECONDARY until `until`.",
+        "properties": {
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "until"
+        ],
+        "title": "HandoverRequest",
+        "type": "object"
+      },
+      "HandoverResponse": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "from_member_id": {
+            "format": "uuid",
+            "title": "From Member Id",
+            "type": "string"
+          },
+          "from_name": {
+            "title": "From Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "to_member_id": {
+            "format": "uuid",
+            "title": "To Member Id",
+            "type": "string"
+          },
+          "to_name": {
+            "title": "To Name",
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "day",
+          "from_member_id",
+          "from_name",
+          "to_member_id",
+          "to_name",
+          "starts_at",
+          "until"
+        ],
+        "title": "HandoverResponse",
         "type": "object"
       },
       "HealthResponse": {
@@ -4392,6 +4587,16 @@
           "cancelled"
         ],
         "title": "SwapStatus",
+        "type": "string"
+      },
+      "SwitchStatus": {
+        "description": "Whether WCO already rings where the number should ring now.",
+        "enum": [
+          "confirmed",
+          "switching",
+          "failed"
+        ],
+        "title": "SwitchStatus",
         "type": "string"
       },
       "TeamMemberCreate": {
@@ -8269,7 +8474,7 @@
     },
     "/api/v1/calendar/override/check": {
       "post": {
-        "description": "The hard rules the override would break, computed before the fact so\nthe confirmation dialog can show them and ask for their acknowledgement.",
+        "description": "The hard rules the override would break, computed before the fact so\nthe confirmation can show them and ask for their acknowledgement, and the\nnumber handover it would end, which the confirmation states.",
         "operationId": "direct_override_check_api_v1_calendar_override_check_post",
         "parameters": [
           {
@@ -8320,11 +8525,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RuleViolationResponse"
-                  },
-                  "title": "Response Direct Override Check Api V1 Calendar Override Check Post",
-                  "type": "array"
+                  "$ref": "#/components/schemas/DirectOverrideCheckResponse"
                 }
               }
             },
@@ -8508,6 +8709,201 @@
         "summary": "Fairness Duties",
         "tags": [
           "fairness"
+        ]
+      }
+    },
+    "/api/v1/forwarding/handover": {
+      "post": {
+        "description": "Hand the on-call number to the day's SECONDARY: the day's PRIMARY or\nSECONDARY, or a coordinator.",
+        "operationId": "start_handover_api_v1_forwarding_handover_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Handover",
+        "tags": [
+          "forwarding"
+        ]
+      }
+    },
+    "/api/v1/forwarding/handover/{handover_id}": {
+      "delete": {
+        "description": "End the handover early: either of its people, or a coordinator.",
+        "operationId": "end_handover_api_v1_forwarding_handover__handover_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "handover_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Handover Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End Handover",
+        "tags": [
+          "forwarding"
+        ]
+      }
+    },
+    "/api/v1/forwarding/now": {
+      "get": {
+        "description": "Where the on-call number rings now, for every role and share link.",
+        "operationId": "forwarding_now_api_v1_forwarding_now_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForwardingNowResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forwarding Now",
+        "tags": [
+          "forwarding"
         ]
       }
     },

@@ -149,6 +149,7 @@ export const schedule = {
   },
   confirm: {
     breaksRules: 'Ta korekta złamie reguły twarde',
+    endsHandover: (from: string, to: string) => `Ta korekta zakończy przekazanie numeru on-call ${from} → ${to}. Numer wróci do osoby na PRIMARY, a obie strony dostaną e-mail.`,
     emptySlot: (name: string) => `Slot był pusty - korekta dokłada dyżur tylko osobie ${name}, nie zdejmuje go nikomu.`,
     save: 'Zapisz zmianę obsady',
     saveHistorical: 'Zapisz zmianę obsady…',

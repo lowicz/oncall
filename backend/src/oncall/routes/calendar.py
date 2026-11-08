@@ -5,10 +5,17 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from oncall.auth import CsrfGuard, CurrentPrincipal
-from oncall.bootstrap.providers import CalendarReader, CalendarWriter, OverrideProvider
+from oncall.bootstrap.providers import (
+    CalendarReader,
+    CalendarWriter,
+    OpenHandoverReader,
+    OverrideProvider,
+)
 from oncall.domain.calendar import errors as calendar_errors
 from oncall.domain.calendar import use_cases as calendar_use_cases
 from oncall.domain.calendar.models import CalendarEventChange, NewCalendarEvent
+from oncall.domain.clock import utc_now
+from oncall.domain.forwarding import use_cases as forwarding_use_cases
 from oncall.domain.overrides import errors as override_errors
 from oncall.domain.overrides import use_cases as override_use_cases
 from oncall.domain.overrides.models import (
@@ -27,10 +34,12 @@ from oncall.presentation.calendar import (
     CalendarResponse,
     calendar_response,
 )
+from oncall.presentation.forwarding import HandoverResponse
 from oncall.presentation.overrides import (
     BatchOverrideCheckRequest,
     BatchOverrideRequest,
     DirectOverrideCheckRequest,
+    DirectOverrideCheckResponse,
     DirectOverrideRequest,
     override_assignment_response,
 )
@@ -166,15 +175,17 @@ def _override_errors_as_http():
     return domain_errors_as_http(OVERRIDE_ERROR_STATUSES, OVERRIDE_ERROR_DETAILS)
 
 
-@router.post("/override/check", response_model=list[RuleViolationResponse])
+@router.post("/override/check")
 async def direct_override_check(
     payload: DirectOverrideCheckRequest,
     _: Coordinator,
     ports: OverrideProvider,
+    handovers: OpenHandoverReader,
     __: CsrfGuard,
-) -> list[RuleViolationResponse]:
+) -> DirectOverrideCheckResponse:
     """The hard rules the override would break, computed before the fact so
-    the confirmation dialog can show them and ask for their acknowledgement."""
+    the confirmation can show them and ask for their acknowledgement, and the
+    number handover it would end, which the confirmation states."""
     with _override_errors_as_http():
         violations = await override_use_cases.check_override(
             OverrideCheck(
@@ -185,7 +196,13 @@ async def direct_override_check(
             ),
             ports,
         )
-    return rule_violation_responses(violations)
+    ends = await forwarding_use_cases.handover_ended_by_correction(
+        payload.service_date, payload.role, handovers, now=utc_now()
+    )
+    return DirectOverrideCheckResponse(
+        violations=rule_violation_responses(violations),
+        ends_handover=HandoverResponse.model_validate(ends) if ends is not None else None,
+    )
 
 
 @router.post("/override", response_model=AssignmentResponse)

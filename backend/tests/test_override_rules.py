@@ -74,9 +74,9 @@ async def test_override_check_names_the_rules_before_the_fact(
     )
 
     assert checked.status_code == 200, checked.text
-    rules = {item["rule"] for item in checked.json()}
+    rules = {item["rule"] for item in checked.json()["violations"]}
     assert "three_in_seven" in rules
-    magda = next(item for item in checked.json() if item["rule"] == "three_in_seven")
+    magda = next(item for item in checked.json()["violations"] if item["rule"] == "three_in_seven")
     assert magda["member_name"] == "Magdalena Woźniak"
     assert "2026-09-28" in magda["days"]
 
@@ -176,7 +176,7 @@ async def test_clean_override_returns_no_violations(client: AsyncClient, db: Asy
         },
     )
     assert checked.status_code == 200, checked.text
-    assert checked.json() == []
+    assert checked.json() == {"violations": [], "ends_handover": None}
 
     response = await client.post(
         "/api/v1/calendar/override",
@@ -352,8 +352,8 @@ async def test_override_check_does_not_invent_an_anchor_split(
         },
     )
     assert checked.status_code == 200, checked.text
-    rules = {item["rule"] for item in checked.json()}
-    assert "late_shift_anchor" not in rules, checked.json()
+    rules = {item["rule"] for item in checked.json()["violations"]}
+    assert "late_shift_anchor" not in rules, checked.json()["violations"]
 
 
 @pytest.mark.anyio

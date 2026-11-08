@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -21,7 +22,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from oncall.domain.clock import utc_now
-from oncall.domain.forwarding.models import DEFAULT_BASE_URL, ForwardingMode, ForwardingOutcome
+from oncall.domain.forwarding.models import (
+    DEFAULT_BASE_URL,
+    ForwardingMode,
+    ForwardingOutcome,
+    HandoverEnd,
+)
 from oncall.infrastructure.sqlalchemy.base import Base
 
 
@@ -117,3 +123,53 @@ class CallForwardingState(Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     #: The dedup key of the last failure alert, which a recovery mail answers.
     alerted_for: Mapped[str | None] = mapped_column(String(160))
+
+
+class ForwardingHandover(Base):
+    """A number handover: the day's PRIMARY lets the SECONDARY take the
+    on-call number until `until`. The forwarding pass reads the open one;
+    once ended, the row stays as the record of who had the number when."""
+
+    __tablename__ = "forwarding_handovers"
+    __table_args__ = (
+        # At most one open handover a day. The predicate is PostgreSQL SQL,
+        # so SQLite test databases rely on the use case's check alone.
+        Index(
+            "uq_forwarding_handovers_open_day",
+            "day",
+            unique=True,
+            postgresql_where=text("ended_at IS NULL"),
+        ).ddl_if(dialect="postgresql"),
+        CheckConstraint("starts_at < until", name="ck_forwarding_handovers_period"),
+        CheckConstraint(
+            "(ended_at IS NULL) = (end_reason IS NULL)", name="ck_forwarding_handovers_end"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    #: The duty day it was made on (`oncall.domain.forwarding.job.forwarding_day`).
+    day: Mapped[date] = mapped_column(Date)
+    from_member_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("team_members.id", ondelete="CASCADE")
+    )
+    to_member_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("team_members.id", ondelete="CASCADE")
+    )
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: None for the worker's own ends: the time ran out, or the roster changed.
+    ended_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    end_reason: Mapped[HandoverEnd | None] = mapped_column(
+        Enum(
+            HandoverEnd,
+            native_enum=False,
+            create_constraint=True,
+            name="ck_forwarding_handovers_end_reason",
+        )
+    )

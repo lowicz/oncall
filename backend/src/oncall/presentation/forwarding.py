@@ -1,15 +1,19 @@
-"""HTTP contracts for the settings and state of forwarding the on-call number."""
+"""HTTP contracts for forwarding the on-call number: its settings and state,
+and the day's pair handing the number over."""
 
+import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 from oncall.domain.forwarding.models import (
     DEFAULT_BASE_URL,
     ConnectionTestOutcome,
     ForwardingMode,
     ForwardingOutcome,
+    SwitchStatus,
 )
+from oncall.domain.vocabulary import AssignmentRole
 
 
 class ForwardingSettingsResponse(BaseModel):
@@ -97,3 +101,40 @@ class ForwardingStateResponse(BaseModel):
     failing_since: datetime | None
     attempts: int
     next_attempt_at: datetime | None
+
+
+class HandoverRequest(BaseModel):
+    """Hand the on-call number to the day's SECONDARY until `until`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    until: AwareDatetime
+
+
+class HandoverResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    day: date
+    from_member_id: uuid.UUID
+    from_name: str
+    to_member_id: uuid.UUID
+    to_name: str
+    starts_at: datetime
+    until: datetime
+
+
+class ForwardingNowResponse(BaseModel):
+    """Where the on-call number rings now: names and roles, never a number.
+    Only `mode` is set while forwarding is off."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    mode: ForwardingMode
+    day: date | None
+    holder_member_id: uuid.UUID | None
+    holder_name: str | None
+    holder_role: AssignmentRole | None
+    handover: HandoverResponse | None
+    status: SwitchStatus | None
+    confirmed_at: datetime | None

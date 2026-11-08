@@ -14,6 +14,7 @@ diff like any other change to what a reader sees.
 
 import os
 import re
+import uuid
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 from html import escape
@@ -22,7 +23,8 @@ from pathlib import Path
 import pytest
 
 from oncall.domain.digest import Gap
-from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
+from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget, Receiver
+from oncall.domain.forwarding.models import NumberHandover
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import reset_request_language, set_request_language
 from oncall.notifications import templates
@@ -31,6 +33,7 @@ from oncall.notifications.templates import RenderedEmail, format_day, format_ran
 from oncall.rules import RuleViolation
 
 SNAPSHOT = Path(__file__).parent / "snapshots" / "email_swap_requested.html"
+HANDOVER_SNAPSHOT = Path(__file__).parent / "snapshots" / "email_handover_ended.html"
 
 APP = Brand(name="On-call", subtitle="Zespół wsparcia", url="https://oncall.example.com")
 #: A Thursday, so the weekday abbreviation is visibly not the ISO date.
@@ -63,6 +66,19 @@ EXCHANGE = {
     "return_slots": [(NEXT, AssignmentRole.secondary)],
     "app": APP,
 }
+HANDED_OVER = ForwardingTarget(
+    DAY, None, "Anna Kowalska", "+48600600600", Receiver(uuid.uuid4(), "Marek Nowak")
+)
+HANDOVER = NumberHandover(
+    id=uuid.uuid4(),
+    day=DAY,
+    from_member_id=uuid.uuid4(),
+    from_name="Anna Kowalska",
+    to_member_id=uuid.uuid4(),
+    to_name="Marek Nowak",
+    starts_at=datetime(2026, 9, 24, 9, 40, tzinfo=UTC),
+    until=datetime(2026, 9, 24, 11, 40, tzinfo=UTC),
+)
 PEOPLE = {"requester_name": "Anna Kowalska", "replacement_name": "Marek Nowak"}
 EXCHANGE_HEADLINE = "czw 24-09-2026 · SECONDARY ⇄ sob 26-09-2026 · SECONDARY"
 EXCHANGE_LINES = (
@@ -308,6 +324,23 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         target=ForwardingTarget(DAY, None, "Anna Kowalska", "+48500500500"),
         app=APP,
     ),
+    "forwarding_failed_during_a_handover": lambda: templates.forwarding_failed(
+        target=HANDED_OVER,
+        cause=ForwardingFailure.update_refused,
+        applied_number="+48500500500",
+        applied_at=datetime(2026, 9, 24, 9, 40, tzinfo=UTC),
+        switch_url=None,
+        app=APP,
+    ),
+    "forwarding_recovered_during_a_handover": lambda: templates.forwarding_recovered(
+        target=HANDED_OVER, app=APP
+    ),
+    "handover_ended_by_roster_change": lambda: templates.handover_ended_by_roster_change(
+        handover=HANDOVER, primary_name="Jan Wiśniewski", app=APP
+    ),
+    "handover_ended_without_a_primary": lambda: templates.handover_ended_by_roster_change(
+        handover=HANDOVER, primary_name=None, app=APP
+    ),
     "duty_digest": lambda: templates.duty_digest(
         days=[
             (
@@ -401,6 +434,40 @@ def test_the_forwarding_alert_without_a_primary_says_brak_once() -> None:
     )
 
     assert "Dyżur PRIMARY: brak.\n" in failed.text
+
+
+def test_an_alert_during_a_handover_names_who_took_the_number_over() -> None:
+    failed = RENDERINGS["forwarding_failed_during_a_handover"]()
+    recovered = RENDERINGS["forwarding_recovered_during_a_handover"]()
+
+    assert "Dyżur PRIMARY: Anna Kowalska.\nNumer przejął: Marek Nowak (+48 600 *** 600).\n" in (
+        failed.text
+    )
+    assert "Dyżur PRIMARY: Anna Kowalska, numer przejął: Marek Nowak (+48 600 *** 600)" in (
+        recovered.text
+    )
+    for rendered in (failed, recovered):
+        assert "Numer przejął" in rendered.html
+        assert "Marek Nowak" in rendered.html
+
+
+def test_a_handover_ended_by_the_roster_says_where_the_number_went() -> None:
+    ended = RENDERINGS["handover_ended_by_roster_change"]()
+    nobody = RENDERINGS["handover_ended_without_a_primary"]()
+
+    assert ended.subject == "Przekazanie numeru on-call zakończone przez korektę grafiku"
+    assert ended.text.startswith(
+        "Przekazanie numeru on-call Anna Kowalska → Marek Nowak zakończyło się, bo korekta "
+        "grafiku zmieniła parę dyżurną dnia czw 24-09-2026.\n"
+        "Numer on-call wraca do osoby na dyżurze PRIMARY: Jan Wiśniewski.\n"
+    )
+    assert "nie ma teraz osoby na dyżurze PRIMARY" in nobody.text
+    if os.environ.get("UPDATE_EMAIL_SNAPSHOTS"):
+        HANDOVER_SNAPSHOT.write_text(ended.html)
+    assert ended.html == HANDOVER_SNAPSHOT.read_text(), (
+        "The rendered e-mail changed. If that is intended, regenerate the snapshot "
+        "with UPDATE_EMAIL_SNAPSHOTS=1 and review the diff."
+    )
 
 
 def test_dates_read_as_the_screens_print_them() -> None:

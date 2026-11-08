@@ -138,6 +138,7 @@ export const schedule: Messages['schedule'] = {
   },
   confirm: {
     breaksRules: 'This correction will break hard rules',
+    endsHandover: (from: string, to: string) => `This correction ends the on-call number handover ${from} → ${to}. The number goes back to the PRIMARY, and both of them get an e-mail.`,
     emptySlot: (name: string) => `The slot was empty - the correction only adds a duty to ${name}, it takes one from nobody.`,
     save: 'Save the staffing change',
     saveHistorical: 'Save the staffing change…',

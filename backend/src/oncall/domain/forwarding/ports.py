@@ -1,5 +1,6 @@
 import uuid
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Protocol
 
 from oncall.domain.access.ports import ConfirmationPorts
@@ -7,10 +8,14 @@ from oncall.domain.forwarding.models import (
     ConnectionTest,
     ForwardingSettings,
     ForwardingState,
+    HandoverEnd,
+    NumberHandover,
     SettingsChange,
     WcoAccount,
 )
 from oncall.domain.forwarding.passwords import Passwords
+from oncall.domain.ports import PublishedRoster
+from oncall.domain.team import Member
 
 
 class CurrentSettings(Protocol):
@@ -131,3 +136,83 @@ class CurrentState(Protocol):
     async def current(self) -> ForwardingState:
         """The one state row, created empty on first use."""
         ...
+
+
+class OpenHandover(Protocol):
+    async def open(self) -> NumberHandover | None:
+        """The handover nobody ended yet; at most one exists."""
+        ...
+
+
+class HandoverStore(Protocol):
+    async def open(self) -> NumberHandover | None:
+        """The handover nobody ended yet; at most one exists."""
+        ...
+
+    async def start(
+        self,
+        *,
+        day: date,
+        from_member_id: uuid.UUID,
+        to_member_id: uuid.UUID,
+        until: datetime,
+        now: datetime,
+        by_user_id: uuid.UUID,
+    ) -> NumberHandover:
+        """Open a handover; `errors.HandoverActive` when another one was
+        opened meanwhile."""
+        ...
+
+    async def end(
+        self,
+        handover: NumberHandover,
+        reason: HandoverEnd,
+        *,
+        at: datetime,
+        by_user_id: uuid.UUID | None,
+    ) -> bool:
+        """End it unless it already ended: True for the one caller that did."""
+        ...
+
+
+class HandoverJournal(Protocol):
+    """The audit entries of a handover, and the mail of the one end its
+    people did not see coming."""
+
+    def started(self, handover: NumberHandover) -> None: ...
+
+    def ended(self, handover: NumberHandover, reason: HandoverEnd) -> None: ...
+
+    async def ended_by_roster_change(
+        self, handover: NumberHandover, primary_name: str | None
+    ) -> None:
+        """Tell both people the number went back to `primary_name`."""
+        ...
+
+
+@dataclass(frozen=True)
+class HandoverPorts:
+    handovers: HandoverStore
+    journal: HandoverJournal
+
+
+class AccountMembers(Protocol):
+    async def member_for_account(self, user_id: uuid.UUID) -> Member | None: ...
+
+
+@dataclass(frozen=True)
+class HandoverChangePorts:
+    settings: CurrentSettings
+    roster: PublishedRoster
+    contacts: ForwardingContacts
+    team: AccountMembers
+    handover: HandoverPorts
+
+
+@dataclass(frozen=True)
+class ForwardingNowPorts:
+    settings: CurrentSettings
+    roster: PublishedRoster
+    contacts: ForwardingContacts
+    handovers: OpenHandover
+    state: CurrentState

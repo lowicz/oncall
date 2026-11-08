@@ -1503,3 +1503,54 @@ async def test_two_workers_pruning_at_once_delete_every_row_once(
     assert first.deleted["logins"] + second.deleted["logins"] == 6
     async with pg_factory() as reader:
         assert await reader.scalar(select(func.count()).select_from(AuditEvent)) == 0
+
+
+async def test_both_of_the_pair_handing_the_number_over_at_once_open_one_handover(
+    pg, monkeypatch
+) -> None:
+    """The partial unique index on the open day is the one guard here: both
+    requests pass the check for an open handover before either commits."""
+    from oncall.infrastructure.sqlalchemy.forwarding_models import (
+        CallForwardingSettings,
+        ForwardingHandover,
+    )
+
+    members = {}
+    for username, name, phone in (
+        ("anna", "Anna Kowalska", "+48500500500"),
+        ("marek", "Marek Nowak", "+48600700800"),
+    ):
+        user = await create_user(pg, username, phone=phone, display_name=name)
+        members[name] = await create_member(pg, user, display_name=name)
+    await create_published_schedule(
+        pg,
+        starts_on=date.today() - timedelta(days=2),
+        days=5,
+        primary=["Anna Kowalska"],
+        secondary=["Marek Nowak"],
+    )
+    for row in (await pg.scalars(select(Assignment))).all():
+        row.member_id = members[row.assignee_name].id
+    pg.add(CallForwardingSettings(mode="live"))
+    await pg.commit()
+    clients = [await _client("anna"), await _client("marek")]
+    _hold_commits(monkeypatch)
+    until = (datetime.now(UTC) + timedelta(minutes=1)).isoformat()
+    try:
+        responses = await asyncio.gather(
+            *(
+                client.post("/api/v1/forwarding/handover", json={"until": until})
+                for client in clients
+            )
+        )
+    finally:
+        for client in clients:
+            await client.aclose()
+
+    assert sorted(response.status_code for response in responses) == [201, 409]
+    opened = await pg.scalar(
+        select(func.count())
+        .select_from(ForwardingHandover)
+        .where(ForwardingHandover.ended_at.is_(None))
+    )
+    assert opened == 1

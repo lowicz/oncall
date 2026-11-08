@@ -31,6 +31,10 @@ from oncall.domain.forwarding.ports import (
     ConnectionTestPorts,
     CurrentSettings,
     CurrentState,
+    ForwardingNowPorts,
+    HandoverChangePorts,
+    HandoverPorts,
+    OpenHandover,
     RevealPorts,
     SettingsPorts,
 )
@@ -73,9 +77,12 @@ from oncall.infrastructure.sqlalchemy.calendar import (
     SqlAlchemyCalendarRoster,
 )
 from oncall.infrastructure.sqlalchemy.forwarding import (
+    SqlAlchemyForwardingConfiguration,
     SqlAlchemyForwardingJournal,
     SqlAlchemyForwardingSettings,
     SqlAlchemyForwardingState,
+    SqlAlchemyHandoverJournal,
+    SqlAlchemyHandovers,
 )
 from oncall.infrastructure.sqlalchemy.history import SqlAlchemyHistory
 from oncall.infrastructure.sqlalchemy.overrides import SqlAlchemyOverrideJournal
@@ -160,6 +167,30 @@ def forwarding_connection_tester(db: DbSession, actor: CurrentUser) -> Connectio
 
 def forwarding_state_reader(db: DbSession) -> CurrentState:
     return SqlAlchemyForwardingState(db)
+
+
+def forwarding_now_reader(db: DbSession) -> ForwardingNowPorts:
+    return ForwardingNowPorts(
+        settings=SqlAlchemyForwardingSettings(db),
+        roster=SqlAlchemyPublishedRoster(db),
+        contacts=SqlAlchemyForwardingConfiguration(db),
+        handovers=SqlAlchemyHandovers(db),
+        state=SqlAlchemyForwardingState(db),
+    )
+
+
+def open_handover_reader(db: DbSession) -> OpenHandover:
+    return SqlAlchemyHandovers(db)
+
+
+def handover_changer(db: DbSession, actor: CurrentUser) -> HandoverChangePorts:
+    return HandoverChangePorts(
+        settings=SqlAlchemyForwardingSettings(db),
+        roster=SqlAlchemyPublishedRoster(db),
+        contacts=SqlAlchemyForwardingConfiguration(db),
+        team=SqlAlchemyTeamDirectory(db),
+        handover=HandoverPorts(SqlAlchemyHandovers(db), SqlAlchemyHandoverJournal(db, actor)),
+    )
 
 
 def generation_requests(db: DbSession) -> GenerationRequestPorts:
@@ -402,6 +433,9 @@ ForwardingSettingsWriter = Annotated[SettingsPorts, Depends(forwarding_settings_
 ForwardingPasswordRevealer = Annotated[RevealPorts, Depends(forwarding_password_revealer)]
 ForwardingConnectionTester = Annotated[ConnectionTestPorts, Depends(forwarding_connection_tester)]
 ForwardingStateReader = Annotated[CurrentState, Depends(forwarding_state_reader)]
+ForwardingNowReader = Annotated[ForwardingNowPorts, Depends(forwarding_now_reader)]
+HandoverChanger = Annotated[HandoverChangePorts, Depends(handover_changer)]
+OpenHandoverReader = Annotated[OpenHandover, Depends(open_handover_reader)]
 GenerationRequestProvider = Annotated[GenerationRequestPorts, Depends(generation_requests)]
 DraftWriter = Annotated[DraftPorts, Depends(draft_writer)]
 PublicationReader = Annotated[PublicationPorts, Depends(publication_reader)]
