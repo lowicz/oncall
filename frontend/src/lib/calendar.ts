@@ -141,6 +141,15 @@ export function isCurrentAssignee(
   ))
 }
 
+/** An eligibility window for `role` covers the day; a member listed without
+ *  windows (as a member's own payload has them) counts as eligible. */
+function isEligible(member: CalendarData['members'][number], role: AssignmentRole, serviceDate: string) {
+  return member.eligibility?.some(
+    (item) => item.role === role && item.starts_on <= serviceDate
+      && (!item.ends_on || item.ends_on >= serviceDate),
+  ) ?? true
+}
+
 export interface StaffingCandidate {
   id: string
   display_name: string
@@ -192,11 +201,8 @@ export function staffingCandidates(
           && item.role === opposite
           && isCurrentAssignee(member, item),
       )
-      const roles = member.eligibility && ALL_ROLES.filter((item) => member.eligibility!.some(
-        (period) => period.role === item && period.starts_on <= serviceDate
-          && (!period.ends_on || period.ends_on >= serviceDate),
-      ))
-      const eligible = roles?.includes(role) ?? true
+      const roles = member.eligibility && ALL_ROLES.filter((item) => isEligible(member, item, serviceDate))
+      const eligible = isEligible(member, role, serviceDate)
       let disabledReason: string | undefined
       const reasons = messages().calendar.disabledReasons
       if (isCurrent) disabledReason = reasons.alreadyHoldsRole
@@ -283,12 +289,8 @@ export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: Late
     const from = anchor === 'primary' ? primary : secondary
     const to = anchor === 'primary' ? secondary : primary
     if (late.id === from.id) {
-      const member = data.members.find((item) => item.id === to.id)
-      const eligible = member?.eligibility?.some(
-        (item) => item.role === 'late_shift' && item.starts_on <= serviceDate
-          && (!item.ends_on || item.ends_on >= serviceDate),
-      ) ?? true
-      lateShift = { anchor, from, to, eligible }
+      const member = data.members.find((item) => item.id === to.id)!
+      lateShift = { anchor, from, to, eligible: isEligible(member, 'late_shift', serviceDate) }
     }
   }
   return { primary, secondary, lateShift }
