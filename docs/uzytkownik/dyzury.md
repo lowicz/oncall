@@ -113,8 +113,7 @@ a w miejscu przycisku przekazania stoi przycisk zakończenia opisany niżej.
   też przyciskiem **Zakończ** na karcie Stan ekranu
   [Przełączanie numeru](administracja.md#przełączanie-numeru-przelaczanie-administrator).
   Zakończenie nie pyta o potwierdzenie, bo ponowne przekazanie to jedno
-  kliknięcie; powiadomienie mówi, kto znów odbiera numer. Działa także po
-  przestawieniu trybu na **Wyłączone**.
+  kliknięcie; powiadomienie mówi, kto znów odbiera numer.
 - **Przez korektę grafiku**: gdy korekta lub zamiana zmienia, kto ma tego dnia
   `PRIMARY` albo `SECONDARY`, także gdy zamienia te dwie role między sobą,
   przekazanie kończy się samo, a numer wraca do osoby, która

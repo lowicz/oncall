@@ -170,8 +170,9 @@ Najwyżej jedno przekazanie jest aktywne naraz.
   przekazanie jest zapisane i widoczne, ale WCO nie jest zmieniane.
 - **Koniec.** Przekazanie kończy się samo po upływie wybranej godziny (nie
   później niż o godzinie przypomnienia, gdy numer i tak przechodzi na nowego
-  PRIMARY), ręcznie (para, koordynator, administrator; także w trybie
-  **Wyłączone**) albo przez zmianę grafiku. Żadnego z tych powrotów nie
+  PRIMARY), ręcznie (para, koordynator, administrator; w trybie
+  **Wyłączone** tylko przez API, bo interfejs nie pokazuje przycisku) albo
+  przez zmianę grafiku. Żadnego z tych powrotów nie
   trzeba osobno uruchamiać: proces porównuje cel ze stanem WCO jak zawsze.
 - **Zmiana grafiku.** Korekta lub zamiana, która zmienia, kto ma PRIMARY albo
   SECONDARY dnia, także zamiana tych dwóch ról między sobą, kończy przekazanie z powodem „zmiana grafiku” i wysyła

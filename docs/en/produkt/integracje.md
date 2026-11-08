@@ -176,8 +176,8 @@ number over. At most one handover is active at a time.
   recorded and visible, but WCO is not changed.
 - **End.** A handover ends by itself when the chosen time passes (no later than
   the reminder hour, when the number moves to the new PRIMARY anyway), by hand
-  (the pair, a coordinator, an administrator; also in **Off** mode) or through
-  a schedule change. None of these returns needs starting separately: the worker
+  (the pair, a coordinator, an administrator; in **Off** mode only through the
+  API, because the interface shows no button) or through a schedule change. None of these returns needs starting separately: the worker
   compares the target with WCO's state as ever.
 - **Schedule change.** A correction or swap that changes who is on PRIMARY or
   SECONDARY that day, swapping the two roles included, ends the handover with the reason "schedule change" and sends the

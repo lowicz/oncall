@@ -116,8 +116,7 @@ when, and the hand-over button is replaced by the end button described below.
   can also use **End** on the State card of the
   [Number forwarding](administracja.md#number-forwarding-przelaczanie-administrator)
   screen. Ending asks no confirmation, because handing over again is one click;
-  the notification says who answers the number again. It works after the mode
-  has been switched to **Off** as well.
+  the notification says who answers the number again.
 - **Through a schedule correction**: when a correction or swap changes who is on
   `PRIMARY` or `SECONDARY` that day, swapping the two roles included, the
   handover ends by itself and the number
