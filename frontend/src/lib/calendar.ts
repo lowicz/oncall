@@ -1,4 +1,4 @@
-import { AssignmentRole, AvailabilityKind, CalendarData } from '../api'
+import { AssignmentRole, AvailabilityKind, CalendarData, LateShiftAnchor } from '../api'
 import { formatMonth, isMonday, monthsShort } from './dates'
 import { messages } from '../i18n/messages'
 
@@ -244,3 +244,64 @@ export function monthGroups(days: CalendarData['days']): MonthGroup[] {
 
 /** Monday starts a new week block; used to draw the week separators. */
 export const startsWeek = (day: CalendarData['days'][number]) => isMonday(day.service_date)
+
+export interface SwapHolder { id: string; name: string }
+
+/** A day's PRIMARY and SECONDARY that two different people hold, ready to
+ *  trade places (P6), and what 11–19 may do in the same move. */
+export interface RoleSwap {
+  primary: SwapHolder
+  secondary: SwapHolder
+  /** 11–19 is the anchor holder's and may go along with the anchor role:
+   *  the coordinator's choice, offered exactly where the API would carry it
+   *  in a single correction (`_couples_late_shift` with `_same_holder`).
+   *  Null when 11–19 is not part of the swap at all. */
+  lateShift: {
+    anchor: 'primary' | 'secondary'
+    from: SwapHolder
+    to: SwapHolder
+    /** The person taking the anchor role may hold 11–19 that day. */
+    eligible: boolean
+  } | null
+}
+
+/** The swap of `serviceDate`'s on-call pair, or null when one role is empty,
+ *  one person holds both, or a holder is not a team member. */
+export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): RoleSwap | null {
+  const holder = (role: AssignmentRole): SwapHolder | null => {
+    const slot = data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+    const member = slot && data.members.find((item) => isCurrentAssignee(item, slot))
+    return member ? { id: member.id, name: member.display_name } : null
+  }
+  const primary = holder('primary')
+  const secondary = holder('secondary')
+  if (!primary || !secondary || primary.id === secondary.id) return null
+  const late = holder('late_shift')
+  const day = data.days.find((item) => item.service_date === serviceDate)
+  let lateShift: RoleSwap['lateShift'] = null
+  if (anchor !== 'independent' && day && !day.is_day_off && late) {
+    const from = anchor === 'primary' ? primary : secondary
+    const to = anchor === 'primary' ? secondary : primary
+    if (late.id === from.id) {
+      const member = data.members.find((item) => item.id === to.id)
+      const eligible = member?.eligibility?.some(
+        (item) => item.role === 'late_shift' && item.starts_on <= serviceDate
+          && (!item.ends_on || item.ends_on >= serviceDate),
+      ) ?? true
+      lateShift = { anchor, from, to, eligible }
+    }
+  }
+  return { primary, secondary, lateShift }
+}
+
+/** The batch that performs `swap` (or, with the roles' holders as they were,
+ *  undoes it): each on-call role goes to the other person, and 11–19 rides
+ *  on the anchor role's line when `withLateShift`. */
+export function roleSwapLines(swap: RoleSwap, serviceDate: string, withLateShift: boolean) {
+  return (['primary', 'secondary'] as const).map((role) => ({
+    service_date: serviceDate,
+    role,
+    replacement_member_id: (role === 'primary' ? swap.secondary : swap.primary).id,
+    with_late_shift: withLateShift && swap.lateShift?.anchor === role,
+  }))
+}

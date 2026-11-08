@@ -127,6 +127,23 @@ Z tego panelu:
   co zmieniono i kto dostanie e-mail („Zmieniono obsadę 14 lis · PRIMARY:
   Anna Kowalska → Jan Nowak”); przycisk **Otwórz dzień** otwiera panel tego
   dnia ponownie,
+- **koordynator i administrator** mogą zamienić miejscami osoby z PRIMARY i
+  SECONDARY tego dnia jednym ruchem, bez korekt przez osobę trzecią. Przycisk
+  **Zamień miejscami…** stoi między wierszami PRIMARY i SECONDARY, gdy obie
+  role mają różne osoby, i rozwija w panelu ramkę „Zamiana miejscami”: podgląd
+  wiersz po wierszu (kto przechodzi na którą rolę), linię reguł sprawdzoną na
+  stanie po zamianie i wpływ na bilans punktów obu osób. Jeśli polityka wiąże
+  11–19 z rolą, którą oddaje osoba pełniąca też 11–19, ramka ma pole
+  „razem z SECONDARY” (albo „razem z PRIMARY”), zaznaczone dokładnie wtedy,
+  gdy druga osoba ma uprawnienia do 11–19, z jednym zdaniem dlaczego.
+  Odznaczenie zostawia 11–19 bez zmian i pokazuje regułę powiązania do
+  świadomego potwierdzenia. Powód jest potrzebny tylko dla dnia, który już
+  minął (pole w ramce, co najmniej 10 znaków). **Zamień miejscami** zapisuje
+  zamianę jako jedną zmianę grafiku z jednym wpisem audytu („Zamieniono role
+  dnia”); obie osoby dostają e-mail „Zamiana ról” po zamknięciu okna
+  „Cofnij”. Komunikat po zapisie ma przycisk **Cofnij**, a w panelu przez ten
+  sam czas zamiast „Zamień miejscami…” stoi **Cofnij zamianę**; cofnięcie
+  przywraca poprzednią obsadę, a e-maile nie wychodzą,
 - **koordynator i administrator** mogą przyciskiem **Wydarzenie…** otworzyć
   osobne okno i dodać w nim wydarzenie kalendarza na ten dzień; panel dnia
   czeka pod spodem i po zapisie pokazuje nowe wydarzenie. Wydarzenie usuwa
