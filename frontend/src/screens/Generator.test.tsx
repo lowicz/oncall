@@ -1157,7 +1157,9 @@ describe('GeneratorPanel publication sheet', () => {
     const alert = await within(dialog).findByRole('alert')
     expect(alert).toHaveTextContent('Nie udało się opublikować')
     expect(alert).toHaveTextContent('Propozycja zmieniła się od otwarcia okna')
-    expect(alert).toHaveTextContent('Wróć do propozycji, sprawdź zmiany i opublikuj ponownie.')
+    // The server message carries no final period, so the hint is its own line
+    // rather than a run-on second sentence.
+    expect(within(alert).getByText('Wróć do propozycji, sprawdź zmiany i opublikuj ponownie.')).toHaveClass('box-next')
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć do propozycji' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

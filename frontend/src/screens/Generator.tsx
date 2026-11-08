@@ -666,7 +666,8 @@ export function GeneratorPanel() {
         >
           {publish.error && (
             <Box tone="bad" role="alert" title={t.publish.failed}>
-              {publish.error.message} {t.publish.failedNext}
+              {publish.error.message}
+              <div className="box-next">{t.publish.failedNext}</div>
             </Box>
           )}
           <ul>
