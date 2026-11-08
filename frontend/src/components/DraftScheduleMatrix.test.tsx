@@ -238,7 +238,7 @@ describe('DraftScheduleMatrix inspector', () => {
     renderScreen(<DraftScheduleMatrix result={weekendDraft} onChange={() => {}} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, sob 26-09-2026/ }))
-    const panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 26-09-2026' })
+    const panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 26-09-2026' })
     expect(within(panel).getByText('2X · dzień wolny')).toBeInTheDocument()
     expect(within(panel).getByText('Dzień wolny / 2X - zmiana 11–19 nie występuje.')).toBeInTheDocument()
     const warning = within(panel).getByText('Marek Nowak: Nie mogę').closest('.box')
@@ -258,7 +258,7 @@ describe('DraftScheduleMatrix inspector', () => {
 
     // Anna holds SECONDARY on Sunday: the inspector opens on it.
     fireEvent.click(await screen.findByRole('button', { name: /^Anna Kowalska, niedz 27-09-2026/ }))
-    let panel = await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 27-09-2026' })
+    let panel = await screen.findByRole('dialog', { name: 'Anna Kowalska · 27-09-2026' })
     expect(within(panel).getByText('2X · Święto testowe')).toBeInTheDocument()
     expect(within(panel).getByRole('combobox', { name: 'Rola' })).toHaveValue('secondary')
     // The person already holds the role: nothing to move.
@@ -276,6 +276,7 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(within(panel).getByText('Marek Nowak: Chętnie wezmę').closest('.box')).toHaveTextContent(/^Marek Nowak: Chętnie wezmę$/)
 
     fireEvent.change(within(panel).getByRole('combobox', { name: 'Rola' }), { target: { value: 'secondary' } })
+    expect(panel).toHaveAccessibleName('Wstaw: Marek Nowak · 27-09-2026')
     expect(within(panel).getByText('Anna Kowalska')).toBeInTheDocument()
     expect(within(panel).getByText('Bilans SECONDARY: Marek Nowak').closest('.box')).toHaveTextContent('-1 → +1 (+2 punkty za dzień 2X)')
   })

@@ -251,6 +251,7 @@ export const generator: Messages['generator'] = {
     willBeRejected: 'The assignment will be rejected.',
     quotedNote: (note: string) => `“${note}”`,
     correctionTitle: (name: string, date: string) => `Insert: ${name} · ${date}`,
+    dayTitle: (name: string, date: string) => `${name} · ${date}`,
     roleToChange: 'Role',
     currently: 'Now',
     noAssignment: 'none',

@@ -258,6 +258,7 @@ export const generator = {
     willBeRejected: 'Przydział zostanie odrzucony.',
     quotedNote: (note: string) => `„${note}”`,
     correctionTitle: (name: string, date: string) => `Wstaw: ${name} · ${date}`,
+    dayTitle: (name: string, date: string) => `${name} · ${date}`,
     roleToChange: 'Rola',
     currently: 'Teraz',
     noAssignment: 'brak',
