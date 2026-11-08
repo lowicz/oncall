@@ -126,7 +126,7 @@ export function CalendarMatrix({
   const [staffOpen, setStaffOpen] = useState(false)
   const [staffMemberId, setStaffMemberId] = useState<string | null>(null)
   const [violationsAcknowledged, setViolationsAcknowledged] = useState(false)
-  const [overrideReason, setOverrideReason] = useState('')
+  const [confirmHistorical, setConfirmHistorical] = useState(false)
   const [eventTitle, setEventTitle] = useState('')
   const [eventColor, setEventColor] = useState<CalendarEventColor>('blue')
   const [eventFormOpen, setEventFormOpen] = useState(false)
@@ -136,6 +136,7 @@ export function CalendarMatrix({
     setSelected(null)
     setStaffOpen(false)
     setStaffMemberId(null)
+    setConfirmHistorical(false)
     setEventFormOpen(false)
   }
   const openDay = (day: Day, member: Member | undefined, nextRole: AssignmentRole) => {
@@ -304,14 +305,13 @@ export function CalendarMatrix({
   const saveBlocked = Boolean(staffBlockReason)
     || overrideCheck.isLoading
     || ((overrideCheck.data?.length ?? 0) > 0 && !violationsAcknowledged)
-    || (historical && overrideReason.trim().length < 10)
-  const saveOverride = () => selected && staffMemberId && scheduleRef && override.mutate({
+  const saveOverride = (reason?: string) => selected && staffMemberId && scheduleRef && override.mutate({
     schedule_id: scheduleRef.schedule_id,
     expected_version: scheduleRef.schedule_version,
     service_date: selected.day.service_date,
     role: selectedRole,
     replacement_member_id: staffMemberId,
-    reason: historical ? overrideReason.trim() : undefined,
+    reason,
     acknowledge_rule_violations: (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged,
   })
   const openStaffChange = (nextRole: AssignmentRole) => {
@@ -320,7 +320,6 @@ export function CalendarMatrix({
     const safeRole: AssignmentRole = nextRole === 'late_shift' && selected?.day.is_day_off ? 'primary' : nextRole
     setSelectedRole(safeRole)
     setStaffMemberId(null)
-    setOverrideReason('')
     override.reset()
     setStaffOpen(true)
   }
@@ -539,9 +538,17 @@ export function CalendarMatrix({
               variant="primary"
               loading={override.isPending}
               aria-disabled={saveBlocked || undefined}
-              onClick={() => { if (!saveBlocked) saveOverride() }}
+              onClick={() => {
+                if (saveBlocked) return
+                if (historical) {
+                  override.reset()
+                  setConfirmHistorical(true)
+                } else {
+                  saveOverride()
+                }
+              }}
             >
-              {t.confirm.save}
+              {historical ? t.confirm.saveHistorical : t.confirm.save}
             </Button>
           </>
         ) : (
@@ -589,7 +596,7 @@ export function CalendarMatrix({
                   id={id}
                   name={id}
                   value={selectedRole}
-                  onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null) }}
+                  onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null); override.reset() }}
                 >
                   {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
                     <option key={item} value={item}>{roleLabels()[item]}</option>
@@ -605,7 +612,7 @@ export function CalendarMatrix({
                   name={id}
                   value={staffMemberId ?? ''}
                   aria-describedby={describedBy}
-                  onChange={(event) => setStaffMemberId(event.target.value || null)}
+                  onChange={(event) => { setStaffMemberId(event.target.value || null); override.reset() }}
                 >
                   <option value="">{t.inspector.pickPerson}</option>
                   {staffCandidates.map((candidate) => (
@@ -623,8 +630,7 @@ export function CalendarMatrix({
                 violationsTitle={t.confirm.breaksRules}
                 acknowledged={violationsAcknowledged}
                 onAcknowledge={setViolationsAcknowledged}
-                reason={historical ? { label: t.confirm.historicalReason, value: overrideReason, minLength: 10, onChange: setOverrideReason } : undefined}
-                error={override.error?.message}
+                error={confirmHistorical ? null : override.error?.message}
                 pending={override.isPending}
               >
                 {/* MED6-04: the same balance projection a team member sees
@@ -756,6 +762,18 @@ export function CalendarMatrix({
         )}
       </Panel>
 
+      <ConfirmDialog
+        open={confirmHistorical}
+        title={t.confirm.historicalTitle}
+        confirmLabel={t.confirm.save}
+        reasonLabel={t.confirm.historicalReason}
+        reasonMinLength={10}
+        confirmDisabled={saveBlocked}
+        pending={override.isPending}
+        error={override.error?.message}
+        onCancel={() => setConfirmHistorical(false)}
+        onConfirm={saveOverride}
+      />
       <ConfirmDialog
         open={Boolean(eventToDelete)}
         pending={deleteEvent.isPending}

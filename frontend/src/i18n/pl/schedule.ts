@@ -146,6 +146,8 @@ export const schedule = {
     breaksRules: 'Ta korekta złamie reguły twarde',
     emptySlot: (name: string) => `Slot był pusty - korekta dokłada dyżur tylko osobie ${name}, nie zdejmuje go nikomu.`,
     save: 'Zapisz zmianę obsady',
+    saveHistorical: 'Zapisz zmianę obsady…',
+    historicalTitle: 'Potwierdź korektę historyczną',
     historicalReason: 'Powód korekty historycznej (minimum 10 znaków)',
     deleteEventTitle: 'Usunąć wydarzenie?',
     deleteEvent: (title: string) => `„${title}” zniknie ze wszystkich dni, na które je dodano. Tej operacji nie da się cofnąć.`,

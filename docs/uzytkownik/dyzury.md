@@ -99,12 +99,14 @@ Z tego panelu:
   („Bez naruszeń reguł twardych”) i wpływ na bilans punktów obu osób. Jeśli
   zmiana złamie regułę twardą, w miejscu linii reguł pojawia się ramka „Ta
   korekta złamie reguły twarde” z listą naruszeń i polem „Rozumiem i świadomie
-  łamię te reguły”; takie naruszenie trafia do dziennika audytu. Korekta dnia,
-  który już minął, ma w tym samym miejscu pole powodu (co najmniej 10 znaków).
-  Przycisk **Zapisz zmianę obsady** zapisuje dopiero wtedy, gdy wybrana jest
-  osoba, reguły są sprawdzone, naruszenia potwierdzone, a powód wpisany. Gdy
-  zapis zostanie odrzucony, na przykład bo grafik zmienił się w międzyczasie,
-  powód odmowy pojawia się w panelu i dostaje fokus,
+  łamię te reguły”; takie naruszenie trafia do dziennika audytu. Przycisk
+  **Zapisz zmianę obsady** zapisuje dopiero wtedy, gdy wybrana jest osoba,
+  reguły są sprawdzone, a naruszenia potwierdzone. Korekta dnia, który już
+  minął, jest wyjątkiem: przycisk **Zapisz zmianę obsady…** otwiera okno
+  „Potwierdź korektę historyczną”, które prosi o powód (co najmniej 10 znaków,
+  wymóg audytu), a zapis następuje z tego okna. Gdy zapis zostanie odrzucony,
+  na przykład bo grafik zmienił się w międzyczasie, powód odmowy pojawia się w
+  panelu i dostaje fokus, a przy korekcie historycznej w jej oknie,
 - **koordynator i administrator** mogą z tego samego panelu dodać wydarzenie
   kalendarza na ten dzień.
 

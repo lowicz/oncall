@@ -135,6 +135,8 @@ export const schedule: Messages['schedule'] = {
     breaksRules: 'This correction will break hard rules',
     emptySlot: (name: string) => `The slot was empty - the correction only adds a duty to ${name}, it takes one from nobody.`,
     save: 'Save the staffing change',
+    saveHistorical: 'Save the staffing change…',
+    historicalTitle: 'Confirm the historical correction',
     historicalReason: 'Reason for the historical correction (at least 10 characters)',
     deleteEventTitle: 'Delete the event?',
     deleteEvent: (title: string) => `“${title}” will disappear from every day it was added to. This cannot be undone.`,

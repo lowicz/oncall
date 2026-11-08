@@ -103,12 +103,14 @@ From this panel:
   breaks a hard rule, the rule line gives way to a “This correction will
   break hard rules” frame with the list of violations and an “I understand
   and knowingly break these rules” box; such a violation goes to the audit
-  log. A correction of a day that has already passed has a reason field in
-  the same place (at least 10 characters). **Save the staffing change** saves
-  only once a person is chosen, the rules are checked, the violations are
-  acknowledged and the reason is entered. When the save is refused, for
-  example because the schedule changed in the meantime, the reason for the
-  refusal appears in the panel and takes the focus,
+  log. **Save the staffing change** saves only once a person is chosen, the
+  rules are checked and the violations are acknowledged. A correction of a
+  day that has already passed is the exception: **Save the staffing
+  change…** opens a “Confirm the historical correction” dialog that asks for
+  a reason (at least 10 characters, an audit requirement), and the save is
+  made from that dialog. When the save is refused, for example because the
+  schedule changed in the meantime, the reason for the refusal appears in the
+  panel and takes the focus, or in the dialog for a historical correction,
 - a **coordinator and an administrator** can add a calendar event on that day
   from the same panel.
 

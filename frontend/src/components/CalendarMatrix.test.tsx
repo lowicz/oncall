@@ -911,28 +911,50 @@ describe('CalendarMatrix staffing form', () => {
     expect(within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień obsadę' })).toHaveClass('role-row-sel')
   })
 
-  it('asks for a reason before correcting a day already past', async () => {
+  it('asks for a reason in a dialog before correcting a day already past', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week())
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
-    const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
+    const save = vi.spyOn(api, 'directOverride')
+      .mockRejectedValueOnce(new ApiError('Grafik zmienił wersję', 409))
+      .mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
 
-    // The reason is a field of the frame, not a dialog of its own.
+    // The rules and the balance stay in the panel; only the reason has a dialog of its own.
     await within(dialog).findByText('Bez naruszeń reguł twardych')
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    const reason = within(dialog).getByRole('textbox', { name: /Powód korekty historycznej/ })
-    expectBlocked(saveButton())
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument()
+    const openConfirm = async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz zmianę obsady…' }))
+      return screen.findByRole('dialog', { name: 'Potwierdź korektę historyczną' })
+    }
+    let confirm = await openConfirm()
+    const reason = within(confirm).getByRole('textbox', { name: /Powód korekty historycznej/ })
+    const confirmSave = within(confirm).getByRole('button', { name: 'Zapisz zmianę obsady' })
+    expect(confirmSave).toBeDisabled()
     fireEvent.change(reason, { target: { value: 'za mało' } })
-    expect(within(dialog).getByText('Wpisz co najmniej 10 znaków')).toBeInTheDocument()
-    expectBlocked(saveButton())
+    expect(within(confirm).getByText('Wpisz co najmniej 10 znaków')).toBeInTheDocument()
+    expect(confirmSave).toBeDisabled()
     fireEvent.change(reason, { target: { value: '  Zamiana ustalona telefonicznie ' } })
-    expectReady(saveButton())
-    fireEvent.click(saveButton())
+    fireEvent.click(confirmSave)
 
-    await waitFor(() => expect(save).toHaveBeenCalled())
+    // A refusal is shown in the dialog that covers the panel.
+    expect(await within(confirm).findByRole('alert')).toHaveTextContent('Grafik zmienił wersję')
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    // Cancel returns to the panel, which keeps the refusal.
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Anuluj' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź korektę historyczną' })).not.toBeInTheDocument())
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Grafik zmienił wersję')
+
+    // Trying again starts from an empty reason and no refusal.
+    confirm = await openConfirm()
+    expect(within(confirm).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.change(within(confirm).getByRole('textbox', { name: /Powód korekty historycznej/ }), { target: { value: 'Zamiana ustalona telefonicznie' } })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Zapisz zmianę obsady' }))
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
     expect(save.mock.calls[0][0]).toEqual({
       schedule_id: 's1', expected_version: 4, service_date: '2026-09-08', role: 'primary',
       replacement_member_id: 'm3', reason: 'Zamiana ustalona telefonicznie', acknowledge_rule_violations: false,
@@ -969,10 +991,22 @@ describe('CalendarMatrix staffing form', () => {
     await within(dialog).findByText('Bez naruszeń reguł twardych')
     fireEvent.click(saveButton())
     const refusal = await within(dialog).findByRole('alert')
+    // A day not yet past is saved straight from the panel, with no dialog.
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(refusal).toHaveTextContent('Grafik zmienił wersję')
     expect(refusal).toHaveFocus()
     // A refusal without rule violations is not re-checked.
     expect(check).toHaveBeenCalledTimes(1)
+
+    // The refusal was about the person it was made for: choosing again drops
+    // it, and the frame that reappears leaves the focus where it is.
+    const person = within(dialog).getByRole('combobox', { name: 'Osoba' })
+    person.focus()
+    fireEvent.change(person, { target: { value: '' } })
+    fireEvent.change(person, { target: { value: 'm3' } })
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    expect(person).toHaveFocus()
   })
 
   it('explains a block that appears while the form is open', async () => {
