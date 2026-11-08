@@ -20,10 +20,10 @@ describe.each([['Polish', pl], ['English', en]] as const)('the %s button names',
 
   it('names ending a rotation once, from the entry to both steps of the dialog', () => {
     const { rotationTab, offboarding } = catalog.people
-    const name = rotationTab.rewriteAndEnd.replace('…', '')
+    const name = rotationTab.endRotation.replace('…', '')
     // The entry opens the dialog, so it carries the ellipsis; the button in
     // the dialog does not, and says the act in the same words.
-    expect(rotationTab.rewriteAndEnd.endsWith('…')).toBe(true)
+    expect(rotationTab.endRotation.endsWith('…')).toBe(true)
     expect(offboarding.rewriteAndEnd(0)).toBe(name)
     expect(offboarding.rewriteAndEnd(6).toLowerCase().endsWith(name.toLowerCase())).toBe(true)
     expect(offboarding.rewriteAndEnd(6)).toContain('6')

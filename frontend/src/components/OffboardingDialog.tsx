@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { AssignmentRole, RuleViolation, TeamMember, api } from '../api'
-import { addDays, formatDate } from '../lib/dates'
+import { addDays, formatDate, formatDayShort, formatRange } from '../lib/dates'
+import { useDutiesAfterExit } from '../hooks/useDutiesAfterExit'
 import { roleLabels } from '../lib/labels'
 import { locale, useMessages } from '../i18n'
-import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select, useToast } from '../ui'
+import { Box, Button, Checkbox, Dialog, Field, ListRow, LoadingBlock, RoleMark, Select, useToast } from '../ui'
 
 /**
  * Ending somebody's rotation: every duty after the exit date gets a
@@ -32,32 +33,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
   const t = m.people.offboarding
   const toast = useToast()
   const navigate = useNavigate()
-  const ranges = useMemo(() => {
-    const start = new Date(`${activeUntil}T12:00:00`)
-    if (Number.isNaN(start.getTime())) return []
-    start.setDate(start.getDate() + 1)
-    return Array.from({ length: 5 }, (_, index) => {
-      const from = new Date(start)
-      from.setDate(from.getDate() + index * 90)
-      const to = new Date(from)
-      to.setDate(to.getDate() + 89)
-      return [from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)] as const
-    })
-  }, [activeUntil])
-  const calendar = useQuery({
-    queryKey: ['offboarding', member.id, activeUntil],
-    queryFn: async () => {
-      const pages = await Promise.all(ranges.map(([from, to]) => api.calendar(from, to)))
-      return {
-        assignments: pages.flatMap((page) => page.assignments),
-        members: pages[0]?.members ?? [],
-        availability: pages.flatMap((page) => page.availability),
-      }
-    },
-    enabled: open && Boolean(activeUntil),
-  })
-  const found = calendar.data ?? { assignments: [], members: [], availability: [] }
-  const duties = found.assignments.filter((item) => item.member_id === member.id && item.service_date > activeUntil)
+  const { calendar, found, duties } = useDutiesAfterExit(member, activeUntil, open)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [violations, setViolations] = useState<RuleViolation[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
@@ -70,16 +46,36 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
     setAcknowledged(false)
   }
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
-  const candidates = (day: string, role: AssignmentRole) => {
-    const roleLoad = new Map<string, number>()
-    for (const duty of found.assignments) {
-      if (duty.role === role && duty.member_id) roleLoad.set(duty.member_id, (roleLoad.get(duty.member_id) ?? 0) + 1)
-    }
-    return found.members.filter((candidate) => candidate.id !== member.id
-      && candidate.eligibility?.some((period) => period.role === role && period.starts_on <= day && (!period.ends_on || period.ends_on >= day))
-      && !found.availability.some((entry) => entry.member_id === candidate.id && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
-      .sort((left, right) => (roleLoad.get(left.id) ?? 0) - (roleLoad.get(right.id) ?? 0) || left.display_name.localeCompare(right.display_name, locale()))
+  // A candidate's load is their duties between the first and the last duty
+  // rewritten here: every option shows it, and the least loaded come first.
+  const span = duties.map((item) => item.service_date).sort((a, b) => a.localeCompare(b))
+  const first = span[0]
+  const last = span[span.length - 1]
+  const load = new Map<string, number>()
+  for (const duty of found.assignments) {
+    if (duty.member_id && duty.service_date >= first && duty.service_date <= last) load.set(duty.member_id, (load.get(duty.member_id) ?? 0) + 1)
   }
+  const byLoad = (left: { id: string; display_name: string }, right: { id: string; display_name: string }) =>
+    (load.get(left.id) ?? 0) - (load.get(right.id) ?? 0) || left.display_name.localeCompare(right.display_name, locale())
+  const candidates = (day: string, role: AssignmentRole) => found.members.filter((candidate) => candidate.id !== member.id
+    && candidate.eligibility?.some((period) => period.role === role && period.starts_on <= day && (!period.ends_on || period.ends_on >= day))
+    && !found.availability.some((entry) => entry.member_id === candidate.id && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
+    .sort(byLoad)
+  // "The same replacement for all" offers anyone who can take at least one
+  // duty and fills only the duties they can take; the rest keep their pick.
+  const everyCandidate = [...new Map(duties.flatMap((item) => candidates(item.service_date, item.role)).map((candidate) => [candidate.id, candidate])).values()].sort(byLoad)
+  const picks = duties.map((item) => replacements[key(item.service_date, item.role)])
+  const sameForAll = picks.every((pick) => pick === picks[0]) ? picks[0] ?? '' : ''
+  const optionLabel = (candidate: { id: string; display_name: string }) => t.candidate(candidate.display_name, load.get(candidate.id) ?? 0)
+  const pick = (next: Record<string, string>) => {
+    setReplacements((current) => ({ ...current, ...next }))
+    resetDecision()
+    check.reset()
+    submit.reset()
+  }
+  const pickForAll = (id: string) => pick(Object.fromEntries(duties
+    .filter((item) => candidates(item.service_date, item.role).some((candidate) => candidate.id === id))
+    .map((item) => [key(item.service_date, item.role), id])))
   const groupedDuties = () => duties.reduce((result, item) => {
     result.set(item.schedule_id, [...(result.get(item.schedule_id) ?? []), item])
     return result
@@ -196,29 +192,38 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
         </Box>
       )}
       {calendar.data && duties.length === 0 && <p className="muted">{t.noDuties}</p>}
-      {duties.map((item) => (
-        <Field
-          key={key(item.service_date, item.role)}
-          id={`offboarding-${item.service_date}-${item.role}`}
-          label={<span className="row"><RoleMark role={item.role} size="sm" /> {formatDate(item.service_date)} · {roleLabels()[item.role]}</span>}
-        >
-          {({ id }) => (
-            <Select
-              id={id}
-              value={replacements[key(item.service_date, item.role)] ?? ''}
-              onChange={(event) => {
-                setReplacements((current) => ({ ...current, [key(item.service_date, item.role)]: event.target.value }))
-                resetDecision()
-                check.reset()
-                submit.reset()
-              }}
-            >
-              <option value="">{t.pickReplacement}</option>
-              {candidates(item.service_date, item.role).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.display_name}</option>)}
+      {duties.length > 1 && (
+        <Field id="offboarding-all" label={t.sameForAll} hint={t.sameForAllHint(formatRange(first, last))}>
+          {({ id, describedBy }) => (
+            <Select id={id} value={sameForAll} aria-describedby={describedBy} onChange={(event) => pickForAll(event.target.value)}>
+              <option value="" disabled>{t.pickReplacement}</option>
+              {everyCandidate.map((candidate) => <option key={candidate.id} value={candidate.id}>{optionLabel(candidate)}</option>)}
             </Select>
           )}
         </Field>
-      ))}
+      )}
+      {duties.map((item) => {
+        const id = `offboarding-${item.service_date}-${item.role}`
+        return (
+          <ListRow
+            key={key(item.service_date, item.role)}
+            aside={(
+              <Select
+                id={id}
+                className="offboarding-pick"
+                value={replacements[key(item.service_date, item.role)] ?? ''}
+                onChange={(event) => pick({ [key(item.service_date, item.role)]: event.target.value })}
+              >
+                <option value="">{t.pickReplacement}</option>
+                {candidates(item.service_date, item.role).map((candidate) => <option key={candidate.id} value={candidate.id}>{optionLabel(candidate)}</option>)}
+              </Select>
+            )}
+          >
+            <label htmlFor={id} className="row"><RoleMark role={item.role} size="sm" /> <b>{formatDayShort(item.service_date)} · {roleLabels()[item.role]}</b></label>
+          </ListRow>
+        )
+      })}
+      {duties.length > 0 && <p className="muted small">{t.notice(t.reason(member.display_name))}</p>}
     </Dialog>
   )
 }

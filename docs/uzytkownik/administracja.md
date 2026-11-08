@@ -32,12 +32,17 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   numer zagraniczny albo zapisany przed tą regułą ma dopisek „popraw numer”
   w tabeli, a w polu - po wyjściu z niego albo przy zapisie. Każda osoba może też zmienić swój numer sama na ekranie
   [Moje dyżury](dostepnosc.md#mój-telefon),
-- **Rotacja** (na zakładce skróty kwalifikacji, na przykład „Rotacja · P, S”) -
-  stan rotacji, **kwalifikacje dyżurowe** jako chipy (zdjęcie
-  chipa kończy okres roli z dniem wczorajszym, więc opublikowany grafik
-  zostaje, a generator pomija rolę od następnego uruchomienia; dodanie chipa
-  otwiera okres od dziś), „Wejście od” i „Wyjście do” oraz lista **okresów
-  kwalifikacji** z możliwością edycji dat i dodania okresu,
+- **Rotacja** (na zakładce skróty kwalifikacji, na przykład „Rotacja · P, S”) - „Wejście od” i „Wyjście do”, jedna lista **Kwalifikacje**
+  (dla każdej roli jej bieżące i przyszłe okresy albo wiersz „brak
+  kwalifikacji” z przyciskiem **Dodaj**, na końcu okresy minione jako
+  historia) i przycisk **Zakończ rotację…** (patrz niżej). Każdy okres
+  mieści się w rotacji, więc późniejszą datę wejścia zapisuje się osobno:
+  razem z nią można zapisać tylko usunięcie okresów, które kończą się przed
+  nią, a o innych zmianach rotacji panel mówi, że trzeba je zapisać oddzielnie.
+  Dopóki któryś zapisany okres zaczyna się przed nową datą, pole „Wejście od”
+  wymienia jego rolę: okres, który kończy się przed nią, usuń w tym samym
+  zapisie, a okres trwający dłużej najpierw przesuń albo usuń w osobnym
+  zapisie. Stan rotacji pokazuje znacznik w nagłówku panelu,
 - **Dostęp** - rola konta, przełącznik „Konto włączone” i, dla konta
   lokalnego, **jednorazowy link** resetu hasła albo - dopóki konto czeka na
   aktywację - nowy link aktywacyjny.
@@ -51,6 +56,29 @@ link otwiera go od razu.
 Konto bez rotacji ma na zakładce Rotacja przycisk **Dodaj do rotacji** z datą
 wejścia. Link aktywacyjny nowego konta pokazuje się raz, po utworzeniu; link
 przekaż osobie bezpiecznym kanałem.
+
+Nowe konto może od razu wejść do rotacji: pole **W rotacji dyżurów** w
+panelu „Nowe konto lokalne” odsłania datę wejścia, telefon (wtedy
+wymagany) i kwalifikacje dyżurowe do zaznaczenia. Ramka „Po utworzeniu”
+mówi, od kiedy i w jakich rolach osoba dostanie dyżury. Po utworzeniu ten
+sam panel pokazuje, co powstało (konto, rotację i role), link aktywacyjny
+i przycisk **Otwórz rotację**, który prowadzi do zakładki Rotacja tej
+osoby. Jeśli serwer odmówi zapisania rotacji albo części kwalifikacji, konto
+i link zostają, panel podaje, czego nie zapisano i dlaczego, a resztę
+dokończysz na zakładce.
+
+Każda zmiana kwalifikacji czeka na **Zapisz**, tak jak pozostałe pola
+panelu, i trafia na listę niezapisanych zmian: **Edytuj** zmienia daty
+okresu, **Zakończ dziś** kończy okres z dniem wczorajszym (opublikowany
+grafik zostaje, generator pomija rolę od następnego uruchomienia), okres,
+który jeszcze się nie zaczął, ma zamiast tego **Usuń**, a **Dodaj okres**
+i **Dodaj** przy brakującej roli dodają nowy okres. Zmieniony wiersz ma
+dopisek „zmieniony, niezapisany” (albo „usunięty”, „nowy”) i przycisk
+**Przywróć**. Po zapisie zakończenie albo usunięcie okresu pokazuje
+komunikat z przyciskiem **Cofnij**, który przywraca poprzednie daty albo
+odtwarza usunięty okres; gdy ten sam zapis przesunął wejście do rotacji na
+później, **Cofnij** przywraca też poprzednią datę wejścia. Przywrócony okres
+kończy się najpóźniej w dniu wyjścia z rotacji.
 
 ### Konta oczekujące na aktywację
 
@@ -82,24 +110,43 @@ konto, na które Keycloak wpuszcza osobę.
 Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę.
 Próba zamknięcia (Esc albo krzyżyk), otwarcia innej osoby, przejścia na inny ekran albo odświeżenia wymaga decyzji, czy odrzucić wprowadzone zmiany.
 Przycisk **Odrzuć zmiany** w stopce porzuca je od razu, bez pytania.
-Każdy zapis kończy się powiadomieniem w rogu ekranu, które mówi, co zapisano („Zapisano: telefon”); tak samo utworzenie konta, dodanie do rotacji, dodanie i zdjęcie kwalifikacji oraz usunięcie okresu.
+Każdy zapis kończy się powiadomieniem w rogu ekranu, które mówi, co zapisano („Zapisano: telefon”); tak samo utworzenie konta i dodanie do rotacji.
 Zmiana roli i wyłączenie albo włączenie konta zapisują się bez dodatkowego pytania, a powiadomienie („Zmieniono rolę: Jan Kowalski → Koordynator”) ma przycisk **Cofnij**, który przez kilka sekund przywraca poprzednią rolę i stan konta.
 
 ### Wyjście z rotacji
 
 Ustawienie „Wyjście do” kończy rotację. Historia dyżurów **zostaje** i nadal
 liczy się w raportach; kończy się tylko przydzielanie nowych dyżurów po tej
-dacie. Dyżury już opublikowane po tej dacie trzeba przepisać - panel pokazuje
-wtedy ostrzeżenie „Skutek dla grafiku” z przyciskiem **Zakończ rotację…**, który
-otwiera okno, w którym dla każdego takiego dyżuru wybierasz zastępcę. Okno ma jeden czerwony przycisk, który nazywa skutek, na przykład **Przepisz
-6 dyżurów i zakończ rotację** (bez dyżurów do przepisania: **Zakończ
-rotację**). Kliknięcie sprawdza reguły twarde dla wszystkich grafików naraz i,
-jeśli nic nie jest łamane, od razu zapisuje. Jeśli wybrani zastępcy złamaliby
-regułę twardą, okno wymienia naruszenia pod nagłówkiem „Przepisanie złamie
-reguły twarde”: wybierz innych zastępców albo zaznacz, że łamiesz reguły
-świadomie, i kliknij ten sam przycisk. Potwierdzone naruszenie trafia do
-dziennika audytu. Jeśli zapis przerwie błąd, gdy część grafików jest już
-przepisana, okno podaje, ile dyżurów już przepisano; kolejne kliknięcie
+dacie. Dyżury już opublikowane po tej dacie trzeba przepisać, więc nie da się
+ich zostawić bez obsady przez pomyłkę: podpowiedź pod polem „Wyjście do”
+podaje ich liczbę, a **Zapisz** z taką datą zapisuje zmiany konta i datę
+wejścia i otwiera okno zakończenia rotacji, które dla każdego dyżuru wybiera
+zastępcę. To samo okno otwiera **Zapisz**, gdy kwalifikacje trwają dłużej niż
+do daty wyjścia, bo żaden okres nie może wyjść poza rotację; podpowiedź pod
+polem mówi wtedy, że zapis je zamknie. Data wyjścia zapisuje się dopiero w tym oknie; zamknięcie go
+zostawia ją na liście niezapisanych zmian. Zmiany kwalifikacji też czekają, bo
+serwer nie pozwala zakończyć kwalifikacji, której potrzebują jeszcze
+opublikowane dyżury: okno samo zamyka okresy z dniem wyjścia, a to, co z tych
+zmian zostanie, zapisuje kolejne **Zapisz** - okresy kończą się najpóźniej w
+dniu wyjścia, a te, które zaczynałyby się po nim, znikają z listy. To samo okno otwiera przycisk
+**Zakończ rotację…** na zakładce Rotacja, z datą z pola „Wyjście do” albo, gdy
+jest puste, z dzisiejszą; przy braku dyżurów okno tylko zamyka kwalifikacje i
+zapisuje datę wyjścia.
+
+W oknie pole **Ten sam zastępca dla wszystkich** wpisuje jedną osobę do
+każdego dyżuru, który ta osoba może wziąć; każdy wiersz można potem zmienić
+osobno. Przy każdym nazwisku w nawiasie jest liczba dyżurów, które ta osoba ma
+już w dniach przepisywanych dyżurów, a najmniej obciążeni są na górze.
+Zastępcy dostają e-mail, a operacja trafia do audytu jako „Zakończenie
+rotacji” z nazwiskiem osoby. Okno ma jeden czerwony przycisk, który nazywa
+skutek, na przykład **Przepisz 6 dyżurów i zakończ rotację** (bez dyżurów do
+przepisania: **Zakończ rotację**). Kliknięcie sprawdza reguły twarde dla
+wszystkich grafików naraz i, jeśli nic nie jest łamane, od razu zapisuje.
+Jeśli wybrani zastępcy złamaliby regułę twardą, okno wymienia naruszenia pod
+nagłówkiem „Przepisanie złamie reguły twarde”: wybierz innych zastępców albo
+zaznacz, że łamiesz reguły świadomie, i kliknij ten sam przycisk. Potwierdzone
+naruszenie trafia do dziennika audytu. Jeśli zapis przerwie błąd, gdy część
+grafików jest już przepisana, okno podaje, ile dyżurów już przepisano; kolejne kliknięcie
 przepisuje pozostałe. Po zakończeniu powiadomienie podaje liczbę przepisanych
 dyżurów i zastępców („Marek Nowak ×3, Jan Wiśniewski ×1”) oraz przycisk
 **Otwórz grafik**.

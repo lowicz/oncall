@@ -13,6 +13,7 @@ import { isPolishPhone } from '../../lib/phone'
 import { useUrlParams } from '../../hooks/useUrlParams'
 import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
+import { useDutiesAfterExit } from '../../hooks/useDutiesAfterExit'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 import { UnsavedChangesDialog } from '../../components/UnsavedChangesDialog'
 import { useUndoable } from '../../hooks/useUndoable'
@@ -122,13 +123,33 @@ function LinkResult({ value, label }: { value: string; label: string }) {
 }
 
 interface PeriodValue { starts_on: string; ends_on: string }
+/** A qualification period added on the rotation tab, created on "Zapisz". */
+interface NewPeriod extends PeriodValue { role: AssignmentRole }
+/** A pending change of a saved period: new dates, or null to delete it. */
+type PeriodEdit = PeriodValue | null
 
-function EligibilityPeriodEditor({ item, value, pending, onChange, onDelete, onDone }: {
+/** The rotation a new account joins from the same panel, when it does. */
+interface NewRotation { on: boolean; from: string; roles: AssignmentRole[] }
+/**
+ * What the new account panel created: the account and its one-time link
+ * always, the rotation and the qualifications saved for it, and why the rest
+ * of the rotation is missing when that failed.
+ */
+interface Created { user: AdminUser; url: string; member?: TeamMember; roles: AssignmentRole[]; missing?: AssignmentRole[]; rotationError?: string }
+
+const inRoleOrder = (picked: AssignmentRole[]) => dutyRoles.filter((role) => picked.includes(role))
+const roleList = (picked: AssignmentRole[]) =>
+  new Intl.ListFormat(locale(), { type: 'conjunction' }).format(inRoleOrder(picked).map((role) => dutyRoleLabels()[role]))
+
+function periodText(value: PeriodValue) {
+  const t = messages().people.rotationTab
+  return value.ends_on ? t.periodSpan(formatDate(value.starts_on), formatDate(value.ends_on)) : t.periodOpen(formatDate(value.starts_on))
+}
+
+function EligibilityPeriodEditor({ item, value, onChange, onDone }: {
   item: Eligibility
   value: PeriodValue
-  pending: boolean
   onChange: (next: PeriodValue) => void
-  onDelete: (id: string) => void
   onDone: () => void
 }) {
   const t = useMessages().people.period
@@ -136,11 +157,121 @@ function EligibilityPeriodEditor({ item, value, pending, onChange, onDelete, onD
     <div className="frow frow-end">
       <DateField id={`eligibility-${item.id}-from`} label={t.from} value={value.starts_on} onChange={(starts_on) => onChange({ ...value, starts_on })} />
       <DateField id={`eligibility-${item.id}-until`} label={t.untilOptional} value={value.ends_on} onChange={(ends_on) => onChange({ ...value, ends_on })} />
-      <div className="row">
-        <Button size="sm" onClick={onDone}>{t.done}</Button>
-        <Button size="sm" variant="ghost" icon="trash" disabled={pending} onClick={() => onDelete(item.id)}>{t.delete}</Button>
-      </div>
+      <Button size="sm" onClick={onDone}>{t.done}</Button>
     </div>
+  )
+}
+
+/**
+ * One list for the duty qualifications: per role its current and future
+ * periods, the ones added and not saved yet, or a line saying the role is
+ * missing; past periods last, as history. Every action here only changes
+ * what "Zapisz" will send.
+ */
+function QualificationList({ member, today, edits, newPeriods, editing, onEdit, onEditChange, onAdd, onDropNew }: {
+  member: TeamMember
+  today: string
+  edits: Record<string, PeriodEdit>
+  newPeriods: NewPeriod[]
+  editing: string | null
+  onEdit: (id: string | null) => void
+  /** Undefined drops the pending change of that period. */
+  onEditChange: (item: Eligibility, edit: PeriodEdit | undefined) => void
+  onAdd: (period: NewPeriod) => void
+  onDropNew: (period: NewPeriod) => void
+}) {
+  const t = useMessages().people.rotationTab
+  const historic = (item: Eligibility) => Boolean(item.ends_on && item.ends_on < today)
+  const byStart = (a: { starts_on: string }, b: { starts_on: string }) => a.starts_on.localeCompare(b.starts_on)
+  const action = (verb: string, role: AssignmentRole) => t.rowAction(verb, dutyRoleLabels()[role])
+  const savedRow = (item: Eligibility) => {
+    const edit = edits[item.id]
+    const value = edit ?? { starts_on: item.starts_on, ends_on: item.ends_on ?? '' }
+    const role = dutyRoleLabels()[item.role]
+    if (editing === item.id) {
+      return (
+        <div key={item.id} className="list-row">
+          <div className="list-main stack-sm">
+            <b>{role}</b>
+            <EligibilityPeriodEditor
+              item={item}
+              value={value}
+              onChange={(next) => onEditChange(item, next.starts_on === item.starts_on && (next.ends_on || null) === item.ends_on ? undefined : next)}
+              onDone={() => onEdit(null)}
+            />
+          </div>
+        </div>
+      )
+    }
+    // A period that has not started is deleted; a running one ends yesterday.
+    const notStarted = item.starts_on >= today
+    return (
+      <ListRow
+        key={item.id}
+        aside={(
+          <>
+            {edit !== null && <Button size="sm" variant="ghost" aria-label={action(t.edit, item.role)} onClick={() => onEdit(item.id)}>{t.edit}</Button>}
+            {edit === undefined ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={action(notStarted ? t.delete : t.endToday, item.role)}
+                onClick={() => onEditChange(item, notStarted ? null : { starts_on: item.starts_on, ends_on: addDays(today, -1) })}
+              >
+                {notStarted ? t.delete : t.endToday}
+              </Button>
+            ) : (
+              <Button size="sm" variant="ghost" aria-label={action(t.restore, item.role)} onClick={() => onEditChange(item, undefined)}>{t.restore}</Button>
+            )}
+          </>
+        )}
+      >
+        <b>{role}</b>
+        <small>
+          {periodText(value)}
+          {edit !== undefined && <> · <Tag tone="sig">{edit ? t.changedUnsaved : t.deletedUnsaved}</Tag></>}
+        </small>
+      </ListRow>
+    )
+  }
+  const current = member.eligibility.filter((item) => !historic(item)).sort(byStart)
+  const past = member.eligibility.filter(historic).sort((a, b) => byStart(b, a))
+  const none = current.length === 0 && newPeriods.length === 0
+  return (
+    <>
+      {none && <p className="muted small">{t.noPeriods}</p>}
+      <List className="panel">
+        {dutyRoles.flatMap((role) => {
+          const saved = current.filter((item) => item.role === role)
+          const added = newPeriods.filter((period) => period.role === role)
+          if (saved.length === 0 && added.length === 0) {
+            return [(
+              <ListRow key={role} aside={<Button size="sm" variant="ghost" onClick={() => onAdd({ role, starts_on: today, ends_on: '' })}>{t.addRole(dutyRoleLabels()[role])}</Button>}>
+                <span className="muted small">{t.noRole(dutyRoleLabels()[role])}</span>
+              </ListRow>
+            )]
+          }
+          return [
+            ...saved.map(savedRow),
+            ...added.map((period, index) => (
+              <ListRow
+                key={`${role}-new-${index}`}
+                aside={<Button size="sm" variant="ghost" aria-label={action(t.delete, role)} onClick={() => onDropNew(period)}>{t.delete}</Button>}
+              >
+                <b>{dutyRoleLabels()[role]}</b>
+                <small>{periodText(period)} · <Tag tone="sig">{t.newUnsaved}</Tag></small>
+              </ListRow>
+            )),
+          ]
+        })}
+        {past.map((item) => (
+          <ListRow key={item.id} aside={<span className="muted small">{t.historic}</span>}>
+            <b>{dutyRoleLabels()[item.role]}</b>
+            <small>{periodText({ starts_on: item.starts_on, ends_on: item.ends_on! })}</small>
+          </ListRow>
+        ))}
+      </List>
+    </>
   )
 }
 
@@ -223,7 +354,8 @@ export function PeoplePanel() {
   const [phoneChecked, setPhoneChecked] = useState(false)
   const [newOpen, setNewOpen] = useState(false)
   const [newForm, setNewForm] = useState<AdminUserInput>(emptyAccount)
-  const [activationUrl, setActivationUrl] = useState('')
+  const [newRotation, setNewRotation] = useState<NewRotation>({ on: false, from: today, roles: [] })
+  const [created, setCreated] = useState<Created | null>(null)
   const [resetUrl, setResetUrl] = useState('')
   const [reissuedUrl, setReissuedUrl] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -231,7 +363,9 @@ export function PeoplePanel() {
   const [rotationFrom, setRotationFrom] = useState(today)
   const [rotationUntil, setRotationUntil] = useState('')
   const [offboardingOpen, setOffboardingOpen] = useState(false)
-  const [eligibilityEdits, setEligibilityEdits] = useState<Record<string, PeriodValue>>({})
+  const [offboardingDate, setOffboardingDate] = useState('')
+  const [eligibilityEdits, setEligibilityEdits] = useState<Record<string, PeriodEdit>>({})
+  const [newPeriods, setNewPeriods] = useState<NewPeriod[]>([])
   const [editingPeriod, setEditingPeriod] = useState<string | null>(null)
   const [addingPeriod, setAddingPeriod] = useState(false)
   const [eligibilityRole, setEligibilityRole] = useState<AssignmentRole>('primary')
@@ -270,17 +404,39 @@ export function PeoplePanel() {
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     queryClient.invalidateQueries({ queryKey: ['team'] })
+    queryClient.invalidateQueries({ queryKey: ['offboarding'] })
   }
   const openNew = () => {
     setNewForm(emptyAccount)
-    setActivationUrl('')
+    setNewRotation({ on: false, from: today, roles: [] })
+    setCreated(null)
     setNewOpen(true)
   }
 
   const createAccount = useMutation({
-    mutationFn: (input: AdminUserInput) => api.createAdminUser(input),
-    onSuccess: ({ activation_url }, input) => {
-      setActivationUrl(activation_url)
+    mutationFn: async ({ input, rotation }: { input: AdminUserInput; rotation: NewRotation }): Promise<Created> => {
+      const { user, activation_url: url } = await api.createAdminUser(input)
+      if (!rotation.on) return { user, url, roles: [] }
+      // The account exists by now and its link is shown only once, so a
+      // refused rotation is reported beside the link, to finish on the tab.
+      let member: TeamMember
+      try {
+        member = await api.createTeamMember({ user_id: user.id, active_from: rotation.from })
+      } catch (error) {
+        return { user, url, roles: [], rotationError: (error as Error).message }
+      }
+      // Each role is its own period, so they are created side by side.
+      const picked = inRoleOrder(rotation.roles)
+      const results = await Promise.allSettled(picked.map((role) =>
+        api.createEligibility({ memberId: member.id, input: { role, starts_on: rotation.from, ends_on: null } })))
+      const roles = picked.filter((_, index) => results[index].status === 'fulfilled')
+      const refused = results.find((result) => result.status === 'rejected')
+      if (!refused) return { user, url, member, roles }
+      const missing = picked.filter((_, index) => results[index].status === 'rejected')
+      return { user, url, member, roles, missing, rotationError: (refused.reason as Error).message }
+    },
+    onSuccess: (result, { input }) => {
+      setCreated(result)
       toast.success(t.toast.created([input.first_name, input.last_name].filter(Boolean).join(' ')))
       refresh()
     },
@@ -311,28 +467,58 @@ export function PeoplePanel() {
     }
     return changes
   }, [selectedRow, accountForm, t])
-  const rotationChanges = useMemo(() => {
+  const [entryChanges, exitChanges] = useMemo(() => {
     const member = selectedRow?.member
-    if (!member) return [] as string[]
-    const changes: string[] = []
-    if (rotationFrom !== member.active_from) changes.push(t.changes.rotationFrom(formatDate(rotationFrom)))
-    if ((rotationUntil || null) !== member.active_until) {
-      changes.push(rotationUntil ? t.changes.rotationUntil(formatDate(rotationUntil)) : t.changes.removeRotationUntil)
-    }
-    return changes
+    if (!member) return [[], []] as string[][]
+    return [
+      rotationFrom !== member.active_from ? [t.changes.rotationFrom(formatDate(rotationFrom))] : [],
+      (rotationUntil || null) !== member.active_until
+        ? [rotationUntil ? t.changes.rotationUntil(formatDate(rotationUntil)) : t.changes.removeRotationUntil]
+        : [],
+    ]
   }, [selectedRow, rotationFrom, rotationUntil, t])
-  const eligibilityChanges = useMemo(() => {
-    const member = selectedRow?.member
-    if (!member) return [] as string[]
-    return member.eligibility.flatMap((item) => {
-      const edit = eligibilityEdits[item.id]
-      if (!edit) return []
-      const changed = edit.starts_on !== item.starts_on || (edit.ends_on || null) !== item.ends_on
-      return changed ? [t.changes.eligibilityPeriod(dutyRoleLabels()[item.role])] : []
-    })
-  }, [selectedRow, eligibilityEdits, t])
+  const rotationChanges = [...entryChanges, ...exitChanges]
+  // The saved periods whose pending edit still differs from what the server holds.
+  const periodEdits = useMemo(() => (selectedRow?.member?.eligibility ?? []).flatMap((item) => {
+    const edit = eligibilityEdits[item.id]
+    if (edit === undefined) return []
+    if (edit && edit.starts_on === item.starts_on && (edit.ends_on || null) === item.ends_on) return []
+    return [{ item, edit }]
+  }), [selectedRow, eligibilityEdits])
+  // Ending or deleting a period is saved first and offered back in a toast.
+  const isRemoval = ({ edit }: { edit: PeriodEdit }) => !edit || Boolean(edit.ends_on && edit.ends_on < today)
+  const periodChange = ({ item, edit }: { item: Eligibility; edit: PeriodEdit }) =>
+    (edit ? t.changes.eligibilityPeriod : t.changes.deletePeriod)(dutyRoleLabels()[item.role])
+  const newPeriodChange = (period: NewPeriod) => t.changes.newPeriod(dutyRoleLabels()[period.role])
+  const eligibilityChanges = [...periodEdits.map(periodChange), ...newPeriods.map(newPeriodChange)]
   const pendingChanges = [...accountChanges, ...accessChanges, ...rotationChanges, ...eligibilityChanges]
   const dirty = pendingChanges.length > 0
+  // An exit date with published duties after it, or one a saved period
+  // outlives, is saved through the offboarding dialog, which picks the
+  // replacements and closes the periods first.
+  const exitPending = Boolean(selectedRow?.member) && Boolean(rotationUntil) && rotationUntil !== selectedRow!.member!.active_until
+  const exitDuties = useDutiesAfterExit(selectedRow?.member, rotationUntil, exitPending)
+  const exitChecking = exitPending && exitDuties.calendar.isLoading
+  const exitCutsPeriods = exitPending && selectedRow!.member!.eligibility
+    .some((period) => !period.ends_on || period.ends_on > rotationUntil)
+  const needsOffboarding = exitPending && (exitCutsPeriods || exitDuties.duties.length > 0 || exitDuties.calendar.isError)
+  // The server keeps every period inside the rotation, so a later entry date
+  // is saved on its own, with only the deletions of periods that end before
+  // it; every other rotation change waits for a save of its own.
+  const entryLater = Boolean(selectedRow?.member) && rotationFrom > selectedRow!.member!.active_from
+  const entryDeletions = periodEdits.filter(({ item, edit }) => edit === null && item.ends_on !== null && item.ends_on < rotationFrom)
+  const entryBlockers = entryLater ? [
+    ...exitChanges,
+    ...periodEdits.filter((entry) => !entryDeletions.includes(entry)).map(periodChange),
+    ...newPeriods.map(newPeriodChange),
+  ] : []
+  // A saved period starting before the new date keeps it from being saved;
+  // one deleted in this save is named by the note above instead.
+  const earlyRoles = entryLater
+    ? inRoleOrder(selectedRow!.member!.eligibility
+      .filter((item) => item.starts_on < rotationFrom && eligibilityEdits[item.id] !== null)
+      .map((item) => item.role))
+    : []
   const unsavedChanges = useUnsavedChanges(dirty)
   // The panel's own moves in the URL leave nothing unsaved behind: the
   // guard asks before the panel changes person, not on every tab.
@@ -357,6 +543,7 @@ export function PeoplePanel() {
     setRotationFrom(member?.active_from ?? today)
     setRotationUntil(member?.active_until ?? '')
     setEligibilityEdits({})
+    setNewPeriods([])
     setPhoneChecked(false)
     setEditingPeriod(null)
     setAddingPeriod(false)
@@ -377,7 +564,70 @@ export function PeoplePanel() {
     unsavedChanges.requestAction(() => applyDetails(row, section))
   }
 
-  const saveChanges = async ({ user, member }: Row) => {
+  // The inverse of a removal puts back the dates the period had, or creates it again.
+  const removalTitle = ({ item, edit }: { item: Eligibility; edit: PeriodEdit }) => {
+    const role = dutyRoleLabels()[item.role]
+    if (!edit) return t.undo.periodDeleted(role)
+    return edit.ends_on === addDays(today, -1) ? t.undo.endedToday(role) : t.undo.endedOn(role, formatDate(edit.ends_on))
+  }
+  const saveEligibility = async (member: TeamMember, narrowsEntry: boolean, edits: typeof periodEdits, additions: NewPeriod[]) => {
+    const removals = edits.filter(isRemoval)
+    // One role's periods may not overlap, so what ends goes first.
+    if (removals.length > 0) {
+      await undoable({
+        // Each removal touches its own period, so they run side by side.
+        execute: () => Promise.all(removals.map(({ item, edit }) => (edit
+          ? api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on } })
+          : api.deleteEligibility(item.id)))),
+        undo: async () => {
+          // A period put back may start before the later entry date this save
+          // set, so the saved entry date comes back first.
+          if (narrowsEntry) await api.updateTeamMember({ id: member.id, input: { active_from: member.active_from } })
+          // An exit date saved since then caps what comes back.
+          const until = queryClient.getQueryData<TeamMember[]>(['team'])!.find((entry) => entry.id === member.id)!.active_until
+          const end = (value: string | null) => (until !== null && (value === null || value > until) ? until : value)
+          await Promise.all(removals.map(({ item, edit }) => (edit
+            ? api.updateEligibility({ id: item.id, input: { starts_on: item.starts_on, ends_on: end(item.ends_on) } })
+            : api.createEligibility({ memberId: member.id, input: { role: item.role, starts_on: item.starts_on, ends_on: end(item.ends_on) } }))))
+          if (narrowsEntry && openedId.current === member.user_id) setRotationFrom(member.active_from)
+          refresh()
+        },
+        message: () => ({ title: removals.map(removalTitle).join(' · ') }),
+      })
+    }
+    await Promise.all(edits.filter((entry) => !isRemoval(entry)).map(({ item, edit }) =>
+      api.updateEligibility({ id: item.id, input: { starts_on: edit!.starts_on, ends_on: edit!.ends_on || null } })))
+    const results = await Promise.allSettled(additions.map((period) =>
+      api.createEligibility({ memberId: member.id, input: { role: period.role, starts_on: period.starts_on, ends_on: period.ends_on || null } })))
+    // A retry after a refusal must not create the saved ones again.
+    const saved = new Set(additions.filter((_, index) => results[index].status === 'fulfilled'))
+    setNewPeriods((current) => current.filter((entry) => !saved.has(entry)))
+    const refused = results.find((result) => result.status === 'rejected')
+    if (refused) throw refused.reason
+  }
+  const saveRotation = async (member: TeamMember, offboard: boolean) => {
+    if (entryLater) {
+      await saveEligibility(member, true, entryDeletions, [])
+      await api.updateTeamMember({ id: member.id, input: { active_from: rotationFrom } })
+      return
+    }
+    // An earlier entry date or a later exit date makes room for the periods,
+    // and an earlier exit date leaves them inside, so the rotation goes
+    // first. The dialog saves the exit date itself once the duties are
+    // rewritten.
+    const input = {
+      ...(entryChanges.length > 0 && { active_from: rotationFrom }),
+      ...(!offboard && exitChanges.length > 0 && { active_until: rotationUntil || null }),
+    }
+    if (Object.keys(input).length > 0) await api.updateTeamMember({ id: member.id, input })
+    // The server refuses to end a qualification its published duties still
+    // need, so with the dialog ahead the qualification changes wait: the
+    // dialog closes the periods at the exit date, and what is left stays
+    // listed for the next save.
+    if (!offboard) await saveEligibility(member, false, periodEdits, newPeriods)
+  }
+  const saveChanges = async ({ user, member }: Row, offboard: boolean) => {
+    if (member && periodEdits.some(({ edit }) => edit && !edit.starts_on)) throw new Error(t.errors.periodNeedsStart)
     const tasks: Array<Promise<unknown>> = []
     let updated: AdminUser | undefined
     if (accountChanges.length > 0 || accessChanges.length > 0) {
@@ -390,17 +640,11 @@ export function PeoplePanel() {
       const input: AdminUserUpdate = phone === user.phone ? rest : { ...rest, phone }
       tasks.push(api.updateAdminUser({ id: user.id, input }).then((saved) => { updated = saved }))
     }
-    if (rotationChanges.length > 0 && member) {
-      tasks.push(api.updateTeamMember({ id: member.id, input: { active_from: rotationFrom, active_until: rotationUntil || null } }))
-    }
-    for (const item of member?.eligibility ?? []) {
-      const edit = eligibilityEdits[item.id]
-      if (!edit) continue
-      if (edit.starts_on === item.starts_on && (edit.ends_on || null) === item.ends_on) continue
-      if (!edit.starts_on) throw new Error(t.errors.periodNeedsStart)
-      tasks.push(api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on || null } }))
-    }
-    await Promise.all(tasks)
+    if (member) tasks.push(saveRotation(member, offboard))
+    // A refusal is reported once every write has settled, so the refresh
+    // after it sees all that was saved.
+    const refused = (await Promise.allSettled(tasks)).find((result) => result.status === 'rejected')
+    if (refused) throw refused.reason
     return updated
   }
   // A role change and switching the account off or on save at once like
@@ -408,16 +652,20 @@ export function PeoplePanel() {
   const saveAll = useMutation({
     mutationFn: async (row: Row) => {
       const before = row.user
-      const others = [...accountChanges, ...rotationChanges, ...eligibilityChanges]
+      const offboard = needsOffboarding
+      // What the dialog saves, or a removal's own Undo toast names, is not listed here.
+      const others = offboard
+        ? [...accountChanges, ...entryChanges]
+        : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !isRemoval(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
       if (accessChanges.length === 0) {
-        const updated = await saveChanges(row)
-        toast.success(t.toast.saved(others.join(', ')))
-        return updated
+        const updated = await saveChanges(row, offboard)
+        if (others.length > 0) toast.success(t.toast.saved(others.join(', ')))
+        return { updated, offboard }
       }
       const role = accountForm.role
       const active = accountForm.is_active
-      return undoable({
-        execute: () => saveChanges(row),
+      const updated = await undoable({
+        execute: () => saveChanges(row, offboard),
         undo: async () => {
           await api.updateAdminUser({ id: before.id, input: { role: before.role, is_active: before.is_active } })
           if (openedId.current === before.id) setAccountForm((form) => ({ ...form, role: before.role, is_active: before.is_active }))
@@ -430,14 +678,20 @@ export function PeoplePanel() {
           description: others.length > 0 ? t.toast.alsoSaved(others.join(', ')) : undefined,
         }),
       })
+      return { updated, offboard }
     },
-    onSuccess: (updated) => {
+    onSuccess: ({ updated, offboard }) => {
       // The API stores the number in its +48 form, so the form follows it.
       if (updated) setAccountForm((form) => ({ ...form, phone: updated.phone }))
-      setEligibilityEdits({})
-      setEditingPeriod(null)
       refresh()
+      if (offboard) openOffboarding(rotationUntil)
+      else {
+        setEligibilityEdits({})
+        setEditingPeriod(null)
+      }
     },
+    // What was saved before a refusal drops off the unsaved list.
+    onError: refresh,
   })
   // Both links are shown beside their button; issuing one changes nothing
   // until it is used, so neither asks first.
@@ -470,39 +724,30 @@ export function PeoplePanel() {
       refresh()
     },
   })
-  const addEligibility = useMutation({
-    mutationFn: (input: { role: AssignmentRole; starts_on: string; ends_on: string | null }) =>
-      api.createEligibility({ memberId: selectedRow!.member!.id, input }),
-    onSuccess: (_result, input) => {
-      setEligibilityUntil('')
-      setAddingPeriod(false)
-      toast.success(t.toast.qualificationAdded(dutyRoleLabels()[input.role], formatDate(input.starts_on)))
-      refresh()
-    },
+  const openOffboarding = (date: string) => {
+    setOffboardingDate(date)
+    setOffboardingOpen(true)
+  }
+  // The dialog closed every period at the exit date, so what is still pending
+  // ends there too, and what would start after it is dropped.
+  const finishOffboarding = () => {
+    const date = offboardingDate
+    const clamp = <T extends PeriodValue>(value: T): T => (!value.ends_on || value.ends_on > date ? { ...value, ends_on: date } : value)
+    setOffboardingOpen(false)
+    setRotationUntil(date)
+    setEligibilityEdits((current) => Object.fromEntries(Object.entries(current)
+      .filter(([, edit]) => !edit || edit.starts_on <= date)
+      .map(([id, edit]) => [id, edit && clamp(edit)])))
+    setNewPeriods((current) => current.filter((period) => period.starts_on <= date).map(clamp))
+    refresh()
+  }
+  const setPeriodEdit = (item: Eligibility, edit: PeriodEdit | undefined) => setEligibilityEdits((current) => {
+    const copy = { ...current }
+    if (edit === undefined) delete copy[item.id]
+    else copy[item.id] = edit
+    return copy
   })
-  const deleteEligibility = useMutation({
-    mutationFn: (item: Eligibility) => api.deleteEligibility(item.id),
-    onSuccess: (_result, item) => {
-      toast.success(t.toast.periodDeleted(dutyRoleLabels()[item.role]))
-      refresh()
-    },
-  })
-  // Taking a chip off ends the open period today (a period that has not
-  // started yet is dropped); the published schedule is not touched.
-  const dropQualification = useMutation({
-    mutationFn: async (role: AssignmentRole) => {
-      const member = selectedRow!.member!
-      const open = member.eligibility.filter((item) => item.role === role && (!item.ends_on || item.ends_on >= today))
-      for (const item of open) {
-        if (item.starts_on >= today) await api.deleteEligibility(item.id)
-        else await api.updateEligibility({ id: item.id, input: { ends_on: addDays(today, -1) } })
-      }
-    },
-    onSuccess: (_result, role) => {
-      toast.success(t.toast.qualificationDropped(dutyRoleLabels()[role]))
-      refresh()
-    },
-  })
+  const addPeriod = (period: NewPeriod) => setNewPeriods((current) => [...current, period])
 
   const submitAll = (event: FormEvent) => {
     event.preventDefault()
@@ -511,7 +756,7 @@ export function PeoplePanel() {
     saveAll.mutate(selectedRow)
   }
   const requestClose = () => unsavedChanges.requestAction(closeDetails)
-  const error = users.error || team.error || createRotation.error || addEligibility.error || deleteEligibility.error || dropQualification.error
+  const error = users.error || team.error || createRotation.error
   const ldapFieldsLocked = selectedRow?.user.auth_source === 'ldap'
   const selectedState = rotationState(selectedRow?.member, today)
   const selectedRoles = heldRoles(selectedRow?.member, today)
@@ -520,6 +765,14 @@ export function PeoplePanel() {
     downloadBlob(t.csv.fileName(today), new Blob([`\uFEFF${csvOf(rows, today, now)}`], { type: 'text/csv;charset=utf-8' }))
   }
   const roleOptions = roles.map((role) => ({ value: role, label: accountRoleLabels()[role] }))
+  const newName = newForm.first_name.trim() || t.newAccountPanel.thisPerson
+  // The phone sits beside the e-mail, or with the entry date once the person
+  // joins the rotation, where the strip "Teraz" needs it.
+  const newPhone = (
+    <Field label={t.fields.phone} id="new-phone" hint={t.fields.phoneNewHint} required={newRotation.on}>
+      {({ id, describedBy }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} required={newRotation.on} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
+    </Field>
+  )
   const subtitle = users.data && team.data && [
     t.summary.accounts(counts.accounts),
     t.summary.inRotation(counts.rotation),
@@ -631,68 +884,132 @@ export function PeoplePanel() {
         open={newOpen}
         onClose={() => setNewOpen(false)}
         wide
-        title={t.newAccountPanel.title}
-        meta={<StatusBadge tone={roleTone[newForm.role]}>{accountRoleLabels()[newForm.role]}</StatusBadge>}
-        footer={(
+        title={created ? created.user.display_name : t.newAccountPanel.title}
+        meta={created ? (
           <>
-            <Button onClick={() => setNewOpen(false)}>{activationUrl ? m.common.close : m.common.cancel}</Button>
-            {!activationUrl && (
-              <Button type="submit" form="new-account-form" variant="primary" loading={createAccount.isPending} disabled={!newForm.username.trim() || !newForm.first_name.trim()}>
-                {t.newAccountPanel.create}
-              </Button>
-            )}
+            <StatusBadge tone="warn">{t.activation.pending}</StatusBadge>
+            {created.member && <StatusBadge tone="ok">{t.newAccountPanel.inRotationFrom(formatDate(created.member.active_from))}</StatusBadge>}
+          </>
+        ) : <StatusBadge tone={roleTone[newForm.role]}>{accountRoleLabels()[newForm.role]}</StatusBadge>}
+        footer={!created && (
+          <>
+            <Button onClick={() => setNewOpen(false)}>{m.common.cancel}</Button>
+            <Button
+              type="submit"
+              form="new-account-form"
+              variant="primary"
+              loading={createAccount.isPending}
+              disabled={!newForm.username.trim() || !newForm.first_name.trim() || (newRotation.on && (!newForm.phone || !newRotation.from))}
+            >
+              {t.newAccountPanel.create}
+            </Button>
           </>
         )}
       >
-        <form id="new-account-form" className="stack-sm" onSubmit={(event: FormEvent) => { event.preventDefault(); createAccount.mutate(newForm) }}>
-          {createAccount.error && <Box tone="bad" role="alert" focus title={createAccount.error.message} />}
-          {activationUrl && <LinkResult value={activationUrl} label={t.newAccountPanel.activationLink} />}
-          {!activationUrl && (
-            <>
-              <div className="frow">
-                <Field label={t.fields.firstName} id="new-first-name" required>
-                  {({ id }) => <Input id={id} name="first_name" autoComplete="off" autoCapitalize="words" value={newForm.first_name} onChange={(e) => setNewForm({ ...newForm, first_name: e.target.value })} required />}
-                </Field>
-                <Field label={t.fields.lastName} id="new-last-name">
-                  {({ id }) => <Input id={id} name="last_name" autoComplete="off" autoCapitalize="words" value={newForm.last_name} onChange={(e) => setNewForm({ ...newForm, last_name: e.target.value })} />}
-                </Field>
-              </div>
-              <div className="frow">
-                <Field label={t.fields.username} id="new-username" required hint={branding.ldapEnabled ? t.fields.usernameLdapHint : undefined}>
-                  {({ id, describedBy }) => <Input id={id} name="username" mono autoComplete="off" autoCapitalize="none" spellCheck={false} value={newForm.username} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, username: e.target.value })} required />}
-                </Field>
-                <Field label={t.fields.personnelNumber} id="new-personnel-number" hint={branding.ldapEnabled ? t.fields.personnelNumberLdapHint : undefined}>
-                  {({ id, describedBy }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} inputMode="numeric" pattern="[0-9]*" value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
-                </Field>
-              </div>
-              <div className="frow">
-                <Field label={t.fields.email} id="new-email">
-                  {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
-                </Field>
-                <Field label={t.fields.phone} id="new-phone" hint={t.fields.phoneNewHint}>
-                  {({ id, describedBy }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
-                </Field>
-              </div>
-              <Field label={t.fields.accountRole} id="new-role" hint={t.fields.accountRoleHint}>
-                {({ labelId }) => <Segmented<UserRole> label={t.fields.accountRole} labelId={labelId} value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
+        {created ? (
+          <div className="stack-sm">
+            <Box tone="ok" role="status" title={[
+              t.newAccountPanel.created,
+              created.member && t.newAccountPanel.inRotationFrom(formatDate(created.member.active_from)),
+              created.member && (created.roles.length > 0 ? inRoleOrder(created.roles).map((role) => dutyRoleLabels()[role]).join(', ') : t.newAccountPanel.noQualifications),
+            ].filter(Boolean).join(' · ')}>
+              <div className="token-once"><code translate="no">{created.url}</code><CopyButton value={created.url} /></div>
+              <div className="box-next">{t.newAccountPanel.linkNext}</div>
+            </Box>
+            {created.rotationError && (
+              <Box tone="bad" role="alert" title={created.member ? t.newAccountPanel.qualificationsFailed(roleList(created.missing!), created.missing!.length) : t.newAccountPanel.rotationFailed}>{created.rotationError}</Box>
+            )}
+            <div className="row">
+              <Button size="sm" onClick={() => { setNewOpen(false); openDetails({ user: created.user, member: created.member }, 'rotation') }}>
+                {created.member ? t.newAccountPanel.openRotation : t.rotationTab.addToRotation}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setNewOpen(false)}>{m.common.close}</Button>
+            </div>
+          </div>
+        ) : (
+          <form id="new-account-form" className="stack-sm" onSubmit={(event: FormEvent) => { event.preventDefault(); createAccount.mutate({ input: newForm, rotation: newRotation }) }}>
+            {createAccount.error && <Box tone="bad" role="alert" focus title={createAccount.error.message} />}
+            <div className="frow">
+              <Field label={t.fields.firstName} id="new-first-name" required>
+                {({ id }) => <Input id={id} name="first_name" autoComplete="off" autoCapitalize="words" value={newForm.first_name} onChange={(e) => setNewForm({ ...newForm, first_name: e.target.value })} required />}
               </Field>
-              <Box tone="sig" title={t.newAccountPanel.afterCreation}>
-                {t.newAccountPanel.afterCreationText}
-                {branding.ldapEnabled && ` ${t.newAccountPanel.afterCreationLdap}`}
-              </Box>
-            </>
-          )}
-        </form>
+              <Field label={t.fields.lastName} id="new-last-name">
+                {({ id }) => <Input id={id} name="last_name" autoComplete="off" autoCapitalize="words" value={newForm.last_name} onChange={(e) => setNewForm({ ...newForm, last_name: e.target.value })} />}
+              </Field>
+            </div>
+            <div className="frow">
+              <Field label={t.fields.username} id="new-username" required hint={branding.ldapEnabled ? t.fields.usernameLdapHint : undefined}>
+                {({ id, describedBy }) => <Input id={id} name="username" mono autoComplete="off" autoCapitalize="none" spellCheck={false} value={newForm.username} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, username: e.target.value })} required />}
+              </Field>
+              <Field label={t.fields.personnelNumber} id="new-personnel-number" hint={branding.ldapEnabled ? t.fields.personnelNumberLdapHint : undefined}>
+                {({ id, describedBy }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} inputMode="numeric" pattern="[0-9]*" value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
+              </Field>
+            </div>
+            <div className="frow">
+              <Field label={t.fields.email} id="new-email">
+                {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
+              </Field>
+              {!newRotation.on && newPhone}
+            </div>
+            <Field label={t.fields.accountRole} id="new-role" hint={t.fields.accountRoleHint}>
+              {({ labelId }) => <Segmented<UserRole> wrap label={t.fields.accountRole} labelId={labelId} value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
+            </Field>
+            <div className="panel panel-padded stack-sm">
+              <Checkbox
+                label={t.newAccountPanel.inRotation}
+                hint={t.newAccountPanel.inRotationHint}
+                checked={newRotation.on}
+                onChange={(e) => setNewRotation({ ...newRotation, on: e.target.checked })}
+              />
+              {newRotation.on && (
+                <>
+                  <div className="frow">
+                    <DateField id="new-rotation-from" label={t.rotationTab.entryFrom} value={newRotation.from} onChange={(from) => setNewRotation({ ...newRotation, from })} />
+                    {newPhone}
+                  </div>
+                  <Field label={t.rotationTab.dutyQualifications} id="new-qualifications">
+                    {({ labelId }) => (
+                      <div className="filter-chips" role="group" aria-labelledby={labelId}>
+                        {dutyRoles.map((role) => {
+                          const picked = newRotation.roles.includes(role)
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              className={cx('chip chip-btn', picked && 'chip-sig')}
+                              aria-pressed={picked}
+                              onClick={() => setNewRotation({ ...newRotation, roles: picked ? newRotation.roles.filter((item) => item !== role) : [...newRotation.roles, role] })}
+                            >
+                              {picked && <span className="chip-dot" aria-hidden="true" />}
+                              {dutyRoleLabels()[role]}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </Field>
+                </>
+              )}
+            </div>
+            <Box tone="sig" title={t.newAccountPanel.afterCreation}>
+              {!newRotation.on && t.newAccountPanel.afterCreationText}
+              {newRotation.on && (newRotation.roles.length > 0
+                ? t.newAccountPanel.afterCreationRotation(newName, formatDate(newRotation.from), roleList(newRotation.roles), newRotation.roles.length)
+                : t.newAccountPanel.afterCreationNoRoles(newName, formatDate(newRotation.from)))}
+              {branding.ldapEnabled && ` ${t.newAccountPanel.afterCreationLdap}`}
+            </Box>
+          </form>
+        )}
       </Panel>
 
       {selectedRow?.member && (
         <OffboardingDialog
-          key={selectedRow.member.id}
+          key={`${selectedRow.member.id}:${offboardingDate}`}
           open={offboardingOpen}
           member={selectedRow.member}
-          activeUntil={rotationUntil}
+          activeUntil={offboardingDate}
           onClose={() => setOffboardingOpen(false)}
-          onDone={() => { setOffboardingOpen(false); closeDetails(); refresh() }}
+          onDone={finishOffboarding}
           onChanged={refresh}
         />
       )}
@@ -713,6 +1030,13 @@ export function PeoplePanel() {
             <StatusBadge tone={roleTone[selectedRow.user.role]}>{accountRoleLabels()[selectedRow.user.role]}</StatusBadge>
             <Tag>{t.authSources[selectedRow.user.auth_source]}</Tag>
             {!selectedRow.user.is_active && <StatusBadge tone="bad">{t.details.disabled}</StatusBadge>}
+            {selectedRow.member && (
+              <StatusBadge tone={selectedState === 'active' ? 'ok' : selectedState === 'entering' ? 'warn' : 'muted'}>
+                {selectedState === 'active' ? t.rotation.active
+                  : selectedState === 'entering' ? t.newAccountPanel.inRotationFrom(formatDate(selectedRow.member.active_from))
+                    : t.rotationTab.ended(formatDate(selectedRow.member.active_until!))}
+              </StatusBadge>
+            )}
             {selectedActivation && <StatusBadge tone={selectedActivation === 'waiting' ? 'warn' : 'bad'}>{t.activation.pending}</StatusBadge>}
           </>
         )}
@@ -731,7 +1055,7 @@ export function PeoplePanel() {
                 <Button size="sm" onClick={requestClose}>{m.common.close}</Button>
               </>
             )}
-            <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending} loading={saveAll.isPending}>
+            <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending || exitChecking || earlyRoles.length > 0 || entryBlockers.length > 0} loading={saveAll.isPending}>
               {saveAll.isPending ? m.common.saving : dirty ? t.details.saveCount(pendingChanges.length) : t.details.save}
             </Button>
           </>
@@ -792,48 +1116,30 @@ export function PeoplePanel() {
               <TabPanel<DetailTab> value="rotation" className="stack-sm">
                 {selectedRow.member ? (
                   <>
-                    <Box tone={selectedState === 'active' ? 'ok' : selectedState === 'entering' ? 'warn' : 'muted'} title={
-                      selectedState === 'active' ? t.rotationTab.activeSince(formatDate(selectedRow.member.active_from))
-                        : selectedState === 'entering' ? t.rotationTab.entering(formatDate(selectedRow.member.active_from))
-                          : t.rotationTab.ended(formatDate(selectedRow.member.active_until!))
-                    }>
-                      {selectedRow.member.active_until && selectedState !== 'ended' ? `${t.rotationTab.exitUntil(formatDate(selectedRow.member.active_until))} ` : selectedState !== 'ended' ? `${t.rotationTab.noExitDate} ` : ''}
-                      {t.rotationTab.qualifications(selectedRoles.length > 0 ? selectedRoles.map((role) => dutyRoleLabels()[role]).join(', ') : t.rotationTab.noQualifications)}
-                    </Box>
-                    <Field label={t.rotationTab.dutyQualifications} id="qualifications" hint={t.rotationTab.dutyQualificationsHint}>
-                      {({ labelId }) => (
-                        <div className="filter-chips" role="group" aria-labelledby={labelId}>
-                          {dutyRoles.map((role) => {
-                            const held = selectedRoles.includes(role)
-                            return held ? (
-                              <span key={role} className="filter-chip">
-                                {dutyRoleLabels()[role]}
-                                <button type="button" aria-label={t.rotationTab.dropQualification(dutyRoleLabels()[role])} disabled={dropQualification.isPending} onClick={() => dropQualification.mutate(role)}>×</button>
-                              </span>
-                            ) : (
-                              <button
-                                key={role}
-                                type="button"
-                                className="chip chip-btn"
-                                aria-label={t.rotationTab.addQualification(dutyRoleLabels()[role])}
-                                disabled={addEligibility.isPending}
-                                onClick={() => addEligibility.mutate({ role, starts_on: today, ends_on: null })}
-                              >
-                                + {dutyRoleLabels()[role]}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </Field>
                     <div className="frow">
-                      <DateField id="rotation-from" label={t.rotationTab.entryFrom} value={rotationFrom} onChange={setRotationFrom} />
-                      <DateField id="rotation-until" label={t.rotationTab.exitUntilLabel} value={rotationUntil} onChange={setRotationUntil} hint={t.rotationTab.exitHint} />
+                      <DateField
+                        id="rotation-from"
+                        label={t.rotationTab.entryFrom}
+                        value={rotationFrom}
+                        onChange={setRotationFrom}
+                        error={earlyRoles.length > 0 ? t.rotationTab.periodsBeforeEntry(roleList(earlyRoles), earlyRoles.length) : undefined}
+                      />
+                      <DateField
+                        id="rotation-until"
+                        label={t.rotationTab.exitUntilLabel}
+                        value={rotationUntil}
+                        onChange={setRotationUntil}
+                        hint={exitDuties.calendar.isLoading ? t.rotationTab.checkingDuties
+                          : exitDuties.duties.length > 0 ? t.rotationTab.dutiesAfterExit(exitDuties.duties.length)
+                            : exitCutsPeriods ? t.rotationTab.periodsAfterExit : t.rotationTab.exitHint}
+                      />
                     </div>
+                    {entryBlockers.length > 0 && <Box tone="warn" role="status" title={t.rotationTab.entrySavedAlone(entryBlockers.join(', '))} />}
                     <SectionHeading
                       as="h3"
-                      title={t.rotationTab.periods}
-                      meta={`${selectedRow.member.eligibility.length}`}
+                      className="sech-sub"
+                      title={t.rotationTab.qualificationsTitle}
+                      meta={t.rotationTab.savedWithSave}
                       controls={<button type="button" className={cx('sech-link', addingPeriod && 'on')} aria-pressed={addingPeriod} onClick={() => setAddingPeriod((value) => !value)}>{t.rotationTab.addPeriod}</button>}
                     />
                     {addingPeriod && (
@@ -852,57 +1158,35 @@ export function PeoplePanel() {
                         </Field>
                         <DateField id="new-eligibility-from" label={t.period.from} value={eligibilityFrom} onChange={setEligibilityFrom} />
                         <DateField id="new-eligibility-until" label={t.period.untilOptional} value={eligibilityUntil} onChange={setEligibilityUntil} />
-                        <Button onClick={() => addEligibility.mutate({ role: eligibilityRole, starts_on: eligibilityFrom, ends_on: eligibilityUntil || null })} loading={addEligibility.isPending} icon="plus">{t.rotationTab.addPeriod}</Button>
+                        <Button
+                          icon="plus"
+                          disabled={!eligibilityFrom}
+                          onClick={() => {
+                            addPeriod({ role: eligibilityRole, starts_on: eligibilityFrom, ends_on: eligibilityUntil })
+                            setEligibilityUntil('')
+                            setAddingPeriod(false)
+                          }}
+                        >
+                          {t.rotationTab.addPeriod}
+                        </Button>
                       </div>
                     )}
-                    {selectedRow.member.eligibility.length === 0 && <p className="muted small">{t.rotationTab.noPeriods}</p>}
-                    {selectedRow.member.eligibility.length > 0 && (
-                      <List className="panel">
-                        {[...selectedRow.member.eligibility].sort((a, b) => b.starts_on.localeCompare(a.starts_on)).map((item) => {
-                          const value = eligibilityEdits[item.id] ?? { starts_on: item.starts_on, ends_on: item.ends_on ?? '' }
-                          const historic = Boolean(item.ends_on && item.ends_on < today)
-                          return editingPeriod === item.id ? (
-                            <div key={item.id} className="list-row">
-                              <div className="list-main stack-sm">
-                                <b>{dutyRoleLabels()[item.role]}</b>
-                                <EligibilityPeriodEditor
-                                  item={item}
-                                  value={value}
-                                  pending={saveAll.isPending}
-                                  onChange={(next) => setEligibilityEdits((current) => {
-                                    const unchanged = next.starts_on === item.starts_on && (next.ends_on || null) === item.ends_on
-                                    const copy = { ...current }
-                                    if (unchanged) delete copy[item.id]
-                                    else copy[item.id] = next
-                                    return copy
-                                  })}
-                                  onDelete={() => deleteEligibility.mutate(item)}
-                                  onDone={() => setEditingPeriod(null)}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <ListRow
-                              key={item.id}
-                              aside={historic
-                                ? <span className="muted small">{t.rotationTab.historic}</span>
-                                : <Button size="sm" variant="ghost" onClick={() => setEditingPeriod(item.id)}>{t.rotationTab.edit}</Button>}
-                            >
-                              <b aria-hidden="true">{formatDate(value.starts_on)} → {value.ends_on ? formatDate(value.ends_on) : t.rotationTab.openEnded}</b>
-                              <span className="sr-only">{value.ends_on ? t.rotationTab.periodSpan(formatDate(value.starts_on), formatDate(value.ends_on)) : t.rotationTab.periodOpen(formatDate(value.starts_on))}</span>
-                              <small>{dutyRoleLabels()[item.role]}{eligibilityEdits[item.id] ? ` · ${t.rotationTab.changedUnsaved}` : ''}</small>
-                            </ListRow>
-                          )
-                        })}
-                      </List>
-                    )}
-                    {rotationUntil && (
-                      <Box tone="warn" title={t.rotationTab.scheduleEffect}>
-                        {t.rotationTab.scheduleEffectText(formatDate(rotationUntil))}
-                        <div className="row mt-6">
-                          <Button size="sm" onClick={() => setOffboardingOpen(true)} icon="people">{t.rotationTab.rewriteAndEnd}</Button>
-                        </div>
-                      </Box>
+                    <QualificationList
+                      member={selectedRow.member}
+                      today={today}
+                      edits={eligibilityEdits}
+                      newPeriods={newPeriods}
+                      editing={editingPeriod}
+                      onEdit={setEditingPeriod}
+                      onEditChange={setPeriodEdit}
+                      onAdd={addPeriod}
+                      onDropNew={(period) => setNewPeriods((current) => current.filter((entry) => entry !== period))}
+                    />
+                    {selectedState !== 'ended' && (
+                      <div className="row">
+                        <Button onClick={() => openOffboarding(rotationUntil || today)}>{t.rotationTab.endRotation}</Button>
+                        <span className="muted small">{t.rotationTab.endRotationHint}</span>
+                      </div>
                     )}
                   </>
                 ) : (
@@ -919,6 +1203,7 @@ export function PeoplePanel() {
                 <Field label={t.fields.accountRole} id="acc-role" hint={t.fields.accountRoleHint}>
                   {({ labelId }) => (
                     <Segmented<UserRole>
+                      wrap
                       label={t.fields.accountRole}
                       labelId={labelId}
                       value={accountForm.role}
