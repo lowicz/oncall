@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } f
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapImpactMember, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
+import { UNDONE_RIGHT_AFTER_SENDING } from '../i18n/pl/swaps'
 import { firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { formatDecimal, signed, signedPoints } from '../lib/numbers'
 import { formatDate, formatDayShort, relativeDay, warsawDate } from '../lib/dates'
@@ -441,9 +442,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   // Until the policy is read, the screen words things the way the default
   // policy has them.
   const approvalRequired = swapPolicy.data?.coordinator_approval_required ?? true
-  // A coordinator has requests to approve only while the policy sends them
-  // any, so nothing of the approval is drawn or fetched before it is read.
-  const approver = coordinator && swapPolicy.data?.coordinator_approval_required === true
+  // A coordinator has requests to approve only while the policy sends them any.
+  const approver = coordinator && approvalRequired
+  // The points of each open request are drawn and fetched only once the
+  // policy is read and says the coordinator approves.
+  const projecting = coordinator && swapPolicy.data?.coordinator_approval_required === true
   const linkedRole = searchParams.get('role') ?? searchParams.get('rola')
   const linkedDate = searchParams.get('date') ?? searchParams.get('data') ?? searchParams.get('dzien')
   const linkedDay = linkedDate && linkedRole ? linkedDate : ''
@@ -609,7 +612,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   }, [setSearchParams])
   // A request sent by mistake is withdrawn while its e-mail is still held,
   // so the replacement never reads it.
-  const withdrawSent = (sent: SwapRequest) => api.cancelSwap({ id: sent.id, reason: t.swaps.toasts.undoReason }).then(refresh)
+  const withdrawSent = (sent: SwapRequest) => api.cancelSwap({ id: sent.id, reason: UNDONE_RIGHT_AFTER_SENDING }).then(refresh)
   const sendSwap = (input: Parameters<typeof api.createSwap>[0]) => {
     const name = options.data?.find((option) => option.member_id === input.replacement_member_id)?.display_name
     const title = name ? t.swaps.toasts.sentTo(name) : t.swaps.toasts.sent
@@ -693,7 +696,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     .sort((left, right) => (inbox === 'zamkniete' ? right.created_at.localeCompare(left.created_at) : left.service_date.localeCompare(right.service_date)))
   // One projection per open row, for the "effect" column. Only a coordinator
   // who approves swaps decides on points, so only they get the column.
-  const projected = approver ? visible.filter((item) => isOpen(item) && item.replacement_member_id) : []
+  const projected = projecting ? visible.filter((item) => isOpen(item) && item.replacement_member_id) : []
   const rowImpacts = useQueries({
     queries: projected.map((item) => swapImpactQuery(item.service_date, item.role, item.replacement_member_id as string, movesOf(item))),
   })
@@ -826,7 +829,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                     <th scope="col">{t.swaps.table.dayRole}</th>
                     <th scope="col">{t.swaps.table.gives}</th>
                     <th scope="col">{t.swaps.table.takes}</th>
-                    {approver && (
+                    {projecting && (
                       <th scope="col">
                         {t.swaps.table.effect}
                         <Tooltip text={t.swaps.table.effectHint}>
@@ -855,7 +858,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                         </th>
                         <td>{item.requester_name}</td>
                         <td>{item.replacement_name}</td>
-                        {approver && <td><Effect impact={impactOfRow(item)} /></td>}
+                        {projecting && <td><Effect impact={impactOfRow(item)} /></td>}
                         <td>
                           <StatusBadge tone={statusTone[item.status]}>{statuses[item.status]}</StatusBadge>
                           {stageDetail(item, viewer) && <small>{stageDetail(item, viewer)}</small>}

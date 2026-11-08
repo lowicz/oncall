@@ -26,7 +26,10 @@ from oncall.domain.vocabulary import (
 )
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
-from oncall.infrastructure.sqlalchemy.notification_models import NotificationOutbox
+from oncall.infrastructure.sqlalchemy.notification_models import (
+    NotificationOutbox,
+    NotificationStatus,
+)
 from oncall.infrastructure.sqlalchemy.scheduling import publication_ports, schedule_query_ports
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest, SwapRequestSlot
@@ -856,8 +859,12 @@ async def test_republishing_either_schedule_cancels_a_pending_exchange(
     client, db, two_weeks, week
 ) -> None:
     """An exchange is one decision, so a publication that replaces a slot of
-    either direction takes the whole request, and tells both people."""
+    either direction takes the whole request, and tells both people once the
+    request has reached the replacement."""
     swap_id = (await _ask_across(client, two_weeks)).json()["id"]
+    for mail in await _mails(db, "swap_requested"):
+        mail.status = NotificationStatus.sent
+    await db.commit()
     proposal = await _propose(db, two_weeks, week)
 
     preview = await publication_preview(proposal.id, two_weeks["koord"], publication_ports(db))

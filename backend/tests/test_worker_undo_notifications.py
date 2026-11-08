@@ -9,6 +9,7 @@ from oncall.notifications.service import UNDO_WINDOW
 from oncall.notifications.triggers import (
     notify_assignment_overridden,
     notify_swap_cancelled,
+    notify_swap_cancelled_by_publication,
     notify_swap_requested,
 )
 from tests.conftest import create_member, create_user
@@ -153,3 +154,45 @@ async def test_a_request_withdrawn_after_its_mail_went_tells_the_replacement(
         "Prośba o zamianę",
         "Zamiana wycofana",
     ]
+
+
+async def _supersede(db, swap_id: uuid.UUID) -> None:
+    await notify_swap_cancelled_by_publication(
+        db,
+        swap_id=swap_id,
+        service_date=business_today(),
+        role=AssignmentRole.primary,
+        requester_name="Anna Kowalska",
+        replacement_name="Marek Nowak",
+    )
+    await db.commit()
+
+
+async def test_a_publication_in_the_window_tells_only_the_requester(
+    db, db_factory, frozen_clock, provider
+) -> None:
+    swap_id = uuid.uuid4()
+    await _ask_marek(db, swap_id)
+    frozen_clock.advance(UNDO_WINDOW / 2)
+    await _supersede(db, swap_id)
+
+    frozen_clock.advance(UNDO_WINDOW)
+    assert (await worker.notification_cycle(db_factory))["sent"] == 1
+    assert [(message.recipient, message.subject.split(":")[0]) for message in provider.sent] == [
+        ("anna@example.com", "Zamiana wycofana"),
+    ]
+
+
+async def test_a_publication_after_the_request_mail_went_tells_both(
+    db, db_factory, frozen_clock, provider
+) -> None:
+    swap_id = uuid.uuid4()
+    await _ask_marek(db, swap_id)
+    frozen_clock.advance(UNDO_WINDOW)
+    assert (await worker.notification_cycle(db_factory))["sent"] == 1
+    await _supersede(db, swap_id)
+
+    assert (await worker.notification_cycle(db_factory))["sent"] == 2
+    assert sorted(
+        (message.recipient, message.subject.split(":")[0]) for message in provider.sent[1:]
+    ) == [("anna@example.com", "Zamiana wycofana"), ("marek@example.com", "Zamiana wycofana")]

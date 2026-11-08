@@ -389,9 +389,12 @@ async def notify_swap_cancelled_by_publication(
     replacement_name: str,
     swap_id: uuid.UUID,
 ) -> None:
-    """Tell both participants when a publication makes their request obsolete."""
+    """Tell both participants when a publication makes their request obsolete;
+    a replacement whose request mail was still held learns of neither."""
     settings = get_settings()
-    names = [requester_name, replacement_name]
+    names = [requester_name]
+    if replacement_name not in await cancel_notifications(db, undo_key=_swap_undo_key(swap_id)):
+        names.append(replacement_name)
     emails = await _emails_for_names(db, names)
     await _enqueue_for(
         db,

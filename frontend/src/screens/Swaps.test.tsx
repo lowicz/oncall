@@ -6,6 +6,7 @@ import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { loadRealStylesheet } from '../test/stylesheet'
 import { SwapPanel } from './Swaps'
+import { DEFAULT_LANGUAGE, applyLanguage, setLanguage } from '../i18n'
 import { api, ApiError } from '../api'
 import type { AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapPolicy, SwapRequest, SwapReturnOption, SwapScope } from '../api'
 
@@ -537,6 +538,33 @@ describe('SwapPanel new request', () => {
     await waitFor(() => expect(screen.queryByText('Wysłano do: Piotr Zieliński')).not.toBeInTheDocument())
     // The inbox reads the request again, now closed.
     await waitFor(() => expect(vi.mocked(api.swaps).mock.calls.length).toBeGreaterThan(listed))
+  })
+
+  it('records the Polish reason when the request is undone from the English interface', async () => {
+    setLanguage('en')
+    try {
+      stubSchedule()
+      vi.spyOn(api, 'swapOptions').mockResolvedValue([
+        { member_id: 'p1', display_name: 'Piotr Zieliński', availability: null, on_duty_that_day: false },
+      ])
+      vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
+      vi.spyOn(api, 'createSwap').mockResolvedValue(swap({ id: '9', service_date: '2099-09-14' }))
+      const cancel = vi.spyOn(api, 'cancelSwap').mockResolvedValue(swap({ id: '9', status: 'cancelled' }))
+      renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
+      fireEvent.click(await screen.findByRole('button', { name: 'New swap' }))
+      const slot = await screen.findByLabelText(/My duty/)
+      await screen.findByRole('option', { name: /PRIMARY/ })
+      fireEvent.change(slot, { target: { value: '2099-09-14' } })
+      fireEvent.click(await screen.findByRole('radio', { name: /Piotr Zieliński/ }))
+      fireEvent.submit(screen.getByRole('form', { name: 'New swap request' }))
+      expect(await screen.findByText('Sent to: Piotr Zieliński')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+      await waitFor(() => expect(cancel).toHaveBeenCalledWith({ id: '9', reason: 'cofnięte zaraz po wysłaniu' }))
+    } finally {
+      window.localStorage.clear()
+      applyLanguage(DEFAULT_LANGUAGE)
+    }
   })
 
   it('says when the request could not be undone and keeps "Cofnij" for another try', async () => {
@@ -1111,6 +1139,8 @@ describe('SwapPanel stages and sheets', () => {
     await screen.findByRole('row', { name: /pon 14 wrz/ })
     expect(screen.queryByRole('columnheader', { name: /Skutek pkt/ })).not.toBeInTheDocument()
     expect(impactCall).not.toHaveBeenCalled()
+    // The inbox keeps the default policy's words meanwhile.
+    expect(inbox(/Do zatwierdzenia/)).toBeInTheDocument()
   })
 
   it('keeps the sheet open with the reason when a decision fails', async () => {

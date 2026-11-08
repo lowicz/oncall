@@ -57,7 +57,9 @@ without the delay. `/api/v1/config` states the length of the delay
 A swap request waits the same way: the message to the replacement goes out 10
 seconds after the request is sent. Withdrawing the request before the message
 went out cancels it and sends the replacement no message about the withdrawal;
-later the replacement gets both.
+later the replacement gets both. The same holds when a new schedule
+publication withdraws the request; the requester always gets the withdrawal
+message.
 
 The schedule publication message goes to every team member active in its
 range. It lists only their own duties (day and role) or says that there is

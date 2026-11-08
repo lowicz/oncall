@@ -1,5 +1,9 @@
 import { pluralPl } from '../../lib/plural'
 
+/** The reason "Cofnij" withdraws a request with, right after it was sent;
+ *  recorded text stays Polish whatever the interface language. */
+export const UNDONE_RIGHT_AFTER_SENDING = 'cofnięte zaraz po wysłaniu'
+
 /** The swaps screen (`src/screens/Swaps.tsx`) and the points preview it shares with the schedule (`SwapImpactPreview`). */
 export const swaps = {
   title: 'Zamiany',
@@ -132,8 +136,6 @@ export const swaps = {
     inSchedule: 'Zamiana wpisana do grafiku',
     rejected: 'Odrzucono zamianę',
     withdrawn: 'Wycofano zamianę',
-    /** The reason "Cofnij" withdraws a request with, right after it was sent. */
-    undoReason: 'cofnięte zaraz po wysłaniu',
     undoFailed: 'Nie udało się cofnąć prośby',
   },
   compose: {

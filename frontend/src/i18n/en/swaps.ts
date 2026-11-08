@@ -114,7 +114,6 @@ export const swaps: Messages['swaps'] = {
     inSchedule: 'Swap written into the schedule',
     rejected: 'Swap rejected',
     withdrawn: 'Swap withdrawn',
-    undoReason: 'undone right after sending',
     undoFailed: 'Could not undo the request',
   },
   compose: {

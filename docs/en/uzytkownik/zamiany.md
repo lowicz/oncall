@@ -126,8 +126,8 @@ Once a request has been started, closing the panel, going to another screen, or 
    next to the button: the duty, the replacement, the rule confirmation or a
    published schedule. The screen confirms the sending with the message
    “Sent to: …” with an **Undo** button and moves to the **Mine** inbox.
-   “Undo” within 10 seconds withdraws the request with the reason “undone
-   right after sending”. The message to the replacement waits for the end of
+   “Undo” within 10 seconds withdraws the request with the reason “cofnięte
+   zaraz po wysłaniu” (undone right after sending). The message to the replacement waits for the end of
    that time, so a request withdrawn in time sends the replacement no message
    at all.
 
