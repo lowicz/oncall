@@ -487,7 +487,6 @@ export function PeoplePanel() {
   }), [selectedRow, eligibilityEdits])
   // Ending or deleting a period is saved first and offered back in a toast.
   const isRemoval = ({ edit }: { edit: PeriodEdit }) => !edit || Boolean(edit.ends_on && edit.ends_on < today)
-  const removals = periodEdits.filter(isRemoval)
   const periodChange = ({ item, edit }: { item: Eligibility; edit: PeriodEdit }) =>
     (edit ? t.changes.eligibilityPeriod : t.changes.deletePeriod)(dutyRoleLabels()[item.role])
   const newPeriodChange = (period: NewPeriod) => t.changes.newPeriod(dutyRoleLabels()[period.role])
@@ -601,8 +600,8 @@ export function PeoplePanel() {
     const results = await Promise.allSettled(additions.map((period) =>
       api.createEligibility({ memberId: member.id, input: { role: period.role, starts_on: period.starts_on, ends_on: period.ends_on || null } })))
     // A retry after a refusal must not create the saved ones again.
-    const saved = additions.filter((_, index) => results[index].status === 'fulfilled')
-    setNewPeriods((current) => current.filter((entry) => !saved.includes(entry)))
+    const saved = new Set(additions.filter((_, index) => results[index].status === 'fulfilled'))
+    setNewPeriods((current) => current.filter((entry) => !saved.has(entry)))
     const refused = results.find((result) => result.status === 'rejected')
     if (refused) throw refused.reason
   }
@@ -657,7 +656,7 @@ export function PeoplePanel() {
       // What the dialog saves, or a removal's own Undo toast names, is not listed here.
       const others = offboard
         ? [...accountChanges, ...entryChanges]
-        : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !removals.includes(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
+        : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !isRemoval(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
       if (accessChanges.length === 0) {
         const updated = await saveChanges(row, offboard)
         if (others.length > 0) toast.success(t.toast.saved(others.join(', ')))
