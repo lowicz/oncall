@@ -430,14 +430,14 @@ const availabilityKey = (member: string) => (member ? ['availability', 'member',
  * into is re-created around it) and is saved immediately. A coordinator can
  * paint another person's calendar from the person picker.
  */
-function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth, target, onTarget }: {
+function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMonth, target, onTarget }: {
   role: UserRole
   hasTeamMember: boolean
   displayName: string
   /** The month and the person shown, held by the screen so a duty in the list
    *  can open its own day in the user's own calendar. */
   month: string
-  onMonth: (month: string) => void
+  onStepMonth: (months: number) => void
   /** '' means "myself"; a member id means "on behalf of that person". */
   target: string
   onTarget: (target: string) => void
@@ -562,9 +562,9 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth,
               </Select>
             )}
             <span className="pager avail-month">
-              <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => onMonth(shiftMonth(month, -1))} />
+              <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => onStepMonth(-1)} />
               <h3 className="month-title">{formatMonth(month)}</h3>
-              <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => onMonth(shiftMonth(month, 1))} />
+              <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => onStepMonth(1)} />
             </span>
           </>
         )}
@@ -989,9 +989,13 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
   // (`?osoba=<id>&miesiac=2026-09`), so a refresh keeps them.
   const [params, setParams] = useUrlParams()
   const target = params.get('osoba') ?? ''
-  const monthParam = params.get('miesiac')
-  const month = isMonth(monthParam) ? monthParam : monthOf(today)
-  const setMonth = (value: string) => setParams({ miesiac: value })
+  const monthIn = (query: URLSearchParams) => {
+    const value = query.get('miesiac')
+    return isMonth(value) ? value : monthOf(today)
+  }
+  const month = monthIn(params)
+  // From the latest query, which a render of quick clicks may not show yet.
+  const stepMonth = (months: number) => setParams((latest) => ({ miesiac: shiftMonth(monthIn(latest), months) }))
   const setTarget = (value: string) => setParams({ osoba: value || null })
   const showCollision = (serviceDate: string) => {
     setParams({ miesiac: monthOf(serviceDate), osoba: null })
@@ -1018,7 +1022,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
       {calendar.data && <DutyList duties={upcoming} today={today} collides={collides} onShowCollision={showCollision} />}
     </section>
   )
-  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} month={month} onMonth={setMonth} target={target} onTarget={setTarget} />
+  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} month={month} onStepMonth={stepMonth} target={target} onTarget={setTarget} />
   const phone = <PhoneSection inRotation={inRotation} />
 
   return (

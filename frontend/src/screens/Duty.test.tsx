@@ -184,6 +184,20 @@ describe('DutyScreen schedule section', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Najbliższe 8 tygodni' })).toBeInTheDocument()
   })
 
+  it('keeps every step of quick clicks made before the window renders', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    const { router } = renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
+    await screen.findByRole('heading', { level: 2, name: 'Najbliższe 4 tygodnie' })
+
+    // Three clicks in one task: none of them sees the window the one before it moved.
+    act(() => {
+      for (let step = 0; step < 3; step += 1) fireEvent.click(screen.getByRole('button', { name: 'Do przodu o tydzień' }))
+    })
+    expect(await screen.findByRole('heading', { level: 2, name: '1 – 28 paź' })).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?od=2026-10-01')
+  })
+
   it('keeps the window, the zoom and the filter in the URL, so a refresh shows the same view', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))

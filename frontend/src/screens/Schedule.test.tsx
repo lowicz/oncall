@@ -130,6 +130,23 @@ describe('ScheduleScreen range in the URL', () => {
     expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=2')
   })
 
+  it('keeps every step of quick clicks made before the range renders', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik')
+    await screen.findByRole('heading', { level: 2, name: '10 wrz – 3 paź' })
+
+    // One task: the back steps start from the two-week window the zoom wrote.
+    act(() => {
+      fireEvent.click(screen.getByRole('radio', { name: '2 tyg.' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+    })
+    expect(await screen.findByRole('heading', { level: 2, name: '27 sie – 9 wrz' })).toBeInTheDocument()
+    expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-08-27&zoom=2')
+  })
+
   it('keeps "only on duty" in the address, so a refresh keeps the filter', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))

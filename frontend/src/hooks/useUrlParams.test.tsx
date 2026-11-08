@@ -11,6 +11,7 @@ function Probe() {
       <button type="button" onClick={() => setParams({ zoom: '8' })}>zoom</button>
       <button type="button" onClick={() => setParams({ od: '2026-11-15' })}>forward</button>
       <button type="button" onClick={() => setParams({ zoom: null })}>reset</button>
+      <button type="button" onClick={() => setParams((latest) => ({ krok: String(Number(latest.get('krok')) + 1) }))}>step</button>
     </>
   )
 }
@@ -32,6 +33,16 @@ describe('useUrlParams', () => {
     })
     await waitFor(() => expect(new URLSearchParams(screen.getByRole('status').textContent!)).toEqual(
       new URLSearchParams('tylko=z-dyzurem&zoom=8&od=2026-11-15'),
+    ))
+  })
+
+  it('hands a relative change the latest query written, not the one rendered', async () => {
+    renderAt('/grafik?zoom=8')
+    act(() => {
+      for (let step = 0; step < 3; step += 1) fireEvent.click(screen.getByRole('button', { name: 'step' }))
+    })
+    await waitFor(() => expect(new URLSearchParams(screen.getByRole('status').textContent!)).toEqual(
+      new URLSearchParams('zoom=8&krok=3'),
     ))
   })
 

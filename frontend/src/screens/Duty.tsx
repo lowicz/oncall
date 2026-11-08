@@ -134,17 +134,19 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const swaps = useQuery({ queryKey: ['swaps'], queryFn: () => api.swaps(), enabled: inRotation })
   const fairness = useQuery({ queryKey: ['fairness', undefined], queryFn: () => api.fairness(), enabled: canCoordinate })
   const [params, setParams] = useUrlParams()
-  const zoomParam = params.get('zoom')
-  const zoom: MatrixZoom = isZoom(zoomParam) ? zoomParam : '4'
-  const start = params.get('od')
-  const offset = isIsoDate(start) ? daysBetween(today, start) : 0
+  const windowOf = (query: URLSearchParams) => {
+    const zoomParam = query.get('zoom')
+    const zoom: MatrixZoom = isZoom(zoomParam) ? zoomParam : '4'
+    const start = query.get('od')
+    const offset = isIsoDate(start) ? daysBetween(today, start) : 0
+    return { zoom, offset, ...matrixWindow(today, offset, zoom, share) }
+  }
+  const { zoom, offset, range, wholeLink, canShiftBack, canShiftForward } = windowOf(params)
   const hideIdle = params.get(ONLY_ON_DUTY.key) === ONLY_ON_DUTY.value
   const view = viewOf(params.get(VIEW_KEY), narrow)
-
-  const { range, wholeLink, canShiftBack, canShiftForward } = matrixWindow(today, offset, zoom, share)
-  // From the window actually shown: a share link may have clamped it away
-  // from where the offset alone would put it.
-  const shift = (days: number) => setParams({ od: addDays(range.starts_on, days) })
+  // From the window the latest query shows: a share link may have clamped it
+  // away from where the offset alone would put it.
+  const shift = (days: number) => setParams((latest) => ({ od: addDays(windowOf(latest).range.starts_on, days) }))
   // The team holds nobody at all: no range has a row to zoom, filter or list,
   // so the empty state stands alone. A team that simply has no member active in
   // this window keeps its controls, so the view can move to where duties are.
