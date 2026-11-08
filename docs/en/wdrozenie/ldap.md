@@ -56,7 +56,7 @@ With `ONCALL_LDAP_ATTRIBUTE_PHONE` the application reads the phone number
 from the directory at every sign-in and stores it on the account **only when
 the account has no number** - when the account is created, when a local
 account without a number is linked, and at the next sign-in of an account
-whose number was removed. A number typed on the Mine screen or by an
+whose number was removed. A number typed on the My duties screen or by an
 administrator stays, even when the directory knows a different one; whoever
 wants the directory's number back types it. The number is stored like every
 other one in the application: `+48` and nine digits, bare digits get the
@@ -185,7 +185,7 @@ A successful sign-in is one `INFO` line:
 | `user_bind` | `invalidCredentials` | (`rejected`) `ad_reason`: `invalid_credentials` - wrong password; `account_locked`, `password_expired`, `password_must_change`, `account_disabled`, `account_expired` - the account's state in AD |
 | `attributes` | `personnel_number_missing`, `personnel_number_not_numeric` | the attribute from `attribute=` is empty or not digits only; in many domains the number is in `employeeID` - point at it in the [configuration](#configuration) |
 | `attributes` | `first_name_missing`, `email_invalid`, `attribute_too_long`, `attribute_not_text` | fix the attribute's value in AD or point at a different attribute |
-| `attributes` | `phone_invalid` | (`skipped`) the value of the attribute from `attribute=` is not a Polish number (`+48` and nine digits, also without the prefix); the sign-in succeeded and the number stayed empty - fix it in AD or type it on the Mine screen |
+| `attributes` | `phone_invalid` | (`skipped`) the value of the attribute from `attribute=` is not a Polish number (`+48` and nine digits, also without the prefix); the sign-in succeeded and the number stayed empty - fix it in AD or type it on the My duties screen |
 | `attributes` | `photo_too_large`, `photo_format_unsupported` | (`ldap_photo`, `skipped`) the photo in the attribute from `attribute=` is larger than `limit=` bytes or is not a JPEG or PNG file; upload a smaller photo to the directory |
 | `search` | `user_not_found` | (`ldap_photo`, `skipped`) the signed-in account has disappeared from the directory since sign-in |
 | any | `unexpected_error` | an error in the application or the LDAP library: report it with the `error` and `at` fields |

@@ -88,8 +88,8 @@ describe('ScheduleScreen header', () => {
     renderSchedule('/grafik', { role: 'member', hasTeamMember: true })
     // The ICS export waits in the matrix's "more" menu, not in the header.
     const menu = await openMenu('Więcej')
-    expect(within(menu).getByRole('menuitem', { name: 'Eksport ICS' })).toHaveAttribute('href', '/moje#ics')
-    expect(screen.queryByRole('link', { name: /Eksport ICS/ })).not.toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: 'Subskrypcja ICS' })).toHaveAttribute('href', '/moje#ics')
+    expect(screen.queryByRole('link', { name: /Subskrypcja ICS/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Generuj kolejny zakres/ })).not.toBeInTheDocument()
     // A member's screen never asks for the drafts.
     expect(drafts).toHaveBeenCalledTimes(1)

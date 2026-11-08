@@ -68,7 +68,7 @@ message.
 
 The schedule publication message goes to every team member active in its
 range. It lists only their own duties (day and role) or says that there is
-none in this schedule, and leads to the **Mine** screen (`/moje`).
+none in this schedule, and leads to the **My duties** screen (`/moje`).
 
 Whoever starts a duty in any role - PRIMARY, SECONDARY or 11–19 - gets two
 messages at `ONCALL_HANDOVER_REMINDER_HOUR` (Warsaw time, 9 by default): an
@@ -213,7 +213,7 @@ Calendar applications subscribe to revocable token addresses under `/calendar`.
 
 | Feed | Who creates it | Content |
 | --- | --- | --- |
-| personal | team member (the “Calendar subscription (ICS)” section on the “Mine” screen) | only their own duties |
+| personal | team member (the “ICS subscription” section on the “My duties” screen) | only their own duties |
 | for a share link | administrator | the schedule cut down to the link's range and validity |
 
 Duties are all-day events, and **the schedule version is the event's sequence

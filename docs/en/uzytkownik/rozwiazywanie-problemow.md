@@ -154,7 +154,7 @@ few hours. A duty carries the schedule version as its sequence number, so
 after a refresh the entry is updated, not duplicated.
 
 **The ICS address stopped working**
-It has been revoked. Create a new one on the “Mine” screen.
+It has been revoked. Create a new one on the “My duties” screen.
 
 ## Preview link
 

@@ -171,11 +171,18 @@ describe('DeviationBar', () => {
     const fill = container.querySelector('i')!
     expect(fill).toHaveClass('dev-under')
     expect(fill.style.width).toBe('50%')
-    expect(screen.getByText('-9,0')).toHaveClass('dev-v-under')
+    expect(screen.getByText('−9,0')).toHaveClass('dev-v-under')
   })
 
   it('draws no bar at zero, even with a zero scale', () => {
     const { container } = render(<DeviationBar value={0} max={0} />)
+    expect(container.querySelector('i')!.style.width).toBe('0%')
+    expect(screen.getByText('0,0').className).toBe('dev-v')
+  })
+
+  it.each([0.03, -0.03])('treats %s, which prints as 0,0, as no deviation', (value) => {
+    const { container } = render(<DeviationBar value={value} max={3} />)
+    expect(bar()).toHaveAccessibleName('odchylenie 0,0')
     expect(container.querySelector('i')!.style.width).toBe('0%')
     expect(screen.getByText('0,0').className).toBe('dev-v')
   })

@@ -1,10 +1,10 @@
 # My duties and availability
 
-The **Mine** screen (`/moje`) answers a team member's three questions, in this
+The **My duties** screen (`/moje`) answers a team member's three questions, in this
 order: when am I on duty, what have I filed, how do I compare with the team.
 The title of the screen is “My duties”, and under it: who, in which account
 role, how many duties in the last 90 days and when the next one is. On the
-right are two actions: **ICS export (mine only)** and **Propose a swap**
+right are two actions: **ICS subscription** and **Propose a swap**
 (opens Swaps with your nearest duty already selected).
 
 On a wide screen the left column holds the duties and the availability
@@ -30,16 +30,16 @@ header opens the matrix with your row highlighted.
 Availability is filed **on the month calendar**, without a form with dates.
 The section header has the month's name as the calendar's heading, with
 arrows that change the month on either side. On a phone the month row stays
-pinned under the top bar while you scroll the calendar. Above the calendar is
-a brush with four modes - **unavailable**, **prefer not**, **willing** and
-**clear** - and next to it the **Reason for the next entries** field: first
-you choose what and why, then you mark the days. The month is part of the
-page address (`/moje?miesiac=2026-10`), so refreshing the page keeps the same
-calendar.
+pinned under the top bar while you scroll the calendar. Above the calendar you
+choose how you mark (**Mark as**): **unavailable**, **prefer not** or
+**willing**. Next to it are the eraser button **Clear the marking** and the
+**Reason for the next entries** field: first you choose what and why, then you
+mark the days. The month is part of the page address (`/moje?miesiac=2026-10`),
+so refreshing the page keeps the same calendar.
 
 - Clicking a day saves that one day with the chosen mode.
-- Dragging across days saves the whole range; Shift+click closes the range
-  from the last saved day.
+- Dragging across days saves the whole range; on a computer, Shift+click
+  closes the range from the last saved day.
 - On a phone dragging scrolls the page, so a range is marked with two taps:
   the first starts the range (a “Range: from 12 Oct” frame with a **Cancel**
   button appears under the calendar), the second closes and saves it. One day
@@ -48,7 +48,7 @@ calendar.
   between days (up and down by a week), Home and End to the start and end of
   the week, and Enter or Space save the day with the chosen mode; with Shift
   they close the range from the last saved day.
-- The **clear** mode removes the entry from the selected days. If the entry
+- The eraser (**Clear the marking**) removes the entry from the selected days. If the entry
   covered more days, the rest remain.
 - Saving is immediate; one message confirms the whole range, for example
   “Saved: 12 – 16 Oct “unavailable”” with the reason under it (“reason:
@@ -59,10 +59,12 @@ calendar.
   selection stay as they are. If Undo fails, the message
   says so and **Undo** can be clicked again.
 
-Days already filed carry the colour of the mode and a letter (`U`, `P`, `W`);
-a day with a reason has a small note icon in its corner, and the reason itself
-is shown when you hover over the day. A dot in the corner of a day is your
-duty. Past days cannot be selected.
+Under the calendar there is one sentence about the gestures and a **Legend**
+link that explains the dot, the outline and the letters. Days already filed
+carry the colour of the mode and a letter (`U` - unavailable, `P` - prefer
+not, `W` - willing); a day with a reason has a small note icon in its corner,
+and the reason itself is shown when you hover over the day. A dot in the
+corner of a day is your duty. Past days cannot be selected.
 
 If “unavailable” lands on a day with a duty, the day gets an amber outline and
 a frame appears under the calendar, for example “You have a PRIMARY duty on 9
@@ -118,10 +120,10 @@ the schedule by itself - you then have to use a [swap](zamiany.md).
 
 ## My points
 
-One number: your deviation from the fair share of points over the last 12
-months (for example `+0.5`), under it a two-way bar and the verdict against
-the threshold (**Within limits** or **Outside limits**, with the threshold
-given in the text). The table of months shows points, the number of duties
+One number: your deviation from your fair share of points over the last 12
+months (for example `+0.5`), under it a two-way bar and the verdict
+(**Within limits** or **Outside limits**) with one sentence such as “You have
+0.5 pts more than your fair share” and the norm. The table of months shows points, the number of duties
 and weekend days; the **12 months** / **This month** switch narrows the list (this month is in
 the page address as `okres=miesiac`).
 The **Full fairness report** link leads to the screen with the whole team -
@@ -152,9 +154,9 @@ reading the number from the directory: it fills an empty field only, so a
 number typed here or by an administrator stays, even when the directory knows
 a different one. Whoever wants the directory's number back types it.
 
-## Calendar subscription (ICS)
+## ICS subscription
 
-The **ICS export (mine only)** button opens a panel with addresses that show
+The **ICS subscription** button (with a link icon, because it downloads no file) opens a panel with addresses that show
 **only your duties**.
 
 1. Enter a **Subscription name** (for example “phone”) and click

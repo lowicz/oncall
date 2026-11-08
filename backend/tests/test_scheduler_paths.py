@@ -268,7 +268,7 @@ def test_a_criterion_reachable_in_the_range_is_named_as_such(monkeypatch) -> Non
     # One real solve, then a single feasibility probe at the criterion.
     assert probes == [False, True]
     assert result.acceptance_floor is None
-    assert any("byłoby osiągalne" in item for item in result.warnings), result.warnings
+    assert any("dałoby się je spełnić" in item for item in result.warnings), result.warnings
 
 
 def test_no_floor_is_claimed_once_the_budget_is_spent(monkeypatch) -> None:

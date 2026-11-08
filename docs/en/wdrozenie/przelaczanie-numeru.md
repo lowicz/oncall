@@ -158,7 +158,7 @@ stored as `+48` and nine digits (`+48500500500`) and sent to WCO unchanged.
 On the **People** screen the **In the rotation** filter shows everyone who
 can get PRIMARY: a missing number is red in the phone column, and a number
 in another format is marked “fix the number”. An administrator corrects it
-in the person's panel, or the person on the [Mine](../uzytkownik/dostepnosc.md#my-phone)
+in the person's panel, or the person on the [My duties](../uzytkownik/dostepnosc.md#my-phone)
 screen. Optionally `ONCALL_LDAP_ATTRIBUTE_PHONE` fills an empty number from
 the directory at sign-in - [Phone number](ldap.md#phone-number).
 

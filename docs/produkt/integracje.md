@@ -65,7 +65,7 @@ wiadomość o wycofaniu zawsze.
 
 Wiadomość o publikacji grafiku dostaje każda osoba z zespołu aktywna w jego
 zakresie. Wymienia wyłącznie jej własne dyżury (dzień i rola) albo mówi, że w
-tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje** (`/moje`).
+tym grafiku nie ma żadnego, i prowadzi do ekranu **Moje dyżury** (`/moje`).
 
 Kto zaczyna dyżur w którejkolwiek roli - PRIMARY, SECONDARY albo 11–19 -
 dostaje dwie wiadomości o godzinie `ONCALL_HANDOVER_REMINDER_HOUR` (czasu
@@ -208,7 +208,7 @@ Aplikacje kalendarzowe subskrybują odwoływalne adresy tokenowe pod `/calendar`
 
 | Kanał | Kto tworzy | Zawartość |
 | --- | --- | --- |
-| osobisty | członek zespołu (sekcja „Subskrypcja kalendarza” na ekranie „Moje”) | wyłącznie własne dyżury |
+| osobisty | członek zespołu (sekcja „Subskrypcja ICS” na ekranie „Moje dyżury”) | wyłącznie własne dyżury |
 | dla linku podglądowego | administrator | grafik przycięty do zakresu i ważności linku |
 
 Dyżury są wydarzeniami całodniowymi, a **wersja grafiku jest numerem sekwencji

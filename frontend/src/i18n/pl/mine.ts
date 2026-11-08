@@ -7,7 +7,7 @@ export const mine = {
   dutiesInLast90Days: (count: number) => `${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} w ostatnich 90 dniach`,
   next: 'następny:',
   noDutyIn60Days: 'brak w najbliższych 60 dniach',
-  exportIcs: 'Eksport ICS (tylko moje)',
+  exportIcs: 'Subskrypcja ICS',
   proposeSwap: 'Zaproponuj zamianę',
   duties: {
     heading: 'Najbliższe dyżury',
@@ -45,20 +45,28 @@ export const mine = {
     person: 'Osoba',
     myself: (name: string) => `Ja (${name})`,
     pickPerson: 'Wskaż osobę',
-    brush: 'Pędzel',
+    brush: 'Zaznaczam jako',
     brushes: {
       unavailable: 'nie mogę',
       prefer_not: 'wolę nie',
       prefer: 'chętnie',
-      clear: 'wyczyść',
+      clear: 'Wyczyść zaznaczenie',
     },
     previousMonth: 'Poprzedni miesiąc',
     nextMonth: 'Następny miesiąc',
     pickTitle: 'Wybierz osobę',
     pickDescription: 'Twoje konto nie jest w rotacji. Wskaż osobę, w imieniu której chcesz zgłosić dostępność.',
-    howTo: 'Klikasz albo przeciągasz po dniach (Shift+klik domyka zakres); zapis automatyczny. Kropka to dyżur, bursztynowa obwódka to kolizja „nie mogę” z dyżurem.',
+    howTo: 'Kliknij dzień albo przeciągnij po kilku. Zapisujemy od razu.',
+    /** Said on a device with a keyboard and a mouse only; a phone has no Shift. */
+    howToShift: 'Shift+klik zaznacza zakres.',
     /** The phone, where the first tap starts a range and the second closes it. */
-    howToTouch: 'Dotykasz pierwszego i ostatniego dnia zakresu (jeden dzień: dwa razy ten sam); zapis automatyczny. Kropka to dyżur, bursztynowa obwódka to kolizja „nie mogę” z dyżurem.',
+    howToTouch: 'Dotknij pierwszego i ostatniego dnia zakresu (jeden dzień: dwa razy ten sam). Zapisujemy od razu.',
+    legend: {
+      link: 'Legenda',
+      title: 'Legenda kalendarza',
+      duty: 'Kropka: masz w tym dniu dyżur.',
+      collision: 'Bursztynowa obwódka: wpis „nie mogę” w dniu z dyżurem.',
+    },
     note: 'Powód do kolejnych wpisów',
     noteHint: 'Opcjonalny · widzą koordynatorzy i administratorzy.',
     /** A range started by a tap on the phone, waiting for its last day. */
@@ -92,6 +100,8 @@ export const mine = {
     saved: (range: string, kind: string) => `Zapisano: ${range} „${kind}”`,
     undo: 'Cofnij',
     undoFailed: (range: string) => `Nie cofnięto: ${range}. Spróbuj ponownie.`,
+    /** The title of the toast; the server's own words follow as its description. */
+    notSaved: (range: string) => `Nie zapisano: ${range}. Spróbuj ponownie.`,
   },
   points: {
     heading: 'Moje punkty',
@@ -104,10 +114,14 @@ export const mine = {
     emptyDescription: 'Twoje konto nie ma jeszcze dyżurów w oknie 12 miesięcy.',
     withinCompact: (threshold: string) => `w normie (±${threshold})`,
     outsideCompact: (threshold: string) => `poza normą (±${threshold})`,
-    againstFairShare: 'względem sprawiedliwego udziału',
+    againstFairShare: 'względem Twojego sprawiedliwego udziału',
     within: 'W normie',
     outside: 'Poza normą',
-    threshold: (points: string) => `Próg ostrzeżenia to ±${points} pkt.`,
+    /** The member's number against their fair share, in words. */
+    aboveShare: (points: string) => `Masz o ${points} pkt więcej niż Twój sprawiedliwy udział.`,
+    belowShare: (points: string) => `Masz o ${points} pkt mniej niż Twój sprawiedliwy udział.`,
+    atShare: 'Masz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział.',
+    norm: (points: string) => `Norma to ±${points} pkt od udziału należnego.`,
     generatorEvensOut: 'Generator wyrówna to w kolejnym zakresie.',
     generatorFewer: 'Generator da Ci mniej dyżurów w kolejnym zakresie.',
     generatorMore: 'Generator da Ci więcej dyżurów w kolejnym zakresie.',
@@ -160,7 +174,7 @@ export const mine = {
     saved: 'Zapisano numer telefonu',
   },
   feeds: {
-    title: 'Subskrypcja kalendarza (ICS)',
+    title: 'Subskrypcja ICS',
     onlyYourDuties: 'tylko Twoje dyżury',
     explanation: 'Adres ICS pokazuje wyłącznie Twoje dyżury i aktualizuje się po zamianach. Dodaj go w swojej aplikacji kalendarza.',
     newSubscription: 'Nowa subskrypcja',

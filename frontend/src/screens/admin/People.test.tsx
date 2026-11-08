@@ -433,7 +433,7 @@ describe('PeoplePanel person panel', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })
     expect(within(sheet).getByText(/pozostaną bez obsady/)).toBeInTheDocument()
     expect(within(sheet).getByText(/pojawi się jako „Osoba usunięta #…”/)).toBeInTheDocument()
-    expect(within(sheet).getByText(/Audyt zachowuje imię i nazwisko/)).toBeInTheDocument()
+    expect(within(sheet).getByText(/imię i nazwisko zostają przy starych wpisach/)).toBeInTheDocument()
     const confirm = within(sheet).getByRole('button', { name: 'Usuń konto i dane' })
     expect(confirm).toBeDisabled()
     expect(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić')).toHaveAttribute('placeholder', 'wpisz login')

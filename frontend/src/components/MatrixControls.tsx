@@ -96,10 +96,10 @@ export function MatrixControls({
   showRange?: boolean
   canShiftBack?: boolean
   canShiftForward?: boolean
-  /** Offers the ICS export of one's own duties, which lives on "Moje". */
+  /** Offers the ICS subscription to one's own duties, which lives on "Moje dyżury". */
   icsExport?: boolean
 }) {
-  const t = useMessages().schedule
+  const { schedule: t, mine } = useMessages()
   const more = useRef<HTMLButtonElement>(null)
   const [legendOpen, setLegendOpen] = useState(false)
   return (
@@ -132,7 +132,7 @@ export function MatrixControls({
           {icsExport && (
             <>
               <MenuSeparator />
-              <MenuLink to="/moje#ics">{t.actions.exportIcs}</MenuLink>
+              <MenuLink to="/moje#ics">{mine.exportIcs}</MenuLink>
             </>
           )}
         </Menu>

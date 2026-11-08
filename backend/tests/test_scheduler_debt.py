@@ -141,11 +141,11 @@ def test_the_floor_is_named_even_far_outside_the_criterion(indebted_range: Solve
     floor = indebted_range.acceptance_floor
     assert floor is not None
     assert floor > 10, floor
-    debt = [warning for warning in indebted_range.warnings if "Zastany dług" in warning]
+    debt = [warning for warning in indebted_range.warnings if "nierówność sprzed szkicu" in warning]
     assert len(debt) == 1, indebted_range.warnings
     assert f"najniższa osiągalna rozpiętość to {floor} punktów" in debt[0]
-    assert "nie jakość generowania" in debt[0]
     assert "połowę jej udziału" in debt[0]
+    assert "ponowne generowanie nic nie zmieni" in debt[0]
 
 
 # --- the balance arithmetic, without a model ---------------------------------
@@ -255,17 +255,18 @@ def test_the_warning_blames_history_only_when_history_already_broke_the_criterio
     inherited = [_lens("primary", 60.0), _lens("secondary", 2.0)]
     spreads = {"primary": 500, "secondary": 20}
     named = _criterion_warning(inherited, spreads, 45)
-    assert named.startswith("Zastany dług historyczny")
+    inherited_title = "Kryterium 3 punktów rozpiętości niespełnione przez nierówność sprzed szkicu."
+    assert named.startswith(inherited_title)
     assert "najniższa osiągalna rozpiętość to 45 punktów" in named
     assert "połowę jej udziału" in named
 
     paced = _criterion_warning(inherited, spreads, ACCEPTANCE_POINTS)
-    assert paced.startswith("Zastany dług historyczny")
-    assert "byłoby osiągalne" in paced
+    assert paced.startswith(inherited_title)
+    assert "dałoby się je spełnić" in paced
     assert "Kolejny zakres dokończy wyrównanie" in paced
 
     starved = _criterion_warning(inherited, spreads, None)
-    assert starved.startswith("Zastany dług historyczny")
+    assert starved.startswith(inherited_title)
     assert "nie udało się wyznaczyć" in starved
 
     roster = [_lens("primary", 1.0), _lens("secondary", 2.0)]
@@ -278,7 +279,7 @@ def test_the_warning_blames_history_only_when_history_already_broke_the_criterio
     )
     # A lens history broke and a lens the draft broke: not inherited.
     mixed = _criterion_warning(inherited, {"primary": 500, "secondary": 40}, 45)
-    assert not mixed.startswith("Zastany dług")
+    assert not mixed.startswith(inherited_title)
 
 
 # --- consecutive ranges: the debt shrinks every time, nobody sits out --------

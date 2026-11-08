@@ -19,14 +19,14 @@ export const swaps = {
   inbox: {
     heading: 'Skrzynka',
     toMe: 'Do mnie',
-    mine: 'Moje',
+    mine: 'Wysłane',
     inProgress: 'W toku',
     /** What "W toku" is called for a coordinator whom the policy sends requests to approve. */
     forApproval: 'Do zatwierdzenia',
     closed: 'Zamknięte',
     count: (label: string, count: number) => `${label}: ${pluralPl(count, ['sprawa', 'sprawy', 'spraw'])}`,
     emptyToMeTitle: 'Nikt Cię o nic nie prosi',
-    emptyToMeDescription: 'Gdy ktoś zaproponuje Ci zamianę, zobaczysz ją tutaj i w liczniku w szynie. Własną zaczniesz przyciskiem „Nowa zamiana” albo z ekranu Moje.',
+    emptyToMeDescription: 'Gdy ktoś zaproponuje Ci zamianę, zobaczysz ją tutaj i w liczniku w szynie. Własną zaczniesz przyciskiem „Nowa zamiana” albo z ekranu „Moje dyżury”.',
     myDuties: 'Moje dyżury',
     emptyMineTitle: 'Nie masz otwartych próśb',
     emptyMineDescription: 'Nowa zamiana zaczyna się od Twojego dyżuru.',
@@ -155,7 +155,10 @@ export const swaps = {
     wholeHint: (roles: string) => `${roles}. Jedna akceptacja zastępcy obejmuje oba.`,
     keeps: (role: string) => `${role} tego dnia zostaje u Ciebie.`,
     keepsLateShift: 'Zmiana 11–19 tego dnia zostaje u Ciebie.',
-    splitNeedsAcknowledgement: 'Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.',
+    /** Said instead of the "stays with you" line when the request splits the pair the 11-19 anchor binds. */
+    splitsPair: (given: string, kept: string) => `Oddajesz tylko ${given}, a ${kept} zostaje u Ciebie. To łamie regułę pary; przed wysłaniem zaznaczysz, że wiesz.`,
+    /** Said instead when the replacement cannot hold the kept role that day: the split is the tolerated exception, nothing to acknowledge. */
+    splitsPairTolerated: (given: string, kept: string) => `Oddajesz tylko ${given}, a ${kept} zostaje u Ciebie. Zastępca nie może tego dnia wziąć ${kept}, więc to dozwolony wyjątek od reguły pary.`,
     noUpcomingDuties: 'Brak nadchodzących dyżurów',
     pickDuty: 'Wybierz dyżur',
     unavailableCollision: 'kolizja: nie mogę',

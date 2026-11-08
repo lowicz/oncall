@@ -232,7 +232,7 @@ describe('handing the number over', () => {
     expect(popover).toHaveTextContent('Tryb próbny: przekazanie zostanie zapisane, ale WCO nie zostanie zmienione.')
     const submit = within(popover).getByRole('button', { name: 'Przejmij numer' })
     expect(submit).toHaveAttribute('aria-disabled', 'true')
-    expect(submit).toHaveAccessibleDescription('Nie masz numeru telefonu w Moje. Uzupełnij go, żeby przejąć numer.')
+    expect(submit).toHaveAccessibleDescription('Nie masz numeru telefonu na ekranie „Moje dyżury”. Uzupełnij go, żeby przejąć numer.')
     fireEvent.click(submit)
     expect(start).not.toHaveBeenCalled()
     await expectNoAxeViolations(container)
@@ -252,7 +252,7 @@ describe('handing the number over', () => {
   it('names the receiver without a phone number to a coordinator', async () => {
     actions('coordinator', held(), false)
     fireEvent.click(screen.getByRole('button', { name: 'Przekaż numer…' }))
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Marek Nowak nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie.')
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Marek Nowak nie ma numeru telefonu na ekranie „Moje dyżury”. Poproś o jego uzupełnienie.')
   })
 
   it('opens as a sheet from the bottom on a phone, closed by its button', async () => {

@@ -438,6 +438,8 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .pop-swatch-gap { background: var(--bad-bg); }
 .pop-swatch-weekend { background: var(--wknd); }
 .pop-swatch-event { width: 6px; height: 6px; border-radius: 50%; background: var(--ev-blue); }
+.pop-swatch-duty { width: 6px; height: 6px; border-radius: 50%; background: var(--p); }
+.pop-swatch-collision { box-shadow: 0 0 0 2px var(--warn); }
 .menu { background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-lg); padding: 6px; min-width: 200px; box-shadow: var(--shadow-sm); outline: none; display: grid; gap: 2px; }
 .menu-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r); font-size: 14px; line-height: 21px; color: var(--fg); text-decoration: none; cursor: default; outline: none; user-select: none; }
 .menu-item[data-highlighted] { background: var(--s2); }
@@ -776,6 +778,7 @@ table.report-table td.key { font-weight: 600; }
   .spinner, .sk { animation: none; }
 }
 @media (pointer: coarse) {
+  .only-pointer { display: none; }
   :is(button, .btn, [role='button'], .seg button, .filter-chip button, .role-check) { min-height: 44px; }
   :is(.ib, .filter-chip button, .color-pick button) { min-width: 44px; }
 }

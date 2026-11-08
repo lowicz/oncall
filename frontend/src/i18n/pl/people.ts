@@ -154,6 +154,8 @@ export const people = {
     ended: (date: string) => `rotacja zakończona ${date}`,
     periodSpan: (from: string, until: string) => `od ${from} do ${until}`,
     periodOpen: (from: string) => `od ${from} · bez daty końca`,
+    /** The tab's name: the roles the person is qualified for, shortened. */
+    tabWithRoles: (roles: string) => `Rotacja · ${roles}`,
     dutyQualifications: 'Kwalifikacje dyżurowe',
     entryFrom: 'Wejście od',
     exitUntilLabel: 'Wyjście do',
@@ -214,7 +216,7 @@ export const people = {
     pseudonymised: 'W grafiku, sprawiedliwości i raportach osoba pojawi się jako „Osoba usunięta #…”. Historia dyżurów i punkty zostają dla sprawiedliwości.',
     publishedDutiesBold: 'Opublikowane dyżury tej osoby po dziś',
     publishedDutiesRest: 'pozostaną bez obsady i pojawią się w ryzykach. Zalecane: najpierw ustaw „wyjście do” i przepisz dyżury.',
-    irreversible: 'Operacji nie da się cofnąć. Audyt zachowuje imię i nazwisko: we wcześniejszych wpisach i we wpisie „Usunięto konto”, który zapisze też pseudonim.',
+    irreversible: 'Nie da się tego cofnąć. W dzienniku audytu imię i nazwisko zostają przy starych wpisach i przy wpisie o usunięciu.',
     typeUsername: 'Wpisz login, żeby potwierdzić',
     typeUsernamePlaceholder: 'wpisz login',
   },
