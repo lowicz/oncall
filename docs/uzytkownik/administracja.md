@@ -73,7 +73,8 @@ i **Dodaj** przy brakującej roli dodają nowy okres. Zmieniony wiersz ma
 dopisek „zmieniony, niezapisany” (albo „usunięty”, „nowy”) i przycisk
 **Przywróć**. Po zapisie zakończenie albo usunięcie okresu pokazuje
 komunikat z przyciskiem **Cofnij**, który przywraca poprzednie daty albo
-odtwarza usunięty okres.
+odtwarza usunięty okres; gdy ten sam zapis przesunął wejście do rotacji na
+później, **Cofnij** przywraca też poprzednią datę wejścia.
 
 ### Konta oczekujące na aktywację
 

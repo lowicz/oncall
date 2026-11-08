@@ -502,8 +502,9 @@ export function PeoplePanel() {
   const exitCutsPeriods = exitPending && selectedRow!.member!.eligibility
     .some((period) => !period.ends_on || period.ends_on > rotationUntil)
   const needsOffboarding = exitPending && (exitCutsPeriods || exitDuties.duties.length > 0 || exitDuties.calendar.isError)
-  // With the dialog ahead only the new starts are saved before it.
-  const startMoves = periodEdits.filter(({ item, edit }) => edit && edit.starts_on !== item.starts_on)
+  // With the dialog ahead only the starts a later entry date needs moved are
+  // saved before it; a saved period never starts before the saved entry date.
+  const startMoves = periodEdits.filter(({ item, edit }) => edit && item.starts_on < rotationFrom)
   // The server keeps every period inside the rotation, so a later entry date
   // waits until no period, as this save leaves it, starts before it.
   const earlyRoles = entryChanges.length === 0 ? [] : inRoleOrder([
@@ -564,7 +565,7 @@ export function PeoplePanel() {
     if (!edit) return t.undo.periodDeleted(role)
     return edit.ends_on === addDays(today, -1) ? t.undo.endedToday(role) : t.undo.endedOn(role, formatDate(edit.ends_on))
   }
-  const saveEligibility = async (member: TeamMember) => {
+  const saveEligibility = async (member: TeamMember, narrowsEntry: boolean) => {
     // One role's periods may not overlap, so what ends goes first.
     if (removals.length > 0) {
       await undoable({
@@ -573,9 +574,13 @@ export function PeoplePanel() {
           ? api.updateEligibility({ id: item.id, input: { starts_on: edit.starts_on, ends_on: edit.ends_on } })
           : api.deleteEligibility(item.id)))),
         undo: async () => {
+          // A period put back may start before the later entry date this save
+          // set, so the saved entry date comes back first.
+          if (narrowsEntry) await api.updateTeamMember({ id: member.id, input: { active_from: member.active_from } })
           await Promise.all(removals.map(({ item, edit }) => (edit
             ? api.updateEligibility({ id: item.id, input: { starts_on: item.starts_on, ends_on: item.ends_on } })
             : api.createEligibility({ memberId: member.id, input: { role: item.role, starts_on: item.starts_on, ends_on: item.ends_on } }))))
+          if (narrowsEntry && openedId.current === member.user_id) setRotationFrom(member.active_from)
           refresh()
         },
         message: () => ({ title: removals.map(removalTitle).join(' · ') }),
@@ -612,7 +617,7 @@ export function PeoplePanel() {
     if (offboard) {
       await Promise.all(startMoves.map(({ item, edit }) =>
         api.updateEligibility({ id: item.id, input: { starts_on: edit!.starts_on, ends_on: item.ends_on } })))
-    } else await saveEligibility(member)
+    } else await saveEligibility(member, narrow.active_from !== undefined)
     if (Object.keys(narrow).length > 0) await api.updateTeamMember({ id: member.id, input: narrow })
   }
   const saveChanges = async ({ user, member }: Row, offboard: boolean) => {
@@ -630,7 +635,10 @@ export function PeoplePanel() {
       tasks.push(api.updateAdminUser({ id: user.id, input }).then((saved) => { updated = saved }))
     }
     if (member) tasks.push(saveRotation(member, offboard))
-    await Promise.all(tasks)
+    // A refusal is reported once every write has settled, so the refresh
+    // after it sees all that was saved.
+    const refused = (await Promise.allSettled(tasks)).find((result) => result.status === 'rejected')
+    if (refused) throw refused.reason
     return updated
   }
   // A role change and switching the account off or on save at once like

@@ -76,7 +76,9 @@ started yet has **Delete** instead, and **Add period** and **Add** next to a
 missing role add a new period. A changed row is marked “changed, unsaved”
 (or “deleted”, “new”) and has a **Restore** button. After saving, ending or
 deleting a period shows a message with an **Undo** button, which puts the
-previous dates back or creates the deleted period again.
+previous dates back or creates the deleted period again; when the same save
+moved the entry into the rotation later, **Undo** also puts the previous entry
+date back.
 
 ### Accounts awaiting activation
 

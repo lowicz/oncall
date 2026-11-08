@@ -1182,7 +1182,16 @@ function rotationServer(initial: TeamMember) {
     state = { ...state, eligibility: state.eligibility.map((period) => (period.id === id ? next : period)) }
     return next
   })
-  return { membership, periods }
+  const created = vi.spyOn(api, 'createEligibility').mockImplementation(async ({ input }) => {
+    const next = { id: `e${state.eligibility.length + 10}`, ...input, ends_on: input.ends_on ?? null }
+    if (!inside(state, next)) throw new Error('Okres eligibility musi mieścić się w okresie członkostwa w rotacji')
+    state = { ...state, eligibility: [...state.eligibility, next] }
+    return next
+  })
+  vi.spyOn(api, 'deleteEligibility').mockImplementation(async (id) => {
+    state = { ...state, eligibility: state.eligibility.filter((period) => period.id !== id) }
+  })
+  return { membership, periods, created }
 }
 
 const openRotation = async (username = 'anna', name: RegExp = /Anna Kowalska/) => {
@@ -1482,6 +1491,86 @@ describe('PeoplePanel rotation tab', () => {
 
     await waitFor(() => expect(membership.mock.calls.map(([call]) => call)).toEqual([{ id: 'm1', input: { active_until: '2026-11-30' } }]))
     await waitFor(() => expect(within(dialog).queryByText(/Niezapisane/)).not.toBeInTheDocument())
+  })
+
+  it('puts the entry date back before the period an Undo recreates', async () => {
+    mockData([user({ id: 'u1', phone: '+48 1' })])
+    const { membership, created } = rotationServer(member({ id: 'm1', active_from: '2026-12-01', eligibility: [
+      { id: 'e1', role: 'primary', starts_on: '2026-12-01', ends_on: null },
+      { id: 'e2', role: 'secondary', starts_on: '2026-12-01', ends_on: null },
+    ] }))
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRotation()
+
+    fireEvent.click(within(qualification(dialog, 'SECONDARY')).getByRole('button', { name: 'Usuń: SECONDARY' }))
+    fireEvent.click(within(qualification(dialog, 'PRIMARY')).getByRole('button', { name: 'Edytuj: PRIMARY' }))
+    fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '2027-01-01' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gotowe' }))
+    fireEvent.change(within(dialog).getByLabelText('Wejście od'), { target: { value: '2027-01-01' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (3)' }))
+
+    await waitFor(() => expect(membership).toHaveBeenCalledWith({ id: 'm1', input: { active_from: '2027-01-01' } }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(created).toHaveBeenCalledWith({ memberId: 'm1', input: { role: 'secondary', starts_on: '2026-12-01', ends_on: null } }))
+    expect(membership).toHaveBeenLastCalledWith({ id: 'm1', input: { active_from: '2026-12-01' } })
+    expect(created.mock.invocationCallOrder[0]).toBeGreaterThan(membership.mock.invocationCallOrder[1])
+    await waitFor(() => expect(within(dialog).getByLabelText('Wejście od')).toHaveValue('2026-12-01'))
+    expect(screen.queryByText('Nie udało się cofnąć')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/Niezapisane/)).not.toBeInTheDocument()
+  })
+
+  it('puts the entry date back before a period an Undo reopens at its earlier start', async () => {
+    mockData([user({ id: 'u1', phone: '+48 1' })])
+    const { membership, periods } = rotationServer(member({ id: 'm1' }))
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRotation()
+    const moveStart = (role: string, until?: string) => {
+      fireEvent.click(within(qualification(dialog, role)).getByRole('button', { name: `Edytuj: ${role}` }))
+      fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '2025-10-01' } })
+      if (until) fireEvent.change(within(dialog).getByLabelText('Do (opcjonalnie)'), { target: { value: until } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Gotowe' }))
+    }
+
+    moveStart('PRIMARY')
+    moveStart('11–19', '2026-09-09')
+    fireEvent.change(within(dialog).getByLabelText('Wejście od'), { target: { value: '2025-10-01' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (3)' }))
+
+    await waitFor(() => expect(membership).toHaveBeenCalledWith({ id: 'm1', input: { active_from: '2025-10-01' } }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(periods).toHaveBeenLastCalledWith({ id: 'e2', input: { starts_on: '2025-09-02', ends_on: null } }))
+    expect(membership).toHaveBeenLastCalledWith({ id: 'm1', input: { active_from: '2025-09-02' } })
+    expect(periods.mock.invocationCallOrder.at(-1)).toBeGreaterThan(membership.mock.invocationCallOrder[1])
+    await waitFor(() => expect(within(dialog).getByLabelText('Wejście od')).toHaveValue('2025-09-02'))
+    expect(screen.queryByText('Nie udało się cofnąć')).not.toBeInTheDocument()
+  })
+
+  it('reports an account refusal only once the rotation is saved, so the list shows what is left', async () => {
+    mockData([user({ id: 'u1', phone: '+48 601 220 118' })])
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const { membership } = rotationServer(member({ id: 'm1' }))
+    const server = membership.getMockImplementation()!
+    membership.mockImplementation(async (call) => {
+      await gate
+      return server(call)
+    })
+    vi.spyOn(api, 'updateAdminUser').mockRejectedValue(new Error('Adres e-mail jest już zajęty'))
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRotation()
+
+    fireEvent.change(within(dialog).getByLabelText('Wejście od'), { target: { value: '2025-08-01' } })
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Konto' }))
+    fireEvent.change(within(dialog).getByLabelText('E-mail'), { target: { value: 'taken@example.com' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (2)' }))
+    await waitFor(() => expect(membership).toHaveBeenCalledWith({ id: 'm1', input: { active_from: '2025-08-01' } }))
+    expect(within(dialog).queryByText('Adres e-mail jest już zajęty')).not.toBeInTheDocument()
+    release()
+
+    expect(await within(dialog).findByText('Adres e-mail jest już zajęty')).toBeInTheDocument()
+    await waitFor(() => expect(within(dialog).getByText('Niezapisane: e-mail')).toBeInTheDocument())
   })
 
   it('removes an exit date', async () => {
