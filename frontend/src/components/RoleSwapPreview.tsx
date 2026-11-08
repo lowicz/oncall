@@ -9,7 +9,7 @@ function PreviewRow({ role, from, to, refusal }: Readonly<{
   role: AssignmentRole
   from: string
   to: string
-  refusal?: RoleSwap['refused']['primary']
+  refusal: RoleSwap['refused']['primary']
 }>) {
   const t = useMessages().schedule.roleSwap
   return (

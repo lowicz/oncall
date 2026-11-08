@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, LateShiftAnchor, api } from '../api'
 import { usePublicConfig } from './usePublicConfig'
 import { useMessages } from '../i18n'
-import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders } from '../lib/calendar'
+import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders, swapRefused } from '../lib/calendar'
 import { formatDay, warsawDate } from '../lib/dates'
 import { undoable } from '../lib/undo'
 import { Button, Field, Input, useToast } from '../ui'
@@ -39,7 +39,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const policy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy, enabled })
   const anchor: LateShiftAnchor = policy.data?.late_shift_anchor ?? 'secondary'
   const swap = enabled && data && serviceDate ? roleSwapOf(data, serviceDate, anchor) : null
-  const refused = Boolean(swap && Object.keys(swap.refused).length > 0)
+  const refused = swapRefused(swap)
   const ref = data?.assignments.find((item) => item.service_date === serviceDate && item.role === 'primary')
 
   const [open, setOpen] = useState(false)
