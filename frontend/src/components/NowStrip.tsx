@@ -74,7 +74,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
   // In the slot of the role holding the number, also when the slot names
   // the calendar day's person: before the reminder hour the number is still
   // with yesterday's pair.
-  const slotPill = (role: AssignmentRole, name?: string) => held && held.holder_role === role && (
+  const slotPill = (role: AssignmentRole, name?: string) => held?.holder_role === role && (
     <>
       {belowWide && <span className="now-break" />}
       <NumberPill now={held} where={held.holder_name === name ? handover.pill : handover.at(held.holder_name)} />

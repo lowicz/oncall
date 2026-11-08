@@ -5,7 +5,7 @@ where the number rings. The worker's side is in `test_forwarding_worker.py`."""
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from oncall.domain.forwarding import errors
@@ -459,8 +459,11 @@ async def test_a_handover_whose_starter_is_gone_names_nobody(db, pair, frozen_cl
         now=frozen_clock.instant,
         by_user_id=pair["Anna Kowalska"].user_id,
     )
-    (await db.get(ForwardingHandover, started.id)).created_by_user_id = None
-    await db.flush()
+    await db.execute(
+        update(ForwardingHandover)
+        .where(ForwardingHandover.id == started.id)
+        .values(created_by_user_id=None)
+    )
 
     assert started.started_by_name == "Anna Kowalska"
     assert (await store.open()).started_by_name is None

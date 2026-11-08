@@ -120,7 +120,7 @@ function HandoverForm({ now, pair, receiverPhone, viewer, onDone, onCancel, bloc
     <form className="stack-sm handover-form" onSubmit={submit}>
       <p>
         {t.receiver} <b>{secondary.name}</b> · {roleLabels().secondary}
-        {receiverPhone && <> · <a className="mono handover-tel" href={`tel:${receiverPhone.replace(/\s+/g, '')}`}>{receiverPhone.replace(/ /g, ' ')}</a></>}
+        {receiverPhone && <> · <a className="mono handover-tel" href={`tel:${receiverPhone.replace(/\s+/g, '')}`}>{receiverPhone.replaceAll(' ', ' ')}</a></>}
       </p>
       <Field label={t.duration} hint={t.latestHint(latestClock)}>
         {({ labelId, describedBy }) => (

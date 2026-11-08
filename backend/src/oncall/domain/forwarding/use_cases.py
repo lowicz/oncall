@@ -252,6 +252,11 @@ def _status(
     return SwitchStatus.switching, None
 
 
+def _without_starter(handover: NumberHandover) -> NumberHandover:
+    """The handover as told to anyone but the administrator (NP-11)."""
+    return replace(handover, started_by_name=None)
+
+
 async def forwarding_now(
     audience: Audience, ports: ForwardingNowPorts, *, now: datetime, reminder_hour: int
 ) -> ForwardingNow:
@@ -279,7 +284,7 @@ async def forwarding_now(
         return ForwardingNow(mode=mode, day=day, day_ends_at=ends_at)
     status, confirmed_at = _status(mode, target, await ports.state.current())
     if handover is not None and audience.role is not UserRole.admin:
-        handover = replace(handover, started_by_name=None)
+        handover = _without_starter(handover)
     return ForwardingNow(
         mode=mode,
         day=day,
@@ -344,5 +349,5 @@ async def handover_ended_by_correction(
     if handover is None or now >= handover.until:
         return None
     if any(day == handover.day and role in ONCALL_ROLES for day, role in slots):
-        return replace(handover, started_by_name=None)
+        return _without_starter(handover)
     return None
