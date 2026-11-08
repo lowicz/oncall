@@ -231,9 +231,9 @@ describe('MineScreen availability calendar', () => {
   it('enters the calendar once, moves by day and week, and paints with Enter and Space', async () => {
     const user = userEvent.setup()
     stub()
-    const create = vi.spyOn(api, 'createAvailability').mockImplementation(async (input) => ({
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(async (input) => ({
       id: input.starts_on,
-      kind: input.kind,
+      kind: input.kind ?? 'unavailable',
       starts_on: input.starts_on,
       ends_on: input.ends_on,
       note: input.note ?? null,
@@ -254,11 +254,11 @@ describe('MineScreen availability calendar', () => {
     await user.keyboard('{ArrowLeft}')
     expect(cell(/niedz 20-09-2026/)).toHaveFocus()
     await user.keyboard('{Enter}')
-    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-20', ends_on: '2026-09-20' })))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-20', ends_on: '2026-09-20' })))
 
     await waitFor(() => expect(cell(/niedz 20-09-2026/)).toBeEnabled())
     await user.keyboard('{ArrowLeft} ')
-    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
   })
 
   it('warns when a saved hard unavailability overlaps an existing duty', async () => {
