@@ -158,6 +158,10 @@ export function formatDateLong(value: string) {
   return `${t.weekdaysLong[date.getUTCDay()]}, ${date.getUTCDate()} ${t.monthsInDate[date.getUTCMonth()]}`
 }
 
+/** "24-09-2026", or "24-09-2026 – 26-09-2026" when the event spans several days. */
+export const eventDates = (event: { starts_on: string; ends_on: string }) =>
+  event.ends_on === event.starts_on ? formatDate(event.starts_on) : `${formatDate(event.starts_on)} – ${formatDate(event.ends_on)}`
+
 /**
  * "20 wrz – 17 paź", "4 – 31 paź" inside one month, one date for a
  * single-day range, and the year only when it crosses one.

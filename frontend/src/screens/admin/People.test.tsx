@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { focusManager } from '@tanstack/react-query'
 import { api } from '../../api'
 import type { AdminUser, TeamMember } from '../../api'
 import { renderScreen } from '../../test/render'
@@ -129,19 +128,55 @@ describe('PeoplePanel person panel', () => {
     expect(save.mock.calls[0][0].input.email).toBe('new@example.com')
   })
 
-  it('requires confirmation before changing a role on the access tab', async () => {
+  it('saves a role change at once and puts the role back with Undo', async () => {
     mockData()
     const save = vi.spyOn(api, 'updateAdminUser').mockResolvedValue(user({ id: 'u1' }))
     renderScreen(<PeoplePanel />)
     const details = await openRow('anna')
+    fireEvent.change(within(details).getByLabelText(/^Telefon/), { target: { value: '+48500100200' } })
     fireEvent.click(within(details).getByRole('tab', { name: 'Dostęp' }))
     fireEvent.click(within(details).getByRole('radio', { name: 'Administrator' }))
-    fireEvent.click(within(details).getByRole('button', { name: /Zapisz \(1\)/ }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
-    expect(save).not.toHaveBeenCalled()
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
+    fireEvent.click(within(details).getByRole('button', { name: /Zapisz \(2\)/ }))
+
     await waitFor(() => expect(save).toHaveBeenCalled())
+    expect(screen.queryByRole('dialog', { name: 'Potwierdź zmianę dostępu' })).not.toBeInTheDocument()
     expect(save.mock.calls[0][0].input.role).toBe('admin')
+    expect(await screen.findByText('Zmieniono rolę: Anna Kowalska → Administrator')).toBeInTheDocument()
+    expect(screen.getByText('Zapisano też: telefon')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    // Undo restores the access only; the panel follows it, so nothing is left unsaved.
+    expect(save.mock.calls[1][0]).toEqual({ id: 'u1', input: { role: 'member', is_active: true } })
+    await waitFor(() => expect(within(details).getByRole('radio', { name: 'Członek zespołu' })).toBeChecked())
+  })
+
+  it('leaves the panel of another person alone when an access change is undone', async () => {
+    const tomasz = user({ id: 'u2', username: 'tomasz', first_name: 'Tomasz', last_name: 'Lis', display_name: 'Tomasz Lis' })
+    mockData([user({ id: 'u1' }), tomasz])
+    const save = vi.spyOn(api, 'updateAdminUser').mockImplementation(async ({ input }) => {
+      const saved = user({ id: 'u1', role: input.role })
+      vi.mocked(api.adminUsers).mockResolvedValue([saved, tomasz])
+      return saved
+    })
+    renderScreen(<PeoplePanel />)
+    const details = await openRow('anna')
+    fireEvent.click(within(details).getByRole('tab', { name: 'Dostęp' }))
+    fireEvent.click(within(details).getByRole('radio', { name: 'Koordynator' }))
+    fireEvent.click(within(details).getByRole('button', { name: /Zapisz \(1\)/ }))
+    expect(await screen.findByText('Zmieniono rolę: Anna Kowalska → Koordynator')).toBeInTheDocument()
+    await waitFor(() => expect(within(details).getByRole('button', { name: 'Zamknij' })).toBeInTheDocument())
+    fireEvent.click(within(details).getByRole('button', { name: 'Zamknij' }))
+    await waitFor(() => expect(screen.queryByRole('tab', { name: 'Dostęp' })).not.toBeInTheDocument())
+
+    fireEvent.click(within(await rowOf('tomasz')).getByRole('button', { name: 'Otwórz' }))
+    const other = await screen.findByRole('dialog', { name: /Tomasz Lis/ })
+    fireEvent.click(within(other).getByRole('tab', { name: 'Dostęp' }))
+    fireEvent.click(within(other).getByRole('radio', { name: 'Podgląd' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(within(other).getByRole('radio', { name: 'Podgląd' })).toBeChecked()
   })
 
   it('keeps LDAP personal data read-only and hides password reset', async () => {
@@ -158,8 +193,6 @@ describe('PeoplePanel person panel', () => {
     expect(within(dialog).queryByRole('button', { name: /reset hasła/i })).not.toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Podgląd' }))
     fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz \(2\)/ }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
     await waitFor(() => expect(save).toHaveBeenCalled())
     // Phone travels even for an LDAP account (decision D8): unlike name/email
     // it is not an AD-managed identity field.
@@ -174,8 +207,6 @@ describe('PeoplePanel person panel', () => {
     fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Podgląd' }))
     fireEvent.click(within(dialog).getByRole('button', { name: /Zapisz \(1\)/ }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
     await waitFor(() => expect(save).toHaveBeenCalled())
     expect(save.mock.calls[0][0].input).not.toHaveProperty('phone')
     expect(save.mock.calls[0][0].input).toMatchObject({ role: 'viewer', is_active: true })
@@ -212,8 +243,10 @@ describe('PeoplePanel person panel', () => {
     fireEvent.click(within(chips).getByRole('button', { name: 'Zdejmij kwalifikację 11–19' }))
     // The open period ends yesterday: the published schedule keeps its duties, the next generation skips the role.
     await waitFor(() => expect(end).toHaveBeenCalledWith({ id: 'e2', input: { ends_on: '2026-09-09' } }))
+    expect(await screen.findByText('Zdjęto kwalifikację 11–19 od dziś')).toBeInTheDocument()
     fireEvent.click(within(chips).getByRole('button', { name: 'Dodaj kwalifikację SECONDARY' }))
     await waitFor(() => expect(add).toHaveBeenCalledWith({ memberId: 'm1', input: { role: 'secondary', starts_on: '2026-09-10', ends_on: null } }))
+    expect(await screen.findByText('Dodano kwalifikację SECONDARY od 10-09-2026')).toBeInTheDocument()
   })
 
   it('edits both dates of an existing qualification period from the list', async () => {
@@ -284,7 +317,9 @@ describe('PeoplePanel person panel', () => {
 
   it('deletes an account only after the login is typed into the red sheet', async () => {
     mockData([user({ id: 'u1' })], [member({ id: 'm1' })])
-    const remove = vi.spyOn(api, 'deleteAdminUser').mockResolvedValue(undefined)
+    const remove = vi.spyOn(api, 'deleteAdminUser').mockImplementation(async () => {
+      vi.mocked(api.team).mockResolvedValue([member({ id: 'm1', user_id: null, display_name: 'Osoba usunięta #12' })])
+    })
     renderScreen(<PeoplePanel />)
     const dialog = await openRow('anna')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Usuń konto…' }))
@@ -301,6 +336,42 @@ describe('PeoplePanel person panel', () => {
     expect(confirm).toBeEnabled()
     fireEvent.click(confirm)
     await waitFor(() => expect(remove).toHaveBeenCalledWith('u1'))
+    // The API answers without the pseudonym; the team list knows it by the member's id.
+    expect(await screen.findByText('Usunięto konto Anna Kowalska')).toBeInTheDocument()
+    expect(screen.getByText('W grafiku: Osoba usunięta #12')).toBeInTheDocument()
+  })
+
+  it('reports a delete that went through even when the pseudonym cannot be read back', async () => {
+    mockData([user({ id: 'u1' })], [member({ id: 'm1' })])
+    const remove = vi.spyOn(api, 'deleteAdminUser').mockImplementation(async () => {
+      vi.mocked(api.team).mockRejectedValueOnce(new Error('Failed to fetch'))
+    })
+    renderScreen(<PeoplePanel />)
+    fireEvent.click(within(await openRow('anna')).getByRole('button', { name: 'Usuń konto…' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })
+
+    fireEvent.change(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić'), { target: { value: 'anna' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Usuń konto i dane' }))
+
+    expect(await screen.findByText('Usunięto konto Anna Kowalska')).toBeInTheDocument()
+    expect(screen.queryByText(/W grafiku:/)).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })).not.toBeInTheDocument())
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
+
+  it('names no pseudonym after deleting an account outside the rotation', async () => {
+    mockData()
+    vi.spyOn(api, 'deleteAdminUser').mockResolvedValue(undefined)
+    renderScreen(<PeoplePanel />)
+    fireEvent.click(within(await openRow('anna')).getByRole('button', { name: 'Usuń konto…' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })
+
+    fireEvent.change(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić'), { target: { value: 'anna' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Usuń konto i dane' }))
+
+    expect(await screen.findByText('Usunięto konto Anna Kowalska')).toBeInTheDocument()
+    expect(screen.queryByText(/W grafiku:/)).not.toBeInTheDocument()
+    expect(api.team).toHaveBeenCalledTimes(2)
   })
 
   it('promises no pseudonym for an account that never joined the rotation', async () => {
@@ -357,7 +428,7 @@ describe('PeoplePanel pending activation', () => {
     expect(screen.getByText('olek', { selector: 'td' })).toBeInTheDocument()
   })
 
-  it('reissues the activation link from the access tab after a confirmation', async () => {
+  it('reissues the activation link from the access tab at once', async () => {
     mockData([user({ id: 'u1', pending_activation: expired })])
     const reissue = vi.spyOn(api, 'reissueActivation').mockResolvedValue({
       url: 'http://localhost:8080/activate?token=fresh', expires_at: '2026-09-11T07:00:00Z',
@@ -372,10 +443,9 @@ describe('PeoplePanel pending activation', () => {
     expect(within(dialog).queryByRole('button', { name: /reset hasła/i })).not.toBeInTheDocument()
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj nowy link aktywacyjny' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Wygenerować nowy link aktywacyjny?' })
-    expect(reissue).not.toHaveBeenCalled()
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Wygeneruj link' }))
+    // The new link changes nothing until it is used, so it is issued without a question.
     await waitFor(() => expect(reissue).toHaveBeenCalledWith('u1'))
+    expect(screen.queryByRole('dialog', { name: 'Wygenerować nowy link aktywacyjny?' })).not.toBeInTheDocument()
     expect(await within(dialog).findByText(/activate\?token=fresh/)).toBeInTheDocument()
     await waitFor(() => expect(api.adminUsers).toHaveBeenCalledTimes(2))
     expect(reset).not.toHaveBeenCalled()
@@ -389,9 +459,7 @@ describe('PeoplePanel pending activation', () => {
     fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
     expect(within(dialog).getByText(/Link aktywacyjny ważny do 11-09-2026, 09:30\./)).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj nowy link aktywacyjny' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Wygenerować nowy link aktywacyjny?' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Wygeneruj link' }))
-    expect(await within(confirmation).findByText(/Konto ma już hasło/)).toBeInTheDocument()
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/Konto ma już hasło/)
   })
 
   it('asks to enable a disabled account before reissuing its link', async () => {
@@ -596,6 +664,7 @@ describe('PeoplePanel new account form', () => {
       username: 'ewa', personnel_number: '0042', first_name: 'Ewa', last_name: 'Nowak', email: null, phone: null, role: 'member',
     })
     expect(within(dialog).queryByRole('button', { name: 'Utwórz konto' })).not.toBeInTheDocument()
+    expect(screen.getByText('Utworzono konto Ewa Nowak')).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nowe konto lokalne' })).not.toBeInTheDocument())
 
@@ -735,23 +804,24 @@ describe('PeoplePanel access tab', () => {
     return dialog
   }
 
-  it('asks before disabling an account and saves nothing when that is cancelled', async () => {
+  it('disables an account at once and switches it back on with Undo', async () => {
     mockData()
-    const save = vi.spyOn(api, 'updateAdminUser')
+    const save = vi.spyOn(api, 'updateAdminUser').mockResolvedValue(user({ id: 'u1', is_active: false }))
     renderScreen(<PeoplePanel />)
     const dialog = await openAccess()
 
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Konto włączone/ }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (1)' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
-    expect(within(confirmation).getByText(/Do zapisania: wyłączenie konta/)).toBeInTheDocument()
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Anuluj' }))
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź zmianę dostępu' })).not.toBeInTheDocument())
-    expect(save).not.toHaveBeenCalled()
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+    expect(save.mock.calls[0][0].input.is_active).toBe(false)
+    expect(await screen.findByText('Wyłączono konto: Anna Kowalska')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(save.mock.calls[1][0]).toEqual({ id: 'u1', input: { role: 'member', is_active: true } })
   })
 
-  it('shows a refused access change inside the confirmation', async () => {
+  it('shows a refused access change in the panel', async () => {
     mockData()
     vi.spyOn(api, 'updateAdminUser').mockRejectedValue(new Error('Nie można wyłączyć ostatniego administratora'))
     renderScreen(<PeoplePanel />)
@@ -759,10 +829,9 @@ describe('PeoplePanel access tab', () => {
 
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /Konto włączone/ }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (1)' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
 
-    expect(await within(confirmation).findByText('Nie można wyłączyć ostatniego administratora')).toBeInTheDocument()
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Nie można wyłączyć ostatniego administratora')
+    expect(screen.queryByText(/Wyłączono konto/)).not.toBeInTheDocument()
   })
 
   it('enables a disabled account without a confirmation', async () => {
@@ -778,58 +847,35 @@ describe('PeoplePanel access tab', () => {
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
     expect(save.mock.calls[0][0].input.is_active).toBe(true)
-    expect(screen.queryByRole('dialog', { name: 'Potwierdź zmianę dostępu' })).not.toBeInTheDocument()
+    expect(await screen.findByText('Włączono konto: Anna Kowalska')).toBeInTheDocument()
   })
 
-  it('issues a password reset link only after a confirmation', async () => {
+  it('issues a password reset link at once and says when sessions end', async () => {
     mockData()
     const reset = vi.spyOn(api, 'issuePasswordReset').mockResolvedValue({
       url: 'http://localhost:8080/reset?token=once', expires_at: '2026-09-10T08:00:00Z',
     })
     renderScreen(<PeoplePanel />)
     const dialog = await openAccess()
+    expect(within(dialog).getByText(/Po ustawieniu nowego hasła sesje tej osoby wygasną\./)).toBeInTheDocument()
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj reset hasła' }))
-    let confirmation = await screen.findByRole('dialog', { name: 'Wygenerować reset hasła?' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Anuluj' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Wygenerować reset hasła?' })).not.toBeInTheDocument())
-    expect(reset).not.toHaveBeenCalled()
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj reset hasła' }))
-    confirmation = await screen.findByRole('dialog', { name: 'Wygenerować reset hasła?' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Wygeneruj link' }))
 
     expect(await within(dialog).findByText('http://localhost:8080/reset?token=once')).toBeInTheDocument()
     expect(within(dialog).getByText('Link resetu hasła (ważny godzinę)')).toBeInTheDocument()
     expect(reset).toHaveBeenCalledWith('u1')
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Wygenerować reset hasła?' })).not.toBeInTheDocument())
+    expect(screen.queryByRole('dialog', { name: 'Wygenerować reset hasła?' })).not.toBeInTheDocument()
   })
 
-  it('shows a refused password reset inside the confirmation', async () => {
+  it('shows a refused password reset in the panel', async () => {
     mockData()
     vi.spyOn(api, 'issuePasswordReset').mockRejectedValue(new Error('Konto jest wyłączone'))
     renderScreen(<PeoplePanel />)
     const dialog = await openAccess()
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj reset hasła' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Wygenerować reset hasła?' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Wygeneruj link' }))
 
-    expect(await within(confirmation).findByText('Konto jest wyłączone')).toBeInTheDocument()
-  })
-
-  it('cancels a reissue of the activation link', async () => {
-    mockData([user({ id: 'u1', pending_activation: waiting })])
-    const reissue = vi.spyOn(api, 'reissueActivation')
-    renderScreen(<PeoplePanel />)
-    const dialog = await openAccess()
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Wygeneruj nowy link aktywacyjny' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Wygenerować nowy link aktywacyjny?' })
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Anuluj' }))
-
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Wygenerować nowy link aktywacyjny?' })).not.toBeInTheDocument())
-    expect(reissue).not.toHaveBeenCalled()
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Konto jest wyłączone')
   })
 })
 
@@ -890,6 +936,7 @@ describe('PeoplePanel rotation tab', () => {
 
     await waitFor(() => expect(add).toHaveBeenCalledWith({ user_id: 'u1', active_from: '2026-10-01' }))
     await waitFor(() => expect(api.team).toHaveBeenCalledTimes(2))
+    expect(screen.getByText('Dodano do rotacji: Anna Kowalska · od 01-10-2026')).toBeInTheDocument()
   })
 
   it('shows why a person could not be added to the rotation', async () => {
@@ -996,12 +1043,12 @@ describe('PeoplePanel rotation tab', () => {
     offboard()
     sheet = await screen.findByRole('dialog', { name: 'Zakończenie rotacji: Anna Kowalska' })
     expect(await within(sheet).findByText(/Brak dyżurów po dacie wyjścia/)).toBeInTheDocument()
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(await within(sheet).findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Zakończ rotację' }))
 
     await waitFor(() => expect(finish).toHaveBeenCalledWith({ id: 'm1', input: { active_until: '2026-12-31' } }))
     expect(endPeriod).toHaveBeenCalledWith({ id: 'e1', input: { ends_on: '2026-12-31' } })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('tab', { name: 'Rotacja' })).not.toBeInTheDocument())
+    expect(screen.getByText('Zakończono rotację: Anna Kowalska')).toBeInTheDocument()
   })
 })
 
@@ -1026,6 +1073,7 @@ describe('PeoplePanel qualification periods', () => {
 
     await waitFor(() => expect(add).toHaveBeenCalledWith({ memberId: 'm1', input: { role: 'secondary', starts_on: '2026-10-01', ends_on: '2026-12-31' } }))
     await waitFor(() => expect(within(dialog).queryByRole('radiogroup', { name: 'Rola dyżurowa' })).not.toBeInTheDocument())
+    expect(screen.getByText('Dodano kwalifikację SECONDARY od 01-10-2026')).toBeInTheDocument()
 
     fireEvent.click(toggle)
     expect(within(dialog).getByLabelText('Do (opcjonalnie)')).toHaveValue('')
@@ -1083,6 +1131,7 @@ describe('PeoplePanel qualification periods', () => {
     fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '2025-10-01' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (1)' }))
     await waitFor(() => expect(save).toHaveBeenCalledWith({ id: 'e1', input: { starts_on: '2025-10-01', ends_on: null } }))
+    expect(await screen.findByText('Zapisano: okres PRIMARY')).toBeInTheDocument()
   })
 
   it('deletes a period from its editor and shows a refusal', async () => {
@@ -1102,6 +1151,7 @@ describe('PeoplePanel qualification periods', () => {
     await waitFor(() => expect(remove).toHaveBeenCalledTimes(2))
     expect(remove).toHaveBeenLastCalledWith('e1')
     await waitFor(() => expect(screen.queryByText('Okres ma opublikowane dyżury')).not.toBeInTheDocument())
+    expect(screen.getByText('Usunięto okres PRIMARY')).toBeInTheDocument()
   })
 
   it('drops a qualification that has not started yet instead of ending it', async () => {
@@ -1165,31 +1215,3 @@ describe('PeoplePanel qualification periods', () => {
   })
 })
 
-describe('PeoplePanel account removed meanwhile', () => {
-  afterEach(() => focusManager.setFocused(undefined))
-
-  it('refuses to save an access change for an account that disappeared while it was being confirmed', async () => {
-    // Another administrator deletes the account; returning to the tab reloads
-    // the list while the confirmation is still open.
-    vi.spyOn(api, 'adminUsers').mockResolvedValueOnce([user({ id: 'u1' })]).mockResolvedValue([])
-    vi.spyOn(api, 'team').mockResolvedValue([])
-    vi.spyOn(api, 'publicConfig').mockRejectedValue(new Error('offline'))
-    const save = vi.spyOn(api, 'updateAdminUser')
-    renderScreen(<PeoplePanel />)
-    const dialog = await openRow('anna')
-    fireEvent.click(within(dialog).getByRole('tab', { name: 'Dostęp' }))
-    fireEvent.click(within(dialog).getByRole('radio', { name: 'Administrator' }))
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (1)' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Potwierdź zmianę dostępu' })
-
-    act(() => {
-      focusManager.setFocused(false)
-      focusManager.setFocused(true)
-    })
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Potwierdź i zapisz' }))
-
-    expect(await within(confirmation).findByText('Nie wybrano konta')).toBeInTheDocument()
-    expect(save).not.toHaveBeenCalled()
-  })
-})

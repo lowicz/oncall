@@ -2,7 +2,7 @@ import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, CalendarEventColor, CalendarEventRef, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
-import { formatDate, formatDay, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
+import { eventDates, formatDate, formatDay, formatShortDate, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
   availabilityDutyConflicts,
   coverageGaps,
@@ -16,6 +16,7 @@ import {
 } from '../lib/calendar'
 import { locale, messages, useMessages } from '../i18n'
 import { useGridNavigation } from '../hooks/useGridNavigation'
+import { useUndoable } from '../hooks/useUndoable'
 import { CalendarDayList } from './CalendarDayList'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DecisionFrame } from './DecisionFrame'
@@ -37,6 +38,7 @@ import {
   Skeleton,
   Tag,
   cx,
+  useToast,
 } from '../ui'
 
 export type MatrixZoom = '2' | '4' | '8'
@@ -112,7 +114,7 @@ export function CalendarMatrix({
 }) {
   const queryClient = useQueryClient()
   const today = warsawDate()
-  const { schedule: t, common } = useMessages()
+  const { schedule: t, calendarEvents, common } = useMessages()
   const calendar = useQuery({
     queryKey: ['calendar', range.starts_on, range.ends_on],
     queryFn: () => api.calendar(range.starts_on, range.ends_on),
@@ -131,7 +133,8 @@ export function CalendarMatrix({
   const [eventTitle, setEventTitle] = useState('')
   const [eventColor, setEventColor] = useState<CalendarEventColor>('blue')
   const [eventFormOpen, setEventFormOpen] = useState(false)
-  const [eventToDelete, setEventToDelete] = useState<CalendarEventRef | null>(null)
+  const toast = useToast()
+  const undoable = useUndoable()
 
   const closeInspector = () => {
     setSelected(null)
@@ -179,13 +182,30 @@ export function CalendarMatrix({
       refreshCalendar()
     },
   })
+  // An event is deleted at once and offered back in the toast: Undo creates
+  // it again over the whole range it had, read before the delete because the
+  // day only carries its title and colour.
   const deleteEvent = useMutation({
-    mutationFn: api.deleteCalendarEvent,
-    onSuccess: (_result, eventId) => {
-      setEventToDelete(null)
+    mutationFn: ({ event, day }: { event: CalendarEventRef; day: string }) => undoable({
+      execute: async () => {
+        const stored = (await api.calendarEvents(day, day)).find((item) => item.id === event.id)!
+        await api.deleteCalendarEvent(event.id)
+        return stored
+      },
+      undo: async ({ starts_on, ends_on, title, color }) => {
+        const restored = await api.createCalendarEvent({ starts_on, ends_on, title, color })
+        setSelected((current) => current && current.day.service_date >= starts_on && current.day.service_date <= ends_on ? {
+          ...current,
+          day: { ...current.day, events: [...current.day.events, restored] },
+        } : current)
+        refreshCalendar()
+      },
+      message: (stored) => ({ title: calendarEvents.toast.deleted(event.title), description: eventDates(stored) }),
+    }),
+    onSuccess: (_result, { event: { id } }) => {
       setSelected((current) => current ? {
         ...current,
-        day: { ...current.day, events: current.day.events.filter((event) => event.id !== eventId) },
+        day: { ...current.day, events: current.day.events.filter((event) => event.id !== id) },
       } : null)
       refreshCalendar()
     },
@@ -309,7 +329,19 @@ export function CalendarMatrix({
   const saveBlocked = Boolean(staffBlockReason)
     || overrideCheck.isLoading
     || ((overrideCheck.data?.length ?? 0) > 0 && !violationsAcknowledged)
-  const saveOverride = (reason?: string) => selected && staffMemberId && scheduleRef && override.mutate({
+  // The correction closes the inspector; the toast says what changed and who
+  // is told, and reopens the day.
+  const announceOverride = (target: { member?: Member; day: Day }, next: string) => {
+    const role = roleLabels()[selectedRole]
+    const date = formatShortDate(target.day.service_date)
+    const previous = selectedAssignment?.assignee_name
+    const acknowledged = (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged
+    toast.success(previous ? t.toast.changed(date, role, previous, next) : t.toast.filled(role, date, next), {
+      description: [previous ? t.toast.emailBoth : t.toast.emailOne(next), acknowledged ? t.toast.violationAudited : ''].filter(Boolean).join(' '),
+      action: { label: t.toast.openDay, onClick: () => openDay(target.day, target.member, selectedRole) },
+    })
+  }
+  const saveOverride = (reason?: string) => selected && staffMemberId && scheduleRef && chosenCandidate && override.mutate({
     schedule_id: scheduleRef.schedule_id,
     expected_version: scheduleRef.schedule_version,
     service_date: selected.day.service_date,
@@ -317,7 +349,7 @@ export function CalendarMatrix({
     replacement_member_id: staffMemberId,
     reason,
     acknowledge_rule_violations: (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged,
-  })
+  }, { onSuccess: () => announceOverride(selected, chosenCandidate.display_name) })
   const openStaffChange = (nextRole: AssignmentRole) => {
     // The role select drops „11–19" on a day off, so never open the form with
     // it pre-selected there.
@@ -698,7 +730,7 @@ export function CalendarMatrix({
                   <div key={event.id} className="row row-between">
                     <span><i className="event-swatch" style={{ background: `var(--ev-${event.color})` }} />{event.title}</span>
                     {canCoordinate && (
-                      <Button size="sm" variant="ghost" icon="trash" disabled={deleteEvent.isPending} onClick={() => { deleteEvent.reset(); setEventToDelete(event) }}>{t.inspector.delete}</Button>
+                      <Button size="sm" variant="ghost" icon="trash" disabled={deleteEvent.isPending} onClick={() => { deleteEvent.reset(); deleteEvent.mutate({ event, day: selected.day.service_date }) }}>{t.inspector.delete}</Button>
                     )}
                   </div>
                 ))}
@@ -783,17 +815,6 @@ export function CalendarMatrix({
         error={confirmHistorical ? override.error?.message : null}
         onCancel={() => setConfirmHistorical(false)}
         onConfirm={(reason) => { setHistoricalReason(reason); saveOverride(reason) }}
-      />
-      <ConfirmDialog
-        open={Boolean(eventToDelete)}
-        pending={deleteEvent.isPending}
-        error={deleteEvent.error ? deleteEvent.error.message : null}
-        onCancel={() => setEventToDelete(null)}
-        onConfirm={() => eventToDelete && deleteEvent.mutate(eventToDelete.id)}
-        title={t.confirm.deleteEventTitle}
-        confirmLabel={t.inspector.delete}
-        confirmColor="error"
-        description={eventToDelete && t.confirm.deleteEvent(eventToDelete.title)}
       />
     </>
   )

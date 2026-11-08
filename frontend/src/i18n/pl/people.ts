@@ -1,4 +1,4 @@
-import { pluralPl } from '../../lib/plural'
+import { pluralFormPl, pluralPl } from '../../lib/plural'
 
 /** The administrator's people screen and the offboarding dialog it opens. */
 export const people = {
@@ -124,7 +124,6 @@ export const people = {
     eligibilityPeriod: (role: string) => `okres ${role}`,
   },
   errors: {
-    noAccountSelected: 'Nie wybrano konta',
     periodNeedsStart: 'Każdy okres kwalifikacji musi mieć datę początku',
   },
   rotationTab: {
@@ -173,15 +172,8 @@ export const people = {
     disabledNoLink: 'Konto jest wyłączone; włącz je, żeby wysłać link.',
     newActivationLink: 'Nowy link aktywacyjny (ważny 24 godziny)',
     issueReset: 'Wygeneruj reset hasła',
-    resetHint: 'Jednorazowy link ważny godzinę; przekaż go bezpiecznym kanałem.',
+    resetHint: 'Jednorazowy link ważny godzinę; przekaż go bezpiecznym kanałem. Po ustawieniu nowego hasła sesje tej osoby wygasną.',
     resetLink: 'Link resetu hasła (ważny godzinę)',
-  },
-  generateLink: 'Wygeneruj link',
-  confirmAccess: {
-    title: 'Potwierdź zmianę dostępu',
-    text: 'Zmiana roli lub wyłączenie konta wpływa na dostęp użytkownika do systemu.',
-    toSave: (changes: string) => `Do zapisania: ${changes}`,
-    confirm: 'Potwierdź i zapisz',
   },
   deleteDialog: {
     title: (name: string) => `Usuwam konto ${name} i jego dane osobowe`,
@@ -195,13 +187,19 @@ export const people = {
     typeUsername: 'Wpisz login, żeby potwierdzić',
     typeUsernamePlaceholder: 'wpisz login',
   },
-  confirmReissue: {
-    title: 'Wygenerować nowy link aktywacyjny?',
-    text: 'Poprzedni link aktywacyjny tej osoby przestanie działać. Nowy będzie ważny 24 godziny; przekaż go bezpiecznym kanałem.',
-  },
-  confirmReset: {
-    title: 'Wygenerować reset hasła?',
-    text: 'Istniejące sesje użytkownika zostaną unieważnione po ustawieniu nowego hasła.',
+  toast: {
+    saved: (changes: string) => `Zapisano: ${changes}`,
+    roleChanged: (name: string, role: string) => `Zmieniono rolę: ${name} → ${role}`,
+    disabled: (name: string) => `Wyłączono konto: ${name}`,
+    enabled: (name: string) => `Włączono konto: ${name}`,
+    alsoSaved: (changes: string) => `Zapisano też: ${changes}`,
+    created: (name: string) => `Utworzono konto ${name}`,
+    addedToRotation: (name: string, date: string) => `Dodano do rotacji: ${name} · od ${date}`,
+    qualificationAdded: (role: string, date: string) => `Dodano kwalifikację ${role} od ${date}`,
+    qualificationDropped: (role: string) => `Zdjęto kwalifikację ${role} od dziś`,
+    periodDeleted: (role: string) => `Usunięto okres ${role}`,
+    deleted: (name: string) => `Usunięto konto ${name}`,
+    deletedPseudonym: (pseudonym: string) => `W grafiku: ${pseudonym}`,
   },
   csv: {
     fileName: (date: string) => `osoby-${date}.csv`,
@@ -227,18 +225,23 @@ export const people = {
   },
   offboarding: {
     title: (name: string) => `Zakończenie rotacji: ${name}`,
-    description: (date: string, count: number) => `Dyżury po ${date}: ${count}. Każdy dostaje zastępcę, potem uprawnienia tej osoby kończą się z dniem wyjścia.`,
+    description: (date: string, count: number) => count === 0
+      ? `Kwalifikacje tej osoby skończą się z dniem ${date}.`
+      : `${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} po ${date} ${pluralFormPl(count, ['dostanie', 'dostaną', 'dostanie'])} zastępcę wybranego niżej, a kwalifikacje tej osoby skończą się z dniem ${date}.`,
     /** The reason the batch correction is filed with; the audit trail keeps it. */
     reason: (name: string) => `Zakończenie rotacji ${name}`,
-    confirmEnd: 'Potwierdź zakończenie rotacji',
-    rewriteAndEnd: 'Przepisz dyżury i zakończ rotację',
+    rewriteAndEnd: (count: number) => count === 0 ? 'Zakończ rotację' : `Przepisz ${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} i zakończ rotację`,
     searchingDuties: 'Szukam przyszłych dyżurów…',
     refusalTitle: 'Przepisanie złamie reguły twarde',
     refusalNext: 'Wybierz innych zastępców albo potwierdź świadome naruszenie; trafi ono do dziennika audytu.',
     acknowledge: 'Rozumiem i świadomie łamię te reguły',
-    confirmText: (count: number, date: string) => `Potwierdź przepisanie ${count} dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem ${date}.`,
     noDuties: 'Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.',
     pickReplacement: 'Wybierz zastępcę',
-    alreadyRewritten: (count: number) => `${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} już przepisano. Potwierdź ponownie, aby przepisać pozostałe i zakończyć rotację.`,
+    alreadyRewritten: (count: number) => `${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} już przepisano. Kliknij ponownie, aby przepisać pozostałe i zakończyć rotację.`,
+    ended: (name: string, count: number) => count > 0
+      ? `Zakończono rotację: ${name} · przepisano ${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])}`
+      : `Zakończono rotację: ${name}`,
+    endedReplacements: (replacements: string) => `${replacements} · e-maile o zmianie wychodzą`,
+    openSchedule: 'Otwórz grafik',
   },
 }

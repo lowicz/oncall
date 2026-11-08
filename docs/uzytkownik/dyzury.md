@@ -110,9 +110,14 @@ Z tego panelu:
   panelu i dostaje fokus, a przy korekcie historycznej w jej oknie. Wyjątkiem
   jest odmowa wskazująca nowo złamane reguły: okno się wtedy zamyka, reguły i
   ich potwierdzenie pojawiają się w panelu, a wpisany powód zostaje na
-  następne otwarcie okna,
+  następne otwarcie okna. Po zapisie panel się zamyka, a powiadomienie mówi,
+  co zmieniono i kto dostanie e-mail („Zmieniono obsadę 14 lis · PRIMARY:
+  Anna Kowalska → Jan Nowak”); przycisk **Otwórz dzień** otwiera panel tego
+  dnia ponownie,
 - **koordynator i administrator** mogą z tego samego panelu dodać wydarzenie
-  kalendarza na ten dzień.
+  kalendarza na ten dzień albo je usunąć; usunięcie działa od razu, a
+  powiadomienie ma przycisk **Cofnij**, który przez kilka sekund przywraca
+  wydarzenie.
 
 Powody niedostępności pozostają prywatne: koordynator widzi je w szczegółach,
 członek zespołu tylko przy własnych wpisach, a konto podglądowe nie dostaje

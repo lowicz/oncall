@@ -210,9 +210,28 @@ describe('HistoryImportPanel earlier imports', () => {
     expect(screen.getByRole('heading', { name: 'Wcześniejsze importy' }).nextElementSibling).toHaveTextContent('1')
     fireEvent.click(within(row).getByRole('button', { name: 'Cofnij import' }))
 
+    // Undoing an import cannot itself be undone, so it is confirmed with its row count.
+    const dialog = await screen.findByRole('dialog', { name: 'Cofnąć import „Import historii 2025”?' })
+    expect(dialog).toHaveTextContent('730 wierszy zniknie z bilansu. Tej operacji nie da się cofnąć.')
+    expect(remove).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cofnij import' }))
+
     await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
     expect(remove.mock.calls[0][0]).toBe('h1')
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('keeps the import when the confirmation is cancelled', async () => {
+    vi.spyOn(api, 'historyImports').mockResolvedValue([record])
+    const remove = vi.spyOn(api, 'deleteSchedule')
+    renderScreen(<HistoryImportPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cofnij import' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Anuluj' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(remove).not.toHaveBeenCalled()
   })
 
   it('shows why an import could not be undone', async () => {
@@ -221,8 +240,10 @@ describe('HistoryImportPanel earlier imports', () => {
     renderScreen(<HistoryImportPanel />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cofnij import' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cofnij import' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Grafik ma już korekty')
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Grafik ma już korekty')
   })
 
   it('offers a retry when the earlier imports fail to load', async () => {

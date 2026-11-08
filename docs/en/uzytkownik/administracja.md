@@ -64,12 +64,13 @@ column.
 
 On the **Access** tab of such an account there is an “Awaiting activation”
 box with the link's deadline and the **Generate a new activation link**
-button. After confirmation the panel shows the new link, valid for 24 hours;
+button. On a click the panel shows the new link at once, valid for 24 hours;
 this person's earlier activation links stop working, and an “Activation link
 issued” entry remains in the audit. The button is disabled for a disabled
 account - enable it first. An account that already has a password gets a
-password reset instead (a link valid for an hour). Like every link to an
-account, pass the new link on to the person through a secure channel; the
+password reset instead (a link valid for an hour, also issued without a
+question; this person's sessions end only once the new password is set). Like
+every link to an account, pass the new link on to the person through a secure channel; the
 application does not send it.
 
 The personnel number matters with a directory (LDAP / AD): it must match
@@ -80,7 +81,8 @@ account Keycloak lets the person into.
 The panel keeps track of unsaved changes: the **Save** button gives their count.
 Trying to close it (Esc or the cross), open another person, go to another screen, or reload requires a decision whether to discard the entered changes.
 The **Discard changes** button in the footer drops them at once, without asking.
-Changing the role and disabling the account require an additional confirmation.
+Every save ends with a notification in the corner of the screen that says what was saved (“Saved: phone”); so do creating an account, adding to the rotation, adding and removing a qualification and deleting a period.
+A role change and disabling or enabling the account save without an extra question, and the notification (“Role changed: Jan Kowalski → Coordinator”) has an **Undo** button that puts the previous role and account state back for a few seconds.
 
 ### Leaving the rotation
 
@@ -89,13 +91,18 @@ counts in the reports; only the assignment of new duties after that date
 ends. Duties already published after that date have to be rewritten - the
 panel then shows the “Effect on the schedule” warning with the **Rewrite
 future duties and end the rotation…** button, which picks a replacement for
-each such duty. Before saving, the dialog checks the hard rules for all
-schedules at once. If the chosen replacements would break a hard rule, it
-lists the violations under the heading “The rewrite would break hard rules”:
-pick other replacements or tick that you are breaking the rules deliberately,
-and confirm. A confirmed violation goes into the audit log. If an error
-interrupts the save after some schedules were rewritten, the dialog says how
-many duties are already rewritten; confirming again rewrites the rest.
+each such duty. The dialog has one red button that names the effect, for
+example **Rewrite 6 duties and end the rotation** (with no duties to rewrite:
+**End the rotation**). A click checks the hard rules for all schedules at
+once and, when nothing is broken, saves straight away. If the chosen
+replacements would break a hard rule, the dialog lists the violations under
+the heading “The rewrite would break hard rules”: pick other replacements or
+tick that you are breaking the rules deliberately, and click the same button.
+A confirmed violation goes into the audit log. If an error interrupts the
+save after some schedules were rewritten, the dialog says how many duties are
+already rewritten; another click rewrites the rest. When it is done, a
+notification gives the number of rewritten duties and the replacements
+(“Marek Nowak ×3, Jan Wiśniewski ×1”) with an **Open schedule** button.
 
 ### Deleting an account and its personal data
 
@@ -105,7 +112,9 @@ removed, the duty history and points stay for fairness, and this person's
 published duties after today will be left unstaffed. The operation is
 confirmed by **typing the person's username** (the field only hints “type the
 username”, never the username itself); until then the button is
-disabled. It cannot be undone.
+disabled. It cannot be undone. Afterwards the notification gives the
+pseudonym under which the person stays in the schedule (“In the schedule:
+Deleted person #…”).
 
 The first name, last name, e-mail, phone and personnel number disappear from
 the account. If the person was in the rotation, their place in the team
@@ -134,8 +143,10 @@ to mark context, for example a production change window or a freeze.
 The “Show from” and “Show to” fields narrow the list below; “From” and “To”
 in the form are the range of the event itself.
 
-**Delete** - here and in the day panel on the schedule - asks for
-confirmation; a deleted event cannot be restored.
+**Delete** - here and in the day panel on the schedule - deletes the event at
+once, without a question. The “Deleted “…”” notification has an **Undo**
+button that brings the event back for a few seconds, with the same name,
+colour and whole date range.
 
 ## History import (`/import`, coordinator)
 
@@ -153,6 +164,12 @@ on a Saturday, Sunday or holiday will be rejected with the row number given.
 
 The import feeds the history from which the fairness report and the
 generator compute.
+
+**Undo import** next to an earlier import removes its duties from the history
+for good, so it first asks in a dialog with the number of rows that will
+leave the balance (“Undo the import “history 2025”? 312 rows will leave the
+balance.”). This cannot be reversed; the data come back only by importing
+the file again.
 
 ## Monthly report (`/raporty`, coordinator)
 

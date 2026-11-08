@@ -11,36 +11,51 @@ const EVENT = {
   starts_on: '2026-09-24', ends_on: '2026-09-26', created_at: '2026-09-01T10:00:00Z',
 }
 
-const openDeletion = async () => {
-  fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
-  return screen.findByRole('dialog', { name: 'Usunąć wydarzenie?' })
-}
-
 describe('CalendarEventsPanel deletion', () => {
-  it('keeps the event when the confirmation is cancelled', async () => {
-    vi.spyOn(api, 'calendarEvents').mockResolvedValue([EVENT])
+  it('deletes at once and brings the event back with Undo', async () => {
+    const list = vi.spyOn(api, 'calendarEvents').mockResolvedValue([EVENT])
     const remove = vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    const create = vi.spyOn(api, 'createCalendarEvent').mockResolvedValue({ ...EVENT, id: 'e9' })
     renderScreen(<CalendarEventsPanel />)
 
-    const confirm = await openDeletion()
-    expect(within(confirm).getByText(/Szkolenie BHP \(24-09-2026 – 26-09-2026\)\. Tej operacji nie da się cofnąć\./)).toBeInTheDocument()
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Anuluj' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(remove).not.toHaveBeenCalled()
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('e1'))
+    expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument()
+    expect(await screen.findByText('Usunięto „Szkolenie BHP”')).toBeInTheDocument()
+    expect(screen.getByText('24-09-2026 – 26-09-2026', { selector: '.toast-desc' })).toBeInTheDocument()
+    const calls = list.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith({ starts_on: '2026-09-24', ends_on: '2026-09-26', title: 'Szkolenie BHP', color: 'blue' }))
+    await waitFor(() => expect(list.mock.calls.length).toBeGreaterThan(calls))
   })
 
-  it('deletes the event once confirmed', async () => {
+  it('reports an Undo that failed and leaves it to try again', async () => {
     vi.spyOn(api, 'calendarEvents').mockResolvedValue([EVENT])
-    const remove = vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    const create = vi.spyOn(api, 'createCalendarEvent').mockRejectedValue(new Error('Serwer niedostępny'))
     renderScreen(<CalendarEventsPanel />)
 
-    const confirm = await openDeletion()
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Usuń' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cofnij' }))
 
-    await waitFor(() => expect(remove).toHaveBeenCalled())
-    expect(remove.mock.calls[0][0]).toBe('e1')
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByText('Nie udało się cofnąć')).toBeInTheDocument()
+    expect(screen.getByText('Serwer niedostępny')).toBeInTheDocument()
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Cofnij' })).toBeInTheDocument()
+  })
+
+  it('clears the form when the event being edited is deleted', async () => {
+    vi.spyOn(api, 'calendarEvents').mockResolvedValue([EVENT])
+    vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    renderScreen(<CalendarEventsPanel />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edytuj' }))
+    expect(screen.getByLabelText(/Nazwa/)).toHaveValue('Szkolenie BHP')
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń' }))
+
+    await waitFor(() => expect(screen.getByLabelText(/Nazwa/)).toHaveValue(''))
   })
 })
 
@@ -158,15 +173,14 @@ describe('CalendarEventsPanel form', () => {
     expect(await within(form).findByRole('alert')).toHaveTextContent('Data końcowa przed początkową')
   })
 
-  it('shows a refused deletion inside the still-open confirmation', async () => {
+  it('shows a refused deletion beside the form', async () => {
     vi.spyOn(api, 'calendarEvents').mockResolvedValue([EVENT])
     vi.spyOn(api, 'deleteCalendarEvent').mockRejectedValue(new Error('Wydarzenie już usunięto'))
     renderScreen(<CalendarEventsPanel />)
 
-    const confirm = await openDeletion()
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Usuń' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
 
-    expect(await within(confirm).findByText('Wydarzenie już usunięto')).toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: 'Usunąć wydarzenie?' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Wydarzenie już usunięto')
+    expect(screen.queryByText(/Usunięto „/)).not.toBeInTheDocument()
   })
 })

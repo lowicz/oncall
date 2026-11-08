@@ -171,6 +171,14 @@ export const generator: Messages['generator'] = {
     startingPointsBody: 'The solver balances against 12 months of history, including imported history. Weekends and holiday blocks are a hard rule: the whole block goes to one person in a given role; splitting a block is possible only by a correction or a swap after publication.',
     saved: 'Saved.',
   },
+  toast: {
+    proposed: (range: string) => `Sent for approval: ${range}`,
+    withdrawn: (range: string) => `Returned to draft: ${range}`,
+    published: (version: number, range: string) => `Published v${version} · ${range}`,
+    publishedDescription: 'E-mails and ICS feeds updated.',
+    openSchedule: 'Open schedule',
+    settingsSaved: 'Generation settings saved',
+  },
   publish: {
     title: (isProposal: boolean, version: number, range: string) => `Publishing the ${isProposal ? 'proposal' : 'draft'} v${version} · ${range}`,
     back: 'Back to the proposal',
@@ -222,6 +230,8 @@ export const generator: Messages['generator'] = {
     dayOffTag: (name: string) => `2X · ${name}`,
     dayOff: 'day off',
     assign: 'Assign in the draft',
+    assigned: (day: string, role: string, previous: string, next: string) => `Assigned in the draft ${day} · ${role}: ${previous} → ${next}`,
+    remainingProblems: (count: number) => count === 0 ? 'no problems left in the draft' : `left: ${pluralEn(count, ['problem', 'problems'])}`,
     noLateShift: 'Day off / 2X - there is no 11–19 shift.',
     availabilityTitle: (name: string, kind: string) => `${name}: ${kind}`,
     willBeRejected: 'The assignment will be rejected.',

@@ -1,19 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AssignmentRole, RuleViolation, TeamMember, api } from '../api'
-import { formatDate } from '../lib/dates'
+import { addDays, formatDate } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
 import { locale, useMessages } from '../i18n'
-import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select } from '../ui'
+import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select, useToast } from '../ui'
 
 /**
  * Ending somebody's rotation: every duty after the exit date gets a
  * replacement picked here, then the eligibility periods are closed and the
  * member's active_until is set, in that order.
  *
- * Before any rewrite, the batches of every affected schedule are checked
- * together, so a rule spanning two schedules is seen as well. Hard-rule
- * violations are listed and acknowledged before the first batch is saved.
+ * One button, named after its effect, checks the batches of every affected
+ * schedule together (so a rule spanning two schedules is seen as well) and
+ * saves at once when nothing breaks; hard-rule violations are listed and
+ * acknowledged before the same button saves the first batch.
  * A failure after some schedules were saved says how many duties are already
  * rewritten and returns to the check for the rest.
  */
@@ -28,6 +30,8 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
 }) {
   const m = useMessages()
   const t = m.people.offboarding
+  const toast = useToast()
+  const navigate = useNavigate()
   const ranges = useMemo(() => {
     const start = new Date(`${activeUntil}T12:00:00`)
     if (Number.isNaN(start.getTime())) return []
@@ -55,13 +59,13 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
   const found = calendar.data ?? { assignments: [], members: [], availability: [] }
   const duties = found.assignments.filter((item) => item.member_id === member.id && item.service_date > activeUntil)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
-  const [confirming, setConfirming] = useState(false)
   const [violations, setViolations] = useState<RuleViolation[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
   const [rewritten, setRewritten] = useState(0)
+  // Duties rewritten per replacement, across retries, for the closing toast.
+  const tally = useRef(new Map<string, number>())
   // A check and acknowledgement cover the exact picks and duties they saw.
   const resetDecision = () => {
-    setConfirming(false)
     setViolations([])
     setAcknowledged(false)
   }
@@ -96,7 +100,6 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
     onSuccess: (result) => {
       setViolations(result)
       setAcknowledged(false)
-      setConfirming(true)
     },
   })
   const submit = useMutation({
@@ -110,6 +113,10 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
           acknowledge_rule_violations: violations.length > 0 && acknowledged,
         })
         setRewritten((count) => count + group.length)
+        for (const item of group) {
+          const id = replacements[key(item.service_date, item.role)]
+          tally.current.set(id, (tally.current.get(id) ?? 0) + 1)
+        }
       }
       for (const period of member.eligibility) {
         if (period.starts_on > activeUntil) await api.deleteEligibility(period.id)
@@ -119,7 +126,17 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
       }
       return api.updateTeamMember({ id: member.id, input: { active_until: activeUntil } })
     },
-    onSuccess: onDone,
+    onSuccess: () => {
+      const counts = [...tally.current]
+      const total = counts.reduce((sum, [, count]) => sum + count, 0)
+      // Every replacement was picked from `found.members`.
+      const names = counts.map(([id, count]) => `${found.members.find((item) => item.id === id)!.display_name} ×${count}`).join(', ')
+      toast.success(t.ended(member.display_name, total), {
+        description: total > 0 ? t.endedReplacements(names) : undefined,
+        action: { label: t.openSchedule, onClick: () => navigate(`/grafik?od=${addDays(activeUntil, 1)}`) },
+      })
+      onDone()
+    },
     onError: async () => {
       // Steps saved before the failure stay saved: reload so a retry checks
       // and sends only the duties and periods this person still holds.
@@ -143,12 +160,14 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
         <>
           <Button onClick={onClose} disabled={busy}>{m.common.cancel}</Button>
           <Button
-            variant={confirming ? 'danger' : 'primary'}
+            variant="danger"
             disabled={calendar.isLoading || !complete || busy || (violations.length > 0 && !acknowledged)}
             loading={busy}
-            onClick={() => (confirming ? submit.mutate() : check.mutate())}
+            onClick={() => (violations.length > 0
+              ? submit.mutate()
+              : check.mutate(undefined, { onSuccess: (breaks) => { if (breaks.length === 0) submit.mutate() } }))}
           >
-            {confirming ? t.confirmEnd : t.rewriteAndEnd}
+            {t.rewriteAndEnd(duties.length)}
           </Button>
         </>
       )}
@@ -175,9 +194,6 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
             onChange={(event) => setAcknowledged(event.target.checked)}
           />
         </Box>
-      )}
-      {confirming && (
-        <Box tone="warn" title={t.confirmText(duties.length, formatDate(activeUntil))} />
       )}
       {calendar.data && duties.length === 0 && <p className="muted">{t.noDuties}</p>}
       {duties.map((item) => (
