@@ -629,21 +629,21 @@ describe('the Polish interface', () => {
 
   it('generator with an open draft', async () => {
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
-    await screen.findByText('CP-SAT: OPTIMAL')
+    await screen.findByRole('button', { name: 'Generuj nowy szkic' })
     await screen.findAllByText('Ola Wiśniewska', { exact: false })
     await waitFor(() => expect(api.draftFairnessImpact).toHaveBeenCalled())
     await snapshotOf('generator-draft')
   })
 
   it('publication of a proposal with a rest violation and a gap', async () => {
-    vi.spyOn(api, 'schedule').mockResolvedValue({ ...DRAFT, status: 'proposed', version: 2 })
+    vi.spyOn(api, 'schedule').mockResolvedValue({ ...DRAFT, status: 'proposed', version: 2, unavailability_conflicts: [] })
     vi.spyOn(api, 'publishPreview').mockResolvedValue({
       lost_changes: [], carried_changes: [], pending_swaps: [], stale_changes_count: 0,
       uncovered_before: ['2026-10-02', '2026-10-03'],
       rest_violations: [{ rule: 'three_in_seven', message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.', member_name: 'Ola Wiśniewska', days: ['2026-10-06'] }],
     })
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
-    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Publikuj v2…' }))
     await screen.findByRole('checkbox', { name: 'Rozumiem, że te dni zostają bez obsady' })
     await waitFor(() => expect(api.draftFairnessImpact).toHaveBeenCalled())
     await snapshotOf('generator-publish')

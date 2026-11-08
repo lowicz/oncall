@@ -30,7 +30,11 @@ const draft: DraftSchedule = {
   rotation_mode: 'daily',
   solver_status: 'OPTIMAL',
   acceptance_floor: null,
-  assignments: [{ service_date: '2026-09-21', role: 'primary', assignee_name: 'Anna Kowalska', is_override: false }],
+  assignments: [
+    { service_date: '2026-09-21', role: 'primary', assignee_name: 'Anna Kowalska', is_override: false },
+    // Held by somebody outside the matrix rows, so the day has no gap.
+    { service_date: '2026-09-21', role: 'secondary', assignee_name: 'Ola Zielińska', is_override: false },
+  ],
 }
 
 const calendar: CalendarData = {
@@ -138,10 +142,11 @@ describe('DraftScheduleMatrix grid', () => {
     expect(within(region).getByRole('columnheader', { name: 'wrz 2026' })).toHaveAttribute('colspan', '3')
     expect(within(region).getByRole('columnheader', { name: 'październik 2026' })).toHaveAttribute('colspan', '31')
     const headers = within(region).getAllByRole('columnheader')
-    expect(headers.find((cell) => cell.getAttribute('title') === 'Święto testowe')).toHaveClass('we')
-    expect(headers.find((cell) => cell.getAttribute('title') === 'Migracja')).toHaveClass('wk')
-    expect(within(region).getByRole('columnheader', { name: 'sob · 10 · Święto testowe' })).toBeInTheDocument()
-    expect(within(region).getByRole('columnheader', { name: 'pon · 12 · Migracja' })).toBeInTheDocument()
+    // No day of this draft has a SECONDARY: every day is marked as a gap.
+    expect(headers.find((cell) => cell.getAttribute('title') === 'Święto testowe · luka w obsadzie')).toHaveClass('we', 'gap')
+    expect(headers.find((cell) => cell.getAttribute('title') === 'Migracja · luka w obsadzie')).toHaveClass('wk', 'gap')
+    expect(within(region).getByRole('columnheader', { name: 'sob · 10 · Święto testowe · luka w obsadzie' })).toBeInTheDocument()
+    expect(within(region).getByRole('columnheader', { name: 'pon · 12 · Migracja · luka w obsadzie' })).toBeInTheDocument()
 
     const eventCell = within(region).getByRole('button', { name: 'Anna Kowalska, pon 12-10-2026, wydarzenia: Migracja, brak dyżuru' })
     expect(eventCell).toHaveClass('cell-ev')
@@ -263,9 +268,11 @@ describe('DraftScheduleMatrix inspector', () => {
     panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 27-09-2026' })
     // Marek has no duty that day: the inspector starts on PRIMARY, which nobody holds.
     expect(within(panel).getByRole('combobox', { name: 'Rola do zmiany' })).toHaveValue('primary')
-    expect(within(panel).getByText('brak przydziału')).toBeInTheDocument()
-    expect(within(panel).getByText('-')).toBeInTheDocument()
-    expect(within(panel).getByText(/nikt nie ma przydziału tego dnia/)).toBeInTheDocument()
+    // The empty role can be filled: currently nobody, after the correction Marek.
+    expect(within(panel).getByText('brak')).toBeInTheDocument()
+    expect(within(panel).getByText('Marek Nowak')).toBeInTheDocument()
+    expect(within(panel).getByText(/Ta rola jest pusta tego dnia/)).toBeInTheDocument()
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeEnabled()
     expect(within(panel).getByText('Marek Nowak: Chętnie wezmę').closest('.box')).toHaveTextContent(/^Marek Nowak: Chętnie wezmę$/)
 
     fireEvent.change(within(panel).getByRole('combobox', { name: 'Rola do zmiany' }), { target: { value: 'secondary' } })
@@ -298,7 +305,7 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(await within(panel).findByRole('button', { name: /Zapisuję/ })).toBeDisabled()
     expect(save.mock.calls[0][0]).toEqual({ id: 'd1', expected_version: 1, service_date: '2026-09-21', role: 'primary', replacement_member_id: 'm2' })
 
-    const next = { ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }] }
+    const next = { ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }, draft.assignments[1]] }
     finish(next)
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(next))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })).not.toBeInTheDocument())
@@ -311,6 +318,32 @@ describe('DraftScheduleMatrix inspector', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
     await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(restored))
     expect(save.mock.calls[1][0]).toEqual({ id: 'd1', expected_version: 2, service_date: '2026-09-21', role: 'primary', replacement_member_id: 'm1' })
+  })
+
+  it('fills a role the solver left empty, from a day marked as a gap', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendar)
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
+    const onlyPrimary = { ...draft, assignments: [draft.assignments[0]] }
+    const next = { ...draft, version: 2, assignments: [draft.assignments[0], { ...draft.assignments[1], assignee_name: 'Marek Nowak', is_override: true }] }
+    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue(next)
+    const onChange = vi.fn()
+    renderScreen(<DraftScheduleMatrix result={onlyPrimary} onChange={onChange} />)
+
+    const region = await screen.findByRole('region', { name: 'Macierz szkicu' })
+    expect(within(region).getByRole('columnheader', { name: 'pon · 21 · luka w obsadzie' })).toHaveClass('gap')
+    fireEvent.click(within(region).getByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
+    const panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 21-09-2026' })
+    // An empty cell on a gap day opens on the empty role.
+    expect(within(panel).getByRole('combobox', { name: 'Rola do zmiany' })).toHaveValue('secondary')
+    expect(within(panel).getByText('Obecnie').nextElementSibling).toHaveTextContent('brak')
+    expect(within(panel).getByText('Po korekcie').nextElementSibling).toHaveTextContent('Marek Nowak')
+    fireEvent.click(within(panel).getByRole('button', { name: 'Przypisz w szkicu' }))
+
+    expect(await screen.findByText('Przypisano w szkicu 21 wrz · SECONDARY: brak → Marek Nowak')).toBeInTheDocument()
+    expect(save).toHaveBeenCalledWith({ id: 'd1', expected_version: 1, service_date: '2026-09-21', role: 'secondary', replacement_member_id: 'm2' })
+    expect(onChange).toHaveBeenCalledWith(next)
+    // Nobody to give the role back to: the API has no empty slot to restore.
+    expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
   })
 
   it('counts the problems the corrected draft still has', async () => {
@@ -335,10 +368,10 @@ describe('DraftScheduleMatrix inspector', () => {
   it('corrects away from somebody no longer in the range, without Undo', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar)
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
-    const next = { ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }] }
+    const next = { ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }, draft.assignments[1]] }
     const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue(next)
     const onChange = vi.fn()
-    renderScreen(<DraftScheduleMatrix result={{ ...draft, assignments: [{ ...draft.assignments[0], assignee_name: 'Osoba usunięta #7' }] }} onChange={onChange} />)
+    renderScreen(<DraftScheduleMatrix result={{ ...draft, assignments: [{ ...draft.assignments[0], assignee_name: 'Osoba usunięta #7' }, draft.assignments[1]] }} onChange={onChange} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Przypisz w szkicu' }))
@@ -352,7 +385,7 @@ describe('DraftScheduleMatrix inspector', () => {
   it('offers no Undo when the person replaced shares the name with somebody else', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue({ ...calendar, members: [...calendar.members, { id: 'm3', display_name: 'Anna Kowalska' }] })
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
-    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue({ ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }] })
+    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue({ ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }, draft.assignments[1]] })
     renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))

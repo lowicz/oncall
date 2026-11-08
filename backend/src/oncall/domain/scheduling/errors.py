@@ -88,11 +88,6 @@ class ReplacementUnavailable(InvalidCorrection):
         super().__init__("scheduling.replacement_unavailable")
 
 
-class DraftSlotNotFound(DomainError):
-    def __init__(self) -> None:
-        super().__init__("scheduling.draft_slot_not_found")
-
-
 class SecondOnCallSameDay(InvalidCorrection):
     def __init__(self) -> None:
         super().__init__("scheduling.second_on_call_same_day")

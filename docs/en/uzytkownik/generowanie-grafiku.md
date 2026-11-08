@@ -71,62 +71,77 @@ The list is read-only - add and edit events on the **Events** screen.
 An open draft is a separate page. The title is the range, and next to it one
 state pill with the version: “Draft · v2”, “For approval · v3” after
 submission, “Published · v4” after publication. Below the title are the
-number of assignments and days and the rotation mode. The solver status
-(`CP-SAT: OPTIMAL` and the like) is in the **Settings of this proposal**
-section; a status other than a complete solution is explained in words in a
-box above the matrix - most often it means that the time budget was too short
-or that the hard rules contradict the staffing. Further down, the
-row of cycle stages (Draft, For approval, Published) and the **Draft state**
-in four badges: staffing, hard rules, soft warnings and the points spread
-after publication.
+number of assignments and days and the rotation mode. The header actions are
+**Generate a new draft** and the **⋯** (**More**) menu with **Generator
+settings**. **Generate a new draft** creates another draft for the same range
+and opens it; the open schedule, with its corrections, stays as it is, which
+the message after generating says.
 
-Actions in the header: **Generate a new draft**, and then **Submit for
-approval** for a draft or **Publish…** for a proposal. The **⋯** (**More**)
-menu has **Generator settings** and, for a proposal, **Back to draft**.
-**Generate a new draft** creates another draft for the same range and opens
-it; the open schedule, with its corrections, stays as it is, which the
-message after generating says.
+Above the matrix there is **one decision panel**:
 
-The page has two columns. On the left:
+- **the verdict** - the number of hard rule violations and the state of the
+  fairness criterion (met, missed, or missed through **inherited debt**),
+- **why** - the people on duty on an “Unavailable” day who block the publication,
+  with the role and the day; with an incomplete solver solution, a hint to
+  click a cell with a gap and enter a person; under it the points spread
+  before and after the draft,
+- **one main action**: **Fix *N* problems** opens the first clashing cell
+  (then **Publish…**), on a clean draft **Publish…**, and on a proposal
+  **Publish v*N*…** next to **Back to draft** (a proposal with a duty on an
+  “Unavailable” day has only **Back to draft**). Next to **Publish…** the **⋯**
+  menu (**Other actions**) has **Submit for approval** for teams where a second person
+  checks the draft.
 
-- **Proposed staffing** - a people × days matrix, in the same convention as
-  the published schedule: the headers keep the weekday, the holiday and 2X;
-  the **Legend** link explains the marks.
+On a proposal the panel also has a **What the publication changes** frame:
+how many changes will be carried over, how many pending swaps cancelled, how
+many entries changed since generation and how many soft warnings go to the
+audit. An expandable list names the carried changes and the cancelled swaps.
+You see this before you open the publication sheet.
+
+Under the panel one row of badges sums the draft up: staffing, soft warnings
+(a click opens the **Problems** tab) and the fairness lenses gathered into two
+groups, those meeting the criterion and those missing it.
+
+Further down, **Proposed staffing** - a people × days matrix, in the same
+convention as the published schedule: the headers keep the weekday, the
+holiday and 2X, and a day missing `PRIMARY` or `SECONDARY` has its header
+marked as a gap; the **Legend** link explains the marks.
+
+Under the matrix there are four tabs:
+
 - **Problems** - a table of everything that needs attention before
   publication: duties on an “Unavailable” day, broken hard rules, solver
   warnings, gaps before the draft and a note that the draft is out of date.
   The **By person** / **By rule** switch groups the rows, **Hard only** hides
   the soft warnings, and the **Fix** button on a row opens the right cell of
-  the matrix. The table footer lists the hard rules and leads to their full
-  description.
-
-On the right:
-
-- **Fairness after publication** - the points spread as a single number with
-  the value from before the draft and a **better** / **worse** badge, the
-  acceptance criterion on every lens, a table of people with their deviation
-  after publication and a verdict. It is recalculated after each of your
-  corrections, so you see the effect of a decision before passing the
-  schedule on. The verdict tells two situations apart: when the lenses
-  outside the criterion were already outside it before the draft, that is
-  **inherited historical debt** - the draft repays it at a limited pace, and
-  the panel says by how much it reduces the spread and what spread is
-  achievable in this range at all; neither correcting cells nor regenerating
-  will remove that debt. When, on the other hand, a lens that fit within the
-  criterion before the draft exceeds it after publication, that is a defect
-  of the draft, and then it is worth correcting the cells or generating
-  again.
-- **Settings of this proposal** - the range, version, rotation mode, `11–19`
-  anchor, weights and solver budget; **Change and regenerate** opens the
-  settings panel.
-
-The **Drafts** list is also below the proposal, so you switch between drafts
-without going back to the start page.
+  the matrix. A duty on an “Unavailable” day blocks the publication, and a
+  broken hard rule needs consent in the publication window. The table footer
+  lists the hard rules and leads to their full description.
+- **Fairness** - the points spread as a single number with the value from
+  before the draft and a **better** / **worse** badge, the verdict under it,
+  then the acceptance criterion on every lens and a table of people with their
+  deviation after publication. It is recalculated after each of your
+  corrections. The verdict tells two situations apart: when the lenses outside
+  the criterion were already outside it before the draft, that is **inherited
+  historical debt** - the draft repays it at a limited pace, and the panel
+  says by how much it reduces the spread and what spread is achievable in this
+  range at all; neither correcting cells nor regenerating will remove that
+  debt. When, on the other hand, a lens that fit within the criterion before
+  the draft exceeds it after publication, that is a defect of the draft, and
+  then it is worth correcting the cells or generating again.
+- **Settings** - what the draft remembers: the range, version, rotation mode,
+  solver status, fairness quality and the solution gap estimate. The weights,
+  the `11–19` anchor and the solver budget are team settings with one place:
+  **Change the settings and generate…** opens the settings panel.
+- **Drafts** - the list of drafts, so you switch between them without going
+  back to the start page.
 
 ### Manual cell correction
 
 Click a cell, pick the role and the person in the day panel, save. A
-correction:
+correction can also fill a role the solver left empty: click any empty cell of
+a day marked as a gap, and the panel opens on the empty role and shows
+“Currently: none → After correction: *person*”. A correction:
 
 - does not regenerate the remaining days,
 - is subject to the hard rules,
@@ -139,14 +154,20 @@ correction:
   few seconds (the cell stays marked as manual). The button is missing when
   the previous person cannot be told apart, e.g. after their rotation ended,
   their account was deleted, or when several team members share the same
-  name.
+  name, nor after filling an empty role - then correct the cell again or
+  generate the draft anew.
 
 ## Generator settings
 
 The **Generator settings** button opens a side panel with the **From** /
-**To** range and the solver settings. **Save generation settings** saves them
-**globally for the whole team**; they apply from the next generation.
-**Generate** starts a generation right away with the range from the panel, and **Restore saved** reverts the unsaved changes.
+**To** range and the solver settings. It is the one place where you change
+them; they are saved **globally for the whole team** and apply from the next
+generation. The footer has one main button: without changes **Generate**
+starts a generation right away with the range from the panel, and with
+unsaved changes **Save and generate** saves them and generates in one click.
+**Save** only saves, and the arrow icon (**Restore saved**) reverts the
+unsaved changes. Under a separate **Swap policy** heading is the switch for
+the coordinator's approval of swaps; it does not affect generation.
 Closing the panel, going to another screen, reloading, or opening another draft with unsaved settings requires a decision whether to discard them.
 A “Generation settings saved” notification confirms the save.
 
@@ -174,31 +195,49 @@ windows with more than three duties) - switch it on deliberately.
 Draft ──► For approval ──► Published
 ```
 
-1. **Submit for approval** - the content of the draft is frozen and the title
-   changes to “Proposal”.
-2. **Publish…** - opens the “Publishing the proposal v*N* · *range*” sheet
-   with a list of effects: how many assignments become the schedule, what
-   happens to the earlier schedules, how many soft warnings go to the audit
-   as accepted and how many pending swaps will be cancelled. If the range has
-   already started, you additionally have to tick that the team will see the
-   change immediately. Rest rule violations and a gap before the schedule
-   each have their own frame with a checkbox (“I understand and knowingly
-   break these rules”, “I understand that these days stay unstaffed”), and
-   the publish button works only once they are ticked. The **Publish v*N*** button
-   publishes; **Back to the
-   proposal** closes the sheet without changes. Publication checks the full
+1. **Publish…** on a clean draft submits it for approval in the background,
+   checks the effects of the publication and only then opens the “Publishing
+   the draft v*N* · *range*” sheet. Closing the sheet without publishing
+   (**Back to the draft**) or moving to another draft or screen takes the submission
+   back, so the draft stays as it was. A failed submission or check shows in
+   the decision panel, and the draft returns to where it was before the
+   click. **Submit for approval** in the **⋯** menu freezes the
+   content of the draft without publishing it, and the title changes to
+   “Proposal”; **Publish v*N*…** in the decision panel then publishes the
+   proposal in the “Publishing the proposal v*N* · *range*” sheet.
+2. The sheet checks the publication again each time it opens, and while
+   open it checks again when you return to the browser tab; while it is
+   checking it says so next to the buttons and **Publish v*N*** waits. The
+   sheet holds: one sentence of effect (how many assignments become the
+   schedule, an e-mail to the team, the ICS feeds updated, undone
+   only by a new publication), the same **What the publication changes**
+   frame as the proposal page (carried changes, cancelled swaps, entries
+   changed since generation, warnings to the audit), and under it what has to
+   be settled: the conflicts with changes with a “To settle” counter, the consents and - if
+   the range has already started - a box saying the team will see the change
+   immediately. Rest rule violations and a gap before the schedule each have
+   their own frame with a checkbox (“I understand and knowingly break these
+   rules”, “I understand that these days stay unstaffed”). Next to the buttons
+   the sheet says what is still missing (“To settle: 1 conflict, 2
+   consents.”), and **Publish v*N*** works only when nothing is.
+   **Back to the proposal** closes a sheet opened from a proposal without
+   changes. Publication checks the full
    coverage of the range; missing staffing on any day stops the operation.
 3. The schedule becomes visible to everyone, notifications go out, and the
    ICS feeds get updates. The “Published v*N* · *range*” notification says
    the same and has an **Open schedule** button.
 
-Sending for approval and returning to the draft end with a notification with
-the range too (“Sent for approval: 4 – 31 Oct”).
+Submitting for approval from the **⋯** menu and returning to the draft end
+with a notification with the range too (“Sent for approval: 4 – 31 Oct”).
+The background submission and taking it back when the sheet is closed have
+no notification.
 
 If in the meantime someone has changed the schedule or an approved swap
-collides with the draft, the publication sheet lists every such case with a
-**Decision** field, in which you choose which version is to apply - only then
-does it publish. A proposal can also be taken back with the **Back to draft**
+collides with the draft, the publication sheet lists every such case (the day,
+the role, who is in the correction or the swap and who is in the draft) with a
+**Decision** field: “Keep the correction: *person*” or “Keep the swap:
+*person*” against “Keep the draft: *person*”. Only once all are settled does
+the sheet publish. A proposal can also be taken back with the **Back to draft**
 button or deleted from the list of drafts.
 
 A publication error stays in the open sheet as an alert with the message and the next step.

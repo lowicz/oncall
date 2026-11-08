@@ -66,7 +66,6 @@ SCHEDULING_ERROR_STATUSES = {
     errors.GenerationRunNotFound: status.HTTP_404_NOT_FOUND,
     errors.EditableDraftNotFound: status.HTTP_404_NOT_FOUND,
     errors.ReplacementNotFound: status.HTTP_404_NOT_FOUND,
-    errors.DraftSlotNotFound: status.HTTP_404_NOT_FOUND,
     errors.VariantNotFound: status.HTTP_404_NOT_FOUND,
     errors.PolicyWithoutWeight: status.HTTP_422_UNPROCESSABLE_CONTENT,
     errors.InvalidCorrection: status.HTTP_422_UNPROCESSABLE_CONTENT,

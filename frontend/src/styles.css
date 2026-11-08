@@ -261,6 +261,14 @@ small, .small { font-size: 12px; line-height: 16px; }
 .rule-line::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok-dot); flex: 0 0 auto; }
 .rule-line-wait::before { background: var(--line2); }
 .rule-line-warn::before { background: var(--warn-dot); }
+
+/* The one decision above the draft matrix (components/DraftDecision.tsx). */
+.draft-decision { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 14px 16px; }
+.draft-decision-main { display: grid; gap: 8px; min-width: 0; }
+.draft-decision-acts { display: grid; gap: 6px; justify-items: end; }
+.draft-decision-effects { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.inline-list { display: flex; flex-wrap: wrap; gap: 0 8px; margin: 0; padding: 0; list-style: none; font-size: 12px; line-height: 16px; color: var(--muted); }
+.inline-list li + li::before { content: '· '; color: var(--dim); }
 .kv { margin: 0; display: grid; gap: 6px; font-size: 12px; line-height: 16px; }
 .kv-row { display: flex; justify-content: space-between; gap: 12px; }
 .kv-row dt { color: var(--muted); }
@@ -365,9 +373,10 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .dialog-desc { color: var(--muted); font-size: 14px; line-height: 21px; }
 .dialog-body { display: grid; gap: 12px; font-size: 14px; line-height: 21px; }
 .dialog-body .box, .dialog-body .box > b { font-size: 14px; line-height: 21px; }
-.dialog-body ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.dialog-body ul:not(.inline-list) { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
 .dialog-actions .sp { flex: 1; }
+.dialog-foot-status { flex: 1; min-width: 0; font-size: 12px; line-height: 16px; color: var(--muted); }
 .panel-popup { position: fixed; top: 0; right: 0; bottom: 0; width: var(--panel-w); max-width: 100vw; background: var(--s1); box-shadow: -30px 0 50px -40px rgba(0, 0, 0, 0.7); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; z-index: 30; outline: none; }
 .panel-wide { width: 420px; }
 /* A modal sheet must sit above its backdrop, not under its hit-test surface. */
@@ -454,7 +463,8 @@ body:has(.panel-popup .panel-foot) .toasts { bottom: calc(80px + env(safe-area-i
 .pal-empty { padding: 18px 14px; color: var(--muted); font-size: 14px; line-height: 21px; }
 
 /* ---------- 5 matrix and inspector ---------- */
-.mx { overflow: auto; overscroll-behavior: contain; max-height: 70vh; }
+/* Positioned so the visually hidden text inside is clipped with the grid instead of widening the page. */
+.mx { position: relative; overflow: auto; overscroll-behavior: contain; max-height: 70vh; }
 table.m { border-collapse: separate; border-spacing: 0; font: 12px/16px var(--label); }
 table.m th, table.m td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); height: var(--cell); min-width: var(--cell); width: var(--cell); padding: 0; text-align: center; }
 table.m th.who, table.m td.who { width: 170px; min-width: 170px; text-align: left; padding: 0 10px; font: 600 14px/21px var(--font); position: sticky; left: 0; background: var(--s1); z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -696,6 +706,8 @@ table.report-table td.key { font-weight: 600; }
 .mob-top .ib + .ib, .mob-top .ib + button { margin-left: 0; }
 @media (max-width: 900px) {
   .app { grid-template-columns: minmax(0, 1fr); }
+  .draft-decision { grid-template-columns: minmax(0, 1fr); }
+  .draft-decision-acts { justify-items: start; }
   .rail { display: none; }
   .main { padding-bottom: 64px; }
   .page { padding: 16px 16px 32px; gap: 12px; }

@@ -1,6 +1,9 @@
 from datetime import date, timedelta
 
+from sqlalchemy import delete, select
+
 from oncall.domain.vocabulary import AssignmentRole, ScheduleStatus, UserRole
+from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
 from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Schedule
 from tests.conftest import create_member, create_user, login
 
@@ -78,6 +81,41 @@ async def test_coordinator_can_edit_one_assignment_in_draft(client, db) -> None:
     )
     assert after.json()["schedule_version"] == body["version"]
     assert after_ola["primary"]["actual"] == before_ola["primary"]["actual"] + 1
+
+
+async def test_coordinator_can_fill_a_role_the_draft_left_empty(client, db) -> None:
+    schedule, ola, monday = await _draft_setup(client, db)
+    schedule_id, version = schedule.id, schedule.version
+    await db.execute(
+        delete(Assignment).where(
+            Assignment.schedule_id == schedule_id,
+            Assignment.service_date == monday,
+            Assignment.role == AssignmentRole.late_shift,
+        )
+    )
+    await db.commit()
+
+    response = await client.post(
+        f"/api/v1/scheduling/{schedule_id}/override",
+        json={
+            "expected_version": version,
+            "service_date": str(monday),
+            "role": "late_shift",
+            "replacement_member_id": str(ola.id),
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    filled = [
+        item
+        for item in response.json()["assignments"]
+        if item["service_date"] == str(monday) and item["role"] == "late_shift"
+    ]
+    assert [(item["assignee_name"], item["is_override"]) for item in filled] == [("Ola", True)]
+    summary = await db.scalar(
+        select(AuditEvent.summary).where(AuditEvent.action == "schedule.draft_override")
+    )
+    assert summary == f"Korekta szkicu {monday} · late_shift: brak obsady → Ola"
 
 
 async def test_draft_rejects_late_shift_on_day_off(client, db) -> None:

@@ -3,15 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, SchedulingPolicy, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
-import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
-import { formatPoints } from '../lib/numbers'
+import { lateShiftAnchorLabels, lensLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { preferredScrollBehavior } from '../lib/motion'
 import { draftFairnessImpactQuery } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
-import { DraftFairnessPanel, worstSpread } from '../components/DraftFairnessPanel'
+import { DraftFairnessPanel } from '../components/DraftFairnessPanel'
+import { DraftDecision, PublicationEffects, SOLVER_OK } from '../components/DraftDecision'
 import { DraftList } from '../components/DraftList'
 import { DraftProblems, ProblemGrouping, problemCounts } from '../components/DraftProblems'
 import { LegendPopover } from '../components/MatrixControls'
@@ -29,6 +29,7 @@ import {
   Disclosure,
   ErrorState,
   Field,
+  IconButton,
   Input,
   KeyValue,
   PageHeader,
@@ -39,16 +40,14 @@ import {
   StatusBadge,
   StatusTone,
   Steps,
-  IconButton,
   Menu,
   MenuItem,
+  TabPanel,
+  Tabs,
   Tooltip,
   cx,
   useToast,
 } from '../ui'
-
-/** CP-SAT statuses that mean the model was actually solved. */
-const SOLVER_OK = new Set(['OPTIMAL', 'FEASIBLE'])
 
 /** Mirrors `scheduler.GENERATION_BUDGET_PASSES`; only for the live preview
  *  while the coordinator is still typing an unsaved budget. */
@@ -67,7 +66,8 @@ function queueSentence(run: ScheduleRun): string {
   return start && start > 0 ? t.positionWithEta(jobsAhead(run.queue_position), start) : t.position(jobsAhead(run.queue_position))
 }
 
-const STAGES: Array<DraftSchedule['status']> = ['draft', 'proposed', 'published']
+type DraftTab = 'problems' | 'fairness' | 'settings' | 'drafts'
+
 const statusTone: Record<DraftSchedule['status'], StatusTone> = { draft: 'draft', proposed: 'prop', published: 'pub', superseded: 'muted' }
 
 type Settings = {
@@ -102,10 +102,12 @@ const settingsOf = (policy: SchedulingPolicy): Settings => ({
 
 /**
  * The generator. Without an open draft it is the range form and the list
- * of drafts; with one it is the proposal page: the range as the title, the
- * risk row, the staffing matrix and the problems table on the left, the
- * balance after publication and the settings on the right. The settings
- * live in a drawer, the publication in a sheet that lists its consequences.
+ * of drafts; with one it is the proposal page: the range as the title, one
+ * decision panel with the verdict and the next action, the risk row, the
+ * staffing matrix, and under it the problems, the balance after
+ * publication, the draft's own settings and the other drafts as tabs. The
+ * team settings live in one drawer, the publication in a sheet that holds
+ * only what has to be decided or consented to.
  */
 export function GeneratorPanel() {
   const { generator: t, common, nav } = useMessages()
@@ -142,7 +144,8 @@ export function GeneratorPanel() {
   }
   const [problemsBy, setProblemsBy] = useState<ProblemGrouping>('person')
   const [hardOnly, setHardOnly] = useState(false)
-  const problemsRef = useRef<HTMLDivElement>(null)
+  const [tab, setTab] = useState<DraftTab>('problems')
+  const tabsRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (suggestedRange.data && !hasLinkedRange) {
       setRange({ starts_on: suggestedRange.data.starts_on, ends_on: suggestedRange.data.ends_on })
@@ -164,18 +167,20 @@ export function GeneratorPanel() {
   useEffect(() => {
     if (!openId) setResult(null)
   }, [openId])
-  // Hard unavailability the draft was generated before, or that arrived after.
-  // The backend rejects propose and publish over it, so the screen must neither
-  // claim the draft satisfies every hard rule nor offer the button (HGH5-02).
-  const conflictCount = result?.unavailability_conflicts?.length ?? 0
-  const conflictPeople = new Set((result?.unavailability_conflicts ?? []).map((item) => item.assignee_name)).size
-  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false)
+  // The schedule the publication sheet is open for; showing another closes it.
+  const [publishFor, setPublishFor] = useState<string | null>(null)
+  const publishConfirmOpen = result !== null && publishFor === result.id
+  // The proposal "Opublikuj…" made from a draft in the background; closing
+  // the sheet without publishing takes it back, so the draft stays as it was.
+  const [backgroundProposal, setBackgroundProposal] = useState<{ id: string; expectedVersion: number } | null>(null)
+  const publishFromDraft = backgroundProposal !== null
   const [publishAcknowledged, setPublishAcknowledged] = useState(false)
   const [changeResolutions, setChangeResolutions] = useState<Record<string, 'draft' | 'change'>>({})
   const publishPreview = useQuery({
     queryKey: ['publish-preview', result?.id, result?.version],
     queryFn: () => api.publishPreview(result!.id),
-    enabled: publishConfirmOpen && result?.status === 'proposed',
+    // The page states what the publication changes before the sheet opens.
+    enabled: result?.status === 'proposed',
   })
   useEffect(() => { setChangeResolutions({}); setPublishAcknowledged(false) }, [result?.id, result?.version])
   // Each kind of violation the publication carries is consented to on its own,
@@ -195,10 +200,15 @@ export function GeneratorPanel() {
   // A correction or its Undo can land after the coordinator opened another
   // draft or closed this one; it then only refreshes the stored copies.
   const shownId = useRef<string | undefined>(undefined)
-  useEffect(() => { shownId.current = result?.id }, [result?.id])
+  useEffect(() => {
+    shownId.current = result?.id
+    return () => { shownId.current = undefined }
+  }, [result?.id])
   const correct = (value: DraftSchedule) => {
-    if (shownId.current === value.id) setResult(value)
-    else invalidateDrafts()
+    if (shownId.current === value.id) {
+      setResult(value)
+      proposeToPublish.reset()
+    } else invalidateDrafts()
   }
   // Rotation mode, the 11–19 anchor and the swap approval are stored policy,
   // not request parameters; they are written only on an explicit save, never
@@ -246,12 +256,6 @@ export function GeneratorPanel() {
     mutationFn: (input: { starts_on: string; ends_on: string }) => api.generateSchedule(input, setRunProgress),
     onSuccess: onGenerated,
   })
-  // A new draft over the open one's range: the open one stays as it was,
-  // corrections and all, so say where it went.
-  const generateAgain = (draft: DraftSchedule) => generate.mutate(
-    { starts_on: draft.starts_on, ends_on: draft.ends_on },
-    { onSuccess: () => toast.success(t.header.newDraftCreated) },
-  )
   // A generation outlives the page that started it. Without rejoining it the
   // screen shows nothing while the worker is busy, and the natural reaction is
   // to press the button again (MED5-11, LOW5-09).
@@ -282,7 +286,7 @@ export function GeneratorPanel() {
     return () => window.clearInterval(timer)
   }, [generating, runProgress?.created_at])
   const settle = (value: DraftSchedule) => {
-    setResult(value)
+    if (shownId.current === value.id) setResult(value)
     invalidateDrafts()
   }
   const propose = useMutation({
@@ -293,17 +297,18 @@ export function GeneratorPanel() {
     },
   })
   const withdraw = useMutation({
-    mutationFn: (input: { id: string; expectedVersion: number }) => api.withdrawSchedule(input),
-    onSuccess: (value) => {
+    mutationFn: (input: { id: string; expectedVersion: number; quiet?: boolean }) => api.withdrawSchedule(input),
+    onSuccess: (value, { quiet }) => {
       settle(value)
-      toast.success(t.toast.withdrawn(formatRange(value.starts_on, value.ends_on)))
+      if (!quiet) toast.success(t.toast.withdrawn(formatRange(value.starts_on, value.ends_on)))
     },
   })
   const publish = useMutation({
     mutationFn: (input: Parameters<typeof api.publishSchedule>[0]) => api.publishSchedule(input),
     onSuccess: (value, { expectedVersion }) => {
       settle(value)
-      setPublishConfirmOpen(false)
+      setPublishFor(null)
+      setBackgroundProposal(null)
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       toast.success(t.toast.published(expectedVersion, formatRange(value.starts_on, value.ends_on)), {
@@ -312,17 +317,91 @@ export function GeneratorPanel() {
       })
     },
   })
+  // What the sheet shows is read again each time it opens.
+  const openPublication = (id: string) => {
+    publish.reset()
+    setPublishFor(id)
+    publishPreview.refetch()
+  }
+  // Publishing straight from a draft hands it over in the background and
+  // opens the sheet only once its effects are known.
+  const proposeToPublish = useMutation({
+    mutationFn: async (input: { id: string; expectedVersion: number }) => {
+      const proposal = await api.proposeSchedule(input)
+      try {
+        return { proposal, effects: await api.publishPreview(proposal.id) }
+      } catch (error_) {
+        await api.withdrawSchedule({ id: proposal.id, expectedVersion: proposal.version })
+        throw error_
+      }
+    },
+    onSuccess: ({ proposal, effects }) => {
+      // The coordinator moved on before the effects were known.
+      if (shownId.current !== proposal.id) {
+        withdraw.mutate({ id: proposal.id, expectedVersion: proposal.version, quiet: true })
+        return
+      }
+      queryClient.setQueryData(['publish-preview', proposal.id, proposal.version], effects)
+      settle(proposal)
+      publish.reset()
+      setBackgroundProposal({ id: proposal.id, expectedVersion: proposal.version })
+      setPublishFor(proposal.id)
+    },
+    onError: () => invalidateDrafts(),
+  })
+  const closePublication = () => {
+    setPublishFor(null)
+    if (backgroundProposal) withdraw.mutate({ ...backgroundProposal, quiet: true })
+    setBackgroundProposal(null)
+  }
+  useEffect(() => {
+    if (publishFor !== null && publishFor !== result?.id) closePublication()
+    // Only a change of the shown schedule closes the sheet it was opened for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result?.id])
+  // Leaving the generator with the sheet open takes the draft back as well.
+  const leftBehind = useRef(backgroundProposal)
+  useEffect(() => { leftBehind.current = backgroundProposal }, [backgroundProposal])
+  useEffect(() => () => {
+    if (leftBehind.current) withdraw.mutate({ ...leftBehind.current, quiet: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const error = policy.error ?? savePolicy.error ?? generate.error ?? resume.error ?? propose.error ?? withdraw.error
   const counts = result ? problemCounts(result) : { hard: 0, soft: 0, total: 0 }
   const days = result ? new Set(result.assignments.map((item) => item.service_date)).size : 0
-  const spread = impact.data ? worstSpread(impact.data) : null
   // The range being generated: what the running request asked for, else the
   // draft whose interrupted run is being rejoined.
   const generatingRange = generating ? (generate.isPending ? generate.variables : result ?? range) : null
-  const showProblems = (onlyHard: boolean) => {
-    setHardOnly(onlyHard)
-    problemsRef.current?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
+  // A new draft over the open one's range: the open one stays as it was,
+  // corrections and all, so say where it went.
+  const generateRange = () => result
+    ? generate.mutate(
+      { starts_on: result.starts_on, ends_on: result.ends_on },
+      { onSuccess: () => toast.success(t.header.newDraftCreated) },
+    )
+    : generate.mutate(range)
+  const generateFromSettings = () => {
+    setSettingsOpen(false)
+    generateRange()
   }
+  const showSoftProblems = () => {
+    setHardOnly(false)
+    setTab('problems')
+    tabsRef.current?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
+  }
+  // Lenses grouped by verdict: one chip for those meeting the criterion, one for the rest.
+  const lensGroups = impact.data ? ([true, false] as const).map((meets) => ({
+    meets,
+    lenses: impact.data.spreads.filter((item) => item.meets_criterion === meets).map((item) => lensLabels()[item.lens] ?? item.lens),
+  })).filter((group) => group.lenses.length > 0) : []
+  // What the publication sheet still waits for, said next to its button.
+  const preview = publishPreview.data
+  const unresolvedConflicts = preview?.lost_changes.filter((item) => !changeResolutions[`${item.service_date}:${item.role}`]).length ?? 0
+  const missingConsents = [
+    result !== null && result.starts_on <= today && !publishAcknowledged,
+    Boolean(preview?.rest_violations.length) && !restAcknowledged,
+    Boolean(preview?.uncovered_before.length) && !gapAcknowledged,
+  ].filter(Boolean).length
   const numberField = (key: 'fairness_weight' | 'preference_weight' | 'continuity_weight' | 'solve_seconds', label: string, hint: string, min: number, max: number, step: number) => (
     <Field label={label} id={`policy-${key}`} hint={hint}>
       {({ id, describedBy }) => (
@@ -421,16 +500,15 @@ export function GeneratorPanel() {
     </section>
   )
 
-  const draftsSection = (
-    <section className="stack-sm">
-      <SectionHeading title={t.drafts.heading} meta={drafts.data ? `${drafts.data.length}` : undefined} />
+  const draftList = (
+    <>
       <DraftList activeId={result?.id} onOpen={setOpenId} onDelete={(item) => { remove.reset(); setToDelete(item) }} deleting={remove.isPending} />
       {(drafts.data?.some((item) => item.rotation_mode === 'daily') && drafts.data.some((item) => item.rotation_mode === 'weekly')) && (
         <Disclosure title={t.drafts.compareVariants}>
           <ScheduleComparison drafts={drafts.data} />
         </Disclosure>
       )}
-    </section>
+    </>
   )
 
   return (
@@ -448,34 +526,11 @@ export function GeneratorPanel() {
           actions={(
             <>
               <Tooltip text={t.header.newDraftHint}>
-                <Button icon="wand" disabled={generating} loading={generating} onClick={() => generateAgain(result)}>
+                <Button icon="wand" disabled={generating} loading={generating} onClick={generateRange}>
                   {t.header.newDraft}
                 </Button>
               </Tooltip>
-              {result.status === 'draft' && (
-                <Tooltip text={conflictCount > 0 ? t.proposeBlocked : t.header.proposeHint}>
-                  <Button
-                    variant="primary"
-                    icon="send"
-                    disabled={propose.isPending || generating}
-                    aria-disabled={conflictCount > 0 || undefined}
-                    aria-describedby={conflictCount > 0 ? 'generator-propose-blocked' : undefined}
-                    loading={propose.isPending}
-                    onClick={() => {
-                      if (conflictCount === 0) propose.mutate({ id: result.id, expectedVersion: result.version })
-                    }}
-                  >
-                    {t.header.propose}
-                  </Button>
-                </Tooltip>
-              )}
-              {result.status === 'proposed' && (
-                <Button variant="primary" icon="send" disabled={publish.isPending || generating} onClick={() => { publish.reset(); setPublishConfirmOpen(true) }}>{t.header.publish}</Button>
-              )}
               <Menu trigger={<IconButton ref={moreRef} label={t.header.more} icon="more" />}>
-                {result.status === 'proposed' && (
-                  <MenuItem disabled={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>{t.header.backToDraft}</MenuItem>
-                )}
                 <MenuItem onClick={() => openSettings(true)}>{t.settingsButton}{settingsDirty ? t.settingsButtonUnsaved : ''}</MenuItem>
               </Menu>
             </>
@@ -505,106 +560,104 @@ export function GeneratorPanel() {
       {result && (
         <section className="stack" aria-labelledby="generator-draft-title">
           <h2 id="generator-draft-title" className="sr-only">{result.name}</h2>
-          <Steps
-            label={t.draft.stage}
-            steps={STAGES.map((stage) => ({
-              label: <><b>{scheduleStatusLabels()[stage]}</b> <small>{t.stageActors[stage]}</small></>,
-              state: STAGES.indexOf(stage) < STAGES.indexOf(result.status) ? 'done' : stage === result.status ? 'on' : 'todo',
-            }))}
+          <DraftDecision
+            result={result}
+            preview={preview}
+            busy={generating || propose.isPending || proposeToPublish.isPending || withdraw.isPending || publish.isPending}
+            error={proposeToPublish.variables?.id === result.id ? proposeToPublish.error?.message : undefined}
+            onFix={(first) => setFocus({ service_date: first.service_date, assignee_name: first.assignee_name, role: first.role })}
+            onPropose={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
+            onPublish={() => result.status === 'draft' ? proposeToPublish.mutate({ id: result.id, expectedVersion: result.version }) : openPublication(result.id)}
+            onWithdraw={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}
           />
-          {result.status === 'draft' && conflictCount > 0 && <span id="generator-propose-blocked" className="small who-bad">{t.proposeBlocked}</span>}
           <ChipRow label={t.draft.state}>
             <Chip tone={SOLVER_OK.has(result.solver_status) ? 'ok' : 'bad'}>
               {t.draft.staffing(days, result.assignments.length)}
             </Chip>
-            <Chip tone={counts.hard === 0 ? 'ok' : 'bad'} onClick={() => showProblems(true)} title={t.draft.showInProblems}>
-              {t.draft.hardRules(counts.hard)}
-            </Chip>
             {counts.soft > 0 && (
-              <Chip tone="warn" onClick={() => showProblems(false)} title={t.draft.showInProblems}>
+              <Chip tone="warn" onClick={showSoftProblems} title={t.draft.showInProblems}>
                 {t.draft.softWarnings(counts.soft)}
               </Chip>
             )}
-            {spread && (
-              <Chip tone="sig">{t.draft.spreadAfter(formatPoints(spread.after))}</Chip>
-            )}
+            {lensGroups.map((group) => (
+              <Chip key={String(group.meets)} tone={group.meets ? 'ok' : 'warn'}>
+                {t.draft.lenses(group.lenses.join(', '), group.meets)}
+              </Chip>
+            ))}
           </ChipRow>
-          {result.solver_status === 'FEASIBLE' && conflictCount === 0 && (
-            <Box tone="muted">
-              {t.draft.quality(
-                result.fairness_proven ? t.draft.fairnessProven : t.draft.fairnessBestFound,
-                result.continuity_gap == null
-                  ? t.draft.noGapEstimate
-                  : t.draft.gap(new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(result.continuity_gap * 100)),
-              )}
-            </Box>
-          )}
-          {conflictCount > 0 && (
-            <Box tone="bad" role="alert" title={t.draft.conflictTitle(conflictPeople)}>
-              {result.status === 'draft' ? t.draft.conflictEditable : t.draft.conflictLocked}
-            </Box>
-          )}
-          {!SOLVER_OK.has(result.solver_status) && (
-            <Box tone="warn" title={t.draft.solverIncompleteTitle(result.solver_status)}>
-              {t.draft.solverIncompleteBody}
-            </Box>
-          )}
-          <div className="split split-wide">
-            <div className="stack">
-              <SectionHeading
-                as="h3"
-                title={t.draft.proposedStaffing}
-                meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? t.draft.clickToCorrect : ''}`}
-                controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">{t.draft.legend}</button>} />}
-              />
-              <DraftScheduleMatrix result={result} onChange={correct} focus={focus} />
-              <div ref={problemsRef}>
-                <SectionHeading
-                  as="h3"
-                  title={t.draft.problems}
-                  meta={counts.total === 0 ? t.draft.problemsNone : t.draft.problemsMeta(counts.soft, counts.hard)}
-                  controls={counts.total > 0 && (
-                    <>
-                      <Segmented<ProblemGrouping>
-                        size="sm"
-                        label={t.draft.problemGrouping}
-                        value={problemsBy}
-                        onChange={setProblemsBy}
-                        options={[{ value: 'person', label: t.draft.byPerson }, { value: 'rule', label: t.draft.byRule }]}
-                      />
-                      <button type="button" className={cx('sech-link', hardOnly && 'on')} aria-pressed={hardOnly} onClick={() => setHardOnly((value) => !value)}>{t.draft.hardOnly}</button>
-                    </>
-                  )}
-                />
-              </div>
-              <DraftProblems result={result} onFocus={setFocus} editable={result.status === 'draft'} by={problemsBy} hardOnly={hardOnly} />
-            </div>
-            <div className="stack">
-              <SectionHeading as="h3" title={t.draft.fairnessAfter} meta={t.draft.fairnessWindow} />
-              <DraftFairnessPanel result={result} />
-              <SectionHeading as="h3" title={t.draft.proposalSettings} />
-              <div className="panel panel-padded stack-sm">
-                <KeyValue
-                  items={[
-                    { key: t.draft.range, value: t.draft.rangeValue(formatDate(result.starts_on), formatDate(result.ends_on)), mono: true },
-                    { key: t.draft.version, value: t.draft.versionValue(result.version), mono: true },
-                    { key: t.draft.solver, value: t.header.solverStatus(result.solver_status), mono: true },
-                    { key: t.draft.rotationMode, value: rotationLabels()[result.rotation_mode] },
-                    { key: t.draft.lateShiftAnchor(roleLabels().late_shift), value: lateShiftAnchorLabels()[policy.data?.late_shift_anchor ?? 'secondary'] },
-                    { key: t.draft.fairnessWeight, value: policy.data?.fairness_weight ?? t.draft.unknown, mono: true },
-                    { key: t.draft.preferenceWeight, value: policy.data?.preference_weight ?? t.draft.unknown, mono: true },
-                    { key: t.draft.continuityWeight, value: policy.data?.continuity_weight ?? t.draft.unknown, mono: true },
-                    { key: t.draft.solverBudget, value: policy.data ? t.draft.solverBudgetValue(policy.data.solve_seconds) : t.draft.unknown, mono: true },
-                  ]}
-                />
-                <p className="muted small">{t.draft.weightsNote}</p>
-                <Button size="sm" variant="ghost" className="self-start" onClick={() => openSettings(false)}>{t.draft.changeAndRegenerate}</Button>
-              </div>
-            </div>
+          <SectionHeading
+            title={t.draft.proposedStaffing}
+            meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? t.draft.clickToCorrect : ''}`}
+            controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">{t.draft.legend}</button>} />}
+          />
+          <DraftScheduleMatrix result={result} onChange={correct} focus={focus} />
+          <div ref={tabsRef} className="stack-sm">
+            <Tabs<DraftTab>
+              value={tab}
+              onChange={setTab}
+              label={t.draft.tabs.label}
+              items={[
+                { value: 'problems', label: t.draft.tabs.problems, count: counts.total },
+                { value: 'fairness', label: t.draft.tabs.fairness },
+                { value: 'settings', label: t.draft.tabs.settings },
+                { value: 'drafts', label: t.draft.tabs.drafts, count: drafts.data?.length },
+              ]}
+            >
+              <TabPanel<DraftTab> value="problems" className="stack-sm">
+                {counts.total > 0 && (
+                  <div className="row">
+                    <Segmented<ProblemGrouping>
+                      size="sm"
+                      label={t.draft.problemGrouping}
+                      value={problemsBy}
+                      onChange={setProblemsBy}
+                      options={[{ value: 'person', label: t.draft.byPerson }, { value: 'rule', label: t.draft.byRule }]}
+                    />
+                    <button type="button" className={cx('sech-link', hardOnly && 'on')} aria-pressed={hardOnly} onClick={() => setHardOnly((value) => !value)}>{t.draft.hardOnly}</button>
+                  </div>
+                )}
+                <DraftProblems result={result} onFocus={setFocus} editable={result.status === 'draft'} by={problemsBy} hardOnly={hardOnly} />
+              </TabPanel>
+              <TabPanel<DraftTab> value="fairness" className="stack-sm">
+                <p className="muted small">{t.draft.fairnessWindow}</p>
+                <DraftFairnessPanel result={result} />
+              </TabPanel>
+              <TabPanel<DraftTab> value="settings">
+                <div className="panel panel-padded stack-sm">
+                  <KeyValue
+                    items={[
+                      { key: t.draft.range, value: t.draft.rangeValue(formatDate(result.starts_on), formatDate(result.ends_on)), mono: true },
+                      { key: t.draft.version, value: t.draft.versionValue(result.version), mono: true },
+                      { key: t.draft.rotationMode, value: rotationLabels()[result.rotation_mode] },
+                      { key: t.draft.solver, value: t.header.solverStatus(result.solver_status), mono: true },
+                      ...(SOLVER_OK.has(result.solver_status) ? [
+                        { key: t.draft.fairness, value: result.fairness_proven ? t.draft.fairnessProven : t.draft.fairnessBestFound },
+                        {
+                          key: t.draft.solutionGap,
+                          value: result.continuity_gap == null
+                            ? t.draft.noGapEstimate
+                            : t.draft.gap(new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(result.continuity_gap * 100)),
+                        },
+                      ] : []),
+                    ]}
+                  />
+                  <p className="muted small">{t.draft.weightsNote}</p>
+                  <Button size="sm" variant="ghost" className="self-start" onClick={() => openSettings(false)}>{t.draft.changeAndRegenerate}</Button>
+                </div>
+              </TabPanel>
+              <TabPanel<DraftTab> value="drafts" className="stack-sm">
+                {draftList}
+              </TabPanel>
+            </Tabs>
           </div>
         </section>
       )}
-      {draftsSection}
+      {!result && (
+        <section className="stack-sm">
+          <SectionHeading title={t.drafts.heading} meta={drafts.data ? `${drafts.data.length}` : undefined} />
+          {draftList}
+        </section>
+      )}
       <ConfirmDialog
         open={Boolean(toDelete)}
         pending={remove.isPending}
@@ -625,18 +678,20 @@ export function GeneratorPanel() {
         meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}
         footer={(
           <>
-            <Button size="sm" variant="ghost" disabled={!settingsDirty} onClick={() => setSettings(settingsOf(policy.data!))}>{t.settings.restore}</Button>
+            <IconButton icon="undo" label={t.settings.restore} disabled={!settingsDirty} onClick={() => setSettings(settingsOf(policy.data!))} />
             <span className="sp" />
-            <Button type="submit" form="generator-settings" variant={settingsDirty ? 'primary' : 'default'} disabled={savePolicy.isPending || policy.isLoading || !settingsDirty} loading={savePolicy.isPending}>
-              {savePolicy.isPending ? common.saving : t.settings.save}
+            <Button type="submit" form="generator-settings" disabled={savePolicy.isPending || policy.isLoading || !settingsDirty}>
+              {t.settings.save}
             </Button>
             <Button
               variant="primary"
               icon="wand"
-              disabled={generating || settingsDirty}
-              onClick={() => { setSettingsOpen(false); if (result) generateAgain(result); else generate.mutate(range) }}
+              disabled={generating || savePolicy.isPending || policy.isLoading}
+              loading={savePolicy.isPending}
+              // Changed settings are stored first, so the generation reads them.
+              onClick={() => settingsDirty ? savePolicy.mutate(settings, { onSuccess: generateFromSettings }) : generateFromSettings()}
             >
-              {t.settings.generate}
+              {savePolicy.isPending ? common.saving : settingsDirty ? t.settings.saveAndGenerate : t.settings.generate}
             </Button>
           </>
         )}
@@ -670,14 +725,6 @@ export function GeneratorPanel() {
               {t.settings.weeklyBody}
             </Box>
           )}
-          <Checkbox
-            name="coordinator_swap_approval_required"
-            label={t.settings.swapApproval}
-            hint={t.settings.swapApprovalHint}
-            checked={settings.coordinator_swap_approval_required}
-            disabled={policy.isLoading}
-            onChange={(event) => setSettings({ ...settings, coordinator_swap_approval_required: event.target.checked })}
-          />
           <div className="frow">
             {numberField('fairness_weight', t.settings.fairnessWeight, t.settings.fairnessWeightHint, 0, 100, 0.5)}
             {numberField('preference_weight', t.settings.preferenceWeight, t.settings.preferenceWeightHint, 0, 100, 0.5)}
@@ -689,33 +736,46 @@ export function GeneratorPanel() {
           <Box tone="sig" title={t.settings.startingPointsTitle}>
             {t.settings.startingPointsBody}
           </Box>
+          <SectionHeading as="h3" title={t.settings.swapPolicy} meta={t.settings.swapPolicyMeta} />
+          <Checkbox
+            name="coordinator_swap_approval_required"
+            label={t.settings.swapApproval}
+            hint={t.settings.swapApprovalHint}
+            checked={settings.coordinator_swap_approval_required}
+            disabled={policy.isLoading}
+            onChange={(event) => setSettings({ ...settings, coordinator_swap_approval_required: event.target.checked })}
+          />
           {savePolicy.isSuccess && !settingsDirty && <span className="small muted" role="status">{t.settings.saved}</span>}
         </form>
       </Panel>
       {result && (
         <Dialog
           open={publishConfirmOpen}
-          onClose={() => setPublishConfirmOpen(false)}
+          onClose={closePublication}
           dismissible={!publish.isPending}
           size="lg"
-          title={t.publish.title(result.status === 'proposed', result.version, formatRange(result.starts_on, result.ends_on))}
+          title={t.publish.title(!publishFromDraft, result.version, formatRange(result.starts_on, result.ends_on))}
+          description={t.publish.effect(result.assignments.length, days)}
           actions={(
             <>
-              <Button onClick={() => setPublishConfirmOpen(false)} disabled={publish.isPending}>{t.publish.back}</Button>
+              {(preview || publishPreview.isFetching) && (
+                <output className="dialog-foot-status">
+                  {publishPreview.isFetching
+                    ? t.publish.checking
+                    : unresolvedConflicts + missingConsents > 0 ? t.publish.pending(unresolvedConflicts, missingConsents) : t.publish.ready}
+                </output>
+              )}
+              <Button onClick={closePublication} disabled={publish.isPending}>{t.publish.back(publishFromDraft)}</Button>
               <Button
                 variant="primary"
                 loading={publish.isPending}
-                disabled={publish.isPending || publishPreview.isLoading || publishPreview.isError
-                  || (result.starts_on <= today && !publishAcknowledged)
-                  || (Boolean(publishPreview.data?.rest_violations.length) && !restAcknowledged)
-                  || (Boolean(publishPreview.data?.uncovered_before.length) && !gapAcknowledged)
-                  || Boolean(publishPreview.data?.lost_changes.some((item) => !changeResolutions[`${item.service_date}:${item.role}`]))}
+                disabled={publish.isPending || publishPreview.isFetching || publishPreview.isError || !preview || unresolvedConflicts + missingConsents > 0}
                 onClick={() => publish.mutate({
                   id: result.id,
                   expectedVersion: result.version,
-                  acknowledgeLostChanges: Boolean(publishPreview.data?.lost_changes.length),
-                  acknowledgeGap: Boolean(publishPreview.data?.uncovered_before.length),
-                  acknowledgeRestViolations: Boolean(publishPreview.data?.rest_violations.length),
+                  acknowledgeLostChanges: Boolean(preview?.lost_changes.length),
+                  acknowledgeGap: Boolean(preview?.uncovered_before.length),
+                  acknowledgeRestViolations: Boolean(preview?.rest_violations.length),
                   changeResolutions,
                 })}
               >
@@ -727,80 +787,54 @@ export function GeneratorPanel() {
           {publish.error && (
             <Box tone="bad" role="alert" title={t.publish.failed}>
               {publish.error.message}
-              <div className="box-next">{t.publish.failedNext}</div>
+              <div className="box-next">{t.publish.failedNext(publishFromDraft)}</div>
             </Box>
           )}
-          <ul>
-            <li><b>{t.publish.assignments(result.assignments.length)}</b> {t.publish.becomePublished(result.assignments.length, days)}</li>
-            <li>{t.publish.earlierSchedule}</li>
-            {counts.soft > 0 && <li><b>{t.draft.softWarnings(counts.soft)}</b> {t.publish.softWarningsAudited(counts.soft)}</li>}
-            {publishPreview.data?.pending_swaps.length ? <li><b>{t.publish.pendingSwaps(publishPreview.data.pending_swaps.length)}</b> {t.publish.pendingSwapsCancelled(publishPreview.data.pending_swaps.length)}</li> : null}
-          </ul>
-          {result.starts_on <= today && (
-            <Box tone="warn" title={t.publish.todayTitle}>{t.publish.todayBody}</Box>
-          )}
-          {publishPreview.isLoading && <p className="muted">{t.publish.checking}</p>}
           {publishPreview.error && <Box tone="bad" role="alert" title={t.publish.checkFailed} />}
-          {publishPreview.data?.lost_changes.length ? (
-            <Box tone="warn" title={t.publish.resolveConflicts}>
+          {preview && <PublicationEffects preview={preview} soft={counts.soft} />}
+          {preview?.lost_changes.length ? (
+            <Box tone="warn" title={t.publish.resolveConflicts(preview.lost_changes.length)}>
               <div className="stack-sm mt-6">
-                {publishPreview.data.lost_changes.map((change) => (
-                  <div key={`${change.service_date}-${change.role}`} className="stack-sm">
-                    <div>
-                      <span className="mono">{formatDayShort(change.service_date)}</span> · {t.publish.lostChange(roleLabels()[change.role], change.previous_assignee_name, change.new_assignee_name, change.reason ?? '')}
+                {preview.lost_changes.map((change) => {
+                  const key = `${change.service_date}:${change.role}`
+                  const kind = t.publish.changeKind[change.source]
+                  return (
+                    <div key={key} className="stack-sm">
+                      <div>
+                        <b>{formatDayShort(change.service_date)} · {roleLabels()[change.role]}</b>
+                        {' · '}{t.publish.lostChange(kind, change.previous_assignee_name, change.new_assignee_name)}
+                        {change.reason && <div className="box-next">{change.reason}</div>}
+                      </div>
+                      <Field label={t.publish.decision} id={`resolution-${change.service_date}-${change.role}`}>
+                        {({ id }) => (
+                          <Select
+                            id={id}
+                            value={changeResolutions[key] ?? ''}
+                            onChange={(event) => setChangeResolutions((current) => ({ ...current, [key]: event.target.value as 'draft' | 'change' }))}
+                          >
+                            <option value="">{t.publish.choose}</option>
+                            <option value="change">{t.publish.keepChange[change.source](change.previous_assignee_name)}</option>
+                            <option value="draft">{t.publish.keepDraft(change.new_assignee_name)}</option>
+                          </Select>
+                        )}
+                      </Field>
                     </div>
-                    <Field label={t.publish.decision} id={`resolution-${change.service_date}-${change.role}`}>
-                      {({ id }) => (
-                        <Select
-                          id={id}
-                          value={changeResolutions[`${change.service_date}:${change.role}`] ?? ''}
-                          onChange={(event) => setChangeResolutions((current) => ({ ...current, [`${change.service_date}:${change.role}`]: event.target.value as 'draft' | 'change' }))}
-                        >
-                          <option value="">{t.publish.choose}</option>
-                          <option value="draft">{t.publish.keepDraft}</option>
-                          <option value="change">{t.publish.keepChange}</option>
-                        </Select>
-                      )}
-                    </Field>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </Box>
           ) : null}
-          {publishPreview.data?.carried_changes.length ? (
-            <Box tone="ok" title={t.publish.carried}>
-              <ul className="box-list">
-                {publishPreview.data.carried_changes.map((change) => (
-                  <li key={`${change.service_date}-${change.role}`}>{t.publish.carriedItem(formatDayShort(change.service_date), roleLabels()[change.role], change.previous_assignee_name)}</li>
-                ))}
-              </ul>
-            </Box>
-          ) : null}
-          {publishPreview.data?.pending_swaps.length ? (
-            <Box tone="sig" title={t.publish.cancelledSwaps}>
-              <ul className="box-list">
-                {publishPreview.data.pending_swaps.map((swap) => (
-                  <li key={swap.id}>{t.publish.cancelledSwap(formatDayShort(swap.service_date), roleLabels()[swap.role], swap.requester_name, swap.replacement_name)}</li>
-                ))}
-              </ul>
-            </Box>
-          ) : null}
-          {publishPreview.data?.uncovered_before.length ? (
-            <AcknowledgeBox title={t.publish.gapTitle} label={t.publish.acknowledgeGap} checked={gapAcknowledged} onChange={setGapAcknowledged}>
-              {t.publish.gapBody(publishPreview.data.uncovered_before.map(formatDate).join(', '))}
-            </AcknowledgeBox>
-          ) : null}
-          {publishPreview.data?.stale_changes_count ? (
-            <Box tone="warn" title={t.publish.staleTitle(publishPreview.data.stale_changes_count)} />
-          ) : null}
-          {publishPreview.data?.rest_violations.length ? (
+          {preview?.rest_violations.length ? (
             <AcknowledgeBox title={t.publish.restTitle} label={t.publish.acknowledgeRest} checked={restAcknowledged} onChange={setRestAcknowledged}>
               <ul className="box-list">
-                {publishPreview.data.rest_violations.map((violation) => (
+                {preview.rest_violations.map((violation) => (
                   <li key={`${violation.member_name}-${violation.rule}`}>{t.publish.restItem(violation.member_name, violation.message, violation.days.map(formatDate).join(', '))}</li>
                 ))}
               </ul>
             </AcknowledgeBox>
+          ) : null}
+          {preview?.uncovered_before.length ? (
+            <AcknowledgeBox title={t.publish.gapTitle(preview.uncovered_before.map(formatDate).join(', '))} label={t.publish.acknowledgeGap} checked={gapAcknowledged} onChange={setGapAcknowledged} />
           ) : null}
           {result.starts_on <= today && (
             <Checkbox
@@ -809,7 +843,6 @@ export function GeneratorPanel() {
               onChange={(event) => setPublishAcknowledged(event.target.checked)}
             />
           )}
-          <p className="muted small">{t.publish.undoNote}</p>
         </Dialog>
       )}
       <UnsavedChangesDialog guard={unsavedChanges} />
