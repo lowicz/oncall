@@ -46,6 +46,102 @@ card shows that this shift is **not applicable** - it is not a gap in the
 staffing. Under the cards a team member sees their next duty, and the schedule
 is a list of days.
 
+## Handing over the number
+
+The on-call number rings at the person on `PRIMARY`. When they have to leave
+and have agreed it with the person on `SECONDARY`, they can hand the number to
+that person for a few hours, without an administrator and without logging in
+to the WCO panel. A handover is visible only when an administrator has set
+number forwarding to **On** or **Dry run**; with **Off** the application does
+not know where the number rings, so it shows neither the badge nor the buttons.
+
+### Where you see whom the number rings at
+
+The **on-call number** badge stands by the person the number rings at: in the
+“On duty now” strip, on the phone cards and in the header of the Now screen.
+During a handover it is by the person on `SECONDARY` and says until when:
+“on-call number · until 13:40”. The `PRIMARY` phone stays in the strip, because
+that person is the one answerable for the duty. Clicking the badge shows the
+details: who answers, from when until when, whether WCO has confirmed the
+forwarding and at what time. The badge changes state as it happens, and the
+state is also given in words, not by colour alone:
+
+| State | What it means |
+| --- | --- |
+| **on-call number** | WCO has confirmed the number rings at this person |
+| **switching** | WCO has not confirmed the forwarding yet |
+| **not switched** | WCO did not confirm by the alert threshold; the number may still ring at the previous person |
+
+In **Dry run** mode the details say that WCO will not be changed: the handover
+is recorded, but the number at the switchboard stays as it was.
+
+### How to hand the number over
+
+The button belongs to the day's duty pair: the person on `PRIMARY` sees **Hand
+over the number…**, the person on `SECONDARY` **Take the number…**. A
+coordinator and an administrator see it too, on behalf of the pair. Nobody
+else has it, because a handover is only within the day's pair; other changes of
+staffing are done with a correction.
+
+1. Click the button. On a desktop a popover opens by the button, on a phone a
+   sheet from the bottom with a **Close** button; it is not a question window.
+2. Choose for how long: **1 h**, **2 h**, until the end of the duty (the button
+   gives the time, tomorrow 9:00 by default, the reminder hour) or **other…**,
+   which reveals a time field. The sentence under the choice says when the
+   number comes back, for instance “The number comes back to you at 13:40”. The
+   time has to be later than now and no later than the end of the duty; a
+   segment that would exceed it is disabled.
+3. Click **Hand over the number** (**Take the number** when taking). One click
+   from one side is enough: the agreement is made by phone, and the other side
+   does not have to approve anything.
+
+The notification “Switching the number · Marek Nowak answers · until 13:40” has
+an **Undo** button for a few seconds, which ends the handover. After that the
+badge by the new person says **switching**, and once WCO confirms, **on-call
+number**.
+
+When the person taking over has no phone number on the Mine screen, the frame
+in the popover says so by name and blocks the button: the number has to be
+filled in first. When the number is already handed over, the badge says until
+when, and the hand-over button is replaced by the end button described below.
+
+### How the number comes back
+
+- **By itself**, at the chosen time or at the reminder hour at the latest, when
+  the number moves to the next person on `PRIMARY` anyway. Nothing has to be
+  clicked and nobody asked.
+- **By hand**, in the same place where the handover began: the person on
+  `PRIMARY` clicks **Take the number back**, the person on `SECONDARY` **Give
+  the number back**, and a coordinator **End the handover**. An administrator
+  can also use **End** on the State card of the
+  [Number forwarding](administracja.md#number-forwarding-przelaczanie-administrator)
+  screen. Ending asks no confirmation, because handing over again is one click;
+  the notification says who answers the number again.
+- **Through a schedule correction**: when a correction or swap changes who is on
+  `PRIMARY` or `SECONDARY` that day, swapping the two roles included, the
+  handover ends by itself and the number
+  returns to whoever the schedule has on `PRIMARY`. Both sides then get the
+  e-mail “Przekazanie numeru on-call zakończone przez korektę grafiku”, and the
+  correction frame warns beforehand: “This correction ends the on-call number
+  handover Anna Kowalska → Marek Nowak.” This is the only e-mail about a
+  handover: none goes out on success, because both sides have agreed it and the
+  state is in the strip.
+
+### When the switch fails
+
+If WCO does not confirm the forwarding, the badge turns red, **not switched**,
+and is announced to a screen reader as an alert; next to the handover buttons
+**Check again** appears, and **End the handover** gives the number back to the
+person on `PRIMARY`. The “Numer on-call” alert e-mail then goes to the
+coordinators and administrators, to the person on `PRIMARY` and to the person
+who was to take the number over, so that nobody waits for a phone that does not
+ring. The worker keeps trying by itself.
+
+Every handover and its end are in the [Audit](administracja.md#audit-audyt-administrator)
+(“Przekazano numer on-call: Anna Kowalska → Marek Nowak do 13:40”,
+“Zakończono przekazanie numeru on-call … zakończone ręcznie”), together with
+who started it.
+
 ## Schedule: the people × days matrix
 
 The screen header gives the range and version of the published schedule, and
