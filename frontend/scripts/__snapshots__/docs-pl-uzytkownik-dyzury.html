@@ -140,6 +140,104 @@ z dyżurami.</p>
 obejmuje rolę jako następny. Karta <code>11–19</code> w sobotę, niedzielę lub święto
 pokazuje, że ta zmiana <strong>nie występuje</strong> - to nie jest luka w obsadzie. Pod
 kartami członek zespołu widzi swój najbliższy dyżur, a grafik jest listą dni.</p>
+<h2 id="przekazanie-numeru">Przekazanie numeru</h2>
+<p>Numer on-call dzwoni u osoby na <code>PRIMARY</code>. Gdy ona musi odejść, a umówiła się
+z osobą na <code>SECONDARY</code>, może na kilka godzin przekazać numer tej osobie, bez
+administratora i bez logowania do panelu WCO. Przekazanie jest widoczne tylko
+wtedy, gdy administrator ustawił przełączanie numeru na <strong>Włączone</strong> albo
+<strong>Próbny</strong>; przy <strong>Wyłączone</strong> aplikacja nie wie, gdzie numer dzwoni, więc
+nie pokazuje ani znacznika, ani przycisków.</p>
+<h3 id="gdzie-widać-u-kogo-dzwoni-numer">Gdzie widać, u kogo dzwoni numer</h3>
+<p>Znacznik <strong>numer on-call</strong> stoi przy osobie, u której numer dzwoni: w pasku
+„Dyżur teraz”, na kartach na telefonie i w nagłówku ekranu Teraz. W czasie
+przekazania jest przy osobie na <code>SECONDARY</code> i mówi, do której godziny:
+„numer on-call · do 13:40”. Telefon <code>PRIMARY</code> zostaje w pasku, bo to ta osoba
+odpowiada za dyżur. Kliknięcie znacznika pokazuje szczegóły: kto odbiera, od
+kiedy do kiedy, czy WCO potwierdziło przekierowanie i o której. Znacznik
+zmienia stan na bieżąco, a stan jest też podany tekstem, nie samym kolorem:</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Stan</th>
+<th>Co znaczy</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>numer on-call</strong></td>
+<td>WCO potwierdziło, że numer dzwoni u tej osoby</td>
+</tr>
+<tr>
+<td><strong>przełączam</strong></td>
+<td>WCO jeszcze nie potwierdziło przekierowania</td>
+</tr>
+<tr>
+<td><strong>nie przełączono</strong></td>
+<td>WCO nie potwierdziło po progu alarmu; numer może nadal dzwonić u poprzedniej osoby</td>
+</tr>
+</tbody></table>
+</div>
+<p>W trybie <strong>Próbny</strong> szczegóły mówią, że WCO nie zostanie zmienione: przekazanie
+jest zapisane, ale numer w centrali zostaje, jak był.</p>
+<h3 id="jak-przekazać-numer">Jak przekazać numer</h3>
+<p>Przycisk jest przy parze dyżurnej dnia: osoba na <code>PRIMARY</code> widzi <strong>Przekaż
+numer…</strong>, osoba na <code>SECONDARY</code> <strong>Przejmij numer…</strong>. Widzi go też koordynator
+i administrator, w imieniu pary. Nikt inny go nie ma, bo przekazać można
+tylko w obrębie pary dnia; inne zmiany obsady robi się korektą.</p>
+<ol>
+<li>Kliknij przycisk. Na biurku otwiera się podpowiedź przy przycisku, na
+telefonie arkusz od dołu z przyciskiem <strong>Zamknij</strong>; to nie jest okno
+z pytaniem.</li>
+<li>Wybierz, na jak długo: <strong>1 h</strong>, <strong>2 h</strong>, do końca dyżuru (przycisk
+podaje godzinę, domyślnie jutro 9:00, czyli godzinę przypomnienia) albo
+<strong>inny…</strong>, który odsłania pole z godziną. Zdanie pod wyborem mówi, kiedy
+numer wróci, na przykład „Numer wraca do Ciebie o 13:40”. Godzina musi być
+późniejsza niż teraz i nie późniejsza niż koniec dyżuru; segment, który
+by go przekroczył, jest nieaktywny.</li>
+<li>Kliknij <strong>Przekaż numer</strong> (<strong>Przejmij numer</strong> przy przejmowaniu). Wystarczy
+jedno kliknięcie jednej strony: umowa zapada przez telefon, a druga strona
+nie musi niczego zatwierdzać.</li>
+</ol>
+<p>Powiadomienie „Przełączam numer · odbiera Marek Nowak · do 13:40” ma przez
+kilka sekund przycisk <strong>Cofnij</strong>, który kończy przekazanie. Potem znacznik
+przy nowej osobie mówi <strong>przełączam</strong>, a gdy WCO potwierdzi, <strong>numer
+on-call</strong>.</p>
+<p>Gdy przejmująca osoba nie ma numeru telefonu na ekranie Moje, ramka w
+podpowiedzi mówi to z nazwiskiem i blokuje przycisk: numer trzeba najpierw
+uzupełnić. Gdy numer jest już przekazany, ramka mówi, u kogo jest i do której
+godziny, i zamiast przekazania proponuje <strong>Zabierz numer z powrotem</strong>.</p>
+<h3 id="jak-numer-wraca">Jak numer wraca</h3>
+<ul>
+<li><strong>Sam</strong>, o wybranej godzinie albo najpóźniej o godzinie przypomnienia, gdy
+numer i tak przechodzi na kolejną osobę na <code>PRIMARY</code>. Nie trzeba nic
+klikać ani nikogo prosić.</li>
+<li><strong>Ręcznie</strong>, w tym samym miejscu, w którym zaczęło się przekazanie: osoba
+na <code>PRIMARY</code> klika <strong>Zabierz numer z powrotem</strong>, osoba na <code>SECONDARY</code>
+<strong>Oddaj numer</strong>, a koordynator <strong>Zakończ przekazanie</strong>. Administrator może
+też przyciskiem <strong>Zakończ</strong> na karcie Stan ekranu
+<a href="administracja.html#przełączanie-numeru-przelaczanie-administrator">Przełączanie numeru</a>.
+Zakończenie nie pyta o potwierdzenie, bo ponowne przekazanie to jedno
+kliknięcie; powiadomienie mówi, kto znów odbiera numer. Działa także po
+przestawieniu trybu na <strong>Wyłączone</strong>.</li>
+<li><strong>Przez korektę grafiku</strong>: gdy korekta lub zamiana zabiera któregoś z dwojga
+z pary dnia, przekazanie kończy się samo, a numer wraca do osoby, która
+według grafiku ma <code>PRIMARY</code>. Obie strony dostają wtedy e-mail „Przekazanie
+numeru on-call zakończone przez korektę grafiku”, a ramka korekty uprzedza
+z góry: „Ta korekta zakończy przekazanie numeru on-call Anna Kowalska →
+Marek Nowak”. To
+jedyny e-mail o przekazaniu: przy powodzeniu nie wychodzi żaden, bo obie
+strony się umówiły, a stan jest w pasku.</li>
+</ul>
+<h3 id="gdy-przełączenie-się-nie-uda">Gdy przełączenie się nie uda</h3>
+<p>Jeśli WCO nie potwierdza przekierowania, znacznik przechodzi w czerwony stan
+<strong>nie przełączono</strong> i jest ogłaszany czytnikowi ekranu jako alert, a obok
+przycisków przekazania pojawia się <strong>Sprawdź ponownie</strong>, a <strong>Zakończ
+przekazanie</strong> oddaje numer osobie na <code>PRIMARY</code>. Alarm e-mail „Numer on-call”
+idzie wtedy do koordynatorów i administratorów, do osoby na <code>PRIMARY</code> i do
+osoby, która miała numer przejąć, żeby nikt nie czekał na telefon, który nie
+dzwoni. Proces roboczy próbuje dalej sam.</p>
+<p>Każde przekazanie i jego zakończenie są w <a href="administracja.html#audyt-audyt-administrator">Audycie</a>
+(„Przekazano numer on-call: Anna Kowalska → Marek Nowak do 13:40”, „Zakończono
+przekazanie numeru on-call … zakończone ręcznie”), razem z tym, kto je zlecił.</p>
 <h2 id="grafik-macierz-osób-dni">Grafik: macierz osób × dni</h2>
 <p>Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
 koordynatorowi także propozycję czekającą na publikację; przycisk <strong>Otwórz

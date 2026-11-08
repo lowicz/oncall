@@ -146,12 +146,52 @@ przez administratora, żeby nie zablokować konta WCO.
 Niepowodzenia: błąd trwały (odrzucone logowanie, odrzucona zmiana numeru,
 brak osoby na PRIMARY, brak numeru) od razu, a przejściowy (sieć, błąd
 serwera) po 10 minutach prób wysyła e-mail „Numer on-call” do aktywnych
-koordynatorów i administratorów oraz do osoby na PRIMARY, raz dziennie na
-cel: kto ma odbierać, na co WCO przekierowuje, co zawiodło i co zrobić. Gdy
+koordynatorów i administratorów oraz do osoby na PRIMARY (w czasie
+przekazania także do przejmującego), raz dziennie na cel: kto ma odbierać, na co WCO przekierowuje, co zawiodło i co zrobić. Gdy
 przełączenie uda się po alarmie, koordynatorzy i administratorzy dostają
 krótką wiadomość o powrocie. W trybie próbnym alarmy nie wychodzą. Żadna
 wiadomość, wpis audytu ani stan nie zawiera hasła, ciasteczek ani treści
 odpowiedzi WCO, tylko nazwę wywołania i kod HTTP.
+
+### Przekazanie numeru w obrębie pary
+
+Celem przełączania nie musi być PRIMARY: osoba na PRIMARY, osoba na SECONDARY
+tego samego dnia albo koordynator lub administrator może przekazać numer
+SECONDARY na kilka godzin ([Przekazanie
+numeru](../uzytkownik/dyzury.md#przekazanie-numeru)). Przekazanie jest
+osobnym wierszem (`forwarding_handovers`), a nie ręczną zmianą w WCO, więc
+proces roboczy nie nadpisuje go przy następnym przebiegu: cel wynikający z
+grafiku czyta aktywne przekazanie i, dopóki trwa, wskazuje przejmującego.
+Najwyżej jedno przekazanie jest aktywne naraz.
+
+- **Tryby.** Przekazanie istnieje tylko w trybie **Włączone** i **Próbny**.
+  W trybie **Wyłączone** interfejs nie pokazuje ani znacznika, ani
+  przycisków, a żądanie dostaje odpowiedź 409 z komunikatem. W trybie **Próbny**
+  przekazanie jest zapisane i widoczne, ale WCO nie jest zmieniane.
+- **Koniec.** Przekazanie kończy się samo po upływie wybranej godziny (nie
+  później niż o godzinie przypomnienia, gdy numer i tak przechodzi na nowego
+  PRIMARY), ręcznie (para, koordynator, administrator; także w trybie
+  **Wyłączone**) albo przez zmianę grafiku. Żadnego z tych powrotów nie
+  trzeba osobno uruchamiać: proces porównuje cel ze stanem WCO jak zawsze.
+- **Zmiana grafiku.** Korekta lub zamiana, po której któraś ze stron nie jest
+  już w parze dnia, kończy przekazanie z powodem „zmiana grafiku” i wysyła
+  e-mail „Przekazanie numeru on-call zakończone przez korektę grafiku” do obu
+  stron, z informacją, kto ma teraz PRIMARY. Wcześniej sprawdzenie korekty
+  zwraca ostrzeżenie dla ramki w panelu dnia.
+- **E-maile.** Poza tym jednym nie wychodzi żaden e-mail o przekazaniu, także
+  przy powodzeniu. Alarm „Numer on-call” o niepowodzeniu idzie w czasie
+  przekazania, oprócz koordynatorów, administratorów i osoby na PRIMARY, także
+  do przejmującego, z jego nazwiskiem w faktach.
+- **Uprawnienia i stan.** Trzy punkty końcowe poza `/admin`:
+  `POST /api/v1/forwarding/handover`, `DELETE /api/v1/forwarding/handover/{id}`
+  i `GET /api/v1/forwarding/now`. Pierwsze dwa serwer
+  dopuszcza dla strony pary dnia albo koordynatora ([Role i
+  dostęp](role-i-dostep.md#przekazanie-numeru-on-call)); trzeci odpowiada
+  każdej roli i sesji z linku podglądowego, bez numerów telefonów.
+- **Ślad.** Audyt: `forwarding.handover_started` i `forwarding.handover_ended`
+  (z powodem: ręcznie, upływ czasu, zmiana grafiku), obok zwykłego
+  `forwarding.applied` dla samego przełączenia. Wpisy podlegają retencji jak
+  reszta audytu; o tym, kto ma numer, decyduje wiersz przekazania.
 
 Połączenie z WCO jest zawsze weryfikowane; firmowe CA dochodzi z pliku
 `ONCALL_CA_FILE` ([Uruchomienie](../wdrozenie/uruchomienie.md#plik-ca)).

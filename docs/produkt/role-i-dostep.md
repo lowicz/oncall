@@ -29,6 +29,24 @@ Role są kumulatywne: administrator widzi wszystko, co koordynator.
 | Przełączanie numeru (`/przelaczanie`) | nie | nie | nie | tak |
 | Audyt (`/audyt`) | nie | nie | nie | tak |
 
+Przekazanie numeru on-call w obrębie pary dnia nie ma własnego ekranu: to akcja
+na ekranie Teraz, opisana niżej.
+
+## Przekazanie numeru on-call
+
+| Działanie | viewer i link podglądowy | member | coordinator | admin |
+| --- | :---: | :---: | :---: | :---: |
+| Zobaczyć, u kogo dzwoni numer (`GET /api/v1/forwarding/now`) | tak | tak | tak | tak |
+| Przekazać numer i zakończyć przekazanie | nie | tylko jako PRIMARY lub SECONDARY dnia | tak | tak |
+| Wiedzieć, kto przekazanie zlecił | nie | nie | nie | tak |
+| Ustawienia przełączania i hasło WCO (`/przelaczanie`) | nie | nie | nie | tak |
+
+Członek zespołu przekazuje numer tylko wtedy, gdy jest PRIMARY albo SECONDARY
+dnia dyżuru; serwer sprawdza to przy każdym żądaniu, więc przycisk, którego
+interfejs nie pokazuje, nie otwiera drogi przez API. Odpowiedź o stanie nie
+zawiera numerów telefonów; telefon dyżurnego każda rola widzi tylko tam, gdzie
+widzi go na kartach dyżurnych.
+
 Pozycje nawigacji niedostępne dla roli po prostu się nie pokazują. Wejście
 adresem na ekran spoza uprawnień przenosi na ekran „Teraz”; niezależnie od tego
 każde żądanie do API jest sprawdzane po stronie serwera. **Interfejs nie jest
