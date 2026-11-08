@@ -909,17 +909,16 @@ async function followRun(
   runId: string,
   onProgress?: (run: ScheduleRun) => void,
 ): Promise<DraftSchedule> {
-  for (;;) {
-    const current = await request<ScheduleRun>(`/api/v1/scheduling/runs/${runId}`)
-    onProgress?.(current)
-    if (current.status === 'failed') {
-      throw new Error(current.error ?? messages().common.generatorFailed)
-    }
-    if (current.status === 'completed' && current.schedule_id) {
-      return request<DraftSchedule>(`/api/v1/scheduling/${current.schedule_id}`)
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 1000))
+  const current = await request<ScheduleRun>(`/api/v1/scheduling/runs/${runId}`)
+  onProgress?.(current)
+  if (current.status === 'failed') {
+    throw new Error(current.error ?? messages().common.generatorFailed)
   }
+  if (current.status === 'completed' && current.schedule_id) {
+    return request<DraftSchedule>(`/api/v1/scheduling/${current.schedule_id}`)
+  }
+  await new Promise((resolve) => window.setTimeout(resolve, 1000))
+  return followRun(runId, onProgress)
 }
 
 export const api = {

@@ -5,6 +5,7 @@ import { AssignmentRole, RuleViolation, TeamMember, api } from '../api'
 import { addDays, formatDate, formatDayShort, formatRange } from '../lib/dates'
 import { useDutiesAfterExit } from '../hooks/useDutiesAfterExit'
 import { roleLabels } from '../lib/labels'
+import { inOrder } from '../lib/sequence'
 import { locale, useMessages } from '../i18n'
 import { Box, Button, Checkbox, Dialog, Field, ListRow, LoadingBlock, RoleMark, Select, useToast } from '../ui'
 
@@ -100,7 +101,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
   })
   const submit = useMutation({
     mutationFn: async () => {
-      for (const [scheduleId, group] of groupedDuties()) {
+      await inOrder(groupedDuties(), async ([scheduleId, group]) => {
         await api.batchOverride({
           schedule_id: scheduleId,
           expected_version: group[0].schedule_version,
@@ -113,13 +114,13 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
           const id = replacements[key(item.service_date, item.role)]
           tally.current.set(id, (tally.current.get(id) ?? 0) + 1)
         }
-      }
-      for (const period of member.eligibility) {
+      })
+      await inOrder(member.eligibility, async (period) => {
         if (period.starts_on > activeUntil) await api.deleteEligibility(period.id)
         else if (!period.ends_on || period.ends_on > activeUntil) {
           await api.updateEligibility({ id: period.id, input: { ends_on: activeUntil } })
         }
-      }
+      })
       return api.updateTeamMember({ id: member.id, input: { active_until: activeUntil } })
     },
     onSuccess: () => {

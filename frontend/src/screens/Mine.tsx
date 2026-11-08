@@ -28,6 +28,7 @@ import { useNarrow } from '../hooks/useMediaQuery'
 import { usePublicConfig } from '../hooks/usePublicConfig'
 import { useUrlParams } from '../hooks/useUrlParams'
 import { undoable } from '../lib/undo'
+import { inOrder } from '../lib/sequence'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
 import { coverageWindowText } from '../components/CalendarMatrix'
@@ -505,10 +506,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
   const restore = useMutation<void, Error, PaintCommand[]>({
     mutationKey: PAINT_KEY,
     scope: { id: 'availability-paint' },
-    mutationFn: (steps) => steps.reduce<Promise<unknown>>(
-      (done, step) => done.then(() => save(step)),
-      Promise.resolve(),
-    ).then(() => undefined),
+    mutationFn: (steps) => inOrder(steps, save),
     onSettled: (_result, _error, steps) => reload(steps[0]),
   })
   const paint = useMutation<AvailabilityEntry | null, Error, PaintCommand>({

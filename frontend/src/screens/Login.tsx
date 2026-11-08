@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, ReactNode, useEffect, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '../api'
@@ -69,22 +69,33 @@ export function Login({ expired = false }: { expired?: boolean }) {
   // back there after single sign-on, as the password form keeps them there.
   const ssoHref = `/api/v1/auth/sso/start?next=${encodeURIComponent(location.pathname + location.search)}`
 
+  // One notice above the form: a refused single sign-on, a failed sign-in or
+  // an expired session, in that order.
+  let notice: ReactNode = null
+  if (ssoRefusal) {
+    notice = (
+      <Box tone="bad" role="alert" title={t.auth.sso.errors[ssoRefusal].title}>
+        {t.auth.sso.errors[ssoRefusal].hint}
+      </Box>
+    )
+  } else if (login.error) {
+    notice = (
+      <Box tone="bad" role="alert" title={login.error.message}>
+        {loginHint(login.error, t.auth.hints)}
+      </Box>
+    )
+  } else if (expired) {
+    notice = (
+      <Box tone="warn" role="status" title={t.auth.sessionExpired}>
+        {t.auth.signInAgain}
+      </Box>
+    )
+  }
+
   return (
     <AuthFrame title={t.auth.headline} screen={t.auth.login}>
       <form onSubmit={submit} className="login-card" aria-label={t.auth.login}>
-        {ssoRefusal ? (
-          <Box tone="bad" role="alert" title={t.auth.sso.errors[ssoRefusal].title}>
-            {t.auth.sso.errors[ssoRefusal].hint}
-          </Box>
-        ) : login.error ? (
-          <Box tone="bad" role="alert" title={login.error.message}>
-            {loginHint(login.error, t.auth.hints)}
-          </Box>
-        ) : expired && (
-          <Box tone="warn" role="status" title={t.auth.sessionExpired}>
-            {t.auth.signInAgain}
-          </Box>
-        )}
+        {notice}
         <Field label={t.auth.username}>
           {({ id }) => (
             <Input id={id} name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={!narrow} required />
