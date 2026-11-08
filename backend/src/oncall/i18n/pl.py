@@ -151,7 +151,7 @@ MESSAGES: dict[str, str] = {
         "wtedy numer przechodzi na kolejnego PRIMARY."
     ),
     "forwarding.handover_receiver_has_no_phone": (
-        "{name} nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie."
+        "{name} nie ma numeru telefonu w Moje dyżury. Poproś o jego uzupełnienie."
     ),
     "forwarding.handover_not_found": "To przekazanie numeru on-call już się zakończyło",
     # --- history import (oncall.domain.history, oncall.history_import) -------
