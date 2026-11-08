@@ -148,6 +148,7 @@ small, .small { font-size: 12px; line-height: 16px; }
 .seg button.on[data-tone='wn'] { background: var(--wn-bg); }
 .seg button.on[data-tone='ch'] { background: var(--ch-bg); }
 .seg-sm button { padding: 3px 8px; min-height: 24px; }
+.seg-wrap { flex-wrap: wrap; gap: 4px; border-radius: 14px; }
 /* A choice used as a form field is as wide as its options, not the field. */
 .field > .seg { justify-self: start; }
 /* A three-way choice in a side panel, which a phone leaves 320 px wide. */

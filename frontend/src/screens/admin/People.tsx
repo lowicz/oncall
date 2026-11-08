@@ -452,6 +452,7 @@ export function PeoplePanel() {
             />
             <Segmented
               size="sm"
+              wrap
               label={t.accounts}
               value={filter}
               onChange={setFilter}

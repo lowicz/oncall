@@ -236,5 +236,11 @@ describe('Segmented', () => {
     const group = screen.getByRole('radiogroup', { name: 'Motyw' })
     expect(group).toHaveClass('seg', 'x')
     expect(group).not.toHaveClass('seg-sm')
+    expect(group).not.toHaveClass('seg-wrap')
+  })
+
+  it('lets the options wrap onto further rows when asked', () => {
+    render(<Segmented label="Filtry" value="a" onChange={() => {}} options={[{ value: 'a', label: 'A' }]} wrap />)
+    expect(screen.getByRole('radiogroup', { name: 'Filtry' })).toHaveClass('seg', 'seg-wrap')
   })
 })

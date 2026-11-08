@@ -131,13 +131,12 @@ type Verdict = Pick<SwapOption, 'blocking_violations' | 'rule_violations' | 'war
  * exchange is seen before a rule is acknowledged. `own` are the broken rules
  * the choice adds itself, named before the ones every choice shares.
  */
-function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violations, selected, best, radioValue, selectedValue, navigation, onSelect }: {
+function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violations, best, radioValue, selectedValue, navigation, onSelect }: {
   no: ReactNode
   title: string
   detail?: string
   verdict: Verdict
   own?: RuleViolation[]
-  selected: boolean
   best?: boolean
   radioValue: string
   selectedValue: string
@@ -149,6 +148,7 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
   const breaks = blockedBy ? undefined : own?.[0]
   const bends = blockedBy || breaks ? undefined : verdict.warning_violations?.[0]
   const needsAcknowledgement = Boolean(verdict.rule_violations?.length)
+  const selected = radioValue === selectedValue
   const disabled = Boolean(navigation.find((item) => item.value === radioValue)?.disabled)
   const facts = [
     detail,
@@ -165,7 +165,7 @@ function ReturnChoice({ no, title, detail, verdict, own = verdict.rule_violation
       tabIndex={radioTabIndex(selectedValue, radioValue, navigation)}
       data-value={radioValue}
       className={cx('rank-c', best && 'rank-best', selected && 'rank-sel', blockedBy && 'rank-blocked')}
-      onClick={() => { if (!disabled && radioValue !== selectedValue) onSelect(radioValue) }}
+      onClick={() => { if (!disabled && !selected) onSelect(radioValue) }}
       onKeyDown={(event) => navigateRadioGroup(event, radioValue, navigation, onSelect)}
     >
       <span className="rank-no">{blockedBy ? '–' : no}</span>
@@ -930,7 +930,6 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                     no="–"
                     title={t.swaps.compose.nothingInReturn}
                     verdict={selectedOption}
-                    selected={!selectedReturn}
                     radioValue=""
                     selectedValue={selectedReturnValue}
                     navigation={returnNavigation}
@@ -947,7 +946,6 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
                           detail={`${roleList(way.slots)} · ${relativeDay(option.service_date)}`}
                           verdict={way}
                           own={ownRules(way)}
-                          selected={option === returnDay}
                           // The first exchange that spares the request an acknowledgement.
                           best={index === 0 && Boolean(selectedOption.rule_violations?.length) && option.rule_violations.length + option.blocking_violations.length === 0}
                           radioValue={wayKey(way)}

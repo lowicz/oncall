@@ -113,7 +113,7 @@ export interface SegmentOption<T extends string> extends RadioNavigationOption<T
  * radio group so arrow keys move between the options and a screen reader
  * announces the selected one.
  */
-export function Segmented<T extends string>({ value, onChange, options, label, describedBy, size = 'md', className }: {
+export function Segmented<T extends string>({ value, onChange, options, label, describedBy, size = 'md', wrap, className }: {
   value: T
   onChange: (value: T) => void
   options: SegmentOption<T>[]
@@ -122,10 +122,12 @@ export function Segmented<T extends string>({ value, onChange, options, label, d
   /** The id of the text that says what the choice means. */
   describedBy?: string
   size?: 'md' | 'sm'
+  /** Lets the options flow onto further rows on a narrow screen. */
+  wrap?: boolean
   className?: string
 }) {
   return (
-    <div className={cx('seg', size === 'sm' && 'seg-sm', className)} role="radiogroup" aria-label={label} aria-describedby={describedBy}>
+    <div className={cx('seg', size === 'sm' && 'seg-sm', wrap && 'seg-wrap', className)} role="radiogroup" aria-label={label} aria-describedby={describedBy}>
       {options.map((option) => (
         <button
           key={option.value}
