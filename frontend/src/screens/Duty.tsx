@@ -164,17 +164,18 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const primary = byRole('primary')
   const secondary = byRole('secondary')
   const held = heldNumber(useForwardingNow().data)
-  const own = (name: string | undefined) => hasTeamMember && name === displayName
-  let viewer: HandoverViewer = canCoordinate ? 'coordinator' : null
-  if (own(primary?.assignee_name)) viewer = 'primary'
-  else if (own(secondary?.assignee_name)) viewer = 'secondary'
+  // The pair of the duty day the number belongs to, which before the
+  // reminder hour is yesterday's, not the calendar day's `current`.
+  const pair = held?.pair ?? null
+  const viewer: HandoverViewer = pair && (pair.primary.is_you ? 'primary' : pair.secondary.is_you ? 'secondary' : 'coordinator')
   // Where the number rings and what the pair may do about it: in the header
   // on a desktop, on the reader's card in the pair on a phone.
   const numberPill = held && (
-    <NumberPill now={held} where={own(held.holder_name) ? t.duty.handover.atYou : t.duty.handover.at(held.holder_name)} />
+    <NumberPill now={held} where={hasTeamMember && held.holder_name === displayName ? t.duty.handover.atYou : t.duty.handover.at(held.holder_name)} />
   )
-  const handoverActions = held && viewer && primary && secondary && (
-    <HandoverActions now={held} primary={primary} secondary={secondary} viewer={viewer} />
+  const receiverPhone = pair && current.find((duty) => duty.assignee_name === pair.secondary.name && duty.contact_phone)?.contact_phone
+  const handoverActions = held && pair && viewer && (
+    <HandoverActions now={held} pair={pair} receiverPhone={receiverPhone ?? null} viewer={viewer} />
   )
   const numberRow = numberPill && <>{numberPill}{handoverActions}</>
   // Not `Boolean(schedule.data?.id)`: imported history is stored as a

@@ -69,8 +69,17 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
   const dayOff = schedule.data?.today_is_day_off ?? false
   const holiday = schedule.data?.today_holiday_name ?? null
   const held = heldNumber(useForwardingNow().data)
-  const pill = useMessages().duty.handover.pill
+  const handover = useMessages().duty.handover
   const belowWide = useBelowWide()
+  // In the slot of the role holding the number, also when the slot names
+  // the calendar day's person: before the reminder hour the number is still
+  // with yesterday's pair.
+  const slotPill = (role: AssignmentRole, name?: string) => held && held.holder_role === role && (
+    <>
+      {belowWide && <span className="now-break" />}
+      <NumberPill now={held} where={held.holder_name === name ? handover.pill : handover.at(held.holder_name)} />
+    </>
+  )
 
   return (
     <div className="now" role="region" aria-label={t.region}>
@@ -93,12 +102,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
                     {duty.contact_phone}
                   </a>
                 )}
-                {held && held.holder_role === role && held.holder_name === duty.assignee_name && (
-                  <>
-                    {belowWide && <span className="now-break" />}
-                    <NumberPill now={held} where={pill} />
-                  </>
-                )}
+                {slotPill(role, duty.assignee_name)}
                 <span className={cx('now-until', stale && 'now-stale')} title={stale && updated ? t.asOf(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })) : undefined}>
                   {stale && updated
                     ? t.asOfInline(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }))
@@ -113,6 +117,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
             ) : (
               <>
                 <span className={cx('now-who', notApplicable ? 'now-who-none' : 'now-gap')}>{notApplicable ? t.notApplicable : t.unstaffed}</span>
+                {slotPill(role)}
                 <span className="now-until">
                   {notApplicable ? (holiday ? t.holiday(holiday) : t.dayOff) : stale ? t.offline : ''}
                 </span>

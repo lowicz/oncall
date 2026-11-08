@@ -2279,6 +2279,16 @@
           "mode": {
             "$ref": "#/components/schemas/ForwardingMode"
           },
+          "pair": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoverPairResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "anyOf": [
               {
@@ -2299,7 +2309,8 @@
           "holder_role",
           "handover",
           "status",
-          "confirmed_at"
+          "confirmed_at",
+          "pair"
         ],
         "title": "ForwardingNowResponse",
         "type": "object"
@@ -2670,6 +2681,23 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HandoverPairResponse": {
+        "description": "The duty day's PRIMARY and SECONDARY, between whom the number is\nhanded over.",
+        "properties": {
+          "primary": {
+            "$ref": "#/components/schemas/PairMemberResponse"
+          },
+          "secondary": {
+            "$ref": "#/components/schemas/PairMemberResponse"
+          }
+        },
+        "required": [
+          "primary",
+          "secondary"
+        ],
+        "title": "HandoverPairResponse",
         "type": "object"
       },
       "HandoverRequest": {
@@ -3101,6 +3129,29 @@
           "ends_handover"
         ],
         "title": "OverrideCheckResponse",
+        "type": "object"
+      },
+      "PairMemberResponse": {
+        "properties": {
+          "has_phone": {
+            "title": "Has Phone",
+            "type": "boolean"
+          },
+          "is_you": {
+            "title": "Is You",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "is_you",
+          "has_phone"
+        ],
+        "title": "PairMemberResponse",
         "type": "object"
       },
       "PasswordLinkResponse": {

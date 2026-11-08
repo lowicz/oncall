@@ -126,6 +126,26 @@ class HandoverResponse(BaseModel):
     started_by_name: str | None
 
 
+class PairMemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    #: Whether the reader is this person.
+    is_you: bool
+    #: Whether a phone number is set; the number itself is never told here.
+    has_phone: bool
+
+
+class HandoverPairResponse(BaseModel):
+    """The duty day's PRIMARY and SECONDARY, between whom the number is
+    handed over."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    primary: PairMemberResponse
+    secondary: PairMemberResponse
+
+
 class ForwardingNowResponse(BaseModel):
     """Where the on-call number rings now: names and roles, never a number.
     Only `mode` is set while forwarding is off."""
@@ -142,3 +162,6 @@ class ForwardingNowResponse(BaseModel):
     handover: HandoverResponse | None
     status: SwitchStatus | None
     confirmed_at: datetime | None
+    #: The duty day's pair, only for either of them or a coordinator: the
+    #: ones who may hand the number over (D1).
+    pair: HandoverPairResponse | None

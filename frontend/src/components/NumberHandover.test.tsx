@@ -3,21 +3,15 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { expectNoAxeViolations } from '../test/axe'
 import { api } from '../api'
-import type { CurrentDuty, NumberHandover } from '../api'
+import type { HandoverPair, NumberHandover, PairMember } from '../api'
 import { HeldNumber, heldNumber, useForwardingNow } from '../hooks/useForwardingNow'
 import { HandoverActions, HandoverViewer, NumberPill } from './NumberHandover'
 
 // The suite clock is Thursday 2026-09-10, 09:00 in Warsaw (src/test/setup.ts);
 // the duty day ends at 09:00 the next morning.
-const duty = (over: Partial<CurrentDuty>): CurrentDuty => ({
-  role: 'primary', service_date: '2026-09-10', assignee_name: 'Anna Kowalska', member_id: 'm1',
-  contact_email: null, contact_phone: '+48 601 220 118',
-  coverage_starts_at: '19:00', coverage_ends_at: '09:00', is_day_off: false, is_override: false,
-  next_assignee_name: null, next_service_date: null,
-  ...over,
-})
-const ANNA = duty({})
-const MAREK = duty({ role: 'secondary', assignee_name: 'Marek Nowak', member_id: 'm2', contact_phone: '+48 602 345 678' })
+const side = (name: string, over: Partial<PairMember> = {}): PairMember => ({ name, is_you: false, has_phone: true, ...over })
+const PAIR: HandoverPair = { primary: side('Anna Kowalska'), secondary: side('Marek Nowak') }
+const MAREK_PHONE = '+48 602 345 678'
 
 const HANDOVER: NumberHandover = {
   id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
@@ -27,7 +21,7 @@ const HANDOVER: NumberHandover = {
 const held = (over: Partial<HeldNumber> = {}): HeldNumber => ({
   mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
   holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
-  handover: null, status: 'confirmed', confirmed_at: '2026-09-10T06:55:00Z',
+  handover: null, status: 'confirmed', confirmed_at: '2026-09-10T06:55:00Z', pair: PAIR,
   ...over,
 })
 const handedOver = (over: Partial<HeldNumber> = {}) =>
@@ -41,8 +35,9 @@ function pretendNarrow() {
   }))
 }
 
-const actions = (viewer: Exclude<HandoverViewer, null>, now = held(), secondary = MAREK) =>
-  renderScreen(<HandoverActions now={now} primary={ANNA} secondary={secondary} viewer={viewer} />)
+/** The receiver's phone as the reader's duty list shows it: none when they have none. */
+const actions = (viewer: Exclude<HandoverViewer, null>, now = held(), hasPhone = true, receiverPhone: string | null = hasPhone ? MAREK_PHONE : null) =>
+  renderScreen(<HandoverActions now={now} pair={{ ...PAIR, secondary: side('Marek Nowak', { has_phone: hasPhone }) }} receiverPhone={receiverPhone} viewer={viewer} />)
 
 /** The duration group of the open popover or sheet. */
 const durations = () => screen.getByRole('radiogroup', { name: 'Na jak długo' })
@@ -228,7 +223,7 @@ describe('handing the number over', () => {
 
   it('lets the SECONDARY take it, blocked with the reason while they have no phone number', async () => {
     const start = vi.spyOn(api, 'startHandover')
-    const { container } = actions('secondary', held({ mode: 'dry_run' }), { ...MAREK, contact_phone: null })
+    const { container } = actions('secondary', held({ mode: 'dry_run' }), false)
     fireEvent.click(screen.getByRole('button', { name: 'Przejmij numer…' }))
     const popover = await screen.findByRole('dialog', { name: 'Przejmij numer on-call' })
     expect(popover).toHaveTextContent('Odbierze Marek Nowak · SECONDARY')
@@ -243,8 +238,19 @@ describe('handing the number over', () => {
     await expectNoAxeViolations(container)
   })
 
+  it('names a receiver the duty list does not show without a link, and still lets the number go to their phone', async () => {
+    const start = vi.spyOn(api, 'startHandover').mockResolvedValue(HANDOVER)
+    actions('primary', held(), true, null)
+    fireEvent.click(screen.getByRole('button', { name: 'Przekaż numer…' }))
+    const popover = await screen.findByRole('dialog')
+    expect(popover).toHaveTextContent('Odbierze Marek Nowak · SECONDARY')
+    expect(within(popover).queryByRole('link')).not.toBeInTheDocument()
+    fireEvent.click(within(popover).getByRole('button', { name: 'Przekaż numer' }))
+    await waitFor(() => expect(start).toHaveBeenCalled())
+  })
+
   it('names the receiver without a phone number to a coordinator', async () => {
-    actions('coordinator', held(), { ...MAREK, contact_phone: null })
+    actions('coordinator', held(), false)
     fireEvent.click(screen.getByRole('button', { name: 'Przekaż numer…' }))
     expect(await screen.findByRole('dialog')).toHaveTextContent('Marek Nowak nie ma numeru telefonu w Moje. Poproś o jego uzupełnienie.')
   })
@@ -299,7 +305,7 @@ describe('ending a handover', () => {
       useForwardingNow()
       return null
     }
-    renderScreen(<><Probe /><HandoverActions now={handedOver({ status: 'failed', confirmed_at: null })} primary={ANNA} secondary={MAREK} viewer="primary" /></>)
+    renderScreen(<><Probe /><HandoverActions now={handedOver({ status: 'failed', confirmed_at: null })} pair={PAIR} receiverPhone={MAREK_PHONE} viewer="primary" /></>)
     await waitFor(() => expect(read).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('button', { name: 'Zakończ przekazanie' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Spróbuj ponownie' })).not.toBeInTheDocument()

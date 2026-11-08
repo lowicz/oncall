@@ -90,6 +90,7 @@ async def test_while_forwarding_is_off_nothing_can_be_handed_over_or_read(
         "handover": None,
         "status": None,
         "confirmed_at": None,
+        "pair": None,
     }
 
 
@@ -121,6 +122,7 @@ async def test_the_primary_hands_the_number_over_and_everyone_reads_where_it_rin
         "handover": None,
         "status": "switching",
         "confirmed_at": None,
+        "pair": None,
     }
     assert now.json()["handover"]["id"] == handover["id"]
     # No phone number ever: the duty cards show the ones the reader may see.
@@ -317,6 +319,29 @@ async def test_only_an_administrator_reads_who_started_the_handover(
     shared = (await guest.get(NOW)).json()
     assert shared["holder_name"] == "Marek Nowak"
     assert shared["handover"]["started_by_name"] is None
+
+
+async def test_only_the_pair_and_a_coordinator_read_the_pair(
+    client, db, pair, frozen_clock
+) -> None:
+    await _mode(db, ForwardingMode.live)
+    await create_user(db, "widz", role=UserRole.viewer)
+
+    async def pair_for(username):
+        await login(client, username)
+        return (await client.get(NOW)).json()["pair"]
+
+    def sides(anna_is_you: bool, marek_is_you: bool) -> dict:
+        return {
+            "primary": {"name": "Anna Kowalska", "is_you": anna_is_you, "has_phone": True},
+            "secondary": {"name": "Marek Nowak", "is_you": marek_is_you, "has_phone": True},
+        }
+
+    assert await pair_for("anna") == sides(anna_is_you=True, marek_is_you=False)
+    assert await pair_for("marek") == sides(anna_is_you=False, marek_is_you=True)
+    assert await pair_for("koordynator") == sides(anna_is_you=False, marek_is_you=False)
+    assert await pair_for("jan") is None
+    assert await pair_for("widz") is None
 
 
 async def test_the_correction_check_names_the_handover_it_would_end(

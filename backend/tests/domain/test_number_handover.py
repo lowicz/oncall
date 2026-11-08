@@ -23,7 +23,9 @@ from oncall.domain.forwarding.models import (
     ForwardingOutcome,
     ForwardingState,
     HandoverEnd,
+    HandoverPair,
     NumberHandover,
+    PairMember,
     SwitchStatus,
 )
 from oncall.domain.forwarding.ports import (
@@ -522,6 +524,7 @@ def _now_ports(
         contacts=_Contacts(phones, published=published),
         handovers=_Store(handover),
         state=_State(state or _state()),
+        team=_Team(),
     )
 
 
@@ -531,6 +534,10 @@ CONFIRMED_AT = NOW - timedelta(minutes=8)
 
 async def _now(audience: Audience = TEAM, **ports):
     return await forwarding_now(audience, _now_ports(**ports), now=NOW, reminder_hour=9)
+
+
+ANNA_READS = Audience(role=UserRole.member, account_id=ANNA_USER)
+COORDINATOR = Audience(role=UserRole.coordinator, account_id=OTHER_USER)
 
 
 async def test_while_forwarding_is_off_nothing_but_the_mode_is_told() -> None:
@@ -645,3 +652,53 @@ async def test_a_dry_run_counts_as_confirmed_once_the_pass_recorded_it() -> None
 
     assert before.status is SwitchStatus.switching
     assert (recorded.status, recorded.confirmed_at) == (SwitchStatus.confirmed, CONFIRMED_AT)
+
+
+# --- the pair the handover controls act for ----------------------------------
+
+
+def _sides(anna_is_you: bool, marek_is_you: bool, marek_has_phone: bool = True) -> HandoverPair:
+    return HandoverPair(
+        PairMember("Anna Kowalska", is_you=anna_is_you, has_phone=True),
+        PairMember("Marek Nowak", is_you=marek_is_you, has_phone=marek_has_phone),
+    )
+
+
+async def test_the_pair_is_told_to_either_of_it_and_to_a_coordinator_only() -> None:
+    marek = Audience(role=UserRole.member, account_id=MAREK_USER)
+    share = Audience(role=UserRole.viewer, share_range=(DAY, DAY))
+
+    assert (await _now(ANNA_READS)).pair == _sides(anna_is_you=True, marek_is_you=False)
+    assert (await _now(marek)).pair == _sides(anna_is_you=False, marek_is_you=True)
+    assert (await _now(COORDINATOR)).pair == _sides(anna_is_you=False, marek_is_you=False)
+    assert (await _now(TEAM)).pair is None
+    assert (await _now(Audience(role=UserRole.viewer, account_id=OTHER_USER))).pair is None
+    assert (await _now(share)).pair is None
+
+
+async def test_the_pair_tells_whether_the_receiver_has_a_phone_never_the_number() -> None:
+    now = await _now(COORDINATOR, phones={ANNA: PHONES[ANNA]})
+
+    assert now.pair == _sides(anna_is_you=False, marek_is_you=False, marek_has_phone=False)
+    assert "+48" not in repr(now.pair)
+
+
+async def test_a_day_without_a_whole_pair_of_members_tells_no_pair() -> None:
+    for duties in (_pair(primary=...), _pair(secondary=...), _pair(secondary=None)):
+        assert (await _now(COORDINATOR, duties=duties)).pair is None
+
+
+async def test_before_the_reminder_hour_the_pair_is_the_previous_days() -> None:
+    """At 02:00 the number is still with yesterday's pair, whatever the
+    calendar day's duties say: the handover controls act for them."""
+    night = datetime(2026, 3, 11, 2, 0, tzinfo=WARSAW)
+    next_day = DAY + timedelta(days=1)
+    duties = _pair() | {
+        (next_day, AssignmentRole.primary): _duty(AssignmentRole.primary, JAN, next_day),
+        (next_day, AssignmentRole.secondary): _duty(AssignmentRole.secondary, ANNA, next_day),
+    }
+
+    now = await forwarding_now(ANNA_READS, _now_ports(duties=duties), now=night, reminder_hour=9)
+
+    assert (now.day, now.holder_name) == (DAY, "Anna Kowalska")
+    assert now.pair == _sides(anna_is_you=True, marek_is_you=False)

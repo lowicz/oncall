@@ -1,6 +1,6 @@
 import { FormEvent, useId, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { CurrentDuty, api } from '../api'
+import { HandoverPair, api } from '../api'
 import { FORWARDING_NOW_KEY, HeldNumber } from '../hooks/useForwardingNow'
 import { usePublicConfig } from '../hooks/usePublicConfig'
 import { useNarrow } from '../hooks/useMediaQuery'
@@ -65,10 +65,10 @@ const hhmm = (moment: Date) => formatClock(moment, moment)
  * bounded by the end of the duty day (D3), the effect as a sentence, and one
  * button; the receiver without a phone number blocks it with the reason.
  */
-function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block }: Readonly<{
+function HandoverForm({ now, pair, receiverPhone, viewer, onDone, onCancel, block }: Readonly<{
   now: HeldNumber
-  primary: CurrentDuty
-  secondary: CurrentDuty
+  pair: HandoverPair
+  receiverPhone: string | null
   viewer: HandoverViewer
   onDone: () => void
   onCancel?: () => void
@@ -109,8 +109,8 @@ function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block
       onDone()
     },
   })
-  const phone = secondary.contact_phone
-  const blocked = !phone || !fits
+  const { primary, secondary } = pair
+  const blocked = !secondary.has_phone || !fits
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!blocked) start.mutate(until)
@@ -119,8 +119,8 @@ function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block
   return (
     <form className="stack-sm handover-form" onSubmit={submit}>
       <p>
-        {t.receiver} <b>{secondary.assignee_name}</b> · {roleLabels().secondary}
-        {phone && <> · <a className="mono handover-tel" href={`tel:${phone.replace(/\s+/g, '')}`}>{phone.replace(/ /g, ' ')}</a></>}
+        {t.receiver} <b>{secondary.name}</b> · {roleLabels().secondary}
+        {receiverPhone && <> · <a className="mono handover-tel" href={`tel:${receiverPhone.replace(/\s+/g, '')}`}>{receiverPhone.replace(/ /g, ' ')}</a></>}
       </p>
       <Field label={t.duration} hint={t.latestHint(latestClock)}>
         {({ labelId, describedBy }) => (
@@ -159,11 +159,11 @@ function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block
       )}
       {fits && (
         <p className="handover-result">
-          {viewer === 'primary' ? t.returnsToYou(formatClock(until)) : t.returnsTo(primary.assignee_name, formatClock(until))}
+          {viewer === 'primary' ? t.returnsToYou(formatClock(until)) : t.returnsTo(primary.name, formatClock(until))}
         </p>
       )}
       {now.mode === 'dry_run' && <p className="muted small">{t.dryRun}</p>}
-      {!phone && <div id={`${id}-reason`}><Box tone="warn" title={taking ? t.noPhoneYou : t.noPhone(secondary.assignee_name)} /></div>}
+      {!secondary.has_phone && <div id={`${id}-reason`}><Box tone="warn" title={taking ? t.noPhoneYou : t.noPhone(secondary.name)} /></div>}
       {start.error && <Box tone="bad" role="alert" title={start.error.message} />}
       <div className="row handover-actions">
         {onCancel && <Button variant="ghost" onClick={onCancel}>{common.cancel}</Button>}
@@ -174,7 +174,7 @@ function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block
           block={block}
           loading={start.isPending}
           aria-disabled={blocked || undefined}
-          aria-describedby={phone ? undefined : `${id}-reason`}
+          aria-describedby={secondary.has_phone ? undefined : `${id}-reason`}
         >
           {taking ? t.takeSubmit : t.handSubmit}
         </Button>
@@ -189,10 +189,12 @@ function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block
  * informing toast and no Undo, since starting again is one click (PT-25).
  * While the switch failed they may also try again or end the handover.
  */
-export function HandoverActions({ now, primary, secondary, viewer }: Readonly<{
+export function HandoverActions({ now, pair, receiverPhone, viewer }: Readonly<{
   now: HeldNumber
-  primary: CurrentDuty
-  secondary: CurrentDuty
+  /** The duty day's pair from where the number rings, not the calendar day's duties. */
+  pair: HandoverPair
+  /** The receiver's number where the reader's duty list shows it, for the form's tel link. */
+  receiverPhone: string | null
   viewer: Exclude<HandoverViewer, null>
 }>) {
   const t = useMessages().duty.handover
@@ -206,7 +208,7 @@ export function HandoverActions({ now, primary, secondary, viewer }: Readonly<{
   const end = useMutation({
     mutationFn: (id: string) => api.endHandover(id),
     onSuccess: () => {
-      toast.info(viewer === 'primary' ? t.endedYou : t.ended(primary.assignee_name))
+      toast.info(viewer === 'primary' ? t.endedYou : t.ended(pair.primary.name))
       refresh()
     },
     onError: (error) => toast.error(error.message),
@@ -229,7 +231,7 @@ export function HandoverActions({ now, primary, secondary, viewer }: Readonly<{
   const title = taking ? t.takeTitle : t.handTitle
   const label = taking ? t.take : t.hand
   const form = (props: { onCancel?: () => void; block?: boolean }) => (
-    <HandoverForm now={now} primary={primary} secondary={secondary} viewer={viewer} onDone={() => setOpen(false)} {...props} />
+    <HandoverForm now={now} pair={pair} receiverPhone={receiverPhone} viewer={viewer} onDone={() => setOpen(false)} {...props} />
   )
   if (narrow) {
     return (

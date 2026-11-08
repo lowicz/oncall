@@ -202,7 +202,7 @@ describe('NowStrip', () => {
         id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
         starts_at: '2026-09-10T07:00:00Z', until: '2026-09-10T11:40:00Z', started_by_name: 'Anna Kowalska',
       },
-      status: 'switching', confirmed_at: null,
+      status: 'switching', confirmed_at: null, pair: null,
     })
     renderScreen(<NowStrip />)
 
@@ -228,7 +228,7 @@ describe('NowStrip', () => {
     vi.spyOn(api, 'forwardingNow').mockResolvedValue({
       mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
       holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
-      handover: null, status: 'confirmed', confirmed_at: '2026-09-10T07:00:00Z',
+      handover: null, status: 'confirmed', confirmed_at: '2026-09-10T07:00:00Z', pair: null,
     })
     renderScreen(<NowStrip />)
 
@@ -242,11 +242,45 @@ describe('NowStrip', () => {
     expect(children.indexOf(pill)).toBeGreaterThan(breakAt)
   })
 
+  it('keeps the pill in the slot of the role holding the number before the reminder hour, naming yesterday\'s holder', async () => {
+    // 02:00 on Friday: the strip shows Friday's pair, the number is still with Thursday's.
+    vi.setSystemTime(new Date('2026-09-11T02:00:00+02:00'))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
+      duty({ service_date: '2026-09-11', assignee_name: 'Jan Wiśniewski', member_id: 'm3', contact_phone: '+48 603 456 789' }),
+    ]))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+      handover: {
+        id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+        starts_at: '2026-09-10T22:00:00Z', until: '2026-09-11T05:00:00Z', started_by_name: null,
+      },
+      status: 'confirmed', confirmed_at: '2026-09-10T22:01:00Z', pair: null,
+    })
+    const { unmount } = renderScreen(<NowStrip />)
+
+    const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
+    const atMarek = await within(strip).findByRole('button', { name: 'numer on-call: Marek Nowak · do 07:00' })
+    expect(atMarek.closest('.now-slot')).toHaveAttribute('data-role', 'secondary')
+    expect(atMarek.closest('.now-slot')).toHaveTextContent('brak obsady')
+    unmount()
+
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+      handover: null, status: 'confirmed', confirmed_at: '2026-09-10T07:00:00Z', pair: null,
+    })
+    renderScreen(<NowStrip />)
+    const atAnna = await screen.findByRole('button', { name: 'numer on-call: Anna Kowalska' })
+    expect(atAnna.closest('.now-slot')).toHaveAttribute('data-role', 'primary')
+    expect(atAnna.closest('.now-slot')).toHaveTextContent('Jan Wiśniewski')
+  })
+
   it('shows no pill while forwarding is off', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({})]))
     const now = vi.spyOn(api, 'forwardingNow').mockResolvedValue({
       mode: 'off', day: null, day_ends_at: null, holder_member_id: null, holder_name: null, holder_role: null,
-      handover: null, status: null, confirmed_at: null,
+      handover: null, status: null, confirmed_at: null, pair: null,
     })
     renderScreen(<NowStrip />)
     await screen.findByText('Anna Kowalska')

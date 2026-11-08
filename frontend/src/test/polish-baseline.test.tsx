@@ -329,12 +329,16 @@ const AUDIT: AuditEvent[] = [
 /** Forwarding off: no pill, no handover action (D5). */
 const FORWARDING_OFF: ForwardingNow = {
   mode: 'off', day: null, day_ends_at: null, holder_member_id: null, holder_name: null, holder_role: null,
-  handover: null, status: null, confirmed_at: null,
+  handover: null, status: null, confirmed_at: null, pair: null,
 }
 const FORWARDING_AT_ANNA: ForwardingNow = {
   mode: 'live', day: TODAY, day_ends_at: '2026-09-11T09:00:00+02:00',
   holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
   handover: null, status: 'confirmed', confirmed_at: '2026-09-10T06:55:00Z',
+  pair: {
+    primary: { name: 'Anna Kowalska', is_you: true, has_phone: true },
+    secondary: { name: 'Marek Nowak', is_you: false, has_phone: false },
+  },
 }
 
 const CONFIG = { ldap_enabled: true, app_name: 'On-call', app_subtitle: 'Zespół infrastruktury', version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false }
@@ -552,6 +556,10 @@ describe('the Polish interface', () => {
     pretendNarrow()
     vi.spyOn(api, 'forwardingNow').mockResolvedValue({
       ...FORWARDING_AT_ANNA, holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+      pair: {
+        primary: { name: 'Anna Kowalska', is_you: false, has_phone: true },
+        secondary: { name: 'Marek Nowak', is_you: true, has_phone: true },
+      },
       handover: {
         id: 'h1', day: TODAY, from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
         starts_at: '2026-09-10T07:00:00Z', until: '2026-09-10T09:00:00Z', started_by_name: 'Anna Kowalska',

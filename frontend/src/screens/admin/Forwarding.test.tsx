@@ -243,7 +243,7 @@ describe('ForwardingPanel and a number handover', () => {
       id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
       starts_at: '2026-09-10T09:40:00Z', until: '2026-09-10T11:40:00Z', started_by_name: startedBy,
     },
-    status: 'confirmed', confirmed_at: '2026-09-10T09:41:00Z',
+    status: 'confirmed', confirmed_at: '2026-09-10T09:41:00Z', pair: null,
   })
 
   it('shows the open handover on the state card and ends it at once, without a dialog', async () => {

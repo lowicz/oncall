@@ -536,6 +536,20 @@ export type SwitchStatus = 'confirmed' | 'switching' | 'failed'
 
 /** Where the on-call number rings now, for every role and share link: names
  *  and roles, never a number. Only `mode` is set while forwarding is off. */
+/** One side of the duty day's pair: whether a phone number is set, never the number. */
+export interface PairMember {
+  name: string
+  /** Whether the reader is this person. */
+  is_you: boolean
+  has_phone: boolean
+}
+
+/** The duty day's PRIMARY and SECONDARY, between whom the number is handed over. */
+export interface HandoverPair {
+  primary: PairMember
+  secondary: PairMember
+}
+
 export interface ForwardingNow {
   mode: ForwardingMode
   day: string | null
@@ -547,6 +561,12 @@ export interface ForwardingNow {
   handover: NumberHandover | null
   status: SwitchStatus | null
   confirmed_at: string | null
+  /**
+   * The duty day's pair, which before the reminder hour is the previous
+   * calendar day's; only for either of them or a coordinator, who may hand
+   * the number over (D1).
+   */
+  pair: HandoverPair | null
 }
 
 export type ConnectionTestOutcome = 'ok' | 'password_expired' | 'login_refused' | 'connection' | 'configuration'
