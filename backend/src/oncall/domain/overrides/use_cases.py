@@ -294,7 +294,8 @@ def _swaps_roles(plan: _BatchPlan, lines: Sequence[BatchOverrideLine]) -> bool:
     taker_second = plan.replacements[second.replacement_member_id]
     return (
         first.service_date == second.service_date
-        and {first.role, second.role} == {AssignmentRole.primary, AssignmentRole.secondary}
+        and first.role != second.role
+        and AssignmentRole.late_shift not in (first.role, second.role)
         and held_first.held_by(taker_second.id, taker_second.display_name)
         and held_second.held_by(taker_first.id, taker_first.display_name)
     )
