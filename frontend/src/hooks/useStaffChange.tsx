@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, api } from '../api'
-import { usePublicConfig } from './usePublicConfig'
+import { useUndoable } from './useUndoable'
 import { messages, useMessages } from '../i18n'
-import { StaffChange, StaffingCandidate, lateShiftLink, staffChanges, staffingCandidates } from '../lib/calendar'
+import { StaffChange, StaffingCandidate, lateShiftLink, slotOf, staffChanges, staffingCandidates } from '../lib/calendar'
 import { formatShortDate, warsawDate } from '../lib/dates'
 import { availabilityLabels, roleLabels } from '../lib/labels'
-import { undoable } from '../lib/undo'
 import { Button, Checkbox, Field, Fieldset, Input, Select, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
 import { StaffChangeImpact, StaffChangePreview } from '../components/StaffChangePreview'
@@ -15,8 +14,6 @@ type OnCall = 'primary' | 'secondary'
 
 const MIN_REASON_LENGTH = 10
 const FORM_ID = 'staff-change-form'
-/** The server's Undo window when `/api/v1/config` has not answered yet. */
-const DEFAULT_UNDO_SECONDS = 10
 
 /** The roles in the order a day reads them, PRIMARY or SECONDARY first. */
 function rolesOf(onCall: OnCall | null, late: boolean): AssignmentRole[] {
@@ -59,7 +56,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
 }) {
   const queryClient = useQueryClient()
   const toast = useToast()
-  const config = usePublicConfig()
+  const undoable = useUndoable()
   const { schedule, common } = useMessages()
   const t = schedule.staffChange
   // The day as the latest payload has it: it may leave the publication while
@@ -166,15 +163,11 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
           })
           refresh()
         },
-        toast,
         message: () => ({
           title,
           description: [schedule.toast.emailsLater(people), audited].filter(Boolean).join(' '),
           expired: common.undoEmailsSent,
         }),
-        undoLabel: schedule.toast.undo,
-        onUndoError: (error) => toast.error(schedule.toast.undoFailed, { description: (error as Error).message }),
-        windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_SECONDS,
       })
     },
     onSuccess: () => {
@@ -196,7 +189,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
     || ((violations?.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
 
-  const lateSlot = data?.assignments.find((item) => item.service_date === serviceDate && item.role === 'late_shift')
+  const lateSlot = data && serviceDate ? slotOf(data, serviceDate, 'late_shift') : undefined
   const anchorLabel = link && roleLabels()[link.anchor]
   let lateNote = t.unstaffed
   if (link?.coupled) lateNote = t.withAnchor(anchorLabel!)

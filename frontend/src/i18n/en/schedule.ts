@@ -156,8 +156,6 @@ export const schedule: Messages['schedule'] = {
     emailsLater: (count: number) => count === 2
       ? 'The e-mails to both people go out once “Undo” closes.'
       : `The e-mails to ${count} people go out once “Undo” closes.`,
-    undo: 'Undo',
-    undoFailed: 'Could not undo the staffing change',
   },
   staffChange: {
     title: 'Staffing change',

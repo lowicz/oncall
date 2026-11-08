@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
+from oncall.domain.swaps.models import SwapImpactSide
 from oncall.domain.team import Actor
 from oncall.domain.vocabulary import AssignmentRole
-from oncall.fairness import MemberBalance
 from oncall.rules import RuleViolation
 
 #: How the audit trail names a slot that had nobody in it.
@@ -104,16 +104,6 @@ class DutyOverridden:
 
 
 @dataclass(frozen=True)
-class BalanceChange:
-    """One person's balance before and after a correction."""
-
-    member_id: uuid.UUID
-    display_name: str
-    before: MemberBalance
-    after: MemberBalance
-
-
-@dataclass(frozen=True)
 class CorrectionImpact:
     """What a correction does to the balance of everybody it moves a slot
     from or to, in the fairness report's window."""
@@ -124,4 +114,4 @@ class CorrectionImpact:
     window_start: date
     window_end: date
     #: The people taking slots first, then the people giving them up.
-    members: list[BalanceChange]
+    members: list[SwapImpactSide]

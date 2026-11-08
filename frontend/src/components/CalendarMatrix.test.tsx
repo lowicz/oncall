@@ -1535,7 +1535,7 @@ describe('CalendarMatrix roles to change (P7)', () => {
     // One holder gave both: the e-mail goes to the two people.
     expect(await screen.findByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
-    expect(await screen.findByText('Nie udało się cofnąć zmiany obsady')).toBeInTheDocument()
+    expect(await screen.findByText('Nie udało się cofnąć')).toBeInTheDocument()
     expect(screen.getByText('Grafik zmienił wersję')).toBeInTheDocument()
   })
 

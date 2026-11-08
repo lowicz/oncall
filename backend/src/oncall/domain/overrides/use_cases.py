@@ -29,7 +29,6 @@ from oncall.domain.overrides.models import (
     MIN_REASON_LENGTH,
     UNSTAFFED,
     AssignmentChange,
-    BalanceChange,
     BatchOverrideCheck,
     BatchOverrideInput,
     BatchOverrideKind,
@@ -43,6 +42,7 @@ from oncall.domain.overrides.models import (
 from oncall.domain.overrides.ports import OverridePorts
 from oncall.domain.ports import PublishedRoster
 from oncall.domain.roster import OPPOSITE_ONCALL, Duty, ScheduleRef, anchor_role
+from oncall.domain.swaps.models import SwapImpactSide
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor
 from oncall.fairness import FairnessDuty, compute_fairness, day_weight, reassign, window
@@ -422,7 +422,7 @@ async def preview_batch_impact(check: BatchOverrideCheck, ports: OverridePorts) 
         window_start=window_start,
         window_end=window_end,
         members=[
-            BalanceChange(
+            SwapImpactSide(
                 member_id, before[member_id].display_name, before[member_id], after[member_id]
             )
             for member_id in dict.fromkeys([*takers, *giver_ids])

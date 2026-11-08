@@ -169,8 +169,6 @@ export const schedule = {
     emailsLater: (count: number) => count === 2
       ? 'E-maile do obu osób wyjdą po zamknięciu „Cofnij”.'
       : `E-maile do ${count} osób wyjdą po zamknięciu „Cofnij”.`,
-    undo: 'Cofnij',
-    undoFailed: 'Nie udało się cofnąć zmiany obsady',
   },
   /** The roles of one day handed over in one correction (P7). */
   staffChange: {

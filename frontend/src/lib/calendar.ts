@@ -131,6 +131,11 @@ export function memberGroup(
 
 export const memberGroupLabels = (): Record<Exclude<MemberGroup, 'you'>, string> => messages().calendar.memberGroups
 
+/** Who holds `role` on `serviceDate`, if anybody. */
+export function slotOf(data: Pick<CalendarData, 'assignments'>, serviceDate: string, role: AssignmentRole) {
+  return data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+}
+
 export function isCurrentAssignee(
   member: CalendarData['members'][number],
   assignment: CalendarData['assignments'][number] | undefined,
@@ -199,8 +204,6 @@ export function staffingCandidates(
   serviceDate: string,
   roles: AssignmentRole[],
 ): StaffingCandidate[] {
-  const slotOf = (role: AssignmentRole) =>
-    data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
   // A correction never holds both on-call roles, so the other one is kept.
   const kept = roles.flatMap((role): AssignmentRole[] =>
     role === 'primary' ? ['secondary'] : role === 'secondary' ? ['primary'] : [])
@@ -216,13 +219,13 @@ export function staffingCandidates(
           && item.starts_on <= serviceDate
           && item.ends_on >= serviceDate,
       )?.kind
-      const holds = roles.filter((role) => isCurrentAssignee(member, slotOf(role)))
+      const holds = roles.filter((role) => isCurrentAssignee(member, slotOf(data, serviceDate, role)))
       const notEligible = roles.filter((role) => !holds.includes(role) && !isEligible(member, role, serviceDate))
       const takes = roles.length - holds.length - notEligible.length
       let disabledReason: string | undefined
       if (takes === 0) disabledReason = holds.length > 0 ? reasons.alreadyHoldsRole : reasons.notEligible
       else if (availability === 'unavailable') disabledReason = reasons.unavailable
-      else if (kept.some((role) => isCurrentAssignee(member, slotOf(role)))) disabledReason = reasons.otherOnCall
+      else if (kept.some((role) => isCurrentAssignee(member, slotOf(data, serviceDate, role)))) disabledReason = reasons.otherOnCall
       const partial = !disabledReason && takes < roles.length ? { notEligible, holds } : undefined
       return {
         id: member.id,
@@ -255,10 +258,8 @@ export interface LateShiftLink {
 export function lateShiftLink(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): LateShiftLink | null {
   const day = data.days.find((item) => item.service_date === serviceDate)
   if (anchor === 'independent' || !day || day.is_day_off) return null
-  const slotOf = (role: AssignmentRole) =>
-    data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
-  const late = slotOf('late_shift')
-  const anchored = slotOf(anchor)
+  const late = slotOf(data, serviceDate, 'late_shift')
+  const anchored = slotOf(data, serviceDate, anchor)
   if (!late || !anchored) return null
   return { anchor, coupled: sameHolder(anchored, late), holder: late.assignee_name, anchorHolder: anchored.assignee_name }
 }
@@ -277,7 +278,7 @@ export interface StaffChange {
  *  the order of the roles. */
 export function staffChanges(data: CalendarData, serviceDate: string, roles: AssignmentRole[]): StaffChange[] {
   return roles.map((role) => {
-    const slot = data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+    const slot = slotOf(data, serviceDate, role)
     const holder = slot && data.members.find((member) => isCurrentAssignee(member, slot))
     const restorable = holder && isEligible(holder, role, serviceDate) && !isUnavailable(data, holder.id, serviceDate)
     return { role, from: slot?.assignee_name ?? null, restoreTo: restorable ? holder.id : null }
@@ -343,7 +344,7 @@ export interface RoleSwap {
  *  one person holds both, or a holder is not a team member. */
 export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): RoleSwap | null {
   const memberOf = (role: AssignmentRole) => {
-    const slot = data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+    const slot = slotOf(data, serviceDate, role)
     return slot && data.members.find((item) => isCurrentAssignee(item, slot))
   }
   const holder = (member: CalendarData['members'][number] | undefined): SwapHolder | null =>

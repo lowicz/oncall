@@ -9,12 +9,11 @@ from oncall.domain.clock import business_today
 from oncall.domain.forwarding.models import NumberHandover
 from oncall.domain.overrides.models import BatchOverrideKind, CorrectionImpact, DutyOverridden
 from oncall.domain.vocabulary import AssignmentRole
-from oncall.fairness_data import member_response
 from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.forwarding import HandoverResponse
 from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
-from oncall.presentation.swaps import SwapImpactMemberResponse
+from oncall.presentation.swaps import SwapImpactMemberResponse, impact_side_response
 from oncall.rules import RuleViolation
 
 
@@ -126,15 +125,7 @@ def correction_impact_response(impact: CorrectionImpact) -> CorrectionImpactResp
         points=impact.points,
         window_start=impact.window_start,
         window_end=impact.window_end,
-        members=[
-            SwapImpactMemberResponse(
-                member_id=item.member_id,
-                display_name=item.display_name,
-                before=member_response(item.before),
-                after=member_response(item.after),
-            )
-            for item in impact.members
-        ],
+        members=[impact_side_response(item) for item in impact.members],
     )
 
 
