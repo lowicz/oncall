@@ -131,6 +131,26 @@ From this panel:
   save the panel closes and a notification says what changed and who gets
   an e-mail (“Staffing changed 14 Nov · PRIMARY: Anna Kowalska → Jan
   Nowak”); its **Open day** button opens that day's panel again,
+- a **coordinator and an administrator** can swap the people on PRIMARY and
+  SECONDARY of that day in one move, without corrections through a third
+  person. The **Swap places…** button sits between the PRIMARY and SECONDARY
+  rows when the two roles have different people, and opens a “Swapping
+  places” frame in the panel: a row-by-row preview (who moves to which role),
+  the rule line checked on the state after the swap and the effect on both
+  people's points balance. When one of them is not eligible for the other's
+  role that day or is marked unavailable on it, the frame says so under that
+  row and the swap cannot be saved. If the policy binds 11–19 to the role
+  given up by the person who also holds 11–19, the frame has a “together with SECONDARY”
+  (or “together with PRIMARY”) box, ticked exactly when the other person is
+  eligible for 11–19, with one sentence saying why. Unticking it leaves
+  11–19 unchanged and shows the coupling rule for a knowing
+  acknowledgement. A reason is needed only for a day that has already passed
+  (a field in the frame, at least 10 characters). **Swap places** saves the
+  swap as one schedule change with one audit entry (“Swapped the day's roles”);
+  both people get a “Zamiana ról” e-mail once the “Undo” window closes. The
+  message after the save has an **Undo** button, and for the same time the
+  panel shows **Undo the swap** in place of “Swap places…”; undoing restores
+  the previous staffing and the e-mails do not go out,
 - a **coordinator and an administrator** can open a separate window with
   **Event…** and add a calendar event on that day there; the day panel waits
   underneath and shows the new event once it is saved. An event is deleted

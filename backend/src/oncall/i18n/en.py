@@ -192,6 +192,14 @@ MESSAGES: dict[str, str] = {
     "overrides.batch_correction_needs_reason": (
         "A batch correction requires a reason (at least 10 characters)"
     ),
+    "overrides.late_shift_not_coupled": (
+        "11–19 can only move with the role the policy binds it to, from the person"
+        " who holds both, to a person eligible for 11–19"
+    ),
+    "overrides.not_a_role_swap": (
+        "Swapping places covers PRIMARY and SECONDARY of one day,"
+        " each handed to the holder of the other role"
+    ),
     "overrides.rule_violations_not_acknowledged": (
         "The correction would break the schedule's hard rules; confirm the deliberate violation"
     ),

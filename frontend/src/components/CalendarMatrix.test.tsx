@@ -1461,3 +1461,325 @@ describe('CalendarMatrix events', () => {
     expect(api.calendar).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('CalendarMatrix role swap (P6)', () => {
+  /** Anna PRIMARY and Marek SECONDARY every day; Marek also has 11–19 on Thursday 10-09 (today). */
+  const pairWeek = (over: Partial<CalendarData> = {}) => week({
+    assignments: [...covered(), duty('2026-09-10', 'late_shift', 'Marek Nowak', 'm2'), duty('2026-09-08', 'late_shift', 'Marek Nowak', 'm2')],
+    ...over,
+  })
+  const swapImpact = (): SwapImpact => ({ ...impactFor('Anna Kowalska', 'Marek Nowak'), service_date: '2026-09-10', return_date: '2026-09-10', return_points: 1 })
+  const openDay = async (cell: RegExp) => {
+    fireEvent.click((await screen.findAllByRole('button', { name: cell }))[0])
+    return screen.findByRole('dialog')
+  }
+  const trigger = (dialog: HTMLElement) =>
+    within(dialog).getByRole('button', { name: 'Zamień miejscami: Anna Kowalska na SECONDARY, Marek Nowak na PRIMARY' })
+  const swapButton = (dialog: HTMLElement) => within(dialog).getByRole('button', { name: 'Zamień miejscami' })
+  const THURSDAY = /^Anna Kowalska, czw 10-09-2026/
+  const swapLines = (late: boolean) => [
+    { service_date: '2026-09-10', role: 'primary', replacement_member_id: 'm2', with_late_shift: false },
+    { service_date: '2026-09-10', role: 'secondary', replacement_member_id: 'm1', with_late_shift: late },
+  ]
+
+  it('previews, saves without a dialog and undoes from the panel', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'publicConfig').mockResolvedValue({ undo_window_seconds: 12 } as never)
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    const impact = vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+
+    const open = trigger(dialog)
+    expect(open).toHaveTextContent('Zamień miejscami…')
+    expect(open).toHaveAttribute('aria-expanded', 'false')
+    expect(open).toHaveAttribute('aria-controls', 'role-swap-frame')
+    fireEvent.click(open)
+    expect(open).toHaveAttribute('aria-expanded', 'true')
+
+    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+    expect(frame).toHaveAttribute('id', 'role-swap-frame')
+    expect(frame).toHaveTextContent('PAnna Kowalska → Marek Nowak')
+    expect(frame).toHaveTextContent('SMarek Nowak → Anna Kowalska')
+    expect(frame).toHaveTextContent('11–19Marek Nowak → Anna Kowalska')
+    expect(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ })).toBeChecked()
+    expect(frame).toHaveTextContent('Polityka wiąże 11–19 z SECONDARY, a Anna Kowalska ma do niej uprawnienia.')
+    expect(within(frame).queryByRole('textbox')).not.toBeInTheDocument()
+    // The rows the swap moves are lit while the frame is open.
+    for (const name of ['PRIMARY: Anna Kowalska. Zmień obsadę', 'SECONDARY: Marek Nowak. Zmień obsadę', '11–19: Marek Nowak. Zmień obsadę']) {
+      expect(within(dialog).getByRole('button', { name })).toHaveClass('role-row-sel')
+    }
+
+    await within(frame).findByText('Bez naruszeń reguł twardych')
+    expect(check).toHaveBeenCalledWith({ batches: [{ schedule_id: 's1', assignments: swapLines(true) }] })
+    expect(impact).toHaveBeenCalledWith('2026-09-10', 'primary', 'm2', {
+      inReturn: { service_date: '2026-09-10', role: 'secondary' }, scope: 'single', returnScope: undefined, correction: false,
+    })
+    expect(await within(frame).findByText(/Anna Kowalska · PRIMARY → SECONDARY i 11–19/)).toBeInTheDocument()
+    expect(within(frame).getByText(/Marek Nowak · SECONDARY i 11–19 → PRIMARY/)).toBeInTheDocument()
+    // One day, so its worth is said once.
+    expect(within(frame).getAllByText(/czw 10-09-2026 to 1 punkt/)).toHaveLength(1)
+
+    fireEvent.click(swapButton(dialog))
+    await waitFor(() => expect(save).toHaveBeenCalledWith({
+      schedule_id: 's1', expected_version: 4, kind: 'role_swap', assignments: swapLines(true),
+      reason: undefined, acknowledge_rule_violations: false,
+    }))
+    expect(await screen.findByText('Zamieniono miejscami czw 10-09-2026: Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19')).toBeInTheDocument()
+    expect(screen.getByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
+    await waitFor(() => expect(within(dialog).queryByRole('region', { name: 'Zamiana miejscami' })).not.toBeInTheDocument())
+
+    // The panel offers the same Undo as the toast.
+    const undo = within(dialog).getByRole('button', { name: 'Cofnij zamianę: Anna Kowalska PRIMARY, Marek Nowak SECONDARY i 11–19' })
+    expect(undo).toHaveTextContent('Cofnij zamianę')
+    fireEvent.click(undo)
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(save.mock.calls[1][0]).toEqual({
+      schedule_id: 's1', expected_version: 5, kind: 'role_swap', reason: undefined, acknowledge_rule_violations: true,
+      assignments: [
+        { service_date: '2026-09-10', role: 'primary', replacement_member_id: 'm1', with_late_shift: false },
+        { service_date: '2026-09-10', role: 'secondary', replacement_member_id: 'm2', with_late_shift: true },
+      ],
+    })
+    await waitFor(() => expect(screen.queryByText(/^Zamieniono miejscami/)).not.toBeInTheDocument())
+    expect(trigger(dialog)).toBeInTheDocument()
+  })
+
+  it('lets the panel Undo lapse with the window and reports a failed Undo', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const save = vi.spyOn(api, 'batchOverride')
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new ApiError('Grafik zmienił się; odśwież kalendarz', 409))
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+    fireEvent.click(swapButton(dialog))
+
+    fireEvent.click(await within(dialog).findByRole('button', { name: /^Cofnij zamianę/ }))
+    expect(await screen.findByText('Nie udało się cofnąć zamiany')).toBeInTheDocument()
+    expect(save).toHaveBeenCalledTimes(2)
+    // Without the config the window is the server's default ten seconds.
+    act(() => { vi.advanceTimersByTime(10_000) })
+    await waitFor(() => expect(within(dialog).queryByRole('button', { name: /^Cofnij zamianę/ })).not.toBeInTheDocument())
+    expect(trigger(dialog)).toBeInTheDocument()
+  })
+
+  it('leaves 11–19 behind only knowingly', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockImplementation(async ({ batches }) =>
+      checked(batches[0].assignments[1].with_late_shift
+        ? []
+        : [{ rule: 'late_shift_anchor', member_name: 'Marek Nowak', days: ['2026-09-10'], message: '11–19 bez SECONDARY' }]))
+    const impact = vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+
+    fireEvent.click(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ }))
+    expect(frame).toHaveTextContent('11–19Marek Nowak (bez zmian)')
+    expect(within(dialog).getByRole('button', { name: '11–19: Marek Nowak. Zmień obsadę' })).not.toHaveClass('role-row-sel')
+    expect(await within(frame).findByText(/11–19 bez SECONDARY/)).toBeInTheDocument()
+    expect(check).toHaveBeenLastCalledWith({ batches: [{ schedule_id: 's1', assignments: swapLines(false) }] })
+    await waitFor(() => expect(impact).toHaveBeenLastCalledWith('2026-09-10', 'primary', 'm2', expect.objectContaining({ scope: 'single', returnScope: 'single' })))
+    expectBlocked(swapButton(dialog))
+    fireEvent.click(swapButton(dialog))
+    expect(save).not.toHaveBeenCalled()
+
+    fireEvent.click(within(frame).getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' }))
+    expectReady(swapButton(dialog))
+    fireEvent.click(swapButton(dialog))
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({
+      assignments: swapLines(false), acknowledge_rule_violations: true,
+    })))
+    expect(await screen.findByText('Zamieniono miejscami czw 10-09-2026: Marek Nowak PRIMARY, Anna Kowalska SECONDARY')).toBeInTheDocument()
+  })
+
+  it('keeps 11–19 where the person taking SECONDARY may not hold it, and with PRIMARY where the policy binds it there', async () => {
+    const restricted = [
+      { id: 'm1', display_name: 'Anna Kowalska', eligibility: (['primary', 'secondary'] as const).map((role) => ({ role, starts_on: '2026-01-01', ends_on: null })) },
+      { id: 'm2', display_name: 'Marek Nowak' },
+    ]
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members: restricted }))
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const policy = vi.spyOn(api, 'swapPolicy').mockResolvedValue({ coordinator_approval_required: true, late_shift_anchor: 'secondary' })
+    const view = renderScreen(matrix())
+    let dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    let late = await within(dialog).findByRole('checkbox', { name: /razem z SECONDARY/ })
+    expect(late).not.toBeChecked()
+    expect(late).toHaveAttribute('aria-disabled', 'true')
+    expect(dialog).toHaveTextContent('Anna Kowalska nie ma uprawnień do 11–19, więc 11–19 zostaje bez zmian.')
+    view.unmount()
+
+    policy.mockResolvedValue({ coordinator_approval_required: true, late_shift_anchor: 'primary' })
+    const anchoredToPrimary = pairWeek()
+    anchoredToPrimary.assignments = anchoredToPrimary.assignments.map((item) =>
+      item.role === 'late_shift' ? { ...item, assignee_name: 'Anna Kowalska', member_id: 'm1' } : item)
+    vi.mocked(api.calendar).mockResolvedValue(anchoredToPrimary)
+    const impact = vi.mocked(api.swapImpact)
+    renderScreen(matrix())
+    dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    late = await within(dialog).findByRole('checkbox', { name: /razem z PRIMARY/ })
+    expect(late).toBeChecked()
+    await waitFor(() => expect(impact).toHaveBeenLastCalledWith('2026-09-10', 'primary', 'm2', expect.objectContaining({ scope: undefined, returnScope: 'single' })))
+  })
+
+  it('says in the frame that the swap ends the open number handover, without asking to acknowledge it', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked([], {
+      id: 'h1',
+      day: '2026-09-10',
+      from_member_id: 'm1',
+      from_name: 'Anna Kowalska',
+      to_member_id: 'm2',
+      to_name: 'Marek Nowak',
+      starts_at: '2026-09-10T09:40:00Z',
+      until: '2026-09-10T11:40:00Z',
+    }))
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+
+    expect(await within(frame).findByText(
+      'Ta korekta zakończy przekazanie numeru on-call Anna Kowalska → Marek Nowak. Numer wróci do osoby na PRIMARY, a obie strony dostaną e-mail.',
+    )).toBeInTheDocument()
+    expect(within(frame).queryByRole('checkbox', { name: /Rozumiem/ })).not.toBeInTheDocument()
+    expectReady(swapButton(dialog))
+  })
+
+  it('says in the frame who may not take the other role and holds the swap without checking it', async () => {
+    const members = [
+      { id: 'm1', display_name: 'Anna Kowalska' },
+      { id: 'm2', display_name: 'Marek Nowak', eligibility: [{ role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }] },
+    ]
+    const availability = [{ member_id: 'm1', kind: 'unavailable' as const, starts_on: '2026-09-10', ends_on: '2026-09-11', note: 'Urlop' }]
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members, availability }))
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+
+    expect(within(frame).getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
+      'Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.',
+      'Anna Kowalska ma tego dnia wpis niedostępności, więc nie przejmie SECONDARY i tej zamiany nie da się zapisać.',
+    ])
+    expect(within(frame).queryByText(/reguł twardych/)).not.toBeInTheDocument()
+    expectBlocked(swapButton(dialog))
+    fireEvent.click(swapButton(dialog))
+    expect(save).not.toHaveBeenCalled()
+    expect(check).not.toHaveBeenCalled()
+  })
+
+  it('asks for a reason in the frame for a day already past', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const save = vi.spyOn(api, 'batchOverride')
+      .mockRejectedValueOnce(new ApiError('Grafik zmienił się; odśwież kalendarz', 409))
+      .mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(/^Anna Kowalska, wt 08-09-2026/)
+    fireEvent.click(trigger(dialog))
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+
+    const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty (minimum 10 znaków)' })
+    expectBlocked(swapButton(dialog))
+    fireEvent.change(reason, { target: { value: '  Zamiana po fakcie ' } })
+    expectReady(swapButton(dialog))
+    fireEvent.click(swapButton(dialog))
+
+    const refusal = await within(dialog).findByRole('alert')
+    expect(refusal).toHaveTextContent('Grafik zmienił się; odśwież kalendarz')
+    fireEvent.click(swapButton(dialog))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(save.mock.calls[1][0]).toEqual(expect.objectContaining({ reason: 'Zamiana po fakcie' }))
+  })
+
+  it('checks again when the write meets a rule the frame did not show', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    vi.spyOn(api, 'batchOverride').mockRejectedValue(new ApiError('Złamie reguły', 409, [
+      { rule: 'three_in_seven', member_name: 'Anna Kowalska', days: ['2026-09-10'], message: 'Trzy dyżury w 7 dni' },
+    ]))
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+    fireEvent.click(swapButton(dialog))
+
+    await waitFor(() => expect(check).toHaveBeenCalledTimes(2))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Złamie reguły')
+  })
+
+  it('saves after a failed check, leaving the rules to the write', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockRejectedValue(new ApiError('Nie sprawdzono reguł', 503))
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+
+    await within(dialog).findByText('Nie udało się sprawdzić reguł twardych; zapis sprawdzi je ponownie.')
+    fireEvent.click(swapButton(dialog))
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ acknowledge_rule_violations: false })))
+  })
+
+  it('closes with Cancel, the trigger, a role change or another day', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    const region = () => within(dialog).queryByRole('region', { name: 'Zamiana miejscami' })
+
+    fireEvent.click(trigger(dialog))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Anuluj' }))
+    expect(region()).not.toBeInTheDocument()
+    fireEvent.click(trigger(dialog))
+    fireEvent.click(trigger(dialog))
+    expect(region()).not.toBeInTheDocument()
+    fireEvent.click(trigger(dialog))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'PRIMARY: Anna Kowalska. Zmień obsadę' }))
+    expect(region()).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć' }))
+    fireEvent.click(trigger(dialog))
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ }))[0])
+    expect(region()).not.toBeInTheDocument()
+  })
+
+  it('is offered to a coordinator for a published pair of two people only', async () => {
+    const days = { '2026-09-11': { published: false } }
+    const assignments = [
+      ...covered(['2026-09-07', '2026-09-08', '2026-09-11']),
+      duty('2026-09-09', 'primary', 'Anna Kowalska', 'm1'), duty('2026-09-09', 'secondary', 'Anna Kowalska', 'm1'),
+      duty('2026-09-10', 'primary', 'Anna Kowalska', 'm1'),
+    ]
+    vi.spyOn(api, 'calendar').mockResolvedValue(week({ assignments }, days))
+    const view = renderScreen(matrix())
+    const noSwap = async (cell: RegExp) => {
+      const dialog = await openDay(cell)
+      expect(within(dialog).queryByRole('button', { name: /^Zamień miejscami/ })).not.toBeInTheDocument()
+    }
+    await noSwap(/^Anna Kowalska, śr 09-09-2026/)
+    await noSwap(/^Anna Kowalska, czw 10-09-2026/)
+    await noSwap(/^Anna Kowalska, pt 11-09-2026/)
+    view.unmount()
+
+    renderScreen(matrix('member', 'Anna Kowalska'))
+    await noSwap(/^Anna Kowalska, pon 07-09-2026/)
+  })
+})

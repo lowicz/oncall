@@ -70,6 +70,18 @@ class BatchCorrectionNeedsReason(DomainError):
         super().__init__("overrides.batch_correction_needs_reason")
 
 
+class LateShiftNotCoupled(DomainError):
+    """11-19 goes along only where a single correction would carry it too."""
+
+    def __init__(self) -> None:
+        super().__init__("overrides.late_shift_not_coupled")
+
+
+class NotARoleSwap(DomainError):
+    def __init__(self) -> None:
+        super().__init__("overrides.not_a_role_swap")
+
+
 class RuleViolationsNotAcknowledged(DomainError):
     """A correction that breaks a hard rule goes through only once the
     coordinator has seen the violations and explicitly acknowledged them."""

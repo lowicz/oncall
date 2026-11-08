@@ -12,9 +12,14 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall import effective
 from oncall.config import get_settings
+from oncall.domain.vocabulary import AssignmentRole
+from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, ScheduleRun
+from tests.conftest import create_published_schedule, create_user
 
 DAY = date(2026, 9, 1)
 
@@ -151,3 +156,72 @@ async def test_a_full_cache_without_expired_entries_drops_the_oldest(
 
     assert set(effective._effective_cache) == set(keys[1:]) | {newcomer}
     assert keys[0] not in effective._effective_locks
+
+
+class _ReportsPostgres:
+    """A real session whose dialect reports PostgreSQL, so reads use the cache."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.bind = POSTGRES.bind
+        self.execute = session.execute
+
+
+async def _primary(session: Any) -> str:
+    resolved = await effective.effective_assignments(session, DAY, DAY)
+    return resolved[(DAY, AssignmentRole.primary)].assignee_name
+
+
+async def test_a_committed_change_to_a_slot_is_read_back_at_once(
+    db: AsyncSession, clock: Clock
+) -> None:
+    await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
+    cached = _ReportsPostgres(db)
+    assert await _primary(cached) == "Anna"
+
+    slot = await db.scalar(select(Assignment).where(Assignment.role == AssignmentRole.primary))
+    slot.assignee_name = "Marek"
+    await db.commit()
+
+    assert await _primary(cached) == "Marek"
+
+
+async def test_a_committed_bulk_update_of_assignments_is_read_back_at_once(
+    db: AsyncSession, clock: Clock
+) -> None:
+    await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
+    cached = _ReportsPostgres(db)
+    assert await _primary(cached) == "Anna"
+
+    await db.execute(
+        update(Assignment).where(Assignment.assignee_name == "Anna").values(assignee_name="Ola")
+    )
+    await db.commit()
+
+    assert await _primary(cached) == "Ola"
+
+
+async def test_a_load_overtaken_by_a_commit_is_not_kept(
+    db: AsyncSession, loader: Loader, clock: Clock
+) -> None:
+    loader.gate = asyncio.Event()
+    reading = asyncio.create_task(effective.effective_assignments(POSTGRES, DAY, DAY))
+    await asyncio.sleep(0)
+    await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
+    loader.gate.set()
+
+    assert (await reading)["call"] == 1
+    assert (await effective.effective_assignments(POSTGRES, DAY, DAY))["call"] == 2
+
+
+async def test_a_commit_that_writes_no_assignment_keeps_the_cache(
+    db: AsyncSession, clock: Clock
+) -> None:
+    await create_published_schedule(db, starts_on=DAY, days=1, primary=["Anna"])
+    cached = _ReportsPostgres(db)
+    assert await _primary(cached) == "Anna"
+
+    await create_user(db, "piotr")
+    await db.execute(update(ScheduleRun).values(progress=1))
+    await db.commit()
+
+    assert set(effective._effective_cache) == {(DAY, DAY)}

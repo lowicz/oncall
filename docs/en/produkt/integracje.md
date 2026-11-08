@@ -45,6 +45,9 @@ notifies both sides of every rewritten slot: the person taken off and the one
 taking over. With a batch correction each person gets one message listing only
 the slots they gave up or took over, together with the reason for the
 correction.
+Swapping places between one day's PRIMARY and SECONDARY arrives as a
+“Zamiana ról” message with the day's staffing after the swap, carrying a
+reason only when one was given.
 
 Messages about a correction go out 10 seconds after it; the schedule change and
 its audit entry are recorded immediately. The reverse correction (putting the

@@ -20,6 +20,7 @@ import {
 import { locale, messages, useMessages } from '../i18n'
 import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useUndoable } from '../hooks/useUndoable'
+import { useRoleSwap } from '../hooks/useRoleSwap'
 import { CalendarDayList } from './CalendarDayList'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DayEventDialog } from './DayEventDialog'
@@ -149,7 +150,14 @@ export function CalendarMatrix({
   const toast = useToast()
   const undoable = useUndoable()
 
+  const roleSwap = useRoleSwap({
+    data: calendar.data,
+    serviceDate: selected?.day.service_date,
+    coordinates: role === 'coordinator' || role === 'admin',
+  })
+
   const closeInspector = () => {
+    roleSwap.close()
     setSelected(null)
     setStaffOpen(false)
     setStaffMemberId(null)
@@ -158,6 +166,7 @@ export function CalendarMatrix({
   }
   const openDay = (day: Day, member: Member | undefined, nextRole: AssignmentRole) => {
     if (override.isPending || calendar.isPlaceholderData) return
+    roleSwap.close()
     setSelected({ member, day })
     setSelectedRole(nextRole)
     setStaffOpen(false)
@@ -349,7 +358,6 @@ export function CalendarMatrix({
   // that changed under it.
   useEffect(() => setViolationsAcknowledged(false), [overrideCheck.data])
   const violations = overrideCheck.data?.violations
-  const endsHandover = overrideCheck.data?.ends_handover
   const historical = Boolean(selected && selected.day.service_date < today)
   const saveBlocked = Boolean(staffBlockReason)
     || overrideCheck.isLoading
@@ -383,6 +391,7 @@ export function CalendarMatrix({
     setStaffMemberId(null)
     setHistoricalReason('')
     override.reset()
+    roleSwap.close()
     setStaffOpen(true)
   }
   // The risk chips jump to a day the calendar itself reported (a gap, a
@@ -590,7 +599,7 @@ export function CalendarMatrix({
             {!selectedDayPublished && <Tag>{t.inspector.outsidePublication}</Tag>}
           </>
         )}
-        footer={staffOpen ? (
+        footer={roleSwap.open ? roleSwap.footer : staffOpen ? (
           <>
             <Button disabled={override.isPending} onClick={() => { setStaffOpen(false); override.reset() }}>{t.inspector.back}</Button>
             <span className="sp" />
@@ -695,17 +704,12 @@ export function CalendarMatrix({
                 violations={violations}
                 checkFailed={overrideCheck.isError}
                 violationsTitle={t.confirm.breaksRules}
+                endsHandover={overrideCheck.data?.ends_handover}
                 acknowledged={violationsAcknowledged}
                 onAcknowledge={setViolationsAcknowledged}
                 error={confirmHistorical ? null : override.error?.message}
                 pending={override.isPending}
               >
-                {/* NP-16: the number handover this correction ends, stated
-                    rather than asked about: ending it is the correction's
-                    own effect. */}
-                {endsHandover && (
-                  <Box tone="warn">{t.confirm.endsHandover(endsHandover.from_name, endsHandover.to_name)}</Box>
-                )}
                 {/* MED6-04: the same balance projection a team member sees
                     before a swap, beside the rules it is decided with. */}
                 {selectedAssignment ? (
@@ -758,18 +762,25 @@ export function CalendarMatrix({
                     {conflict && <span className="sr-only">{conflictText(conflict)}</span>}
                   </>
                 )
-                const className = cx('role-row', selectedRole === item && 'role-row-sel', missing && 'role-row-gap')
-                return canCoordinate && selectedDayPublished && !notApplicable ? (
-                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={[slot ? t.inspector.changeRole(roleLabels()[item], slot.assignee_name) : t.inspector.staffRole(roleLabels()[item]), conflict && conflictText(conflict)].filter(Boolean).join('. ')}>
-                    {body}
-                    {/* The whole row is the button; this only shows that it is one. */}
-                    <span className={cx('btn', 'btn-sm', slot && 'btn-ghost')} aria-hidden="true">{slot ? t.inspector.change : t.inspector.staff}</span>
-                  </button>
-                ) : (
-                  <div key={item} className={className}>{body}</div>
+                const lit = roleSwap.open ? roleSwap.covers(item) : selectedRole === item
+                const className = cx('role-row', lit && 'role-row-sel', missing && 'role-row-gap')
+                return (
+                  <Fragment key={item}>
+                    {canCoordinate && selectedDayPublished && !notApplicable ? (
+                      <button type="button" className={className} onClick={() => openStaffChange(item)} aria-label={[slot ? t.inspector.changeRole(roleLabels()[item], slot.assignee_name) : t.inspector.staffRole(roleLabels()[item]), conflict && conflictText(conflict)].filter(Boolean).join('. ')}>
+                        {body}
+                        {/* The whole row is the button; this only shows that it is one. */}
+                        <span className={cx('btn', 'btn-sm', slot && 'btn-ghost')} aria-hidden="true">{slot ? t.inspector.change : t.inspector.staff}</span>
+                      </button>
+                    ) : (
+                      <div className={className}>{body}</div>
+                    )}
+                    {item === 'primary' && roleSwap.trigger}
+                  </Fragment>
                 )
               })}
             </div>
+            {roleSwap.frame}
             {selected.day.events.length > 0 && (
               <div className="stack-sm">
                 <div className="impact-h">{t.inspector.events}</div>

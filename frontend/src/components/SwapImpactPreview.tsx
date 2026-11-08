@@ -63,7 +63,7 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
  * listed by the screen around it, which is also where they are acknowledged;
  * repeating them here showed every violation twice.
  */
-export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, scope, returnScope, mode = 'swap' }: {
+export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, scope, returnScope, mode = 'swap', directions }: {
   serviceDate: string
   role: AssignmentRole
   replacementId: string
@@ -71,6 +71,9 @@ export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, 
   scope?: SwapScope
   returnScope?: SwapScope
   mode?: 'swap' | 'override'
+  /** What each side gives and takes, when the screen words it better (a role
+   *  swap trades two roles of one day). */
+  directions?: { requester: string; replacement: string }
 }) {
   const impact = useQuery({
     ...swapImpactQuery(serviceDate, role, replacementId, { inReturn, scope, returnScope, correction: mode === 'override' }),
@@ -90,11 +93,11 @@ export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, 
       <div className="impact-h">{t.heading}</div>
       <div className="small muted">
         {worth(day, impact.data.points)}
-        {returnDay && ` ${worth(returnDay, returnPoints as number)}`}
+        {returnDay && returnDay !== day && ` ${worth(returnDay, returnPoints as number)}`}
         {' '}{t.window(formatDate(impact.data.window_start), formatDate(impact.data.window_end))}
       </div>
-      <Side side={impact.data.requester} direction={returnDay ? t.exchanges(formatDayShort(day), formatDayShort(returnDay)) : fromDirection} />
-      <Side side={impact.data.replacement} direction={returnDay ? t.exchanges(formatDayShort(returnDay), formatDayShort(day)) : t.takes} />
+      <Side side={impact.data.requester} direction={directions?.requester ?? (returnDay ? t.exchanges(formatDayShort(day), formatDayShort(returnDay)) : fromDirection)} />
+      <Side side={impact.data.replacement} direction={directions?.replacement ?? (returnDay ? t.exchanges(formatDayShort(returnDay), formatDayShort(day)) : t.takes)} />
     </div>
   )
 }

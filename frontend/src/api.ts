@@ -86,6 +86,15 @@ export interface Assignment {
   rule_violations?: RuleViolation[]
 }
 
+/** One slot of a batch correction. */
+export interface BatchOverrideLine {
+  service_date: string
+  role: AssignmentRole
+  replacement_member_id: string
+  /** Take 11–19 along with this anchor role, where a single correction would. */
+  with_late_shift?: boolean
+}
+
 export interface CurrentDuty {
   role: AssignmentRole
   service_date: string
@@ -901,25 +910,20 @@ export const api = {
   batchOverrideCheck: (input: {
     batches: Array<{
       schedule_id: string
-      assignments: Array<{
-        service_date: string
-        role: AssignmentRole
-        replacement_member_id: string
-      }>
+      assignments: BatchOverrideLine[]
     }>
-  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/batch/check', input)
-    .then((check) => check.violations),
+  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/batch/check', input),
   batchOverride: (input: {
     schedule_id: string
     expected_version: number
-    assignments: Array<{
-      service_date: string
-      role: AssignmentRole
-      replacement_member_id: string
-    }>
-    reason: string
+    assignments: BatchOverrideLine[]
+    /** At least 10 characters, except for a role swap of today or later. */
+    reason?: string
     /** Required when the batch breaks a hard rule (409 with the violations otherwise). */
     acknowledge_rule_violations?: boolean
+    /** `role_swap`: one day's PRIMARY and SECONDARY trade holders, audited and
+     *  mailed as „Zamiana ról". */
+    kind?: 'correction' | 'role_swap'
   }) => send<Assignment[]>('POST', '/api/v1/calendar/override/batch', input),
   calendarEvents: (startsOn: string, endsOn: string) =>
     request<CalendarEvent[]>(

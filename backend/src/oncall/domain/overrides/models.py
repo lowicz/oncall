@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from datetime import date
+from enum import StrEnum
 
 from oncall.domain.team import Actor
 from oncall.domain.vocabulary import AssignmentRole
@@ -35,11 +36,24 @@ class OverrideInput:
     acknowledge_rule_violations: bool = False
 
 
+class BatchOverrideKind(StrEnum):
+    """What one batch decision is, which decides its reason, audit and e-mail."""
+
+    #: Any set of slots (offboarding): always with a reason.
+    correction = "correction"
+    #: The PRIMARY and SECONDARY holders of one day trade places: a reason
+    #: only for a past day, like a single correction.
+    role_swap = "role_swap"
+
+
 @dataclass(frozen=True)
 class BatchOverrideLine:
     service_date: date
     role: AssignmentRole
     replacement_member_id: uuid.UUID
+    #: The coordinator takes 11-19 along with this anchor role, as a single
+    #: correction does by itself (`_couples_late_shift`).
+    with_late_shift: bool = False
 
 
 @dataclass(frozen=True)
@@ -54,8 +68,9 @@ class BatchOverrideInput:
     schedule_id: uuid.UUID
     expected_version: int
     lines: tuple[BatchOverrideLine, ...]
-    reason: str
+    reason: str | None = None
     acknowledge_rule_violations: bool = False
+    kind: BatchOverrideKind = BatchOverrideKind.correction
 
 
 @dataclass(frozen=True)

@@ -9,6 +9,8 @@ import {
   memberGroupLabels,
   monthGroups,
   orderMembers,
+  roleSwapLines,
+  roleSwapOf,
   staffingCandidates,
   startsWeek,
 } from './calendar'
@@ -361,5 +363,86 @@ describe('staffingCandidates for the secondary role', () => {
       Bartek: 'nie ma uprawnień do roli',
       Celina: undefined,
     })
+  })
+})
+
+describe('roleSwapOf (P6)', () => {
+  const members = [
+    { id: 'm1', display_name: 'Anna' },
+    { id: 'm2', display_name: 'Marek', eligibility: [
+      { role: 'primary' as const, starts_on: '2026-01-01', ends_on: null },
+      { role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null },
+      { role: 'late_shift' as const, starts_on: '2026-01-01', ends_on: '2026-08-31' },
+    ] },
+  ]
+  const pair = (over: Partial<CalendarData> = {}) => data({
+    members,
+    assignments: [
+      assignment('2026-09-01', 'primary', 'Anna'),
+      assignment('2026-09-01', 'secondary', 'Marek'),
+      assignment('2026-09-01', 'late_shift', 'Marek'),
+    ],
+    ...over,
+  })
+
+  it('offers 11–19 with the anchor role of its holder, eligible or not', () => {
+    expect(roleSwapOf(pair(), '2026-09-01', 'secondary')).toEqual({
+      primary: { id: 'm1', name: 'Anna' },
+      secondary: { id: 'm2', name: 'Marek' },
+      refused: {},
+      lateShift: { anchor: 'secondary', from: { id: 'm2', name: 'Marek' }, to: { id: 'm1', name: 'Anna' }, eligible: true },
+    })
+    const anchoredToPrimary = pair({ assignments: [
+      assignment('2026-09-01', 'primary', 'Anna'),
+      assignment('2026-09-01', 'secondary', 'Marek'),
+      assignment('2026-09-01', 'late_shift', 'Anna'),
+    ] })
+    // Marek's 11–19 eligibility ended before the day.
+    expect(roleSwapOf(anchoredToPrimary, '2026-09-01', 'primary')?.lateShift).toEqual(
+      { anchor: 'primary', from: { id: 'm1', name: 'Anna' }, to: { id: 'm2', name: 'Marek' }, eligible: false },
+    )
+  })
+
+  it('leaves 11–19 out where a correction would not carry it', () => {
+    expect(roleSwapOf(pair(), '2026-09-01', 'independent')?.lateShift).toBeNull()
+    expect(roleSwapOf(pair(), '2026-09-01', 'primary')?.lateShift).toBeNull()
+    expect(roleSwapOf(pair({ days: [day('2026-09-01', 'wt', true)] }), '2026-09-01', 'secondary')?.lateShift).toBeNull()
+    expect(roleSwapOf(pair({ days: [] }), '2026-09-01', 'secondary')?.lateShift).toBeNull()
+    const noLate = pair({ assignments: pair().assignments.slice(0, 2) })
+    expect(roleSwapOf(noLate, '2026-09-01', 'secondary')?.lateShift).toBeNull()
+  })
+
+  it('names the roles the other person may not take that day, as the API refuses them', () => {
+    const onlyPrimary = [{ role: 'primary' as const, starts_on: '2026-01-01', ends_on: null }]
+    const expired = [{ role: 'primary' as const, starts_on: '2026-01-01', ends_on: '2026-08-31' }, { role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }]
+    expect(roleSwapOf(pair({ members: [{ ...members[0], eligibility: onlyPrimary }, members[1]] }), '2026-09-01', 'secondary')?.refused).toEqual({ secondary: 'notEligible' })
+    expect(roleSwapOf(pair({ members: [members[0], { ...members[1], eligibility: expired }] }), '2026-09-01', 'secondary')?.refused).toEqual({ primary: 'notEligible' })
+
+    const away = (member_id: string, kind: 'unavailable' | 'prefer_not', starts_on: string, ends_on: string) =>
+      ({ member_id, kind, starts_on, ends_on, note: null })
+    expect(roleSwapOf(pair({ availability: [away('m2', 'unavailable', '2026-08-31', '2026-09-01')] }), '2026-09-01', 'secondary')?.refused)
+      .toEqual({ primary: 'unavailable' })
+    // Ineligibility is what the API refuses first.
+    const both = pair({ members: [{ ...members[0], eligibility: onlyPrimary }, members[1]], availability: [away('m1', 'unavailable', '2026-09-01', '2026-09-01')] })
+    expect(roleSwapOf(both, '2026-09-01', 'secondary')?.refused).toEqual({ secondary: 'notEligible' })
+    const notThatDay = [away('m1', 'prefer_not', '2026-09-01', '2026-09-01'), away('m1', 'unavailable', '2026-09-02', '2026-09-03'), away('m2', 'unavailable', '2026-08-01', '2026-08-31')]
+    expect(roleSwapOf(pair({ availability: notThatDay }), '2026-09-01', 'secondary')?.refused).toEqual({})
+  })
+
+  it('needs two team members in two roles', () => {
+    expect(roleSwapOf(pair(), '2026-09-02', 'secondary')).toBeNull()
+    const same = pair({ assignments: [assignment('2026-09-01', 'primary', 'Anna'), assignment('2026-09-01', 'secondary', 'Anna')] })
+    expect(roleSwapOf(same, '2026-09-01', 'secondary')).toBeNull()
+    const stranger = pair({ assignments: [assignment('2026-09-01', 'primary', 'Gość'), assignment('2026-09-01', 'secondary', 'Marek')] })
+    expect(roleSwapOf(stranger, '2026-09-01', 'secondary')).toBeNull()
+  })
+
+  it('sends each role to the other person, 11–19 on the anchor line', () => {
+    const swap = roleSwapOf(pair(), '2026-09-01', 'secondary')!
+    expect(roleSwapLines(swap, '2026-09-01', true)).toEqual([
+      { service_date: '2026-09-01', role: 'primary', replacement_member_id: 'm2', with_late_shift: false },
+      { service_date: '2026-09-01', role: 'secondary', replacement_member_id: 'm1', with_late_shift: true },
+    ])
+    expect(roleSwapLines(swap, '2026-09-01', false).map((line) => line.with_late_shift)).toEqual([false, false])
   })
 })

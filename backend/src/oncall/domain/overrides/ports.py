@@ -3,9 +3,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
-from oncall.domain.overrides.models import AssignmentChange, OverrideMove
+from oncall.domain.overrides.models import AssignmentChange, BatchOverrideKind, OverrideMove
 from oncall.domain.ports import PublishedRoster, RosterPolicy, TeamDirectory
-from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.rules import RuleViolation
 
@@ -32,11 +31,11 @@ class OverrideJournal(Protocol):
         self,
         *,
         schedule_id: uuid.UUID,
-        slots: list[Slot],
+        kind: BatchOverrideKind,
         moves: list[OverrideMove],
         changes: list[AssignmentChange],
         violations: list[RuleViolation],
-        reason: str,
+        reason: str | None,
     ) -> None: ...
 
 

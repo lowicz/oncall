@@ -48,6 +48,31 @@ describe('undoable', () => {
     await vi.waitFor(() => expect(toast.close).toHaveBeenCalledWith('toast-1'))
   })
 
+  it('hands the same Undo to a second control', async () => {
+    const toast = toastDouble()
+    const undo = vi.fn(async () => {})
+    const onOffer = vi.fn()
+    const started = Date.now()
+
+    await undoable({
+      execute: async () => 'saved',
+      undo,
+      toast,
+      message: () => ({ title: 'Saved' }),
+      undoLabel: 'Undo',
+      onUndoError: vi.fn(),
+      windowSeconds: 10,
+      onOffer,
+    })
+
+    const [offered, until] = onOffer.mock.calls[0]
+    expect(until).toBe(started + 10_000)
+    offered()
+    actionFrom(toast)()
+    await vi.waitFor(() => expect(toast.close).toHaveBeenCalledWith('toast-1'))
+    expect(undo).toHaveBeenCalledOnce()
+  })
+
   it('leaves a failed inverse available for a retry', async () => {
     const toast = toastDouble()
     const failure = new Error('network')

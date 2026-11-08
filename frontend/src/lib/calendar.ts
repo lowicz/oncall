@@ -1,4 +1,4 @@
-import { AssignmentRole, AvailabilityKind, CalendarData } from '../api'
+import { AssignmentRole, AvailabilityKind, CalendarData, LateShiftAnchor } from '../api'
 import { formatMonth, isMonday, monthsShort } from './dates'
 import { messages } from '../i18n/messages'
 
@@ -141,6 +141,25 @@ export function isCurrentAssignee(
   ))
 }
 
+/** An eligibility window for `role` covers the day; a member listed without
+ *  windows (as a member's own payload has them) counts as eligible. */
+function isEligible(member: CalendarData['members'][number], role: AssignmentRole, serviceDate: string) {
+  return member.eligibility?.some(
+    (item) => item.role === role && item.starts_on <= serviceDate
+      && (!item.ends_on || item.ends_on >= serviceDate),
+  ) ?? true
+}
+
+/** The member recorded an unavailability covering the day. */
+function isUnavailable(data: CalendarData, memberId: string, serviceDate: string) {
+  return data.availability.some(
+    (item) => item.member_id === memberId
+      && item.kind === 'unavailable'
+      && item.starts_on <= serviceDate
+      && item.ends_on >= serviceDate,
+  )
+}
+
 export interface StaffingCandidate {
   id: string
   display_name: string
@@ -192,11 +211,8 @@ export function staffingCandidates(
           && item.role === opposite
           && isCurrentAssignee(member, item),
       )
-      const roles = member.eligibility && ALL_ROLES.filter((item) => member.eligibility!.some(
-        (period) => period.role === item && period.starts_on <= serviceDate
-          && (!period.ends_on || period.ends_on >= serviceDate),
-      ))
-      const eligible = roles?.includes(role) ?? true
+      const roles = member.eligibility && ALL_ROLES.filter((item) => isEligible(member, item, serviceDate))
+      const eligible = isEligible(member, role, serviceDate)
       let disabledReason: string | undefined
       const reasons = messages().calendar.disabledReasons
       if (isCurrent) disabledReason = reasons.alreadyHoldsRole
@@ -244,3 +260,95 @@ export function monthGroups(days: CalendarData['days']): MonthGroup[] {
 
 /** Monday starts a new week block; used to draw the week separators. */
 export const startsWeek = (day: CalendarData['days'][number]) => isMonday(day.service_date)
+
+export interface SwapHolder { id: string; name: string }
+
+/** A day's PRIMARY and SECONDARY that two different people hold, ready to
+ *  trade places (P6), and what 11–19 may do in the same move. */
+export interface RoleSwap {
+  primary: SwapHolder
+  secondary: SwapHolder
+  /** Why the new holder of an on-call role may not take it that day, as the
+   *  API would refuse it: the swap cannot be made while any is set. */
+  refused: Partial<Record<'primary' | 'secondary', 'notEligible' | 'unavailable'>>
+  /** 11–19 is the anchor holder's and may go along with the anchor role:
+   *  the coordinator's choice, offered exactly where the API would carry it
+   *  in a single correction (`_couples_late_shift` with `_same_holder`).
+   *  Null when 11–19 is not part of the swap at all. */
+  lateShift: {
+    anchor: 'primary' | 'secondary'
+    from: SwapHolder
+    to: SwapHolder
+    /** The person taking the anchor role may hold 11–19 that day. */
+    eligible: boolean
+  } | null
+}
+
+/** The swap of `serviceDate`'s on-call pair, or null when one role is empty,
+ *  one person holds both, or a holder is not a team member. */
+export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): RoleSwap | null {
+  const memberOf = (role: AssignmentRole) => {
+    const slot = data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+    return slot && data.members.find((item) => isCurrentAssignee(item, slot))
+  }
+  const holder = (member: CalendarData['members'][number] | undefined): SwapHolder | null =>
+    member ? { id: member.id, name: member.display_name } : null
+  const primaryMember = memberOf('primary')
+  const secondaryMember = memberOf('secondary')
+  const primary = holder(primaryMember)
+  const secondary = holder(secondaryMember)
+  if (!primary || !secondary || primary.id === secondary.id) return null
+  const refused: RoleSwap['refused'] = {}
+  for (const [role, taker] of [['primary', secondaryMember!], ['secondary', primaryMember!]] as const) {
+    if (!isEligible(taker, role, serviceDate)) refused[role] = 'notEligible'
+    else if (isUnavailable(data, taker.id, serviceDate)) refused[role] = 'unavailable'
+  }
+  const late = holder(memberOf('late_shift'))
+  const day = data.days.find((item) => item.service_date === serviceDate)
+  let lateShift: RoleSwap['lateShift'] = null
+  if (anchor !== 'independent' && day && !day.is_day_off && late) {
+    const from = anchor === 'primary' ? primary : secondary
+    const to = anchor === 'primary' ? secondary : primary
+    if (late.id === from.id) {
+      const member = data.members.find((item) => item.id === to.id)!
+      lateShift = { anchor, from, to, eligible: isEligible(member, 'late_shift', serviceDate) }
+    }
+  }
+  return { primary, secondary, refused, lateShift }
+}
+
+/** The batch that performs `swap` (or, with the roles' holders as they were,
+ *  undoes it): each on-call role goes to the other person, and 11–19 rides
+ *  on the anchor role's line when `withLateShift`. */
+export function roleSwapLines(swap: RoleSwap, serviceDate: string, withLateShift: boolean) {
+  return (['primary', 'secondary'] as const).map((role) => ({
+    service_date: serviceDate,
+    role,
+    replacement_member_id: (role === 'primary' ? swap.secondary : swap.primary).id,
+    with_late_shift: withLateShift && swap.lateShift?.anchor === role,
+  }))
+}
+
+/** The role labels `memberId` holds of `swap`, before it (`after` false) or after it. */
+export function swapRoles(swap: RoleSwap, memberId: string, carry: boolean, after: boolean) {
+  const labels = messages().labels.roles
+  const holdsPrimary = (swap.primary.id === memberId) !== after
+  const roles = [labels[holdsPrimary ? 'primary' : 'secondary']]
+  const late = swap.lateShift
+  if (late && carry && (after ? late.to : late.from).id === memberId) roles.push(labels.late_shift)
+  return roles
+}
+
+/** „Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19": who holds what
+ *  after the swap, or before it, PRIMARY first. */
+export function swapHolders(swap: RoleSwap, carry: boolean, after: boolean) {
+  const t = messages().schedule.roleSwap
+  return (after ? [swap.secondary, swap.primary] : [swap.primary, swap.secondary])
+    .map((person) => t.holder(person.name, t.roles(swapRoles(swap, person.id, carry, after))))
+    .join(', ')
+}
+
+/** Whether either new holder of `swap` may not take their role that day. */
+export function swapRefused(swap: RoleSwap | null) {
+  return Boolean(swap && Object.keys(swap.refused).length > 0)
+}

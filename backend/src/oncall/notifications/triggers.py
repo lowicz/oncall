@@ -729,11 +729,13 @@ async def notify_assignments_overridden_in_batch(
     db: AsyncSession,
     *,
     changes: list[tuple[date, AssignmentRole, str, str]],
-    reason: str,
+    reason: str | None,
+    role_swap: bool = False,
 ) -> None:
     """One mail per person a batch correction touched, listing only the slots
     they gave up or took over. Like a single correction it is not
-    de-duplicated: two batches on one schedule are two decisions."""
+    de-duplicated: two batches on one schedule are two decisions. A role swap
+    reads as one: „Zamiana ról" instead of a list of corrections."""
     settings = get_settings()
     names = list(
         dict.fromkeys(
@@ -746,17 +748,31 @@ async def notify_assignments_overridden_in_batch(
     emails = await _emails_for_names(db, names)
     send_after = now + UNDO_WINDOW
     undo_key = _undo_key(changes)
+    # A swap always moves PRIMARY, so it says who switches the number.
+    automatic = (
+        role_swap
+        and await db.scalar(select(CallForwardingSettings.mode).limit(1)) is ForwardingMode.live
+    )
     for name in names:
         own = [change for change in changes if name in change[2:]]
         await _enqueue_for(
             db,
             emails,
             names=[name],
-            build=lambda own=own: templates.assignments_overridden_in_batch(
-                changes=own, reason=reason, app=Brand.from_settings(settings)
+            build=lambda own=own: (
+                templates.roles_swapped(
+                    changes=own,
+                    reason=reason,
+                    app=Brand.from_settings(settings),
+                    automatic=automatic,
+                )
+                if role_swap
+                else templates.assignments_overridden_in_batch(
+                    changes=own, reason=reason or "", app=Brand.from_settings(settings)
+                )
             ),
             context={
-                "event": "assignments_overridden_in_batch",
+                "event": "roles_swapped" if role_swap else "assignments_overridden_in_batch",
                 "undo_key": undo_key,
                 "changes": [
                     {

@@ -6,8 +6,8 @@ constructs that engine drops or mangles, checked against every template, so a
 future template cannot quietly pick up a `div` layout or an `rgba()` colour
 that looks fine in a browser and falls apart in the one client the team uses.
 
-`tests/snapshots/email_swap_requested.html` is one complete rendering kept in
-Git. When a layout change is intended, regenerate it with
+`tests/snapshots/email_*.html` are complete renderings kept in Git. When a
+layout change is intended, regenerate them with
 `UPDATE_EMAIL_SNAPSHOTS=1 pytest tests/test_email_templates.py` and review the
 diff like any other change to what a reader sees.
 """
@@ -32,8 +32,8 @@ from oncall.notifications.layout import LOGO_CID, Brand, Tone, status_tag
 from oncall.notifications.templates import RenderedEmail, format_day, format_range
 from oncall.rules import RuleViolation
 
-SNAPSHOT = Path(__file__).parent / "snapshots" / "email_swap_requested.html"
-HANDOVER_SNAPSHOT = Path(__file__).parent / "snapshots" / "email_handover_ended.html"
+SNAPSHOTS = Path(__file__).parent / "snapshots"
+HANDOVER_SNAPSHOT = SNAPSHOTS / "email_handover_ended.html"
 
 APP = Brand(name="On-call", subtitle="Zespół wsparcia", url="https://oncall.example.com")
 #: A Thursday, so the weekday abbreviation is visibly not the ISO date.
@@ -275,6 +275,24 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         reason="Odejście z zespołu",
         app=APP,
     ),
+    "roles_swapped": lambda: templates.roles_swapped(
+        changes=[
+            (DAY, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak"),
+            (DAY, AssignmentRole.secondary, "Marek Nowak", "Anna Kowalska"),
+            (DAY, AssignmentRole.late_shift, "Marek Nowak", "Anna Kowalska"),
+        ],
+        reason=None,
+        app=APP,
+    ),
+    "roles_swapped_with_reason": lambda: templates.roles_swapped(
+        changes=[
+            (DAY, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak"),
+            (DAY, AssignmentRole.secondary, "Marek Nowak", "Anna Kowalska"),
+        ],
+        reason="Zamiana uzgodniona po fakcie",
+        app=APP,
+        automatic=True,
+    ),
     "rotation_ahead": lambda: templates.rotation_ahead(
         starts_on=DAY,
         segments=[(AssignmentRole.secondary, END), (AssignmentRole.late_shift, NEXT)],
@@ -477,13 +495,14 @@ def test_dates_read_as_the_screens_print_them() -> None:
     assert format_range(DAY, END) == "24-09-2026 – 21-10-2026"
 
 
-def test_the_swap_request_html_matches_the_snapshot() -> None:
-    html = RENDERINGS["swap_requested"]().html
+@pytest.mark.parametrize("name", ["swap_requested", "roles_swapped"])
+def test_the_html_matches_the_snapshot(name: str) -> None:
+    html = RENDERINGS[name]().html
+    snapshot = SNAPSHOTS / f"email_{name}.html"
     if os.environ.get("UPDATE_EMAIL_SNAPSHOTS"):
-        SNAPSHOT.parent.mkdir(exist_ok=True)
-        SNAPSHOT.write_text(html)
-    assert SNAPSHOT.exists(), f"missing {SNAPSHOT}; run with UPDATE_EMAIL_SNAPSHOTS=1"
-    assert html == SNAPSHOT.read_text(), (
+        snapshot.write_text(html)
+    assert snapshot.exists(), f"missing {snapshot}; run with UPDATE_EMAIL_SNAPSHOTS=1"
+    assert html == snapshot.read_text(), (
         "The rendered e-mail changed. If that is intended, regenerate the snapshot "
         "with UPDATE_EMAIL_SNAPSHOTS=1 and review the diff."
     )
@@ -739,6 +758,25 @@ def test_a_batch_correction_lists_every_change_with_its_reason() -> None:
     assert rendered.html.count("(poprzednio: Anna Kowalska)") == 2
     assert "Odejście z zespołu" in rendered.html
     assert ">PRIMARY<" in rendered.html and ">SECONDARY<" in rendered.html
+
+
+def test_a_role_swap_reads_as_one_decision_about_two_people() -> None:
+    rendered = RENDERINGS["roles_swapped"]()
+    assert rendered.subject == (
+        "Zamiana ról czw 24-09-2026: Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19"
+    )
+    assert rendered.text.startswith(
+        "Koordynator zamienił role dnia czw 24-09-2026: "
+        "Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19.\n"
+        "- czw 24-09-2026 · PRIMARY: Marek Nowak (poprzednio: Anna Kowalska)\n"
+    )
+    assert "Powód" not in rendered.text and "Powód" not in rendered.html
+    assert "Pamiętaj o przełączeniu numeru on-call." in rendered.text
+
+    explained = RENDERINGS["roles_swapped_with_reason"]()
+    assert "Powód: Zamiana uzgodniona po fakcie\n" in explained.text
+    assert "Zamiana uzgodniona po fakcie" in explained.html
+    assert "Numer on-call przełącza się automatycznie" in explained.text
 
 
 def test_status_pill_dot_uses_the_light_theme_dot_colour() -> None:

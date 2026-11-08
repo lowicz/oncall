@@ -776,14 +776,15 @@ async def test_only_swaps_touching_the_draft_window_make_it_stale(world) -> None
     assert await stale_changes_count(schedule, world.changes) == 2
 
 
-async def test_a_batch_of_overrides_counts_once_and_only_inside_the_window(world) -> None:
+@pytest.mark.parametrize("action", ["schedule.override_batch", "schedule.role_swap"])
+async def test_a_batch_of_overrides_counts_once_and_only_inside_the_window(world, action) -> None:
     schedule = complete_schedule(MONDAY, _rotation(world))
     world.changes.add(
-        "schedule.override_batch",
+        action,
         details={"slots": ["2040-01-01:primary", f"{MONDAY + timedelta(days=2)}:secondary"]},
     )
-    world.changes.add("schedule.override_batch", details={"slots": ["2040-01-02:primary"]})
-    world.changes.add("schedule.override_batch")
+    world.changes.add(action, details={"slots": ["2040-01-02:primary"]})
+    world.changes.add(action)
 
     assert await stale_changes_count(schedule, world.changes) == 1
 

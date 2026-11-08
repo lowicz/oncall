@@ -194,6 +194,14 @@ MESSAGES: dict[str, str] = {
     "overrides.batch_correction_needs_reason": (
         "Korekta wsadowa wymaga powodu (minimum 10 znaków)"
     ),
+    "overrides.late_shift_not_coupled": (
+        "11–19 może przejść tylko razem z rolą, z którą wiąże ją polityka,"
+        " od osoby, która pełni obie, i do osoby z uprawnieniami do 11–19"
+    ),
+    "overrides.not_a_role_swap": (
+        "Zamiana miejscami obejmuje PRIMARY i SECONDARY jednego dnia,"
+        " każde przekazane osobie z drugiej roli"
+    ),
     "overrides.rule_violations_not_acknowledged": (
         "Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie"
     ),

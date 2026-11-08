@@ -101,8 +101,11 @@ process affinity, with a minimum of two processes. Set `ONCALL_API_WORKERS` to a
 positive integer to override it. Each process owns its SQLAlchemy connection
 pool, so keep the chosen worker count and PostgreSQL `max_connections` aligned.
 Read-heavy deployments also use a bounded per-process cache for resolved
-published duties (1 s). Set `ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS=0` for
-strict cross-worker read-after-write visibility. Authenticated sessions are not
+published duties (1 s). A process empties its own cache when it commits a
+change to duties, so the next request it serves reads the change; another API
+process can still serve the previous duties until its entry expires. Set
+`ONCALL_EFFECTIVE_ASSIGNMENTS_CACHE_SECONDS=0` for strict cross-worker
+read-after-write visibility. Authenticated sessions are not
 cached: every request revalidates the session, so signing out, resetting a
 password or deactivating an account takes effect at once.
 
