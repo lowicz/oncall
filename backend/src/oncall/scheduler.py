@@ -1368,9 +1368,8 @@ def _window_spreads(solver: cp_model.CpSolver, lenses: list[_Lens]) -> dict[str,
 
 #: How the generator paces inherited debt, in the coordinator's words.
 _PACED_REPAYMENT = (
-    "Generator spłaca dług stopniowo - w jednym zakresie koryguje udział "
-    "osoby o najwyżej połowę jej udziału w tym zakresie - żeby nikt nie "
-    "został bez dyżurów."
+    "Generator wyrównuje taką nierówność po trochu: w jednym zakresie zmienia "
+    "udział osoby najwyżej o połowę jej udziału, żeby nikt nie został bez dyżurów."
 )
 
 
@@ -1388,24 +1387,21 @@ def _criterion_warning(lenses: list[_Lens], spreads: dict[str, int], floor: int 
     inherited = all(history_spread[label] > ACCEPTANCE_POINTS for label in failing)
     criterion = f"Kryterium {ACCEPTANCE_POINTS} punktów rozpiętości"
     if inherited:
+        title = f"{criterion} niespełnione przez nierówność sprzed szkicu."
         if floor is None:
             return (
-                f"Zastany dług historyczny: {criterion.lower()} nie jest spełnione "
-                "po tym zakresie; nie udało się wyznaczyć najniższej osiągalnej "
-                f"rozpiętości w budżecie czasu. {_PACED_REPAYMENT} Przyczyną jest "
-                "zastana nierówność, nie jakość generowania."
+                f"{title} W budżecie czasu nie udało się wyznaczyć najniższej "
+                f"rozpiętości osiągalnej w tym zakresie. {_PACED_REPAYMENT}"
             )
         if floor <= ACCEPTANCE_POINTS:
             return (
-                f"Zastany dług historyczny: {criterion.lower()} byłoby osiągalne w "
-                f"tym zakresie, ale {_PACED_REPAYMENT[0].lower()}{_PACED_REPAYMENT[1:]} "
-                "Kolejny zakres dokończy wyrównanie."
+                f"{title} W tym zakresie dałoby się je spełnić. {_PACED_REPAYMENT} "
+                "Kolejny zakres dokończy wyrównanie; ponowne generowanie nic nie zmieni."
             )
         return (
-            f"Zastany dług historyczny: {criterion.lower()} jest nieosiągalne w tym "
-            f"zakresie, najniższa osiągalna rozpiętość to {floor} punktów. "
-            f"{_PACED_REPAYMENT} Przyczyną jest zastana nierówność, nie jakość "
-            "generowania."
+            f"{title} W tym zakresie najniższa osiągalna rozpiętość to {floor} punktów. "
+            f"{_PACED_REPAYMENT} Kolejne zakresy dokończą wyrównanie; ponowne "
+            "generowanie nic nie zmieni."
         )
     if floor is None:
         return (
