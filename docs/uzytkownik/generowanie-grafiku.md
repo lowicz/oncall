@@ -201,7 +201,7 @@ Szkic ──► Do akceptacji ──► Opublikowany
    potem **Publikuj v*N*…** w panelu decyzji, w arkuszu „Publikuję propozycję
    v*N* · *zakres*”.
 2. Arkusz za każdym otwarciem sprawdza publikację od nowa, a otwarty
-   ponawia sprawdzenie co pół minuty i po powrocie do karty przeglądarki;
+   ponawia sprawdzenie po powrocie do karty przeglądarki;
    dopóki sprawdza, mówi to obok przycisków, a **Publikuj v*N*** czeka.
    Arkusz zawiera: jedno zdanie skutku (ile przydziałów stanie się grafikiem,
    e-mail do zespołu, aktualizacja kanałów ICS, cofnięcie tylko nową
