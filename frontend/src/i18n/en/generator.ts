@@ -204,6 +204,8 @@ export const generator: Messages['generator'] = {
       `Draft out of date: ${pluralEn(count, ['entry has', 'entries have'])} changed since generation.`,
     restTitle: 'Publication will violate the rest rules',
     restItem: (member: string, message: string, days: string) => `${member}: ${message} ${days}`,
+    acknowledgeGap: 'I understand that these days stay unstaffed',
+    acknowledgeRest: 'I understand and knowingly break these rules',
     acknowledge: 'I understand that I am changing a day that is under way or has passed, and that the team will see the change immediately.',
     undoNote: 'A publication can only be undone by a new publication. The operation goes to the audit as “Schedule published”.',
   },

@@ -536,6 +536,26 @@ describe('the Polish interface', () => {
     await snapshotOf('schedule-coordinator')
   })
 
+  it('a day correction that breaks a hard rule, decided in the panel', async () => {
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([
+      { rule: 'three_in_seven', message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.', member_name: 'Marek Nowak', days: ['2026-09-10', '2026-09-11'] },
+    ])
+    vi.spyOn(api, 'swapImpact').mockResolvedValue({
+      service_date: '2026-09-11', role: 'primary', points: 1, window_start: '2025-09-11', window_end: '2026-09-10',
+      requester: { member_id: 'm3', display_name: 'Ola Wiśniewska', before: member('m3', 'Ola Wiśniewska'), after: member('m3', 'Ola Wiśniewska', { primary: balance(3, 3.5) }) },
+      replacement: { member_id: 'm2', display_name: 'Marek Nowak', before: member('m2', 'Marek Nowak'), after: member('m2', 'Marek Nowak', { primary: balance(5, 3.5) }) },
+    })
+    renderScreen(
+      <Routes><Route path="/grafik" element={<ScheduleScreen role="coordinator" displayName="Ewa Maj" hasTeamMember />} /></Routes>,
+      { route: '/grafik?dzien=2026-09-11' },
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień obsadę' }))
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Osoba' }), { target: { value: 'm2' } })
+    await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
+    await screen.findByText('Wpływ na bilans')
+    await snapshotOf('schedule-coordinator-correction')
+  })
+
   it('schedule of a member as a list', async () => {
     pretendNarrow()
     renderScreen(
@@ -609,6 +629,20 @@ describe('the Polish interface', () => {
     await screen.findAllByText('Ola Wiśniewska', { exact: false })
     await waitFor(() => expect(api.draftFairnessImpact).toHaveBeenCalled())
     await snapshotOf('generator-draft')
+  })
+
+  it('publication of a proposal with a rest violation and a gap', async () => {
+    vi.spyOn(api, 'schedule').mockResolvedValue({ ...DRAFT, status: 'proposed', version: 2 })
+    vi.spyOn(api, 'publishPreview').mockResolvedValue({
+      lost_changes: [], carried_changes: [], pending_swaps: [], stale_changes_count: 0,
+      uncovered_before: ['2026-10-02', '2026-10-03'],
+      rest_violations: [{ rule: 'three_in_seven', message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.', member_name: 'Ola Wiśniewska', days: ['2026-10-06'] }],
+    })
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+    fireEvent.click(await screen.findByRole('button', { name: /^Publikuj…/ }))
+    await screen.findByRole('checkbox', { name: 'Rozumiem, że te dni zostają bez obsady' })
+    await waitFor(() => expect(api.draftFairnessImpact).toHaveBeenCalled())
+    await snapshotOf('generator-publish')
   })
 
   it('people', async () => {

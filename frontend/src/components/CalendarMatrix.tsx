@@ -18,12 +18,12 @@ import { locale, messages, useMessages } from '../i18n'
 import { useGridNavigation } from '../hooks/useGridNavigation'
 import { CalendarDayList } from './CalendarDayList'
 import { ConfirmDialog } from './ConfirmDialog'
+import { DecisionFrame } from './DecisionFrame'
 import { SwapImpactPreview } from './SwapImpactPreview'
 import {
   AvailabilityMark,
   Box,
   Button,
-  Checkbox,
   Chip,
   ChipRow,
   EmptyState,
@@ -125,8 +125,9 @@ export function CalendarMatrix({
   const [selectedRole, setSelectedRole] = useState<AssignmentRole>('primary')
   const [staffOpen, setStaffOpen] = useState(false)
   const [staffMemberId, setStaffMemberId] = useState<string | null>(null)
-  const [confirmOverride, setConfirmOverride] = useState(false)
   const [violationsAcknowledged, setViolationsAcknowledged] = useState(false)
+  const [confirmHistorical, setConfirmHistorical] = useState(false)
+  const [historicalReason, setHistoricalReason] = useState('')
   const [eventTitle, setEventTitle] = useState('')
   const [eventColor, setEventColor] = useState<CalendarEventColor>('blue')
   const [eventFormOpen, setEventFormOpen] = useState(false)
@@ -136,10 +137,11 @@ export function CalendarMatrix({
     setSelected(null)
     setStaffOpen(false)
     setStaffMemberId(null)
-    setConfirmOverride(false)
+    setConfirmHistorical(false)
     setEventFormOpen(false)
   }
   const openDay = (day: Day, member: Member | undefined, nextRole: AssignmentRole) => {
+    if (override.isPending) return
     setSelected({ member, day })
     setSelectedRole(nextRole)
     setStaffOpen(false)
@@ -155,24 +157,14 @@ export function CalendarMatrix({
     },
     onError: (error) => {
       // The roster moved between the check and the write, and the override
-      // now breaks a rule the confirmation did not show: check again so the
-      // violations and their acknowledgement appear.
+      // now breaks a rule the panel did not show: check again so the
+      // violations and their acknowledgement appear, in the panel rather
+      // than behind the past-day dialog.
       if (error instanceof ApiError && error.violations.length > 0) {
         queryClient.invalidateQueries({ queryKey: ['override-check'] })
+        setConfirmHistorical(false)
       }
     },
-  })
-  // The hard rules this override would break are shown in the confirmation
-  // before the coordinator clicks, and saving waits for their explicit
-  // acknowledgement: the API refuses an unacknowledged rule-breaking override.
-  const overrideCheck = useQuery({
-    queryKey: ['override-check', selected?.day.service_date, selectedRole, staffMemberId],
-    queryFn: () => api.directOverrideCheck({
-      service_date: selected!.day.service_date,
-      role: selectedRole,
-      replacement_member_id: staffMemberId!,
-    }),
-    enabled: confirmOverride && Boolean(selected) && Boolean(staffMemberId),
   })
   const refreshCalendar = () => queryClient.invalidateQueries({ queryKey: ['calendar'] })
   const createEvent = useMutation({
@@ -293,17 +285,46 @@ export function CalendarMatrix({
   const chosenCandidate = staffCandidates.find((item) => item.id === staffMemberId)
   const staffBlockReason = !selectedDayPublished
     ? t.staffBlock.outsidePublished
-    : !staffMemberId
+    : !chosenCandidate
       ? t.staffBlock.pickPerson
       : chosenCandidate?.disabledReason
         ? t.staffBlock.chosenPerson(chosenCandidate.disabledReason)
         : undefined
+  // The hard rules this override would break are shown under the chosen
+  // person before the coordinator saves, and saving waits for their explicit
+  // acknowledgement: the API refuses an unacknowledged rule-breaking override.
+  const overrideCheck = useQuery({
+    queryKey: ['override-check', selected?.day.service_date, selectedRole, staffMemberId],
+    queryFn: () => api.directOverrideCheck({
+      service_date: selected!.day.service_date,
+      role: selectedRole,
+      replacement_member_id: staffMemberId!,
+    }),
+    enabled: staffOpen && !staffBlockReason,
+  })
+  // An acknowledgement covers the violations it was given for, never a set
+  // that changed under it.
+  useEffect(() => setViolationsAcknowledged(false), [overrideCheck.data])
+  const historical = Boolean(selected && selected.day.service_date < today)
+  const saveBlocked = Boolean(staffBlockReason)
+    || overrideCheck.isLoading
+    || ((overrideCheck.data?.length ?? 0) > 0 && !violationsAcknowledged)
+  const saveOverride = (reason?: string) => selected && staffMemberId && scheduleRef && override.mutate({
+    schedule_id: scheduleRef.schedule_id,
+    expected_version: scheduleRef.schedule_version,
+    service_date: selected.day.service_date,
+    role: selectedRole,
+    replacement_member_id: staffMemberId,
+    reason,
+    acknowledge_rule_violations: (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged,
+  })
   const openStaffChange = (nextRole: AssignmentRole) => {
     // The role select drops „11–19" on a day off, so never open the form with
     // it pre-selected there.
     const safeRole: AssignmentRole = nextRole === 'late_shift' && selected?.day.is_day_off ? 'primary' : nextRole
     setSelectedRole(safeRole)
     setStaffMemberId(null)
+    setHistoricalReason('')
     override.reset()
     setStaffOpen(true)
   }
@@ -507,7 +528,7 @@ export function CalendarMatrix({
 
       <Panel
         open={Boolean(selected)}
-        onClose={closeInspector}
+        onClose={() => { if (!override.isPending) closeInspector() }}
         title={selected ? formatDay(selected.day.service_date) : ''}
         meta={selected && (
           <>
@@ -517,14 +538,24 @@ export function CalendarMatrix({
         )}
         footer={staffOpen ? (
           <>
-            <Button onClick={() => { setStaffOpen(false); override.reset() }}>{t.inspector.back}</Button>
+            <Button disabled={override.isPending} onClick={() => { setStaffOpen(false); override.reset() }}>{t.inspector.back}</Button>
             <span className="sp" />
+            {/* Focusable while blocked, so the frame above says what is missing. */}
             <Button
               variant="primary"
-              disabled={override.isPending || Boolean(staffBlockReason)}
-              onClick={() => { override.reset(); setViolationsAcknowledged(false); setConfirmOverride(true) }}
+              loading={override.isPending}
+              aria-disabled={saveBlocked || undefined}
+              onClick={() => {
+                if (saveBlocked) return
+                if (historical) {
+                  override.reset()
+                  setConfirmHistorical(true)
+                } else {
+                  saveOverride()
+                }
+              }}
             >
-              {selectedAssignment ? t.inspector.changeStaffing : t.inspector.staff}
+              {historical ? t.confirm.saveHistorical : t.confirm.save}
             </Button>
           </>
         ) : (
@@ -572,7 +603,8 @@ export function CalendarMatrix({
                   id={id}
                   name={id}
                   value={selectedRole}
-                  onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null) }}
+                  disabled={override.isPending}
+                  onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null); setHistoricalReason(''); override.reset() }}
                 >
                   {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
                     <option key={item} value={item}>{roleLabels()[item]}</option>
@@ -588,7 +620,8 @@ export function CalendarMatrix({
                   name={id}
                   value={staffMemberId ?? ''}
                   aria-describedby={describedBy}
-                  onChange={(event) => setStaffMemberId(event.target.value || null)}
+                  disabled={override.isPending}
+                  onChange={(event) => { setStaffMemberId(event.target.value || null); setHistoricalReason(''); override.reset() }}
                 >
                   <option value="">{t.inspector.pickPerson}</option>
                   {staffCandidates.map((candidate) => (
@@ -599,9 +632,30 @@ export function CalendarMatrix({
                 </Select>
               )}
             </Field>
-            {/* While the confirmation covers this panel the error must live
-                there; render it here only once the confirmation is gone. */}
-            {override.error && !confirmOverride && <Box tone="bad" role="alert" title={override.error.message} />}
+            {!staffBlockReason && (
+              <DecisionFrame
+                violations={overrideCheck.data}
+                checkFailed={overrideCheck.isError}
+                violationsTitle={t.confirm.breaksRules}
+                acknowledged={violationsAcknowledged}
+                onAcknowledge={setViolationsAcknowledged}
+                error={confirmHistorical ? null : override.error?.message}
+                pending={override.isPending}
+              >
+                {/* MED6-04: the same balance projection a team member sees
+                    before a swap, beside the rules it is decided with. */}
+                {selectedAssignment ? (
+                  <SwapImpactPreview
+                    serviceDate={selected.day.service_date}
+                    role={selectedRole}
+                    replacementId={staffMemberId!}
+                    mode="override"
+                  />
+                ) : (
+                  <div className="muted small">{t.confirm.emptySlot(chosenCandidate!.display_name)}</div>
+                )}
+              </DecisionFrame>
+            )}
           </div>
         ) : selected && (
           <>
@@ -718,70 +772,17 @@ export function CalendarMatrix({
       </Panel>
 
       <ConfirmDialog
-        open={confirmOverride && Boolean(selected)}
-        title={selectedAssignment ? t.confirm.changeTitle : t.confirm.fillTitle}
-        description={selected ? (
-          <>
-            <div>
-              <span className="mono">{formatDate(selected.day.service_date)}</span> · {roleLabels()[selectedRole]}<br />
-              {t.confirm.assign} <b>{chosenCandidate?.display_name ?? '-'}</b>
-              {selectedAssignment && <> {t.confirm.insteadOf(selectedAssignment.assignee_name)}</>}
-            </div>
-            {overrideCheck.isLoading && <div className="muted small">{t.confirm.checkingRules}</div>}
-            {(overrideCheck.data?.length ?? 0) > 0 && (
-              <Box tone="warn" title={t.confirm.breaksRules}>
-                <ul className="box-list">
-                  {overrideCheck.data!.map((violation, index) => (
-                    <li key={index}>
-                      {violation.message} ({violation.member_name}: {violation.days.map(formatDate).join(', ')})
-                    </li>
-                  ))}
-                </ul>
-                <div className="box-next">{t.confirm.auditNote}</div>
-                <Checkbox
-                  label={t.confirm.acknowledge}
-                  checked={violationsAcknowledged}
-                  onChange={(event) => setViolationsAcknowledged(event.target.checked)}
-                  disabled={override.isPending}
-                />
-              </Box>
-            )}
-            {/* MED6-04: the same balance projection a team member sees before a
-                swap - the confirmation is the only pause before the change is
-                written, so it carries the full picture. */}
-            {selectedAssignment && staffMemberId ? (
-              <SwapImpactPreview
-                serviceDate={selected.day.service_date}
-                role={selectedRole}
-                replacementId={staffMemberId}
-                mode="override"
-              />
-            ) : chosenCandidate ? (
-              <div className="muted small">
-                {t.confirm.emptySlot(chosenCandidate.display_name)}
-              </div>
-            ) : null}
-          </>
-        ) : undefined}
-        confirmLabel={selectedAssignment ? t.confirm.change : t.confirm.fill}
-        reasonLabel={selected?.day.service_date && selected.day.service_date < today
-          ? t.confirm.historicalReason
-          : undefined}
+        open={confirmHistorical}
+        title={t.confirm.historicalTitle}
+        confirmLabel={t.confirm.save}
+        reasonLabel={t.confirm.historicalReason}
         reasonMinLength={10}
-        confirmDisabled={overrideCheck.isLoading
-          || ((overrideCheck.data?.length ?? 0) > 0 && !violationsAcknowledged)}
+        initialReason={historicalReason}
+        confirmDisabled={saveBlocked}
         pending={override.isPending}
-        error={override.error ? override.error.message : null}
-        onCancel={() => setConfirmOverride(false)}
-        onConfirm={(reason) => selected && staffMemberId && scheduleRef && override.mutate({
-          schedule_id: scheduleRef.schedule_id,
-          expected_version: scheduleRef.schedule_version,
-          service_date: selected.day.service_date,
-          role: selectedRole,
-          replacement_member_id: staffMemberId,
-          reason: reason || undefined,
-          acknowledge_rule_violations: (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged,
-        })}
+        error={confirmHistorical ? override.error?.message : null}
+        onCancel={() => setConfirmHistorical(false)}
+        onConfirm={(reason) => { setHistoricalReason(reason); saveOverride(reason) }}
       />
       <ConfirmDialog
         open={Boolean(eventToDelete)}

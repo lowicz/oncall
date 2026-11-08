@@ -212,6 +212,8 @@ export const generator = {
       `Szkic nieaktualny: od wygenerowania ${pluralFormPl(count, ['zmienił', 'zmieniły', 'zmieniło'])} się ${pluralPl(count, ['wpis', 'wpisy', 'wpisów'])}.`,
     restTitle: 'Publikacja naruszy reguły odpoczynku',
     restItem: (member: string, message: string, days: string) => `${member}: ${message} ${days}`,
+    acknowledgeGap: 'Rozumiem, że te dni zostają bez obsady',
+    acknowledgeRest: 'Rozumiem i świadomie łamię te reguły',
     acknowledge: 'Rozumiem, że zmieniam dzień, który już trwa lub minął, i że zespół zobaczy zmianę od razu.',
     undoNote: 'Publikację można cofnąć tylko nową publikacją. Operacja trafia do audytu jako „Opublikowano grafik”.',
   },
