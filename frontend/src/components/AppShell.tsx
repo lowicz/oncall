@@ -14,6 +14,7 @@ import { Avatar, Icon, IconButton, Mark, Menu, MenuLink, MenuItem, MenuRadioGrou
 import { NowStrip } from './NowStrip'
 import { CommandPalette } from './CommandPalette'
 import { ErrorBoundary } from './ErrorBoundary'
+import { leaveWithoutAsking } from '../hooks/useUnsavedChanges'
 
 function useThemeOptions() {
   const t = useMessages().theme
@@ -134,7 +135,7 @@ export function AppShell({ displayName, avatar = null, access, share }: {
     mutationFn: api.logout,
     onSuccess: () => {
       queryClient.clear()
-      window.location.assign('/')
+      leaveWithoutAsking('/')
     },
   })
   const primary = visibleFor(primaryNav, access)

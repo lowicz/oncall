@@ -1,6 +1,16 @@
 import { useCallback, useRef, useState } from 'react'
 import { createPath, useBeforeUnload, useBlocker } from 'react-router-dom'
 
+// Set once the page is being left on purpose, e.g. after sign-out has ended
+// the session: asking then could only strand the user on a dead screen.
+let leaving = false
+
+/** Leaves the page without the unsaved-changes prompt. */
+export function leaveWithoutAsking(url: string) {
+  leaving = true
+  window.location.assign(url)
+}
+
 /**
  * Protects unfinished form work from route changes, reloads and local actions
  * such as opening another row. The caller owns the confirmation copy and UI;
@@ -14,7 +24,7 @@ export function useUnsavedChanges(dirty: boolean, onDiscard?: () => void) {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
 
   useBeforeUnload(useCallback((event) => {
-    if (!dirty) return
+    if (!dirty || leaving) return
     event.preventDefault()
     event.returnValue = ''
   }, [dirty]), { capture: true })
