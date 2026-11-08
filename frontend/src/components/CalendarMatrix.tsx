@@ -157,7 +157,7 @@ export function CalendarMatrix({
     setEventDialogOpen(false)
   }
   const openDay = (day: Day, member: Member | undefined, nextRole: AssignmentRole) => {
-    if (override.isPending) return
+    if (override.isPending || calendar.isPlaceholderData) return
     setSelected({ member, day })
     setSelectedRole(nextRole)
     setStaffOpen(false)
@@ -280,7 +280,7 @@ export function CalendarMatrix({
   // once per value; a person named there lights the row and scrolls to it.
   const consumedDay = useRef<string | null>(null)
   useEffect(() => {
-    if (!data || !focusDay || consumedDay.current === focusDay) return
+    if (!data || calendar.isPlaceholderData || !focusDay || consumedDay.current === focusDay) return
     const day = dayByDate.get(focusDay)
     if (!day) return
     consumedDay.current = focusDay
@@ -288,7 +288,7 @@ export function CalendarMatrix({
     const col = data.days.findIndex((item) => item.service_date === focusDay)
     if (col >= 0 && view === 'matrix') grid.focusCell(0, col)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, focusDay, dayByDate])
+  }, [data, calendar.isPlaceholderData, focusDay, dayByDate])
   const rowRefs = useRef(new Map<string, HTMLTableRowElement | null>())
   const consumedPerson = useRef<string | null>(null)
   useEffect(() => {

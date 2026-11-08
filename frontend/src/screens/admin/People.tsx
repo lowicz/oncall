@@ -201,6 +201,7 @@ export function PeoplePanel() {
   const selectedId = params.get('osoba')
   const tab = tabOf(params.get('karta'))
   const filter = filterOf(params.get('filtr'))
+  const search = params.get('szukaj') ?? ''
   // Whose details the forms hold, so a person named by the URL gets them once.
   const filledFor = useRef<string | null>(null)
   // Undo runs after the save, when another person may be open in the panel.
@@ -225,9 +226,6 @@ export function PeoplePanel() {
   const [eligibilityRole, setEligibilityRole] = useState<AssignmentRole>('primary')
   const [eligibilityFrom, setEligibilityFrom] = useState(today)
   const [eligibilityUntil, setEligibilityUntil] = useState('')
-  // Typed into its own state, which a router update lags behind; the URL
-  // only keeps it for a refresh.
-  const [search, setSearch] = useState(params.get('szukaj') ?? '')
 
   const allRows = useMemo<Row[]>(() => {
     const byUser = new Map((team.data ?? []).map((member) => [member.user_id, member]))
@@ -327,7 +325,7 @@ export function PeoplePanel() {
   const unsavedChanges = useUnsavedChanges(dirty)
   // The panel's own moves in the URL leave nothing unsaved behind: the
   // guard asks before the panel changes person, not on every tab.
-  const setDetails = (changes: Record<string, string | null>) => unsavedChanges.bypass(() => setParams(changes))
+  const setDetails = (...args: Parameters<typeof setParams>) => unsavedChanges.bypass(() => setParams(...args))
   const setTab = (value: DetailTab) => setDetails({ karta: TAB_SLUGS[value] })
   const closeDetails = () => {
     filledFor.current = null
@@ -537,10 +535,7 @@ export function PeoplePanel() {
               aria-label={t.searchPlaceholder}
               placeholder={t.searchPlaceholder}
               value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setDetails({ szukaj: event.target.value || null })
-              }}
+              onChange={(event) => setDetails({ szukaj: event.target.value || null }, { flushSync: true })}
               className="sech-search"
             />
             <Segmented

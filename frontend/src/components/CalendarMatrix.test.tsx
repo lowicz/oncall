@@ -1368,8 +1368,13 @@ describe('CalendarMatrix day correction', () => {
     await waitFor(() => expect(api.calendar).toHaveBeenCalledWith(nextWeek.starts_on, nextWeek.ends_on))
     expect(screen.getByRole('region', { name: 'Macierz grafiku' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.queryByRole('status', { name: 'Wczytywanie grafiku…' })).not.toBeInTheDocument()
+    // A day of the range being left opens no inspector over the one coming.
+    fireEvent.click(screen.getAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ })[0])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     act(() => finish({ ...week(), ...nextWeek }))
     await waitFor(() => expect(screen.getByRole('region', { name: 'Macierz grafiku' })).not.toHaveAttribute('aria-busy'))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ })[0])
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 })
 

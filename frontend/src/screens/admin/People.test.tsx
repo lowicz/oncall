@@ -129,6 +129,17 @@ describe('PeoplePanel table', () => {
     await waitFor(() => expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument())
   })
 
+  it('clears the search when the address drops it, as the side navigation does', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' })])
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby?szukaj=maj' })
+    await rowOf('ewa')
+    expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
+
+    await act(() => router.navigate('/osoby'))
+    expect(screen.getByRole('searchbox', { name: /Szukaj osoby/ })).toHaveValue('')
+    await rowOf('anna')
+  })
+
   it('shows every account for a filter the URL names but the screen does not know', async () => {
     mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj', is_active: false })])
     renderScreen(<PeoplePanel />, { route: '/osoby?filtr=nieznany' })
