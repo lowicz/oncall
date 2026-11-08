@@ -93,6 +93,6 @@ export const duty: Messages['duty'] = {
     end: 'End the handover',
     endedYou: 'The on-call number is with you again',
     ended: (name: string) => `${name} answers the on-call number again`,
-    retry: 'Try again',
+    checkAgain: 'Check again',
   },
 }

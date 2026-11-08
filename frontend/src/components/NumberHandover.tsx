@@ -217,7 +217,7 @@ export function HandoverActions({ now, primary, secondary, viewer }: Readonly<{
     const endLabel = { primary: t.takeBack, secondary: t.giveBack, coordinator: t.end }[viewer]
     return (
       <>
-        {now.status === 'failed' && <Button size={size} icon="refresh" onClick={refresh}>{t.retry}</Button>}
+        {now.status === 'failed' && <Button size={size} icon="refresh" onClick={refresh}>{t.checkAgain}</Button>}
         <Button size={size} loading={end.isPending} onClick={() => end.mutate(handover.id)}>
           {now.status === 'failed' ? t.end : endLabel}
         </Button>

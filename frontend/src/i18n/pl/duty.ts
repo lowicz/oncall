@@ -100,6 +100,6 @@ export const duty = {
     end: 'Zakończ przekazanie',
     endedYou: 'Numer on-call znów u Ciebie',
     ended: (name: string) => `Numer on-call znów odbiera ${name}`,
-    retry: 'Spróbuj ponownie',
+    checkAgain: 'Sprawdź ponownie',
   },
 }

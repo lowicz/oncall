@@ -293,7 +293,7 @@ describe('ending a handover', () => {
     expect(await screen.findByText('To przekazanie numeru on-call już się zakończyło')).toBeInTheDocument()
   })
 
-  it('offers to try again or end the handover while the switch failed', async () => {
+  it('offers to check the switch again, re-reading where the number rings, or to end the handover while it failed', async () => {
     const read = vi.spyOn(api, 'forwardingNow').mockResolvedValue(handedOver({ status: 'failed', confirmed_at: null }))
     function Probe() {
       useForwardingNow()
@@ -302,7 +302,8 @@ describe('ending a handover', () => {
     renderScreen(<><Probe /><HandoverActions now={handedOver({ status: 'failed', confirmed_at: null })} primary={ANNA} secondary={MAREK} viewer="primary" /></>)
     await waitFor(() => expect(read).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('button', { name: 'Zakończ przekazanie' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }))
+    expect(screen.queryByRole('button', { name: 'Spróbuj ponownie' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Sprawdź ponownie' }))
     await waitFor(() => expect(read).toHaveBeenCalledTimes(2))
   })
 })
