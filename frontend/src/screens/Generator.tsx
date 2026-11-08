@@ -135,6 +135,11 @@ export function GeneratorPanel() {
   const [runProgress, setRunProgress] = useState<ScheduleRun | null>(null)
   const [focus, setFocus] = useState<DraftFocus | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsFromMenu, setSettingsFromMenu] = useState(false)
+  const openSettings = (fromMenu: boolean) => {
+    setSettingsFromMenu(fromMenu)
+    setSettingsOpen(true)
+  }
   const [problemsBy, setProblemsBy] = useState<ProblemGrouping>('person')
   const [hardOnly, setHardOnly] = useState(false)
   const problemsRef = useRef<HTMLDivElement>(null)
@@ -384,7 +389,7 @@ export function GeneratorPanel() {
   )
 
   const settingsButton = (
-    <Button variant="ghost" icon="settings" onClick={() => setSettingsOpen(true)}>
+    <Button variant="ghost" icon="settings" onClick={() => openSettings(false)}>
       {t.settingsButton}{settingsDirty ? t.settingsButtonUnsaved : ''}
     </Button>
   )
@@ -471,7 +476,7 @@ export function GeneratorPanel() {
                 {result.status === 'proposed' && (
                   <MenuItem disabled={withdraw.isPending} onClick={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}>{t.header.backToDraft}</MenuItem>
                 )}
-                <MenuItem onClick={() => setSettingsOpen(true)}>{t.settingsButton}{settingsDirty ? t.settingsButtonUnsaved : ''}</MenuItem>
+                <MenuItem onClick={() => openSettings(true)}>{t.settingsButton}{settingsDirty ? t.settingsButtonUnsaved : ''}</MenuItem>
               </Menu>
             </>
           )}
@@ -593,7 +598,7 @@ export function GeneratorPanel() {
                   ]}
                 />
                 <p className="muted small">{t.draft.weightsNote}</p>
-                <Button size="sm" variant="ghost" className="self-start" onClick={() => setSettingsOpen(true)}>{t.draft.changeAndRegenerate}</Button>
+                <Button size="sm" variant="ghost" className="self-start" onClick={() => openSettings(false)}>{t.draft.changeAndRegenerate}</Button>
               </div>
             </div>
           </div>
@@ -614,7 +619,7 @@ export function GeneratorPanel() {
       <Panel
         open={settingsOpen}
         onClose={closeSettings}
-        finalFocus={result ? moreRef : undefined}
+        finalFocus={settingsFromMenu ? moreRef : undefined}
         wide
         title={t.settings.title}
         meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}

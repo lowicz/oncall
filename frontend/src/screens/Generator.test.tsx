@@ -910,6 +910,19 @@ describe('GeneratorPanel lifecycle actions', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Więcej' })).toHaveFocus())
   })
 
+  it('gives the focus back to the proposal settings button that opened the panel', async () => {
+    stub([summary({ id: 'd1' })])
+    vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    const inline = await screen.findByRole('button', { name: 'Zmień i generuj ponownie' })
+    inline.focus()
+    fireEvent.click(inline)
+    const panel = await screen.findByRole('dialog', { name: 'Ustawienia generatora' })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zamknij panel' }))
+    await waitFor(() => expect(inline).toHaveFocus())
+  })
+
   it('titles a resumed generation with the open draft range', async () => {
     stub([summary({ id: 'd1' })], [run({ id: 'r1' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
