@@ -2,6 +2,7 @@
 
 import uuid
 
+from oncall.domain.overrides.models import UNSTAFFED
 from oncall.domain.ports import TeamDirectory
 from oncall.domain.scheduling import errors
 from oncall.domain.scheduling.models import (
@@ -53,9 +54,8 @@ async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[
         raise errors.ReplacementNotEligible()
     if replacement.is_unavailable(day):
         raise errors.ReplacementUnavailable()
+    # A role the solver left empty is filled the same way as a held one.
     assignment = next((item for item in schedule.assignments if item.slot == (day, role)), None)
-    if assignment is None:
-        raise errors.DraftSlotNotFound()
     if role in (AssignmentRole.primary, AssignmentRole.secondary):
         opposite = (
             AssignmentRole.secondary if role == AssignmentRole.primary else AssignmentRole.primary
@@ -68,8 +68,9 @@ async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[
     corrected = schedule.with_holder((day, role), replacement.display_name, replacement.id)
     warnings = member_rest_warnings(corrected, replacement.id)
     await ports.schedules.correct(schedule.id, (day, role), replacement)
+    previous_name = assignment.assignee_name if assignment is not None else UNSTAFFED
     await ports.journal.draft_corrected(
-        schedule.id, (day, role), assignment.assignee_name, replacement.display_name
+        schedule.id, (day, role), previous_name, replacement.display_name
     )
     return warnings
 

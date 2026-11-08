@@ -36,8 +36,8 @@ export function shortfallCause(impact: DraftFairnessImpact): 'met' | 'inherited'
 
 /**
  * Balance after this draft version: the spread as one number against the
- * state before, the criterion chips per lens, one row per person with the
- * projected deviation and the points, and the verdict.
+ * state before with the verdict under it, the criterion chips per lens, and
+ * one row per person with the projected deviation and the points.
  */
 export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
   const t = useMessages().generator.fairness
@@ -82,6 +82,29 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
             <span className="muted small">{t.spread(formatPoints(spread.before))}</span>
             {verdict && <StatusBadge tone={verdict === 'better' ? 'ok' : verdict === 'worse' ? 'warn' : 'muted'} className="ml-auto">{t.verdict[verdict]}</StatusBadge>}
           </div>
+          {cause === 'met' && (
+            <Box tone="ok" title={t.metTitle}>
+              {t.metBody(formatPoints(impact.data.criterion_points))}
+            </Box>
+          )}
+          {cause === 'inherited' && (
+            <Box tone="warn" title={t.inheritedTitle(formatDecimal(impact.data.criterion_points))}>
+              {t.inheritedBody}
+              {' '}
+              {spread.after < spread.before - 0.05
+                ? t.spreadReduced(formatDecimal(spread.before), formatDecimal(spread.after))
+                : t.spreadNotReduced(formatDecimal(spread.before), formatDecimal(spread.after))}
+              {' '}
+              {t.repaidGradually}
+              {impact.data.acceptance_floor != null && t.floor(formatDecimal(impact.data.acceptance_floor))}
+            </Box>
+          )}
+          {cause === 'draft' && (
+            <Box tone="warn" title={t.missedTitle}>
+              {t.missedBody(formatDecimal(impact.data.criterion_points))}
+              {impact.data.acceptance_floor != null && t.floor(formatDecimal(impact.data.acceptance_floor))}
+            </Box>
+          )}
           <ChipRow label={t.criterion}>
             <span className="tag">{t.criterionTag(formatDecimal(impact.data.criterion_points))}</span>
             {impact.data.spreads.map((item) => (
@@ -107,29 +130,6 @@ export function DraftFairnessPanel({ result }: { result: DraftSchedule }) {
                 {memberRows(formerMembers)}
               </tbody>
             </table>
-          )}
-          {cause === 'met' && (
-            <Box tone="ok" title={t.metTitle}>
-              {t.metBody(formatPoints(impact.data.criterion_points))}
-            </Box>
-          )}
-          {cause === 'inherited' && (
-            <Box tone="warn" title={t.inheritedTitle(formatDecimal(impact.data.criterion_points))}>
-              {t.inheritedBody}
-              {' '}
-              {spread.after < spread.before - 0.05
-                ? t.spreadReduced(formatDecimal(spread.before), formatDecimal(spread.after))
-                : t.spreadNotReduced(formatDecimal(spread.before), formatDecimal(spread.after))}
-              {' '}
-              {t.repaidGradually}
-              {impact.data.acceptance_floor != null && t.floor(formatDecimal(impact.data.acceptance_floor))}
-            </Box>
-          )}
-          {cause === 'draft' && (
-            <Box tone="warn" title={t.missedTitle}>
-              {t.missedBody(formatDecimal(impact.data.criterion_points))}
-              {impact.data.acceptance_floor != null && t.floor(formatDecimal(impact.data.acceptance_floor))}
-            </Box>
           )}
         </>
       )}

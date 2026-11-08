@@ -158,17 +158,27 @@ async def test_a_correction_is_refused_for_what_the_slot_cannot_take(world) -> N
     assert world.schedules.by_id[schedule.id] == schedule
 
 
-async def test_a_slot_the_draft_does_not_have_cannot_be_corrected(world) -> None:
+async def test_a_role_the_draft_left_empty_is_filled_by_the_correction(world) -> None:
     schedule = complete_schedule(MONDAY, _rotation(world))
     without_late_shift = tuple(
         item for item in schedule.assignments if item.slot != (MONDAY, AssignmentRole.late_shift)
     )
     schedule = world.schedules.put(replace(schedule, assignments=without_late_shift))
 
-    with pytest.raises(errors.DraftSlotNotFound):
-        await correct_draft(
-            _correction(schedule, MONDAY, AssignmentRole.late_shift, world.dawid.id), world.drafts
+    await correct_draft(
+        _correction(schedule, MONDAY, AssignmentRole.late_shift, world.dawid.id), world.drafts
+    )
+
+    corrected = world.schedules.by_id[schedule.id]
+    held = next(item for item in corrected.assignments if item.slot == (MONDAY, "late_shift"))
+    assert (held.assignee_name, held.member_id, held.is_override) == ("Dawid", world.dawid.id, True)
+    assert len(corrected.assignments) == len(without_late_shift) + 1
+    assert world.journal.events == [
+        (
+            "draft_corrected",
+            {"args": (schedule.id, (MONDAY, "late_shift"), "brak obsady", "Dawid")},
         )
+    ]
 
 
 # --- lifecycle --------------------------------------------------------------

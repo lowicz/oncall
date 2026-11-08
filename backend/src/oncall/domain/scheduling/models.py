@@ -157,7 +157,12 @@ class Schedule:
         return self.origin == ScheduleOrigin.imported
 
     def with_holder(self, slot: Slot, name: str, member_id: uuid.UUID) -> Schedule:
-        """The schedule with one slot handed to someone as a correction."""
+        """The schedule with one slot handed to someone as a correction; a
+        slot nobody held is added."""
+        if all(item.slot != slot for item in self.assignments):
+            service_date, role = slot
+            added = ScheduledDuty(service_date, role, name, member_id, is_override=True)
+            return replace(self, assignments=(*self.assignments, added))
         return replace(
             self,
             assignments=tuple(

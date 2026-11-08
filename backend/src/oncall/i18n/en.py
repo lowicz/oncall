@@ -220,7 +220,6 @@ MESSAGES: dict[str, str] = {
     "scheduling.replacement_not_found": "Person not found",
     "scheduling.replacement_not_eligible": "The person has no eligibility",
     "scheduling.replacement_unavailable": "The person is unavailable",
-    "scheduling.draft_slot_not_found": "Assignment not found in the draft",
     "scheduling.second_on_call_same_day": "The person already has a second on-call on that day",
     "scheduling.variant_not_found": "One of the variants was not found",
     "scheduling.variant_ranges_differ": "Compared variants must cover the same date range",

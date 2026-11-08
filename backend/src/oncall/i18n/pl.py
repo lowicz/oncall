@@ -224,7 +224,6 @@ MESSAGES: dict[str, str] = {
     "scheduling.replacement_not_found": "Nie znaleziono osoby",
     "scheduling.replacement_not_eligible": "Osoba nie ma eligibility",
     "scheduling.replacement_unavailable": "Osoba jest niedostępna",
-    "scheduling.draft_slot_not_found": "Nie znaleziono przydziału w szkicu",
     "scheduling.second_on_call_same_day": "Osoba ma już drugi on-call tego dnia",
     "scheduling.variant_not_found": "Nie znaleziono jednego z wariantów",
     "scheduling.variant_ranges_differ": ("Porównywane warianty muszą obejmować ten sam zakres dat"),

@@ -206,8 +206,12 @@ class SqlAlchemySchedules:
     async def correct(self, schedule_id: uuid.UUID, slot: Slot, to: Member) -> None:
         row = self._rows[schedule_id]
         assignment = next(
-            item for item in row.assignments if (item.service_date, item.role) == slot
+            (item for item in row.assignments if (item.service_date, item.role) == slot), None
         )
+        if assignment is None:
+            service_date, role = slot
+            assignment = Assignment(service_date=service_date, role=role)
+            row.assignments.append(assignment)
         record_origin(assignment)
         assignment.assignee_name = to.display_name
         assignment.member_id = to.id

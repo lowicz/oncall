@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
 import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
-import { availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
+import { REQUIRED_ROLES, availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
 import { formatDate, formatShortDate, formatWeekday, warsawDate } from '../lib/dates'
 import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
 import { signed } from '../lib/numbers'
@@ -18,6 +18,11 @@ const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 /** A cell the problems table asked the matrix to open. */
 export interface DraftFocus { service_date: string; assignee_name: string; role: AssignmentRole }
 
+/** The required roles nobody holds on a day of the draft: what the solver left empty. */
+export function missingRoles(result: DraftSchedule, serviceDate: string): AssignmentRole[] {
+  return REQUIRED_ROLES.filter((role) => !result.assignments.some((item) => item.service_date === serviceDate && item.role === role))
+}
+
 /** The one member with this name; none when it is missing or shared, so Undo never puts back the wrong person. */
 function soleMember(members: Member[], name?: string) {
   const matches = members.filter((item) => item.display_name === name)
@@ -26,7 +31,8 @@ function soleMember(members: Member[], name?: string) {
 
 /**
  * The draft as a matrix. A coordinator corrects one assignment at a time
- * from the inspector; the rest of the draft is not re-solved. Availability
+ * from the inspector, an empty role included; the rest of the draft is not
+ * re-solved. Days with an empty role are marked in the header. Availability
  * marks show who can be moved in before the API refuses the move.
  */
 export function DraftScheduleMatrix({ result, onChange, focus }: {
@@ -109,9 +115,9 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
   const selectedCategory = selectedBalance?.[selectedRole]
   const correctionPoints = selectedRole === 'late_shift' ? 1 : selected?.day.is_day_off ? 2 : 1
-  const cannotAssign = !selectedAssignment
-    || selectedAssignment.assignee_name === selected?.member.display_name
+  const cannotAssign = selectedAssignment?.assignee_name === selected?.member.display_name
     || selectedAvailability?.kind === 'unavailable'
+  const changesHolder = Boolean(selected) && selectedAssignment?.assignee_name !== selected?.member.display_name
 
   return (
     <div className="stack-sm">
@@ -132,18 +138,21 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               </tr>
               <tr className="drow">
                 <th scope="col" className="who">{t.person}</th>
-                {days.map((day) => (
-                  <th
-                    key={day.service_date}
-                    scope="col"
-                    className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', day.service_date === today && 'td')}
-                    title={[day.holiday_name, ...day.events.map((event) => event.title)].filter(Boolean).join(' · ') || undefined}
-                    aria-label={[formatWeekday(day.service_date), day.service_date.slice(8), day.holiday_name, ...day.events.map((event) => event.title)].filter(Boolean).join(' · ')}
-                  >
-                    <span>{formatWeekday(day.service_date)}</span>
-                    <b>{day.service_date.slice(8)}</b>
-                  </th>
-                ))}
+                {days.map((day) => {
+                  const gap = missingRoles(result, day.service_date).length > 0 ? t.gapDay : null
+                  return (
+                    <th
+                      key={day.service_date}
+                      scope="col"
+                      className={cx(day.is_day_off && 'we', startsWeek(day) && 'wk', day.service_date === today && 'td', gap && 'gap')}
+                      title={[day.holiday_name, ...day.events.map((event) => event.title), gap].filter(Boolean).join(' · ') || undefined}
+                      aria-label={[formatWeekday(day.service_date), day.service_date.slice(8), day.holiday_name, ...day.events.map((event) => event.title), gap].filter(Boolean).join(' · ')}
+                    >
+                      <span>{formatWeekday(day.service_date)}</span>
+                      <b>{day.service_date.slice(8)}</b>
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
@@ -164,7 +173,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                           disabled={!editable}
                           onClick={() => {
                             setSelected({ member, day })
-                            setSelectedRole(assignments[0]?.role ?? 'primary')
+                            // An empty cell on a day with a gap opens on the empty role.
+                            setSelectedRole(assignments[0]?.role ?? missingRoles(result, day.service_date)[0] ?? 'primary')
                           }}
                           aria-label={cellLabel(
                             member.display_name,
@@ -200,8 +210,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               variant="primary"
               disabled={cannotAssign || override.isPending}
               loading={override.isPending}
-              onClick={() => selectedAssignment && override.mutate({
-                previousName: selectedAssignment.assignee_name,
+              onClick={() => override.mutate({
+                previousName: selectedAssignment?.assignee_name ?? t.noAssignment,
                 previous: previousMember,
                 next: selected.member,
                 id: result.id,
@@ -246,10 +256,10 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
             </Field>
             <KeyValue items={[
               { key: t.currently, value: selectedAssignment?.assignee_name ?? t.noAssignment },
-              { key: t.afterCorrection, value: selectedAssignment ? selected.member.display_name : t.none },
+              { key: t.afterCorrection, value: selected.member.display_name },
             ]} />
             {!selectedAssignment && <p className="muted small">{t.nobodyHoldsRole}</p>}
-            {selectedBalance && selectedCategory && selectedAssignment && selectedAssignment.assignee_name !== selected.member.display_name && (
+            {selectedBalance && selectedCategory && changesHolder && (
               <Box tone="sig" title={t.balanceTitle(roleLabels()[selectedRole], selectedBalance.display_name)}>
                 {t.balanceChange(signed(selectedCategory.deviation), signed(roundPoints(selectedCategory.deviation + correctionPoints)), correctionPoints > 1 ? t.twoPoints : t.onePoint)}
               </Box>
