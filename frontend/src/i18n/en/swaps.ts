@@ -191,7 +191,6 @@ export const swaps: Messages['swaps'] = {
     twoPoints: '2 points (2X)',
     onePoint: '1 point',
     window: (start: string, end: string) => `Window ${start} – ${end}.`,
-    loses: 'loses the duty',
     handsOver: 'hands over the duty',
     takes: 'takes over the duty',
     exchanges: (gives: string, takes: string) => `gives ${gives}, takes ${takes}`,

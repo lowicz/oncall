@@ -61,7 +61,8 @@ export interface RuleViolation {
   days: string[]
 }
 
-/** The open number handover a correction would end (`/forwarding/handover`). */
+/** An open number handover: the day's SECONDARY takes the on-call number
+ *  from the PRIMARY until `until` (`/forwarding/handover`). */
 export interface NumberHandover {
   id: string
   day: string
@@ -71,6 +72,8 @@ export interface NumberHandover {
   to_name: string
   starts_at: string
   until: string
+  /** Who started it; null once their account is gone. */
+  started_by_name: string | null
 }
 
 export interface OverrideCheck {
@@ -528,6 +531,44 @@ export interface ForwardingState {
   next_attempt_at: string | null
 }
 
+/** Whether WCO already rings where the number should ring now. */
+export type SwitchStatus = 'confirmed' | 'switching' | 'failed'
+
+/** One side of the duty day's pair: whether a phone number is set, never the number. */
+export interface PairMember {
+  name: string
+  /** Whether the reader is this person. */
+  is_you: boolean
+  has_phone: boolean
+}
+
+/** The duty day's PRIMARY and SECONDARY, between whom the number is handed over. */
+export interface HandoverPair {
+  primary: PairMember
+  secondary: PairMember
+}
+
+/** Where the on-call number rings now, for every role and share link: names
+ *  and roles, never a number. Only `mode` is set while forwarding is off. */
+export interface ForwardingNow {
+  mode: ForwardingMode
+  day: string | null
+  /** The end of the duty day: the latest a handover may last. */
+  day_ends_at: string | null
+  holder_member_id: string | null
+  holder_name: string | null
+  holder_role: AssignmentRole | null
+  handover: NumberHandover | null
+  status: SwitchStatus | null
+  confirmed_at: string | null
+  /**
+   * The duty day's pair, which before the reminder hour is the previous
+   * calendar day's; only for either of them or a coordinator, who may hand
+   * the number over (D1).
+   */
+  pair: HandoverPair | null
+}
+
 export type ConnectionTestOutcome = 'ok' | 'password_expired' | 'login_refused' | 'connection' | 'configuration'
 
 /** One read-only round trip to WCO with the stored settings. */
@@ -716,6 +757,16 @@ export interface SwapImpactMember {
   display_name: string
   before: FairnessMember
   after: FairnessMember
+}
+
+/** What a correction would do to the balance of everybody it moves a slot
+ *  from or to: the people taking slots first. */
+export interface CorrectionImpact {
+  service_date: string
+  points: number
+  window_start: string
+  window_end: string
+  members: SwapImpactMember[]
 }
 
 export interface SwapImpact {
@@ -913,17 +964,21 @@ export const api = {
       assignments: BatchOverrideLine[]
     }>
   }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/batch/check', input),
+  batchOverrideImpact: (input: { schedule_id: string; assignments: BatchOverrideLine[] }) =>
+    send<CorrectionImpact>('POST', '/api/v1/calendar/override/batch/impact', input),
   batchOverride: (input: {
     schedule_id: string
     expected_version: number
     assignments: BatchOverrideLine[]
-    /** At least 10 characters, except for a role swap of today or later. */
+    /** At least 10 characters, except for a role swap or a change of roles
+     *  of today or later. */
     reason?: string
     /** Required when the batch breaks a hard rule (409 with the violations otherwise). */
     acknowledge_rule_violations?: boolean
     /** `role_swap`: one day's PRIMARY and SECONDARY trade holders, audited and
-     *  mailed as „Zamiana ról". */
-    kind?: 'correction' | 'role_swap'
+     *  mailed as „Zamiana ról". `multi_role`: the roles of one day handed over
+     *  in one correction, audited and mailed like a single one. */
+    kind?: 'correction' | 'role_swap' | 'multi_role'
   }) => send<Assignment[]>('POST', '/api/v1/calendar/override/batch', input),
   calendarEvents: (startsOn: string, endsOn: string) =>
     request<CalendarEvent[]>(
@@ -934,21 +989,6 @@ export const api = {
   updateCalendarEvent: ({ id, ...input }: { id: string } & Partial<CalendarEventInput>) =>
     send<CalendarEvent>('PATCH', `/api/v1/calendar/events/${id}`, input),
   deleteCalendarEvent: (id: string) => send<void>('DELETE', `/api/v1/calendar/events/${id}`),
-  directOverride: (input: {
-    schedule_id?: string
-    expected_version: number
-    service_date: string
-    role: AssignmentRole
-    replacement_member_id: string
-    reason?: string
-    /** Required when the override breaks a hard rule (409 with the violations otherwise). */
-    acknowledge_rule_violations?: boolean
-  }) => send<Assignment>('POST', '/api/v1/calendar/override', input),
-  directOverrideCheck: (input: {
-    service_date: string
-    role: AssignmentRole
-    replacement_member_id: string
-  }) => send<OverrideCheck>('POST', '/api/v1/calendar/override/check', input),
   availability: () => request<AvailabilityEntry[]>('/api/v1/availability/me'),
   createAvailability: (input: AvailabilityInput) =>
     send<AvailabilityEntry>('POST', '/api/v1/availability/me', input),
@@ -1073,11 +1113,10 @@ export const api = {
     serviceDate: string,
     role: AssignmentRole,
     replacementMemberId: string,
-    { inReturn, scope, returnScope, correction }: {
+    { inReturn, scope, returnScope }: {
       inReturn?: SwapSlot
       scope?: SwapScope
       returnScope?: SwapScope
-      correction?: boolean
     } = {},
   ) =>
     request<SwapImpact>(
@@ -1085,8 +1124,7 @@ export const api = {
       + `&role=${role}&replacement_member_id=${encodeURIComponent(replacementMemberId)}`
       + (inReturn ? `&return_date=${encodeURIComponent(inReturn.service_date)}&return_role=${inReturn.role}` : '')
       + (inReturn && returnScope ? `&return_scope=${returnScope}` : '')
-      + (scope ? `&scope=${scope}` : '')
-      + (correction ? '&correction=true' : ''),
+      + (scope ? `&scope=${scope}` : ''),
     ),
   swapOptions: (serviceDate: string, role: AssignmentRole, scope?: SwapScope) =>
     request<SwapOption[]>(
@@ -1202,6 +1240,9 @@ export const api = {
   /** The administrator's own sign-in password confirms it is them. */
   revealForwardingPassword: (password: string) =>
     send<RevealedPasswords>('POST', '/api/v1/admin/forwarding/password/reveal', { password }),
+  forwardingNow: () => request<ForwardingNow>('/api/v1/forwarding/now'),
+  startHandover: (until: string) => send<NumberHandover>('POST', '/api/v1/forwarding/handover', { until }),
+  endHandover: (id: string) => send<void>('DELETE', `/api/v1/forwarding/handover/${id}`),
   auditEvents: (params: {
     action?: string; actor?: string; q?: string; starts_on?: string; ends_on?: string
     include_logins?: boolean; limit?: number; offset?: number

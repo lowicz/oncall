@@ -202,6 +202,11 @@ MESSAGES: dict[str, str] = {
         "Zamiana miejscami obejmuje PRIMARY i SECONDARY jednego dnia,"
         " każde przekazane osobie z drugiej roli"
     ),
+    "overrides.roles_of_several_days": "Zmiana ról obejmuje jeden dzień",
+    "overrides.on_call_pair_in_one_correction": (
+        "PRIMARY i SECONDARY nie zmieniają się w jednej korekcie: jedna osoba nie może mieć"
+        " obu on-call tego dnia, a dwie osoby zamieniają się nimi przez „Zamień miejscami”"
+    ),
     "overrides.rule_violations_not_acknowledged": (
         "Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie"
     ),

@@ -176,6 +176,7 @@ def forwarding_now_reader(db: DbSession) -> ForwardingNowPorts:
         contacts=SqlAlchemyForwardingConfiguration(db),
         handovers=SqlAlchemyHandovers(db),
         state=SqlAlchemyForwardingState(db),
+        team=SqlAlchemyTeamDirectory(db),
     )
 
 
@@ -275,6 +276,7 @@ def override_ports(db: DbSession, actor: CurrentUser) -> OverridePorts:
         roster=SqlAlchemyPublishedRoster(db),
         policy=SqlAlchemyRosterPolicy(db),
         journal=SqlAlchemyOverrideJournal(db, actor),
+        fairness=SqlAlchemyFairnessHistory(db),
     )
 
 

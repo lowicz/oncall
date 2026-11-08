@@ -153,15 +153,12 @@ const CASES: Case[] = [
   send('updateCalendarEvent', () => api.updateCalendarEvent({ id: 'e1', title: 'Nowy' }),
     'PATCH', '/api/v1/calendar/events/e1', { title: 'Nowy' }),
   send('deleteCalendarEvent', () => api.deleteCalendarEvent('e1'), 'DELETE', '/api/v1/calendar/events/e1'),
-  send('directOverride', () => api.directOverride({
-    expected_version: 3, service_date: '2026-09-14', role: 'secondary', replacement_member_id: 'm3',
-  }), 'POST', '/api/v1/calendar/override', {
-    expected_version: 3, service_date: '2026-09-14', role: 'secondary', replacement_member_id: 'm3',
-  }),
-  send('directOverrideCheck', () => api.directOverrideCheck({
-    service_date: '2026-09-14', role: 'late_shift', replacement_member_id: 'm3',
-  }), 'POST', '/api/v1/calendar/override/check', {
-    service_date: '2026-09-14', role: 'late_shift', replacement_member_id: 'm3',
+  send('batchOverrideImpact', () => api.batchOverrideImpact({
+    schedule_id: 's1',
+    assignments: [{ service_date: '2026-09-14', role: 'late_shift', replacement_member_id: 'm3' }],
+  }), 'POST', '/api/v1/calendar/override/batch/impact', {
+    schedule_id: 's1',
+    assignments: [{ service_date: '2026-09-14', role: 'late_shift', replacement_member_id: 'm3' }],
   }),
   get('availability', () => api.availability(), '/api/v1/availability/me'),
   send('createAvailability', () => api.createAvailability(availabilityInput),
@@ -224,10 +221,10 @@ const CASES: Case[] = [
   get('swapPolicy', () => api.swapPolicy(), '/api/v1/swaps/policy'),
   get('swapImpact', () => api.swapImpact('2026-09-14', 'primary', 'm 2'),
     '/api/v1/swaps/impact?service_date=2026-09-14&role=primary&replacement_member_id=m%202'),
-  get('swapImpact of an exchange, as a correction', () => api.swapImpact('2026-09-14', 'primary', 'm 2', {
-    inReturn: { service_date: '2026-09-15', role: 'secondary' }, correction: true,
+  get('swapImpact of an exchange', () => api.swapImpact('2026-09-14', 'primary', 'm 2', {
+    inReturn: { service_date: '2026-09-15', role: 'secondary' },
   }), '/api/v1/swaps/impact?service_date=2026-09-14&role=primary&replacement_member_id=m%202'
-    + '&return_date=2026-09-15&return_role=secondary&correction=true'),
+    + '&return_date=2026-09-15&return_role=secondary'),
   get('swapImpact of one slot', () => api.swapImpact('2026-09-14', 'late_shift', 'm 2', { scope: 'single' }),
     '/api/v1/swaps/impact?service_date=2026-09-14&role=late_shift&replacement_member_id=m%202&scope=single'),
   get('swapImpact of one slot for one slot', () => api.swapImpact('2026-09-14', 'late_shift', 'm 2', {
@@ -274,6 +271,10 @@ const CASES: Case[] = [
   send('testForwardingConnection', () => api.testForwardingConnection(), 'POST', '/api/v1/admin/forwarding/test'),
   send('revealForwardingPassword', () => api.revealForwardingPassword('moje-haslo'),
     'POST', '/api/v1/admin/forwarding/password/reveal', { password: 'moje-haslo' }),
+  get('forwardingNow', () => api.forwardingNow(), '/api/v1/forwarding/now'),
+  send('startHandover', () => api.startHandover('2026-09-14T13:40:00+02:00'),
+    'POST', '/api/v1/forwarding/handover', { until: '2026-09-14T13:40:00+02:00' }),
+  send('endHandover', () => api.endHandover('h1'), 'DELETE', '/api/v1/forwarding/handover/h1'),
   send('createFeed', () => api.createFeed('Telefon'), 'POST', '/api/v1/calendar/feeds', { label: 'Telefon' }),
   get('feeds', () => api.feeds(), '/api/v1/calendar/feeds'),
   send('revokeFeed', () => api.revokeFeed('f1'), 'DELETE', '/api/v1/calendar/feeds/f1'),
@@ -418,8 +419,9 @@ describe('API refusals', () => {
   it('keeps the rule violations and the next step of a hard-rule refusal', async () => {
     const violation = { rule: 'rest', message: 'Za krótki odpoczynek', member_name: 'Jan', days: ['2026-09-14'] }
     failing(409, { detail: { message: 'Zmiana łamie reguły', violations: [violation], next_step: 'Wybierz inną osobę' } })
-    const error = await refusal(() => api.directOverride({
-      expected_version: 1, service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2',
+    const error = await refusal(() => api.batchOverride({
+      schedule_id: 's1', expected_version: 1, kind: 'multi_role',
+      assignments: [{ service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2' }],
     }))
     expect(error.message).toBe('Zmiana łamie reguły')
     expect(error.violations).toEqual([violation])

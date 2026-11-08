@@ -227,8 +227,6 @@ export const swaps = {
     twoPoints: '2 punkty (2X)',
     onePoint: '1 punkt',
     window: (start: string, end: string) => `Okno ${start} – ${end}.`,
-    /** A coordinator's override: the duty is taken from the person. */
-    loses: 'traci dyżur',
     /** A swap: the person chooses to hand the duty over. */
     handsOver: 'oddaje dyżur',
     takes: 'przejmuje dyżur',

@@ -422,7 +422,7 @@ describe('SwapPanel new request', () => {
     // The rest is read under the picked card.
     expect(await screen.findByText('Ma 1 pkt poniżej udziału. Zamiana poprawia bilans.')).toBeInTheDocument()
 
-    await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', { correction: false }))
+    await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', {}))
     // The balance is folded under one line that sums it up.
     const details = screen.getByRole('button', { name: /^Wpływ na bilans/ })
     expect(details).toHaveAttribute('aria-expanded', 'false')
@@ -1120,7 +1120,7 @@ describe('SwapPanel stages and sheets', () => {
     const row = await screen.findByRole('row', { name: /pon 14 wrz/ })
     expect(await within(row).findByText(/^Piotr \+1/)).toBeInTheDocument()
     // A request stored with one slot projects that slot alone.
-    expect(impactCall).toHaveBeenCalledWith('2026-09-14', 'primary', 'p1', { scope: 'single', correction: false })
+    expect(impactCall).toHaveBeenCalledWith('2026-09-14', 'primary', 'p1', { scope: 'single' })
     // What the column means is a hint beside its header, not a footnote.
     expect(screen.getByRole('columnheader', { name: /Skutek pkt/ })).toContainElement(screen.getByRole('button', { name: 'Co pokazuje skutek' }))
 
@@ -1596,7 +1596,7 @@ describe('SwapPanel exchange: the "in return" step', () => {
     expect(steps().map((item) => item.getAttribute('aria-current'))).toEqual([null, null, null, 'step'])
     expect(screen.getByLabelText(/Powód/)).not.toBeRequired()
     await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', {
-      inReturn: RETURNS[0], correction: false,
+      inReturn: RETURNS[0],
     }))
 
     fireEvent.click(sendButton())
@@ -1753,7 +1753,7 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Zdecyduj: pon 14 wrz PRIMARY zamiana z śr 16 wrz SECONDARY' }))
     const sheet = await screen.findByRole('dialog', { name: 'Wymiana · pon 14 wrz ⇄ śr 16 wrz' })
     await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2026-09-14', 'primary', 'p1', {
-      inReturn: { service_date: '2026-09-16', role: 'secondary' }, scope: 'whole', returnScope: 'whole', correction: false,
+      inReturn: { service_date: '2026-09-16', role: 'secondary' }, scope: 'whole', returnScope: 'whole',
     }))
     expect(rowsOf(sheet)).toEqual([
       ['Dostajesz', 'pon 14 wrzPRIMARY + 11–19od: Anna Kowalska', 'za 4 dni'],

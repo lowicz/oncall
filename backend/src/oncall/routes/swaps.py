@@ -21,20 +21,19 @@ from oncall.domain.swaps.models import (
     SwapScope,
 )
 from oncall.domain.vocabulary import AssignmentRole, SwapStatus, UserRole
-from oncall.fairness_data import member_response
 from oncall.i18n import translate
 from oncall.permissions import Coordinator, require_roles
 from oncall.presentation.rules import rule_violation_responses
 from oncall.presentation.swaps import (
     SwapAcknowledgementRequest,
     SwapDecisionRequest,
-    SwapImpactMemberResponse,
     SwapImpactResponse,
     SwapOptionResponse,
     SwapPolicyResponse,
     SwapRequestCreate,
     SwapRequestResponse,
     SwapReturnOptionResponse,
+    impact_side_response,
     swap_option_response,
     swap_response,
     swap_return_option_response,
@@ -218,22 +217,14 @@ async def swap_impact(
             ports,
         )
 
-    def side(item) -> SwapImpactMemberResponse:
-        return SwapImpactMemberResponse(
-            member_id=item.member_id,
-            display_name=item.display_name,
-            before=member_response(item.before),
-            after=member_response(item.after),
-        )
-
     return SwapImpactResponse(
         service_date=impact.service_date,
         role=impact.role,
         points=impact.points,
         window_start=impact.window_start,
         window_end=impact.window_end,
-        requester=side(impact.requester),
-        replacement=side(impact.replacement),
+        requester=impact_side_response(impact.requester),
+        replacement=impact_side_response(impact.replacement),
         return_date=impact.return_date,
         return_points=impact.return_points,
     )

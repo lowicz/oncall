@@ -399,7 +399,11 @@ class World:
     @property
     def overrides(self) -> OverridePorts:
         return OverridePorts(
-            team=self.team, roster=self.roster, policy=self.policy, journal=self.journal
+            team=self.team,
+            roster=self.roster,
+            policy=self.policy,
+            journal=self.journal,
+            fairness=FakeFairness(self.team, self.roster),
         )
 
 

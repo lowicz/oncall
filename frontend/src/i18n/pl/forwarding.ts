@@ -1,7 +1,7 @@
 /** The administrator's screen of forwarding the on-call number through Orange WCO. */
 export const forwarding = {
   title: 'Przełączanie numeru',
-  subtitle: 'Numer on-call jest przekierowywany przez Orange WCO na telefon osoby na dyżurze PRIMARY, od godziny przypomnienia o dyżurze. Czasy w strefie Europe/Warsaw.',
+  subtitle: 'Numer on-call jest przekierowywany przez Orange WCO na telefon osoby na dyżurze PRIMARY (w czasie przekazania numeru: SECONDARY), od godziny przypomnienia o dyżurze. Czasy w strefie Europe/Warsaw.',
   settings: {
     title: 'Konto WCO',
     loading: 'Wczytywanie ustawień…',
@@ -76,6 +76,13 @@ export const forwarding = {
     passwordChangedAt: 'Hasło WCO zmieniono',
     rotationPendingSince: 'Zmiana hasła w toku od',
     credentialsInvalidSince: 'Hasła odrzucone',
+    handover: 'Przekazanie',
+    /** "Anna Kowalska → Marek Nowak · do 13:40", the end already formatted. */
+    handoverValue: (from: string, to: string, until: string) => `${from} → ${to} · do ${until}`,
+    /** " · zlecone przez: Anna Kowalska, 11:40", appended when the starter is known. */
+    handoverStartedBy: (name: string, at: string) => ` · zlecone przez: ${name}, ${at}`,
+    endHandover: 'Zakończ',
+    handoverEnded: (name: string) => `Zakończono przekazanie numeru; numer on-call znów odbiera ${name}`,
   },
   reveal: {
     action: 'Pokaż hasło',

@@ -22,11 +22,7 @@ async def _skip_scan(*_args, **_kwargs) -> int:
 
 async def _correct(db, previous_name: str, new_name: str) -> None:
     await notify_assignment_overridden(
-        db,
-        service_date=business_today(),
-        role=AssignmentRole.primary,
-        previous_name=previous_name,
-        new_name=new_name,
+        db, changes=[(business_today(), AssignmentRole.primary, previous_name, new_name)]
     )
     await db.commit()
 

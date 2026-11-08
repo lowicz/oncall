@@ -29,7 +29,9 @@ from oncall.domain.forwarding.models import (
     ForwardingSettings,
     ForwardingState,
     HandoverEnd,
+    HandoverPair,
     NumberHandover,
+    PairMember,
     RevealedPasswords,
     SettingsChange,
     SwitchStatus,
@@ -47,8 +49,9 @@ from oncall.domain.forwarding.ports import (
     RevealPorts,
     SettingsPorts,
 )
+from oncall.domain.roster import Duty, Slot
 from oncall.domain.team import Actor
-from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole
+from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, UserRole
 
 
 async def current_settings(settings: CurrentSettings) -> ForwardingSettings:
@@ -248,6 +251,11 @@ def _status(
     return SwitchStatus.switching, None
 
 
+def _without_starter(handover: NumberHandover) -> NumberHandover:
+    """The handover as told to anyone but the administrator (NP-11)."""
+    return NumberHandover(**{**vars(handover), "started_by_name": None})
+
+
 async def forwarding_now(
     audience: Audience, ports: ForwardingNowPorts, *, now: datetime, reminder_hour: int
 ) -> ForwardingNow:
@@ -255,7 +263,9 @@ async def forwarding_now(
     who has it, until when, whether WCO confirmed it. No phone number: the
     duty cards already show the ones the reader may see. Nothing while
     forwarding is off (D5), and nothing to a share link whose range leaves
-    the duty day out. Read only: the worker ends a handover that ran out."""
+    the duty day out. Who started a handover only for an administrator
+    (NP-11), the duty day's pair only for who may hand the number over.
+    Read only: the worker ends a handover that ran out."""
     mode = (await ports.settings.current()).mode
     day = forwarding_day(now.astimezone(BUSINESS_TIMEZONE), reminder_hour)
     if mode is ForwardingMode.off or (
@@ -268,18 +278,59 @@ async def forwarding_now(
     if handover is not None and handover_end(handover, day, duties, now) is not None:
         handover = None
     target = await target_of(day, duties, handover, ports.contacts)
+    ends_at = duty_day_end(day, reminder_hour)
     if target is None:
-        return ForwardingNow(mode=mode, day=day)
+        return ForwardingNow(mode=mode, day=day, day_ends_at=ends_at)
     status, confirmed_at = _status(mode, target, await ports.state.current())
+    if handover is not None and audience.role is not UserRole.admin:
+        handover = _without_starter(handover)
     return ForwardingNow(
         mode=mode,
         day=day,
+        day_ends_at=ends_at,
         holder_member_id=target.holder_id,
         holder_name=target.holder_name,
         holder_role=AssignmentRole.secondary if target.receiver else AssignmentRole.primary,
         handover=handover if target.receiver is not None else None,
         status=status,
         confirmed_at=confirmed_at,
+        pair=await _pair(audience, day, duties, ports),
+    )
+
+
+async def _pair(
+    audience: Audience, day: date, duties: dict[Slot, Duty], ports: ForwardingNowPorts
+) -> HandoverPair | None:
+    """The duty day's PRIMARY and SECONDARY, told to either of them or to a
+    coordinator (D1), the same readers `start_handover` lets act."""
+    primary = duties.get((day, AssignmentRole.primary))
+    secondary = duties.get((day, AssignmentRole.secondary))
+    if (
+        primary is None
+        or secondary is None
+        or primary.member_id is None
+        or secondary.member_id is None
+    ):
+        return None
+    reader = (
+        await ports.team.member_for_account(audience.account_id)
+        if audience.account_id is not None
+        else None
+    )
+    you = reader.id if reader is not None else None
+    if not audience.coordinates and you not in (primary.member_id, secondary.member_id):
+        return None
+
+    async def side(name: str, member_id: uuid.UUID) -> PairMember:
+        return PairMember(
+            name=name,
+            is_you=member_id == you,
+            has_phone=await ports.contacts.phone(member_id) is not None,
+        )
+
+    return HandoverPair(
+        primary=await side(primary.assignee_name, primary.member_id),
+        secondary=await side(secondary.assignee_name, secondary.member_id),
     )
 
 
@@ -288,13 +339,14 @@ async def handover_ended_by_correction(
 ) -> NumberHandover | None:
     """The handover a correction of these slots would end (NP-16): the open
     one, when a slot is PRIMARY or SECONDARY on its day. The correction
-    frame says so before the coordinator saves. Nothing while forwarding is
-    off (D5): the worker ends no handover then."""
+    frame says so before the coordinator saves, without who started it
+    (NP-11). Nothing while forwarding is off (D5): the worker ends no
+    handover then."""
     if (await ports.settings.current()).mode is ForwardingMode.off:
         return None
     handover = await ports.handovers.open()
     if handover is None or now >= handover.until:
         return None
     if any(day == handover.day and role in ONCALL_ROLES for day, role in slots):
-        return handover
+        return _without_starter(handover)
     return None

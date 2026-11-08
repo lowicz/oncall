@@ -3,7 +3,8 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { loadRealStylesheet } from '../test/stylesheet'
-import { NowStrip, coverageEnd, formatUntil } from './NowStrip'
+import { NowStrip } from './NowStrip'
+import { coverageEnd, formatUntil } from '../lib/coverage'
 import { api } from '../api'
 import type { CurrentDuty, PublishedSchedule } from '../api'
 
@@ -48,11 +49,16 @@ describe('NowStrip', () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
       duty({ assignee_name: 'Katarzyna Dąbrowska-Wróblewska', contact_phone: '+48 600 100 005' }),
     ]))
+    loadRealStylesheet()
     renderScreen(<NowStrip />)
 
     const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
-    // The name may be cut with an ellipsis on a narrow bar; its title still carries it whole.
-    expect(await within(strip).findByTitle('Katarzyna Dąbrowska-Wróblewska')).toHaveTextContent('Katarzyna Dąbrowska-Wróblewska')
+    const name = await within(strip).findByTitle('Katarzyna Dąbrowska-Wróblewska')
+    expect(name).toHaveTextContent('Katarzyna Dąbrowska-Wróblewska')
+    // Never cut: where the row is too short the slot wraps, and the name breaks between its words.
+    expect(getComputedStyle(name).textOverflow).not.toBe('ellipsis')
+    expect(getComputedStyle(name).whiteSpace).toBe('normal')
+    expect(getComputedStyle(name.closest('.now-slot')!).flexWrap).toBe('wrap')
     expect(within(strip).getByRole('link', { name: '+48 600 100 005' })).toHaveAttribute('href', 'tel:+48600100005')
   })
 
@@ -187,6 +193,105 @@ describe('NowStrip', () => {
     expect(dot?.style.background).toBe('var(--warn-dot)')
     expect(dot?.style.boxShadow).toContain('var(--band-ink)')
     expect(dot?.style.width).toBe('8px')
+  })
+
+  it('puts the number pill beside whoever the number rings at, and keeps the PRIMARY phone', async () => {
+    loadRealStylesheet()
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
+      duty({ contact_phone: '+48 601 220 118' }),
+      duty({ role: 'secondary', assignee_name: 'Marek Nowak', member_id: 'm2', contact_phone: '+48 602 345 678' }),
+    ]))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+      handover: {
+        id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+        starts_at: '2026-09-10T07:00:00Z', until: '2026-09-10T11:40:00Z', started_by_name: 'Anna Kowalska',
+      },
+      status: 'switching', confirmed_at: null, pair: null,
+    })
+    renderScreen(<NowStrip />)
+
+    const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
+    const pill = await within(strip).findByRole('button', { name: 'numer on-call · przełączam · do 13:40' })
+    expect(pill.closest('.now-slot')).toHaveAttribute('data-role', 'secondary')
+    expect(within(strip).getAllByRole('button', { name: /numer on-call/ })).toHaveLength(1)
+    expect(within(strip).getByRole('link', { name: '+48 601 220 118' })).toBeInTheDocument()
+    // The name beside the pill stays whole and the slot may wrap the pill to a second row.
+    expect(getComputedStyle(pill.closest('.now-slot')!).flexWrap).toBe('wrap')
+    expect(getComputedStyle(within(strip).getByText('Marek Nowak')).textOverflow).not.toBe('ellipsis')
+    expect([...pill.closest('.now-slot')!.children].map((child) => getComputedStyle(child).flexBasis)).not.toContain('100%')
+  })
+
+  it('puts the number pill on the second row of its slot below 1100 px', async () => {
+    loadRealStylesheet()
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: query.includes('max-width: 1100px'),
+      media: query, onchange: null, addListener: () => {}, removeListener: () => {},
+      addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+    }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({ contact_phone: '+48 601 220 118' })]))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+      handover: null, status: 'confirmed', confirmed_at: '2026-09-10T07:00:00Z', pair: null,
+    })
+    renderScreen(<NowStrip />)
+
+    const pill = await screen.findByRole('button', { name: 'numer on-call' })
+    const slot = pill.closest<HTMLElement>('.now-slot')!
+    const children = [...slot.children]
+    const breakAt = children.findIndex((child) => getComputedStyle(child).flexBasis === '100%')
+    expect(getComputedStyle(slot).flexWrap).toBe('wrap')
+    expect(children.indexOf(within(slot).getByText('Anna Kowalska'))).toBeLessThan(breakAt)
+    expect(children.indexOf(within(slot).getByRole('link', { name: '+48 601 220 118' }))).toBeLessThan(breakAt)
+    expect(children.indexOf(pill)).toBeGreaterThan(breakAt)
+  })
+
+  it('keeps the pill in the slot of the role holding the number before the reminder hour, naming yesterday\'s holder', async () => {
+    // 02:00 on Friday: the strip shows Friday's pair, the number is still with Thursday's.
+    vi.setSystemTime(new Date('2026-09-11T02:00:00+02:00'))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
+      duty({ service_date: '2026-09-11', assignee_name: 'Jan Wiśniewski', member_id: 'm3', contact_phone: '+48 603 456 789' }),
+    ]))
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
+      handover: {
+        id: 'h1', day: '2026-09-10', from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',
+        starts_at: '2026-09-10T22:00:00Z', until: '2026-09-11T05:00:00Z', started_by_name: null,
+      },
+      status: 'confirmed', confirmed_at: '2026-09-10T22:01:00Z', pair: null,
+    })
+    const { unmount } = renderScreen(<NowStrip />)
+
+    const strip = screen.getByRole('region', { name: 'Dyżur teraz' })
+    const atMarek = await within(strip).findByRole('button', { name: 'numer on-call: Marek Nowak · do 07:00' })
+    expect(atMarek.closest('.now-slot')).toHaveAttribute('data-role', 'secondary')
+    expect(atMarek.closest('.now-slot')).toHaveTextContent('brak obsady')
+    unmount()
+
+    vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'live', day: '2026-09-10', day_ends_at: '2026-09-11T09:00:00+02:00',
+      holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
+      handover: null, status: 'confirmed', confirmed_at: '2026-09-10T07:00:00Z', pair: null,
+    })
+    renderScreen(<NowStrip />)
+    const atAnna = await screen.findByRole('button', { name: 'numer on-call: Anna Kowalska' })
+    expect(atAnna.closest('.now-slot')).toHaveAttribute('data-role', 'primary')
+    expect(atAnna.closest('.now-slot')).toHaveTextContent('Jan Wiśniewski')
+  })
+
+  it('shows no pill while forwarding is off', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([duty({})]))
+    const now = vi.spyOn(api, 'forwardingNow').mockResolvedValue({
+      mode: 'off', day: null, day_ends_at: null, holder_member_id: null, holder_name: null, holder_role: null,
+      handover: null, status: null, confirmed_at: null, pair: null,
+    })
+    renderScreen(<NowStrip />)
+    await screen.findByText('Anna Kowalska')
+    await waitFor(() => expect(now).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /numer on-call/ })).not.toBeInTheDocument()
   })
 
   it('leaves the end out when the window cannot be read', () => {

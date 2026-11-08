@@ -74,7 +74,7 @@ async def test_an_override_hands_the_slot_over_and_journals_who_it_was_taken_fro
     assert world.roster.schedule_ref.version == 2
     (name, call) = world.journal.events[0]
     assert name == "duty_overridden"
-    assert call["previous_name"] == "Anna"
+    assert call["changes"] == [(DAY, AssignmentRole.primary, "Anna", "Ewa")]
     assert call["historical"] is False
     assert call["moves"] == [OverrideMove(DAY, AssignmentRole.primary, "Anna")]
 
@@ -100,7 +100,8 @@ async def test_an_independent_late_shift_stays_put(world) -> None:
 async def test_an_empty_slot_is_staffed_and_journalled_as_unstaffed(world) -> None:
     del world.roster.schedule_ref.slots[(DAY, AssignmentRole.primary)]
     await override(world, world.ewa)
-    assert world.journal.events[0][1]["previous_name"] == UNSTAFFED
+    (change,) = world.journal.events[0][1]["changes"]
+    assert change == (DAY, AssignmentRole.primary, UNSTAFFED, "Ewa")
 
 
 async def test_late_shift_exists_on_working_days_only(world) -> None:
@@ -244,15 +245,33 @@ async def test_a_batch_under_weekly_rotation_reports_no_rest_violations(world) -
     assert world.journal.events[0][1]["violations"] == []
 
 
-async def test_a_batch_refuses_repeated_and_missing_slots(world) -> None:
+async def test_a_batch_refuses_repeated_slots_and_days_of_another_publication(
+    world, monkeypatch
+) -> None:
     line = BatchOverrideLine(DAY, AssignmentRole.primary, world.ewa.id)
     with pytest.raises(errors.RepeatedSlotInBatch):
         await batch(world, line, line)
+
+    async def no_publication(day):
+        return None
+
+    monkeypatch.setattr(world.roster, "latest_publication_covering", no_publication)
     with pytest.raises(errors.ScheduleSlotNotFound):
         await batch(
             world, BatchOverrideLine(DAY + timedelta(days=1), AssignmentRole.primary, world.ewa.id)
         )
     assert world.roster.schedule_ref.version == 1
+
+
+async def test_a_batch_fills_an_unstaffed_slot_of_its_schedule(world) -> None:
+    empty_day = DAY + timedelta(days=1)
+
+    await batch(world, BatchOverrideLine(empty_day, AssignmentRole.primary, world.ewa.id))
+
+    assert world.roster.handed_over == [((empty_day, AssignmentRole.primary), world.ewa.id)]
+    assert world.journal.events[0][1]["moves"] == [
+        OverrideMove(empty_day, AssignmentRole.primary, UNSTAFFED)
+    ]
 
 
 async def test_a_batch_check_needs_at_least_one_line(world) -> None:

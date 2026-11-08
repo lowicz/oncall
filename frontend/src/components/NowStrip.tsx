@@ -1,42 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AssignmentRole, CurrentDuty, api } from '../api'
+import { AssignmentRole, api } from '../api'
 import { roleLabels } from '../lib/labels'
-import { weekdays } from '../lib/dates'
-import { locale, messages, useMessages } from '../i18n'
+import { coverageEnd, formatUntil } from '../lib/coverage'
+import { locale, useMessages } from '../i18n'
 import { RoleLabel, Skeleton, cx } from '../ui'
+import { heldNumber, useForwardingNow } from '../hooks/useForwardingNow'
+import { useBelowWide } from '../hooks/useMediaQuery'
+import { NumberPill } from './NumberHandover'
 
 const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
-
-/** When the coverage ends as a local Date, given the duty's day and window. */
-export function coverageEnd(duty: CurrentDuty): Date | null {
-  if (duty.is_day_off) {
-    const end = new Date(`${duty.service_date}T00:00:00`)
-    end.setDate(end.getDate() + 1)
-    return end
-  }
-  const [startHour] = duty.coverage_starts_at.split(':').map(Number)
-  const [endHour, endMinute = 0] = duty.coverage_ends_at.split(':').map(Number)
-  if (Number.isNaN(startHour) || Number.isNaN(endHour)) return null
-  const end = new Date(`${duty.service_date}T00:00:00`)
-  end.setHours(endHour, endMinute, 0, 0)
-  // A window ending before it starts (19:00 to 09:00) ends the next day.
-  if (endHour <= startHour) end.setDate(end.getDate() + 1)
-  return end
-}
-
-/** "do wt 09:00 · 14 h 12 min", or only the end when it is already past. */
-export function formatUntil(end: Date | null, now: Date): string {
-  if (!end) return ''
-  const t = messages().duty.nowStrip
-  const when = `${weekdays()[end.getDay()]} ${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`
-  const minutes = Math.round((end.getTime() - now.getTime()) / 60_000)
-  if (minutes <= 0) return t.until(when)
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-  const left = hours > 0 ? t.hoursMinutes(hours, rest) : t.minutes(rest)
-  return t.untilWithLeft(when, left)
-}
 
 function useMinuteTick() {
   const [now, setNow] = useState(() => new Date())
@@ -51,7 +24,9 @@ function useMinuteTick() {
  * The strip at the top of every screen: who holds each role right now, how
  * to call them, and until when. It is the one thing an operator needs during
  * an incident, so it is always there and keeps the last known staffing when
- * the network is gone.
+ * the network is gone. While forwarding is on, a pill beside one of them
+ * says the on-call number rings there; below 1100 px it takes the slot's
+ * second row.
  */
 export function NowStrip({ children }: { children?: React.ReactNode }) {
   const schedule = useQuery({ queryKey: ['published-schedule'], queryFn: api.publishedSchedule })
@@ -63,6 +38,18 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
   const updated = schedule.dataUpdatedAt ? new Date(schedule.dataUpdatedAt) : null
   const dayOff = schedule.data?.today_is_day_off ?? false
   const holiday = schedule.data?.today_holiday_name ?? null
+  const held = heldNumber(useForwardingNow().data)
+  const handover = useMessages().duty.handover
+  const belowWide = useBelowWide()
+  // In the slot of the role holding the number, also when the slot names
+  // the calendar day's person: before the reminder hour the number is still
+  // with yesterday's pair.
+  const slotPill = (role: AssignmentRole, name?: string) => held?.holder_role === role && (
+    <>
+      {belowWide && <span className="now-break" />}
+      <NumberPill now={held} where={held.holder_name === name ? handover.pill : handover.at(held.holder_name)} />
+    </>
+  )
 
   return (
     <div className="now" role="region" aria-label={t.region}>
@@ -85,6 +72,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
                     {duty.contact_phone}
                   </a>
                 )}
+                {slotPill(role, duty.assignee_name)}
                 <span className={cx('now-until', stale && 'now-stale')} title={stale && updated ? t.asOf(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })) : undefined}>
                   {stale && updated
                     ? t.asOfInline(updated.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }))
@@ -99,6 +87,7 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
             ) : (
               <>
                 <span className={cx('now-who', notApplicable ? 'now-who-none' : 'now-gap')}>{notApplicable ? t.notApplicable : t.unstaffed}</span>
+                {slotPill(role)}
                 <span className="now-until">
                   {notApplicable ? (holiday ? t.holiday(holiday) : t.dayOff) : stale ? t.offline : ''}
                 </span>

@@ -1,4 +1,4 @@
-import { pluralPl } from '../../lib/plural'
+import { pluralFormPl, pluralPl } from '../../lib/plural'
 
 /**
  * The schedule screen ("Grafik") and the people-by-days matrix it shares with
@@ -82,8 +82,7 @@ export const schedule = {
   unknownPerson: 'nieznana osoba',
   /** Why the staffing change cannot be confirmed yet. */
   staffBlock: {
-    outsidePublished: 'Dzień jest poza opublikowanym grafikiem.',
-    pickPerson: 'Wybierz osobę, która ma objąć tę rolę.',
+    pickPerson: (roles: number) => `Wybierz osobę, która ma objąć ${roles > 1 ? 'te role' : 'tę rolę'}.`,
     chosenPerson: (reason: string) => `Wybrana osoba ${reason}.`,
   },
   firstGap: (days: string, date: string) => `${days}, pierwszy ${date}`,
@@ -128,11 +127,6 @@ export const schedule = {
     outsideRange: 'Ten dzień jest poza opublikowanym zakresem grafiku.',
     outsideRangeCoordinator: 'Żeby go obsadzić, wygeneruj i opublikuj grafik obejmujący tę datę.',
     outsideRangeMember: 'Koordynator jeszcze nie opublikował grafiku na ten okres.',
-    changeTitle: 'Zmień obsadę tego dnia',
-    role: 'Rola',
-    currently: (who: string) => `Obecnie: ${who}`,
-    noPublishedAssignment: 'brak opublikowanego przydziału',
-    personFor: (role: string, date: string) => `Osoba na ${role} · ${date}`,
     pickPerson: 'Wybierz osobę',
     /** What the hint under the person picker says about the chosen person. */
     candidate: {
@@ -168,6 +162,44 @@ export const schedule = {
     emailOne: (name: string) => `E-mail o dyżurze dostanie ${name}.`,
     violationAudited: 'Naruszenie reguł zapisane w audycie.',
     openDay: 'Otwórz dzień',
+    changedRoles: (day: string, name: string, roles: string) => `Zmieniono obsadę ${day}: ${name} ${roles}`,
+    emailMany: (count: number) => `E-mail o zmianie ${pluralFormPl(count, ['dostanie', 'dostaną', 'dostanie'])} ${pluralPl(count, ['osoba', 'osoby', 'osób'])}.`,
+    emailsLater: (count: number) => count === 2
+      ? 'E-maile do obu osób wyjdą po zamknięciu „Cofnij”.'
+      : `E-maile do ${count} osób wyjdą po zamknięciu „Cofnij”.`,
+  },
+  /** The roles of one day handed over in one correction (P7). */
+  staffChange: {
+    title: 'Zmiana obsady',
+    roles: 'Role do zmiany',
+    withAnchor: (anchor: string) => `razem z ${anchor}`,
+    heldBy: (name: string) => `dziś: ${name}`,
+    unstaffed: 'brak obsady',
+    pickRole: 'Wybierz co najmniej jedną rolę.',
+    excluded: (role: string) => `${role} niedostępna: jedna osoba nie może mieć obu on-call tego dnia.`,
+    lateByPolicy: (holder: string, anchor: string) => `11–19 zaznaczona z polityki, bo ${holder} ma ją razem z ${anchor}.`,
+    lateByYou: (anchor: string, anchorHolder: string) => `11–19 zaznaczona przez Ciebie: powiązanie z ${anchor} jej nie niesie, bo ${anchorHolder} jej dziś nie ma.`,
+    lateStays: (holder: string) => `11–19 odznaczona: zostaje bez zmian (${holder}).`,
+    person: (roles: string) => `Osoba na ${roles}`,
+    personNoRole: 'Osoba',
+    roleList: (roles: string[]) => roles.join(' i '),
+    option: (name: string, roles: string[]) => `${name} · ${roles.join(', ')}`,
+    optionOnly: (name: string, takes: string[], missing: string[]) => `${name} · tylko ${takes.join(', ')} (bez ${missing.join(', ')})`,
+    optionHolds: (name: string, holds: string[]) => `${name} · ma już ${holds.join(', ')}`,
+    notEligible: (name: string, roles: string) => `${name} nie ma uprawnień do ${roles}. Odznacz ${roles} albo wybierz inną osobę.`,
+    holds: (name: string, roles: string) => `${name} ma już ${roles}. Odznacz ${roles} albo wybierz inną osobę.`,
+    carries: (anchor: string) => `przechodzi razem z ${anchor}`,
+    restores: (anchor: string) => `przywraca powiązanie 11–19 z ${anchor}`,
+    clean: 'Bez naruszeń reguł twardych po obu zmianach',
+    takes: (roles: string) => `przejmuje ${roles}`,
+    gives: (roles: string) => `oddaje ${roles}`,
+    reason: 'Powód korekty dnia, który minął (minimum 10 znaków)',
+    saveRoles: (count: number) => `Zmień obsadę (${count} role)`,
+    /** The 11–19 row says how it stands to the policy's coupling. */
+    tag: {
+      coupled: (anchor: string) => `powiązana z ${anchor}`,
+      apart: (anchor: string) => `poza powiązaniem z ${anchor}`,
+    },
   },
   /** Two people trade one day's PRIMARY and SECONDARY (P6). */
   roleSwap: {
@@ -199,8 +231,5 @@ export const schedule = {
     endsHandover: (from: string, to: string) => `Ta korekta zakończy przekazanie numeru on-call ${from} → ${to}. Numer wróci do osoby na PRIMARY, a obie strony dostaną e-mail.`,
     emptySlot: (name: string) => `Slot był pusty - korekta dokłada dyżur tylko osobie ${name}, nie zdejmuje go nikomu.`,
     save: 'Zapisz zmianę obsady',
-    saveHistorical: 'Zapisz zmianę obsady…',
-    historicalTitle: 'Potwierdź korektę historyczną',
-    historicalReason: 'Powód korekty historycznej (minimum 10 znaków)',
   },
 }

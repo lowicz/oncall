@@ -8,14 +8,13 @@ import { en } from '../i18n/en'
 import { pl } from '../i18n/pl'
 
 describe.each([['Polish', pl], ['English', en]] as const)('the %s button names', (_, catalog) => {
-  it('gives the three staffing buttons three names for three effects', () => {
-    const { inspector, confirm } = catalog.schedule
-    // "Change person" opens a form in the panel, "Save the staffing change"
-    // saves it, and only the historical save opens a dialog.
-    expect(new Set([inspector.changeStaffing, confirm.save, confirm.saveHistorical]).size).toBe(3)
-    expect(inspector.changeStaffing.endsWith('…')).toBe(false)
-    expect(confirm.save.endsWith('…')).toBe(false)
-    expect(confirm.saveHistorical).toBe(`${confirm.save}…`)
+  it('names the staffing buttons by their effects', () => {
+    const { inspector, confirm, staffChange } = catalog.schedule
+    // "Change person" opens a form in the panel and the save names what it
+    // saves; no dialog opens, so none carries an ellipsis.
+    const names = [inspector.changeStaffing, confirm.save, staffChange.saveRoles(2)]
+    expect(new Set(names).size).toBe(3)
+    for (const name of names) expect(name.endsWith('…')).toBe(false)
     expect(inspector.changeRole('PRIMARY', 'Anna').endsWith(inspector.changeStaffing)).toBe(true)
   })
 

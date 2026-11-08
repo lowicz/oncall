@@ -284,6 +284,11 @@ is in the [Audit](#audit-audyt-administrator) under the actions "Przełączono
 numer on-call", "Nie udało się przełączyć numeru", "Pominięto przełączenie
 numeru" and "Zmieniono hasło WCO".
 
+While the number is handed over, the card starts with a **Handover** row: who
+gave the number, who receives it, until when, and who started the handover
+and when. **End** ends it at once, without asking, and the number returns to
+the person on PRIMARY.
+
 ### Switching the number by hand
 
 When automatic forwarding fails - the "Numer on-call" alert mail arrives or
