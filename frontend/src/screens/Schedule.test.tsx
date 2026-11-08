@@ -223,7 +223,7 @@ describe('ScheduleScreen range in the URL', () => {
     renderSchedule('/grafik?od=2026-09-14&zoom=8')
 
     const first = await screen.findByRole('button', { name: '1 dzień bez pełnej obsady, pierwszy 14-09' })
-    expect(first).toHaveClass('text-link')
+    expect(first).toHaveClass('link-btn')
     expect(first.closest('.sech-meta')).toHaveTextContent('8 tygodni · 4 osoby w rotacji · 1 dzień bez pełnej obsady, pierwszy 14-09')
     fireEvent.click(first)
     expect(await screen.findByRole('dialog', { name: /^pon 14-09-2026/ })).toBeInTheDocument()
