@@ -236,7 +236,9 @@ export const people: Messages['people'] = {
     pickReplacement: 'Pick a replacement',
     alreadyRewritten: (count: number) =>
       `${pluralEn(count, ['duty', 'duties'])} already rewritten. Click again to rewrite the rest and end the rotation.`,
-    ended: (name: string, count: number) => `Rotation ended: ${name}${count > 0 ? ` · ${pluralEn(count, ['duty', 'duties'])} rewritten` : ''}`,
+    ended: (name: string, count: number) => count > 0
+      ? `Rotation ended: ${name} · ${pluralEn(count, ['duty', 'duties'])} rewritten`
+      : `Rotation ended: ${name}`,
     endedReplacements: (replacements: string) => `${replacements} · e-mails about the change are going out`,
     openSchedule: 'Open schedule',
   },

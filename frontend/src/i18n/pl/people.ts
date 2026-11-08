@@ -238,7 +238,9 @@ export const people = {
     noDuties: 'Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.',
     pickReplacement: 'Wybierz zastępcę',
     alreadyRewritten: (count: number) => `${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} już przepisano. Kliknij ponownie, aby przepisać pozostałe i zakończyć rotację.`,
-    ended: (name: string, count: number) => `Zakończono rotację: ${name}${count > 0 ? ` · przepisano ${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])}` : ''}`,
+    ended: (name: string, count: number) => count > 0
+      ? `Zakończono rotację: ${name} · przepisano ${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])}`
+      : `Zakończono rotację: ${name}`,
     endedReplacements: (replacements: string) => `${replacements} · e-maile o zmianie wychodzą`,
     openSchedule: 'Otwórz grafik',
   },

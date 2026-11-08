@@ -188,7 +188,7 @@ export function CalendarMatrix({
   const deleteEvent = useMutation({
     mutationFn: ({ event, day }: { event: CalendarEventRef; day: string }) => undoable({
       execute: async () => {
-        const [stored] = (await api.calendarEvents(day, day)).filter((item) => item.id === event.id)
+        const stored = (await api.calendarEvents(day, day)).find((item) => item.id === event.id)!
         await api.deleteCalendarEvent(event.id)
         return stored
       },

@@ -18,6 +18,12 @@ const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 /** A cell the problems table asked the matrix to open. */
 export interface DraftFocus { service_date: string; assignee_name: string; role: AssignmentRole }
 
+/** The one member with this name; none when it is missing or shared, so Undo never puts back the wrong person. */
+function soleMember(members: Member[], name?: string) {
+  const matches = members.filter((item) => item.display_name === name)
+  return matches.length === 1 ? matches[0] : undefined
+}
+
 /**
  * The draft as a matrix. A coordinator corrects one assignment at a time
  * from the inspector; the rest of the draft is not re-solved. Availability
@@ -93,8 +99,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const selectedAssignment = selected
     ? result.assignments.find((item) => item.service_date === selected.day.service_date && item.role === selectedRole)
     : undefined
-  const previousMatches = members.filter((item) => item.display_name === selectedAssignment?.assignee_name)
-  const previousMember = previousMatches.length === 1 ? previousMatches[0] : undefined
+  const previousMember = soleMember(members, selectedAssignment?.assignee_name)
   const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
   const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
   const selectedCategory = selectedBalance?.[selectedRole]
