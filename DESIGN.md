@@ -401,6 +401,9 @@ sygnaturą kart dyżuru (`.dcard::before`) i ramek informacyjnych (`.box`).
 - **Shape:** pigułka (999 px), minimalna wysokość 40 px, tekst 600 14/21 px,
   odstęp 8×18 px; mała 32 px, 12/16 px, 5×14 px; ikona 24 px z ujemnym
   marginesem, żeby nie podnosić przycisku.
+- **Dotyk:** przy `pointer: coarse` każdy przycisk i segment ma co najmniej
+  44 px wysokości, a przyciski ikonowe, „×" chipa filtra i kolory wydarzeń
+  44 px szerokości (jedna reguła na końcu `styles.css`).
 - **Domyślny:** tło `s1`, ramka `line2`, atrament główny; hover `s2`.
 - **Główny:** błękit działania, biały tekst, bez ramki; hover
   `brightness(.95)`.
@@ -479,11 +482,12 @@ sygnaturą kart dyżuru (`.dcard::before`) i ramek informacyjnych (`.box`).
 Tabela `table.m` o komórkach `--cell` (35 px, zwarte 29 px) z przyklejoną
 kolumną nazwisk 170 px i nagłówkiem dwuwierszowym; komórka to przycisk
 `.cell` bez ramki, hover `s2`, zaznaczenie wewnętrzną ramką 2 px w kolorze
-fokusu. Wewnątrz znaczniki ról `.rm` (32×20 px, 6 px, 700 12 px, wypełnienie
-roli, atrament granatowy) z kropką/rombem korekty, znacznik dostępności
-`.am` (22 px, 3 px) i kropka wydarzenia 5 px w prawym górnym rogu. Weekend
-ma podkład szary 10 % (8 % w jasnym motywie), dziś błękitny 12 % i pigułkę z numerem dnia w błękicie
-działania, luka w obsadzie podkład różowy. W przyklejonym nagłówku każdy
+fokusu. Wewnątrz znaczniki ról `.rm` (32×20 px, w gęstości zwartej szerokość
+według treści od 22 px; 6 px, 700 12 px, wypełnienie roli, atrament
+granatowy) z kropką/rombem korekty, znacznik dostępności `.am` (22 px,
+3 px) i kropka wydarzenia 5 px w prawym górnym rogu. Weekend ma podkład
+szary 10 % (8 % w jasnym motywie), dziś błękitny 12 % i pigułkę z numerem
+dnia w błękicie działania, luka w obsadzie podkład różowy. W przyklejonym nagłówku każdy
 podkład leży na nieprzezroczystym `s2`. Początek tygodnia to lewa linia
 2 px.
 
