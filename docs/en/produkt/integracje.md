@@ -194,11 +194,6 @@ number over. At most one handover is active at a time.
   a side of the day's pair or a coordinator ([Roles and
   access](role-i-dostep.md#handing-over-the-on-call-number)); the third
   answers every role and share-link session, with no phone numbers.
-- **Trail.** Audit: `forwarding.handover_started` and
-  `forwarding.handover_ended` (with the reason: by hand, time ran out, schedule
-  change), next to the usual `forwarding.applied` for the switch itself. The
-  entries are subject to retention like the rest of the audit; who holds the
-  number is decided by the handover row.
 
 The connection to WCO is always verified; a corporate CA is added from the
 `ONCALL_CA_FILE` file ([Getting started](../wdrozenie/uruchomienie.md#ca-file)).

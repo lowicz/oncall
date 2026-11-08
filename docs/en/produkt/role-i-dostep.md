@@ -38,8 +38,6 @@ own: it is an action on the Now screen, described below.
 | --- | :---: | :---: | :---: | :---: |
 | See where the number rings (`GET /api/v1/forwarding/now`) | yes | yes | yes | yes |
 | Hand the number over and end a handover | no | only as the day's PRIMARY or SECONDARY | yes | yes |
-| Know who started a handover | no | no | no | yes |
-| Forwarding settings and the WCO password (`/przelaczanie`) | no | no | no | yes |
 
 A team member hands the number over only when they are the PRIMARY or the
 SECONDARY of the duty day; the server checks it on every request, so a button

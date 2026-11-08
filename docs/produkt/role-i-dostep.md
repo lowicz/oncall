@@ -38,8 +38,6 @@ na ekranie Teraz, opisana niżej.
 | --- | :---: | :---: | :---: | :---: |
 | Zobaczyć, u kogo dzwoni numer (`GET /api/v1/forwarding/now`) | tak | tak | tak | tak |
 | Przekazać numer i zakończyć przekazanie | nie | tylko jako PRIMARY lub SECONDARY dnia | tak | tak |
-| Wiedzieć, kto przekazanie zlecił | nie | nie | nie | tak |
-| Ustawienia przełączania i hasło WCO (`/przelaczanie`) | nie | nie | nie | tak |
 
 Członek zespołu przekazuje numer tylko wtedy, gdy jest PRIMARY albo SECONDARY
 dnia dyżuru; serwer sprawdza to przy każdym żądaniu, więc przycisk, którego

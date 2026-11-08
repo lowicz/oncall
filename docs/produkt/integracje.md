@@ -188,10 +188,6 @@ Najwyżej jedno przekazanie jest aktywne naraz.
   dopuszcza dla strony pary dnia albo koordynatora ([Role i
   dostęp](role-i-dostep.md#przekazanie-numeru-on-call)); trzeci odpowiada
   każdej roli i sesji z linku podglądowego, bez numerów telefonów.
-- **Ślad.** Audyt: `forwarding.handover_started` i `forwarding.handover_ended`
-  (z powodem: ręcznie, upływ czasu, zmiana grafiku), obok zwykłego
-  `forwarding.applied` dla samego przełączenia. Wpisy podlegają retencji jak
-  reszta audytu; o tym, kto ma numer, decyduje wiersz przekazania.
 
 Połączenie z WCO jest zawsze weryfikowane; firmowe CA dochodzi z pliku
 `ONCALL_CA_FILE` ([Uruchomienie](../wdrozenie/uruchomienie.md#plik-ca)).
