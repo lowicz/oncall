@@ -759,10 +759,33 @@ describe('MineScreen points states', () => {
 
     const period = screen.getByRole('radiogroup', { name: 'Okres' })
     fireEvent.click(within(period).getByRole('radio', { name: 'Ten miesiąc' }))
-    expect(within(table).getByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
+    expect(await within(table).findByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
     fireEvent.click(within(period).getByRole('radio', { name: '12 mies.' }))
+    expect(await within(table).findByText('sierpień')).toBeInTheDocument()
     expect(within(period).getByRole('radio', { name: '12 mies.' })).toHaveAttribute('aria-checked', 'true')
-    expect(within(table).getByText('sierpień')).toBeInTheDocument()
+  })
+
+  it('keeps the period in the URL, so a refresh, Back and Forward show it again', async () => {
+    stub()
+    vi.spyOn(api, 'fairnessDuties').mockResolvedValue([
+      { service_date: '2026-08-12', role: 'secondary', points: 1, is_day_off: false },
+    ])
+    const { router } = renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />, { route: '/moje?okres=miesiac' })
+    const table = await screen.findByRole('table', { name: 'Punkty miesiąc po miesiącu' })
+    expect(within(table).getByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
+    const period = screen.getByRole('radiogroup', { name: 'Okres' })
+    expect(within(period).getByRole('radio', { name: 'Ten miesiąc' })).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(within(period).getByRole('radio', { name: '12 mies.' }))
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    expect(await within(table).findByText('sierpień')).toBeInTheDocument()
+
+    await act(() => router.navigate('/moje?okres=miesiac'))
+    expect(await within(table).findByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
+    await act(() => router.navigate(-1))
+    expect(await within(table).findByText('sierpień')).toBeInTheDocument()
+    await act(() => router.navigate(1))
+    expect(await within(table).findByText('Brak dyżurów w tym okresie.')).toBeInTheDocument()
   })
 
   it('shows failed points and loads them again on retry', async () => {

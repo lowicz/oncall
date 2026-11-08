@@ -659,7 +659,9 @@ function PointsSection({ displayName, compact, onAvailability }: {
     queryFn: () => api.fairnessDuties(me!.member_id),
     enabled: Boolean(me) && !compact,
   })
-  const [period, setPeriod] = useState<'12m' | 'month'>('12m')
+  // The period lives in the URL (`?okres=miesiac`), so a refresh keeps it.
+  const [params, setParams] = useUrlParams()
+  const period = params.get('okres') === 'miesiac' ? 'month' : '12m'
   const thisMonth = monthOf(warsawDate())
   const balance = me && fairness.data ? totalBalance(me, fairness.data.late_shift_balanced) : null
   const threshold = fairness.data?.criterion_points ?? 0
@@ -677,7 +679,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
           <Segmented<'12m' | 'month'>
             label={t.period}
             value={period}
-            onChange={setPeriod}
+            onChange={(value) => setParams({ okres: value === 'month' ? 'miesiac' : null })}
             options={[{ value: '12m', label: t.twelveMonths }, { value: 'month', label: t.thisMonth }]}
           />
         )}

@@ -157,9 +157,11 @@ Grafiku tak samo:
 | **⋯** → **Legenda** | rozwija spis symboli |
 | **⋯** → **Eksport ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje (członek zespołu) |
 
-Na Teraz i na Grafiku początek zakresu, jego długość i filtr **Tylko z
-dyżurem** są częścią adresu strony (`/grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem`,
-na Teraz `/?od=2026-09-14&zoom=8`), więc odświeżenie strony zachowuje widok,
+Na Teraz i na Grafiku początek zakresu, jego długość, filtr **Tylko z
+dyżurem** i wybór między macierzą a listą dni są częścią adresu strony
+(`/grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem&widok=lista`, na Teraz
+`/?od=2026-09-14&zoom=8`; bez `widok` wąski ekran zaczyna od listy dni, a
+szeroki od macierzy), więc odświeżenie strony zachowuje widok,
 a link do niego można przekazać dalej; starsze linki z `od` i `do` nadal
 działają. Paleta poleceń
 otwiera grafik z podświetloną osobą albo z panelem wskazanego dnia; wiersz

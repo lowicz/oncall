@@ -168,6 +168,10 @@ function csvOf(rows: Row[], today: string, now: number) {
 
 type Filter = 'all' | 'rotation' | 'outside' | 'inactive' | 'pending'
 const FILTERS: Filter[] = ['all', 'rotation', 'outside', 'inactive', 'pending']
+/** The filter as the URL names it: `osoby?filtr=w-rotacji`; none is all. */
+const FILTER_SLUGS: Record<Exclude<Filter, 'all'>, string> = { rotation: 'w-rotacji', outside: 'poza-rotacja', inactive: 'wylaczone', pending: 'oczekujace' }
+const filterOf = (slug: string | null): Filter =>
+  (Object.keys(FILTER_SLUGS) as Exclude<Filter, 'all'>[]).find((item) => FILTER_SLUGS[item] === slug) ?? 'all'
 type DetailTab = 'account' | 'rotation' | 'access'
 /** The open tab as the URL names it: `osoby?osoba=<id>&karta=rotacja`. */
 const TAB_SLUGS: Record<DetailTab, string> = { account: 'konto', rotation: 'rotacja', access: 'dostep' }
@@ -191,11 +195,12 @@ export function PeoplePanel() {
   const branding = useBranding()
   const toast = useToast()
   const undoable = useUndoable()
-  // The open person and tab live in the URL, so a refresh keeps the panel
-  // open and a link opens it.
+  // The open person and tab, the search and the filter live in the URL, so a
+  // refresh keeps the panel open and the list as it was, and a link opens it.
   const [params, setParams] = useUrlParams()
   const selectedId = params.get('osoba')
   const tab = tabOf(params.get('karta'))
+  const filter = filterOf(params.get('filtr'))
   // Whose details the forms hold, so a person named by the URL gets them once.
   const filledFor = useRef<string | null>(null)
   // Undo runs after the save, when another person may be open in the panel.
@@ -220,8 +225,9 @@ export function PeoplePanel() {
   const [eligibilityRole, setEligibilityRole] = useState<AssignmentRole>('primary')
   const [eligibilityFrom, setEligibilityFrom] = useState(today)
   const [eligibilityUntil, setEligibilityUntil] = useState('')
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
+  // Typed into its own state, which a router update lags behind; the URL
+  // only keeps it for a refresh.
+  const [search, setSearch] = useState(params.get('szukaj') ?? '')
 
   const allRows = useMemo<Row[]>(() => {
     const byUser = new Map((team.data ?? []).map((member) => [member.user_id, member]))
@@ -531,7 +537,10 @@ export function PeoplePanel() {
               aria-label={t.searchPlaceholder}
               placeholder={t.searchPlaceholder}
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setDetails({ szukaj: event.target.value || null })
+              }}
               className="sech-search"
             />
             <Segmented
@@ -539,7 +548,7 @@ export function PeoplePanel() {
               wrap
               label={t.accounts}
               value={filter}
-              onChange={setFilter}
+              onChange={(value) => setDetails({ filtr: value === 'all' ? null : FILTER_SLUGS[value] })}
               options={FILTERS.map((item) => ({ value: item, label: t.filters[item] }))}
             />
           </>

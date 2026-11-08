@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { UserRole, api } from '../api'
 import { addDays, daysBetween, formatDate, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
-import { MatrixControls, MatrixView, ONLY_ON_DUTY, WEEKS, isZoom } from '../components/MatrixControls'
+import { MatrixControls, ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../components/MatrixControls'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { useUrlParams } from '../hooks/useUrlParams'
 import { Box, Button, EmptyState, LinkButton, PageHeader, SectionHeading } from '../ui'
@@ -20,9 +20,9 @@ function zoomFor(range: CalendarRange): MatrixZoom {
 /**
  * The full schedule: the same matrix as on "Teraz" without the risk row,
  * over any range, two to eight weeks per screen, as a matrix or a day list,
- * with the day inspector. The start, the zoom and the "only on duty" filter
- * live in the URL (`grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem`) so a view
- * survives a refresh and can be sent as a link; an older link with `od` and
+ * with the day inspector. The start, the zoom, the "only on duty" filter and
+ * the view live in the URL (`grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem&widok=lista`)
+ * so a view survives a refresh and can be sent as a link; an older link with `od` and
  * `do` still works. `dzien` and `osoba` come from the command palette.
  */
 export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
@@ -36,8 +36,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   const canCoordinate = role === 'coordinator' || role === 'admin'
   const [searchParams, setSearchParams] = useUrlParams()
   const hideIdle = searchParams.get(ONLY_ON_DUTY.key) === ONLY_ON_DUTY.value
-  const [view, setView] = useState<MatrixView>(narrow ? 'list' : 'matrix')
-  useEffect(() => { setView(narrow ? 'list' : 'matrix') }, [narrow])
+  const view = viewOf(searchParams.get(VIEW_KEY), narrow)
   // The default range ends where the published coverage ends (LOW5-05) rather
   // than painting weeks of "no coverage" over days nobody published yet; an
   // empty installation falls back to four weeks (QA7-L01).
@@ -169,7 +168,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
                   hideIdle={hideIdle}
                   onHideIdle={(value) => setSearchParams({ [ONLY_ON_DUTY.key]: value ? ONLY_ON_DUTY.value : null })}
                   view={view}
-                  onView={setView}
+                  onView={(value) => setSearchParams({ [VIEW_KEY]: VIEW_SLUGS[value] })}
                   showAvailability={role !== 'viewer'}
                   icsExport={hasTeamMember}
                 />

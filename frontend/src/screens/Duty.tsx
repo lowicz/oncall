@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CurrentDuty, ShareSession, UserRole, api } from '../api'
@@ -8,7 +7,7 @@ import { addDays, daysBetween, formatDateLong, formatDayShort, formatRange, form
 import { useMessages } from '../i18n'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { CalendarMatrix, CalendarRange, MatrixSummary, MatrixZoom } from '../components/CalendarMatrix'
-import { MatrixControls, MatrixView, ONLY_ON_DUTY, WEEKS, isZoom } from '../components/MatrixControls'
+import { MatrixControls, ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../components/MatrixControls'
 import { useUrlParams } from '../hooks/useUrlParams'
 import { AnchorButton, Box, LinkButton, PageHeader, RoleLabel, SectionHeading, StatusBadge, Tag, cx } from '../ui'
 
@@ -116,8 +115,8 @@ function matrixWindow(today: string, offset: number, zoom: MatrixZoom, share: Sh
  * on duty, so on a desktop the page goes straight to the risks and the
  * next weeks of the schedule. A phone has no strip and gets the duties as
  * cards with a call button instead. The window's start, its zoom and the
- * "only on duty" filter live in the URL (`?od=2026-09-14&zoom=8`), so a
- * refresh keeps the view.
+ * "only on duty" filter live in the URL (`?od=2026-09-14&zoom=8`), with the
+ * matrix or list view, so a refresh keeps the view.
  */
 export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   role: UserRole
@@ -140,8 +139,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const start = params.get('od')
   const offset = isIsoDate(start) ? daysBetween(today, start) : 0
   const hideIdle = params.get(ONLY_ON_DUTY.key) === ONLY_ON_DUTY.value
-  const [view, setView] = useState<MatrixView>(narrow ? 'list' : 'matrix')
-  useEffect(() => { setView(narrow ? 'list' : 'matrix') }, [narrow])
+  const view = viewOf(params.get(VIEW_KEY), narrow)
 
   const { range, wholeLink, canShiftBack, canShiftForward } = matrixWindow(today, offset, zoom, share)
   // From the window actually shown: a share link may have clamped it away
@@ -238,7 +236,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
                 hideIdle={hideIdle}
                 onHideIdle={(value) => setParams({ [ONLY_ON_DUTY.key]: value ? ONLY_ON_DUTY.value : null })}
                 view={view}
-                onView={setView}
+                onView={(value) => setParams({ [VIEW_KEY]: VIEW_SLUGS[value] })}
                 showAvailability={role !== 'viewer'}
                 showRange={!wholeLink}
                 canShiftBack={canShiftBack}

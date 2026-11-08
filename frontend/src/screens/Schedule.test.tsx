@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Route, Routes, useLocation } from 'react-router-dom'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { chooseFromMenu, openMenu } from '../test/menu'
 import { ScheduleScreen } from './Schedule'
@@ -142,6 +142,28 @@ describe('ScheduleScreen range in the URL', () => {
     await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent(/^\/grafik\?od=2026-09-10&zoom=2$/))
     fireEvent.click(screen.getByRole('button', { name: 'Tylko z dyżurem' }))
     await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=2&tylko=z-dyzurem'))
+  })
+
+  it('keeps the matrix or list view in the address, so a refresh, Back and Forward show it again', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    const { router } = renderSchedule('/grafik?od=2026-09-10&zoom=2&widok=lista')
+    expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lista dni' }))
+    await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-10&zoom=2&widok=macierz'))
+    expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+    // Moving the window keeps the view.
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij o tydzień' }))
+    await waitFor(() => expect(screen.getByTestId('url')).toHaveTextContent('/grafik?od=2026-09-03&zoom=2&widok=macierz'))
+
+    await act(() => router.navigate('/grafik?od=2026-09-03&zoom=2&widok=lista'))
+    expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+    await act(() => router.navigate(-1))
+    expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+    await act(() => router.navigate(1))
+    expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
   })
 
   it('still honours an older link with od and do', async () => {
@@ -401,5 +423,25 @@ describe('ScheduleScreen layout', () => {
 
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Macierz grafiku' })).not.toBeInTheDocument()
+  })
+
+  it('opens the matrix the address names on a narrow screen', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
+    renderSchedule('/grafik?od=2026-09-14&widok=macierz')
+
+    expect(await screen.findByRole('region', { name: 'Macierz grafiku' })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Grafik dzień po dniu' })).not.toBeInTheDocument()
   })
 })

@@ -12,6 +12,12 @@ export const isZoom = (value: string | null): value is MatrixZoom => value === '
 /** "Only on duty" in the URL of a screen with the matrix: `?tylko=z-dyzurem`. */
 export const ONLY_ON_DUTY = { key: 'tylko', value: 'z-dyzurem' }
 
+/** The matrix or the day list in the URL: `?widok=lista`; without it the screen's width chooses. */
+export const VIEW_KEY = 'widok'
+export const VIEW_SLUGS: Record<MatrixView, string> = { matrix: 'macierz', list: 'lista' }
+export const viewOf = (slug: string | null, narrow: boolean): MatrixView =>
+  slug === VIEW_SLUGS.list ? 'list' : slug === VIEW_SLUGS.matrix ? 'matrix' : narrow ? 'list' : 'matrix'
+
 /** The legend as a popover hanging off the "Legend" link in a section heading,
  *  or, opened from a menu, off the menu's button. */
 export function LegendPopover({ showAvailability, gridKeys = false, trigger, open, onOpenChange, anchor }: {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { api } from '../../api'
 import type { AdminUser, TeamMember } from '../../api'
@@ -95,6 +95,46 @@ describe('PeoplePanel table', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: /Szukaj osoby/ }), { target: { value: 'maj' } })
     expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
     expect(screen.getByText('ewa', { selector: 'td' })).toBeInTheDocument()
+  })
+
+  it('keeps the search and the filter in the URL, so a refresh, Back and Forward show the same list', async () => {
+    mockData(
+      [
+        user({ id: 'u1' }),
+        user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj', is_active: false }),
+        user({ id: 'u3', username: 'olek', first_name: 'Olek', last_name: 'Maj', display_name: 'Olek Maj' }),
+      ],
+      [member({ id: 'm1', user_id: 'u1' })],
+    )
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby?szukaj=maj&filtr=wylaczone' })
+    await rowOf('ewa')
+    expect(screen.getByRole('searchbox', { name: /Szukaj osoby/ })).toHaveValue('maj')
+    expect(screen.getByRole('radio', { name: 'Wyłączone' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Wszystkie' }))
+    await waitFor(() => expect(router.state.location.search).toBe('?szukaj=maj'))
+    await rowOf('olek')
+    expect(screen.queryByText('anna', { selector: 'td' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox', { name: /Szukaj osoby/ }), { target: { value: '' } })
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+    await rowOf('anna')
+
+    await act(() => router.navigate('/osoby?filtr=w-rotacji'))
+    await waitFor(() => expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument())
+    expect(screen.getByText('anna', { selector: 'td' })).toBeInTheDocument()
+    await act(() => router.navigate(-1))
+    await rowOf('olek')
+    await act(() => router.navigate(1))
+    await waitFor(() => expect(screen.queryByText('olek', { selector: 'td' })).not.toBeInTheDocument())
+  })
+
+  it('shows every account for a filter the URL names but the screen does not know', async () => {
+    mockData([user({ id: 'u1' }), user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj', is_active: false })])
+    renderScreen(<PeoplePanel />, { route: '/osoby?filtr=nieznany' })
+    await rowOf('ewa')
+    expect(screen.getByText('anna', { selector: 'td' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Wszystkie' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('uses one tab stop and arrow keys for the account filters', async () => {

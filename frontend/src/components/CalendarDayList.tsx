@@ -1,8 +1,8 @@
-import { Fragment } from 'react'
+import { Fragment, useMemo } from 'react'
 import { AssignmentRole, CalendarData } from '../api'
 import { availabilityLabels, roleLabels } from '../lib/labels'
 import { addDays, formatDay, formatRange, formatWeekday, isMonday, isoWeek, warsawDate, weekdayIndex } from '../lib/dates'
-import { CoverageGap } from '../lib/calendar'
+import { CoverageGap, availabilityByDay, groupByKey } from '../lib/calendar'
 import { useMessages } from '../i18n'
 import { AvailabilityMark, RoleMark, Tag, cx } from '../ui'
 
@@ -25,6 +25,9 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
   const today = warsawDate()
   const gapsByDate = new Map(gaps.map((gap) => [gap.service_date, gap.missing]))
   const me = data.members.find((member) => member.display_name === displayName)
+  // Every day looks its duties and availability up instead of searching the payload.
+  const dayAssignments = useMemo(() => groupByKey(data.assignments, (item) => `${item.service_date}|${item.role}`), [data.assignments])
+  const dayAvailability = useMemo(() => availabilityByDay(data.availability, data.days), [data.availability, data.days])
   // A week heading before Monday (and before the first day, which may not be
   // one): the ISO week number and the Monday-Sunday span it covers.
   const weekHeading = (day: CalendarData['days'][number], index: number) => {
@@ -41,11 +44,7 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
     <div className="panel" role="list" aria-label={t.label}>
       {data.days.map((day, index) => {
         const missing = gapsByDate.get(day.service_date) ?? []
-        const mine = me && data.availability.find(
-          (item) => item.member_id === me.id
-            && item.starts_on <= day.service_date
-            && item.ends_on >= day.service_date,
-        )
+        const mine = me && dayAvailability.get(`${me.id}|${day.service_date}`)
         return (
           <Fragment key={day.service_date}>
             {weekHeading(day, index)}
@@ -66,9 +65,7 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
               </div>
               <div className="dayrow-rs">
                 {ORDER.map((role) => {
-                  const assignment = data.assignments.find(
-                    (item) => item.service_date === day.service_date && item.role === role,
-                  )
+                  const assignment = dayAssignments.get(`${day.service_date}|${role}`)?.[0]
                   if (!assignment && role === 'late_shift' && day.is_day_off) return null
                   const you = assignment?.assignee_name === displayName
                   return (

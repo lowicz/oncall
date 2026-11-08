@@ -91,4 +91,37 @@ describe('CalendarDayList', () => {
     expect(screen.queryByText(/Twoja dostępność/)).not.toBeInTheDocument()
     expect(within(items()[4]).queryByText('Chętnie wezmę')).not.toBeInTheDocument()
   })
+
+  it('looks every day up instead of searching the payload for it', () => {
+    const days = Array.from({ length: 56 }, (_, index) => day(new Date(Date.UTC(2026, 8, 7 + index)).toISOString().slice(0, 10)))
+    const long: CalendarData = {
+      ...data,
+      starts_on: days[0].service_date,
+      ends_on: days[55].service_date,
+      days,
+      assignments: days.flatMap(({ service_date }) => [duty(service_date, 'primary', 'Anna Kowalska'), duty(service_date, 'secondary', 'Marek Nowak')]),
+      availability: [{ member_id: 'm1', kind: 'prefer_not', starts_on: days[3].service_date, ends_on: days[9].service_date, note: null }],
+    }
+    // Count the searches of the payload's own lists, wherever they come from.
+    let searches = 0
+    for (const list of [long.assignments, long.availability] as unknown[][]) {
+      for (const method of ['filter', 'find'] as const) {
+        Object.defineProperty(list, method, {
+          value: (...args: Parameters<unknown[]['filter']>) => {
+            searches += 1
+            return (Array.prototype[method] as (...rest: unknown[]) => unknown).apply(list, args)
+          },
+        })
+      }
+    }
+    long.assignments.find(() => false)
+    expect(searches).toBe(1)
+    searches = 0
+    renderScreen(<CalendarDayList data={long} displayName="Anna Kowalska" gaps={[]} onSelectDay={vi.fn()} />)
+    expect(items()).toHaveLength(56)
+    expect(within(items()[5]).getByText('Wolę nie')).toBeInTheDocument()
+
+    // Not one search per day and role (168 of them).
+    expect(searches).toBe(0)
+  })
 })

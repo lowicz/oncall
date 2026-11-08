@@ -41,9 +41,11 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   lokalnego, **jednorazowy link** resetu hasła albo - dopóki konto czeka na
   aktywację - nowy link aktywacyjny.
 
-Otwarta osoba i zakładka są w adresie strony
-(`/osoby?osoba=<id>&karta=rotacja`, zakładki `konto`, `rotacja`, `dostep`),
-więc odświeżenie zostawia panel otwarty, a link otwiera go od razu.
+Otwarta osoba i zakładka, wpisane wyszukiwanie i filtr są w adresie strony
+(`/osoby?osoba=<id>&karta=rotacja`, zakładki `konto`, `rotacja`, `dostep`;
+`szukaj=<tekst>`, `filtr=w-rotacji`, `poza-rotacja`, `wylaczone`,
+`oczekujace`), więc odświeżenie zostawia panel otwarty i listę taką samą, a
+link otwiera go od razu.
 
 Konto bez rotacji ma na zakładce Rotacja przycisk **Dodaj do rotacji** z datą
 wejścia. Link aktywacyjny nowego konta pokazuje się raz, po utworzeniu; link

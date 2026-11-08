@@ -162,10 +162,11 @@ on Now and on the Schedule:
 | **⋯** → **Legend** | expands the list of symbols |
 | **⋯** → **Export ICS** | opens the calendar addresses with your duties on the Mine screen (team member) |
 
-On Now and on the Schedule the start of the range, its length and the **On
-duty only** filter are part of the page address
-(`/grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem`, on Now `/?od=2026-09-14&zoom=8`),
-so refreshing the page keeps the view and a link to it can be passed on;
+On Now and on the Schedule the start of the range, its length, the **On
+duty only** filter and the choice between the matrix and the day list are part
+of the page address (`/grafik?od=2026-09-14&zoom=8&tylko=z-dyzurem&widok=lista`,
+on Now `/?od=2026-09-14&zoom=8`; without `widok` a narrow screen starts with the
+day list and a wide one with the matrix), so refreshing the page keeps the view and a link to it can be passed on;
 older links with `od` and `do` still work. The command palette
 opens the schedule with a person highlighted or with the panel of the given
 day; the highlighted person's row carries the tag “highlighted” next to the

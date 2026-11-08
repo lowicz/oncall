@@ -119,7 +119,8 @@ Jedna liczba: Twoje odchylenie od sprawiedliwego udziału w punktach za
 ostatnie 12 miesięcy (na przykład `+0,5`), pod nią pasek dwukierunkowy i
 werdykt względem progu (**W normie** albo **Poza normą**, z progiem
 podanym w treści). Tabela miesięcy pokazuje punkty, liczbę dyżurów i dni
-weekendowych; przełącznik **12 mies.** / **Ten miesiąc** zawęża listę. Link
+weekendowych; przełącznik **12 mies.** / **Ten miesiąc** zawęża listę (ten miesiąc jest w
+adresie strony jako `okres=miesiac`). Link
 **Pełny raport sprawiedliwości** prowadzi do ekranu z całym zespołem - jak
 liczone są punkty, opisuje [Sprawiedliwość](../produkt/sprawiedliwosc.md).
 

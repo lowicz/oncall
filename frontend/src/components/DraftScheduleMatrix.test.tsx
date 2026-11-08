@@ -175,6 +175,35 @@ describe('DraftScheduleMatrix grid', () => {
     renderScreen(<DraftScheduleMatrix result={{ ...draft, status: 'proposed' }} onChange={() => {}} />)
     expect(await screen.findByRole('button', { name: 'Anna Kowalska, pon 21-09-2026, PRIMARY' })).toBeDisabled()
   })
+  it('looks every cell up instead of searching the draft for it', async () => {
+    const days = range('2026-09-07', '2026-11-01')
+    const people = Array.from({ length: 12 }, (_, index) => ({ id: `p${index}`, display_name: `Osoba ${index}` }))
+    const availability = people.map((person, index) => ({ member_id: person.id, kind: 'prefer_not' as const, starts_on: days[index].service_date, ends_on: days[index + 3].service_date, note: null }))
+    const assignments = days.flatMap(({ service_date }, index) => [
+      { service_date, role: 'primary' as const, assignee_name: people[index % 12].display_name, is_override: false },
+      { service_date, role: 'secondary' as const, assignee_name: people[(index + 1) % 12].display_name, is_override: false },
+    ])
+    // Count the searches of the payload's own lists, wherever they come from.
+    let searches = 0
+    for (const list of [assignments, availability] as unknown[][]) {
+      for (const method of ['filter', 'find'] as const) {
+        Object.defineProperty(list, method, {
+          value: (...args: Parameters<unknown[]['filter']>) => {
+            searches += 1
+            return (Array.prototype[method] as (...rest: unknown[]) => unknown).apply(list, args)
+          },
+        })
+      }
+    }
+    vi.spyOn(api, 'calendar').mockResolvedValue({ ...calendar, starts_on: '2026-09-07', ends_on: '2026-11-01', days, members: people, availability })
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
+    renderScreen(<DraftScheduleMatrix result={{ ...draft, starts_on: '2026-09-07', ends_on: '2026-11-01', assignments }} onChange={() => {}} />)
+    expect(await screen.findAllByRole('button', { name: /^Osoba 0, / })).toHaveLength(56)
+    expect(screen.getByRole('button', { name: 'Osoba 0, pon 07-09-2026, PRIMARY, Wolę nie' })).toBeInTheDocument()
+
+    // Not one search per cell (672 of them).
+    expect(searches).toBe(0)
+  })
 })
 
 describe('DraftScheduleMatrix inspector', () => {

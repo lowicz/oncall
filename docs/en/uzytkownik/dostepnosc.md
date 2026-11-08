@@ -122,7 +122,8 @@ One number: your deviation from the fair share of points over the last 12
 months (for example `+0.5`), under it a two-way bar and the verdict against
 the threshold (**Within limits** or **Outside limits**, with the threshold
 given in the text). The table of months shows points, the number of duties
-and weekend days; the **12 months** / **This month** switch narrows the list.
+and weekend days; the **12 months** / **This month** switch narrows the list (this month is in
+the page address as `okres=miesiac`).
 The **Full fairness report** link leads to the screen with the whole team -
 how points are counted is described in
 [Fairness](../produkt/sprawiedliwosc.md).
