@@ -16,7 +16,8 @@ function delta(before: number, after: number) {
   return change === 0 ? null : signed(change)
 }
 
-function Side({ side, direction }: { side: SwapImpactMember; direction: string }) {
+/** One person's balance before and after, lens by lens. */
+export function ImpactSide({ side, direction }: Readonly<{ side: SwapImpactMember; direction: string }>) {
   const t = useMessages().swaps.impact
   const lenses = lensLabels()
   const rows = LENSES.map((key) => {
@@ -53,34 +54,30 @@ function Side({ side, direction }: { side: SwapImpactMember; direction: string }
  * The projection is read-only; nothing is written until the swap is created or
  * the coordinator confirms the override.
  *
- * `mode` names the move: a swap is something the on-call person hands over
- * (their own choice), a coordinator override is something they lose (it is
- * done to them) and moves 11-19 with its anchor role only. `inReturn` is the
- * duty that comes back when the swap is an exchange, `scope` what the swap
- * gives of the day and `returnScope` what it takes of the day in return.
+ * `inReturn` is the duty that comes back when the swap is an exchange, `scope`
+ * what the swap gives of the day and `returnScope` what it takes of the day in
+ * return.
  *
  * The preview is about points only. The rules the move breaks or bends are
  * listed by the screen around it, which is also where they are acknowledged;
  * repeating them here showed every violation twice.
  */
-export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, scope, returnScope, mode = 'swap', directions }: {
+export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, scope, returnScope, directions }: {
   serviceDate: string
   role: AssignmentRole
   replacementId: string
   inReturn?: SwapSlot
   scope?: SwapScope
   returnScope?: SwapScope
-  mode?: 'swap' | 'override'
   /** What each side gives and takes, when the screen words it better (a role
    *  swap trades two roles of one day). */
   directions?: { requester: string; replacement: string }
 }) {
   const impact = useQuery({
-    ...swapImpactQuery(serviceDate, role, replacementId, { inReturn, scope, returnScope, correction: mode === 'override' }),
+    ...swapImpactQuery(serviceDate, role, replacementId, { inReturn, scope, returnScope }),
     enabled: Boolean(serviceDate && role && replacementId),
   })
   const t = useMessages().swaps.impact
-  const fromDirection = mode === 'override' ? t.loses : t.handsOver
   const worth = (day: string, points: number) => t.dayWorth(formatDay(day), points === 2 ? t.twoPoints : t.onePoint)
 
   if (impact.isLoading) return <LoadingBlock label={t.loading} rows={2} />
@@ -96,8 +93,8 @@ export function SwapImpactPreview({ serviceDate, role, replacementId, inReturn, 
         {returnDay && returnDay !== day && ` ${worth(returnDay, returnPoints as number)}`}
         {' '}{t.window(formatDate(impact.data.window_start), formatDate(impact.data.window_end))}
       </div>
-      <Side side={impact.data.requester} direction={directions?.requester ?? (returnDay ? t.exchanges(formatDayShort(day), formatDayShort(returnDay)) : fromDirection)} />
-      <Side side={impact.data.replacement} direction={directions?.replacement ?? (returnDay ? t.exchanges(formatDayShort(returnDay), formatDayShort(day)) : t.takes)} />
+      <ImpactSide side={impact.data.requester} direction={directions?.requester ?? (returnDay ? t.exchanges(formatDayShort(day), formatDayShort(returnDay)) : t.handsOver)} />
+      <ImpactSide side={impact.data.replacement} direction={directions?.replacement ?? (returnDay ? t.exchanges(formatDayShort(returnDay), formatDayShort(day)) : t.takes)} />
     </div>
   )
 }

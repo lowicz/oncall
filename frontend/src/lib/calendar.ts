@@ -163,11 +163,14 @@ function isUnavailable(data: CalendarData, memberId: string, serviceDate: string
 export interface StaffingCandidate {
   id: string
   display_name: string
-  /** Already holds this exact (day, role) - the "change" would be a no-op. */
-  isCurrent: boolean
-  /** Undefined when the person can be moved into the slot. Otherwise the reason
-   *  the option is disabled, worded so it can be shown next to the control. */
+  /** Undefined when the person can be moved into the roles. Otherwise the
+   *  reason the option is disabled, worded so it can be shown next to the
+   *  control. */
   disabledReason?: string
+  /** Of the roles asked for, the ones the person may not take that day:
+   *  without the eligibility, or already theirs. Set only while they may take
+   *  the rest, so the option stays and choosing it says what to change. */
+  partial?: { notEligible: AssignmentRole[]; holds: AssignmentRole[] }
   /** The roles the person may hold that day; undefined when the payload
    *  carries no eligibility. */
   roles?: AssignmentRole[]
@@ -175,51 +178,60 @@ export interface StaffingCandidate {
   availability?: AvailabilityKind
 }
 
+/** Whether two slots of a day have one holder: the identity, or the name on
+ *  rows without one (`_same_holder` in the API). */
+function sameHolder(a: CalendarData['assignments'][number], b: CalendarData['assignments'][number]) {
+  return b.member_id ? b.member_id === a.member_id : b.assignee_name === a.assignee_name
+}
+
 /**
- * Who the coordinator may assign to (`serviceDate`, `role`), built from the
- * calendar payload alone. The picker names a person explicitly instead of
- * deriving one from the clicked cell (MED6-03).
+ * Who the coordinator may assign to the `roles` of `serviceDate` in one
+ * correction, built from the calendar payload alone. The picker names a
+ * person explicitly instead of deriving one from the clicked cell (MED6-03).
  *
- * This mirrors three of the four 422s `POST /calendar/override` raises. The
- * Eligibility windows are included for coordinators and administrators.
+ * This mirrors the refusals of `POST /calendar/override/batch`: holding a
+ * role already, missing its eligibility, an unavailability that day, the
+ * other on-call role kept that day. Eligibility windows are included for
+ * coordinators and administrators.
  */
 export function staffingCandidates(
   data: CalendarData,
   serviceDate: string,
-  role: AssignmentRole,
+  roles: AssignmentRole[],
 ): StaffingCandidate[] {
-  const opposite: AssignmentRole | null =
-    role === 'primary' ? 'secondary' : role === 'secondary' ? 'primary' : null
-  const current = data.assignments.find(
-    (item) => item.service_date === serviceDate && item.role === role,
-  )
+  const slotOf = (role: AssignmentRole) =>
+    data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+  // A correction never holds both on-call roles, so the other one is kept.
+  const kept = roles.flatMap((role): AssignmentRole[] =>
+    role === 'primary' ? ['secondary'] : role === 'secondary' ? ['primary'] : [])
+  const reasons = messages().calendar.disabledReasons
   return data.members
     .filter((member) =>
       (!member.active_from || member.active_from <= serviceDate)
       && (!member.active_until || member.active_until >= serviceDate),
     )
     .map((member) => {
-      const isCurrent = isCurrentAssignee(member, current)
       const availability = data.availability.find(
         (item) => item.member_id === member.id
           && item.starts_on <= serviceDate
           && item.ends_on >= serviceDate,
       )?.kind
-      const unavailable = availability === 'unavailable'
-      const oppositeClash = opposite !== null && data.assignments.some(
-        (item) => item.service_date === serviceDate
-          && item.role === opposite
-          && isCurrentAssignee(member, item),
-      )
-      const roles = member.eligibility && ALL_ROLES.filter((item) => isEligible(member, item, serviceDate))
-      const eligible = isEligible(member, role, serviceDate)
+      const holds = roles.filter((role) => isCurrentAssignee(member, slotOf(role)))
+      const notEligible = roles.filter((role) => !holds.includes(role) && !isEligible(member, role, serviceDate))
+      const takes = roles.length - holds.length - notEligible.length
       let disabledReason: string | undefined
-      const reasons = messages().calendar.disabledReasons
-      if (isCurrent) disabledReason = reasons.alreadyHoldsRole
-      else if (!eligible) disabledReason = reasons.notEligible
-      else if (unavailable) disabledReason = reasons.unavailable
-      else if (oppositeClash) disabledReason = reasons.otherOnCall
-      return { id: member.id, display_name: member.display_name, isCurrent, disabledReason, roles, availability }
+      if (takes === 0) disabledReason = holds.length > 0 ? reasons.alreadyHoldsRole : reasons.notEligible
+      else if (availability === 'unavailable') disabledReason = reasons.unavailable
+      else if (kept.some((role) => isCurrentAssignee(member, slotOf(role)))) disabledReason = reasons.otherOnCall
+      const partial = !disabledReason && takes < roles.length ? { notEligible, holds } : undefined
+      return {
+        id: member.id,
+        display_name: member.display_name,
+        disabledReason,
+        partial,
+        roles: member.eligibility && ALL_ROLES.filter((item) => isEligible(member, item, serviceDate)),
+        availability,
+      }
     })
     .sort((a, b) => {
       if (Boolean(a.disabledReason) !== Boolean(b.disabledReason)) {
@@ -227,6 +239,49 @@ export function staffingCandidates(
       }
       return a.display_name.localeCompare(b.display_name, 'pl')
     })
+}
+
+/** How a working day's 11–19 stands to the policy's coupling: the anchor role
+ *  it travels with, and whether that role's holder has it too. Null when the
+ *  policy couples nothing, on a day off, or while either slot is empty. */
+export interface LateShiftLink {
+  anchor: 'primary' | 'secondary'
+  coupled: boolean
+  /** Who holds 11–19, and who holds the anchor role. */
+  holder: string
+  anchorHolder: string
+}
+
+export function lateShiftLink(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): LateShiftLink | null {
+  const day = data.days.find((item) => item.service_date === serviceDate)
+  if (anchor === 'independent' || !day || day.is_day_off) return null
+  const slotOf = (role: AssignmentRole) =>
+    data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+  const late = slotOf('late_shift')
+  const anchored = slotOf(anchor)
+  if (!late || !anchored) return null
+  return { anchor, coupled: sameHolder(anchored, late), holder: late.assignee_name, anchorHolder: anchored.assignee_name }
+}
+
+/** One slot a correction of a day's roles hands over: who has it now (null
+ *  when nobody does) and the team member to give it back to on Undo. */
+export interface StaffChange {
+  role: AssignmentRole
+  from: string | null
+  /** Null when the slot cannot be handed back: empty, or its holder no
+   *  team member, not eligible or unavailable that day. */
+  restoreTo: string | null
+}
+
+/** What handing `roles` of `serviceDate` over would change, slot by slot, in
+ *  the order of the roles. */
+export function staffChanges(data: CalendarData, serviceDate: string, roles: AssignmentRole[]): StaffChange[] {
+  return roles.map((role) => {
+    const slot = data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
+    const holder = slot && data.members.find((member) => isCurrentAssignee(member, slot))
+    const restorable = holder && isEligible(holder, role, serviceDate) && !isUnavailable(data, holder.id, serviceDate)
+    return { role, from: slot?.assignee_name ?? null, restoreTo: restorable ? holder.id : null }
+  })
 }
 
 export interface MonthGroup {

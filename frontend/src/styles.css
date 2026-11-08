@@ -175,6 +175,8 @@ small, .small { font-size: 12px; line-height: 16px; }
 .tag { font: 600 12px/16px var(--label); padding: 1px 9px; border-radius: 999px; background: var(--s3); color: var(--muted); white-space: nowrap; }
 .tag-sig { color: var(--sig); }
 .tag-bad { color: var(--bad-text); }
+/* How the 11–19 row stands to the coupling with its anchor role. */
+.tag-late { color: var(--late); }
 .st { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/16px var(--label); padding: 1px 9px 1px 8px; border-radius: 999px; color: var(--fg); white-space: nowrap; }
 .st::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
 .st-draft, .st-muted { background: var(--s3); }
@@ -513,6 +515,8 @@ button.role-row:hover .btn-ghost { color: var(--fg); }
 .role-r { font: 600 12px/16px var(--label); }
 .role-r-p { color: var(--p); } .role-r-s { color: var(--sec-text); }
 .role-n { font-weight: 600; font-size: 14px; line-height: 21px; min-width: 0; }
+/* The 11–19 coupling tag is a line under the name, aligned with it. */
+.role-n .tag { display: block; padding: 0; background: none; white-space: normal; }
 .role-n small { display: block; font: 12px/16px var(--mono); color: var(--muted); font-weight: 400; margin-top: 2px; white-space: normal; }
 .role-x { font-size: 12px; line-height: 16px; color: var(--muted); }
 .role-row-sel { border-color: var(--sig); background: var(--sig-soft); }
@@ -526,6 +530,14 @@ button.role-row:hover .btn-ghost { color: var(--fg); }
 .swap-preview { display: grid; gap: 4px; font-size: 14px; line-height: 21px; }
 .swap-preview-row { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; align-items: baseline; }
 .swap-cell { display: grid; gap: 4px; min-width: 0; }
+/* P7 roles to change: one pill per role, lit while ticked, dashed while
+   another choice excludes it. */
+.role-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.check.role-check { align-items: center; gap: 6px; padding: 6px 12px; min-height: 32px; border: 1px solid var(--line2); border-radius: 999px; background: var(--s1); color: var(--muted); font: 600 12px/16px var(--font); }
+.role-check input { margin: 0; }
+.role-check:has(input:checked) { border-color: var(--sig); background: var(--sig-soft); color: var(--sig); }
+.role-check.check-off { border-style: dashed; }
+.role-check .check-body small { display: inline; font-weight: 500; }
 .avail { font-size: 12px; line-height: 16px; display: grid; gap: 4px; }
 .avail-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .impact { border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; display: grid; gap: 8px; background: var(--s2); }
@@ -747,6 +759,6 @@ table.report-table td.key { font-weight: 600; }
   .spinner, .sk { animation: none; }
 }
 @media (pointer: coarse) {
-  :is(button, .btn, [role='button'], .seg button, .filter-chip button) { min-height: 44px; }
+  :is(button, .btn, [role='button'], .seg button, .filter-chip button, .role-check) { min-height: 44px; }
   :is(.ib, .filter-chip button, .color-pick button) { min-width: 44px; }
 }
