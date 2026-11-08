@@ -574,20 +574,26 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
     setInbox('moje')
     resetCreate()
   }, [sent, resetCreate, setInbox])
-  const settle = (message: string, openDay = false) => ({
+  const settle = (notify: (result: SwapRequest) => void) => ({
     onSuccess: (result: SwapRequest) => {
       openSheet(null)
       refresh()
-      toast.success(message, openDay ? { action: { label: t.swaps.toasts.openDay, onClick: () => navigate(`/grafik?dzien=${result.service_date}`) } } : undefined)
+      notify(result)
     },
     // A refusal may mean the request or the roster moved: read both again, so
     // the sheet shows what the decision is about now.
     onError: refresh,
   })
-  const accept = useMutation({ mutationFn: api.acceptSwap, ...settle(approvalRequired ? t.swaps.toasts.dutyTaken : t.swaps.toasts.acceptedInSchedule, !approvalRequired) })
-  const approve = useMutation({ mutationFn: api.approveSwap, ...settle(t.swaps.toasts.inSchedule) })
-  const reject = useMutation({ mutationFn: api.rejectSwap, ...settle(t.swaps.toasts.rejected) })
-  const cancel = useMutation({ mutationFn: api.cancelSwap, ...settle(t.swaps.toasts.withdrawn) })
+  // The server reads the approval policy again on acceptance, so the swap it returns says where it went.
+  const accept = useMutation({
+    mutationFn: api.acceptSwap,
+    ...settle((result) => result.status === 'approved'
+      ? toast.success(t.swaps.toasts.acceptedInSchedule, { action: { label: t.swaps.toasts.openDay, onClick: () => navigate(`/grafik?dzien=${result.service_date}`) } })
+      : toast.success(t.swaps.toasts.dutyTaken)),
+  })
+  const approve = useMutation({ mutationFn: api.approveSwap, ...settle(() => toast.success(t.swaps.toasts.inSchedule)) })
+  const reject = useMutation({ mutationFn: api.rejectSwap, ...settle(() => toast.success(t.swaps.toasts.rejected)) })
+  const cancel = useMutation({ mutationFn: api.cancelSwap, ...settle(() => toast.success(t.swaps.toasts.withdrawn)) })
   const busy = accept.isPending || approve.isPending || reject.isPending || cancel.isPending
   const decisionError = [accept.error, approve.error, reject.error, cancel.error].find(Boolean) ?? null
 

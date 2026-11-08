@@ -97,6 +97,27 @@ describe('SwapPanel without the coordinator approval', () => {
     expect(screen.getByLabelText('Adres')).toHaveTextContent('/grafik?dzien=2026-09-14')
   })
 
+  it('names where an accepted swap went by the status the server returns, not the policy the screen loaded', async () => {
+    // Approval was switched on while the sheet was open: the swap waits for the coordinator.
+    stub([swap({ id: '1' })], NO_APPROVAL)
+    vi.spyOn(api, 'acceptSwap').mockResolvedValue(swap({ id: '1', status: 'pending_coordinator' }))
+    const { unmount } = renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+    fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: /^Zamiana ·/ })).getByRole('button', { name: 'Akceptuję' }))
+    expect(await screen.findByText('Przyjęto. Czeka na zatwierdzenie koordynatora.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Otwórz dzień' })).not.toBeInTheDocument()
+    unmount()
+
+    // Approval was switched off: the swap is already in the schedule.
+    stub([swap({ id: '1' })], APPROVAL_REQUIRED)
+    vi.spyOn(api, 'acceptSwap').mockResolvedValue(swap({ id: '1', status: 'approved' }))
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+    fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: /^Zamiana ·/ })).getByRole('button', { name: 'Akceptuję' }))
+    expect(await screen.findByText('Przyjęto. Zamiana wpisana do grafiku.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Otwórz dzień' })).toBeInTheDocument()
+  })
+
   it('keeps the stage for a request a coordinator already holds', async () => {
     stub([swap({ id: '1', status: 'pending_coordinator' })], NO_APPROVAL)
     renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
