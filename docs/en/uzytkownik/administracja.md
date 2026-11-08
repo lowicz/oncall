@@ -41,8 +41,9 @@ Clicking a person (or **Open**) opens a panel with three tabs:
   later entry date is saved on its own: only deleting periods that end before
   it can be saved with it, and the panel says to save other rotation changes
   separately. While some saved period starts before the new date, the “Entry
-  from” field names its role: first save a new start for that period, or its
-  deletion, on its own. A badge in the panel header shows
+  from” field names its role: a period that ends before it is deleted in the
+  same save, and one that runs past it is first moved or deleted in a separate
+  save. A badge in the panel header shows
   the rotation state,
 - **Access** - the account role, the “Account enabled” switch and, for a
   local account, a **one-time** password reset link or - as long as the

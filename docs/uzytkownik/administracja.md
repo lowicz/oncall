@@ -40,8 +40,9 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   razem z nią można zapisać tylko usunięcie okresów, które kończą się przed
   nią, a o innych zmianach rotacji panel mówi, że trzeba je zapisać oddzielnie.
   Dopóki któryś zapisany okres zaczyna się przed nową datą, pole „Wejście od”
-  wymienia jego rolę: najpierw zapisz osobno nowy początek tego okresu albo
-  jego usunięcie. Stan rotacji pokazuje znacznik w nagłówku panelu,
+  wymienia jego rolę: okres, który kończy się przed nią, usuń w tym samym
+  zapisie, a okres trwający dłużej najpierw przesuń albo usuń w osobnym
+  zapisie. Stan rotacji pokazuje znacznik w nagłówku panelu,
 - **Dostęp** - rola konta, przełącznik „Konto włączone” i, dla konta
   lokalnego, **jednorazowy link** resetu hasła albo - dopóki konto czeka na
   aktywację - nowy link aktywacyjny.

@@ -1350,7 +1350,7 @@ describe('PeoplePanel rotation tab', () => {
 
     // Both saved periods start before the new date, so the server would refuse it.
     fireEvent.change(entry, { target: { value: '2025-10-01' } })
-    expect(within(dialog).getByRole('alert')).toHaveTextContent('Kwalifikacje PRIMARY i 11–19 zaczynają się przed tą datą; najpierw zapisz osobno nowe początki tych okresów albo ich usunięcie.')
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Kwalifikacje PRIMARY i 11–19 zaczynają się przed tą datą. Okresy, które kończą się przed nią, usuń w tym samym zapisie; okresy trwające dłużej najpierw przesuń albo usuń w osobnym zapisie.')
     expect(entry).toHaveAttribute('aria-invalid', 'true')
     expect(within(dialog).getByRole('button', { name: 'Zapisz (1)' })).toBeDisabled()
 
@@ -1382,7 +1382,7 @@ describe('PeoplePanel rotation tab', () => {
 
     // An ended period keeps its start, so it still keeps the later date back.
     fireEvent.change(entry, { target: { value: '2025-10-01' } })
-    expect(within(dialog).getByRole('alert')).toHaveTextContent('Kwalifikacja 11–19 zaczyna się przed tą datą; najpierw zapisz osobno nowy początek tego okresu albo jego usunięcie.')
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Kwalifikacja 11–19 zaczyna się przed tą datą. Okres, który kończy się przed nią, usuń w tym samym zapisie; okres trwający dłużej najpierw przesuń albo usuń w osobnym zapisie.')
     expect(within(dialog).getByRole('button', { name: 'Zapisz (1)' })).toBeDisabled()
     expect(membership).not.toHaveBeenCalled()
   })
@@ -1519,7 +1519,7 @@ describe('PeoplePanel rotation tab', () => {
     fireEvent.click(within(qualification(dialog, 'SECONDARY')).getByRole('button', { name: 'Usuń: SECONDARY' }))
 
     // The deleted period is not told to move its start; the note names its deletion instead.
-    expect(within(dialog).getByRole('alert')).toHaveTextContent('Kwalifikacja PRIMARY zaczyna się przed tą datą; najpierw zapisz osobno nowy początek tego okresu albo jego usunięcie.')
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Kwalifikacja PRIMARY zaczyna się przed tą datą. Okres, który kończy się przed nią, usuń w tym samym zapisie; okres trwający dłużej najpierw przesuń albo usuń w osobnym zapisie.')
     expect(within(dialog).getByText('Późniejszą datę wejścia zapisz osobno, bez innych zmian rotacji: wyjście z rotacji: 30-06-2027, usunięcie okresu SECONDARY.')).toBeInTheDocument()
     await waitFor(() => expect(within(dialog).queryByText(/Sprawdzam/)).not.toBeInTheDocument())
     expect(within(dialog).getByRole('button', { name: 'Zapisz (3)' })).toBeDisabled()
@@ -1595,7 +1595,7 @@ describe('PeoplePanel rotation tab', () => {
         schedule_id: 's1', schedule_version: 2, member_id: 'm1', change_kind: null,
       }] : [],
     }))
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [], ends_handover: null })
     const rewrite = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     vi.spyOn(api, 'updateEligibility').mockResolvedValue({ id: 'e1', role: 'primary', starts_on: '2025-09-02', ends_on: '2026-09-30' })
     renderScreen(<PeoplePanel />)
@@ -1658,7 +1658,7 @@ describe('PeoplePanel rotation tab', () => {
         schedule_id: 's1', schedule_version: 2, member_id: 'm1', change_kind: null,
       }] : [],
     }))
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [], ends_handover: null })
     vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     const remove = vi.spyOn(api, 'deleteEligibility').mockResolvedValue(undefined)
     const update = vi.spyOn(api, 'updateEligibility').mockResolvedValue({ id: 'e1', role: 'primary', starts_on: '2025-09-02', ends_on: '2026-09-30' })

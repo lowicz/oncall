@@ -159,8 +159,8 @@ export const people: Messages['people'] = {
       `After this date there ${pluralFormEn(count, ['is', 'are'])} ${pluralEn(count, ['published duty', 'published duties'])}; saving leads through picking replacements.`,
     periodsAfterExit: 'The qualifications run past this date; saving ends them on it.',
     periodsBeforeEntry: (roles: string, count: number) => count === 1
-      ? `The ${roles} qualification starts before this date; first save a new start for that period, or its deletion, on its own.`
-      : `The ${roles} qualifications start before this date; first save new starts for those periods, or their deletion, on their own.`,
+      ? `The ${roles} qualification starts before this date. A period that ends before it is deleted in the same save; one that runs past it is first moved or deleted in a separate save.`
+      : `The ${roles} qualifications start before this date. Periods that end before it are deleted in the same save; those that run past it are first moved or deleted in a separate save.`,
     entrySavedAlone: (changes: string) => `Save the later entry date on its own, without other rotation changes: ${changes}.`,
     qualificationsTitle: 'Qualifications',
     savedWithSave: 'saved with the “Save” button',
