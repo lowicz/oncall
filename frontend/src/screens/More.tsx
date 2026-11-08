@@ -44,7 +44,7 @@ export function MoreScreen({ displayName, avatar = null, access }: { displayName
           <SectionHeading title={group.label} />
           <List className="panel">
             {group.items.map((item) => (
-              <NavLink key={item.path} to={item.path} className="list-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <NavLink key={item.path} to={item.path} className="list-row list-row-link">
                 <div className="list-main row"><Icon name={item.icon} /><b>{navLabel(item)}</b></div>
                 <div className="list-aside"><Icon name="chevron-right" /></div>
               </NavLink>
@@ -58,7 +58,7 @@ export function MoreScreen({ displayName, avatar = null, access }: { displayName
           <ListRow aside={<ThemeSegmented />}><b>{t.theme.theme}</b></ListRow>
           <ListRow aside={<DensitySegmented />}><b>{t.theme.matrixDensity}</b></ListRow>
           <ListRow aside={<LanguageSegmented />}><b>{t.theme.language}</b></ListRow>
-          <a href={docsHref(language)} className="list-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <a href={docsHref(language)} className="list-row list-row-link">
             <div className="list-main row"><Icon name="doc" /><b>{t.shell.documentation}</b></div>
             <div className="list-aside"><Icon name="external" /></div>
           </a>

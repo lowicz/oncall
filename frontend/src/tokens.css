@@ -17,7 +17,7 @@
   --line2: rgba(163, 181, 201, 0.34);
   --fg: #F4F6FA;
   --muted: #A3B5C9;
-  --dim: #7591AB;
+  --dim: #93ABC1;
 
   --sig: #65B8FF;
   --sig-ink: #0B1F42;
@@ -33,26 +33,29 @@
   --late-fill: #FFB196;
   --p: #65CDCF;
   --sec: #B17EAD;
+  --sec-text: #D5A8D2;
   --late: #FFB196;
+  --late-text: #FFB196;
 
   --ok: #6CD99D;
   --ok-bg: rgba(108, 217, 157, 0.14);
   --ok-dot: #0CB43F;
   --warn: #FFB196;
+  --warn-text: #FFB196;
   --warn-bg: rgba(255, 177, 150, 0.14);
   --warn-dot: #FF6130;
   --bad: #EB4C79;
+  --bad-text: #FF8AAA;
   --bad-bg: rgba(235, 76, 121, 0.16);
   --bad-dot: #EB4C79;
 
-  --na: #EB4C79;
   --na-bg: rgba(235, 76, 121, 0.2);
   --wn: #A3B5C9;
   --wn-bg: rgba(163, 181, 201, 0.2);
   --ch: #6CD99D;
   --ch-bg: rgba(108, 217, 157, 0.16);
   --today: rgba(101, 184, 255, 0.12);
-  --wknd: rgba(163, 181, 201, 0.07);
+  --wknd: rgba(163, 181, 201, 0.1);
   --focus: #65B8FF;
 
   --ev-blue: #65B8FF;
@@ -64,7 +67,6 @@
 
   --band-ink: #FFFFFF;
   --band-line: rgba(255, 255, 255, 0.24);
-  --band-field: rgba(255, 255, 255, 0.16);
   --band-edge: rgba(255, 255, 255, 0.4);
   --band-kbd: rgba(255, 255, 255, 0.55);
   --band-chip: #FFFFFF;
@@ -100,7 +102,7 @@
   --line2: #A3B5C9;
   --fg: #303030;
   --hd: #0B1F42;
-  --muted: #506A97;
+  --muted: #4B6592;
   --dim: #4E6A88;
   --sig: #064EA1;
   --sig-ink: #FFFFFF;
@@ -108,24 +110,27 @@
   --sig-line: rgba(40, 112, 237, 0.6);
   --p: #036A6D;
   --sec: #721C7A;
+  --sec-text: #721C7A;
   --late: #B84800;
+  --late-text: #A33F00;
   --ok: #017632;
   --ok-bg: rgba(108, 217, 157, 0.26);
   --ok-dot: #017632;
   --warn: #B84800;
+  --warn-text: #A33F00;
   --warn-bg: rgba(255, 177, 150, 0.32);
   --warn-dot: #D25200;
   --bad: #BC3B51;
+  --bad-text: #A72743;
   --bad-bg: rgba(253, 164, 182, 0.3);
   --bad-dot: #BC3B51;
-  --na: #BC3B51;
   --na-bg: rgba(253, 164, 182, 0.34);
   --wn: #245375;
   --wn-bg: rgba(163, 181, 201, 0.3);
   --ch: #017632;
   --ch-bg: rgba(108, 217, 157, 0.3);
   --today: rgba(40, 112, 237, 0.08);
-  --wknd: rgba(36, 83, 117, 0.05);
+  --wknd: rgba(36, 83, 117, 0.08);
   --focus: #2870ED;
   --ev-blue: #2870ED;
   --ev-green: #017632;

@@ -20,6 +20,7 @@ import { availabilityLabels, firstName, roleLabels, swapStatusLabels } from '../
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
 import { formatPoints } from '../lib/numbers'
+import { preferredScrollBehavior } from '../lib/motion'
 import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
 import { useGridNavigation } from '../hooks/useGridNavigation'
@@ -227,7 +228,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   const inPreview = (date: string) => Boolean(previewRange && previewRange[0] <= date && date <= previewRange[1])
   const previewTone = brush === 'clear' ? null : toneOf[brush]
   return (
-    <div className="avail-wrap">
+    <div>
       <div className="avail-cal-head" aria-hidden="true">
         {weekdaysFromMonday().map((label, index) => <span key={label} className={cx(index >= 5 && 'we')}>{label}</span>)}
       </div>
@@ -444,7 +445,6 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
                 aria-label={t.person}
                 value={target}
                 onChange={(event) => setTarget(event.target.value)}
-                className="sech-select"
               >
                 <option value="">{ownMember ? t.myself(displayName) : t.pickPerson}</option>
                 {team.data?.filter((member) => member.id !== ownMember?.id).map((member) => (
@@ -848,7 +848,7 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
     if (location.hash === '#ics') setIcsOpen(true)
     if (location.hash === '#dostepnosc') document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start' })
   }, [location.hash])
-  const scrollToAvailability = () => document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  const scrollToAvailability = () => document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
 
   const subtitle = [
     displayName,

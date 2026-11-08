@@ -127,7 +127,7 @@ function EligibilityPeriodEditor({ item, value, pending, onChange, onDelete, onD
 }) {
   const t = useMessages().people.period
   return (
-    <div className="frow" style={{ alignItems: 'end' }}>
+    <div className="frow frow-end">
       <DateField id={`eligibility-${item.id}-from`} label={t.from} value={value.starts_on} onChange={(starts_on) => onChange({ ...value, starts_on })} />
       <DateField id={`eligibility-${item.id}-until`} label={t.untilOptional} value={value.ends_on} onChange={(ends_on) => onChange({ ...value, ends_on })} />
       <div className="row">
@@ -716,7 +716,7 @@ export function PeoplePanel() {
                       controls={<button type="button" className={cx('sech-link', addingPeriod && 'on')} aria-pressed={addingPeriod} onClick={() => setAddingPeriod((value) => !value)}>{t.rotationTab.addPeriod}</button>}
                     />
                     {addingPeriod && (
-                      <div className="frow" style={{ alignItems: 'end' }}>
+                      <div className="frow frow-end">
                         <Field label={t.rotationTab.dutyRole} id="new-eligibility-role">
                           {() => (
                             <Segmented<AssignmentRole>
@@ -776,7 +776,7 @@ export function PeoplePanel() {
                     {rotationUntil && (
                       <Box tone="warn" title={t.rotationTab.scheduleEffect}>
                         {t.rotationTab.scheduleEffectText(formatDate(rotationUntil))}
-                        <div className="row" style={{ marginTop: 6 }}>
+                        <div className="row mt-6">
                           <Button size="sm" onClick={() => setOffboardingOpen(true)} icon="people">{t.rotationTab.rewriteAndEnd}</Button>
                         </div>
                       </Box>
@@ -785,7 +785,7 @@ export function PeoplePanel() {
                 ) : (
                   <>
                     <Box tone="muted" title={t.rotationTab.outside}>{t.rotationTab.outsideText}</Box>
-                    <div className="frow" style={{ alignItems: 'end' }}>
+                    <div className="frow frow-end">
                       <DateField id="rotation-from" label={t.rotationTab.entryFrom} value={rotationFrom} onChange={setRotationFrom} />
                       <Button variant="primary" onClick={() => createRotation.mutate()} loading={createRotation.isPending}>{t.rotationTab.addToRotation}</Button>
                     </div>
@@ -809,7 +809,7 @@ export function PeoplePanel() {
                     {t.accessTab.noPasswordYet}
                     {` ${sentence(activationLinkText(selectedRow.user, selectedActivation))}. `}
                     {t.accessTab.newLinkInvalidates}
-                    <div className="row" style={{ marginTop: 6 }}>
+                    <div className="row mt-6">
                       <Button size="sm" icon="send" disabled={!selectedRow.user.is_active} onClick={() => setReissueConfirmation(true)}>{t.accessTab.reissueActivation}</Button>
                       {!selectedRow.user.is_active && <span className="muted small">{t.accessTab.disabledNoLink}</span>}
                     </div>

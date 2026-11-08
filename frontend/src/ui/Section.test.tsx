@@ -80,13 +80,13 @@ describe('lists', () => {
   it('draw rows with an aside, a highlight and a tone', () => {
     const { container } = render(
       <List className="l">
-        <ListRow aside={<span>12</span>} highlight tone="bad" className="r">Jan</ListRow>
+        <ListRow aside={<span>12</span>} highlight tone="warn" className="r">Jan</ListRow>
         <ListRow>Ola</ListRow>
       </List>,
     )
     expect(container.firstElementChild).toHaveClass('list', 'l')
     const rows = container.querySelectorAll('.list-row')
-    expect(rows[0]).toHaveClass('list-row-hl', 'list-row-bad', 'r')
+    expect(rows[0]).toHaveClass('list-row-hl', 'list-row-warn', 'r')
     expect(rows[0].querySelector('.list-aside')).toHaveTextContent('12')
     expect(rows[1].className).toBe('list-row')
     expect(rows[1].querySelector('.list-aside')).toBeNull()

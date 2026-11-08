@@ -639,7 +639,7 @@ export function CalendarMatrix({
               <div className="stack-sm">
                 <div className="impact-h">{t.inspector.events}</div>
                 {selected.day.events.map((event) => (
-                  <div key={event.id} className="row" style={{ justifyContent: 'space-between' }}>
+                  <div key={event.id} className="row row-between">
                     <span><i className="event-swatch" style={{ background: `var(--ev-${event.color})` }} />{event.title}</span>
                     {canCoordinate && (
                       <Button size="sm" variant="ghost" icon="trash" disabled={deleteEvent.isPending} onClick={() => { deleteEvent.reset(); setEventToDelete(event) }}>{t.inspector.delete}</Button>

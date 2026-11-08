@@ -87,7 +87,7 @@ export function CalendarDayList({ data, displayName, gaps, onSelectDay, selected
                   )
                 })}
                 {(day.is_day_off || day.events.length > 0 || mine) && (
-                  <div className="row small" style={{ gap: 6 }}>
+                  <div className="row row-gap-6 small">
                     {day.is_day_off && <Tag tone="late">{day.holiday_name ?? '2X'}</Tag>}
                     {day.events.map((event) => (
                       <Tag key={event.id}><i className="event-swatch" style={{ background: `var(--ev-${event.color})` }} />{event.title}</Tag>

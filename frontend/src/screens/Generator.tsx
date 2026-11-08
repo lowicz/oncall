@@ -5,6 +5,7 @@ import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSumm
 import { locale, messages, useMessages } from '../i18n'
 import { lateShiftAnchorLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { formatPoints } from '../lib/numbers'
+import { preferredScrollBehavior } from '../lib/motion'
 import { draftFairnessImpactQuery } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
@@ -266,7 +267,7 @@ export function GeneratorPanel() {
   const generatingRange = generating ? (generate.isPending ? generate.variables : result ?? range) : null
   const showProblems = (onlyHard: boolean) => {
     setHardOnly(onlyHard)
-    problemsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    problemsRef.current?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
   }
   const numberField = (key: 'fairness_weight' | 'preference_weight' | 'continuity_weight' | 'solve_seconds', label: string, hint: string, min: number, max: number, step: number) => (
     <Field label={label} id={`policy-${key}`} hint={hint}>
@@ -310,7 +311,7 @@ export function GeneratorPanel() {
         ]}
       />
       <div className="progress" role="progressbar" aria-valuenow={runProgress?.progress ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label={t.progress.bar}>
-        <i style={{ width: `${runProgress?.progress ?? 0}%` }} />
+        <i style={{ transform: `scaleX(${(runProgress?.progress ?? 0) / 100})` }} />
       </div>
       {Boolean(runProgress?.uncovered_before?.length) && (
         <Box tone="warn">
@@ -671,7 +672,7 @@ export function GeneratorPanel() {
           {publishPreview.error && <Box tone="bad" role="alert" title={t.publish.checkFailed} />}
           {publishPreview.data?.lost_changes.length ? (
             <Box tone="warn" title={t.publish.resolveConflicts}>
-              <div className="stack-sm" style={{ marginTop: 6 }}>
+              <div className="stack-sm mt-6">
                 {publishPreview.data.lost_changes.map((change) => (
                   <div key={`${change.service_date}-${change.role}`} className="stack-sm">
                     <div>
