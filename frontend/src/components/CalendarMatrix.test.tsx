@@ -271,7 +271,7 @@ describe('CalendarMatrix override decision frame', () => {
     // The line says the rules are being checked, then that none is broken.
     expect(screen.getByRole('status')).toHaveTextContent('Sprawdzam reguły twarde…')
     expectBlocked(saveButton())
-    expect(await screen.findByText('Bez naruszeń reguł twardych')).toHaveAttribute('role', 'status')
+    expect(await screen.findByText('Bez naruszeń reguł twardych')).toBe(screen.getByRole('status'))
     expect(screen.queryByText(/Ta korekta złamie reguły twarde/)).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /świadomie łamię/ })).not.toBeInTheDocument()
     expectReady(saveButton())
