@@ -161,6 +161,10 @@ export const people = {
     checkingDuties: 'Sprawdzam opublikowane dyżury po tej dacie…',
     dutiesAfterExit: (count: number) =>
       `Po tej dacie ${pluralFormPl(count, ['jest', 'są', 'jest'])} ${pluralPl(count, ['opublikowany dyżur', 'opublikowane dyżury', 'opublikowanych dyżurów'])}; zapis poprowadzi przez wybór zastępców.`,
+    periodsAfterExit: 'Kwalifikacje trwają dłużej; zapis zamknie je z tym dniem.',
+    periodsBeforeEntry: (roles: string, count: number) => count === 1
+      ? `Kwalifikacja ${roles} zaczyna się przed tą datą; przesuń jej początek.`
+      : `Kwalifikacje ${roles} zaczynają się przed tą datą; przesuń ich początek.`,
     qualificationsTitle: 'Kwalifikacje',
     savedWithSave: 'zapis z przyciskiem „Zapisz”',
     addPeriod: 'Dodaj okres',

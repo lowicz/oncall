@@ -5,7 +5,7 @@ import { Field, Input } from '../ui'
  * dates in and out, which is also what the API speaks, so no conversion layer
  * sits between the field and the request.
  */
-export function DateField({ label, value, onChange, id, required, disabled, minDate, hint }: {
+export function DateField({ label, value, onChange, id, required, disabled, minDate, hint, error }: {
   label: string
   value: string
   onChange: (value: string) => void
@@ -14,15 +14,17 @@ export function DateField({ label, value, onChange, id, required, disabled, minD
   disabled?: boolean
   minDate?: string
   hint?: string
+  error?: string
 }) {
   return (
-    <Field label={label} id={id} required={required} hint={hint}>
-      {({ id: fieldId, describedBy }) => (
+    <Field label={label} id={id} required={required} hint={hint} error={error}>
+      {({ id: fieldId, describedBy, invalid }) => (
         <Input
           id={fieldId}
           name={fieldId}
           type="date"
           mono
+          invalid={invalid}
           value={value}
           min={minDate}
           required={required}

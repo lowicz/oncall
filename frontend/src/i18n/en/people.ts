@@ -157,6 +157,10 @@ export const people: Messages['people'] = {
     checkingDuties: 'Checking the published duties after this date…',
     dutiesAfterExit: (count: number) =>
       `After this date there ${pluralFormEn(count, ['is', 'are'])} ${pluralEn(count, ['published duty', 'published duties'])}; saving leads through picking replacements.`,
+    periodsAfterExit: 'The qualifications run past this date; saving ends them on it.',
+    periodsBeforeEntry: (roles: string, count: number) => count === 1
+      ? `The ${roles} qualification starts before this date; move its start.`
+      : `The ${roles} qualifications start before this date; move their start.`,
     qualificationsTitle: 'Qualifications',
     savedWithSave: 'saved with the “Save” button',
     addPeriod: 'Add period',

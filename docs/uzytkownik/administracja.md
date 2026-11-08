@@ -35,8 +35,11 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
 - **Rotacja** - „Wejście od” i „Wyjście do”, jedna lista **Kwalifikacje**
   (dla każdej roli jej bieżące i przyszłe okresy albo wiersz „brak
   kwalifikacji” z przyciskiem **Dodaj**, na końcu okresy minione jako
-  historia) i przycisk **Zakończ rotację…** (patrz niżej). Stan rotacji
-  pokazuje znacznik w nagłówku panelu,
+  historia) i przycisk **Zakończ rotację…** (patrz niżej). Każdy okres
+  mieści się w rotacji, więc późniejszej daty wejścia nie da się zapisać,
+  dopóki któryś okres zaczyna się wcześniej: pole „Wejście od” wymienia wtedy
+  jego rolę, a przesunięty w tym samym zapisie początek okresu zapisuje się
+  przed nową datą. Stan rotacji pokazuje znacznik w nagłówku panelu,
 - **Dostęp** - rola konta, przełącznik „Konto włączone” i, dla konta
   lokalnego, **jednorazowy link** resetu hasła albo - dopóki konto czeka na
   aktywację - nowy link aktywacyjny.
@@ -113,7 +116,9 @@ dacie. Dyżury już opublikowane po tej dacie trzeba przepisać, więc nie da si
 ich zostawić bez obsady przez pomyłkę: podpowiedź pod polem „Wyjście do”
 podaje ich liczbę, a **Zapisz** z taką datą zapisuje zmiany konta i datę
 wejścia i otwiera okno zakończenia rotacji, które dla każdego dyżuru wybiera
-zastępcę. Data wyjścia zapisuje się dopiero w tym oknie; zamknięcie go
+zastępcę. To samo okno otwiera **Zapisz**, gdy kwalifikacje trwają dłużej niż
+do daty wyjścia, bo żaden okres nie może wyjść poza rotację; podpowiedź pod
+polem mówi wtedy, że zapis je zamknie. Data wyjścia zapisuje się dopiero w tym oknie; zamknięcie go
 zostawia ją na liście niezapisanych zmian. Zmiany kwalifikacji też czekają, bo
 serwer nie pozwala zakończyć kwalifikacji, której potrzebują jeszcze
 opublikowane dyżury: okno samo zamyka okresy z dniem wyjścia, a to, co z tych

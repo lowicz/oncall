@@ -37,8 +37,11 @@ Clicking a person (or **Open**) opens a panel with three tabs:
 - **Rotation** - “Entry from” and “Exit on”, one **Qualifications** list
   (for each role its current and future periods or a “no qualification” row
   with an **Add** button, past periods last as history) and the **End the
-  rotation…** button (see below). A badge in the panel header shows the
-  rotation state,
+  rotation…** button (see below). Every period lies inside the rotation, so a
+  later entry date cannot be saved while some period starts earlier: the
+  “Entry from” field then names its role, and a period start moved in the
+  same save is saved before the new date. A badge in the panel header shows
+  the rotation state,
 - **Access** - the account role, the “Account enabled” switch and, for a
   local account, a **one-time** password reset link or - as long as the
   account is awaiting activation - a new activation link.
@@ -119,7 +122,9 @@ ends. Duties already published after that date have to be rewritten, so they
 cannot be left unstaffed by mistake: the hint under the “Exit on” field gives
 their number, and **Save** with such a date saves the account changes and the
 entry date and opens the end-of-rotation dialog, which picks a replacement for
-each duty. The exit date is saved only in that dialog; closing it leaves the
+each duty. **Save** opens the same dialog when qualifications run past the exit
+date, because no period may reach outside the rotation; the hint under the
+field then says that saving ends them. The exit date is saved only in that dialog; closing it leaves the
 date on the list of unsaved changes. Qualification changes wait too, because
 the server does not let a qualification end while published duties still need
 it: the dialog itself closes the periods on the exit date, and whatever is
