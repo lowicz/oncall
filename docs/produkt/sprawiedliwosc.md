@@ -79,7 +79,7 @@ okna - domyślnie na koniec ostatniej publikacji, więc liczą się też dyżury
 już zaplanowane.
 
 Koordynator i administrator widzą cały zespół; członek zespołu widzi tylko
-siebie (skrót swojego wyniku ma też na ekranie Moje).
+siebie (skrót swojego wyniku ma też na ekranie Moje dyżury).
 
 ## Wpływ na kolejne generowanie
 

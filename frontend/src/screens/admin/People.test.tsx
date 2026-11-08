@@ -338,7 +338,7 @@ describe('PeoplePanel person panel', () => {
     renderScreen(<PeoplePanel />)
     const dialog = await openRow('anna')
     fireEvent.click(within(dialog).getByRole('tab', { name: /Rotacja/ }))
-    const period = (await within(dialog).findAllByText('02-09-2025 → ∞'))[0].closest('.list-row') as HTMLElement
+    const period = (await within(dialog).findAllByText('02-09-2025 → bez daty końca'))[0].closest('.list-row') as HTMLElement
     expect(within(period).getByText('PRIMARY')).toBeInTheDocument()
     expect(within(period).getByText('od 02-09-2025, bez daty końca')).toHaveClass('sr-only')
     fireEvent.click(within(period).getByRole('button', { name: 'Edytuj' }))
@@ -447,7 +447,7 @@ describe('PeoplePanel person panel', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Usuwam konto Anna Kowalska i jego dane osobowe' })
     expect(within(sheet).getByText(/pozostaną bez obsady/)).toBeInTheDocument()
     expect(within(sheet).getByText(/pojawi się jako „Osoba usunięta #…”/)).toBeInTheDocument()
-    expect(within(sheet).getByText(/Audyt zachowuje imię i nazwisko/)).toBeInTheDocument()
+    expect(within(sheet).getByText(/W dzienniku audytu imię i nazwisko zostają przy starych wpisach/)).toBeInTheDocument()
     const confirm = within(sheet).getByRole('button', { name: 'Usuń konto i dane' })
     expect(confirm).toBeDisabled()
     expect(within(sheet).getByLabelText('Wpisz login, żeby potwierdzić')).toHaveAttribute('placeholder', 'wpisz login')
@@ -1057,6 +1057,21 @@ const openRotation = async (username = 'anna', name: RegExp = /Anna Kowalska/) =
 }
 
 describe('PeoplePanel rotation tab', () => {
+  it('names the tab after the roles the person holds', async () => {
+    mockData([user({ id: 'u1' })], [member({ id: 'm1' })])
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRotation()
+    expect(within(dialog).getByRole('tab', { name: 'Rotacja · P, 11–19' })).toBeInTheDocument()
+    expect(within(dialog).getAllByText('02-09-2025 → bez daty końca').length).toBeGreaterThan(0)
+  })
+
+  it('names the tab plainly when the person holds no role', async () => {
+    mockData([user({ id: 'u1' })], [member({ id: 'm1', eligibility: [] })])
+    renderScreen(<PeoplePanel />)
+    const dialog = await openRotation()
+    expect(within(dialog).getByRole('tab', { name: 'Rotacja' })).toBeInTheDocument()
+  })
+
   it('adds a person outside the rotation from the chosen date', async () => {
     mockData()
     const add = vi.spyOn(api, 'createTeamMember').mockResolvedValue(member({ id: 'm1', active_from: '2026-10-01' }))
@@ -1165,7 +1180,7 @@ describe('PeoplePanel rotation tab', () => {
     const finish = vi.spyOn(api, 'updateTeamMember').mockResolvedValue(member({ id: 'm1', active_until: '2026-12-31' }))
     renderScreen(<PeoplePanel />)
     const dialog = await openRotation()
-    const offboard = () => fireEvent.click(within(dialog).getByRole('button', { name: 'Przepisz przyszłe dyżury i zakończ rotację…' }))
+    const offboard = () => fireEvent.click(within(dialog).getByRole('button', { name: 'Zakończ rotację…' }))
 
     offboard()
     let sheet = await screen.findByRole('dialog', { name: 'Zakończenie rotacji: Anna Kowalska' })
@@ -1238,7 +1253,7 @@ describe('PeoplePanel qualification periods', () => {
     fireEvent.change(within(dialog).getByLabelText('Do (opcjonalnie)'), { target: { value: '' } })
     expect(within(dialog).getByText('Niezapisane: okres 11–19')).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Gotowe' }))
-    const edited = within(dialog).getAllByText('02-09-2025 → ∞').map((row) => row.closest('.list-row') as HTMLElement)
+    const edited = within(dialog).getAllByText('02-09-2025 → bez daty końca').map((row) => row.closest('.list-row') as HTMLElement)
       .find((row) => within(row).queryByText(/zmieniony, niezapisany/))!
     expect(within(edited).getByText('11–19 · zmieniony, niezapisany')).toBeInTheDocument()
 
@@ -1253,7 +1268,7 @@ describe('PeoplePanel qualification periods', () => {
     const save = vi.spyOn(api, 'updateEligibility').mockResolvedValue({ id: 'e1', role: 'primary', starts_on: '2025-10-01', ends_on: null })
     renderScreen(<PeoplePanel />)
     const dialog = await openRotation()
-    const primary = within(dialog).getAllByText('02-09-2025 → ∞')[0].closest('.list-row') as HTMLElement
+    const primary = within(dialog).getAllByText('02-09-2025 → bez daty końca')[0].closest('.list-row') as HTMLElement
 
     fireEvent.click(within(primary).getByRole('button', { name: 'Edytuj' }))
     fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '' } })
@@ -1274,7 +1289,7 @@ describe('PeoplePanel qualification periods', () => {
       .mockResolvedValue(undefined)
     renderScreen(<PeoplePanel />)
     const dialog = await openRotation()
-    const primary = within(dialog).getAllByText('02-09-2025 → ∞')[0].closest('.list-row') as HTMLElement
+    const primary = within(dialog).getAllByText('02-09-2025 → bez daty końca')[0].closest('.list-row') as HTMLElement
 
     fireEvent.click(within(primary).getByRole('button', { name: 'Edytuj' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Usuń' }))
@@ -1332,7 +1347,7 @@ describe('PeoplePanel qualification periods', () => {
     const account = vi.spyOn(api, 'updateAdminUser').mockResolvedValue(user({ id: 'u1' }))
     renderScreen(<PeoplePanel />)
     const dialog = await openRotation()
-    const primary = within(dialog).getAllByText('02-09-2025 → ∞')[0].closest('.list-row') as HTMLElement
+    const primary = within(dialog).getAllByText('02-09-2025 → bez daty końca')[0].closest('.list-row') as HTMLElement
     fireEvent.click(within(primary).getByRole('button', { name: 'Edytuj' }))
     fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '2025-10-01' } })
     expect(within(dialog).getByText('Niezapisane: okres PRIMARY')).toBeInTheDocument()

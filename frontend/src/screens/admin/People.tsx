@@ -746,7 +746,7 @@ export function PeoplePanel() {
               onChange={setTab}
               items={[
                 { value: 'account', label: t.details.tabs.account },
-                { value: 'rotation', label: t.details.tabs.rotation, count: selectedRow.member ? selectedRoles.length : undefined },
+                { value: 'rotation', label: selectedRoles.length > 0 ? t.rotationTab.tabWithRoles(selectedRoles.map((role) => shortRoleLabels()[role]).join(', ')) : t.details.tabs.rotation },
                 { value: 'access', label: t.details.tabs.access },
               ]}
             >
@@ -888,7 +888,7 @@ export function PeoplePanel() {
                                 ? <span className="muted small">{t.rotationTab.historic}</span>
                                 : <Button size="sm" variant="ghost" onClick={() => setEditingPeriod(item.id)}>{t.rotationTab.edit}</Button>}
                             >
-                              <b aria-hidden="true">{formatDate(value.starts_on)} → {value.ends_on ? formatDate(value.ends_on) : '∞'}</b>
+                              <b aria-hidden="true">{formatDate(value.starts_on)} → {value.ends_on ? formatDate(value.ends_on) : t.rotationTab.openEnded}</b>
                               <span className="sr-only">{value.ends_on ? t.rotationTab.periodSpan(formatDate(value.starts_on), formatDate(value.ends_on)) : t.rotationTab.periodOpen(formatDate(value.starts_on))}</span>
                               <small>{dutyRoleLabels()[item.role]}{eligibilityEdits[item.id] ? ` · ${t.rotationTab.changedUnsaved}` : ''}</small>
                             </ListRow>

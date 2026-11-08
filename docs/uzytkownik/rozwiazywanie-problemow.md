@@ -152,7 +152,7 @@ kilka godzin. Dyżur niesie wersję grafiku jako numer sekwencji, więc po
 odświeżeniu wpis zostanie zaktualizowany, a nie zduplikowany.
 
 **Adres ICS przestał działać**
-Został odwołany. Utwórz nowy na ekranie „Moje”.
+Został odwołany. Utwórz nowy na ekranie „Moje dyżury”.
 
 ## Link podglądowy
 

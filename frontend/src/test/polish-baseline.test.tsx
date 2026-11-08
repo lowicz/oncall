@@ -553,7 +553,7 @@ describe('the Polish interface', () => {
       <Routes><Route path="/grafik" element={<ScheduleScreen role="coordinator" displayName="Ewa Maj" hasTeamMember />} /></Routes>,
       { route: '/grafik?dzien=2026-09-11' },
     )
-    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień obsadę' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień osobę' }))
     fireEvent.change(await screen.findByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm2' } })
     await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
     await screen.findByText('Wpływ na bilans')

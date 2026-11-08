@@ -13,7 +13,7 @@ export const swaps: Messages['swaps'] = {
   inbox: {
     heading: 'Inbox',
     toMe: 'To me',
-    mine: 'Mine',
+    mine: 'Sent',
     inProgress: 'In progress',
     forApproval: 'For approval',
     closed: 'Closed',
@@ -132,7 +132,7 @@ export const swaps: Messages['swaps'] = {
     wholeHint: (roles: string) => `${roles}. One acceptance by the replacement covers both.`,
     keeps: (role: string) => `${role} that day stays with you.`,
     keepsLateShift: 'The 11–19 shift that day stays with you.',
-    splitNeedsAcknowledgement: 'You split the pair: the request may need a confirmation - if so, it appears below.',
+    splitsPair: (given: string, kept: string) => `You give only ${given}, and ${kept} stays with you. This breaks the pair rule; before sending you will confirm that you know.`,
     noUpcomingDuties: 'No upcoming duties',
     pickDuty: 'Pick a duty',
     unavailableCollision: 'conflict: unavailable',

@@ -152,7 +152,7 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
           <tr>
             <td colSpan={4} className="muted small problems-foot">
               {t.hardRulesSummary(t.violations(hard))}
-              {' '}{t.fullRules} <a href={`${docsHref()}produkt/generator.html`}>{t.docsLink}</a>.
+              {' '}<a href={`${docsHref()}produkt/generator.html`}>{t.docsLink}</a>.
             </td>
           </tr>
         </tbody>

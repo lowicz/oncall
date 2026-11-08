@@ -134,6 +134,10 @@ export const people = {
     noExitDate: 'Bez daty wyjścia.',
     periodSpan: (from: string, until: string) => `od ${from} do ${until}`,
     periodOpen: (from: string) => `od ${from}, bez daty końca`,
+    /** The end of a period that has none, where a date would stand. */
+    openEnded: 'bez daty końca',
+    /** The tab's name: the roles the person is qualified for, shortened. */
+    tabWithRoles: (roles: string) => `Rotacja · ${roles}`,
     qualifications: (roles: string) => `Kwalifikacje: ${roles}.`,
     noQualifications: 'brak - generator nie przydzieli tej osobie żadnej roli',
     dutyQualifications: 'Kwalifikacje dyżurowe',
@@ -152,7 +156,7 @@ export const people = {
     changedUnsaved: 'zmieniony, niezapisany',
     scheduleEffect: 'Skutek dla grafiku',
     scheduleEffectText: (date: string) => `Dyżury opublikowane po ${date} zostaną bez obsady i pojawią się w ryzykach, dopóki ich nie przepiszesz.`,
-    rewriteAndEnd: 'Przepisz przyszłe dyżury i zakończ rotację…',
+    rewriteAndEnd: 'Zakończ rotację…',
     outside: 'Poza rotacją',
     outsideText: 'Rola konta nie dodaje automatycznie do rotacji; osoba w rotacji dostaje dyżury od daty wejścia.',
     addToRotation: 'Dodaj do rotacji',
@@ -183,7 +187,7 @@ export const people = {
     pseudonymised: 'W grafiku, sprawiedliwości i raportach osoba pojawi się jako „Osoba usunięta #…”. Historia dyżurów i punkty zostają dla sprawiedliwości.',
     publishedDutiesBold: 'Opublikowane dyżury tej osoby po dziś',
     publishedDutiesRest: 'pozostaną bez obsady i pojawią się w ryzykach. Zalecane: najpierw ustaw „wyjście do” i przepisz dyżury.',
-    irreversible: 'Operacji nie da się cofnąć. Audyt zachowuje imię i nazwisko: we wcześniejszych wpisach i we wpisie „Usunięto konto”, który zapisze też pseudonim.',
+    irreversible: 'Nie da się tego cofnąć. W dzienniku audytu imię i nazwisko zostają przy starych wpisach i przy wpisie o usunięciu.',
     typeUsername: 'Wpisz login, żeby potwierdzić',
     typeUsernamePlaceholder: 'wpisz login',
   },

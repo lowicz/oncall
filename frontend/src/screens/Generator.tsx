@@ -34,6 +34,7 @@ import {
   KeyValue,
   PageHeader,
   Panel,
+  Popover,
   SectionHeading,
   Segmented,
   Select,
@@ -629,15 +630,25 @@ export function GeneratorPanel() {
                       { key: t.draft.range, value: t.draft.rangeValue(formatDate(result.starts_on), formatDate(result.ends_on)), mono: true },
                       { key: t.draft.version, value: t.draft.versionValue(result.version), mono: true },
                       { key: t.draft.rotationMode, value: rotationLabels()[result.rotation_mode] },
-                      { key: t.draft.solver, value: t.header.solverStatus(result.solver_status), mono: true },
+                      {
+                        key: t.draft.solver,
+                        value: (
+                          <>
+                            {t.header.solverStatus(result.solver_status)}
+                            {' '}
+                            <Popover title={t.header.solverDetails} trigger={<button type="button" className="link-btn small">{t.header.solverDetails}</button>}>
+                              <div className="stack-sm small">
+                                <div>{t.header.solverEngine(result.solver_status)}</div>
+                                {result.continuity_gap != null && (
+                                  <div>{t.draft.gap(new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(result.continuity_gap * 100))}</div>
+                                )}
+                              </div>
+                            </Popover>
+                          </>
+                        ),
+                      },
                       ...(SOLVER_OK.has(result.solver_status) ? [
                         { key: t.draft.fairness, value: result.fairness_proven ? t.draft.fairnessProven : t.draft.fairnessBestFound },
-                        {
-                          key: t.draft.solutionGap,
-                          value: result.continuity_gap == null
-                            ? t.draft.noGapEstimate
-                            : t.draft.gap(new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(result.continuity_gap * 100)),
-                        },
                       ] : []),
                     ]}
                   />
@@ -703,6 +714,10 @@ export function GeneratorPanel() {
           </div>
           <Box tone="muted">
             {t.settings.globalNote}
+            {' '}
+            <Popover title={t.settings.weightsHelpLink} trigger={<button type="button" className="link-btn">{t.settings.weightsHelpLink}</button>}>
+              <div className="small">{t.settings.weightsHelp}</div>
+            </Popover>
           </Box>
           <div className="frow">
             <Field label={t.settings.rotationMode} id="policy-rotation-mode" hint={t.settings.rotationModeHint}>

@@ -51,9 +51,9 @@ progress panel shows:
 
 - the stages **data**, **solver**, **fairness**, **proposal** and the status
   (`Queued…` or `Generating…`),
-- a seconds counter together with the budget **per solver pass** and the
-  total generation limit - a hard schedule needs several passes, so a counter
-  exceeding the budget of a single pass is not a defect,
+- a seconds counter together with the time of **one attempt** and the total
+  generation limit - a hard schedule needs several attempts, so a counter
+  exceeding the time of a single attempt is not a defect,
 - a warning if unstaffed days remain before the draft starts.
 
 After a page refresh the view of a generation in progress resumes by itself -
@@ -80,7 +80,8 @@ the message after generating says.
 Above the matrix there is **one decision panel**:
 
 - **the verdict** - the number of hard rule violations and the state of the
-  fairness criterion (met, missed, or missed through **inherited debt**),
+  fairness criterion (met, missed, or missed through **an imbalance from before
+  the draft**),
 - **why** - the people on duty on an “Unavailable” day who block the publication,
   with the role and the day; with an incomplete solver solution, a hint to
   click a cell with a gap and enter a person; under it the points spread
@@ -99,8 +100,9 @@ audit. An expandable list names the carried changes and the cancelled swaps.
 You see this before you open the publication sheet.
 
 Under the panel one row of badges sums the draft up: staffing, soft warnings
-(a click opens the **Problems** tab) and the fairness lenses gathered into two
-groups, those meeting the criterion and those missing it.
+(a click opens the **Problems** tab) and the roles, weekends and holidays
+gathered into two groups, those meeting the fairness criterion and those
+missing it.
 
 Further down, **Proposed staffing** - a people × days matrix, in the same
 convention as the published schedule: the headers keep the weekday, the
@@ -119,29 +121,34 @@ Under the matrix there are four tabs:
   lists the hard rules and leads to their full description.
 - **Fairness** - the points spread as a single number with the value from
   before the draft and a **better** / **worse** badge, the verdict under it,
-  then the acceptance criterion on every lens and a table of people with their
-  deviation after publication. It is recalculated after each of your
-  corrections. The verdict tells two situations apart: when the lenses outside
-  the criterion were already outside it before the draft, that is **inherited
-  historical debt** - the draft repays it at a limited pace, and the panel
-  says by how much it reduces the spread and what spread is achievable in this
-  range at all; neither correcting cells nor regenerating will remove that
-  debt. When, on the other hand, a lens that fit within the criterion before
-  the draft exceeds it after publication, that is a defect of the draft, and
-  then it is worth correcting the cells or generating again.
+  then the acceptance criterion in every role, on weekends and on holidays and
+  a table of people with their deviation after publication. It is recalculated
+  after each of your corrections. The verdict tells two situations apart: when
+  a role, the weekends or the holidays were already outside the criterion
+  before the draft, that is an **imbalance from before the draft** - the
+  generator evens it out a little at a time, and the panel says by how much the
+  draft reduces the spread and what spread is achievable in this range at all;
+  neither correcting cells nor regenerating will remove that imbalance. When,
+  on the other hand, a role, the weekends or the holidays that fit within the
+  criterion before the draft exceed it after publication, that is a defect of
+  the draft, and then it is worth correcting the cells or generating again.
 - **Settings** - what the draft remembers: the range, version, rotation mode,
-  solver status, fairness quality and the solution gap estimate. The weights,
-  the `11–19` anchor and the solver budget are team settings with one place:
-  **Change the settings and generate…** opens the settings panel.
+  the solver's result in words - “optimal solution”, “best found within the
+  time limit” or “no complete solution” - and the fairness quality. The
+  **Solver details** link next to the result shows the engine's status
+  (`CP-SAT: OPTIMAL` and the like) and the gap to the best possible solution.
+  The weights, the `11–19` anchor and the solver budget are team settings with
+  one place: **Change the settings and generate…** opens the settings panel.
 - **Drafts** - the list of drafts, so you switch between them without going
   back to the start page.
 
 ### Manual cell correction
 
-Click a cell, pick the role and the person in the day panel, save. A
+Click a cell; the day panel (titled “Insert: *person* · *day*”) shows the
+role, who holds it now and who will hold it after the correction; save. A
 correction can also fill a role the solver left empty: click any empty cell of
-a day marked as a gap, and the panel opens on the empty role and shows
-“Currently: none → After correction: *person*”. A correction:
+a day marked as a gap, and the panel opens on the empty role and shows “Now:
+none → After correction: *person*”. A correction:
 
 - does not regenerate the remaining days,
 - is subject to the hard rules,
@@ -166,7 +173,8 @@ generation. The footer has one main button: without changes **Generate**
 starts a generation right away with the range from the panel, and with
 unsaved changes **Save and generate** saves them and generates in one click.
 **Save** only saves, and the arrow icon (**Restore saved**) reverts the
-unsaved changes. Under a separate **Swap policy** heading is the switch for
+unsaved changes. The **How the weights work** link explains how the weights
+behave. Under a separate **Swap policy** heading is the switch for
 the coordinator's approval of swaps; it does not affect generation.
 Closing the panel, going to another screen, reloading, or opening another draft with unsaved settings requires a decision whether to discard them.
 A “Generation settings saved” notification confirms the save.

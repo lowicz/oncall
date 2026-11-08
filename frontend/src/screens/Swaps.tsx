@@ -1019,10 +1019,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               <p className="field-hint" id="swap-scope-hint">
                 {given === 'whole'
                   ? t.swaps.compose.wholeHint(dayRoles.map((role) => roles[role]).join(' + '))
-                  : given === 'late_shift'
-                    ? t.swaps.compose.keeps(roles[dayRoles[0]])
-                    : t.swaps.compose.keepsLateShift}
-                {splitsPair && ` ${t.swaps.compose.splitNeedsAcknowledgement}`}
+                  : splitsPair
+                    ? t.swaps.compose.splitsPair(roles[given], roles[dayRoles.find((role) => role !== given)!])
+                    : given === 'late_shift'
+                      ? t.swaps.compose.keeps(roles[dayRoles[0]])
+                      : t.swaps.compose.keepsLateShift}
               </p>
             </div>
           )}

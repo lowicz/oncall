@@ -17,7 +17,7 @@ Role są kumulatywne: administrator widzi wszystko, co koordynator.
 | --- | :---: | :---: | :---: | :---: |
 | Teraz (`/`) | tak | tak | tak | tak |
 | Grafik (`/grafik`) | tak | tak | tak | tak |
-| Moje (`/moje`) | nie | tak | tak | tak |
+| Moje dyżury (`/moje`) | nie | tak | tak | tak |
 | Zamiany (`/zamiany`) | nie | tak | tak | tak |
 | Generator (`/generator`) | nie | nie | tak | tak |
 | Sprawiedliwość (`/sprawiedliwosc`) | nie | tylko siebie | cały zespół | cały zespół |
@@ -34,7 +34,7 @@ adresem na ekran spoza uprawnień przenosi na ekran „Teraz”; niezależnie od
 każde żądanie do API jest sprawdzane po stronie serwera. **Interfejs nie jest
 granicą bezpieczeństwa.**
 
-Koordynator i administrator mają dostęp do ekranu „Moje” nawet wtedy, gdy sami
+Koordynator i administrator mają dostęp do ekranu „Moje dyżury” nawet wtedy, gdy sami
 nie są w rotacji: to tam zgłaszają dostępność w imieniu osoby, która nie może
 zrobić tego sama.
 

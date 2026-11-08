@@ -37,7 +37,7 @@ On a wide screen the **navigation rail** is on the left, from the top:
 
 - the `E/` mark with the application name set by the administrator (with the
   subtitle under it, if one is set),
-- the everyday screens: **Now**, **Schedule**, **Mine**, **Swaps**,
+- the everyday screens: **Now**, **Schedule**, **My duties**, **Swaps**,
 - the **Coordination** section: **Generator**, **Fairness**, **Monthly
   report**, **History import**,
 - the **Administration** section: **People**, **Events**, **Share links**,
@@ -59,7 +59,7 @@ of the application that is currently running (the same as at the bottom of
 the rail).
 
 On a phone the rail disappears and the bottom of the screen has the tabs
-**Now**, **Schedule**, **Mine**, **Swaps** and **More**. Under “More” are the
+**Now**, **Schedule**, **My duties**, **Swaps** and **More**. Under “More” are the
 remaining screens of your role, the theme, density, language, documentation,
 sign-out and the version number.
 

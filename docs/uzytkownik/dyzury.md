@@ -17,7 +17,7 @@ Rola, której nikt nie ma, jest w pasku pogrubiona i oznaczona czerwoną
 kropką: **brak obsady**.
 
 Akcje po prawej zależą od roli: członek zespołu ma **Zgłoś dostępność**
-(prowadzi do ekranu Moje), koordynator i administrator mają **Generuj
+(prowadzi do ekranu Moje dyżury), koordynator i administrator mają **Generuj
 kolejny zakres**, który otwiera Generator z zakresem zaczynającym się dzień
 po końcu opublikowanego grafiku.
 
@@ -49,7 +49,7 @@ kartami członek zespołu widzi swój najbliższy dyżur, a grafik jest listą d
 Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
 koordynatorowi także propozycję czekającą na publikację; przycisk **Otwórz
 propozycję** prowadzi prosto do niej w Generatorze. Eksport ICS członek
-zespołu znajdzie w menu **⋯** nad macierzą i na ekranie Moje.
+zespołu znajdzie w menu **⋯** nad macierzą i na ekranie Moje dyżury.
 
 Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli opublikowany grafik kończy się wcześniej).
 Jeśli publikacja już wygasła, ekran pokazuje cztery tygodnie od dziś i ostrzeżenie z datą końca, a koordynatorowi także drogę do Generatora (albo do czekającej propozycji).
@@ -174,7 +174,7 @@ Grafiku tak samo:
 | **⋯** → **Tylko z dyżurem** | ukrywa osoby bez przydziału w zakresie |
 | **⋯** → **Lista dni** | przełącza między macierzą a listą dni |
 | **⋯** → **Legenda** | rozwija spis symboli |
-| **⋯** → **Eksport ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje (członek zespołu) |
+| **⋯** → **Eksport ICS** | otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje dyżury (członek zespołu) |
 
 Na Teraz i na Grafiku początek zakresu, jego długość, filtr **Tylko z
 dyżurem** i wybór między macierzą a listą dni są częścią adresu strony

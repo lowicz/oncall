@@ -19,7 +19,7 @@ export const swaps = {
   inbox: {
     heading: 'Skrzynka',
     toMe: 'Do mnie',
-    mine: 'Moje',
+    mine: 'Wysłane',
     inProgress: 'W toku',
     /** What "W toku" is called for a coordinator whom the policy sends requests to approve. */
     forApproval: 'Do zatwierdzenia',
@@ -155,7 +155,8 @@ export const swaps = {
     wholeHint: (roles: string) => `${roles}. Jedna akceptacja zastępcy obejmuje oba.`,
     keeps: (role: string) => `${role} tego dnia zostaje u Ciebie.`,
     keepsLateShift: 'Zmiana 11–19 tego dnia zostaje u Ciebie.',
-    splitNeedsAcknowledgement: 'Rozdzielasz parę: prośba może wymagać potwierdzenia - jeśli tak, pojawi się ono niżej.',
+    /** Said instead of the "stays with you" line when the request splits the pair the 11-19 anchor binds. */
+    splitsPair: (given: string, kept: string) => `Oddajesz tylko ${given}, a ${kept} zostaje u Ciebie. To łamie regułę pary; przed wysłaniem zaznaczysz, że wiesz.`,
     noUpcomingDuties: 'Brak nadchodzących dyżurów',
     pickDuty: 'Wybierz dyżur',
     unavailableCollision: 'kolizja: nie mogę',

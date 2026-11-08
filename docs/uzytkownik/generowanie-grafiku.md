@@ -48,9 +48,9 @@ postępu pokazuje:
 
 - etapy **dane**, **solver**, **sprawiedliwość**, **propozycja** oraz status
   (`W kolejce…` albo `Generuję…`),
-- licznik sekund oraz budżet **na jeden przebieg solvera** i łączny limit
-  generowania - trudny grafik wymaga kilku przebiegów, więc licznik
-  przekraczający budżet pojedynczego przebiegu nie jest usterką,
+- licznik sekund oraz czas **jednej próby** i łączny limit generowania -
+  trudny grafik wymaga kilku prób, więc licznik przekraczający czas
+  pojedynczej próby nie jest usterką,
 - ostrzeżenie, jeśli przed początkiem szkicu zostają dni bez obsady.
 
 Po odświeżeniu strony podgląd trwającego generowania wznawia się sam - **nie
@@ -76,8 +76,8 @@ poprawkami, zostaje bez zmian, o czym mówi komunikat po wygenerowaniu.
 Nad macierzą jest **jeden panel decyzji**:
 
 - **werdykt** - liczba naruszeń reguł twardych i stan kryterium
-  sprawiedliwości (spełnione, niespełnione albo niespełnione przez **zastany
-  dług**),
+  sprawiedliwości (spełnione, niespełnione albo niespełnione przez **nierówność
+  sprzed szkicu**),
 - **dlaczego** - osoby, które mają dyżur w dniu „nie mogę” i blokują
   publikację, z rolą i dniem; przy niepełnym rozwiązaniu solvera wskazówka,
   aby kliknąć komórkę z luką i wpisać osobę; pod spodem rozrzut punktów przed
@@ -96,8 +96,9 @@ Rozwijana lista wymienia przeniesione zmiany i anulowane zamiany. Widzisz to,
 zanim otworzysz arkusz publikacji.
 
 Pod panelem jeden rząd znaczników streszcza szkic: obsada, ostrzeżenia
-miękkie (kliknięcie otwiera zakładkę **Problemy**) oraz soczewki
-sprawiedliwości zebrane w dwie grupy, spełniające i niespełniające kryterium.
+miękkie (kliknięcie otwiera zakładkę **Problemy**) oraz role, weekendy i
+święta zebrane w dwie grupy, spełniające i niespełniające kryterium
+sprawiedliwości.
 
 Niżej **Proponowana obsada** - macierz osoby × dni, w tej samej konwencji co
 opublikowany grafik: nagłówki zachowują dzień tygodnia, święto i 2X, a dzień,
@@ -116,28 +117,32 @@ Pod macierzą cztery zakładki:
   pełnego opisu.
 - **Sprawiedliwość** - rozrzut punktów jako jedna liczba z wartością sprzed
   szkicu i znacznikiem **lepiej** / **gorzej**, pod nią werdykt, dalej
-  kryterium odbioru na każdej soczewce i tabela osób z odchyleniem po
-  publikacji. Przelicza się po każdej Twojej korekcie. Werdykt odróżnia dwie
-  sytuacje: gdy soczewki poza kryterium były poza nim już przed szkicem, to
-  **zastany dług historyczny** - szkic go spłaca w ograniczonym tempie, a panel
-  podaje, o ile zmniejsza rozrzut i jaka rozpiętość jest w tym zakresie w ogóle
-  osiągalna; poprawianie komórek ani ponowne generowanie tego długu nie usunie.
-  Gdy zaś soczewka, która przed szkicem mieściła się w kryterium, po publikacji
-  je przekracza, to wada szkicu i wtedy warto poprawić komórki albo wygenerować
-  ponownie.
+  kryterium odbioru w każdej roli, w weekendy i święta oraz tabela osób z
+  odchyleniem po publikacji. Przelicza się po każdej Twojej korekcie. Werdykt
+  odróżnia dwie sytuacje: gdy rola, weekendy albo święta były poza kryterium
+  już przed szkicem, to **nierówność sprzed szkicu** - generator wyrównuje ją
+  po trochu, a panel podaje, o ile szkic zmniejsza rozrzut i jaka rozpiętość
+  jest w tym zakresie w ogóle osiągalna; poprawianie komórek ani ponowne
+  generowanie tej nierówności nie usunie. Gdy zaś rola, weekendy albo święta,
+  które przed szkicem mieściły się w kryterium, po publikacji je przekraczają,
+  to wada szkicu i wtedy warto poprawić komórki albo wygenerować ponownie.
 - **Ustawienia** - to, co zapamiętał szkic: zakres, wersja, tryb rotacji,
-  status solvera, jakość sprawiedliwości i oszacowanie luki rozwiązania. Wagi,
-  powiązanie `11–19` i budżet solvera są ustawieniami zespołu i mają jedno
-  miejsce: **Zmień ustawienia i generuj…** otwiera panel ustawień.
+  wynik solvera słowami - „rozwiązanie optymalne”, „najlepsze znalezione w
+  limicie czasu” albo „bez pełnego rozwiązania” - i jakość sprawiedliwości.
+  Link **Szczegóły solvera** obok wyniku pokazuje status silnika
+  (`CP-SAT: OPTIMAL` i podobne) i lukę do najlepszego możliwego rozwiązania.
+  Wagi, powiązanie `11–19` i budżet solvera są ustawieniami zespołu i mają
+  jedno miejsce: **Zmień ustawienia i generuj…** otwiera panel ustawień.
 - **Szkice** - lista szkiców, więc przełączasz się między nimi bez wracania na
   stronę startową.
 
 ### Ręczna korekta komórki
 
-Kliknij komórkę, w panelu dnia wybierz rolę i osobę, zapisz. Korekta może
-też obsadzić rolę, którą solver zostawił pustą: kliknij dowolną pustą komórkę
-dnia oznaczonego jako luka, a panel otworzy się na pustej roli i pokaże
-„Obecnie: brak → Po korekcie: *osoba*”. Korekta:
+Kliknij komórkę, a panel dnia (tytuł „Wstaw: *osoba* · *dzień*”) pokaże rolę,
+kto ją ma teraz i kto ją będzie miał po korekcie; zapisz. Korekta może też
+obsadzić rolę, którą solver zostawił pustą: kliknij dowolną pustą komórkę dnia
+oznaczonego jako luka, a panel otworzy się na pustej roli i pokaże „Teraz:
+brak → Po korekcie: *osoba*”. Korekta:
 
 - nie regeneruje pozostałych dni,
 - podlega regułom twardym,
@@ -162,8 +167,9 @@ generowania. Stopka ma jeden przycisk główny: bez zmian **Generuj** uruchamia
 generowanie od razu z zakresem z panelu, a przy niezapisanych zmianach
 **Zapisz i generuj** zapisuje je i generuje jednym kliknięciem. **Zapisz**
 tylko zapisuje, a ikona strzałki (**Przywróć zapisane**) cofa niezapisane
-zmiany. Pod osobnym nagłówkiem **Polityka zamian** jest przełącznik
-zatwierdzania zamian przez koordynatora; nie wpływa na generowanie.
+zmiany. Zasady działania wag wyjaśnia link **Jak działają wagi**. Pod osobnym
+nagłówkiem **Polityka zamian** jest przełącznik zatwierdzania zamian przez
+koordynatora; nie wpływa na generowanie.
 Zamknięcie panelu, przejście na inny ekran, odświeżenie albo otwarcie innego szkicu przy niezapisanych ustawieniach wymaga decyzji, czy je odrzucić.
 Zapis potwierdza powiadomienie „Zapisano ustawienia generowania”.
 

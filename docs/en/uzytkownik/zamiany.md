@@ -12,7 +12,7 @@ filter - how many there are:
 | Filter | What it contains |
 | --- | --- |
 | **To me** | requests in which it is you who is to accept or decline the replacement |
-| **Mine** | your own, still open requests |
+| **Sent** | your own, still open requests |
 | **For approval** (for a team member: **In progress**) | the remaining open requests; for a coordinator the counter covers only requests accepted by the replacement and waiting for their approval. When swap approval is switched off (see [Coordinator approval](#coordinator-approval)), a coordinator also sees the ordinary **In progress** here |
 | **Closed** | approved, rejected and withdrawn, including those the application closed [after their date](#date-passed) |
 
@@ -71,8 +71,8 @@ stays with the request.
 ## Filing a request
 
 The **New swap** button in the screen header opens the form in a panel; the
-**Request a swap** button on the Mine screen opens it with the duty already
-chosen. The form leads through four steps: duty, replacement, in return
+**Request a swap** button on the My duties screen opens it with the duty
+already chosen. The form leads through four steps: duty, replacement, in return
 (optional) and sending. Once the replacement is picked the bar moves straight
 on to sending, as “Nothing, I only give the duty away” is already chosen.
 Once a request has been started, closing the panel, going to another screen, or reloading requires a decision whether to discard the entered data.
@@ -126,7 +126,7 @@ Once a request has been started, closing the panel, going to another screen, or 
    next to the button: the duty, the replacement, the rule confirmation or a
    published schedule; with a hard rule - another person or another duty in
    return. The screen confirms the sending with the message
-   “Sent to: …” with an **Undo** button and moves to the **Mine** inbox.
+   “Sent to: …” with an **Undo** button and moves to the **Sent** inbox.
    “Undo” within 10 seconds withdraws the request with the reason “cofnięte
    zaraz po wysłaniu” (undone right after sending). The message to the replacement waits for the end of
    that time, so a request withdrawn in time sends the replacement no message

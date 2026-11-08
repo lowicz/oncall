@@ -35,7 +35,7 @@ Na szerokim ekranie po lewej jest **listwa nawigacji**, od góry:
 
 - znak `E/` z nazwą aplikacji ustawioną przez administratora (pod nią
   podtytuł, jeśli jest ustawiony),
-- ekrany codzienne: **Teraz**, **Grafik**, **Moje**, **Zamiany**,
+- ekrany codzienne: **Teraz**, **Grafik**, **Moje dyżury**, **Zamiany**,
 - sekcja **Koordynacja**: **Generator**, **Sprawiedliwość**, **Raport
   miesięczny**, **Import historii**,
 - sekcja **Administracja**: **Osoby**, **Wydarzenia**, **Udostępnienia**,
@@ -55,7 +55,7 @@ dokumentacji, paleta poleceń, **Wyloguj** i na samym dole numer wersji
 aplikacji, która właśnie działa (ten sam, co u dołu listwy).
 
 Na telefonie listwa znika, a u dołu ekranu są zakładki **Teraz**, **Grafik**,
-**Moje**, **Zamiany** i **Więcej**. Pod „Więcej” są pozostałe ekrany Twojej
+**Moje dyżury**, **Zamiany** i **Więcej**. Pod „Więcej” są pozostałe ekrany Twojej
 roli, motyw, gęstość, język, dokumentacja, wylogowanie i numer wersji.
 
 ## Paleta poleceń

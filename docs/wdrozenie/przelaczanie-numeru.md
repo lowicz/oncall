@@ -151,7 +151,7 @@ ekranie **Osoby** filtr **W rotacji** pokazuje każdą osobę, która może
 dostać PRIMARY: brak numeru jest w kolumnie telefonu czerwony, a numer w
 innym formacie ma dopisek „popraw numer”. Numer poprawia administrator w
 panelu osoby albo sama osoba na ekranie
-[Moje](../uzytkownik/dostepnosc.md#mój-telefon). Opcjonalnie
+[Moje dyżury](../uzytkownik/dostepnosc.md#mój-telefon). Opcjonalnie
 `ONCALL_LDAP_ATTRIBUTE_PHONE` uzupełnia pusty numer z katalogu przy
 logowaniu - [Numer telefonu](ldap.md#numer-telefonu).
 

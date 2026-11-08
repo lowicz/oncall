@@ -161,7 +161,7 @@ describe('ScheduleScreen default range', () => {
 const startStaffChange = async (cellName: RegExp, replacement: string) => {
   const cells = await screen.findAllByRole('button', { name: cellName })
   fireEvent.click(cells[0])
-  fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
   const picker = await screen.findByRole('combobox', { name: /^Osoba na / })
   const option = await screen.findByRole('option', { name: replacement })
   fireEvent.change(picker, { target: { value: option.getAttribute('value') } })
@@ -183,7 +183,7 @@ const expectReady = (button: HTMLElement) => expect(button).not.toHaveAttribute(
 const confirmHandOver = async () => {
   const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
   fireEvent.click(annaCells[0])
-  fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
   fireEvent.change(await screen.findByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm2' } })
   return saveButton()
 }
@@ -367,7 +367,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText(/Z wiersza osoby: Anna Kowalska/)).toBeInTheDocument()
+    expect(within(dialog).getByText('Otwarto z wiersza: Anna Kowalska')).toBeInTheDocument()
     // The person's name is context, not the dialog's title.
     expect(dialog).toHaveAccessibleName(expect.stringMatching(/^czw 10-09-2026/))
     expect(dialog).not.toHaveAccessibleName(expect.stringMatching(/Anna Kowalska/))
@@ -383,7 +383,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     // Click Anna's own primary cell - the very move the old UI trapped.
     const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
     fireEvent.click(annaCells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
     const picker = await screen.findByRole('combobox', { name: /^Osoba na / })
     // Anna is the current holder, so she is offered but disabled with a reason.
     expect(screen.getByRole('option', { name: /Anna Kowalska · już pełni tę rolę/ })).toBeDisabled()
@@ -404,7 +404,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
 
     expect(await screen.findByText('Wybierz osobę, która ma objąć tę rolę.')).toBeInTheDocument()
     expectBlocked(saveButton())
@@ -433,7 +433,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     // Anna's 11-19 cell on the day off - selectedRole becomes 'late_shift'.
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska.*11–19/ })
     fireEvent.click(cells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień obsadę…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
     // The role select clamps to PRIMARY rather than a value it cannot render.
     expect(await screen.findByRole('combobox', { name: 'Rola' })).toHaveValue('primary')
     expect(screen.queryByRole('option', { name: '11–19' })).not.toBeInTheDocument()
@@ -521,7 +521,7 @@ describe('CalendarMatrix hard unavailability', () => {
     fireEvent.click(cells[0])
     // The day drawer names the unavailability as day context.
     expect(await screen.findByText(/Marek Nowak: Nie mogę - Urlop/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Zmień obsadę…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Zmień osobę' }))
     await screen.findByRole('combobox', { name: /^Osoba na / })
     expect(screen.getByRole('option', { name: /Marek Nowak · niedostępna tego dnia/ })).toBeDisabled()
     expect(check).not.toHaveBeenCalled()
@@ -898,7 +898,7 @@ describe('CalendarMatrix day inspector', () => {
     expect(within(dialog).getByText('poza publikacją')).toBeInTheDocument()
     expect(within(dialog).getByText(/Ten dzień jest poza opublikowanym zakresem grafiku\. Żeby go obsadzić/)).toBeInTheDocument()
     // Nothing to staff by hand here: the roles are not buttons.
-    expect(within(dialog).queryByRole('button', { name: /Zmień obsadę$/ })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: /Zmień osobę$/ })).not.toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('link', { name: 'Otwórz generator z tym zakresem' }))
     expect(screen.getByTestId('path')).toHaveTextContent('/generator?od=2026-09-12&do=2026-10-11')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -936,8 +936,8 @@ describe('CalendarMatrix day inspector', () => {
     expect(within(dialog).getByText('11:00–19:00 · korekta')).toBeInTheDocument()
     expect(within(dialog).getByText('nieznana osoba: Wolę nie - stary wpis')).toBeInTheDocument()
     expect(within(dialog).getByText('Ola Wiśniewska: Chętnie wezmę')).toBeInTheDocument()
-    // Marek is on duty that day, so the row note stops at the name.
-    expect(within(dialog).getByText('Z wiersza osoby: Ola Wiśniewska.')).toBeInTheDocument()
+    // The row the day was opened from is a tag in the header, not a sentence about the screen.
+    expect(within(dialog).getByText('Otwarto z wiersza: Ola Wiśniewska')).toBeInTheDocument()
   })
 
   it('adds a note for someone who is not on duty that day', async () => {
@@ -945,7 +945,7 @@ describe('CalendarMatrix day inspector', () => {
     renderScreen(<CalendarMatrix role="member" displayName="Ola Wiśniewska" range={WEEK_OF_TODAY} view="list" />)
     fireEvent.click(await screen.findByRole('button', { name: 'SECONDARY, pt 11-09-2026, Marek Nowak' }))
     const dialog = await screen.findByRole('dialog', { name: /^pt 11-09-2026/ })
-    expect(within(dialog).getByText('Z wiersza osoby: Ola Wiśniewska. Szczegóły opublikowanego grafiku.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Otwarto z wiersza: Ola Wiśniewska')).toBeInTheDocument()
   })
 
   it('opens a day from the list without a row for a viewer outside the team', async () => {
@@ -953,7 +953,7 @@ describe('CalendarMatrix day inspector', () => {
     renderScreen(<CalendarMatrix role="viewer" displayName="Gość" range={WEEK_OF_TODAY} view="list" />)
     fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY, pt 11-09-2026, Anna Kowalska' }))
     const dialog = await screen.findByRole('dialog', { name: /^pt 11-09-2026/ })
-    expect(within(dialog).queryByText(/Z wiersza osoby/)).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/Otwarto z wiersza/)).not.toBeInTheDocument()
   })
 
   it('keeps an open day while the range moves away from it', async () => {
@@ -1003,7 +1003,7 @@ describe('CalendarMatrix staffing form', () => {
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     fireEvent.click((await screen.findAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ }))[0])
     const dialog = await screen.findByRole('dialog')
-    const staffed = within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień obsadę' })
+    const staffed = within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień osobę' })
     const change = within(staffed).getByText('Zmień…')
     expect(change).toHaveClass('btn', 'btn-sm', 'btn-ghost')
     expect(change).toHaveAttribute('aria-hidden', 'true')
@@ -1040,7 +1040,7 @@ describe('CalendarMatrix staffing form', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć' }))
     expect(within(dialog).queryByRole('combobox', { name: /^Osoba na / })).not.toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień obsadę' })).toHaveClass('role-row-sel')
+    expect(within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień osobę' })).toHaveClass('role-row-sel')
   })
 
   it('asks for a reason in a dialog before correcting a day already past', async () => {
@@ -1051,7 +1051,7 @@ describe('CalendarMatrix staffing form', () => {
       .mockRejectedValueOnce(new ApiError('Grafik zmienił wersję', 409))
       .mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
+    const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień osobę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     // The rules and the balance stay in the panel; only the reason has a dialog of its own.
@@ -1134,7 +1134,7 @@ describe('CalendarMatrix staffing form', () => {
       .mockRejectedValueOnce(new ApiError('Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie', 409, [threeInSeven]))
       .mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
+    const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień osobę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
     await within(dialog).findByText('Bez naruszeń reguł twardych')
     const openConfirm = async () => {
@@ -1172,7 +1172,7 @@ describe('CalendarMatrix staffing form', () => {
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
     const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
+    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień osobę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     expect(await within(dialog).findByRole('status')).toHaveTextContent('Nie udało się sprawdzić reguł twardych; zapis sprawdzi je ponownie.')
@@ -1189,7 +1189,7 @@ describe('CalendarMatrix staffing form', () => {
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
     vi.spyOn(api, 'directOverride').mockRejectedValue(new ApiError('Grafik zmienił wersję', 409))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
+    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień osobę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     await within(dialog).findByText('Bez naruszeń reguł twardych')
@@ -1216,7 +1216,7 @@ describe('CalendarMatrix staffing form', () => {
   it('explains a block that appears while the form is open', async () => {
     const load = vi.spyOn(api, 'calendar').mockResolvedValue(week())
     renderScreen(<CalendarMatrix role="admin" displayName="Administrator" range={WEEK_OF_TODAY} />)
-    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
+    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, 'PRIMARY: Anna Kowalska. Zmień osobę')
     fireEvent.change(within(dialog).getByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm3' } })
 
     // Meanwhile Ola marks the day as one she cannot take; the screen refreshes when the window regains focus.
@@ -1252,7 +1252,7 @@ describe('CalendarMatrix day correction', () => {
     expect(frame).toHaveTextContent('Powód: „urlop”.')
     expect(frame.compareDocumentPosition(within(dialog).getByRole('group', { name: 'Obsada dnia' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     // The role row reads the same words to a screen reader.
-    expect(within(dialog).getByRole('button', { name: `PRIMARY: Anna Kowalska. Zmień obsadę. ${COLLISION}` })).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: `PRIMARY: Anna Kowalska. Zmień osobę. ${COLLISION}` })).toBeInTheDocument()
 
     fireEvent.click(within(frame as HTMLElement).getByRole('button', { name: 'Zmień osobę' }))
     expect(await within(dialog).findByRole('combobox', { name: 'Rola' })).toHaveValue('primary')
@@ -1507,7 +1507,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     expect(frame).toHaveTextContent('Polityka wiąże 11–19 z SECONDARY, a Anna Kowalska ma do niej uprawnienia.')
     expect(within(frame).queryByRole('textbox')).not.toBeInTheDocument()
     // The rows the swap moves are lit while the frame is open.
-    for (const name of ['PRIMARY: Anna Kowalska. Zmień obsadę', 'SECONDARY: Marek Nowak. Zmień obsadę', '11–19: Marek Nowak. Zmień obsadę']) {
+    for (const name of ['PRIMARY: Anna Kowalska. Zmień osobę', 'SECONDARY: Marek Nowak. Zmień osobę', '11–19: Marek Nowak. Zmień osobę']) {
       expect(within(dialog).getByRole('button', { name })).toHaveClass('role-row-sel')
     }
 
@@ -1583,7 +1583,7 @@ describe('CalendarMatrix role swap (P6)', () => {
 
     fireEvent.click(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ }))
     expect(frame).toHaveTextContent('11–19Marek Nowak (bez zmian)')
-    expect(within(dialog).getByRole('button', { name: '11–19: Marek Nowak. Zmień obsadę' })).not.toHaveClass('role-row-sel')
+    expect(within(dialog).getByRole('button', { name: '11–19: Marek Nowak. Zmień osobę' })).not.toHaveClass('role-row-sel')
     expect(await within(frame).findByText(/11–19 bez SECONDARY/)).toBeInTheDocument()
     expect(check).toHaveBeenLastCalledWith({ batches: [{ schedule_id: 's1', assignments: swapLines(false) }] })
     await waitFor(() => expect(impact).toHaveBeenLastCalledWith('2026-09-10', 'primary', 'm2', expect.objectContaining({ scope: 'single', returnScope: 'single' })))
@@ -1753,7 +1753,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     fireEvent.click(trigger(dialog))
     expect(region()).not.toBeInTheDocument()
     fireEvent.click(trigger(dialog))
-    fireEvent.click(within(dialog).getByRole('button', { name: 'PRIMARY: Anna Kowalska. Zmień obsadę' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'PRIMARY: Anna Kowalska. Zmień osobę' }))
     expect(region()).not.toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć' }))
     fireEvent.click(trigger(dialog))

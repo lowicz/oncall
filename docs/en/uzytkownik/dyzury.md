@@ -18,7 +18,7 @@ A role nobody holds is bold in the strip and marked with a red dot:
 **unstaffed**.
 
 The actions on the right depend on the role: a team member has **File
-availability** (it leads to the Mine screen), a coordinator and an
+availability** (it leads to the My duties screen), a coordinator and an
 administrator have **Generate the next range**, which opens the Generator with
 a range starting the day after the end of the published schedule.
 
@@ -51,7 +51,7 @@ is a list of days.
 The screen header gives the range and version of the published schedule, and
 for a coordinator also the proposal waiting for publication; the **Open the
 proposal** button leads straight to it in the Generator. A team member finds
-the ICS export in the **⋯** menu above the matrix and on the Mine screen.
+the ICS export in the **⋯** menu above the matrix and on the My duties screen.
 
 The default range starts today and covers four weeks (or fewer, if the published schedule ends earlier).
 If the publication has expired, the screen shows four weeks from today and a warning with the end date, and a coordinator also gets the way to the Generator (or to the waiting proposal).
@@ -180,7 +180,7 @@ on Now and on the Schedule:
 | **⋯** → **On duty only** | hides people without an assignment in the range |
 | **⋯** → **Day list** | switches between the matrix and the list of days |
 | **⋯** → **Legend** | expands the list of symbols |
-| **⋯** → **Export ICS** | opens the calendar addresses with your duties on the Mine screen (team member) |
+| **⋯** → **Export ICS** | opens the calendar addresses with your duties on the My duties screen (team member) |
 
 On Now and on the Schedule the start of the range, its length, the **On
 duty only** filter and the choice between the matrix and the day list are part

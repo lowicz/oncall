@@ -3,7 +3,7 @@ export const nav = {
   screens: {
     now: 'Teraz',
     schedule: 'Grafik',
-    mine: 'Moje',
+    mine: 'Moje dyżury',
     swaps: 'Zamiany',
     generator: 'Generator',
     fairness: 'Sprawiedliwość',

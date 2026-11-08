@@ -31,8 +31,9 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   dziewięć cyfr (same cyfry dostają prefiks, spacje i kreski są pomijane);
   numer zagraniczny albo zapisany przed tą regułą ma dopisek „popraw numer”
   w tabeli, a w polu - po wyjściu z niego albo przy zapisie. Każda osoba może też zmienić swój numer sama na ekranie
-  [Moje](dostepnosc.md#mój-telefon),
-- **Rotacja** - stan rotacji, **kwalifikacje dyżurowe** jako chipy (zdjęcie
+  [Moje dyżury](dostepnosc.md#mój-telefon),
+- **Rotacja** (na zakładce skróty kwalifikacji, na przykład „Rotacja · P, S”) -
+  stan rotacji, **kwalifikacje dyżurowe** jako chipy (zdjęcie
   chipa kończy okres roli z dniem wczorajszym, więc opublikowany grafik
   zostaje, a generator pomija rolę od następnego uruchomienia; dodanie chipa
   otwiera okres od dziś), „Wejście od” i „Wyjście do” oraz lista **okresów
@@ -89,9 +90,8 @@ Zmiana roli i wyłączenie albo włączenie konta zapisują się bez dodatkowego
 Ustawienie „Wyjście do” kończy rotację. Historia dyżurów **zostaje** i nadal
 liczy się w raportach; kończy się tylko przydzielanie nowych dyżurów po tej
 dacie. Dyżury już opublikowane po tej dacie trzeba przepisać - panel pokazuje
-wtedy ostrzeżenie „Skutek dla grafiku” z przyciskiem **Przepisz przyszłe
-dyżury i zakończ rotację…**, który dla każdego takiego dyżuru wybiera zastępcę.
-Okno ma jeden czerwony przycisk, który nazywa skutek, na przykład **Przepisz
+wtedy ostrzeżenie „Skutek dla grafiku” z przyciskiem **Zakończ rotację…**, który
+otwiera okno, w którym dla każdego takiego dyżuru wybierasz zastępcę. Okno ma jeden czerwony przycisk, który nazywa skutek, na przykład **Przepisz
 6 dyżurów i zakończ rotację** (bez dyżurów do przepisania: **Zakończ
 rotację**). Kliknięcie sprawdza reguły twarde dla wszystkich grafików naraz i,
 jeśli nic nie jest łamane, od razu zapisuje. Jeśli wybrani zastępcy złamaliby

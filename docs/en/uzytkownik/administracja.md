@@ -33,8 +33,9 @@ Clicking a person (or **Open**) opens a panel with three tabs:
   dashes are dropped); a foreign number, or one stored before this rule, is
   marked “fix the number” in the table, and in the field once it is left or
   saved. Everyone can also
-  change their own number on the [Mine](dostepnosc.md#my-phone) screen,
-- **Rotation** - the rotation state, **duty qualifications** as chips
+  change their own number on the [My duties](dostepnosc.md#my-phone) screen,
+- **Rotation** (the tab shows the qualifications in short, for example “Rotation · P, S”) -
+  the rotation state, **duty qualifications** as chips
   (removing a chip ends the role's period as of yesterday, so the published
   schedule stays and the generator skips the role from the next run; adding
   a chip opens a period from today), “Entry from” and “Exit on”, and the list
@@ -96,8 +97,8 @@ A role change and disabling or enabling the account save without an extra questi
 Setting “Exit on” ends the rotation. The duty history **stays** and still
 counts in the reports; only the assignment of new duties after that date
 ends. Duties already published after that date have to be rewritten - the
-panel then shows the “Effect on the schedule” warning with the **Rewrite
-future duties and end the rotation…** button, which picks a replacement for
+panel then shows the “Effect on the schedule” warning with the **End the
+rotation…** button, which opens a dialog where you pick a replacement for
 each such duty. The dialog has one red button that names the effect, for
 example **Rewrite 6 duties and end the rotation** (with no duties to rewrite:
 **End the rotation**). A click checks the hard rules for all schedules at
