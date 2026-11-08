@@ -289,12 +289,37 @@ describe('Fieldset', () => {
     expect(late).toBeChecked()
   })
 
-  it('announces an error in place of the hint', () => {
-    render(<Roles error="Wybierz co najmniej jedną rolę" />)
+  it('never reports a controlled blocked choice as chosen, whatever the caller passes', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const onChange = vi.fn()
+    const onClickCapture = vi.fn()
+    render(
+      <Fieldset legend="Role do zmiany">
+        <Checkbox label="PRIMARY" blocked checked={false} onChange={onChange} onClickCapture={onClickCapture} aria-disabled={false} />
+      </Fieldset>,
+    )
+    const primary = screen.getByRole('checkbox', { name: 'PRIMARY' })
+    expect(primary).toHaveAttribute('aria-disabled', 'true')
+    await user.click(primary)
+    await user.keyboard(' ')
+    expect(primary).toHaveFocus()
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onClickCapture).not.toHaveBeenCalled()
+  })
+
+  it('announces an error and keeps the blocked reason under the group', async () => {
+    const { container } = render(<Roles error="Wybierz co najmniej jedną rolę" />)
     const group = screen.getByRole('group', { name: 'Role do zmiany' })
     expect(group).toHaveClass('field-invalid')
-    expect(group).toHaveAccessibleDescription('Wybierz co najmniej jedną rolę')
+    expect(group).toHaveAccessibleDescription('Wybierz co najmniej jedną rolę PRIMARY niedostępna: Jan Wiśniewski ma już drugi on-call tego dnia.')
     expect(screen.getByRole('alert')).toHaveTextContent('Wybierz co najmniej jedną rolę')
+    expect(screen.getByText('PRIMARY niedostępna: Jan Wiśniewski ma już drugi on-call tego dnia.')).toBeVisible()
+    await expectNoAxeViolations(container)
+  })
+
+  it('describes the group by the error alone when there is no hint', () => {
+    render(<Fieldset legend="Role" error="Wybierz co najmniej jedną rolę"><Checkbox label="PRIMARY" /></Fieldset>)
+    expect(screen.getByRole('group', { name: 'Role' })).toHaveAccessibleDescription('Wybierz co najmniej jedną rolę')
   })
 
   it('describes nothing when there is nothing to say', () => {

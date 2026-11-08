@@ -1,5 +1,6 @@
 import {
   InputHTMLAttributes,
+  MouseEvent,
   ReactNode,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
@@ -37,22 +38,19 @@ export function Field({ label, hint, error, children, className, required, id: g
         {required && <span className="field-req" aria-hidden="true"> *</span>}
       </label>
       {children({ id, labelId, describedBy: hasMessage ? messageId : undefined, invalid: Boolean(error) })}
-      <FieldMessage id={messageId} hint={hint} error={error} />
+      {error ? (
+        <p className="field-msg" id={messageId} role="alert">{error}</p>
+      ) : hint ? (
+        <p className="field-hint" id={messageId}>{hint}</p>
+      ) : null}
     </div>
   )
 }
 
-/** The error (announced) or else the hint under a field or a group. */
-function FieldMessage({ id, hint, error }: { id: string; hint?: ReactNode; error?: ReactNode }) {
-  if (error) return <p className="field-msg" id={id} role="alert">{error}</p>
-  if (hint) return <p className="field-hint" id={id}>{hint}</p>
-  return null
-}
-
 /**
  * A group of controls under one legend: the roles a correction changes. The
- * hint or error under the group describes the whole group, so the reason a
- * choice is blocked is read together with it.
+ * error and the hint under the group both describe the whole group, so the
+ * reason a choice is blocked stays read with it when the group is invalid.
  */
 export function Fieldset({ legend, hint, error, children, className }: {
   legend: ReactNode
@@ -61,15 +59,18 @@ export function Fieldset({ legend, hint, error, children, className }: {
   children: ReactNode
   className?: string
 }) {
-  const messageId = `${useId()}-msg`
+  const id = useId()
+  const errorId = error ? `${id}-error` : undefined
+  const hintId = hint ? `${id}-hint` : undefined
   return (
     <fieldset
       className={cx('field', 'fieldset', Boolean(error) && 'field-invalid', className)}
-      aria-describedby={error || hint ? messageId : undefined}
+      aria-describedby={cx(errorId, hintId) || undefined}
     >
       <legend className="field-label">{legend}</legend>
       {children}
-      <FieldMessage id={messageId} hint={hint} error={error} />
+      {error && <p className="field-msg" id={errorId} role="alert">{error}</p>}
+      {hint && <p className="field-hint" id={hintId}>{hint}</p>}
     </fieldset>
   )
 }
@@ -126,9 +127,8 @@ export function Checkbox({ label, hint, className, blocked, ...rest }: {
     <label className={cx('check', blocked && 'check-off', className)}>
       <input
         type="checkbox"
-        aria-disabled={blocked || undefined}
-        onClickCapture={blocked ? (event) => event.preventDefault() : undefined}
         {...rest}
+        {...(blocked ? { 'aria-disabled': true, readOnly: true, onChange: undefined, onClickCapture: preventToggle } : {})}
       />
       <span className="check-body">
         <span>{label}</span>
@@ -138,6 +138,9 @@ export function Checkbox({ label, hint, className, blocked, ...rest }: {
   )
 }
 
+function preventToggle(event: MouseEvent) {
+  event.preventDefault()
+}
 
 export interface SegmentOption<T extends string> extends RadioNavigationOption<T> {
   label: ReactNode
