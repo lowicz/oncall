@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CurrentDuty, ShareSession, UserRole, api } from '../api'
 import { roleLabels } from '../lib/labels'
@@ -9,9 +9,8 @@ import { useMessages } from '../i18n'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { CalendarMatrix, CalendarRange, MatrixSummary, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, MatrixView, WEEKS } from '../components/MatrixControls'
-import { AnchorButton, Box, Chip, LinkButton, PageHeader, SectionHeading, StatusBadge, Tag, cx } from '../ui'
+import { AnchorButton, Box, LinkButton, PageHeader, RoleLabel, SectionHeading, StatusBadge, Tag, cx } from '../ui'
 
-const roleClass: Record<AssignmentRole, string> = { primary: '', secondary: 'dcard-s', late_shift: 'dcard-l' }
 const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 
 /**
@@ -33,11 +32,11 @@ export function DutyCard({ duty, role, todayDayOff, holidayName }: {
   const phone = contactPhone?.replace(/\s+/g, '')
   const roleLabel = roleLabels()[role]
   return (
-    <article className={cx('dcard', roleClass[role], !duty && 'dcard-none')} aria-label={roleLabel}>
+    <article className={cx('dcard', !duty && 'dcard-none')} aria-label={roleLabel}>
       <div className="row row-between">
-        <span className="dcard-role">{role === 'primary' && duty ? t.roleNow(roleLabel) : roleLabel}</span>
+        <span className="dcard-role"><RoleLabel role={role} />{role === 'primary' && duty && t.now}</span>
         {duty?.is_override && <Tag tone="sig">{t.override}</Tag>}
-        {duty?.is_day_off && <Tag tone="late">{t.dayOffRate}</Tag>}
+        {duty?.is_day_off && <Tag>{t.dayOffRate}</Tag>}
       </div>
       <div className="dcard-name">
         {notApplicable
@@ -124,7 +123,6 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   /** A share-link session, which can read only the link's range. */
   share?: ShareSession | null
 }) {
-  const navigate = useNavigate()
   const narrow = useNarrow()
   const t = useMessages()
   const today = warsawDate()
@@ -172,6 +170,9 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
           ? t.duty.published(formatShortDate(published.ends_on ?? today), published.version)
           : t.duty.notPublished}
         {schedule.data.today_is_day_off && ` · ${t.duty.todayIs(schedule.data.today_holiday_name ? t.duty.todayHoliday(schedule.data.today_holiday_name) : t.duty.todayDayOff)}`}
+        {actionable > 0 && <> · <Link to="/zamiany">{t.duty.swapsWaiting(actionable)}</Link></>}
+        {/* An empty team meets any criterion; saying so would mislead. */}
+        {fairness.data && fairness.data.members.length > 0 && ` · ${fairness.data.criterion_met ? t.duty.fairnessMet : t.duty.fairnessNotMet}`}
       </span>
       {role === 'viewer' && <StatusBadge>{t.duty.readOnly}</StatusBadge>}
     </>
@@ -184,7 +185,6 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
         sub={subtitle}
         actions={(inRotation || canCoordinate) && (
           <>
-            {hasTeamMember && <LinkButton to="/moje#ics" variant="ghost" icon="download">{t.schedule.actions.exportIcs}</LinkButton>}
             {hasTeamMember && <LinkButton to="/moje#dostepnosc" icon="calendar">{t.duty.reportAvailability}</LinkButton>}
             {canCoordinate && <LinkButton to={generatorHref} variant="primary" icon="wand">{t.schedule.actions.generateNext}</LinkButton>}
           </>
@@ -219,21 +219,6 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
         zoom={zoom}
         view={view}
         hideIdle={hideIdle}
-        extraChips={(
-          <>
-            {actionable > 0 && (
-              <Chip tone="warn" onClick={() => navigate('/zamiany')} title={t.duty.openSwaps}>
-                {t.duty.swapsWaiting(actionable)}
-              </Chip>
-            )}
-            {/* An empty team meets any criterion; saying so would mislead. */}
-            {fairness.data && fairness.data.members.length > 0 && (
-              <Chip tone={fairness.data.criterion_met ? 'ok' : 'warn'} onClick={() => navigate('/sprawiedliwosc')} title={t.duty.openFairness}>
-                {fairness.data.criterion_met ? t.duty.fairnessMet : t.duty.fairnessNotMet}
-              </Chip>
-            )}
-          </>
-        )}
         heading={(summary) => (
           <SectionHeading
             title={upcoming ? t.duty.upcoming(weeksWord(WEEKS[zoom])) : formatRange(range.starts_on, range.ends_on)}
@@ -252,6 +237,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
                 showRange={!wholeLink}
                 canShiftBack={canShiftBack}
                 canShiftForward={canShiftForward}
+                icsExport={hasTeamMember}
               />
             )}
           />

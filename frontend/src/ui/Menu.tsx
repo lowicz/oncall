@@ -45,6 +45,12 @@ export function MenuLink({ to, children, external }: { to: string; children: Rea
   )
 }
 
+const CHECK = (
+  <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+    <path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 /**
  * The heading of a group of items. Base UI ties it to the group through
  * context and throws when the label is rendered on its own, which is what
@@ -76,15 +82,25 @@ export function MenuRadioGroup<T extends string>({ label, value, onChange, optio
           closeOnClick={false}
           className="menu-item menu-radio"
         >
-          <BaseMenu.RadioItemIndicator className="menu-check" keepMounted>
-            <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
-              <path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </BaseMenu.RadioItemIndicator>
+          <BaseMenu.RadioItemIndicator className="menu-check" keepMounted>{CHECK}</BaseMenu.RadioItemIndicator>
           {option.label}
         </BaseMenu.RadioItem>
       ))}
     </BaseMenu.RadioGroup>
+  )
+}
+
+/** A setting that is on or off (the "only on duty" filter), kept open after toggling. */
+export function MenuCheckboxItem({ checked, onChange, children }: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  children: ReactNode
+}) {
+  return (
+    <BaseMenu.CheckboxItem checked={checked} onCheckedChange={(next) => onChange(next)} closeOnClick={false} className="menu-item menu-radio">
+      <BaseMenu.CheckboxItemIndicator className="menu-check" keepMounted>{CHECK}</BaseMenu.CheckboxItemIndicator>
+      {children}
+    </BaseMenu.CheckboxItem>
   )
 }
 

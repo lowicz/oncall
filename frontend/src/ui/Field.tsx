@@ -146,6 +146,8 @@ export interface SegmentOption<T extends string> extends RadioNavigationOption<T
   label: ReactNode
   /** Colour of the label, for the availability brush. */
   tone?: 'na' | 'wn' | 'ch'
+  /** The option's name when its label carries more than words, a count badge. */
+  ariaLabel?: string
 }
 
 /**
@@ -177,6 +179,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, l
           role="radio"
           aria-checked={option.value === value}
           tabIndex={radioTabIndex(value, option.value, options)}
+          aria-label={option.ariaLabel}
           data-value={option.value}
           data-tone={option.tone}
           className={cx(option.value === value && 'on')}

@@ -186,7 +186,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
         title={selected ? `${selected.member.display_name} · ${formatDate(selected.day.service_date)}` : ''}
-        meta={selected?.day.is_day_off && <Tag tone="late">{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
+        meta={selected?.day.is_day_off && <Tag>{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
         footer={selected && (
           <>
             <Button onClick={() => setSelected(null)}>{common.cancel}</Button>

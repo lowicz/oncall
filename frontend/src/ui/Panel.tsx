@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from 'react'
+import { ReactNode, RefObject, useRef } from 'react'
 import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { cx } from './cx'
 import { IconButton } from './Button'
@@ -12,7 +12,7 @@ import { useMessages } from '../i18n/messages'
  * matrix without closing it); Escape closes it. On a phone it is a modal
  * bottom sheet with a backdrop.
  */
-export function Panel({ open, onClose, title, meta, children, footer, className, wide }: {
+export function Panel({ open, onClose, title, meta, children, footer, className, wide, finalFocus }: {
   open: boolean
   /** The panel has no trigger: the page opens it through `open`, so the only
    *  change it ever asks for is to close (Escape, the close button, a tap on
@@ -25,6 +25,8 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
   footer?: ReactNode
   className?: string
   wide?: boolean
+  /** Where focus goes on closing when what opened the panel is gone, a menu item. */
+  finalFocus?: RefObject<HTMLElement | null>
 }) {
   const narrow = useNarrow()
   const t = useMessages()
@@ -38,7 +40,7 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
     >
       <BaseDialog.Portal>
         {narrow && <BaseDialog.Backdrop className="dialog-backdrop" />}
-        <BaseDialog.Popup initialFocus={titleRef} className={cx('panel-popup', narrow && 'panel-modal', wide && 'panel-wide', className)}>
+        <BaseDialog.Popup initialFocus={titleRef} finalFocus={finalFocus} className={cx('panel-popup', narrow && 'panel-modal', wide && 'panel-wide', className)}>
           <div className="panel-head">
             <BaseDialog.Title ref={titleRef} tabIndex={-1} className="panel-title">{title}</BaseDialog.Title>
             {meta && <div className="panel-meta">{meta}</div>}

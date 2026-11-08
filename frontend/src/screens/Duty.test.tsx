@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
+import { chooseFromMenu, openMenu } from '../test/menu'
 import { DutyScreen } from './Duty'
 import { api } from '../api'
 import type { CalendarData, FairnessMember, FairnessReport, PublishedSchedule, ShareSession, SwapRequest } from '../api'
@@ -103,8 +104,11 @@ describe('DutyScreen header', () => {
 
     renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
     expect(await screen.findByRole('link', { name: /Zgłoś dostępność/ })).toHaveAttribute('href', '/moje#dostepnosc')
-    expect(screen.getByRole('link', { name: /Eksport ICS/ })).toHaveAttribute('href', '/moje#ics')
     expect(screen.queryByRole('link', { name: /Generuj kolejny zakres/ })).not.toBeInTheDocument()
+    // The ICS export is no header action here; it waits in the matrix's "more" menu.
+    expect(screen.queryByRole('link', { name: /Eksport ICS/ })).not.toBeInTheDocument()
+    const menu = await openMenu('Więcej')
+    expect(within(menu).getByRole('menuitem', { name: 'Eksport ICS' })).toHaveAttribute('href', '/moje#ics')
   })
 
   it('says when nothing is published', async () => {
@@ -118,8 +122,8 @@ describe('DutyScreen header', () => {
   })
 })
 
-describe('DutyScreen risk row', () => {
-  it('counts the swaps waiting for this person and reports the fairness verdict', async () => {
+describe('DutyScreen subtitle and risk row', () => {
+  it('names the swaps waiting for this person and the fairness verdict in the subtitle, not among the risks', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'swaps').mockResolvedValue([
@@ -130,9 +134,10 @@ describe('DutyScreen risk row', () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(fairness(false))
     renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
 
+    expect(await screen.findByRole('link', { name: '2 zamiany czekają na Ciebie' })).toHaveAttribute('href', '/zamiany')
+    expect(await screen.findByText(/· kryterium sprawiedliwości niespełnione$/)).toBeInTheDocument()
     const risks = await screen.findByRole('list', { name: 'Ryzyka w zakresie' })
-    expect(await within(risks).findByRole('button', { name: /2 zamiany czekają na Ciebie/ })).toBeInTheDocument()
-    expect(await within(risks).findByRole('button', { name: 'Kryterium sprawiedliwości niespełnione' })).toBeInTheDocument()
+    expect(within(risks).queryByText(/zamian|sprawiedliwości/)).not.toBeInTheDocument()
   })
 
   it('asks nothing of the fairness report for a member and shows no swap chip when nothing waits', async () => {
@@ -144,7 +149,7 @@ describe('DutyScreen risk row', () => {
 
     await screen.findByRole('heading', { level: 2, name: 'Najbliższe 4 tygodnie' })
     await waitFor(() => expect(api.swaps).toHaveBeenCalled())
-    expect(screen.queryByRole('button', { name: /czeka na Ciebie/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /czeka na Ciebie/ })).not.toBeInTheDocument()
     expect(fairnessCall).not.toHaveBeenCalled()
   })
 })
@@ -185,12 +190,13 @@ describe('DutyScreen schedule section', () => {
     renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
     await screen.findByRole('heading', { level: 2, name: 'Najbliższe 4 tygodnie' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Legenda' }))
+    await chooseFromMenu('Więcej', 'Legenda')
     const legend = await screen.findByRole('dialog', { name: 'Legenda' })
     expect(within(legend).getByText(/po zamianie/)).toBeInTheDocument()
     expect(within(legend).getByText('Nie mogę')).toBeInTheDocument()
+    fireEvent.keyDown(legend, { key: 'Escape' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lista dni' }))
+    await chooseFromMenu('Więcej', 'Lista dni')
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Macierz grafiku' })).not.toBeInTheDocument()
   })
@@ -205,6 +211,11 @@ describe('DutyScreen on a phone', () => {
     renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
 
     const primary = await screen.findByRole('article', { name: 'PRIMARY' })
+    // The role is the same pill as everywhere else, not a stripe on the card's edge.
+    expect(within(primary).getByText('PRIMARY')).toHaveClass('lbl', 'lbl-p')
+    expect(within(primary).getByText('teraz')).toBeInTheDocument()
+    expect(primary).toHaveClass('dcard')
+    expect(within(screen.getByRole('article', { name: 'SECONDARY' })).getByText('SECONDARY')).toHaveClass('lbl', 'lbl-s')
     expect(within(primary).getByText('Anna Kowalska')).toBeInTheDocument()
     expect(within(primary).getByRole('link', { name: /Zadzwoń \+48 601 220 118/ })).toHaveAttribute('href', 'tel:+48601220118')
     expect(within(primary).getByRole('link', { name: 'SMS' })).toHaveAttribute('href', 'sms:+48601220118')
@@ -330,7 +341,7 @@ describe('DutyScreen in a share-link session', () => {
     expect(screen.queryByRole('button', { name: 'Cofnij o tydzień' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Do przodu o tydzień' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'dziś' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Lista dni' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Więcej' })).toBeInTheDocument()
     await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-09', '2026-09-22'))
     expect(calendarCall).toHaveBeenCalledTimes(1)
   })
@@ -381,21 +392,20 @@ describe('DutyScreen states not covered above', () => {
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
     renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
-    expect(await screen.findByText('Opublikowany grafik do 10 wrz · wersja 7')).toBeInTheDocument()
+    expect(await screen.findByText(/^Opublikowany grafik do 10 wrz · wersja 7/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Generuj kolejny zakres/ })).toHaveAttribute('href', '/generator')
   })
 
-  it('opens the swaps and the fairness report from their chips', async () => {
+  it('opens the swaps from the subtitle', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'swaps').mockResolvedValue([swap({ id: '1' })])
     vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
     renderScreen(<><DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} /><LocationProbe /></>)
 
-    fireEvent.click(await screen.findByRole('button', { name: /1 zamiana czeka na Ciebie/ }))
+    fireEvent.click(await screen.findByRole('link', { name: '1 zamiana czeka na Ciebie' }))
     expect(screen.getByTestId('url')).toHaveTextContent('/zamiany')
-    fireEvent.click(await screen.findByRole('button', { name: 'Kryterium sprawiedliwości spełnione' }))
-    expect(screen.getByTestId('url')).toHaveTextContent('/sprawiedliwosc')
+    expect(screen.getByText(/· kryterium sprawiedliwości spełnione$/)).toBeInTheDocument()
   })
 
   it('marks an override, a day-off duty and a holiday on the phone cards', async () => {
@@ -415,7 +425,8 @@ describe('DutyScreen states not covered above', () => {
     expect(await screen.findByText(/dziś święto: Dzień Niepodległości, stawka 2X/)).toBeInTheDocument()
     const primaryCard = await screen.findByRole('article', { name: 'PRIMARY' })
     expect(within(primaryCard).getByText('korekta')).toBeInTheDocument()
-    expect(within(primaryCard).getByText('2X')).toBeInTheDocument()
+    // The day-off rate is a neutral tag; salmon belongs to the 11–19 role.
+    expect(within(primaryCard).getByText('2X').className).toBe('tag')
     expect(within(primaryCard).getByText(/całą dobę/)).toBeInTheDocument()
     expect(within(primaryCard).queryByRole('link')).not.toBeInTheDocument()
     expect(within(primaryCard).queryByText(/Następny/)).not.toBeInTheDocument()

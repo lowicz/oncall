@@ -110,20 +110,25 @@ macierz osób × dni na wybrany zakres.</p>
 <p>Tytułem ekranu jest dzisiejsza data, a pod nią stan opublikowanego grafiku:
 do kiedy sięga i która to wersja. W dzień wolny lub święto podtytuł dodaje,
 że obowiązuje stawka 2X (<code>PRIMARY</code> i <code>SECONDARY</code> trwają wtedy całą dobę).
+Podtytuł podaje też liczbę zamian czekających na Twoją decyzję (link do
+Zamian) oraz, dla koordynatora, wynik kryterium sprawiedliwości.
 Kto ma dyżur w tej chwili, do kiedy i pod jakim telefonem, pokazuje stale
-pasek „Dyżur teraz” nad każdym ekranem, więc sam ekran nie powtarza obsady.</p>
-<p>Akcje po prawej zależą od roli: członek zespołu ma <strong>Eksport ICS</strong> i <strong>Zgłoś
-dostępność</strong> (oba prowadzą do ekranu Moje), koordynator i administrator mają
-<strong>Generuj kolejny zakres</strong>, który otwiera Generator z zakresem zaczynającym
-się dzień po końcu opublikowanego grafiku.</p>
-<p>Pod nagłówkiem jest rząd znaczników ryzyka: dni bez pełnej obsady i dni poza
-opublikowanym zakresem (jak na Grafiku), liczba zamian czekających na Twoją
-decyzję (prowadzi do Zamian) oraz, dla koordynatora, wynik kryterium
-sprawiedliwości (prowadzi do raportu).</p>
+pasek „Dyżur teraz” nad każdym ekranem, więc sam ekran nie powtarza obsady.
+Rola, której nikt nie ma, jest w pasku pogrubiona i oznaczona czerwoną
+kropką: <strong>brak obsady</strong>.</p>
+<p>Akcje po prawej zależą od roli: członek zespołu ma <strong>Zgłoś dostępność</strong>
+(prowadzi do ekranu Moje), koordynator i administrator mają <strong>Generuj
+kolejny zakres</strong>, który otwiera Generator z zakresem zaczynającym się dzień
+po końcu opublikowanego grafiku.</p>
+<p>Pod nagłówkiem jest rząd znaczników ryzyka, tylko o widocznym zakresie: dni
+bez pełnej obsady, dni poza opublikowanym zakresem i, dla koordynatora,
+kolizje dyżurów ze zgłoszonym „nie mogę”. Znacznik, który prowadzi do dnia,
+podaje datę pierwszego takiego dnia i kończy się strzałką.</p>
 <p>Niżej jest sekcja <strong>Najbliższe 4 tygodnie</strong> z tą samą macierzą co na ekranie
-Grafik i tymi samymi kontrolkami w nagłówku sekcji: długość 2 / 4 / 8
-tygodni, tydzień wstecz i do przodu, powrót do dziś, <strong>Tylko z dyżurem</strong>,
-<strong>Legenda</strong> i <strong>Lista dni</strong>. Gdy nikt nie jest jeszcze w rotacji, sekcja
+Grafik i tym samym pasem kontrolek w nagłówku sekcji: długość 2 / 4 / 8
+tygodni, tydzień wstecz i do przodu, powrót do dziś oraz menu <strong>⋯</strong>
+(<strong>Więcej</strong>) z pozycjami <strong>Tylko z dyżurem</strong>, <strong>Lista dni</strong>, <strong>Legenda</strong> i,
+dla członka zespołu, <strong>Eksport ICS</strong>. Gdy nikt nie jest jeszcze w rotacji, sekcja
 zamiast pustej macierzy mówi to wprost i nie pokazuje kontrolek;
 administrator dostaje w niej przycisk <strong>Otwórz Osoby</strong>, żeby dodać zespół.
 Gdy zespół ma osoby, ale żadna nie jest w rotacji w widocznym zakresie,
@@ -138,12 +143,12 @@ kartami członek zespołu widzi swój najbliższy dyżur, a grafik jest listą d
 <h2 id="grafik-macierz-osób-dni">Grafik: macierz osób × dni</h2>
 <p>Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
 koordynatorowi także propozycję czekającą na publikację; przycisk <strong>Otwórz
-propozycję</strong> prowadzi prosto do niej w Generatorze. Członek zespołu ma tu
-<strong>Eksport ICS</strong>.</p>
+propozycję</strong> prowadzi prosto do niej w Generatorze. Eksport ICS członek
+zespołu znajdzie w menu <strong>⋯</strong> nad macierzą i na ekranie Moje.</p>
 <p>Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli opublikowany grafik kończy się wcześniej).
 Jeśli publikacja już wygasła, ekran pokazuje cztery tygodnie od dziś i ostrzeżenie z datą końca, a koordynatorowi także drogę do Generatora (albo do czekającej propozycji).
 Nieprawidłowy zakres z adresu pokazuje akcję <strong>Pokaż od dziś</strong>, zamiast pozostawiać ekran bez kontrolek.
-Nagłówek sekcji nad macierzą nazywa zakres, jego długość i liczbę osób w rotacji. Osoby są na osi
+Nagłówek sekcji nad macierzą nazywa zakres, jego długość i liczbę osób w rotacji, a gdy w zakresie są dni bez pełnej obsady, także ich liczbę z linkiem do pierwszego z nich („2 dni bez pełnej obsady, pierwszy 14-11”). Osoby są na osi
 pionowej, kolejne dni na poziomej. Kolumna z osobami i nagłówki dat zostają
 widoczne podczas przewijania.</p>
 <p>Nagłówek każdej kolumny podaje dzień miesiąca, skrót dnia tygodnia oraz
@@ -175,16 +180,17 @@ do żadnej roli.</p>
 </tbody></table>
 </div>
 <p>Kolor nigdy nie jest jedynym nośnikiem informacji - każdy stan ma też etykietę
-tekstową, czytaną również przez czytnik ekranu. Link <strong>Legenda</strong> w nagłówku
-sekcji rozwija spis symboli; <code>Esc</code> go zamyka.</p>
+tekstową, czytaną również przez czytnik ekranu. Pozycja <strong>Legenda</strong> w menu
+<strong>⋯</strong> nad macierzą rozwija spis symboli; <code>Esc</code> go zamyka.</p>
 <h3 id="ryzyka-w-zakresie">Ryzyka w zakresie</h3>
 <p>Na ekranie Teraz nad macierzą jest rząd znaczników: dni opublikowanego
 grafiku bez pełnej obsady (kliknięcie przeskakuje do pierwszego takiego dnia),
-dni poza opublikowanym zakresem, dyżury kolidujące ze zgłoszonym „nie mogę”
-albo <strong>Pełna obsada</strong>, gdy wszystko gra. Zawężenie widoku nie może ukryć
-aktywnego konfliktu bez tego komunikatu. Grafik pokazuje tę samą macierz bez
-rzędu ryzyk; dni bez obsady są w nim zaznaczone na czerwono w nagłówku
-kolumny i w panelu dnia.</p>
+dni poza opublikowanym zakresem, kolizje dyżurów ze zgłoszonym „nie mogę”
+(kliknięcie przeskakuje do pierwszej) albo <strong>Pełna obsada</strong>, gdy wszystko
+gra. Zawężenie widoku nie może ukryć aktywnego konfliktu bez tego
+komunikatu. Grafik pokazuje tę samą macierz bez rzędu ryzyk; dni bez obsady
+są w nim zaznaczone na czerwono w nagłówku kolumny i w panelu dnia, a
+nagłówek sekcji podaje ich liczbę z linkiem do pierwszego.</p>
 <h3 id="szczegóły-dnia">Szczegóły dnia</h3>
 <p>Kliknięcie komórki (albo <code>Enter</code> na zaznaczonej komórce) otwiera panel dnia:
 obsada każdej roli, wydarzenia kalendarza i zgłoszona dostępność. Po siatce
@@ -194,7 +200,9 @@ a <code>PageUp</code> i <code>PageDown</code> przeskakują o tydzień.</p>
 <ul>
 <li><strong>członek zespołu</strong> może rozpocząć prośbę o zamianę własnego slotu,</li>
 <li><strong>koordynator i administrator</strong> mogą zmienić dowolny przydział bezpośrednio,
-bez zgody zastępcy i bez kroku akceptacji. Korekta dotyczy wyłącznie
+bez zgody zastępcy i bez kroku akceptacji. Każdy wiersz roli w panelu ma
+na końcu przycisk <strong>Zmień…</strong> (pusta rola: <strong>Obsadź…</strong>), a kliknięcie
+całego wiersza działa tak samo. Korekta dotyczy wyłącznie
 wybranego dnia i roli, a wszystko, co trzeba o niej wiedzieć, pojawia się w
 panelu tuż pod wyborem osoby, bez osobnego okna potwierdzenia: linia reguł
 („Bez naruszeń reguł twardych”) i wpływ na bilans punktów obu osób. Jeśli
@@ -223,7 +231,8 @@ wydarzenie.</li>
 członek zespołu tylko przy własnych wpisach, a konto podglądowe nie dostaje
 danych o dostępności w ogóle.</p>
 <h2 id="sterowanie-widokiem">Sterowanie widokiem</h2>
-<p>Kontrolki są w nagłówku sekcji nad macierzą, na Teraz i na Grafiku tak samo:</p>
+<p>Kontrolki są jednym pasem w nagłówku sekcji nad macierzą, na Teraz i na
+Grafiku tak samo:</p>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -244,16 +253,20 @@ danych o dostępności w ogóle.</p>
 <td>wraca do zakresu zaczynającego się dziś</td>
 </tr>
 <tr>
-<td><strong>Tylko z dyżurem</strong></td>
+<td><strong>⋯</strong> → <strong>Tylko z dyżurem</strong></td>
 <td>ukrywa osoby bez przydziału w zakresie</td>
 </tr>
 <tr>
-<td><strong>Legenda</strong></td>
+<td><strong>⋯</strong> → <strong>Lista dni</strong></td>
+<td>przełącza między macierzą a listą dni</td>
+</tr>
+<tr>
+<td><strong>⋯</strong> → <strong>Legenda</strong></td>
 <td>rozwija spis symboli</td>
 </tr>
 <tr>
-<td><strong>Lista dni</strong></td>
-<td>przełącza między macierzą a listą dni</td>
+<td><strong>⋯</strong> → <strong>Eksport ICS</strong></td>
+<td>otwiera adresy kalendarza z Twoimi dyżurami na ekranie Moje (członek zespołu)</td>
 </tr>
 </tbody></table>
 </div>

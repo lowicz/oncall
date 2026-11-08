@@ -20,7 +20,6 @@ colors:
   secondary-violet: "#B17EAD"
   secondary-text: "#D5A8D2"
   late-salmon: "#FFB196"
-  late-text: "#FFB196"
   role-ink: "#0B1F42"
   ok-green: "#6CD99D"
   ok-soft: "rgba(108, 217, 157, 0.14)"
@@ -277,8 +276,9 @@ tą samą nazwą zmiennej.
   aby zachować kontrast co najmniej 4,5:1 na `s1`, `s2`, `s3` i podkładach.
   Ostrzeżenie (`#FFB196`, `--warn-text`) barwi tytuł ramki `.box-warn`; w
   jasnym motywie jest ciemniejsze od `--warn` (`#A33F00` zamiast `#B84800`).
-  Tak samo 11–19 (`#FFB196`, `--late-text`) barwi znacznik `.tag-late`; w
-  jasnym motywie `#A33F00` zamiast `--late` `#B84800`.
+  Łosoś 11–19 należy tylko do roli: znacznik dnia wolnego (2X) jest
+  neutralny, tag „łamie reguły” ma ton błędu, a „oczekuje” ma jeden ton
+  propozycji na każdym ekranie.
 - **Podkłady dnia**: dziś (`rgba(101,184,255,.12)`), weekend
   (`rgba(163,181,201,.10)`).
 - Motyw jasny: tło `#F4F6FA`, panele `#FFFFFF`, atrament `#303030`,

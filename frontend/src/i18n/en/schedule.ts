@@ -26,6 +26,7 @@ export const schedule: Messages['schedule'] = {
     onlyOnDuty: 'On duty only',
     legend: 'Legend',
     dayList: 'Day list',
+    more: 'More',
   },
   legend: {
     roles: 'Roles',
@@ -75,6 +76,7 @@ export const schedule: Messages['schedule'] = {
     pickPerson: 'Pick the person who is to take this role.',
     chosenPerson: (reason: string) => `The chosen person: ${reason}.`,
   },
+  firstGap: (days: string, date: string) => `${days}, first on ${date}`,
   risks: {
     label: 'Risks in the range',
     showFirstGap: 'Show the first day without full coverage',
@@ -83,7 +85,7 @@ export const schedule: Messages['schedule'] = {
     outsideNotPublished: 'The coordinator has not published this period yet',
     outsideDays: (count: number) => pluralEn(count, ['day outside the published schedule', 'days outside the published schedule']),
     showFirstConflict: 'Show the first such day',
-    conflictPeople: (count: number) => `${pluralEn(count, ['person', 'people'])} on duty on a day of unavailability`,
+    conflicts: (count: number) => pluralEn(count, ['clash with unavailability', 'clashes with unavailability']),
     fullCoverage: 'Full coverage across the whole range',
   },
   loading: 'Loading the schedule…',
@@ -127,6 +129,8 @@ export const schedule: Messages['schedule'] = {
     notApplicableDayOff: 'not applicable on a day off',
     unstaffed: 'unstaffed',
     changeRole: (role: string, who: string) => `${role}: ${who}. Change staffing`,
+    change: 'Change…',
+    staff: 'Staff…',
     events: 'Events',
     delete: 'Delete',
     availabilityToday: 'Availability on this day',

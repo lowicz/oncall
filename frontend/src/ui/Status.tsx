@@ -1,5 +1,7 @@
 import { Children, Fragment, ReactNode, isValidElement, useId, useState } from 'react'
 import { cx } from './cx'
+import { Icon } from './Icon'
+import { Tooltip } from './Tooltip'
 import { AssignmentRole, AvailabilityKind } from '../api'
 import { availabilityLabels, roleLabels, shortRoleLabels } from '../lib/labels'
 import { signedPoints } from '../lib/numbers'
@@ -19,14 +21,15 @@ export function StatusLine({ children, className }: { children: ReactNode; class
 }
 
 /** Mono tag next to a title: "1X · dzień roboczy", a version. */
-export function Tag({ children, tone, className }: { children: ReactNode; tone?: 'late' | 'sig' | 'bad'; className?: string }) {
+export function Tag({ children, tone, className }: { children: ReactNode; tone?: 'sig' | 'bad'; className?: string }) {
   return <span className={cx('tag', tone && `tag-${tone}`, className)}>{children}</span>
 }
 
 /**
  * A risk chip: one fact with a coloured dot, clickable when it leads
  * somewhere (a filter, a section). The dot colour is never the only signal;
- * the text says what it is.
+ * the text says what it is. A clickable chip ends in a chevron, and where it
+ * leads (`title`) is its description and a tooltip that focus opens too.
  */
 export function Chip({ tone = 'muted', children, onClick, className, title }: {
   tone?: 'ok' | 'warn' | 'bad' | 'sig' | 'muted'
@@ -43,12 +46,14 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
     </>
   )
   if (onClick) {
-    return (
-      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} title={title} aria-describedby={title ? descriptionId : undefined}>
+    const button = (
+      <button type="button" className={cx('chip', `chip-${tone}`, 'chip-btn', className)} onClick={onClick} aria-describedby={title ? descriptionId : undefined}>
         {content}
+        <Icon name="chevron-right" size={16} className="chip-go" />
         {title && <span id={descriptionId} hidden>{title}</span>}
       </button>
     )
+    return title ? <Tooltip text={title}>{button}</Tooltip> : button
   }
   return (
     <span className={cx('chip', `chip-${tone}`, className)} title={title}>

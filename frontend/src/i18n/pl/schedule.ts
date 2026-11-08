@@ -32,6 +32,7 @@ export const schedule = {
     onlyOnDuty: 'Tylko z dyżurem',
     legend: 'Legenda',
     dayList: 'Lista dni',
+    more: 'Więcej',
   },
   legend: {
     roles: 'Role',
@@ -86,6 +87,7 @@ export const schedule = {
     pickPerson: 'Wybierz osobę, która ma objąć tę rolę.',
     chosenPerson: (reason: string) => `Wybrana osoba ${reason}.`,
   },
+  firstGap: (days: string, date: string) => `${days}, pierwszy ${date}`,
   risks: {
     label: 'Ryzyka w zakresie',
     showFirstGap: 'Pokaż pierwszy dzień bez pełnej obsady',
@@ -94,7 +96,7 @@ export const schedule = {
     outsideNotPublished: 'Koordynator jeszcze nie opublikował tego okresu',
     outsideDays: (count: number) => pluralPl(count, ['dzień poza opublikowanym grafikiem', 'dni poza opublikowanym grafikiem', 'dni poza opublikowanym grafikiem']),
     showFirstConflict: 'Pokaż pierwszy taki dzień',
-    conflictPeople: (count: number) => count === 1 ? '1 osoba z dyżurem w dniu niedostępności' : `${count} osób z dyżurem w dniu niedostępności`,
+    conflicts: (count: number) => pluralPl(count, ['kolizja z niedostępnością', 'kolizje z niedostępnością', 'kolizji z niedostępnością']),
     fullCoverage: 'Pełna obsada w całym zakresie',
   },
   loading: 'Wczytywanie grafiku…',
@@ -139,6 +141,8 @@ export const schedule = {
     notApplicableDayOff: 'nie dotyczy w dzień wolny',
     unstaffed: 'brak obsady',
     changeRole: (role: string, who: string) => `${role}: ${who}. Zmień obsadę`,
+    change: 'Zmień…',
+    staff: 'Obsadź…',
     events: 'Wydarzenia',
     delete: 'Usuń',
     availabilityToday: 'Dostępności tego dnia',

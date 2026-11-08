@@ -566,6 +566,9 @@ describe('PeoplePanel table states and export', () => {
     const anna = await rowOf('anna')
     expect(within(anna).getByText('popraw numer')).toBeInTheDocument()
     const dialog = await openRow('anna')
+    // The field judges the number once it is left, not as the panel opens.
+    expect(within(dialog).queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
+    fireEvent.blur(within(dialog).getByLabelText(/^Telefon/))
     expect(within(dialog).getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
     fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '600 100 200' } })
     expect(within(dialog).queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
@@ -743,6 +746,9 @@ describe('PeoplePanel account tab', () => {
     const save = vi.spyOn(api, 'updateAdminUser').mockReturnValue(new Promise((done) => { saved = () => done(user({ id: 'u1' })) }))
     renderScreen(<PeoplePanel />)
     const dialog = await openRow('anna')
+    expect(within(dialog).queryByText('Wymagany dla osób w rotacji.')).not.toBeInTheDocument()
+    fireEvent.submit(dialog.querySelector('#person-form')!)
+    // A save attempt judges the number too, even with nothing else to save.
     expect(within(dialog).getByText('Wymagany dla osób w rotacji.')).toBeInTheDocument()
 
     fireEvent.change(within(dialog).getByLabelText(/^Imię/), { target: { value: 'Anna Maria' } })

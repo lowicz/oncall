@@ -23,6 +23,7 @@ import {
   PageHeader,
   RoleMark,
   SectionHeading,
+  Segmented,
   StatusBadge,
   Tag,
   cx,
@@ -101,7 +102,7 @@ function Drilldown({ member, report, asOf, lateShiftBalanced }: {
                 <div className="row">
                   <RoleMark role={duty.role} size="sm" />
                   <span>{formatDayShort(duty.service_date)}</span>
-                  {duty.is_day_off && <Tag tone="late">2X</Tag>}
+                  {duty.is_day_off && <Tag>2X</Tag>}
                 </div>
               </ListRow>
             ))}
@@ -301,17 +302,15 @@ export function FairnessPanel() {
           <SectionHeading
             title={t.team}
             meta={`${formatDate(report.data.window_start)} – ${formatDate(report.data.window_end)}`}
-            controls={lenses.map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={cx('sech-link', lens === item && 'on')}
-                aria-pressed={lens === item}
-                onClick={() => setLens(item)}
-              >
-                {lensLabel(item)}
-              </button>
-            ))}
+            controls={(
+              <Segmented<Lens>
+                label={t.lens}
+                wrap
+                value={lens}
+                onChange={setLens}
+                options={lenses.map((item) => ({ value: item, label: lensLabel(item) }))}
+              />
+            )}
           />
           <div className="panel wide-scroll">
             <table className="lg fairness-table" aria-label={t.tableLabel}>

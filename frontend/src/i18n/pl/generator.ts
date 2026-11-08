@@ -23,23 +23,20 @@ export const generator = {
     superseded: 'zastąpiony',
   },
   /** The word before the range in the title: "Szkic 4 – 31 paź", "Propozycja 4 – 31 paź". */
-  titleWord: {
-    draft: 'Szkic',
-    proposed: 'Propozycja',
-    published: 'Grafik',
-    superseded: 'Zastąpiony',
-  },
   header: {
     generating: (range: string) => `Generuję ${range}`,
-    versionLine: (version: number, assignments: number, days: number, rotation: string) =>
-      `wersja ${version} · ${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])} w ${pluralPl(days, ['dniu', 'dniach', 'dniach'])} · ${rotation}`,
+    statusPill: (status: string, version: number) => `${status} · v${version}`,
+    summary: (assignments: number, days: number, rotation: string) =>
+      `${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])} w ${pluralPl(days, ['dniu', 'dniach', 'dniach'])} · ${rotation}`,
     solverStatus: (status: string) => `CP-SAT: ${status}`,
-    regenerate: 'Generuj ponownie',
+    newDraft: 'Generuj nowy szkic',
+    newDraftHint: 'Ten szkic z poprawkami zostaje na liście szkiców',
+    newDraftCreated: 'Utworzono nowy szkic · poprzedni zostaje na liście szkiców',
+    more: 'Więcej',
     proposeHint: 'Szkic trafi do akceptacji; nadal można go cofnąć',
     propose: 'Przekaż do akceptacji',
     backToDraft: 'Wróć do szkicu',
     publish: 'Publikuj…',
-    published: 'grafik opublikowany',
     queuedSub: 'Zadanie w kolejce workera.',
     solverSub: 'Solver pracuje poza procesem API.',
     draftSub: 'Wynik jest szkicem. Nie zastępuje opublikowanego grafiku, dopóki go nie opublikujesz.',
@@ -130,6 +127,7 @@ export const generator = {
     rangeValue: (startsOn: string, endsOn: string) => `${startsOn} – ${endsOn}`,
     version: 'Wersja',
     versionValue: (version: number) => `v${version}`,
+    solver: 'Solver',
     rotationMode: 'Tryb rotacji',
     lateShiftAnchor: (role: string) => `Powiązanie ${role}`,
     fairnessWeight: 'Waga „równy udział”',

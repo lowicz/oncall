@@ -30,7 +30,7 @@ Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
   „Dyżur teraz” i karta dyżurnego. Numer jest zapisywany jako `+48` i
   dziewięć cyfr (same cyfry dostają prefiks, spacje i kreski są pomijane);
   numer zagraniczny albo zapisany przed tą regułą ma dopisek „popraw numer”
-  w tabeli i w polu. Każda osoba może też zmienić swój numer sama na ekranie
+  w tabeli, a w polu - po wyjściu z niego albo przy zapisie. Każda osoba może też zmienić swój numer sama na ekranie
   [Moje](dostepnosc.md#mój-telefon),
 - **Rotacja** - stan rotacji, **kwalifikacje dyżurowe** jako chipy (zdjęcie
   chipa kończy okres roli z dniem wczorajszym, więc opublikowany grafik

@@ -21,14 +21,17 @@ on duty that day (`Secondary: Marek`). A duty under way today is highlighted and
 **Details** button (opens that day on the Schedule); every other one has a
 **Swap** button, which opens the Swaps screen with that duty already selected.
 A day that collides with a filed “Unavailable” has an amber edge and the note
-“collides with your unavailability”. The **Schedule** link in the section
+**clash**; clicking it scrolls to the availability calendar opened on that
+day's month. The **Schedule** link in the section
 header opens the matrix with your row highlighted.
 
 ## My availability
 
 Availability is filed **on the month calendar**, without a form with dates.
-The arrows in the section header change the month. Above the calendar is a
-brush with four modes - **unavailable**, **prefer not**, **willing** and
+The section header has the month's name as the calendar's heading, with
+arrows that change the month on either side. On a phone the month row stays
+pinned under the top bar while you scroll the calendar. Above the calendar is
+a brush with four modes - **unavailable**, **prefer not**, **willing** and
 **clear** - and next to it the **Reason for the next entries** field: first
 you choose what and why, then you mark the days.
 
@@ -136,7 +139,9 @@ the number in any form (`600 100 200`, `48600100200`, `+48 600-100-200`) and
 click **Save number**: the application stores it as `+48` and nine digits and
 shows that form in the field. A foreign number is not accepted - the field
 says “Fix the number”, and a person in the rotation without a number sees
-“Required for people in the rotation”. An empty field removes the number.
+“Required for people in the rotation”. Both messages appear only once you
+leave the field or save, not while you type. An empty field removes the
+number.
 
 With directory sign-in (LDAP / Active Directory) an administrator can turn on
 reading the number from the directory: it fills an empty field only, so a

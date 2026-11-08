@@ -114,10 +114,12 @@ function dutyDays(calendar: CalendarData | undefined, displayName: string, from:
  * way "today" is in the matrix; a day that collides with an "unavailable"
  * entry gets the warning rule on the left.
  */
-function DutyList({ duties, today, collides }: {
+function DutyList({ duties, today, collides, onShowCollision }: {
   duties: DutyDay[]
   today: string
   collides: (serviceDate: string) => boolean
+  /** Shows the colliding day in the availability calendar. */
+  onShowCollision: (serviceDate: string) => void
 }) {
   const t = useMessages()
   const roles = roleLabels()
@@ -153,7 +155,14 @@ function DutyList({ duties, today, collides }: {
               {duty.partners && ` · ${duty.partners}`}
               {duty.day?.holiday_name && ` · ${duty.day.holiday_name}`}
               {duty.changed && <> · <span className="who-you">{t.mine.duties.afterCorrection}</span></>}
-              {conflict && <> · <span className="who-out">{t.mine.duties.collidesWithUnavailability}</span></>}
+              {conflict && (
+                <>
+                  {' · '}
+                  <button type="button" className="text-link" aria-label={t.mine.duties.showCollision(formatDayShort(duty.service_date))} onClick={() => onShowCollision(duty.service_date)}>
+                    {t.mine.duties.collision}
+                  </button>
+                </>
+              )}
             </small>
           </ListRow>
         )
@@ -425,10 +434,13 @@ const availabilityKey = (member: string) => (member ? ['availability', 'member',
  * into is re-created around it) and is saved immediately. A coordinator can
  * paint another person's calendar from the person picker.
  */
-function AvailabilitySection({ role, hasTeamMember, displayName }: {
+function AvailabilitySection({ role, hasTeamMember, displayName, month, onMonth }: {
   role: UserRole
   hasTeamMember: boolean
   displayName: string
+  /** The month shown, held by the screen so a duty in the list can open its own. */
+  month: string
+  onMonth: (month: string) => void
 }) {
   const t = useMessages().mine.availability
   const reasonOf = useMessages().mine.calendar.reason
@@ -459,7 +471,6 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
     queryFn: onBehalf ? () => api.memberAvailability(target) : api.availability,
     enabled: onBehalf || hasTeamMember,
   })
-  const [month, setMonth] = useState(monthOf(today))
   const calendarStart = `${month}-01`
   const calendarEnd = addDays(`${shiftMonth(month, 1)}-01`, -1)
   const calendar = useQuery({
@@ -536,8 +547,8 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
     <section className="stack-sm" aria-labelledby="dostepnosc-title" id="dostepnosc">
       <SectionHeading
         id="dostepnosc-title"
+        className="avail-head"
         title={heading}
-        meta={formatMonth(month)}
         controls={(
           <>
             {canActOnBehalf && (
@@ -552,9 +563,10 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
                 ))}
               </Select>
             )}
-            <span className="pager">
-              <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => setMonth(shiftMonth(month, -1))} />
-              <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => setMonth(shiftMonth(month, 1))} />
+            <span className="pager avail-month">
+              <IconButton size="sm" label={t.previousMonth} icon="chevron-left" onClick={() => onMonth(shiftMonth(month, -1))} />
+              <h3 className="month-title">{formatMonth(month)}</h3>
+              <IconButton size="sm" label={t.nextMonth} icon="chevron-right" onClick={() => onMonth(shiftMonth(month, 1))} />
             </span>
           </>
         )}
@@ -665,8 +677,12 @@ function PointsSection({ displayName, compact, onAvailability }: {
         title={compact ? t.headingCompact : t.heading}
         controls={!compact && (
           <>
-            <button type="button" className={cx('sech-link', period === '12m' && 'on')} aria-pressed={period === '12m'} onClick={() => setPeriod('12m')}>{t.twelveMonths}</button>
-            <button type="button" className={cx('sech-link', period === 'month' && 'on')} aria-pressed={period === 'month'} onClick={() => setPeriod('month')}>{t.thisMonth}</button>
+            <Segmented<'12m' | 'month'>
+              label={t.period}
+              value={period}
+              onChange={setPeriod}
+              options={[{ value: '12m', label: t.twelveMonths }, { value: 'month', label: t.thisMonth }]}
+            />
           </>
         )}
       />
@@ -887,7 +903,8 @@ function FeedsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
  * The person's own number: what the "Now" strip and the on-call card show and
  * what the call forwarding dials. The API stores `+48` and nine digits and
  * normalises what is typed, so the field shows the stored form back after a
- * save; the rule is mirrored here only to say "popraw numer" early.
+ * save; the rule is mirrored here only to say "popraw numer" before the
+ * save, once the field has been left.
  */
 function PhoneSection({ inRotation }: { inRotation: boolean }) {
   const t = useMessages().mine.phone
@@ -895,6 +912,8 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
   const queryClient = useQueryClient()
   const me = useQuery({ queryKey: meKey, queryFn: api.me })
   const [draft, setDraft] = useState<string | null>(null)
+  // Judged once the field is left or saved, never while it is being typed.
+  const [checked, setChecked] = useState(false)
   const value = draft ?? me.data?.phone ?? ''
   const typed = value.trim()
   const save = useMutation({
@@ -907,14 +926,14 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
   })
   // No verdict on a value that has not arrived yet.
   const verdict = typed ? (isPolishPhone(typed) ? undefined : t.fix) : inRotation ? t.required : undefined
-  const error = me.data ? verdict : undefined
+  const error = me.data && checked ? verdict : undefined
   return (
     <section className="stack-sm" aria-labelledby="moj-telefon">
       <SectionHeading id="moj-telefon" title={t.heading} />
-      <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); save.mutate() }}>
+      <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); setChecked(true); save.mutate() }}>
         <Field label={t.label} id="my-phone" hint={t.hint} error={error}>
           {({ id, describedBy, invalid }) => (
-            <Input id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onChange={(event) => setDraft(event.target.value)} />
+            <Input id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onBlur={() => setChecked(true)} onChange={(event) => setDraft(event.target.value)} />
           )}
         </Field>
         {save.error && <Box tone="bad" role="alert" focus title={save.error.message} />}
@@ -968,6 +987,11 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
     if (location.hash === '#ics') setIcsOpen(true)
     if (location.hash === '#dostepnosc') document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start' })
   }, [location.hash])
+  const [month, setMonth] = useState(monthOf(today))
+  const showCollision = (serviceDate: string) => {
+    setMonth(monthOf(serviceDate))
+    scrollToAvailability()
+  }
   const scrollToAvailability = () => document.getElementById('dostepnosc')?.scrollIntoView({ block: 'start', behavior: preferredScrollBehavior() })
 
   const subtitle = [
@@ -986,10 +1010,10 @@ export function MineScreen({ role = 'member', hasTeamMember, displayName = '' }:
       />
       {calendar.isLoading && <LoadingBlock label={t.duties.loading} rows={3} />}
       {calendar.error && <ErrorState error={calendar.error} onRetry={() => calendar.refetch()} />}
-      {calendar.data && <DutyList duties={upcoming} today={today} collides={collides} />}
+      {calendar.data && <DutyList duties={upcoming} today={today} collides={collides} onShowCollision={showCollision} />}
     </section>
   )
-  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} />
+  const availability = <AvailabilitySection role={role} hasTeamMember={inRotation} displayName={displayName} month={month} onMonth={setMonth} />
   const phone = <PhoneSection inRotation={inRotation} />
 
   return (

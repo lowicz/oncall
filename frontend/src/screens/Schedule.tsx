@@ -112,7 +112,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
               : t.schedule.draftWaiting(formatRange(pending.starts_on, pending.ends_on))}`}
           </span>
         )}
-        actions={(
+        actions={(focusPerson || canCoordinate) && (
           <>
             {focusPerson && (
               <span className="filter-chip">
@@ -120,7 +120,6 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
                 <button type="button" aria-label={t.schedule.clearHighlight(focusPerson)} onClick={() => setSearchParams((current) => { const next = new URLSearchParams(current); next.delete('osoba'); return next }, { replace: true })}>×</button>
               </span>
             )}
-            {hasTeamMember && <LinkButton to="/moje#ics" variant="ghost" icon="download">{t.schedule.actions.exportIcs}</LinkButton>}
             {canCoordinate && nextStep()}
           </>
         )}
@@ -159,7 +158,20 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
           heading={(summary) => (
             <SectionHeading
               title={formatRange(range.starts_on, range.ends_on)}
-              meta={`${weeksWord(weeks)}${summary.people > 0 ? ` · ${t.schedule.peopleInRotation(summary.people)}` : ''}`}
+              meta={(
+                <>
+                  {weeksWord(weeks)}
+                  {summary.people > 0 && ` · ${t.schedule.peopleInRotation(summary.people)}`}
+                  {summary.firstGap && (
+                    <>
+                      {' · '}
+                      <button type="button" className="text-link" onClick={summary.firstGap.show}>
+                        {t.schedule.firstGap(t.schedule.risks.gapDays(summary.firstGap.count), formatDate(summary.firstGap.date).slice(0, 5))}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
               controls={(
                 <MatrixControls
                   zoom={zoom}
@@ -171,6 +183,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
                   view={view}
                   onView={setView}
                   showAvailability={role !== 'viewer'}
+                  icsExport={hasTeamMember}
                 />
               )}
             />

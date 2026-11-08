@@ -18,7 +18,7 @@ export const duty: Messages['duty'] = {
     offline: 'no connection',
   },
   card: {
-    roleNow: (role: string) => `${role} · now`,
+    now: 'now',
     override: 'correction',
     dayOffRate: '2X',
     notApplicable: (reason: string) => `not applicable: ${reason}`,
@@ -44,10 +44,8 @@ export const duty: Messages['duty'] = {
   notPublishedMember: 'The coordinator has not published a schedule for this period yet.',
   nextOwnDuty: 'Your next duty:',
   swapsWaiting: (count: number) => `${pluralEn(count, ['swap waits', 'swaps wait'])} for you`,
-  openSwaps: 'Open swaps',
-  openFairness: 'Open the fairness report',
-  fairnessMet: 'Fairness criterion met',
-  fairnessNotMet: 'Fairness criterion not met',
+  fairnessMet: 'fairness criterion met',
+  fairnessNotMet: 'fairness criterion not met',
   upcoming: (weeks: string) => `Next ${weeks}`,
   linkRange: 'link range',
 }

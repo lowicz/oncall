@@ -656,7 +656,12 @@ describe('CalendarMatrix risk chips', () => {
     // The grid's single tab stop moves to that day's column.
     expect(screen.getAllByRole('button', { name: /^Anna Kowalska, wt 08-09-2026/ })[0]).toHaveAttribute('tabindex', '0')
 
-    fireEvent.click(within(riskRow()).getByRole('button', { name: /1 osoba z dyżurem w dniu niedostępności/ }))
+    // A chip that leads to a day names it, ends in a chevron and says where it leads.
+    const clash = within(riskRow()).getByRole('button', { name: '1 kolizja z niedostępnością · 07-09' })
+    expect(clash).toHaveClass('chip-warn')
+    expect(clash).toHaveAccessibleDescription('Pokaż pierwszy taki dzień')
+    expect(clash.querySelector('.chip-go')).toBeInTheDocument()
+    fireEvent.click(clash)
     expect(await screen.findByRole('dialog', { name: /^pon 07-09-2026/ })).toBeInTheDocument()
   })
 
@@ -668,7 +673,7 @@ describe('CalendarMatrix risk chips', () => {
 
     // Sunday has duties but is outside the publication: no gap, so full coverage.
     expect(await within(await screen.findByRole('list', { name: 'Ryzyka w zakresie' })).findByText('Pełna obsada w całym zakresie')).toBeInTheDocument()
-    expect(screen.queryByText(/z dyżurem w dniu niedostępności/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/z niedostępnością/)).not.toBeInTheDocument()
   })
 
   it('tells a member that unstaffed days past the publication wait for the coordinator', async () => {
@@ -683,7 +688,7 @@ describe('CalendarMatrix risk chips', () => {
       availability: [{ member_id: 'm2', kind: 'unavailable', starts_on: '2026-09-09', ends_on: '2026-09-09', note: null }],
     }))
     renderScreen(<CalendarMatrix role="admin" displayName="Administrator" range={WEEK_OF_TODAY} />)
-    expect(await screen.findByRole('button', { name: /1 osoba z dyżurem w dniu niedostępności/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /1 kolizja z niedostępnością/ })).toBeInTheDocument()
     expect(within(riskRow()).queryByText('Pełna obsada w całym zakresie')).not.toBeInTheDocument()
   })
 
@@ -693,11 +698,11 @@ describe('CalendarMatrix risk chips', () => {
     expect(await screen.findByText('Pełna obsada w całym zakresie')).toBeInTheDocument()
   })
 
-  it('carries only the chips the screen adds when the risks are left out', async () => {
+  it('draws no risk row when the screen leaves the risks out', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({ assignments: [] }))
-    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} showRisks={false} extraChips={<span>2 zamiany czekają</span>} />)
-    expect(await screen.findByText('2 zamiany czekają')).toBeInTheDocument()
-    expect(screen.queryByText(/bez pełnej obsady/)).not.toBeInTheDocument()
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} showRisks={false} />)
+    expect((await screen.findAllByText('Anna Kowalska')).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('list', { name: 'Ryzyka w zakresie' })).not.toBeInTheDocument()
   })
 
   it('opens the first gap in the day list too', async () => {
@@ -922,7 +927,7 @@ describe('CalendarMatrix day inspector', () => {
     renderScreen(<CalendarMatrix role="viewer" displayName="Marek Nowak" range={WEEK_OF_TODAY} />)
     const dialog = await open(/^Ola Wiśniewska, pt 11-09-2026/)
     expect(within(dialog).queryByRole('link', { name: 'Poproś o zamianę' })).not.toBeInTheDocument()
-    expect(within(dialog).getByText('korekta')).toBeInTheDocument()
+    expect(within(dialog).getByText('11:00–19:00 · korekta')).toBeInTheDocument()
     expect(within(dialog).getByText('nieznana osoba: Wolę nie - stary wpis')).toBeInTheDocument()
     expect(within(dialog).getByText('Ola Wiśniewska: Chętnie wezmę')).toBeInTheDocument()
     // Marek is on duty that day, so the row note stops at the name.
@@ -986,6 +991,19 @@ describe('CalendarMatrix staffing form', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: roleRow }))
     return dialog
   }
+
+  it('shows the way into a correction on every role row without a hover', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week())
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ }))[0])
+    const dialog = await screen.findByRole('dialog')
+    const staffed = within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień obsadę' })
+    const change = within(staffed).getByText('Zmień…')
+    expect(change).toHaveClass('btn', 'btn-sm', 'btn-ghost')
+    expect(change).toHaveAttribute('aria-hidden', 'true')
+    const gap = within(dialog).getByRole('button', { name: '11–19: brak obsady. Zmień obsadę' })
+    expect(within(gap).getByText('Obsadź…')).not.toHaveClass('btn-ghost')
+  })
 
   it('opens on the role row that was clicked and lets the role and the person change', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({

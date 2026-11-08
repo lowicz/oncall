@@ -58,7 +58,7 @@ function stub(swaps: SwapRequest[], policy: SwapPolicy = APPROVAL_REQUIRED) {
   })
 }
 
-const inbox = (name: RegExp) => screen.getByRole('button', { name })
+const inbox = (name: RegExp) => screen.getByRole('radio', { name })
 const stepsOf = (sheet: HTMLElement) =>
   within(within(sheet).getByRole('list', { name: 'Etap wniosku' })).getAllByRole('listitem').map((item) => item.textContent)
 
@@ -141,7 +141,7 @@ describe('SwapPanel without the coordinator approval', () => {
     renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
 
     expect(await screen.findByText('0 czeka na Twoją decyzję · 1 czeka na drugą stronę · 1 zamknięta')).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'W toku: 1 sprawa' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'W toku: 1 sprawa' })).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: /^Do zatwierdzenia/ })).not.toBeInTheDocument()
     fireEvent.click(inbox(/^W toku/))
     expect(screen.getByText('czeka na: Piotr Zieliński')).toBeInTheDocument()
@@ -154,7 +154,7 @@ describe('SwapPanel inbox', () => {
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
 
     expect(await screen.findByText('1 czeka na Twoją decyzję · 0 czeka na drugą stronę · 0 zamkniętych')).toBeInTheDocument()
-    expect(inbox(/^Do mnie/)).toHaveAttribute('aria-pressed', 'true')
+    expect(inbox(/^Do mnie/)).toHaveAttribute('aria-checked', 'true')
     const row = screen.getByRole('row', { name: /pon 14 wrz/ })
     expect(within(row).getByText('czeka na Ciebie')).toBeInTheDocument()
 
@@ -182,7 +182,7 @@ describe('SwapPanel inbox', () => {
     renderScreen(<SwapPanel displayName="Koordynator" role="coordinator" hasTeamMember={false} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
-    expect(inbox(/^Do zatwierdzenia/)).toHaveAttribute('aria-pressed', 'true')
+    expect(inbox(/^Do zatwierdzenia/)).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('Piotr zgodził(a) się · czeka na Ciebie')).toBeInTheDocument()
     // A coordinator without a rotation slot has no request to file.
     expect(screen.queryByRole('button', { name: 'Nowa zamiana' })).not.toBeInTheDocument()
@@ -216,7 +216,21 @@ describe('SwapPanel inbox', () => {
     const tab = inbox(/^Do zatwierdzenia/)
     expect(tab).toHaveAccessibleName('Do zatwierdzenia: 0 spraw')
     expect(tab).toHaveTextContent('0')
-    expect(tab).toHaveAttribute('aria-pressed', 'false')
+    expect(tab).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('gives "waiting" one tone at every stage and the broken-rules tag the tone of an error', async () => {
+    stub([
+      swap({ id: '1', replacement_name: 'Ola Wiśniewska', rule_violations: [THREE_IN_SEVEN] }),
+      swap({ id: '2', service_date: '2026-09-15', replacement_name: 'Ola Wiśniewska', status: 'pending_coordinator' }),
+    ])
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+    await screen.findByText('Nikt Cię o nic nie prosi')
+    fireEvent.click(inbox(/^W toku/))
+    expect(await screen.findByText('Oczekuje na zastępcę')).toHaveClass('st', 'st-prop')
+    expect(screen.getByText('Oczekuje na koordynatora')).toHaveClass('st', 'st-prop')
+    // Salmon is the 11–19 role's colour, so a rule broken by a swap is not drawn in it.
+    expect(screen.getByText('łamie reguły')).toHaveClass('tag', 'tag-bad')
   })
 
   it('names each filter with its count spelled out for screen readers', async () => {
@@ -229,10 +243,10 @@ describe('SwapPanel inbox', () => {
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
 
     await screen.findByText('1 czeka na Twoją decyzję · 2 czekają na drugą stronę · 1 zamknięta')
-    expect(screen.getByRole('button', { name: 'Do mnie: 1 sprawa' })).toHaveTextContent('Do mnie1')
-    expect(screen.getByRole('button', { name: 'Moje: 0 spraw' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'W toku: 2 sprawy' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Zamknięte' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Do mnie: 1 sprawa' })).toHaveTextContent('Do mnie1')
+    expect(screen.getByRole('radio', { name: 'Moje: 0 spraw' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'W toku: 2 sprawy' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Zamknięte' })).toBeInTheDocument()
   })
 
   it('keeps settled requests under "Zamknięte" with no decisions left', async () => {
@@ -286,7 +300,7 @@ describe('SwapPanel inbox', () => {
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
 
     fireEvent.click(await screen.findByRole('button', { name: /Podgląd/ }))
-    expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'true')
+    expect(inbox(/^Moje/)).toHaveAttribute('aria-checked', 'true')
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
     const withdraw = within(sheet).getByRole('button', { name: 'Wycofaj' })
     expect(withdraw).toBeEnabled()
@@ -312,7 +326,7 @@ describe('SwapPanel inbox', () => {
     stub([swap({ id: '1', status: 'approved' }), swap({ id: '2' })])
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />, { route: '/zamiany?skrzynka=zamkniete' })
     expect(await screen.findByText('Zatwierdzona')).toBeInTheDocument()
-    expect(inbox(/^Zamknięte/)).toHaveAttribute('aria-pressed', 'true')
+    expect(inbox(/^Zamknięte/)).toHaveAttribute('aria-checked', 'true')
     expect(inbox(/^Do mnie/)).toHaveTextContent('1')
   })
 
@@ -473,12 +487,12 @@ describe('SwapPanel new request', () => {
     expect(screen.getByRole('button', { name: 'Cofnij' })).toBeInTheDocument()
     // The inbox switch goes through the router's search params and can land
     // a render after the toast.
-    await waitFor(() => expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'true'))
+    await waitFor(() => expect(inbox(/^Moje/)).toHaveAttribute('aria-checked', 'true'))
     await waitFor(() => expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument())
 
     fireEvent.click(inbox(/^Do mnie/))
-    await waitFor(() => expect(inbox(/^Do mnie/)).toHaveAttribute('aria-pressed', 'true'))
-    expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'false')
+    await waitFor(() => expect(inbox(/^Do mnie/)).toHaveAttribute('aria-checked', 'true'))
+    expect(inbox(/^Moje/)).toHaveAttribute('aria-checked', 'false')
   })
 
   it('confirms without a name when the replacement left the list while the request was sent', async () => {
@@ -2169,6 +2183,7 @@ describe('SwapPanel on a phone', () => {
 
     const exchange = (await screen.findByRole('button', { name: /^Podgląd: pon 14 wrz/ })).closest('.list-row') as HTMLElement
     expect(exchange).toHaveTextContent('pon 14 wrz · PRIMARY ⇄ zamiana z śr 16 wrz · SECONDARY Oczekuje na zastępcę łamie regułyTy → Ola Wiśniewska · czeka na: Ola Wiśniewska')
+    expect(within(exchange).getByText('łamie reguły')).toHaveClass('tag', 'tag-bad')
 
     fireEvent.click(inbox(/^Zamknięte/))
     const lapsed = (await screen.findByRole('button', { name: /^Podgląd: wt 8 wrz/ })).closest('.list-row') as HTMLElement

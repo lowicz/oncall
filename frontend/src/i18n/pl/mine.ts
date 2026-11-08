@@ -22,7 +22,8 @@ export const mine = {
     /** The duty a colleague holds on the same day, spelled out in full. */
     partnerRoles: { primary: 'Primary', secondary: 'Secondary', late_shift: '11–19' },
     afterCorrection: 'po korekcie',
-    collidesWithUnavailability: 'koliduje z Twoją niedostępnością',
+    collision: 'kolizja',
+    showCollision: (day: string) => `Kolizja z Twoją niedostępnością ${day}: pokaż w kalendarzu`,
   },
   calendar: {
     label: (month: string) => `Kalendarz dostępności, ${month}`,
@@ -95,6 +96,7 @@ export const mine = {
   points: {
     heading: 'Moje punkty',
     headingCompact: 'Punkty',
+    period: 'Okres',
     twelveMonths: '12 mies.',
     thisMonth: 'Ten miesiąc',
     loading: 'Wczytywanie punktów…',

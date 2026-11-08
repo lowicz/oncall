@@ -22,7 +22,8 @@ export const mine: Messages['mine'] = {
     /** The duty a colleague holds on the same day, spelled out in full. */
     partnerRoles: { primary: 'Primary', secondary: 'Secondary', late_shift: '11–19' },
     afterCorrection: 'after a correction',
-    collidesWithUnavailability: 'collides with your unavailability',
+    collision: 'clash',
+    showCollision: (day: string) => `Clash with your unavailability on ${day}: show in the calendar`,
   },
   calendar: {
     label: (month: string) => `Availability calendar, ${month}`,
@@ -90,6 +91,7 @@ export const mine: Messages['mine'] = {
   points: {
     heading: 'My points',
     headingCompact: 'Points',
+    period: 'Period',
     twelveMonths: '12 months',
     thisMonth: 'This month',
     loading: 'Loading points…',

@@ -81,7 +81,9 @@ small, .small { font-size: 12px; line-height: 16px; }
 .now-tel { font: 12px/16px var(--mono); color: inherit; text-decoration: none; flex: 0 0 auto; }
 .now-tel:hover { text-decoration: underline; }
 .now-until { margin-left: auto; font: 12px/16px var(--mono); overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 0; text-align: right; }
-.now-stale::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn-dot); box-shadow: 0 0 0 1.5px var(--band-ink); margin-right: 6px; vertical-align: middle; }
+.now-gap::before, .now-stale::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn-dot); box-shadow: 0 0 0 1.5px var(--band-ink); margin-right: 6px; vertical-align: middle; }
+/* A real gap outweighs the name beside it: bold, with the alarm dot. */
+.now-gap::before { background: var(--bad-dot); }
 .now-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--band-edge); border-radius: 999px; padding: 5px 12px; color: var(--band-ink); min-width: 150px; font-size: 12px; line-height: 16px; background: transparent; cursor: pointer; }
 .now-search:hover { border-color: var(--band-ink); }
 .now-search .kbd { margin-left: auto; }
@@ -98,6 +100,8 @@ small, .small { font-size: 12px; line-height: 16px; }
 .ph { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ph-text { min-width: 0; }
 .ph-title { font: 700 32px/36px var(--font); }
+/* The one state pill beside a title that is a range. */
+.ph-pill { vertical-align: middle; }
 .ph-sub { color: var(--muted); font-size: 14px; line-height: 21px; margin-top: 5px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; text-wrap: pretty; }
 .ph-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .sech { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--line2); padding-bottom: 7px; flex-wrap: wrap; }
@@ -107,7 +111,7 @@ small, .small { font-size: 12px; line-height: 16px; }
 .sech-link { color: var(--fg); text-decoration: none; padding-bottom: 2px; border-bottom: 1.5px solid transparent; background: none; border-top: 0; border-left: 0; border-right: 0; padding-top: 0; padding-left: 0; padding-right: 0; font: 600 14px/21px var(--font); }
 .sech-link:hover { border-bottom-color: var(--line2); }
 .sech-link.on, .sech-link[aria-pressed='true'], .sech-link[data-popup-open] { border-bottom-color: var(--sig); border-bottom-width: 2px; }
-.sech-link .tab-count { margin-left: 6px; }
+.seg .tab-count { margin-left: 6px; }
 .sech-ctl .seg, .sech-ctl .btn, .sech-ctl .ib { align-self: center; }
 .sech-ctl .sel-wrap { width: auto; }
 .sech-ctl .in { min-height: 32px; font-size: 12px; line-height: 16px; padding: 0 24px 0 8px; width: auto; }
@@ -162,13 +166,13 @@ small, .small { font-size: 12px; line-height: 16px; }
 .chip-bad { border-color: var(--bad-dot); } .chip-bad .chip-dot { background: var(--bad-dot); }
 .chip-ok .chip-dot { background: var(--ok-dot); }
 .chip-sig { color: var(--sig); border-color: var(--sig-line); } .chip-sig .chip-dot { background: var(--sig); }
-.chip-btn { cursor: pointer; }
-.chip-btn:hover { background: var(--s2); }
+.chip-btn { cursor: pointer; padding-right: 8px; }
+.chip-btn:hover { background: var(--s2); text-decoration: underline; text-underline-offset: 3px; }
+.chip-go { color: var(--sig); margin: -2px -2px -2px 0; }
 .risk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .chip-row-item { display: contents; }
 
 .tag { font: 600 12px/16px var(--label); padding: 1px 9px; border-radius: 999px; background: var(--s3); color: var(--muted); white-space: nowrap; }
-.tag-late { color: var(--late-text); }
 .tag-sig { color: var(--sig); }
 .tag-bad { color: var(--bad-text); }
 .st { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/16px var(--label); padding: 1px 9px 1px 8px; border-radius: 999px; color: var(--fg); white-space: nowrap; }
@@ -495,6 +499,7 @@ table.m[data-zoom] th.who, table.m[data-zoom] td.who { width: 170px; min-width: 
 .role-row { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: none; color: inherit; text-align: left; font: inherit; }
 button.role-row { cursor: pointer; }
 button.role-row:hover { background: var(--s2); }
+button.role-row:hover .btn-ghost { color: var(--fg); }
 .role-r { font: 600 12px/16px var(--label); }
 .role-r-p { color: var(--p); } .role-r-s { color: var(--sec-text); }
 .role-n { font-weight: 600; font-size: 14px; line-height: 21px; min-width: 0; }
@@ -541,11 +546,9 @@ button.rank-c.rank-blocked { cursor: not-allowed; }
 .login-or::before, .login-or::after { content: ''; flex: 1 1 auto; border-top: 1px solid var(--line); }
 .login-foot { color: var(--muted); font-size: 12px; line-height: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .login-foot a { color: var(--muted); }
-.dcard { background: var(--s1); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px; position: relative; overflow: hidden; display: grid; gap: 6px; align-content: start; }
-.dcard::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--p); }
-.dcard-s::before { background: var(--sec); }
-.dcard-l::before { background: var(--late); }
-.dcard-role { font: 600 12px/16px var(--label); color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+/* The role is the pill it is everywhere else, not a stripe on the card's edge. */
+.dcard { background: var(--s1); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.dcard-role { font: 600 12px/16px var(--label); color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dcard-name { font: 700 24px/28px var(--font); }
 .dcard-none .dcard-name { color: var(--dim); font-size: 14px; line-height: 21px; font-weight: 500; }
 .dcard-win { font: 12px/16px var(--mono); color: var(--muted); }
@@ -597,6 +600,9 @@ button.rank-c.rank-blocked { cursor: not-allowed; }
 .filter-chip { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/16px var(--font); padding: 5px 12px; border-radius: 999px; border: 1px solid var(--sig-line); color: var(--sig); background: var(--sig-soft); }
 .filter-chip button { min-width: 24px; min-height: 24px; background: none; border: 0; padding: 0; color: inherit; display: inline-grid; place-items: center; }
 .pager { display: flex; align-items: center; gap: 6px; }
+/* The month is the heading of the availability calendar, between its arrows. */
+.month-title { font: 600 16px/24px var(--font); color: var(--fg); min-width: 9em; text-align: center; }
+.month-title::first-letter { text-transform: uppercase; }
 .big-number { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .wide-scroll { overflow-x: auto; position: relative; }
 .week-h { padding: 6px 12px; font: 600 12px/16px var(--label); font-variant-numeric: tabular-nums; color: var(--dim); background: var(--s2); border-bottom: 1px solid var(--line); }
@@ -622,6 +628,9 @@ button.rank-c.rank-blocked { cursor: not-allowed; }
 .dayrow-role:hover { color: var(--sig); }
 .dayrow-aside { display: grid; gap: 4px; justify-items: end; }
 .dayrow-sel { box-shadow: inset 0 0 0 2px var(--focus); }
+/* An action that reads as a link inside a sentence: the way to the first gap, to a clash. */
+.text-link { background: none; border: 0; padding: 0; font: inherit; color: var(--sig); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.text-link:hover { color: var(--fg); }
 .link-btn { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .link-btn:hover { color: var(--sig); }
 .link-btn small { display: block; color: var(--muted); font: 12px/16px var(--mono); margin-top: 2px; }
@@ -695,6 +704,14 @@ table.report-table td.key { font-weight: 600; }
   .mx { max-height: none; }
   .pal-popup { top: 8px; max-height: 85vh; }
   .dcard-acts .btn { flex: 1 1 auto; }
+  /* The month stays in view while the calendar scrolls: the heading dissolves
+     into the section, so the month row can stick under the top bar. */
+  .avail-head, .avail-head .sech-ctl { display: contents; }
+  .avail-head .sech-title { padding-bottom: 7px; border-bottom: 1px solid var(--line2); }
+  .avail-month { position: sticky; top: calc(58px + env(safe-area-inset-top)); z-index: 5; background: var(--bg); justify-content: space-between; padding: 4px 0; }
+}
+@media (max-width: 900px) and (pointer: coarse) {
+  .avail-month { top: calc(62px + env(safe-area-inset-top)); }
 }
 @media (min-width: 901px) and (max-width: 1100px) {
   .app { grid-template-columns: 56px minmax(0, 1fr); }

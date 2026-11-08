@@ -21,16 +21,19 @@ kto jeszcze ma tego dnia dyżur (`Secondary: Marek`). Dyżur trwający dziś jes
 podświetlony i ma przycisk **Szczegóły** (otwiera ten dzień na Grafiku);
 każdy inny ma przycisk **Zamień**, który otwiera ekran Zamiany z tym dyżurem
 już wybranym. Dzień, który koliduje ze zgłoszonym „nie mogę”, ma bursztynową
-krawędź i dopisek „koliduje z Twoją niedostępnością”. Link **Grafik** w
+krawędź i dopisek **kolizja**; kliknięcie go przewija do kalendarza
+dostępności otwartego na miesiącu tego dnia. Link **Grafik** w
 nagłówku sekcji otwiera macierz z podświetleniem Twojego wiersza.
 
 ## Moja dostępność
 
 Dostępność zgłasza się **na kalendarzu miesiąca**, bez formularza z datami.
-Strzałki w nagłówku sekcji zmieniają miesiąc. Nad kalendarzem jest pędzel z
-czterema trybami - **nie mogę**, **wolę nie**, **chętnie** i **wyczyść** - a
-obok niego pole **Powód do kolejnych wpisów**: najpierw wybierasz, co i
-dlaczego, potem zaznaczasz dni.
+W nagłówku sekcji jest nazwa miesiąca jako nagłówek kalendarza, ze
+strzałkami zmieniającymi miesiąc po obu stronach. Na telefonie wiersz z
+miesiącem zostaje przyklejony pod górnym paskiem, gdy przewijasz kalendarz.
+Nad kalendarzem jest pędzel z czterema trybami - **nie mogę**, **wolę nie**,
+**chętnie** i **wyczyść** - a obok niego pole **Powód do kolejnych wpisów**:
+najpierw wybierasz, co i dlaczego, potem zaznaczasz dni.
 
 - Kliknięcie dnia zapisuje ten jeden dzień wybranym trybem.
 - Przeciągnięcie po dniach zapisuje cały zakres; Shift+klik domyka zakres od
@@ -134,7 +137,8 @@ numer w dowolnej postaci (`600 100 200`, `48600100200`, `+48 600-100-200`) i
 kliknij **Zapisz numer**: aplikacja zapisuje go jako `+48` i dziewięć cyfr i
 pokazuje tę postać w polu. Numer zagraniczny nie jest przyjmowany - pole
 mówi „Popraw numer”, a osoba w rotacji bez numeru widzi „Wymagany dla osób w
-rotacji”. Puste pole usuwa numer.
+rotacji”. Oba komunikaty pojawiają się dopiero po wyjściu z pola albo przy
+zapisie, nie w trakcie pisania. Puste pole usuwa numer.
 
 Przy logowaniu z katalogu (LDAP / Active Directory) administrator może
 włączyć pobieranie numeru z katalogu: wypełnia ono tylko puste pole, więc
