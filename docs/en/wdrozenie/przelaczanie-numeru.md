@@ -84,8 +84,10 @@ test alert, sent to its recipients, checks that:
 ```
 
 The alert goes to the active coordinators and administrators who have an
-e-mail address, and to the person on PRIMARY; an account without an address
-gets nothing.
+e-mail address, and to the person on PRIMARY, and during a
+[handover of the number](../produkt/integracje.md#handing-the-number-over-within-the-pair)
+to the person who took it over as well; an account without an address gets
+nothing.
 
 Keep the local administrator account: `ONCALL_ADMIN_USERNAME` and
 `ONCALL_ADMIN_PASSWORD` in `.env` create and synchronise it on every `api`
@@ -150,7 +152,8 @@ change under way.
 
 ## Phone numbers
 
-The forwarding target is the phone on the account of the person on PRIMARY,
+The forwarding target is the phone on the account of the person on PRIMARY
+(during a handover of the number, of the person who took it over),
 stored as `+48` and nine digits (`+48500500500`) and sent to WCO unchanged.
 On the **People** screen the **In the rotation** filter shows everyone who
 can get PRIMARY: a missing number is red in the phone column, and a number

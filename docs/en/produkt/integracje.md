@@ -152,13 +152,50 @@ administrator enters a new password, so as not to lock the WCO account.
 Failures: a permanent error (a refused login, a refused number change,
 nobody on PRIMARY, no number) at once, and a transient one (the network, a
 server error) after 10 minutes of retries sends the "Numer on-call" e-mail to
-the active coordinators and administrators and to the person on PRIMARY,
-once a day per target: who should be receiving calls, what WCO forwards to,
+the active coordinators and administrators and to the person on PRIMARY
+(during a handover also to the person who took the number over), once a day
+per target: who should be receiving calls, what WCO forwards to,
 what failed and what to do. When the switch succeeds after an alert, the
 coordinators and administrators get a short recovery message. In dry run
 mode no alerts go out. No message, audit entry or state carries a password,
 a cookie or WCO's response body, only the name of the call and the HTTP
 status.
+
+### Handing the number over within the pair
+
+The forwarding target need not be the PRIMARY: the person on PRIMARY, the
+person on SECONDARY of the same day, or a coordinator or administrator can
+hand the number to the SECONDARY for a few hours ([Handing over the
+number](../uzytkownik/dyzury.md#handing-over-the-number)). A handover is a row
+of its own (`forwarding_handovers`), not a manual change in WCO, so the worker
+does not overwrite it on its next pass: the target the schedule calls for reads
+the active handover and, while it lasts, points at the person who took the
+number over. At most one handover is active at a time.
+
+- **Modes.** A handover exists only in **On** and **Dry run** modes. In **Off**
+  mode the interface shows neither the badge nor the buttons, and a request
+  gets a 409 response with a message. In **Dry run** mode the handover is
+  recorded and visible, but WCO is not changed.
+- **End.** A handover ends by itself when the chosen time passes (no later than
+  the reminder hour, when the number moves to the new PRIMARY anyway), by hand
+  (the pair, a coordinator, an administrator; in **Off** mode only through the
+  API, because the interface shows no button) or through a schedule change. None of these returns needs starting separately: the worker
+  compares the target with WCO's state as ever.
+- **Schedule change.** A correction or swap that changes who is on PRIMARY or
+  SECONDARY that day, swapping the two roles included, ends the handover with the reason "schedule change" and sends the
+  e-mail "Przekazanie numeru on-call zakończone przez korektę grafiku" to both
+  sides, saying who is on PRIMARY now. Beforehand the correction check returns a
+  warning for the frame in the day panel.
+- **E-mails.** Apart from that one, no e-mail about a handover goes out, even on
+  success. The "Numer on-call" failure alert goes, during a handover, to the
+  person who took the number over as well as to the coordinators,
+  administrators and the person on PRIMARY, with their name in the facts.
+- **Permissions and state.** Three endpoints outside `/admin`:
+  `POST /api/v1/forwarding/handover`, `DELETE /api/v1/forwarding/handover/{id}`
+  and `GET /api/v1/forwarding/now`. The server lets the first two through for
+  a side of the day's pair or a coordinator ([Roles and
+  access](role-i-dostep.md#handing-over-the-on-call-number)); the third
+  answers every role and share-link session, with no phone numbers.
 
 The connection to WCO is always verified; a corporate CA is added from the
 `ONCALL_CA_FILE` file ([Getting started](../wdrozenie/uruchomienie.md#ca-file)).

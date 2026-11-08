@@ -29,6 +29,23 @@ The roles are cumulative: an administrator sees everything a coordinator does.
 | Number forwarding (`/przelaczanie`) | no | no | no | yes |
 | Audit (`/audyt`) | no | no | no | yes |
 
+Handing the on-call number over within the day's pair has no screen of its
+own: it is an action on the Now screen, described below.
+
+## Handing over the on-call number
+
+| Action | viewer | member | coordinator | admin |
+| --- | :---: | :---: | :---: | :---: |
+| See where the number rings | yes | yes | yes | yes |
+| Hand the number over and end a handover | no | only as the day's PRIMARY or SECONDARY | yes | yes |
+
+Where the number rings is also seen by the recipient of a share link.
+A team member hands the number over only when they are the PRIMARY or the
+SECONDARY of the duty day; the server checks it on every request, so a button
+the interface does not show opens no way through the API. The state response
+carries no phone numbers; a duty person's phone is seen by each role only
+where it already sees it on the duty cards.
+
 Navigation items unavailable to a role simply do not appear. Entering the
 address of a screen outside your permissions takes you to the “Now” screen;
 regardless of that, every API request is checked on the server side. **The

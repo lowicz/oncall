@@ -83,7 +83,9 @@ Sprawdza to próbny alarm kopii zapasowych, wysyłany do jego odbiorców:
 ```
 
 Alarm dostają aktywni koordynatorzy i administratorzy, którzy mają adres
-e-mail, oraz osoba na PRIMARY; konto bez adresu nie dostanie niczego.
+e-mail, oraz osoba na PRIMARY, a w czasie
+[przekazania numeru](../produkt/integracje.md#przekazanie-numeru-w-obrębie-pary)
+także przejmujący; konto bez adresu nie dostanie niczego.
 
 Zachowaj lokalne konto administratora: `ONCALL_ADMIN_USERNAME` i
 `ONCALL_ADMIN_PASSWORD` w `.env` zakładają je i synchronizują przy każdym
@@ -145,7 +147,8 @@ ponownie. Rób to, gdy karta **Stan** nie pokazuje trwającej zmiany hasła.
 
 ## Numery telefonów
 
-Celem przekierowania jest telefon z konta osoby na PRIMARY, zapisany jako
+Celem przekierowania jest telefon z konta osoby na PRIMARY (w czasie
+przekazania numeru: przejmującego), zapisany jako
 `+48` i dziewięć cyfr (`+48500500500`) i wysyłany do WCO bez zmian. Na
 ekranie **Osoby** filtr **W rotacji** pokazuje każdą osobę, która może
 dostać PRIMARY: brak numeru jest w kolumnie telefonu czerwony, a numer w
