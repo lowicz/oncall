@@ -191,9 +191,9 @@ const CASES: Case[] = [
   get('schedule', () => api.schedule('s1'), '/api/v1/scheduling/s1'),
   send('deleteSchedule', () => api.deleteSchedule('s1'), 'DELETE', '/api/v1/scheduling/s1'),
   send('overrideDraft', () => api.overrideDraft({
-    id: 's1', expected_version: 4, service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2',
+    id: 's1', expected_version: 4, service_date: '2026-09-14', assignments: [{ role: 'primary', replacement_member_id: 'm2' }],
   }), 'POST', '/api/v1/scheduling/s1/override', {
-    expected_version: 4, service_date: '2026-09-14', role: 'primary', replacement_member_id: 'm2',
+    expected_version: 4, service_date: '2026-09-14', assignments: [{ role: 'primary', replacement_member_id: 'm2' }],
   }),
   get('draftFairnessImpact', () => api.draftFairnessImpact('s1', 5), '/api/v1/scheduling/s1/fairness-impact?version=5'),
   send('proposeSchedule', () => api.proposeSchedule({ id: 's1', expectedVersion: 2 }),

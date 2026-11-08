@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
 import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
-import { REQUIRED_ROLES, availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
-import { formatDate, formatShortDate, formatWeekday, warsawDate } from '../lib/dates'
-import { draftFairnessImpactQuery, roundPoints } from '../lib/fairness'
-import { signed } from '../lib/numbers'
-import { useUndoable } from '../hooks/useUndoable'
-import { problemCounts } from './DraftProblems'
-import { AvailabilityMark, Box, Button, ErrorState, Field, KeyValue, LoadingBlock, Panel, RoleMark, Select, Tag, cx, useToast } from '../ui'
+import { REQUIRED_ROLES, Roster, availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
+import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
+import { useDraftRoleSwap } from '../hooks/useDraftRoleSwap'
+import { useDraftStaffChange } from '../hooks/useDraftStaffChange'
+import { AvailabilityMark, Box, ErrorState, LoadingBlock, Panel, RoleMark, Tag, cx } from '../ui'
 
 type Member = CalendarData['members'][number]
 type Day = CalendarData['days'][number]
-const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
 
 /** A cell the problems table asked the matrix to open. */
 export interface DraftFocus { service_date: string; assignee_name: string; role: AssignmentRole }
@@ -30,62 +27,44 @@ function focusTarget(focus: DraftFocus, data?: CalendarData) {
   return member && day ? { member, day } : null
 }
 
-/** The one member with this name; none when it is missing or shared, so Undo never puts back the wrong person. */
-function soleMember(members: Member[], name?: string) {
-  const matches = members.filter((item) => item.display_name === name)
-  return matches.length === 1 ? matches[0] : undefined
-}
-
 /**
- * The draft as a matrix. A coordinator corrects one assignment at a time
- * from the inspector, an empty role included; the rest of the draft is not
- * re-solved. Days with an empty role are marked in the header. Availability
- * marks show who can be moved in before the API refuses the move.
+ * The draft as a matrix. A coordinator corrects one day at a time from the
+ * panel, as the published day inspector does: the roles to change for the
+ * person whose cell was clicked, an empty role included, or the day's on-call
+ * pair trading places; the rest of the draft is not re-solved. Days with an
+ * empty role are marked in the header. Availability marks show who can be
+ * moved in before the API refuses the move.
  */
 export function DraftScheduleMatrix({ result, onChange, focus }: {
   result: DraftSchedule
   onChange: (value: DraftSchedule) => void
   focus?: DraftFocus | null
 }) {
-  const { generator: { matrix: t }, common } = useMessages()
+  const { generator: { matrix: t } } = useMessages()
   const today = warsawDate()
   const [selected, setSelected] = useState<{ member: Member; day: Day } | null>(null)
-  const [selectedRole, setSelectedRole] = useState<AssignmentRole>('primary')
   const metadata = useQuery({
     queryKey: ['draft-matrix-metadata', result.starts_on, result.ends_on],
     queryFn: () => api.calendar(result.starts_on, result.ends_on),
   })
-  const fairness = useQuery(draftFairnessImpactQuery(result))
-  const undoable = useUndoable()
-  const toast = useToast()
-  // The inverse is the same correction back to the person it replaced; the
-  // cell stays marked as corrected, the rest of the draft is untouched.
-  const override = useMutation({
-    mutationFn: async ({ previousName, previous, next, ...input }: Parameters<typeof api.overrideDraft>[0] & { previousName: string; previous?: Member; next: Member }) => {
-      const message = (value: DraftSchedule) => ({
-        title: t.assigned(formatShortDate(input.service_date), roleLabels()[input.role], previousName, next.display_name),
-        description: t.remainingProblems(problemCounts(value).total),
-      })
-      if (!previous) {
-        const value = await api.overrideDraft(input)
-        const { title, description } = message(value)
-        toast.success(title, { description })
-        return value
-      }
-      return undoable({
-        execute: () => api.overrideDraft(input),
-        undo: async (value) => onChange(await api.overrideDraft({
-          ...input,
-          expected_version: value.version,
-          replacement_member_id: previous.id,
-        })),
-        message,
-      })
-    },
-    onSuccess: (value) => {
+  const policy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy, enabled: Boolean(selected) })
+  // The draft's assignments over the calendar's team: what the inspector's
+  // helpers read the published days from.
+  const roster = useMemo<Roster | undefined>(
+    () => metadata.data && { ...metadata.data, assignments: result.assignments },
+    [metadata.data, result.assignments],
+  )
+  const serviceDate = selected?.day.service_date
+  const roleSwap = useDraftRoleSwap({
+    draft: result,
+    roster,
+    serviceDate,
+    anchor: policy.data?.late_shift_anchor ?? 'secondary',
+    onSaved: (value) => {
       onChange(value)
       setSelected(null)
     },
+    onUndone: onChange,
   })
   const editable = result.status === 'draft'
   const days = useMemo(() => metadata.data?.days ?? [], [metadata.data])
@@ -98,6 +77,22 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   )
   const cellAvailability = useMemo(() => availabilityByDay(metadata.data?.availability ?? [], days), [metadata.data, days])
   const availabilityOf = (memberId: string, serviceDate: string) => cellAvailability.get(`${memberId}|${serviceDate}`)
+  const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
+  const unavailable = selectedAvailability?.kind === 'unavailable'
+  const staffChange = useDraftStaffChange({
+    draft: result,
+    roster,
+    selected,
+    unavailable,
+    anchor: policy.data?.late_shift_anchor,
+    onSaved: (value) => {
+      onChange(value)
+      setSelected(null)
+    },
+    onUndone: onChange,
+    onClose: () => closePanel(),
+  })
+  const { openFor } = staffChange
   const conflictKeys = useMemo(
     () => new Set((result.unavailability_conflicts ?? []).map((item) => `${item.service_date}:${item.assignee_name}`)),
     [result.unavailability_conflicts],
@@ -110,19 +105,18 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
     if (!target) return
     consumed.current = focus
     setSelected(target)
-    setSelectedRole(focus.role)
-  }, [focus, metadata.data])
-
-  const selectedAssignment = selected
-    ? result.assignments.find((item) => item.service_date === selected.day.service_date && item.role === selectedRole)
-    : undefined
-  const previousMember = soleMember(members, selectedAssignment?.assignee_name)
-  const selectedAvailability = selected ? availabilityOf(selected.member.id, selected.day.service_date) : undefined
-  const selectedBalance = selected ? fairness.data?.projected_members.find((item) => item.member_id === selected.member.id) : undefined
-  const selectedCategory = selectedBalance?.[selectedRole]
-  const correctionPoints = selectedRole !== 'late_shift' && selected?.day.is_day_off ? 2 : 1
-  const changesHolder = selectedAssignment?.assignee_name !== selected?.member.display_name
-  const cannotAssign = !changesHolder || selectedAvailability?.kind === 'unavailable'
+    openFor(focus.role)
+  }, [focus, metadata.data, openFor])
+  const openCell = (member: Member, day: Day, role: AssignmentRole) => {
+    roleSwap.close()
+    setSelected({ member, day })
+    openFor(role)
+  }
+  const closePanel = () => {
+    roleSwap.close()
+    setSelected(null)
+  }
+  const panelTitle = staffChange.ready && !roleSwap.open ? t.correctionTitle : t.dayTitle
 
   return (
     <div className="stack-sm">
@@ -176,11 +170,8 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                           className={cx('cell', isSelected && 'cell-sel', day.events.length > 0 && 'cell-ev')}
                           style={day.events[0] ? { ['--ev' as string]: `var(--ev-${day.events[0].color})` } : undefined}
                           disabled={!editable}
-                          onClick={() => {
-                            setSelected({ member, day })
-                            // An empty cell on a day with a gap opens on the empty role.
-                            setSelectedRole(assignments[0]?.role ?? missingRoles(result, day.service_date)[0] ?? 'primary')
-                          }}
+                          // An empty cell on a day with a gap opens on the empty role.
+                          onClick={() => openCell(member, day, assignments[0]?.role ?? missingRoles(result, day.service_date)[0] ?? 'primary')}
                           aria-label={cellLabel(
                             member.display_name,
                             day,
@@ -204,32 +195,10 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
       )}
       <Panel
         open={Boolean(selected)}
-        onClose={() => setSelected(null)}
-        title={selected ? (cannotAssign ? t.dayTitle : t.correctionTitle)(selected.member.display_name, formatDate(selected.day.service_date)) : ''}
+        onClose={closePanel}
+        title={selected ? panelTitle(selected.member.display_name, formatDate(selected.day.service_date)) : ''}
         meta={selected?.day.is_day_off && <Tag>{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
-        footer={selected && (
-          <>
-            <Button onClick={() => setSelected(null)}>{common.cancel}</Button>
-            <span className="sp" />
-            <Button
-              variant="primary"
-              disabled={cannotAssign || override.isPending}
-              loading={override.isPending}
-              onClick={() => override.mutate({
-                previousName: selectedAssignment?.assignee_name ?? t.noAssignment,
-                previous: previousMember,
-                next: selected.member,
-                id: result.id,
-                expected_version: result.version,
-                service_date: selected.day.service_date,
-                role: selectedRole,
-                replacement_member_id: selected.member.id,
-              })}
-            >
-              {override.isPending ? common.saving : t.assign}
-            </Button>
-          </>
-        )}
+        footer={roleSwap.open ? roleSwap.footer : staffChange.footer}
       >
         {selected && (
           <>
@@ -244,32 +213,14 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                 ))}
               </div>
             )}
-            {selectedAvailability && (
-              <Box tone={selectedAvailability.kind === 'unavailable' ? 'bad' : 'muted'} title={t.availabilityTitle(selected.member.display_name, availabilityLabels()[selectedAvailability.kind])}>
-                {selectedAvailability.kind === 'unavailable' && <>{t.willBeRejected}{' '}</>}
+            {selectedAvailability && !roleSwap.open && (
+              <Box tone={unavailable ? 'bad' : 'muted'} title={t.availabilityTitle(selected.member.display_name, availabilityLabels()[selectedAvailability.kind])}>
+                {unavailable && <>{t.willBeRejected}{' '}</>}
                 {selectedAvailability.note ? t.quotedNote(selectedAvailability.note) : ''}
               </Box>
             )}
-            <Field label={t.roleToChange} id="draft-override-role">
-              {({ id }) => (
-                <Select id={id} value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as AssignmentRole)}>
-                  {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
-                    <option key={item} value={item}>{roleLabels()[item]}</option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <KeyValue items={[
-              { key: t.currently, value: selectedAssignment?.assignee_name ?? t.noAssignment },
-              { key: t.afterCorrection, value: selected.member.display_name },
-            ]} />
-            {!selectedAssignment && !cannotAssign && <p className="muted small">{t.nobodyHoldsRole(selected.member.display_name)}</p>}
-            {selectedBalance && selectedCategory && changesHolder && (
-              <Box tone="sig" title={t.balanceTitle(roleLabels()[selectedRole], selectedBalance.display_name)}>
-                {t.balanceChange(signed(selectedCategory.deviation), signed(roundPoints(selectedCategory.deviation + correctionPoints)), correctionPoints > 1 ? t.twoPoints : t.onePoint)}
-              </Box>
-            )}
-            {override.error && <Box tone="bad" role="alert" title={override.error.message} />}
+            {roleSwap.trigger}
+            {roleSwap.frame || staffChange.form}
           </>
         )}
       </Panel>

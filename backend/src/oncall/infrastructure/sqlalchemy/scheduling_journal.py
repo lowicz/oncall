@@ -1,6 +1,7 @@
 """Audit and notification side effects of scheduling commands."""
 
 import uuid
+from collections.abc import Sequence
 from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,22 +88,27 @@ class SqlAlchemySchedulingJournal:
         )
 
     async def draft_corrected(
-        self, schedule_id: uuid.UUID, slot: Slot, previous_name: str, new_name: str
+        self, schedule_id: uuid.UUID, moves: Sequence[tuple[Slot, str, str]]
     ) -> None:
-        service_date, role = slot
+        service_date, role = moves[0][0]
+        handed = ", ".join(
+            f"{slot[1].value}: {previous_name} → {new_name}"
+            for slot, previous_name, new_name in moves
+        )
         self._schedule_event(
             "schedule.draft_override",
             schedule_id,
-            f"Korekta szkicu {service_date} · {role.value}: {previous_name} → {new_name}",
+            f"Korekta szkicu {service_date} · {handed}",
             {
                 "service_date": service_date.isoformat(),
                 "role": role.value,
                 "moves": [
                     {
-                        "service_date": service_date.isoformat(),
-                        "role": role.value,
+                        "service_date": slot[0].isoformat(),
+                        "role": slot[1].value,
                         "previous_assignee_name": previous_name,
                     }
+                    for slot, previous_name, _ in moves
                 ],
             },
         )

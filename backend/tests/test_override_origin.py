@@ -140,7 +140,7 @@ async def test_a_draft_correction_records_the_generated_holder_and_a_carry_leave
     store = SqlAlchemySchedules(db)
     await store.schedule_to_correct(schedule.id)
     await store.correct(
-        schedule.id, (day, AssignmentRole.primary), _as_member(members["Ola Wiśniewska"])
+        schedule.id, [((day, AssignmentRole.primary), _as_member(members["Ola Wiśniewska"]))]
     )
     await store.carry(
         schedule.id,

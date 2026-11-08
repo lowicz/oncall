@@ -1,4 +1,4 @@
-import { AssignmentRole, AvailabilityKind, CalendarData, LateShiftAnchor } from '../api'
+import { Assignment, AssignmentRole, AvailabilityKind, CalendarData, LateShiftAnchor } from '../api'
 import { formatMonth, isMonday, monthsShort } from './dates'
 import { messages } from '../i18n/messages'
 
@@ -7,6 +7,13 @@ import { messages } from '../i18n/messages'
 export const REQUIRED_ROLES: AssignmentRole[] = ['primary', 'secondary']
 
 const ALL_ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
+
+/** Who holds what over some days, with the team and its availability: the
+ *  published calendar, or a draft's assignments over the calendar's team. */
+export interface Roster extends Pick<CalendarData, 'days' | 'members' | 'availability'> {
+  assignments: Array<Assignment & { member_id?: string | null }>
+}
+type Slot = Roster['assignments'][number]
 
 /** `items` grouped under `key`, each group in the original order: what a grid
  *  reads per cell, built once per payload instead of a `filter` per cell. */
@@ -132,13 +139,13 @@ export function memberGroup(
 export const memberGroupLabels = (): Record<Exclude<MemberGroup, 'you'>, string> => messages().calendar.memberGroups
 
 /** Who holds `role` on `serviceDate`, if anybody. */
-export function slotOf(data: Pick<CalendarData, 'assignments'>, serviceDate: string, role: AssignmentRole) {
+export function slotOf<T extends Slot>(data: { assignments: T[] }, serviceDate: string, role: AssignmentRole): T | undefined {
   return data.assignments.find((item) => item.service_date === serviceDate && item.role === role)
 }
 
 export function isCurrentAssignee(
   member: CalendarData['members'][number],
-  assignment: CalendarData['assignments'][number] | undefined,
+  assignment: Slot | undefined,
 ) {
   return Boolean(assignment && (
     assignment.member_id === member.id
@@ -156,7 +163,7 @@ function isEligible(member: CalendarData['members'][number], role: AssignmentRol
 }
 
 /** The member recorded an unavailability covering the day. */
-function isUnavailable(data: CalendarData, memberId: string, serviceDate: string) {
+function isUnavailable(data: Pick<Roster, 'availability'>, memberId: string, serviceDate: string) {
   return data.availability.some(
     (item) => item.member_id === memberId
       && item.kind === 'unavailable'
@@ -185,7 +192,7 @@ export interface StaffingCandidate {
 
 /** Whether two slots of a day have one holder: the identity, or the name on
  *  rows without one (`_same_holder` in the API). */
-function sameHolder(a: CalendarData['assignments'][number], b: CalendarData['assignments'][number]) {
+function sameHolder(a: Slot, b: Slot) {
   return b.member_id ? b.member_id === a.member_id : b.assignee_name === a.assignee_name
 }
 
@@ -200,7 +207,7 @@ function sameHolder(a: CalendarData['assignments'][number], b: CalendarData['ass
  * coordinators and administrators.
  */
 export function staffingCandidates(
-  data: CalendarData,
+  data: Roster,
   serviceDate: string,
   roles: AssignmentRole[],
 ): StaffingCandidate[] {
@@ -255,13 +262,25 @@ export interface LateShiftLink {
   anchorHolder: string
 }
 
-export function lateShiftLink(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): LateShiftLink | null {
+export function lateShiftLink(data: Roster, serviceDate: string, anchor: LateShiftAnchor): LateShiftLink | null {
   const day = data.days.find((item) => item.service_date === serviceDate)
   if (anchor === 'independent' || !day || day.is_day_off) return null
   const late = slotOf(data, serviceDate, 'late_shift')
   const anchored = slotOf(data, serviceDate, anchor)
   if (!late || !anchored) return null
   return { anchor, coupled: sameHolder(anchored, late), holder: late.assignee_name, anchorHolder: anchored.assignee_name }
+}
+
+export type OnCall = 'primary' | 'secondary'
+
+/** The roles a correction of a day changes, in the order the day reads them:
+ *  the on-call role ticked, then 11–19. Without the coordinator's own choice
+ *  (`lateChoice` null) 11–19 goes along exactly where the API would carry it:
+ *  with its anchor role, from the person holding both. */
+export function correctionRoles(onCall: OnCall | null, lateChoice: boolean | null, link: LateShiftLink | null) {
+  const late = lateChoice ?? Boolean(link?.coupled && link.anchor === onCall)
+  const roles: AssignmentRole[] = [...(onCall ? [onCall] : []), ...(late ? ['late_shift' as const] : [])]
+  return { late, roles }
 }
 
 /** One slot a correction of a day's roles hands over: who has it now (null
@@ -276,7 +295,7 @@ export interface StaffChange {
 
 /** What handing `roles` of `serviceDate` over would change, slot by slot, in
  *  the order of the roles. */
-export function staffChanges(data: CalendarData, serviceDate: string, roles: AssignmentRole[]): StaffChange[] {
+export function staffChanges(data: Roster, serviceDate: string, roles: AssignmentRole[]): StaffChange[] {
   return roles.map((role) => {
     const slot = slotOf(data, serviceDate, role)
     const holder = slot && data.members.find((member) => isCurrentAssignee(member, slot))
@@ -342,7 +361,7 @@ export interface RoleSwap {
 
 /** The swap of `serviceDate`'s on-call pair, or null when one role is empty,
  *  one person holds both, or a holder is not a team member. */
-export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: LateShiftAnchor): RoleSwap | null {
+export function roleSwapOf(data: Roster, serviceDate: string, anchor: LateShiftAnchor): RoleSwap | null {
   const memberOf = (role: AssignmentRole) => {
     const slot = slotOf(data, serviceDate, role)
     return slot && data.members.find((item) => isCurrentAssignee(item, slot))
@@ -383,6 +402,19 @@ export function roleSwapLines(swap: RoleSwap, serviceDate: string, withLateShift
     replacement_member_id: (role === 'primary' ? swap.secondary : swap.primary).id,
     with_late_shift: withLateShift && swap.lateShift?.anchor === role,
   }))
+}
+
+/** The draft correction that performs `swap` (or, `back`, undoes it): each
+ *  on-call role to the other person, and 11–19 to the anchor role's new
+ *  holder when it goes along. */
+export function draftSwapLines(swap: RoleSwap, carry: boolean, back = false) {
+  const [primary, secondary] = back ? [swap.primary, swap.secondary] : [swap.secondary, swap.primary]
+  const late = carry && swap.lateShift ? [{ role: 'late_shift' as const, replacement_member_id: (back ? swap.lateShift.from : swap.lateShift.to).id }] : []
+  return [
+    { role: 'primary' as const, replacement_member_id: primary.id },
+    { role: 'secondary' as const, replacement_member_id: secondary.id },
+    ...late,
+  ]
 }
 
 /** The role labels `memberId` holds of `swap`, before it (`after` false) or after it. */

@@ -7,7 +7,7 @@ One adapter may satisfy several of these protocols structurally.
 """
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol
@@ -228,8 +228,8 @@ class DraftLifecycle(Protocol):
         work ends."""
         ...
 
-    async def correct(self, schedule_id: uuid.UUID, slot: Slot, to: Member) -> None:
-        """Give a slot of a held schedule to someone and move its version."""
+    async def correct(self, schedule_id: uuid.UUID, holders: Sequence[tuple[Slot, Member]]) -> None:
+        """Give slots of a held schedule to people and move its version once."""
         ...
 
     async def change_status(
@@ -251,8 +251,11 @@ class DraftJournal(Protocol):
     coordinator acting."""
 
     async def draft_corrected(
-        self, schedule_id: uuid.UUID, slot: Slot, previous_name: str, new_name: str
-    ) -> None: ...
+        self, schedule_id: uuid.UUID, moves: Sequence[tuple[Slot, str, str]]
+    ) -> None:
+        """One entry for the slots one correction handed over: each slot, who
+        held it and who holds it now."""
+        ...
 
     async def schedule_deleted(self, schedule: Schedule, kind: str) -> None: ...
 

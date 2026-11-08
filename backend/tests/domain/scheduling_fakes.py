@@ -126,11 +126,11 @@ class FakeSchedules:
         self.stored.append((stored, draft))
         return stored
 
-    async def correct(self, schedule_id, slot, to):
+    async def correct(self, schedule_id, holders):
         schedule = self.by_id[schedule_id]
-        self.by_id[schedule_id] = replace(
-            schedule.with_holder(slot, to.display_name, to.id), version=schedule.version + 1
-        )
+        for slot, to in holders:
+            schedule = schedule.with_holder(slot, to.display_name, to.id)
+        self.by_id[schedule_id] = replace(schedule, version=self.by_id[schedule_id].version + 1)
 
     async def change_status(self, schedule_id, *, from_status, to_status, expected_version):
         schedule = self.by_id.get(schedule_id)

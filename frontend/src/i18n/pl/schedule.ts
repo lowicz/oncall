@@ -212,6 +212,7 @@ export const schedule = {
     withAnchor: (anchor: string) => `razem z ${anchor}`,
     unchanged: 'bez zmian',
     carries: (anchor: string, to: string) => `Polityka wiąże 11–19 z ${anchor}, a ${to} ma do niej uprawnienia. Odznaczenie zostawia 11–19 bez zmian i pokaże regułę powiązania do potwierdzenia.`,
+    carriesInDraft: (anchor: string, to: string) => `Polityka wiąże 11–19 z ${anchor}, a ${to} ma do niej uprawnienia. Odznaczenie zostawia 11–19 bez zmian.`,
     notEligible: (to: string) => `${to} nie ma uprawnień do 11–19, więc 11–19 zostaje bez zmian.`,
     refusals: {
       notEligible: (to: string, role: string) => `${to} nie ma tego dnia uprawnień do ${role}, więc tej zamiany nie da się zapisać.`,

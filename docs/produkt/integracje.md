@@ -293,6 +293,7 @@ Oba niczego nie zapisują i zwracają obiekt z polami `violations`, listą narus
 Punkty zapisu sprawdzają reguły ponownie, dlatego świadome naruszenie nadal wymaga `acknowledge_rule_violations: true`.
 `POST /api/v1/calendar/override/batch/impact` przyjmuje jeden wsad (`schedule_id`, `assignments`) i również niczego nie zapisuje: zwraca w `members` bilans punktów przed zmianą i po niej każdej osoby, której wsad daje albo zabiera slot, najpierw przejmujących.
 Wsad `POST /api/v1/calendar/override/batch` z `kind: multi_role` zapisuje role jednego dnia jako jedną korektę: powód jest potrzebny tylko dla dnia, który minął, PRIMARY i SECONDARY nie zmieniają się w nim razem, a pusty slot grafiku można nim obsadzić.
+Korekta szkicu `POST /api/v1/scheduling/{schedule_id}/override` przyjmuje `service_date` i listę `assignments` (`role`, `replacement_member_id`, każda rola raz): jedna osoba dostaje jedną albo kilka ról dnia albo dwie osoby zamieniają się miejscami, w jednej wersji szkicu i jednym wpisie audytu; to, czy ktoś ma oba on-call, ocenia stan po wszystkich zmianach.
 Wszystkie żądania zmieniające i sprawdzające decyzję wymagają zalogowanej sesji, właściwej roli oraz tokenu CSRF.
 
 ## Audyt

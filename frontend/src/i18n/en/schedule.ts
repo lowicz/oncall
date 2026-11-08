@@ -196,6 +196,7 @@ export const schedule: Messages['schedule'] = {
     withAnchor: (anchor: string) => `together with ${anchor}`,
     unchanged: 'unchanged',
     carries: (anchor: string, to: string) => `The policy binds 11–19 to ${anchor}, and ${to} is eligible for it. Unticking leaves 11–19 unchanged and shows the coupling rule for confirmation.`,
+    carriesInDraft: (anchor: string, to: string) => `The policy binds 11–19 to ${anchor}, and ${to} is eligible for it. Unticking leaves 11–19 unchanged.`,
     notEligible: (to: string) => `${to} is not eligible for 11–19, so 11–19 stays unchanged.`,
     refusals: {
       notEligible: (to: string, role: string) => `${to} is not eligible for ${role} that day, so this swap cannot be saved.`,

@@ -379,8 +379,9 @@ class DraftCorrection:
     schedule_id: uuid.UUID
     expected_version: int
     service_date: date
-    role: AssignmentRole
-    replacement_member_id: uuid.UUID
+    #: The roles of the day handed over and to whom, as one decision: one
+    #: person taking one or more roles, or two people trading places.
+    holders: tuple[tuple[AssignmentRole, uuid.UUID], ...]
 
 
 @dataclass(frozen=True)

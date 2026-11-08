@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, BatchOverrideLine, api } from '../api'
-import { useMessages } from '../i18n'
-import { LateShiftLink, StaffChange } from '../lib/calendar'
+import { messages, useMessages } from '../i18n'
+import { LateShiftLink, OnCall, Roster, StaffChange, slotOf } from '../lib/calendar'
 import { formatDate, formatDay } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
-import { InlineError, LoadingBlock, RoleMark } from '../ui'
+import { Checkbox, Fieldset, InlineError, LoadingBlock, RoleMark } from '../ui'
 import { ImpactSide } from './SwapImpactPreview'
 
 /** The change slot by slot: who has each role now and who takes it, and what
@@ -72,5 +72,76 @@ export function StaffChangeImpact({ scheduleId, lines, changes, name }: Readonly
         <div className="muted small">{schedule.confirm.emptySlot(name)}</div>
       )}
     </div>
+  )
+}
+
+/** What the 11–19 row says about its slot, and why 11–19 is ticked or not,
+ *  said only while its anchor role is changed. */
+function lateTexts(
+  data: Roster,
+  serviceDate: string,
+  link: LateShiftLink | null,
+  onCall: OnCall | null,
+  late: boolean,
+) {
+  const t = messages().schedule.staffChange
+  const lateSlot = slotOf(data, serviceDate, 'late_shift')
+  const anchorLabel = link && roleLabels()[link.anchor]
+  let note = t.unstaffed
+  if (link?.coupled) note = t.withAnchor(anchorLabel!)
+  else if (lateSlot) note = t.heldBy(lateSlot.assignee_name)
+  let hint: string | undefined
+  if (onCall === link?.anchor) {
+    if (late) hint = link.coupled ? t.lateByPolicy(link.holder, anchorLabel!) : t.lateByYou(anchorLabel!, link.anchorHolder)
+    else if (link.coupled) hint = t.lateStays(link.holder)
+  }
+  return { note, hint }
+}
+
+/** „Role do zmiany": the roles of one day a correction changes, PRIMARY and
+ *  SECONDARY excluding each other, 11–19 saying how it stands to the policy's
+ *  coupling; no 11–19 on a day off. `error` is what stops the save. */
+export function RolesFieldset({ data, serviceDate, link, onCall, late, dayOff, disabled, error, onOnCall, onLate }: Readonly<{
+  data: Roster
+  serviceDate: string
+  link: LateShiftLink | null
+  onCall: OnCall | null
+  late: boolean
+  dayOff: boolean
+  disabled: boolean
+  error?: string
+  onOnCall: (role: OnCall | null) => void
+  onLate: (late: boolean) => void
+}>) {
+  const t = useMessages().schedule.staffChange
+  const { note, hint } = lateTexts(data, serviceDate, link, onCall, late)
+  const other: OnCall | null = onCall && (onCall === 'primary' ? 'secondary' : 'primary')
+  const groupHint = [other && t.excluded(roleLabels()[other]), hint].filter(Boolean).join(' ') || undefined
+  const onCallCheck = (role: OnCall) => (
+    <Checkbox
+      className="role-check"
+      label={roleLabels()[role]}
+      checked={onCall === role}
+      blocked={other === role}
+      disabled={disabled}
+      onChange={() => onOnCall(onCall === role ? null : role)}
+    />
+  )
+  return (
+    <Fieldset legend={t.roles} hint={groupHint} error={onCall || late ? error : t.pickRole}>
+      <div className="role-checks">
+        {onCallCheck('primary')}
+        {onCallCheck('secondary')}
+        {!dayOff && (
+          <Checkbox
+            className="role-check"
+            label={<>{roleLabels().late_shift} <small>· {note}</small></>}
+            checked={late}
+            disabled={disabled}
+            onChange={() => onLate(!late)}
+          />
+        )}
+      </div>
+    </Fieldset>
   )
 }

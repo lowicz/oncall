@@ -1505,6 +1505,56 @@
         "title": "DirectOverrideRequest",
         "type": "object"
       },
+      "DraftAssignmentResponse": {
+        "description": "A draft slot with its holder's id, so two people of one name stay apart.",
+        "properties": {
+          "assignee_name": {
+            "title": "Assignee Name",
+            "type": "string"
+          },
+          "is_override": {
+            "title": "Is Override",
+            "type": "boolean"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AssignmentRole"
+          },
+          "rule_violations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Rule Violations",
+            "type": "array"
+          },
+          "service_date": {
+            "format": "date",
+            "title": "Service Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_date",
+          "role",
+          "assignee_name",
+          "is_override",
+          "member_id"
+        ],
+        "title": "DraftAssignmentResponse",
+        "type": "object"
+      },
       "DraftFairnessImpactResponse": {
         "properties": {
           "acceptance_floor": {
@@ -1616,14 +1666,9 @@
         "title": "DraftLensSpreadResponse",
         "type": "object"
       },
-      "DraftOverrideRequest": {
+      "DraftOverrideLine": {
         "additionalProperties": false,
         "properties": {
-          "expected_version": {
-            "minimum": 1.0,
-            "title": "Expected Version",
-            "type": "integer"
-          },
           "replacement_member_id": {
             "format": "uuid",
             "title": "Replacement Member Id",
@@ -1631,6 +1676,32 @@
           },
           "role": {
             "$ref": "#/components/schemas/AssignmentRole"
+          }
+        },
+        "required": [
+          "role",
+          "replacement_member_id"
+        ],
+        "title": "DraftOverrideLine",
+        "type": "object"
+      },
+      "DraftOverrideRequest": {
+        "additionalProperties": false,
+        "description": "The roles of one draft day handed over as one decision: one person\ntaking one or more roles, or two people trading places.",
+        "properties": {
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/DraftOverrideLine"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "title": "Assignments",
+            "type": "array"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
           },
           "service_date": {
             "format": "date",
@@ -1641,8 +1712,7 @@
         "required": [
           "expected_version",
           "service_date",
-          "role",
-          "replacement_member_id"
+          "assignments"
         ],
         "title": "DraftOverrideRequest",
         "type": "object"
@@ -1662,7 +1732,7 @@
           },
           "assignments": {
             "items": {
-              "$ref": "#/components/schemas/AssignmentResponse"
+              "$ref": "#/components/schemas/DraftAssignmentResponse"
             },
             "title": "Assignments",
             "type": "array"

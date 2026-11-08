@@ -59,8 +59,7 @@ async def test_coordinator_can_edit_one_assignment_in_draft(client, db) -> None:
         json={
             "expected_version": schedule.version,
             "service_date": str(monday),
-            "role": "primary",
-            "replacement_member_id": str(ola.id),
+            "assignments": [{"role": "primary", "replacement_member_id": str(ola.id)}],
         },
     )
 
@@ -73,6 +72,7 @@ async def test_coordinator_can_edit_one_assignment_in_draft(client, db) -> None:
         if item["service_date"] == str(monday) and item["role"] == "primary"
     )
     assert changed["assignee_name"] == "Ola"
+    assert changed["member_id"] == str(ola.id)
     assert changed["is_override"] is True
     after = await client.get(f"/api/v1/scheduling/{schedule.id}/fairness-impact")
     assert after.status_code == 200, after.text
@@ -100,8 +100,7 @@ async def test_coordinator_can_fill_a_role_the_draft_left_empty(client, db) -> N
         json={
             "expected_version": version,
             "service_date": str(monday),
-            "role": "late_shift",
-            "replacement_member_id": str(ola.id),
+            "assignments": [{"role": "late_shift", "replacement_member_id": str(ola.id)}],
         },
     )
 
@@ -125,8 +124,7 @@ async def test_draft_rejects_late_shift_on_day_off(client, db) -> None:
         json={
             "expected_version": schedule.version,
             "service_date": str(monday + timedelta(days=5)),
-            "role": "late_shift",
-            "replacement_member_id": str(ola.id),
+            "assignments": [{"role": "late_shift", "replacement_member_id": str(ola.id)}],
         },
     )
 
@@ -144,8 +142,7 @@ async def test_draft_override_warns_about_rest_rule_violation(client, db) -> Non
             json={
                 "expected_version": version,
                 "service_date": str(monday + timedelta(days=offset)),
-                "role": "primary",
-                "replacement_member_id": str(ola.id),
+                "assignments": [{"role": "primary", "replacement_member_id": str(ola.id)}],
             },
         )
         assert response.status_code == 200, response.text
@@ -169,8 +166,7 @@ async def test_a_correction_to_the_draft_does_not_mark_it_stale(client, db) -> N
         json={
             "expected_version": schedule.version,
             "service_date": str(monday),
-            "role": "primary",
-            "replacement_member_id": str(ola.id),
+            "assignments": [{"role": "primary", "replacement_member_id": str(ola.id)}],
         },
     )
     assert response.status_code == 200, response.text
@@ -186,3 +182,64 @@ async def test_a_correction_to_the_draft_does_not_mark_it_stale(client, db) -> N
     preview = await client.get(f"/api/v1/scheduling/{schedule.id}/publish-preview")
     assert preview.status_code == 200, preview.text
     assert preview.json()["stale_changes_count"] == 0
+
+
+async def test_two_people_trade_places_in_one_draft_correction(client, db) -> None:
+    """Anna and Marek trade PRIMARY and SECONDARY, 11-19 going with Marek's
+    SECONDARY: one version, one audit entry naming every slot."""
+    schedule, _, monday = await _draft_setup(client, db)
+    members = {
+        item["display_name"]: item["id"]
+        for item in (
+            await client.get(f"/api/v1/calendar?starts_on={monday}&ends_on={monday}")
+        ).json()["members"]
+    }
+    response = await client.post(
+        f"/api/v1/scheduling/{schedule.id}/override",
+        json={
+            "expected_version": schedule.version,
+            "service_date": str(monday),
+            "assignments": [
+                {"role": "primary", "replacement_member_id": members["Marek"]},
+                {"role": "secondary", "replacement_member_id": members["Anna"]},
+                {"role": "late_shift", "replacement_member_id": members["Anna"]},
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["version"] == schedule.version + 1
+    day = {
+        item["role"]: item["assignee_name"]
+        for item in body["assignments"]
+        if item["service_date"] == str(monday)
+    }
+    assert day == {"primary": "Marek", "secondary": "Anna", "late_shift": "Anna"}
+    summaries = (
+        await db.scalars(
+            select(AuditEvent.summary).where(AuditEvent.action == "schedule.draft_override")
+        )
+    ).all()
+    assert summaries == [
+        f"Korekta szkicu {monday} · primary: Anna → Marek, secondary: Marek → Anna, "
+        "late_shift: Marek → Anna"
+    ]
+
+
+async def test_a_draft_correction_names_each_role_once(client, db) -> None:
+    schedule, ola, monday = await _draft_setup(client, db)
+    response = await client.post(
+        f"/api/v1/scheduling/{schedule.id}/override",
+        json={
+            "expected_version": schedule.version,
+            "service_date": str(monday),
+            "assignments": [
+                {"role": "late_shift", "replacement_member_id": str(ola.id)},
+                {"role": "late_shift", "replacement_member_id": str(ola.id)},
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Duplikat roli" in response.text
