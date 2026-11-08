@@ -246,6 +246,12 @@ describe('DraftScheduleMatrix inspector', () => {
     const role = within(panel).getByRole('combobox', { name: 'Rola' })
     expect(within(role).getAllByRole('option').map((option) => option.textContent)).toEqual(['PRIMARY', 'SECONDARY'])
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
+
+    // Nobody holds SECONDARY that day, but Marek cannot take it: nothing promises him the duty.
+    fireEvent.change(role, { target: { value: 'secondary' } })
+    expect(within(panel).getByText('Teraz').nextElementSibling).toHaveTextContent(/^brak$/)
+    expect(within(panel).queryByText(/Nikt nie ma tej roli tego dnia/)).not.toBeInTheDocument()
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
   })
 
   it('opens on the role a person holds, prices a day off at two points and names the holiday', async () => {
@@ -278,7 +284,7 @@ describe('DraftScheduleMatrix inspector', () => {
     fireEvent.change(within(panel).getByRole('combobox', { name: 'Rola' }), { target: { value: 'secondary' } })
     expect(panel).toHaveAccessibleName('Wstaw: Marek Nowak · 27-09-2026')
     expect(within(panel).getByText('Anna Kowalska')).toBeInTheDocument()
-    expect(within(panel).getByText('Bilans SECONDARY: Marek Nowak').closest('.box')).toHaveTextContent('-1 → +1 (+2 punkty za dzień 2X)')
+    expect(within(panel).getByText('Bilans SECONDARY: Marek Nowak').closest('.box')).toHaveTextContent('−1 → +1 (+2 punkty za dzień 2X)')
   })
 
   it('prices a day shift at one point even on a working day', async () => {

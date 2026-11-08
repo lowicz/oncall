@@ -11,8 +11,10 @@ describe('numbers in Polish', () => {
 
   it('signs a deviation, leaving zero unsigned', () => {
     expect(signed(15.01)).toBe('+15,01')
-    expect(signed(-1.5)).toBe('-1,5')
+    expect(signed(-1.5)).toBe('−1,5')
     expect(signed(0)).toBe('0')
+    // The sign belongs to the printed value: -0,004 prints as 0.
+    expect(signed(-0.004)).toBe('0')
   })
 
   it('writes points in running text with a fixed number of decimals', () => {

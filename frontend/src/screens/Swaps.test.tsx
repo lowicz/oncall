@@ -416,7 +416,7 @@ describe('SwapPanel new request', () => {
     expect(option).toHaveTextContent('Piotr Zieliński najlepsze dopasowanie')
     expect(option).toHaveTextContent('Chętnie wezmę')
     expect(option).toHaveTextContent('bez naruszeń')
-    expect(option).toHaveTextContent('-1 pkt względem udziału')
+    expect(option).toHaveTextContent('−1 pkt względem udziału')
     expect(screen.queryByText(/poniżej udziału/)).not.toBeInTheDocument()
     fireEvent.click(option)
     // The rest is read under the picked card.
@@ -426,10 +426,10 @@ describe('SwapPanel new request', () => {
     // The balance is folded under one line that sums it up.
     const details = screen.getByRole('button', { name: /^Wpływ na bilans/ })
     expect(details).toHaveAttribute('aria-expanded', 'false')
-    await waitFor(() => expect(details).toHaveAccessibleName('Wpływ na bilans Ty -1 · Piotr +1'))
-    expect(screen.queryByText('punkty 5 → 4 (-1)')).not.toBeInTheDocument()
+    await waitFor(() => expect(details).toHaveAccessibleName('Wpływ na bilans Ty −1 · Piotr +1'))
+    expect(screen.queryByText('punkty 5 → 4 (−1)')).not.toBeInTheDocument()
     fireEvent.click(details)
-    expect(await screen.findByText('punkty 5 → 4 (-1)')).toBeInTheDocument()
+    expect(await screen.findByText('punkty 5 → 4 (−1)')).toBeInTheDocument()
     expect(await screen.findByText('punkty 2 → 3 (+1)')).toBeInTheDocument()
     // A swap is handed over willingly - „oddaje", not the override's „traci".
     expect(await screen.findByText(/oddaje dyżur/)).toBeInTheDocument()
@@ -1359,7 +1359,7 @@ describe('SwapPanel composing', () => {
       '1Celina', '2Dorota', '3Beata', '4Ewa', '–Zenon',
     ]))
     const [celina, dorota, , , zenon] = within(group).getAllByRole('radio')
-    expect(celina).toHaveTextContent('-2 pkt')
+    expect(celina).toHaveTextContent('−2 pkt')
     expect(celina).toHaveTextContent('najlepsze dopasowanie')
     expect(celina).toHaveClass('rank-best')
     expect(dorota).toHaveTextContent('Chętnie wezmę')

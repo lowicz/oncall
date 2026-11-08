@@ -257,7 +257,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               { key: t.currently, value: selectedAssignment?.assignee_name ?? t.noAssignment },
               { key: t.afterCorrection, value: selected.member.display_name },
             ]} />
-            {!selectedAssignment && <p className="muted small">{t.nobodyHoldsRole(selected.member.display_name)}</p>}
+            {!selectedAssignment && !cannotAssign && <p className="muted small">{t.nobodyHoldsRole(selected.member.display_name)}</p>}
             {selectedBalance && selectedCategory && changesHolder && (
               <Box tone="sig" title={t.balanceTitle(roleLabels()[selectedRole], selectedBalance.display_name)}>
                 {t.balanceChange(signed(selectedCategory.deviation), signed(roundPoints(selectedCategory.deviation + correctionPoints)), correctionPoints > 1 ? t.twoPoints : t.onePoint)}
