@@ -209,19 +209,27 @@ describe('ScheduleScreen range in the URL', () => {
   })
 })
 
+// What the API sends once the last published day has passed: nothing ahead is
+// published, only where the last publication ended.
+const ended = publication({
+  is_published: false, id: null, version: null, starts_on: null, ends_on: null, assignments: [],
+  last_published_ends_on: '2026-08-31',
+})
+
 describe('ScheduleScreen default range and header states', () => {
   it('stops the default range at four weeks when the publication reaches further', async () => {
-    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ ends_on: '2026-11-30' }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ ends_on: '2026-11-30', last_published_ends_on: '2026-11-30' }))
     const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
     renderSchedule('/grafik')
 
     expect(await screen.findByRole('heading', { level: 2, name: '10 wrz – 7 paź' })).toBeInTheDocument()
     await waitFor(() => expect(calendarCall).toHaveBeenCalledWith('2026-09-10', '2026-10-07'))
+    expect(screen.queryByText(/Opublikowany grafik skończył się/)).not.toBeInTheDocument()
   })
 
   it('shows four weeks, a warning and the generator path when the publication has ended', async () => {
-    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ starts_on: '2026-08-01', ends_on: '2026-08-31' }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(ended)
     const calendarCall = vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'draftSchedules').mockResolvedValue([])
     renderSchedule('/grafik')
@@ -235,7 +243,7 @@ describe('ScheduleScreen default range and header states', () => {
   })
 
   it('points an ended publication at the waiting proposal', async () => {
-    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ starts_on: '2026-08-01', ends_on: '2026-08-31' }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(ended)
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'draftSchedules').mockResolvedValue([proposal])
     renderSchedule('/grafik')
@@ -246,7 +254,7 @@ describe('ScheduleScreen default range and header states', () => {
   })
 
   it('warns a member about an ended publication without the generator path', async () => {
-    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ starts_on: '2026-08-01', ends_on: '2026-08-31' }))
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(ended)
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     renderSchedule('/grafik', { role: 'member' })
 

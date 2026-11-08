@@ -87,8 +87,11 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   // The proposal waiting for the coordinator, named in the subtitle and
   // opened by the primary action; a plain draft is mentioned but not pushed.
   const pending = drafts.data?.find((item) => item.status === 'proposed') ?? drafts.data?.find((item) => item.status === 'draft')
-  const publicationExpired = Boolean(publication?.ends_on && publication.ends_on < today)
-  const generatorHref = publication?.ends_on && !publicationExpired
+  // Once the last published day has passed nothing ahead is published, so the
+  // generator link falls back to its own suggested range from today.
+  const lastPublishedEnd = published.data?.last_published_ends_on
+  const expiredOn = lastPublishedEnd && lastPublishedEnd < today ? lastPublishedEnd : null
+  const generatorHref = publication?.ends_on
     ? `/generator?od=${addDays(publication.ends_on, 1)}&do=${addDays(publication.ends_on, 28)}`
     : '/generator'
   const nextStep = (size?: 'sm') => (pending
@@ -122,8 +125,8 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
           </>
         )}
       />
-      {publicationExpired && publication?.ends_on && (
-        <Box tone="warn" title={t.schedule.publicationExpired(formatDate(publication.ends_on))}>
+      {expiredOn && (
+        <Box tone="warn" title={t.schedule.publicationExpired(formatDate(expiredOn))}>
           {canCoordinate && (
             <>
               {t.schedule.publicationExpiredHint}

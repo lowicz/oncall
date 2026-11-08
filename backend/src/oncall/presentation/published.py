@@ -49,3 +49,6 @@ class PublishedScheduleResponse(BaseModel):
     #: days off instead of a misleading "nobody assigned".
     today_is_day_off: bool = False
     today_holiday_name: str | None = None
+    #: The last day of the most recent publication, also once it has passed
+    #: (when `ends_on` is already empty), so the screen can say it ran out.
+    last_published_ends_on: date | None = None

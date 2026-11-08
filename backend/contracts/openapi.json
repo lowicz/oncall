@@ -3227,6 +3227,18 @@
             "title": "Is Published",
             "type": "boolean"
           },
+          "last_published_ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Published Ends On"
+          },
           "starts_on": {
             "anyOf": [
               {
