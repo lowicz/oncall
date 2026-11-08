@@ -1,18 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ReactElement } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { LanguageSegmented } from './LanguageControl'
+import { LanguageMenuRadio, LanguageSegmented } from './LanguageControl'
 import { LANGUAGE_STORAGE_KEY } from '../i18n'
+import { Menu } from '../ui'
 
 afterEach(() => {
   vi.restoreAllMocks()
   document.documentElement.setAttribute('lang', 'pl')
 })
 
-function renderWithClient() {
+function renderWithClient(control: ReactElement = <LanguageSegmented />) {
   const queryClient = new QueryClient()
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
-  render(<QueryClientProvider client={queryClient}><LanguageSegmented /></QueryClientProvider>)
+  render(<QueryClientProvider client={queryClient}>{control}</QueryClientProvider>)
   return invalidate
 }
 
@@ -28,11 +30,14 @@ describe('LanguageSegmented', () => {
     expect(invalidate).toHaveBeenCalledTimes(1)
   })
 
-  it('does nothing when the current language is chosen again', () => {
-    const invalidate = renderWithClient()
-    fireEvent.click(screen.getByRole('radio', { name: 'Polski' }))
+  it('does nothing when the current language is chosen again', async () => {
+    // The account menu's radio reports a click on the checked choice too.
+    const invalidate = renderWithClient(<Menu trigger={<button type="button">Konto</button>}><LanguageMenuRadio /></Menu>)
+    fireEvent.click(screen.getByRole('button', { name: 'Konto' }))
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Polski' }))
 
-    expect(screen.getByRole('radiogroup', { name: 'Język' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitemradio', { name: 'Polski' })).toHaveAttribute('aria-checked', 'true')
+    expect(document.documentElement).toHaveAttribute('lang', 'pl')
     expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull()
     expect(invalidate).not.toHaveBeenCalled()
   })

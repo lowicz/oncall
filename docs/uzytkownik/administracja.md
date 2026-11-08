@@ -18,8 +18,10 @@ dla osoby, która dopiero wchodzi, `zakończona`, „poza rotacją”), telefon
 i sposób logowania (lokalne albo LDAP / AD, a przy koncie lokalnym bez
 hasła znacznik `OCZEKUJE NA AKTYWACJĘ` - patrz niżej). W nagłówku sekcji jest
 pole wyszukiwania (osoba, login, numer, telefon) i filtry **Wszystkie**, **W
-rotacji**, **Poza rotacją**, **Wyłączone**, **Oczekujące**. **Eksport CSV** zapisuje widoczne
-wiersze, **Nowe konto** otwiera panel zakładania konta lokalnego.
+rotacji**, **Poza rotacją**, **Wyłączone**, **Oczekujące** - z klawiatury
+jeden przystanek klawisza Tab, filtr zmieniają strzałki. **Eksport CSV**
+zapisuje widoczne wiersze, **Nowe konto** otwiera panel zakładania konta
+lokalnego.
 
 Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
 

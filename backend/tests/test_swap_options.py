@@ -5,7 +5,9 @@ wymagało wybrania każdej osobno. Saldo zostaje w `/swaps/impact`, które ekran
 tak pobiera dla każdej opcji; tutaj jadą tylko fakty, których to nie zawiera.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
+
+import pytest
 
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, ScheduleStatus
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
@@ -13,11 +15,11 @@ from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Sched
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from tests.conftest import create_member, create_user, login
 
-# A working day near today: the 11-19 shift exists only on working days, so a
-# fixed +3 offset made the suite fail whenever it landed on a weekend.
-DAY = date.today() + timedelta(days=3)
-while DAY.weekday() >= 5:
-    DAY += timedelta(days=1)
+# The 11-19 shift exists only on working days, so the day is fixed: one
+# counted from today landed on weekends and public holidays. A Friday three
+# days after the frozen clock's Tuesday.
+pytestmark = pytest.mark.usefixtures("frozen_clock")
+DAY = date(2026, 9, 18)
 
 
 async def _team(db) -> dict[str, TeamMember]:

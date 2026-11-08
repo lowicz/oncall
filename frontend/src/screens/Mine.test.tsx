@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { MineScreen } from './Mine'
@@ -227,6 +228,39 @@ describe('MineScreen availability calendar', () => {
     await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
     expect(cell(/wt 01-09-2026/)).toBeDisabled()
     expect(cell(/czw 10-09-2026/)).toBeEnabled()
+  })
+
+  it('enters the calendar once, moves by day and week, and paints with Enter and Space', async () => {
+    const user = userEvent.setup()
+    stub()
+    const create = vi.spyOn(api, 'createAvailability').mockImplementation(async (input) => ({
+      id: input.starts_on,
+      kind: input.kind,
+      starts_on: input.starts_on,
+      ends_on: input.ends_on,
+      note: input.note ?? null,
+      created_at: '2026-09-10T10:00:00Z',
+    }))
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+    const grid = await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+    const enabled = within(grid).getAllByRole('gridcell').filter((item) => !item.hasAttribute('disabled'))
+    expect(enabled.filter((item) => item.tabIndex === 0)).toHaveLength(1)
+    expect(cell(/czw 10-09-2026/)).toHaveAttribute('tabindex', '0')
+
+    cell(/czw 10-09-2026/).focus()
+    await user.keyboard('{ArrowRight}{ArrowDown}{Home}{End}')
+    expect(cell(/niedz 20-09-2026/)).toHaveFocus()
+    // A Sunday runs on to the next Monday, and back.
+    await user.keyboard('{ArrowRight}')
+    expect(cell(/pon 21-09-2026/)).toHaveFocus()
+    await user.keyboard('{ArrowLeft}')
+    expect(cell(/niedz 20-09-2026/)).toHaveFocus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-20', ends_on: '2026-09-20' })))
+
+    await waitFor(() => expect(cell(/niedz 20-09-2026/)).toBeEnabled())
+    await user.keyboard('{ArrowLeft} ')
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
   })
 
   it('warns when a saved hard unavailability overlaps an existing duty', async () => {
