@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AssignmentRole,
   AvailabilityEntry,
-  AvailabilityInput,
   AvailabilityKind,
+  AvailabilityRangeInput,
   CalendarData,
   FeedToken,
   FeedTokenCreated,
@@ -298,16 +298,48 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
 }
 
 /** Entries the painted range touches, with the pieces that stay outside it. */
-function splitAround(entries: AvailabilityEntry[], startsOn: string, endsOn: string, today: string) {
+function splitAround(entries: AvailabilityEntry[], startsOn: string, endsOn: string) {
   const overlapping = entries.filter((entry) => entry.starts_on <= endsOn && entry.ends_on >= startsOn)
   return overlapping.map((entry) => ({
     entry,
     pieces: [
       { starts_on: entry.starts_on, ends_on: addDays(startsOn, -1) },
       { starts_on: addDays(endsOn, 1), ends_on: entry.ends_on },
-    ].filter((piece) => piece.starts_on <= piece.ends_on && piece.ends_on >= today),
+    ].filter((piece) => piece.starts_on <= piece.ends_on),
   }))
 }
+
+function optimisticRange(
+  entries: AvailabilityEntry[],
+  startsOn: string,
+  endsOn: string,
+  brush: Brush,
+  note: string | undefined,
+): AvailabilityEntry[] {
+  const split = splitAround(entries, startsOn, endsOn)
+  const replacedIds = new Set(split.map(({ entry }) => entry.id))
+  const result = entries.filter((entry) => !replacedIds.has(entry.id))
+  for (const { entry, pieces } of split) {
+    for (const piece of pieces) {
+      result.push({ ...entry, id: `pending:${entry.id}:${piece.starts_on}`, ...piece })
+    }
+  }
+  if (brush !== 'clear') {
+    result.push({
+      id: `pending:${startsOn}:${endsOn}`,
+      kind: brush,
+      starts_on: startsOn,
+      ends_on: endsOn,
+      note: note ?? null,
+      created_at: new Date().toISOString(),
+    })
+  }
+  return result
+}
+
+const PAINT_KEY = ['availability', 'paint']
+
+const availabilityKey = (member: string) => (member ? ['availability', 'member', member] : ['availability', 'me'])
 
 /**
  * Availability as a calendar with a brush. The three kinds and "clear" are
@@ -338,9 +370,10 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   // show, so the section only works once a person is picked.
   const needsPick = canActOnBehalf && !hasTeamMember && !onBehalf
 
-  const listKey = onBehalf ? ['availability', 'member', target] : ['availability', 'me']
+  // Whose list the brush paints: '' is the user's own.
+  const member = onBehalf ? target : ''
   const entries = useQuery({
-    queryKey: listKey,
+    queryKey: availabilityKey(member),
     queryFn: onBehalf ? () => api.memberAvailability(target) : api.availability,
     enabled: onBehalf || hasTeamMember,
   })
@@ -357,38 +390,45 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   const [brush, setBrush] = useState<Brush>('unavailable')
   const [note, setNote] = useState('')
   const [warning, setWarning] = useState<string | null>(null)
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: listKey })
-    queryClient.invalidateQueries({ queryKey: ['calendar'] })
-  }
-  const create = (input: AvailabilityInput) => (onBehalf ? api.createMemberAvailability(target, input) : api.createAvailability(input))
-  const remove = (id: string) => (onBehalf ? api.deleteMemberAvailability(target, id) : api.deleteAvailability(id))
-  const paint = useMutation({
-    mutationFn: async ({ startsOn, endsOn }: { startsOn: string; endsOn: string }) => {
-      let saved: string | null = null
-      for (const { entry, pieces } of splitAround(entries.data ?? [], startsOn, endsOn, today)) {
-        await remove(entry.id)
-        for (const piece of pieces) await create({ kind: entry.kind, note: entry.note ?? undefined, ...piece })
+  type PaintCommand = { member: string; startsOn: string; endsOn: string; brush: Brush; note: string | undefined }
+  const applyPaint = (list: AvailabilityEntry[], command: PaintCommand) => (
+    optimisticRange(list, command.startsOn, command.endsOn, command.brush, command.note)
+  )
+  const paint = useMutation<AvailabilityEntry | null, Error, PaintCommand>({
+    mutationKey: PAINT_KEY,
+    // One scope runs the paints one after another, in the order painted.
+    scope: { id: 'availability-paint' },
+    mutationFn: ({ member, startsOn, endsOn, brush: selectedBrush, note: selectedNote }) => {
+      const input: AvailabilityRangeInput = {
+        kind: selectedBrush === 'clear' ? null : selectedBrush,
+        starts_on: startsOn,
+        ends_on: endsOn,
+        note: selectedNote,
       }
-      if (brush !== 'clear') {
-        const created = await create({ kind: brush, starts_on: startsOn, ends_on: endsOn, note: note.trim() || undefined })
-        saved = created.warning ?? null
-      }
-      return { warning: saved, startsOn, endsOn, brush }
+      return member ? api.replaceMemberAvailabilityRange(member, input) : api.replaceAvailabilityRange(input)
     },
-    onSuccess: (result) => {
-      invalidate()
-      setWarning(result.warning)
-      const range = rangeText(result.startsOn, result.endsOn)
-      toast.success(result.brush === 'clear'
+    onSuccess: (result, command) => {
+      setWarning(result?.warning ?? null)
+      const range = rangeText(command.startsOn, command.endsOn)
+      toast.success(command.brush === 'clear'
         ? t.cleared(range)
-        : t.saved(range, availabilityLabels()[result.brush].toLowerCase()))
+        : t.saved(range, availabilityLabels()[command.brush].toLowerCase()))
     },
-    onError: (error) => {
-      invalidate()
-      toast.error(error.message)
-    },
+    onError: (error) => toast.error(error.message),
+    // The paint stays pending, and so stays drawn, until its person's list
+    // has been read back.
+    onSettled: (_result, _error, command) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: availabilityKey(command.member) }),
+      queryClient.invalidateQueries({ queryKey: ['calendar'] }),
+    ]),
   })
+  // Paints waiting to be saved are drawn over the list the server returned;
+  // one that fails is no longer pending and drops out by itself.
+  const pending = useMutationState({
+    filters: { mutationKey: PAINT_KEY, status: 'pending' },
+    select: (mutation) => mutation.state.variables as PaintCommand,
+  })
+  const shown = pending.filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
 
   const heading = targetMember ? t.headingFor(targetMember.display_name) : t.heading
   return (
@@ -440,12 +480,18 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
           {entries.error && <ErrorState error={entries.error} onRetry={() => entries.refetch()} />}
           <AvailabilityCalendar
             month={month}
-            entries={entries.data ?? []}
+            entries={shown}
             duties={duties}
             brush={brush}
             today={today}
-            disabled={paint.isPending || entries.isLoading}
-            onPaint={(startsOn, endsOn) => paint.mutate({ startsOn, endsOn })}
+            disabled={entries.isLoading}
+            onPaint={(startsOn, endsOn) => paint.mutate({
+              member,
+              startsOn,
+              endsOn,
+              brush,
+              note: note.trim() || undefined,
+            })}
           />
           <div className="avail-foot">
             <span className="muted small">

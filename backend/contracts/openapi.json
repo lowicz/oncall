@@ -456,9 +456,9 @@
           }
         },
         "required": [
-          "kind",
           "starts_on",
-          "ends_on"
+          "ends_on",
+          "kind"
         ],
         "title": "AvailabilityCreate",
         "type": "object"
@@ -471,6 +471,50 @@
         ],
         "title": "AvailabilityKind",
         "type": "string"
+      },
+      "AvailabilityRangeReplace": {
+        "additionalProperties": false,
+        "properties": {
+          "ends_on": {
+            "format": "date",
+            "title": "Ends On",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AvailabilityKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "starts_on",
+          "ends_on",
+          "kind"
+        ],
+        "title": "AvailabilityRangeReplace",
+        "type": "object"
       },
       "AvailabilityResponse": {
         "properties": {
@@ -540,6 +584,51 @@
           "created_at"
         ],
         "title": "AvailabilityResponse",
+        "type": "object"
+      },
+      "BatchOverrideCheckBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/BatchOverrideItem"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Assignments",
+            "type": "array"
+          },
+          "schedule_id": {
+            "format": "uuid",
+            "title": "Schedule Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schedule_id",
+          "assignments"
+        ],
+        "title": "BatchOverrideCheckBatch",
+        "type": "object"
+      },
+      "BatchOverrideCheckRequest": {
+        "additionalProperties": false,
+        "description": "The batches one decision will save, one per schedule, checked together.",
+        "properties": {
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/BatchOverrideCheckBatch"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Batches",
+            "type": "array"
+          }
+        },
+        "required": [
+          "batches"
+        ],
+        "title": "BatchOverrideCheckRequest",
         "type": "object"
       },
       "BatchOverrideItem": {
@@ -6858,6 +6947,90 @@
         ]
       }
     },
+    "/api/v1/availability/me/range": {
+      "put": {
+        "description": "Atomically replace or clear one range while preserving its outside pieces.",
+        "operationId": "replace_my_availability_range_api_v1_availability_me_range_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityRangeReplace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AvailabilityResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Replace My Availability Range Api V1 Availability Me Range Put"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace My Availability Range",
+        "tags": [
+          "availability"
+        ]
+      }
+    },
     "/api/v1/availability/me/{entry_id}": {
       "delete": {
         "operationId": "delete_my_availability_api_v1_availability_me__entry_id__delete",
@@ -7101,6 +7274,100 @@
           }
         },
         "summary": "Create Member Availability",
+        "tags": [
+          "availability"
+        ]
+      }
+    },
+    "/api/v1/availability/members/{member_id}/range": {
+      "put": {
+        "description": "Atomically replace a range on behalf of a rotation member.",
+        "operationId": "replace_member_availability_range_api_v1_availability_members__member_id__range_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Member Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityRangeReplace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AvailabilityResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Replace Member Availability Range Api V1 Availability Members  Member Id  Range Put"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Member Availability Range",
         "tags": [
           "availability"
         ]
@@ -7893,6 +8160,86 @@
           }
         },
         "summary": "Batch Override",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/override/batch/check": {
+      "post": {
+        "description": "The hard rules the batches would break together, without writing any slot.",
+        "operationId": "batch_override_check_api_v1_calendar_override_batch_check_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oncall_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oncall Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchOverrideCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuleViolationResponse"
+                  },
+                  "title": "Response Batch Override Check Api V1 Calendar Override Batch Check Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch Override Check",
         "tags": [
           "calendar"
         ]

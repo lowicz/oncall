@@ -43,6 +43,22 @@ class AvailabilityDeclaration:
 
 
 @dataclass(frozen=True)
+class AvailabilityRangeReplacement:
+    """One brush stroke that replaces everything inside its date range.
+
+    A missing kind clears the range while preserving the parts of existing
+    entries that lie outside it.
+    """
+
+    actor: Actor
+    member: MemberRef
+    starts_on: date
+    ends_on: date
+    kind: AvailabilityKind | None
+    note: str | None = None
+
+
+@dataclass(frozen=True)
 class AvailabilityWithdrawal:
     actor: Actor
     member: MemberRef
@@ -60,7 +76,7 @@ class AvailabilityQuery:
 @dataclass(frozen=True)
 class NewAvailabilityEntry:
     member_id: uuid.UUID
-    created_by_user_id: uuid.UUID
+    created_by_user_id: uuid.UUID | None
     kind: AvailabilityKind
     starts_on: date
     ends_on: date

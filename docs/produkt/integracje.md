@@ -221,6 +221,23 @@ i podaje, ile dni pokrywa.
 Przyszłe formaty (XLSX, Word) mają korzystać z tego samego modelu raportowego, a
 nie z osobnej logiki liczenia.
 
+## API dostępności i reguł
+
+`PUT /api/v1/availability/me/range` zapisuje jednym żądaniem malowanie zakresu dostępności zalogowanej osoby.
+Koordynator używa równoważnego `PUT /api/v1/availability/members/{member_id}/range`, aby działać w imieniu członka rotacji.
+Treść zawiera `starts_on`, `ends_on`, opcjonalne `note` i `kind`: `unavailable`, `prefer_not`, `prefer` albo `null`, gdy zakres ma zostać wyczyszczony.
+Serwer przycina zachodzące wpisy do części poza zakresem i zapisuje usunięcia, zachowane części oraz nowy wpis w jednej transakcji.
+Zachowane części, także te sprzed dzisiaj, zachowują autora i notatkę i nie wysyłają ponownie powiadomień; powiadomienia i audyt dotyczą tylko zmienionych dni.
+Błąd dowolnej części wycofuje całą operację.
+Dotychczasowe punkty `POST` i `DELETE` pozostają dostępne dla starszych klientów.
+
+Przed korektą grafiku klient może pobrać naruszenia reguł twardych bez zmiany danych.
+`POST /api/v1/calendar/override/check` sprawdza pojedynczy slot, a `POST /api/v1/calendar/override/batch/check` listę `batches`: wsad `assignments` dla każdego grafiku, którego dotyczy jedna decyzja.
+Wsady są sprawdzane razem, więc wynik obejmuje też regułę łamaną na styku dwóch grafików, np. więcej niż trzy dyżury z rzędu.
+Oba zwracają listę naruszeń i niczego nie zapisują.
+Punkty zapisu sprawdzają reguły ponownie, dlatego świadome naruszenie nadal wymaga `acknowledge_rule_violations: true`.
+Wszystkie żądania zmieniające i sprawdzające decyzję wymagają zalogowanej sesji, właściwej roli oraz tokenu CSRF.
+
 ## Audyt
 
 Istotne operacje - logowania i nieudane logowania, zmiany dostępności, cykl

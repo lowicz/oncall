@@ -323,10 +323,9 @@ async def test_availability_ledger_records_and_lists_entries(db, people) -> None
     ledger = SqlAlchemyAvailability(db, people["coordinator"])
     later = DAY + timedelta(days=5)
 
-    assert (await ledger.overlapping_entry(people["anna"].id, DAY, DAY)).kind == (
-        AvailabilityKind.unavailable
-    )
-    assert await ledger.overlapping_entry(people["anna"].id, later, later) is None
+    overlapping = await ledger.overlapping_entries(people["anna"].id, DAY, DAY)
+    assert [entry.kind for entry in overlapping] == [AvailabilityKind.unavailable]
+    assert await ledger.overlapping_entries(people["anna"].id, later, later) == []
     await ledger.record(
         NewAvailabilityEntry(
             people["anna"].id, people["coordinator"].id, AvailabilityKind.prefer, later, later, None

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
@@ -52,74 +53,130 @@ const threeInSeven = {
 afterEach(() => vi.restoreAllMocks())
 
 describe('OffboardingDialog', () => {
-  it('lists the rules a rewrite would break and resends only the refused schedule once acknowledged', async () => {
-    // Before the first attempt Anna holds a duty in each of two publications;
-    // the first one is rewritten before the second is refused.
-    let assignments = [duty('2026-09-22', 's1', 1, 'm1'), duty('2026-10-05', 's2', 3, 'm1')]
+  it('checks every schedule and shows hard rules before the first rewrite', async () => {
+    const assignments = [duty('2026-09-22', 's1', 1, 'm1'), duty('2026-10-05', 's2', 3, 'm1')]
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => (
       calendarWith(startsOn === '2026-09-21' ? assignments : [])
     ))
-    const batch = vi.spyOn(api, 'batchOverride')
-      .mockImplementationOnce(async () => {
-        assignments = [duty('2026-09-22', 's1', 2, 'm2'), duty('2026-10-05', 's2', 3, 'm1')]
-        return []
-      })
-      .mockRejectedValueOnce(new ApiError(
-        'Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie', 409, [threeInSeven],
-      ))
-      .mockResolvedValue([])
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
+    const batch = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     const finished = vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
     const onDone = vi.fn()
     renderScreen(
-      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} />,
+      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />,
     )
 
     const pickers = await screen.findAllByRole('combobox')
     expect(pickers).toHaveLength(2)
     for (const picker of pickers) fireEvent.change(picker, { target: { value: 'm2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
 
     expect(await screen.findByText('Przepisanie złamie reguły twarde')).toBeInTheDocument()
     expect(screen.getByText(/Więcej niż 3 dyżury on-call w okresie 7 dni/)).toBeInTheDocument()
-    expect(batch.mock.calls.map(([input]) => [input.schedule_id, input.acknowledge_rule_violations]))
-      .toEqual([['s1', false], ['s2', false]])
+    // One check for both schedules, so a rule spanning them is seen too.
+    expect(check.mock.calls.map(([input]) => input.batches.map((item) => item.schedule_id)))
+      .toEqual([['s1', 's2']])
+    expect(batch).not.toHaveBeenCalled()
     expect(finished).not.toHaveBeenCalled()
 
     const confirm = screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' })
     const acknowledgement = screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
-    // The rewritten schedule drops out once the calendar is read again.
-    await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(1))
     expect(confirm).toBeDisabled()
-
     fireEvent.click(acknowledgement)
     expect(confirm).toBeEnabled()
     fireEvent.click(confirm)
 
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    expect(batch).toHaveBeenCalledTimes(3)
-    expect(batch.mock.calls[2][0]).toMatchObject({
-      schedule_id: 's2',
-      expected_version: 3,
-      acknowledge_rule_violations: true,
-    })
+    expect(batch.mock.calls.map(([input]) => [input.schedule_id, input.acknowledge_rule_violations]))
+      .toEqual([['s1', true], ['s2', true]])
   })
 
-  it('drops the acknowledgement when a different replacement is picked', async () => {
+  it('says what was rewritten before a failure and checks only the rest on a retry', async () => {
+    let assignments = [duty('2026-09-22', 's1', 1, 'm1'), duty('2026-10-05', 's2', 3, 'm1')]
+    vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => (
+      calendarWith(startsOn === '2026-09-21' ? assignments : [])
+    ))
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const batch = vi.spyOn(api, 'batchOverride').mockImplementation(async (input) => {
+      if (input.schedule_id === 's2' && input.expected_version === 3) {
+        assignments = [duty('2026-09-22', 's1', 2, 'm2'), duty('2026-10-05', 's2', 4, 'm1')]
+        throw new ApiError('Grafik zmienił się w międzyczasie', 409)
+      }
+      return []
+    })
+    vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
+    const onDone = vi.fn()
+    renderScreen(
+      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />,
+    )
+
+    for (const picker of await screen.findAllByRole('combobox')) fireEvent.change(picker, { target: { value: 'm2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Grafik zmienił się w międzyczasie')
+    expect(await screen.findByText('1 dyżur już przepisano. Potwierdź ponownie, aby przepisać pozostałe i zakończyć rotację.'))
+      .toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByRole('combobox')).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(check.mock.calls.map(([input]) => input.batches.map((item) => item.schedule_id)))
+      .toEqual([['s1', 's2'], ['s2']])
+    expect(batch.mock.calls.map(([input]) => [input.schedule_id, input.expected_version]))
+      .toEqual([['s1', 1], ['s2', 3], ['s2', 4]])
+  })
+
+  it('reloads the person after an eligibility call fails, so a retry ends only the periods left', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWith([]))
+    const first = { id: 'e1', role: 'primary' as const, starts_on: '2026-10-01', ends_on: null }
+    const second = { id: 'e2', role: 'secondary' as const, starts_on: '2026-10-01', ends_on: null }
+    const remove = vi.spyOn(api, 'deleteEligibility')
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new ApiError('Serwer niedostępny', 503))
+      .mockResolvedValue(undefined)
+    vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
+    const onDone = vi.fn()
+    function Host() {
+      const [member, setMember] = useState<TeamMember>({ ...leaving, eligibility: [first, second] })
+      return (
+        <OffboardingDialog
+          open
+          member={member}
+          activeUntil="2026-09-20"
+          onClose={() => {}}
+          onDone={onDone}
+          onChanged={() => setMember({ ...leaving, eligibility: [second] })}
+        />
+      )
+    }
+    renderScreen(<Host />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Serwer niedostępny')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(remove.mock.calls).toEqual([['e1'], ['e2'], ['e2']])
+  })
+
+  it('drops the checked rules and acknowledgement when a different replacement is picked', async () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => calendarWith(
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],
     ))
-    vi.spyOn(api, 'batchOverride').mockRejectedValue(new ApiError(
-      'Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie', 409, [threeInSeven],
-    ))
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
     renderScreen(
-      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={() => {}} />,
+      <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={() => {}} onChanged={() => {}} />,
     )
 
     const picker = await screen.findByRole('combobox')
     fireEvent.change(picker, { target: { value: 'm2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' }))
 
     fireEvent.change(picker, { target: { value: '' } })
@@ -157,6 +214,7 @@ describe('OffboardingDialog', () => {
         { member_id: 'm3', kind: 'unavailable' as const, starts_on: '2026-11-01', ends_on: '2026-11-02', note: null },
       ] : [],
     }))
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
     const batch = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     const remove = vi.spyOn(api, 'deleteEligibility').mockResolvedValue(undefined)
     const update = vi.spyOn(api, 'updateEligibility').mockResolvedValue({} as never)
@@ -171,7 +229,7 @@ describe('OffboardingDialog', () => {
         { id: 'e-past', role: 'secondary', starts_on: '2025-01-01', ends_on: '2026-06-30' },
       ],
     }
-    renderScreen(<OffboardingDialog open member={member} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} />)
+    renderScreen(<OffboardingDialog open member={member} activeUntil="2026-09-20" onClose={() => {}} onDone={onDone} onChanged={() => {}} />)
 
     expect(screen.getByRole('status', { name: 'Szukam przyszłych dyżurów' })).toBeInTheDocument()
     const picker = await screen.findByRole('combobox', { name: /05-10-2026 · PRIMARY/ })
@@ -183,7 +241,13 @@ describe('OffboardingDialog', () => {
     expect(start).toBeDisabled()
     fireEvent.change(picker, { target: { value: 'm4' } })
     fireEvent.click(start)
-    expect(screen.getByText('Potwierdź przepisanie 1 dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem 20-09-2026.')).toBeInTheDocument()
+    expect(await screen.findByText('Potwierdź przepisanie 1 dyżurów i zakończenie wszystkich uprawnień tej osoby z dniem 20-09-2026.')).toBeInTheDocument()
+    expect(check).toHaveBeenCalledWith({
+      batches: [{
+        schedule_id: 's1',
+        assignments: [{ service_date: '2026-10-05', role: 'primary', replacement_member_id: 'm4' }],
+      }],
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
 
     await waitFor(() => expect(onDone).toHaveBeenCalled())
@@ -206,44 +270,43 @@ describe('OffboardingDialog', () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWith([]))
     vi.spyOn(api, 'updateTeamMember').mockRejectedValue(new ApiError('Brak uprawnień', 403))
     const onClose = vi.fn()
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={onClose} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={onClose} onDone={vi.fn()} onChanged={() => {}} />)
 
     expect(await screen.findByText('Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.')).toBeInTheDocument()
     expect(screen.getByText(/Dyżury po 20-09-2026: 0\./)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Brak uprawnień')
 
     fireEvent.click(screen.getByRole('button', { name: 'Zamknij' }))
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('shows a refused rewrite that names no rule as a plain failure', async () => {
+  it('stops before every write when the rule check fails', async () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => calendarWith(
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],
     ))
-    const batch = vi.spyOn(api, 'batchOverride').mockRejectedValue(new ApiError('Grafik zmienił wersję', 409))
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} />)
+    vi.spyOn(api, 'batchOverrideCheck').mockRejectedValue(new ApiError('Nie sprawdzono reguł', 503))
+    const batch = vi.spyOn(api, 'batchOverride')
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
 
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'm2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Grafik zmienił wersję')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nie sprawdzono reguł')
     expect(screen.queryByText('Przepisanie złamie reguły twarde')).not.toBeInTheDocument()
-    expect(batch).toHaveBeenCalledTimes(1)
+    expect(batch).not.toHaveBeenCalled()
   })
 
   it('takes an acknowledgement back', async () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => calendarWith(
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],
     ))
-    vi.spyOn(api, 'batchOverride').mockRejectedValue(new ApiError('Korekta złamie reguły', 409, [threeInSeven]))
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} />)
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
 
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'm2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Przepisz dyżury i zakończ rotację' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' }))
     const acknowledgement = await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
     const confirm = screen.getByRole('button', { name: 'Potwierdź zakończenie rotacji' })
     await waitFor(() => expect(acknowledgement).toBeEnabled())
@@ -257,13 +320,13 @@ describe('OffboardingDialog', () => {
 
   it('reports a calendar that cannot be read', async () => {
     vi.spyOn(api, 'calendar').mockRejectedValue(new Error('Serwer niedostępny'))
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Serwer niedostępny')
   })
 
   it('looks up no calendar for an exit date it cannot read', async () => {
     const calendar = vi.spyOn(api, 'calendar')
-    renderScreen(<OffboardingDialog open member={leaving} activeUntil="wkrótce" onClose={() => {}} onDone={vi.fn()} />)
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="wkrótce" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
     expect(await screen.findByText('Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.')).toBeInTheDocument()
     expect(calendar).not.toHaveBeenCalled()
   })
