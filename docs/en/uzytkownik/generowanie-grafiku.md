@@ -146,9 +146,11 @@ Under the matrix there are four tabs:
 
 Click a cell; the day panel (titled “Insert: *person* · *day*”) shows the
 role, who holds it now and who will hold it after the correction; save. A
-correction can also fill a role the solver left empty: click any empty cell of
-a day marked as a gap, and the panel opens on the empty role and shows “Now:
-none → After correction: *person*”. A correction:
+panel titled “*person* · *day*” has nothing to insert and **Assign in the
+draft** is off: the person already holds the role or is marked “unavailable”.
+A correction can also fill a role the solver left empty: click any empty cell
+of a day marked as a gap, and the panel opens on the empty role and shows
+“Now: none → After correction: *person*”. A correction:
 
 - does not regenerate the remaining days,
 - is subject to the hard rules,

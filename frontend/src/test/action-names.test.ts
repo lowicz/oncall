@@ -33,6 +33,8 @@ describe.each([['Polish', pl], ['English', en]] as const)('the %s button names',
   it('calls the team member screen and its swaps inbox by two different names', () => {
     expect(catalog.nav.screens.mine).toBe(catalog.mine.title)
     expect(catalog.swaps.inbox.mine).not.toBe(catalog.nav.screens.mine)
+    // The empty inbox sends the member to the screen by the name the rail shows.
+    expect(catalog.swaps.inbox.emptyToMeDescription).toContain(catalog.nav.screens.mine)
   })
 
   it('calls the ICS subscription the same in the button and in the panel', () => {

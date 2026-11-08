@@ -26,7 +26,7 @@ export const swaps = {
     closed: 'Zamknięte',
     count: (label: string, count: number) => `${label}: ${pluralPl(count, ['sprawa', 'sprawy', 'spraw'])}`,
     emptyToMeTitle: 'Nikt Cię o nic nie prosi',
-    emptyToMeDescription: 'Gdy ktoś zaproponuje Ci zamianę, zobaczysz ją tutaj i w liczniku w szynie. Własną zaczniesz przyciskiem „Nowa zamiana” albo z ekranu Moje.',
+    emptyToMeDescription: 'Gdy ktoś zaproponuje Ci zamianę, zobaczysz ją tutaj i w liczniku w szynie. Własną zaczniesz przyciskiem „Nowa zamiana” albo z ekranu „Moje dyżury”.',
     myDuties: 'Moje dyżury',
     emptyMineTitle: 'Nie masz otwartych próśb',
     emptyMineDescription: 'Nowa zamiana zaczyna się od Twojego dyżuru.',

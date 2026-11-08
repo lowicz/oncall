@@ -1160,7 +1160,7 @@ def forwarding_failed(
     )
     reason = FORWARDING_FAILURES[cause]
     fill_phone = (
-        " Osoba pełniąca PRIMARY powinna uzupełnić numer w zakładce Moje."
+        " Osoba pełniąca PRIMARY powinna uzupełnić numer w zakładce Moje dyżury."
         if cause is ForwardingFailure.no_phone
         else ""
     )

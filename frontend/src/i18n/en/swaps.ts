@@ -19,7 +19,7 @@ export const swaps: Messages['swaps'] = {
     closed: 'Closed',
     count: (label: string, count: number) => `${label}: ${pluralEn(count, ['request', 'requests'])}`,
     emptyToMeTitle: 'Nobody is asking you for anything',
-    emptyToMeDescription: 'When someone proposes a swap to you, it shows up here and in the counter in the rail. Start your own with the “New swap” button or from the Mine screen.',
+    emptyToMeDescription: 'When someone proposes a swap to you, it shows up here and in the counter in the rail. Start your own with the “New swap” button or from the “My duties” screen.',
     myDuties: 'My duties',
     emptyMineTitle: 'You have no open requests',
     emptyMineDescription: 'A new swap starts from your duty.',

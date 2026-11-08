@@ -139,7 +139,9 @@ Pod macierzą cztery zakładki:
 ### Ręczna korekta komórki
 
 Kliknij komórkę, a panel dnia (tytuł „Wstaw: *osoba* · *dzień*”) pokaże rolę,
-kto ją ma teraz i kto ją będzie miał po korekcie; zapisz. Korekta może też
+kto ją ma teraz i kto ją będzie miał po korekcie; zapisz. Gdy nie ma czego
+wstawić, panel ma tytuł „*osoba* · *dzień*”, a **Przypisz w szkicu** jest
+wyłączone: osoba już ma tę rolę albo zaznaczyła „nie mogę”. Korekta może też
 obsadzić rolę, którą solver zostawił pustą: kliknij dowolną pustą komórkę dnia
 oznaczonego jako luka, a panel otworzy się na pustej roli i pokaże „Teraz:
 brak → Po korekcie: *osoba*”. Korekta:
