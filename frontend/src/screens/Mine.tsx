@@ -928,7 +928,7 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
       <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); setChecked(true); save.mutate() }}>
         <Field label={t.label} id="my-phone" hint={t.hint} error={error}>
           {({ id, describedBy, invalid }) => (
-            <Input id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onBlur={() => setChecked(true)} onChange={(event) => setDraft(event.target.value)} />
+            <Input id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onBlur={() => setChecked(true)} onChange={(event) => { setChecked(false); setDraft(event.target.value) }} />
           )}
         </Field>
         {save.error && <Box tone="bad" role="alert" focus title={save.error.message} />}

@@ -586,9 +586,12 @@ describe('MineScreen phone', () => {
     expect(screen.queryByText('Wymagany dla osób w rotacji.')).not.toBeInTheDocument()
     fireEvent.blur(input)
     expect(await screen.findByText('Wymagany dla osób w rotacji.')).toBeInTheDocument()
+    // Typing again withdraws the verdict until the field is left once more.
     fireEvent.change(input, { target: { value: '+49 170 1234567' } })
-    expect(screen.getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
     expect(screen.queryByText('Wymagany dla osób w rotacji.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
+    fireEvent.blur(input)
+    expect(screen.getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zapisz numer' }))
     const refusal = await screen.findByText('Numer telefonu to +48 i dziewięć cyfr')
     expect(refusal.closest('[role="alert"]')).toHaveFocus()

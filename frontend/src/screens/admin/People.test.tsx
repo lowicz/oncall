@@ -573,6 +573,12 @@ describe('PeoplePanel table states and export', () => {
     fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '600 100 200' } })
     expect(within(dialog).queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
     expect(within(dialog).getByText(/^Format: \+48 i dziewięć cyfr/)).toBeInTheDocument()
+    // Typing again is not judged until the field is left once more.
+    fireEvent.blur(within(dialog).getByLabelText(/^Telefon/))
+    fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '6' } })
+    expect(within(dialog).queryByText('Popraw numer: +48 i dziewięć cyfr.')).not.toBeInTheDocument()
+    fireEvent.blur(within(dialog).getByLabelText(/^Telefon/))
+    expect(within(dialog).getByText('Popraw numer: +48 i dziewięć cyfr.')).toBeInTheDocument()
   })
 
   it('says a member in the rotation has no qualifications', async () => {

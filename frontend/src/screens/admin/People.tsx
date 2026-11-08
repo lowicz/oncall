@@ -739,7 +739,7 @@ export function PeoplePanel() {
                       ? (selectedState === 'active' || selectedState === 'entering' ? t.fields.phoneRequired : undefined)
                       : (isPolishPhone(accountForm.phone) ? undefined : t.fields.phoneFix)}
                   >
-                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onBlur={() => setPhoneChecked(true)} onChange={(e) => setAccountForm({ ...accountForm, phone: e.target.value || null })} />}
+                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onBlur={() => setPhoneChecked(true)} onChange={(e) => { setPhoneChecked(false); setAccountForm({ ...accountForm, phone: e.target.value || null }) }} />}
                   </Field>
                 </div>
               </TabPanel>
