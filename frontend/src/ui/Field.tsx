@@ -1,5 +1,6 @@
 import {
   InputHTMLAttributes,
+  MouseEvent,
   ReactNode,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
@@ -46,6 +47,34 @@ export function Field({ label, hint, error, children, className, required, id: g
   )
 }
 
+/**
+ * A group of controls under one legend: the roles a correction changes. The
+ * error and the hint under the group both describe the whole group, so the
+ * reason a choice is blocked stays read with it when the group is invalid.
+ */
+export function Fieldset({ legend, hint, error, children, className }: {
+  legend: ReactNode
+  hint?: ReactNode
+  error?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  const id = useId()
+  const errorId = error ? `${id}-error` : undefined
+  const hintId = hint ? `${id}-hint` : undefined
+  return (
+    <fieldset
+      className={cx('field', 'fieldset', Boolean(error) && 'field-invalid', className)}
+      aria-describedby={cx(errorId, hintId) || undefined}
+    >
+      <legend className="field-label">{legend}</legend>
+      {children}
+      {error && <p className="field-msg" id={errorId} role="alert">{error}</p>}
+      {hint && <p className="field-hint" id={hintId}>{hint}</p>}
+    </fieldset>
+  )
+}
+
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; mono?: boolean }>(
   function Input({ invalid, mono, className, ...rest }, ref) {
     return (
@@ -87,13 +116,20 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
   },
 )
 
-export function Checkbox({ label, hint, className, ...rest }: {
+export function Checkbox({ label, hint, className, blocked, ...rest }: {
   label: ReactNode
   hint?: ReactNode
+  /** Unavailable, but kept in the tab order (`aria-disabled`, not `disabled`)
+   *  so the reason, said under the group, is reached with it. */
+  blocked?: boolean
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
   return (
-    <label className={cx('check', className)}>
-      <input type="checkbox" {...rest} />
+    <label className={cx('check', blocked && 'check-off', className)}>
+      <input
+        type="checkbox"
+        {...rest}
+        {...(blocked ? { 'aria-disabled': true, readOnly: true, onChange: undefined, onClickCapture: preventToggle } : {})}
+      />
       <span className="check-body">
         <span>{label}</span>
         {hint && <small>{hint}</small>}
@@ -102,6 +138,9 @@ export function Checkbox({ label, hint, className, ...rest }: {
   )
 }
 
+function preventToggle(event: MouseEvent) {
+  event.preventDefault()
+}
 
 export interface SegmentOption<T extends string> extends RadioNavigationOption<T> {
   label: ReactNode

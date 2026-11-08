@@ -12,6 +12,12 @@ export function StatusBadge({ tone = 'muted', children, className }: { tone?: St
   return <span className={cx('st', `st-${tone}`, className)}>{children}</span>
 }
 
+/** The one-line outcome of a check, after a dot: "Bez naruszeń reguł twardych
+ *  po zamianie". Read out whenever it changes. */
+export function StatusLine({ children, className }: { children: ReactNode; className?: string }) {
+  return <p className={cx('status-line', className)} role="status">{children}</p>
+}
+
 /** Mono tag next to a title: "1X · dzień roboczy", a version. */
 export function Tag({ children, tone, className }: { children: ReactNode; tone?: 'late' | 'sig' | 'bad'; className?: string }) {
   return <span className={cx('tag', tone && `tag-${tone}`, className)}>{children}</span>
