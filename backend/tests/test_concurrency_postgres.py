@@ -462,15 +462,11 @@ async def test_range_failure_rolls_back_every_availability_change(pg, monkeypatc
             await record(self, entry)
 
         monkeypatch.setattr(SqlAlchemyAvailability, "record", fail_on_second_record)
+        url = f"/api/v1/availability/members/{ewa.id}/range"
+        painted = (day + timedelta(days=2)).isoformat()
+        body = {"kind": "prefer_not", "starts_on": painted, "ends_on": painted}
         with pytest.raises(RuntimeError, match="injected range failure"):
-            await coordinator.put(
-                f"/api/v1/availability/members/{ewa.id}/range",
-                json={
-                    "kind": "prefer_not",
-                    "starts_on": (day + timedelta(days=2)).isoformat(),
-                    "ends_on": (day + timedelta(days=2)).isoformat(),
-                },
-            )
+            await coordinator.put(url, json=body)
     finally:
         await coordinator.aclose()
 
