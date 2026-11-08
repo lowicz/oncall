@@ -141,6 +141,7 @@ export const schedule = {
     notApplicableDayOff: 'nie dotyczy w dzień wolny',
     unstaffed: 'brak obsady',
     changeRole: (role: string, who: string) => `${role}: ${who}. Zmień obsadę`,
+    staffRole: (role: string) => `${role}: brak obsady. Obsadź`,
     change: 'Zmień…',
     staff: 'Obsadź…',
     events: 'Wydarzenia',

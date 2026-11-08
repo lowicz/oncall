@@ -129,6 +129,7 @@ export const schedule: Messages['schedule'] = {
     notApplicableDayOff: 'not applicable on a day off',
     unstaffed: 'unstaffed',
     changeRole: (role: string, who: string) => `${role}: ${who}. Change staffing`,
+    staffRole: (role: string) => `${role}: unstaffed. Staff`,
     change: 'Change…',
     staff: 'Staff…',
     events: 'Events',

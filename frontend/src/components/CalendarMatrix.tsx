@@ -729,7 +729,7 @@ export function CalendarMatrix({
                 )
                 const className = cx('role-row', selectedRole === item && 'role-row-sel', missing && 'role-row-gap')
                 return canCoordinate && selectedDayPublished && !notApplicable ? (
-                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={t.inspector.changeRole(roleLabels()[item], slot?.assignee_name ?? t.inspector.unstaffed)}>
+                  <button type="button" key={item} className={className} onClick={() => openStaffChange(item)} aria-label={slot ? t.inspector.changeRole(roleLabels()[item], slot.assignee_name) : t.inspector.staffRole(roleLabels()[item])}>
                     {body}
                     {/* The whole row is the button; this only shows that it is one. */}
                     <span className={cx('btn', 'btn-sm', slot && 'btn-ghost')} aria-hidden="true">{slot ? t.inspector.change : t.inspector.staff}</span>

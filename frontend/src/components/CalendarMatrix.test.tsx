@@ -1001,7 +1001,7 @@ describe('CalendarMatrix staffing form', () => {
     const change = within(staffed).getByText('Zmień…')
     expect(change).toHaveClass('btn', 'btn-sm', 'btn-ghost')
     expect(change).toHaveAttribute('aria-hidden', 'true')
-    const gap = within(dialog).getByRole('button', { name: '11–19: brak obsady. Zmień obsadę' })
+    const gap = within(dialog).getByRole('button', { name: '11–19: brak obsady. Obsadź' })
     expect(within(gap).getByText('Obsadź…')).not.toHaveClass('btn-ghost')
   })
 
@@ -1014,7 +1014,7 @@ describe('CalendarMatrix staffing form', () => {
       ],
     }))
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Zmień obsadę')
+    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Obsadź')
 
     const role = within(dialog).getByRole('combobox', { name: 'Rola' })
     expect(role).toHaveValue('late_shift')
@@ -1107,7 +1107,7 @@ describe('CalendarMatrix staffing form', () => {
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue(checked())
     const save = vi.spyOn(api, 'directOverride').mockResolvedValue({} as never)
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
-    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Zmień obsadę')
+    const dialog = await openForm(/^Anna Kowalska, pt 11-09-2026/, '11–19: brak obsady. Obsadź')
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
     const confirm = within(dialog).getByRole('button', { name: /^Zapisz zmianę obsady$/ })
     await waitFor(() => expect(confirm).toBeEnabled())
