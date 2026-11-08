@@ -648,6 +648,8 @@ export function PeoplePanel() {
         setEditingPeriod(null)
       }
     },
+    // What was saved before a refusal drops off the unsaved list.
+    onError: refresh,
   })
   // Both links are shown beside their button; issuing one changes nothing
   // until it is used, so neither asks first.

@@ -1542,18 +1542,23 @@ describe('PeoplePanel qualification periods', () => {
     expect(screen.getByText('Okres nakłada się na inny')).toBeInTheDocument()
   })
 
-  it('shows why a qualification could not be ended and keeps it pending', async () => {
-    mockData([user({ id: 'u1', phone: '+48 1' })], [member({ id: 'm1' })])
+  it('shows why a qualification could not be ended and keeps only it pending', async () => {
+    mockData([user({ id: 'u1', phone: '+48 1' })])
+    vi.spyOn(api, 'team').mockResolvedValueOnce([member({ id: 'm1' })]).mockResolvedValue([member({ id: 'm1', active_from: '2025-09-01' })])
+    const entry = vi.spyOn(api, 'updateTeamMember').mockResolvedValue(member({ id: 'm1', active_from: '2025-09-01' }))
     vi.spyOn(api, 'updateEligibility').mockRejectedValue(new Error('Konflikt wersji'))
     renderScreen(<PeoplePanel />)
     const dialog = await openRotation()
 
+    fireEvent.change(within(dialog).getByLabelText(/^Wejście od/), { target: { value: '2025-09-01' } })
     fireEvent.click(within(qualification(dialog, 'PRIMARY')).getByRole('button', { name: 'Zakończ dziś: PRIMARY' }))
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (1)' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (2)' }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Konflikt wersji')
+    expect(entry).toHaveBeenCalledWith({ id: 'm1', input: { active_from: '2025-09-01', active_until: null } })
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
-    expect(within(dialog).getByText('Niezapisane: okres PRIMARY')).toBeInTheDocument()
+    // The entry date was saved before the refusal, so only the period stays listed.
+    expect(await within(dialog).findByText('Niezapisane: okres PRIMARY')).toBeInTheDocument()
   })
 
   it('does not resend a period edit the server already holds', async () => {
