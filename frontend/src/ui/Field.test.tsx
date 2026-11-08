@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { Checkbox, Field, Input, Segmented, Select, Textarea } from './Field'
+import { navigateRadioGroup, radioTabIndex } from './radioNavigation'
 
 describe('Field', () => {
   it('labels the control and describes it with the hint', () => {
@@ -129,25 +131,97 @@ describe('Segmented', () => {
     fireEvent.click(option('Miesiąc'))
     expect(onChange).toHaveBeenCalledWith('month')
     expect(option('Miesiąc')).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(option('Miesiąc'))
+    expect(onChange).toHaveBeenCalledTimes(1)
   })
 
-  it('moves with the arrow keys, skipping a disabled option and wrapping at the ends', () => {
+  it('selects nothing again when an arrow lands on the choice already made', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<Segmented label="Jedna" value="a" onChange={onChange} options={[{ value: 'a', label: 'A' }, { value: 'b', label: 'B', disabled: true }]} />)
+    await user.tab()
+    await user.keyboard('{ArrowRight}{End}')
+    expect(option('A')).toHaveFocus()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('moves with the arrow keys, skipping a disabled option and wrapping at the ends', async () => {
+    const user = userEvent.setup()
     render(<Zoom />)
-    fireEvent.keyDown(option('Dzień'), { key: 'ArrowRight' })
+    await user.tab()
+    expect(option('Dzień')).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
     expect(option('Tydzień')).toHaveAttribute('aria-checked', 'true')
     expect(option('Tydzień')).toHaveFocus()
-    fireEvent.keyDown(option('Tydzień'), { key: 'ArrowDown' })
+    await user.keyboard('{ArrowDown}')
     expect(option('Miesiąc')).toHaveFocus()
-    fireEvent.keyDown(option('Miesiąc'), { key: 'ArrowRight' })
+    await user.keyboard('{ArrowRight}')
     expect(option('Dzień')).toHaveFocus()
-    fireEvent.keyDown(option('Dzień'), { key: 'ArrowLeft' })
+    await user.keyboard('{ArrowLeft}')
     expect(option('Miesiąc')).toHaveFocus()
-    fireEvent.keyDown(option('Miesiąc'), { key: 'ArrowUp' })
+    await user.keyboard('{ArrowUp}')
     expect(option('Tydzień')).toHaveFocus()
-    fireEvent.keyDown(option('Tydzień'), { key: 'End' })
+    await user.keyboard('{End}')
     expect(option('Miesiąc')).toHaveAttribute('aria-checked', 'true')
-    fireEvent.keyDown(option('Miesiąc'), { key: 'Home' })
+    await user.keyboard('{Home}')
     expect(option('Dzień')).toHaveAttribute('aria-checked', 'true')
+  })
+
+  describe('radio cards with aria-disabled choices', () => {
+    function Cards({ options, initial = '', onChange }: { options: { value: string; disabled?: boolean }[]; initial?: string; onChange?: (value: string) => void }) {
+      const [value, setValue] = useState(initial)
+      return (
+        <div role="radiogroup" aria-label="Cards">
+          {options.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="radio"
+              aria-checked={value === item.value}
+              aria-disabled={item.disabled || undefined}
+              tabIndex={radioTabIndex(value, item.value, options)}
+              data-value={item.value}
+              onKeyDown={(event) => navigateRadioGroup(event, item.value, options, (next) => { setValue(next); onChange?.(next) })}
+            >
+              {item.value}
+            </button>
+          ))}
+        </div>
+      )
+    }
+
+    it('walks every card but selects none when all of them are blocked', async () => {
+      const user = userEvent.setup()
+      render(<Cards options={[{ value: 'a', disabled: true }, { value: 'b', disabled: true }]} />)
+      await user.tab()
+      expect(option('a')).toHaveFocus()
+      await user.keyboard('{ArrowRight}')
+      expect(option('b')).toHaveFocus()
+      expect(screen.queryByRole('radio', { checked: true })).not.toBeInTheDocument()
+    })
+
+    it('steps from a focused blocked card to the next enabled one', async () => {
+      const user = userEvent.setup()
+      render(<Cards options={[{ value: 'a', disabled: true }, { value: 'b' }, { value: 'c' }]} />)
+      expect(option('b').tabIndex).toBe(0)
+      act(() => option('a').focus())
+      await user.keyboard('{ArrowDown}')
+      expect(option('b')).toHaveFocus()
+      expect(option('b')).toHaveAttribute('aria-checked', 'true')
+      await user.keyboard('{ArrowUp}')
+      expect(option('c')).toHaveFocus()
+      expect(option('c')).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it('selects nothing again when stepping from a blocked card onto the chosen one', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      render(<Cards options={[{ value: 'a', disabled: true }, { value: 'b' }]} initial="b" onChange={onChange} />)
+      act(() => option('a').focus())
+      await user.keyboard('{ArrowDown}')
+      expect(option('b')).toHaveFocus()
+      expect(onChange).not.toHaveBeenCalled()
+    })
   })
 
   it('leaves other keys alone', () => {
@@ -162,5 +236,11 @@ describe('Segmented', () => {
     const group = screen.getByRole('radiogroup', { name: 'Motyw' })
     expect(group).toHaveClass('seg', 'x')
     expect(group).not.toHaveClass('seg-sm')
+    expect(group).not.toHaveClass('seg-wrap')
+  })
+
+  it('lets the options wrap onto further rows when asked', () => {
+    render(<Segmented label="Filtry" value="a" onChange={() => {}} options={[{ value: 'a', label: 'A' }]} wrap />)
+    expect(screen.getByRole('radiogroup', { name: 'Filtry' })).toHaveClass('seg', 'seg-wrap')
   })
 })

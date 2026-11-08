@@ -450,17 +450,14 @@ export function PeoplePanel() {
               onChange={(event) => setSearch(event.target.value)}
               className="sech-search"
             />
-            {FILTERS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={cx('sech-link', filter === item && 'on')}
-                aria-pressed={filter === item}
-                onClick={() => setFilter(item)}
-              >
-                {t.filters[item]}
-              </button>
-            ))}
+            <Segmented
+              size="sm"
+              wrap
+              label={t.accounts}
+              value={filter}
+              onChange={setFilter}
+              options={FILTERS.map((item) => ({ value: item, label: t.filters[item] }))}
+            />
           </>
         )}
       />

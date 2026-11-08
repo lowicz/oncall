@@ -23,6 +23,7 @@ import { formatPoints } from '../lib/numbers'
 import { preferredScrollBehavior } from '../lib/motion'
 import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
+import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
@@ -179,6 +180,17 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   const roleNames = roleLabels()
   const days = monthDays(month)
   const lead = weekdayIndex(days[0])
+  // Week rows of seven cells, each keyed by its place in the month; a blank
+  // before the first day or after the last has no date.
+  const weeks = Array.from({ length: Math.ceil((lead + days.length) / 7) }, (_, week) =>
+    Array.from({ length: 7 }, (_, day) => ({ key: `${month}-${week}-${day}`, date: days[week * 7 + day - lead] ?? null })))
+  const grid = useGridNavigation(weeks.length, 7, {
+    isCellDisabled: (row, col) => {
+      const date = weeks[row]?.[col]?.date
+      return !date || date < today || disabled
+    },
+    wrap: true,
+  })
   // A drag in progress: the day it started on and the day under the pointer.
   const [drag, setDrag] = useState<{ anchor: string; hover: string } | null>(null)
   const lastPainted = useRef<string | null>(null)
@@ -221,61 +233,66 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
         {weekdaysFromMonday().map((label, index) => <span key={label} className={cx(index >= 5 && 'we')}>{label}</span>)}
       </div>
       <div className="avail-cal" role="grid" aria-label={t.label(formatMonth(month))}>
-        {Array.from({ length: lead }, (_, index) => <span key={`lead-${index}`} aria-hidden="true" />)}
-        {days.map((date) => {
-          const entry = entryFor(date)
-          const roles = dutiesByDate.get(date) ?? []
-          const weekend = weekdayIndex(date) >= 5
-          const past = date < today
-          const preview = inPreview(date)
-          const conflict = roles.length > 0 && (entry?.kind === 'unavailable' || (preview && brush === 'unavailable'))
-          const label = [
-            formatDay(date),
-            entry ? kinds[entry.kind] : null,
-            entry?.note ? t.reason(entry.note) : null,
-            entry?.created_by_name ? t.filedBy(entry.created_by_name) : null,
-            roles.length ? t.duty(roles.map((role) => roleNames[role]).join(', ')) : null,
-            conflict ? t.dutyCollision : null,
-          ].filter(Boolean).join(', ')
-          return (
-            <button
-              type="button"
-              key={date}
-              role="gridcell"
-              aria-label={label}
-              title={entry?.note ? t.entryTitle(kinds[entry.kind], entry.note) : undefined}
-              className={cx(
-                'avail-day',
-                weekend && 'avail-day-we',
-                entry && !preview && `avail-day-${toneOf[entry.kind]}`,
-                preview && previewTone && `avail-day-${previewTone}`,
-                preview && 'avail-day-sel',
-                date === today && 'avail-day-today',
-                conflict && 'avail-day-conflict',
-              )}
-              disabled={past || disabled}
-              onPointerDown={(event) => {
-                if (event.button !== 0) return
-                setDrag({ anchor: date, hover: date })
-              }}
-              onPointerEnter={() => { if (drag) setDrag({ anchor: drag.anchor, hover: date }) }}
-              onClick={(event) => {
-                // A pointer click was already committed on pointerup; the
-                // keyboard (Enter, Space) arrives here with no pointer at all.
-                if (event.detail !== 0) return
-                if (event.shiftKey && lastPainted.current) paint(lastPainted.current, date)
-                else paint(date, date)
-              }}
-            >
-              {roles.map((role) => <i key={role} className={cx('dot', roleDot[role])} aria-hidden="true" />)}
-              <span>
-                {date.slice(8)}
-                {entry && !preview && <small>{t.marks[entry.kind]}</small>}
-                {preview && brush !== 'clear' && <small>{t.marks[brush]}</small>}
-              </span>
-            </button>
-          )
-        })}
+        {weeks.map((week, rowIndex) => (
+          <div className="avail-cal-row" role="row" key={week[0].key}>
+            {week.map(({ key, date }, colIndex) => {
+              if (!date) return <span key={key} role="gridcell" aria-hidden="true" />
+              const entry = entryFor(date)
+              const roles = dutiesByDate.get(date) ?? []
+              const weekend = weekdayIndex(date) >= 5
+              const past = date < today
+              const preview = inPreview(date)
+              const conflict = roles.length > 0 && (entry?.kind === 'unavailable' || (preview && brush === 'unavailable'))
+              const label = [
+                formatDay(date),
+                entry ? kinds[entry.kind] : null,
+                entry?.note ? t.reason(entry.note) : null,
+                entry?.created_by_name ? t.filedBy(entry.created_by_name) : null,
+                roles.length ? t.duty(roles.map((role) => roleNames[role]).join(', ')) : null,
+                conflict ? t.dutyCollision : null,
+              ].filter(Boolean).join(', ')
+              return (
+                <button
+                  type="button"
+                  key={date}
+                  role="gridcell"
+                  aria-label={label}
+                  title={entry?.note ? t.entryTitle(kinds[entry.kind], entry.note) : undefined}
+                  className={cx(
+                    'avail-day',
+                    weekend && 'avail-day-we',
+                    entry && !preview && `avail-day-${toneOf[entry.kind]}`,
+                    preview && previewTone && `avail-day-${previewTone}`,
+                    preview && 'avail-day-sel',
+                    date === today && 'avail-day-today',
+                    conflict && 'avail-day-conflict',
+                  )}
+                  disabled={past || disabled}
+                  {...grid.cellProps(rowIndex, colIndex)}
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return
+                    setDrag({ anchor: date, hover: date })
+                  }}
+                  onPointerEnter={() => { if (drag) setDrag({ anchor: drag.anchor, hover: date }) }}
+                  onClick={(event) => {
+                    // A pointer click was already committed on pointerup; the
+                    // keyboard (Enter, Space) arrives here with no pointer at all.
+                    if (event.detail !== 0) return
+                    if (event.shiftKey && lastPainted.current) paint(lastPainted.current, date)
+                    else paint(date, date)
+                  }}
+                >
+                  {roles.map((role) => <i key={role} className={cx('dot', roleDot[role])} aria-hidden="true" />)}
+                  <span>
+                    {date.slice(8)}
+                    {entry && !preview && <small>{t.marks[entry.kind]}</small>}
+                    {preview && brush !== 'clear' && <small>{t.marks[brush]}</small>}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        ))}
       </div>
     </div>
   )
