@@ -87,7 +87,8 @@ Above the matrix there is **one decision panel**:
   before and after the draft,
 - **one main action**: **Fix *N* problems** opens the first clashing cell
   (then **Publish…**), on a clean draft **Publish…**, and on a proposal
-  **Publish v*N*…** next to **Back to draft**. Next to **Publish…** the **⋯**
+  **Publish v*N*…** next to **Back to draft** (a proposal with a duty on an
+  “Unavailable” day has only **Back to draft**). Next to **Publish…** the **⋯**
   menu (**Other actions**) has **Submit for approval** for teams where a second person
   checks the draft.
 

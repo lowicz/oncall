@@ -84,7 +84,8 @@ Nad macierzą jest **jeden panel decyzji**:
   i po szkicu,
 - **jedna akcja główna**: **Popraw *N* problemy** otwiera pierwszą kolidującą
   komórkę (potem **Opublikuj…**), w poprawnym szkicu **Opublikuj…**, a w
-  propozycji **Publikuj v*N*…** obok **Wróć do szkicu**. Obok
+  propozycji **Publikuj v*N*…** obok **Wróć do szkicu** (propozycja z
+  dyżurem w dniu „nie mogę” ma tylko **Wróć do szkicu**). Obok
   **Opublikuj…** menu **⋯** (**Inne akcje**) ma **Przekaż do akceptacji** dla
   zespołów, w których szkic sprawdza druga osoba.
 
