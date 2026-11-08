@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from oncall.domain.vocabulary import AvailabilityKind
 from oncall.infrastructure.sqlalchemy.availability_model import Availability
 from oncall.infrastructure.sqlalchemy.swap_models import SwapRequest
-from oncall.presentation.availability import AvailabilityCreate
+from oncall.presentation.availability import AvailabilityCreate, AvailabilityRangeReplace
 from oncall.presentation.scheduling import GenerateScheduleRequest
 from oncall.presentation.swaps import SwapDecisionRequest
 
@@ -27,6 +27,27 @@ def test_availability_accepts_single_day() -> None:
         ends_on=date(2026, 9, 12),
     )
     assert entry.starts_on == entry.ends_on
+
+
+def test_availability_range_accepts_clear_and_rejects_invalid_dates() -> None:
+    clear = AvailabilityRangeReplace(
+        kind=None,
+        starts_on=date(2026, 9, 12),
+        ends_on=date(2026, 9, 12),
+    )
+    assert clear.kind is None
+    with pytest.raises(ValidationError):
+        AvailabilityRangeReplace(
+            kind=None,
+            starts_on=date(2026, 9, 12),
+            ends_on=date(2026, 9, 11),
+        )
+    with pytest.raises(ValidationError):
+        AvailabilityRangeReplace(
+            kind=AvailabilityKind.prefer,
+            starts_on=date(2026, 9, 12),
+            ends_on=date(2027, 9, 14),
+        )
 
 
 def test_swap_decision_requires_non_blank_reason() -> None:

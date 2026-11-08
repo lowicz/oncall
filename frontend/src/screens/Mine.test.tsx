@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -190,25 +191,22 @@ describe('MineScreen availability calendar', () => {
     vi.spyOn(api, 'availability').mockResolvedValue([{
       id: 'a1', kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-21', note: 'Wyjazd', created_at: '2026-09-01T10:00:00Z',
     }])
-    const remove = vi.spyOn(api, 'deleteAvailability').mockResolvedValue(undefined)
-    const create = vi.spyOn(api, 'createAvailability').mockResolvedValue({
-      id: 'a2', kind: 'unavailable', starts_on: '2026-09-21', ends_on: '2026-09-21', note: 'Wyjazd', created_at: '2026-09-01T10:00:00Z',
-    })
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
     renderScreen(<MineScreen displayName="Julia Nowak" />)
     await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: Wyjazd/ })
 
     fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
     fireEvent.click(cell(/niedz 20-09-2026/))
 
-    await waitFor(() => expect(remove).toHaveBeenCalledWith('a1'))
-    // The day after stays declared: the entry is re-created around the cleared day.
-    await waitFor(() => expect(create).toHaveBeenCalledWith({ kind: 'unavailable', note: 'Wyjazd', starts_on: '2026-09-21', ends_on: '2026-09-21' }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({
+      kind: null, starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined,
+    }))
     expect(await screen.findByText('Wyczyszczono: niedz 20 wrz')).toBeInTheDocument()
   })
 
   it('saves a click at once with the brush kind and the optional reason', async () => {
     stub()
-    const create = vi.spyOn(api, 'createAvailability').mockResolvedValue({
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue({
       id: 'a1', kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie', created_at: '2026-09-01T10:00:00Z',
     })
     renderScreen(<MineScreen displayName="Julia Nowak" />)
@@ -218,7 +216,7 @@ describe('MineScreen availability calendar', () => {
     fireEvent.change(screen.getByLabelText('Powód'), { target: { value: 'szkolenie' } })
     fireEvent.click(cell(/niedz 20-09-2026/))
 
-    await waitFor(() => expect(create).toHaveBeenCalledWith({ kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie' }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie' }))
     expect(await screen.findByText('Zapisano: niedz 20 wrz „wolę nie”')).toBeInTheDocument()
   })
 
@@ -233,9 +231,9 @@ describe('MineScreen availability calendar', () => {
   it('enters the calendar once, moves by day and week, and paints with Enter and Space', async () => {
     const user = userEvent.setup()
     stub()
-    const create = vi.spyOn(api, 'createAvailability').mockImplementation(async (input) => ({
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(async (input) => ({
       id: input.starts_on,
-      kind: input.kind,
+      kind: input.kind ?? 'unavailable',
       starts_on: input.starts_on,
       ends_on: input.ends_on,
       note: input.note ?? null,
@@ -256,16 +254,16 @@ describe('MineScreen availability calendar', () => {
     await user.keyboard('{ArrowLeft}')
     expect(cell(/niedz 20-09-2026/)).toHaveFocus()
     await user.keyboard('{Enter}')
-    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-20', ends_on: '2026-09-20' })))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-20', ends_on: '2026-09-20' })))
 
     await waitFor(() => expect(cell(/niedz 20-09-2026/)).toBeEnabled())
     await user.keyboard('{ArrowLeft} ')
-    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
   })
 
   it('warns when a saved hard unavailability overlaps an existing duty', async () => {
     stub()
-    vi.spyOn(api, 'createAvailability').mockResolvedValue({
+    vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue({
       id: 'a1', kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: null, created_at: '2026-09-01T10:00:00Z',
       warning: 'Masz w tym czasie dyżur. Zgłoszenie go nie zdejmuje, poproś o zamianę albo skontaktuj się z koordynatorem.',
     })
@@ -281,7 +279,7 @@ describe('MineScreen availability calendar', () => {
     stub()
     vi.spyOn(api, 'team').mockResolvedValue(TEAM)
     const onBehalf = vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
-    const create = vi.spyOn(api, 'createMemberAvailability').mockResolvedValue({
+    const replace = vi.spyOn(api, 'replaceMemberAvailabilityRange').mockResolvedValue({
       id: 'x1', kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: null, created_at: '2026-09-01T10:00:00Z', created_by_name: 'Adam Nowicki',
     })
     renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
@@ -294,7 +292,7 @@ describe('MineScreen availability calendar', () => {
     expect(screen.getByRole('heading', { name: 'Dostępność: Beata Lis' })).toBeInTheDocument()
 
     fireEvent.click(cell(/niedz 20-09-2026/))
-    await vi.waitFor(() => expect(create).toHaveBeenCalledWith('m-beata', expect.objectContaining({ kind: 'unavailable' })))
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith('m-beata', expect.objectContaining({ kind: 'unavailable' })))
     expect(onBehalf).toHaveBeenCalledWith('m-beata')
   })
 
@@ -688,7 +686,7 @@ describe('MineScreen availability painting', () => {
   it('previews a dragged range, flags the duty under it and saves it on release', async () => {
     stub()
     vi.spyOn(api, 'calendar').mockResolvedValue({ ...EMPTY_CALENDAR, assignments: [assignment('2026-09-23', 'primary', 'Julia Nowak')] })
-    const create = vi.spyOn(api, 'createAvailability').mockResolvedValue(created('2026-09-22', '2026-09-25'))
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(created('2026-09-22', '2026-09-25'))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('gridcell', { name: /śr 23-09-2026, dyżur: PRIMARY$/ })
 
@@ -703,13 +701,13 @@ describe('MineScreen availability painting', () => {
     expect(duty).toHaveAccessibleName('śr 23-09-2026, dyżur: PRIMARY, kolizja z dyżurem')
 
     fireEvent.pointerUp(window)
-    await waitFor(() => expect(create).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-22', ends_on: '2026-09-25', note: undefined }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-22', ends_on: '2026-09-25', note: undefined }))
     expect(await screen.findByText('Zapisano: 22 – 25 wrz „nie mogę”')).toBeInTheDocument()
   })
 
   it('previews a cleared range without a colour', async () => {
     stub()
-    const create = vi.spyOn(api, 'createAvailability')
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
 
@@ -722,12 +720,14 @@ describe('MineScreen availability painting', () => {
 
     fireEvent.pointerUp(window)
     expect(await screen.findByText('Wyczyszczono: 22 – 23 wrz')).toBeInTheDocument()
-    expect(create).not.toHaveBeenCalled()
+    expect(replace).toHaveBeenCalledWith({
+      kind: null, starts_on: '2026-09-22', ends_on: '2026-09-23', note: undefined,
+    })
   })
 
   it('drops a drag that the browser cancels and ignores other buttons and stray hovers', async () => {
     stub()
-    const create = vi.spyOn(api, 'createAvailability')
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
 
@@ -744,12 +744,12 @@ describe('MineScreen availability painting', () => {
     fireEvent.pointerUp(window)
     // A pointer click reaches onClick too, after pointerup has already committed it.
     fireEvent.click(cell(/śr 23-09-2026/), { detail: 1 })
-    expect(create).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('closes a range with Shift from the last painted day', async () => {
     stub()
-    const create = vi.spyOn(api, 'createAvailability')
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
       .mockResolvedValueOnce(created('2026-09-20', '2026-09-20'))
       .mockResolvedValue(created('2026-09-20', '2026-09-24'))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
@@ -759,12 +759,94 @@ describe('MineScreen availability painting', () => {
     expect(await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).toBeInTheDocument()
     await waitFor(() => expect(cell(/czw 24-09-2026/)).toBeEnabled())
     fireEvent.click(cell(/czw 24-09-2026/), { shiftKey: true })
-    await waitFor(() => expect(create).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined }))
+    await waitFor(() => expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined }))
+  })
+
+  it('saves paints one after another and keeps the elapsed part of a cut entry', async () => {
+    stub()
+    const list = vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'unavailable', starts_on: '2026-09-01', ends_on: '2026-09-25', note: null, created_at: '2026-08-20T10:00:00Z' },
+    ])
+    let finishFirst: (value: null) => void = () => {}
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
+      .mockImplementationOnce(() => new Promise((resolve) => { finishFirst = resolve }))
+      .mockResolvedValue(null)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    fireEvent.click(cell(/wt 22-09-2026/))
+
+    expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026' })).toBeInTheDocument()
+    expect(cell(/niedz 20-09-2026/)).toHaveAccessibleName('niedz 20-09-2026')
+    expect(cell(/sob 05-09-2026/)).toHaveAccessibleName('sob 05-09-2026, Nie mogę')
+    expect(replace).toHaveBeenCalledTimes(1)
+
+    finishFirst(null)
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
+    expect(replace.mock.calls.map(([input]) => input.starts_on)).toEqual(['2026-09-20', '2026-09-22'])
+    expect(await screen.findByText('Wyczyszczono: wt 22 wrz')).toBeInTheDocument()
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(3))
+  })
+
+  it('rolls a failed paint back without dropping the paint still waiting behind it', async () => {
+    stub()
+    vi.spyOn(api, 'availability')
+      .mockResolvedValueOnce([
+        { id: 'a1', kind: 'unavailable', starts_on: '2026-09-01', ends_on: '2026-09-25', note: null, created_at: '2026-08-20T10:00:00Z' },
+      ])
+      .mockRejectedValue(new ApiError('Brak połączenia', 503))
+    const failures: Array<(error: Error) => void> = []
+    vi.spyOn(api, 'replaceAvailabilityRange')
+      .mockImplementation(() => new Promise((_resolve, reject) => { failures.push(reject) }))
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })
+
+    fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    fireEvent.click(cell(/wt 22-09-2026/))
+    expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026' })).toBeInTheDocument()
+
+    failures[0](new ApiError('Nie zapisano', 503))
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })).toBeInTheDocument()
+    expect(cell(/wt 22-09-2026/)).toHaveAccessibleName('wt 22-09-2026')
+
+    await waitFor(() => expect(failures).toHaveLength(2))
+    failures[1](new ApiError('Nie zapisano', 503))
+    expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026, Nie mogę' })).toBeInTheDocument()
+    expect(cell(/niedz 20-09-2026/)).toHaveAccessibleName('niedz 20-09-2026, Nie mogę')
+  })
+
+  it('keeps drawing a waiting paint after the screen is mounted again', async () => {
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([])
+    let finish: (value: null) => void = () => {}
+    vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(() => new Promise((resolve) => { finish = resolve }))
+    function Host() {
+      const [mount, setMount] = useState(0)
+      return (
+        <>
+          <button type="button" onClick={() => setMount(mount + 1)}>remount</button>
+          <MineScreen key={mount} hasTeamMember displayName="Julia Nowak" />
+        </>
+      )
+    }
+    renderScreen(<Host />)
+    await screen.findByRole('gridcell', { name: 'niedz 20-09-2026' })
+
+    fireEvent.click(cell(/niedz 20-09-2026/))
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'remount' }))
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })).toBeInTheDocument()
+
+    finish(null)
+    expect(await screen.findByRole('gridcell', { name: 'niedz 20-09-2026' })).toBeInTheDocument()
   })
 
   it('reports a failed save', async () => {
     stub()
-    vi.spyOn(api, 'createAvailability').mockRejectedValue(new ApiError('Nie można zapisać dostępności', 409))
+    vi.spyOn(api, 'replaceAvailabilityRange').mockRejectedValue(new ApiError('Nie można zapisać dostępności', 409))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
 
@@ -804,13 +886,13 @@ describe('MineScreen availability painting', () => {
     const list = vi.spyOn(api, 'availability')
       .mockRejectedValueOnce(new ApiError('Dostępność niedostępna', 503))
       .mockResolvedValue([])
-    const create = vi.spyOn(api, 'createAvailability').mockResolvedValue(created('2026-09-20', '2026-09-20'))
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(created('2026-09-20', '2026-09-20'))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Dostępność niedostępna')
     fireEvent.click(cell(/niedz 20-09-2026/))
-    await waitFor(() => expect(create).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined }))
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
@@ -821,10 +903,7 @@ describe('MineScreen availability painting', () => {
     vi.spyOn(api, 'memberAvailability').mockResolvedValue([{
       id: 'b1', kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-22', note: null, created_at: '2026-09-01T10:00:00Z', created_by_name: 'Adam Nowicki',
     }])
-    const remove = vi.spyOn(api, 'deleteMemberAvailability').mockResolvedValue(undefined)
-    const create = vi.spyOn(api, 'createMemberAvailability').mockResolvedValue({
-      id: 'b2', kind: 'prefer_not', starts_on: '2026-09-21', ends_on: '2026-09-22', note: null, created_at: '2026-09-01T10:00:00Z',
-    })
+    const replace = vi.spyOn(api, 'replaceMemberAvailabilityRange').mockResolvedValue(null)
     renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
     const picker = await screen.findByRole('combobox', { name: 'Osoba' })
     await screen.findByRole('option', { name: 'Beata Lis' })
@@ -833,8 +912,9 @@ describe('MineScreen availability painting', () => {
     const day = await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Wolę nie, wpis: Adam Nowicki' })
     fireEvent.click(screen.getByRole('radio', { name: 'wyczyść' }))
     fireEvent.click(day)
-    await waitFor(() => expect(remove).toHaveBeenCalledWith('m-beata', 'b1'))
-    await waitFor(() => expect(create).toHaveBeenCalledWith('m-beata', { kind: 'prefer_not', note: undefined, starts_on: '2026-09-21', ends_on: '2026-09-22' }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('m-beata', {
+      kind: null, note: undefined, starts_on: '2026-09-20', ends_on: '2026-09-20',
+    }))
   })
 
   it('asks a coordinator outside the team list to pick a person', async () => {

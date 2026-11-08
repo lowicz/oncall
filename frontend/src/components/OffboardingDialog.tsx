@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ApiError, AssignmentRole, RuleViolation, TeamMember, api } from '../api'
+import { AssignmentRole, RuleViolation, TeamMember, api } from '../api'
 import { formatDate } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
 import { locale, useMessages } from '../i18n'
@@ -11,17 +11,20 @@ import { Box, Button, Checkbox, Dialog, Field, LoadingBlock, RoleMark, Select } 
  * replacement picked here, then the eligibility periods are closed and the
  * member's active_until is set, in that order.
  *
- * A rewrite that breaks a hard rule is refused by the API until it is
- * acknowledged. The refusal lists the violations for that one schedule; the
- * coordinator acknowledges them and confirms again, which resends only what
- * is still left to rewrite.
+ * Before any rewrite, the batches of every affected schedule are checked
+ * together, so a rule spanning two schedules is seen as well. Hard-rule
+ * violations are listed and acknowledged before the first batch is saved.
+ * A failure after some schedules were saved says how many duties are already
+ * rewritten and returns to the check for the rest.
  */
-export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }: {
+export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, onChanged }: {
   open: boolean
   member: TeamMember
   activeUntil: string
   onClose: () => void
   onDone: () => void
+  /** Reloads `member` after a failure, since the steps before it are saved. */
+  onChanged: () => void
 }) {
   const m = useMessages()
   const t = m.people.offboarding
@@ -53,8 +56,15 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
   const duties = found.assignments.filter((item) => item.member_id === member.id && item.service_date > activeUntil)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [confirming, setConfirming] = useState(false)
-  const [refusal, setRefusal] = useState<{ scheduleId: string; violations: RuleViolation[] } | null>(null)
-  const [acknowledged, setAcknowledged] = useState<string[]>([])
+  const [violations, setViolations] = useState<RuleViolation[]>([])
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [rewritten, setRewritten] = useState(0)
+  // A check and acknowledgement cover the exact picks and duties they saw.
+  const resetDecision = () => {
+    setConfirming(false)
+    setViolations([])
+    setAcknowledged(false)
+  }
   const key = (day: string, role: AssignmentRole) => `${day}:${role}`
   const candidates = (day: string, role: AssignmentRole) => {
     const roleLoad = new Map<string, number>()
@@ -66,36 +76,41 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
       && !found.availability.some((entry) => entry.member_id === candidate.id && entry.kind === 'unavailable' && entry.starts_on <= day && entry.ends_on >= day))
       .sort((left, right) => (roleLoad.get(left.id) ?? 0) - (roleLoad.get(right.id) ?? 0) || left.display_name.localeCompare(right.display_name, locale()))
   }
+  const groupedDuties = () => duties.reduce((result, item) => {
+    result.set(item.schedule_id, [...(result.get(item.schedule_id) ?? []), item])
+    return result
+  }, new Map<string, typeof duties>())
+  const assignmentsFor = (group: typeof duties) => group.map((item) => ({
+    service_date: item.service_date,
+    role: item.role,
+    replacement_member_id: replacements[key(item.service_date, item.role)],
+  }))
+  const check = useMutation({
+    mutationFn: async () => {
+      const batches = [...groupedDuties()].map(([scheduleId, group]) => ({
+        schedule_id: scheduleId,
+        assignments: assignmentsFor(group),
+      }))
+      return batches.length > 0 ? api.batchOverrideCheck({ batches }) : []
+    },
+    onSuccess: (result) => {
+      setViolations(result)
+      setAcknowledged(false)
+      setConfirming(true)
+    },
+  })
   const submit = useMutation({
     mutationFn: async () => {
-      const groups = duties.reduce((result, item) => {
-        result.set(item.schedule_id, [...(result.get(item.schedule_id) ?? []), item])
-        return result
-      }, new Map<string, typeof duties>())
-      for (const [scheduleId, group] of groups) {
-        try {
-          await api.batchOverride({
-            schedule_id: scheduleId,
-            expected_version: group[0].schedule_version,
-            assignments: group.map((item) => ({
-              service_date: item.service_date,
-              role: item.role,
-              replacement_member_id: replacements[key(item.service_date, item.role)],
-            })),
-            reason: t.reason(member.display_name),
-            acknowledge_rule_violations: acknowledged.includes(scheduleId),
-          })
-        } catch (error) {
-          if (error instanceof ApiError && error.violations.length > 0) {
-            setRefusal({ scheduleId, violations: error.violations })
-            // Schedules rewritten before this one are already saved: reload
-            // so the retry sends only the duties this person still holds.
-            await calendar.refetch()
-          }
-          throw error
-        }
+      for (const [scheduleId, group] of groupedDuties()) {
+        await api.batchOverride({
+          schedule_id: scheduleId,
+          expected_version: group[0].schedule_version,
+          assignments: assignmentsFor(group),
+          reason: t.reason(member.display_name),
+          acknowledge_rule_violations: violations.length > 0 && acknowledged,
+        })
+        setRewritten((count) => count + group.length)
       }
-      setRefusal(null)
       for (const period of member.eligibility) {
         if (period.starts_on > activeUntil) await api.deleteEligibility(period.id)
         else if (!period.ends_on || period.ends_on > activeUntil) {
@@ -105,26 +120,33 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
       return api.updateTeamMember({ id: member.id, input: { active_until: activeUntil } })
     },
     onSuccess: onDone,
+    onError: async () => {
+      // Steps saved before the failure stay saved: reload so a retry checks
+      // and sends only the duties and periods this person still holds.
+      resetDecision()
+      onChanged()
+      await calendar.refetch()
+    },
   })
   const complete = duties.every((item) => replacements[key(item.service_date, item.role)])
-  const refusalAcknowledged = refusal !== null && acknowledged.includes(refusal.scheduleId)
+  const busy = check.isPending || submit.isPending
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
-      dismissible={!submit.isPending}
+      dismissible={!busy}
       size="lg"
       title={t.title(member.display_name)}
       description={t.description(formatDate(activeUntil), duties.length)}
       actions={(
         <>
-          <Button onClick={onClose} disabled={submit.isPending}>{m.common.cancel}</Button>
+          <Button onClick={onClose} disabled={busy}>{m.common.cancel}</Button>
           <Button
             variant={confirming ? 'danger' : 'primary'}
-            disabled={calendar.isLoading || !complete || submit.isPending || (refusal !== null && !refusalAcknowledged)}
-            loading={submit.isPending}
-            onClick={() => (confirming ? submit.mutate() : setConfirming(true))}
+            disabled={calendar.isLoading || !complete || busy || (violations.length > 0 && !acknowledged)}
+            loading={busy}
+            onClick={() => (confirming ? submit.mutate() : check.mutate())}
           >
             {confirming ? t.confirmEnd : t.rewriteAndEnd}
           </Button>
@@ -133,11 +155,13 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
     >
       {calendar.isLoading && <LoadingBlock label={t.searchingDuties} rows={2} />}
       {calendar.error && <Box tone="bad" role="alert" title={calendar.error.message} />}
-      {submit.error && !refusal && <Box tone="bad" role="alert" title={submit.error.message} />}
-      {refusal && (
-        <Box tone="warn" role="alert" title={t.refusalTitle}>
+      {check.error && <Box tone="bad" role="alert" title={check.error.message} />}
+      {submit.error && <Box tone="bad" role="alert" title={submit.error.message} />}
+      {rewritten > 0 && !submit.isPending && <Box tone="warn" role="status" title={t.alreadyRewritten(rewritten)} />}
+      {violations.length > 0 && (
+        <Box tone="warn" role="status" title={t.refusalTitle}>
           <ul className="box-list">
-            {refusal.violations.map((violation, index) => (
+            {violations.map((violation, index) => (
               <li key={index}>
                 {violation.message} ({violation.member_name}: {violation.days.map(formatDate).join(', ')})
               </li>
@@ -146,14 +170,9 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
           <div className="box-next">{t.refusalNext}</div>
           <Checkbox
             label={t.acknowledge}
-            checked={refusalAcknowledged}
-            disabled={submit.isPending}
-            onChange={(event) => {
-              const scheduleId = refusal.scheduleId
-              setAcknowledged((current) => event.target.checked
-                ? [...current, scheduleId]
-                : current.filter((item) => item !== scheduleId))
-            }}
+            checked={acknowledged}
+            disabled={busy}
+            onChange={(event) => setAcknowledged(event.target.checked)}
           />
         </Box>
       )}
@@ -173,10 +192,9 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone }
               value={replacements[key(item.service_date, item.role)] ?? ''}
               onChange={(event) => {
                 setReplacements((current) => ({ ...current, [key(item.service_date, item.role)]: event.target.value }))
-                // An acknowledgement covers the violations it was given for,
-                // not whatever a different pick would break.
-                setRefusal(null)
-                setAcknowledged([])
+                resetDecision()
+                check.reset()
+                submit.reset()
               }}
             >
               <option value="">{t.pickReplacement}</option>
