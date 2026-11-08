@@ -132,7 +132,10 @@ correction:
   outside the draft, e.g. availability entered after generation,
 - ends with a notification saying who was replaced and how many problems are
   left in the draft; its **Undo** button puts the previous person back for a
-  few seconds (the cell stays marked as manual).
+  few seconds (the cell stays marked as manual). The button is missing when
+  the previous person cannot be told apart, e.g. after their rotation ended,
+  their account was deleted, or when several team members share the same
+  name.
 
 ## Generator settings
 

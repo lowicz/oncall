@@ -124,7 +124,10 @@ Kliknij komórkę, w panelu dnia wybierz rolę i osobę, zapisz. Korekta:
   poza szkicem, np. dostępności wpisanej po wygenerowaniu,
 - kończy się powiadomieniem, kogo zastąpiono i ile problemów zostało w
   szkicu; jego przycisk **Cofnij** przez kilka sekund przywraca poprzednią
-  osobę (komórka zostaje oznaczona jako ręczna).
+  osobę (komórka zostaje oznaczona jako ręczna). Przycisku nie ma, gdy
+  poprzedniej osoby nie da się wskazać jednoznacznie, np. po zakończeniu jej
+  rotacji, usunięciu konta albo gdy w zespole jest kilka osób o tym samym
+  imieniu i nazwisku.
 
 ## Ustawienia generatora
 
