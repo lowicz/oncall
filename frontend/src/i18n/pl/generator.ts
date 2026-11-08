@@ -139,8 +139,9 @@ export const generator = {
     },
     fairnessProven: 'optymalna (udowodniona)',
     fairnessBestFound: 'najlepsza znaleziona',
-    /** The distance from the best solution the engine could not rule out; only in the solver details. */
-    gap: (percent: string) => `Luka do najlepszego możliwego rozwiązania: ${percent} %`,
+    /** The distance from the best solution the engine could not rule out; only in the solver details.
+     *  A no-break space keeps the per cent sign on the number's line. */
+    gap: (percent: string) => `Luka do najlepszego możliwego rozwiązania: ${percent}\u00a0%`,
     proposedStaffing: 'Proponowana obsada',
     clickToCorrect: ' · kliknij komórkę, aby skorygować',
     legend: 'Legenda',

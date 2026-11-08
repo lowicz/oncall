@@ -218,7 +218,8 @@ describe('GeneratorPanel draft persistence', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Ustawienia' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Szczegóły solvera' }))
     const details = await screen.findByRole('dialog', { name: 'Szczegóły solvera' })
-    expect(within(details).getByText('Luka do najlepszego możliwego rozwiązania: 2,5 %')).toBeInTheDocument()
+    // A no-break space before the sign, so a narrow popover never leaves "%" alone on a line.
+    expect(within(details).getByText('Luka do najlepszego możliwego rozwiązania: 2,5\u00a0%', { normalizer: (text) => text })).toBeInTheDocument()
   })
 
   it('explains a solver status that is not a full solution', async () => {
