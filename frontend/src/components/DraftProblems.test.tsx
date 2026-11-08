@@ -85,6 +85,8 @@ describe('DraftProblems', () => {
     expect(within(table).getByRole('rowheader', { name: 'Cały szkic' })).toHaveAttribute('rowspan', '3')
     expect(within(table).getAllByText('Dyżur w dniu „nie mogę”')).toHaveLength(2)
     expect(within(table).getByText('Limit czasu solvera').parentElement).toHaveTextContent('miękka')
+    expect(within(table).getAllByText('twarda · blokuje publikację')).toHaveLength(2)
+    expect(within(table).getByText('Przerwa między dyżurami krótsza niż 24 h').parentElement).toHaveTextContent('twarda · wymaga zgody przy publikacji')
     expect(within(table).getByText('Reguły twarde (jedna rola na osobę i dzień, przerwa między dyżurami, kwalifikacje, „nie mogę”): 3 naruszenia.', { exact: false })).toBeInTheDocument()
     expect(within(table).getByRole('link', { name: 'docs / generator' })).toHaveAttribute('href', '/docs/produkt/generator.html')
 

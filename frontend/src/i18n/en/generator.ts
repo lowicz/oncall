@@ -319,6 +319,7 @@ export const generator: Messages['generator'] = {
     detail: 'Detail',
     action: 'Action',
     hardBlocks: 'hard · blocks the publication',
+    hardConsent: 'hard · needs consent when publishing',
     soft: 'soft',
     fix: 'Fix',
     showDay: 'Show day',

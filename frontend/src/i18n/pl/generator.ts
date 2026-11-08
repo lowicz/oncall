@@ -325,6 +325,7 @@ export const generator = {
     detail: 'Szczegół',
     action: 'Akcja',
     hardBlocks: 'twarda · blokuje publikację',
+    hardConsent: 'twarda · wymaga zgody przy publikacji',
     soft: 'miękka',
     fix: 'Popraw',
     showDay: 'Pokaż dzień',

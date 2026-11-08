@@ -113,8 +113,9 @@ Under the matrix there are four tabs:
   warnings, gaps before the draft and a note that the draft is out of date.
   The **By person** / **By rule** switch groups the rows, **Hard only** hides
   the soft warnings, and the **Fix** button on a row opens the right cell of
-  the matrix. The table footer lists the hard rules and leads to their full
-  description.
+  the matrix. A duty on an “Unavailable” day blocks the publication, and a
+  broken hard rule needs consent in the publication window. The table footer
+  lists the hard rules and leads to their full description.
 - **Fairness** - the points spread as a single number with the value from
   before the draft and a **better** / **worse** badge, the verdict under it,
   then the acceptance criterion on every lens and a table of people with their

@@ -109,8 +109,10 @@ Pod macierzą cztery zakładki:
   w dniu „nie mogę”, złamane reguły twarde, ostrzeżenia solvera, luki przed
   szkicem i informacja, że szkic jest nieaktualny. Przełącznik **Wg osoby** /
   **Wg reguły** grupuje wiersze, **Tylko twarde** ukrywa ostrzeżenia miękkie,
-  a przycisk **Popraw** przy wierszu otwiera właściwą komórkę macierzy. Stopka
-  tabeli wylicza reguły twarde i prowadzi do ich pełnego opisu.
+  a przycisk **Popraw** przy wierszu otwiera właściwą komórkę macierzy. Dyżur
+  w dniu „nie mogę” blokuje publikację, a złamana reguła twarda wymaga zgody
+  w oknie publikacji. Stopka tabeli wylicza reguły twarde i prowadzi do ich
+  pełnego opisu.
 - **Sprawiedliwość** - rozrzut punktów jako jedna liczba z wartością sprzed
   szkicu i znacznikiem **lepiej** / **gorzej**, pod nią werdykt, dalej
   kryterium odbioru na każdej soczewce i tabela osób z odchyleniem po
