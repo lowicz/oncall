@@ -15,5 +15,8 @@ export const signed = (value: number) => `${value > 0 ? '+' : ''}${formatDecimal
 export const formatPoints = (value: number, digits = 1) =>
   value.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
-/** "+0,5", "-1,9", "0,0" - a deviation with its sign in running text. */
-export const signedPoints = (value: number, digits = 1) => `${value > 0 ? '+' : ''}${formatPoints(value, digits)}`
+/** "+0,5", "−1,9", "0,0" - a deviation with the sign of its printed value and a true minus. */
+export function signedPoints(value: number, digits = 1) {
+  const printed = Number(value.toFixed(digits))
+  return `${printed > 0 ? '+' : printed < 0 ? '−' : ''}${formatPoints(Math.abs(printed), digits)}`
+}

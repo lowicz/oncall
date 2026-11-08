@@ -19,6 +19,7 @@ describe('numbers in Polish', () => {
     expect(formatPoints(3)).toBe('3,0')
     expect(formatPoints(58.66, 1)).toBe('58,7')
     expect(signedPoints(32.84)).toBe('+32,8')
-    expect(signedPoints(-0.25, 2)).toBe('-0,25')
+    expect(signedPoints(-0.25, 2)).toBe('−0,25')
+    expect(signedPoints(-0.04)).toBe('0,0')
   })
 })

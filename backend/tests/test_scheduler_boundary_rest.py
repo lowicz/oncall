@@ -54,7 +54,10 @@ def test_preexisting_violation_warns_without_making_model_infeasible() -> None:
     )
 
     assert result.conflicts == ()
-    assert any("Historia przed początkiem zakresu" in warning for warning in result.warnings)
+    assert (
+        "Dyżury sprzed zakresu już łamią reguły odpoczynku. Generator ułożył nowe dni "
+        "tak, żeby tego nie pogłębić." in result.warnings
+    )
     assert result.assignments
     assert not any(
         item.assignee_name == "Anna"

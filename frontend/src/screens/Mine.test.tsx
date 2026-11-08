@@ -798,6 +798,7 @@ describe('MineScreen points states', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
 
     expect(await screen.findByText(big, { selector: '.big' })).toBeInTheDocument()
+    expect(screen.getByText(big, { selector: '.dev-v' })).toBeInTheDocument()
     expect(screen.getByText(sentence, { exact: false })).toBeInTheDocument()
     expect(screen.getByText('Poza normą')).toBeInTheDocument()
     expect(screen.getByText(plan, { exact: false })).toBeInTheDocument()
@@ -808,6 +809,8 @@ describe('MineScreen points states', () => {
     vi.spyOn(api, 'fairness').mockResolvedValue({ ...REPORT, members: [{ ...REPORT.members[0], primary: balance(4, deviation) }] })
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     expect(await screen.findByText('0,0', { selector: '.big' })).toBeInTheDocument()
+    // The bar agrees with the big number: no sign, read as on share.
+    expect(screen.getByRole('img', { name: 'zgodnie z udziałem' })).toHaveTextContent(/^0,0$/)
     // Nothing to even out: the box stops at the norm.
     expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\.$/)
   })

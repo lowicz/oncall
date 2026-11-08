@@ -171,7 +171,7 @@ describe('DeviationBar', () => {
     const fill = container.querySelector('i')!
     expect(fill).toHaveClass('dev-under')
     expect(fill.style.width).toBe('50%')
-    expect(screen.getByText('-9,0')).toHaveClass('dev-v-under')
+    expect(screen.getByText('−9,0')).toHaveClass('dev-v-under')
   })
 
   it('draws no bar at zero, even with a zero scale', () => {

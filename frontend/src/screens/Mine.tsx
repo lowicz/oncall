@@ -19,7 +19,7 @@ import { isPolishPhone } from '../lib/phone'
 import { availabilityLabels, firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
-import { formatPoints } from '../lib/numbers'
+import { formatPoints, signedPoints } from '../lib/numbers'
 import { preferredScrollBehavior } from '../lib/motion'
 import { isLapsed, isOpen, needsMyDecision, returnOf, swapHeadline } from '../lib/swaps'
 import { addDays, formatDate, formatDay, formatDayShort, formatMonth, formatRange, formatShortDate, relativeDay, shiftMonth, warsawDate, weekdayIndex, weekdaysFromMonday } from '../lib/dates'
@@ -691,9 +691,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
   const rows = monthlyTotals(duties.data ?? []).filter((row) => period === '12m' || row.month === thisMonth)
   const shown = balance ? Number(balance.deviation.toFixed(1)) : 0
   const within = Math.abs(shown) <= Number(threshold.toFixed(1))
-  const bigNumber = balance
-    ? `${shown > 0 ? '+' : shown < 0 ? '−' : ''}${formatPoints(Math.abs(shown))}`
-    : null
+  const bigNumber = balance ? signedPoints(shown) : null
   return (
     <section className="stack-sm" aria-labelledby="moje-punkty">
       <SectionHeading
@@ -724,7 +722,7 @@ function PointsSection({ displayName, compact, onAvailability }: {
                   : t.againstFairShare}
               </span>
             </div>
-            <DeviationBar value={balance.deviation} max={DEVIATION_SCALE} label={deviationWords(balance.deviation)} />
+            <DeviationBar value={shown} max={DEVIATION_SCALE} label={deviationWords(shown)} />
             {!compact && (
               <Box tone={within ? 'ok' : 'warn'} title={within ? t.within : t.outside}>
                 {shown > 0 ? t.aboveShare(formatPoints(shown)) : shown < 0 ? t.belowShare(formatPoints(-shown)) : t.atShare}

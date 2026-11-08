@@ -1196,8 +1196,8 @@ def _prior_history_warning(
     if not violated:
         return None
     return (
-        "Historia przed początkiem zakresu już narusza reguły odpoczynku; "
-        "generator ograniczył nowe dni bez pogłębiania zastanego naruszenia."
+        "Dyżury sprzed zakresu już łamią reguły odpoczynku. Generator ułożył "
+        "nowe dni tak, żeby tego nie pogłębić."
     )
 
 
