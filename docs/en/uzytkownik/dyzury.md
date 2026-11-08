@@ -138,9 +138,9 @@ From this panel:
   places” frame in the panel: a row-by-row preview (who moves to which role),
   the rule line checked on the state after the swap and the effect on both
   people's points balance. When one of them is not eligible for the other's
-  role that day, the frame says so under that row and the swap cannot be
-  saved. If the policy binds 11–19 to the role given up by
-  the person who also holds 11–19, the frame has a “together with SECONDARY”
+  role that day or is marked unavailable on it, the frame says so under that
+  row and the swap cannot be saved. If the policy binds 11–19 to the role
+  given up by the person who also holds 11–19, the frame has a “together with SECONDARY”
   (or “together with PRIMARY”) box, ticked exactly when the other person is
   eligible for 11–19, with one sentence saying why. Unticking it leaves
   11–19 unchanged and shows the coupling rule for a knowing

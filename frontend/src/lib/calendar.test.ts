@@ -389,7 +389,7 @@ describe('roleSwapOf (P6)', () => {
     expect(roleSwapOf(pair(), '2026-09-01', 'secondary')).toEqual({
       primary: { id: 'm1', name: 'Anna' },
       secondary: { id: 'm2', name: 'Marek' },
-      ineligible: [],
+      refused: {},
       lateShift: { anchor: 'secondary', from: { id: 'm2', name: 'Marek' }, to: { id: 'm1', name: 'Anna' }, eligible: true },
     })
     const anchoredToPrimary = pair({ assignments: [
@@ -412,11 +412,21 @@ describe('roleSwapOf (P6)', () => {
     expect(roleSwapOf(noLate, '2026-09-01', 'secondary')?.lateShift).toBeNull()
   })
 
-  it('names the roles the other person may not hold that day', () => {
+  it('names the roles the other person may not take that day, as the API refuses them', () => {
     const onlyPrimary = [{ role: 'primary' as const, starts_on: '2026-01-01', ends_on: null }]
     const expired = [{ role: 'primary' as const, starts_on: '2026-01-01', ends_on: '2026-08-31' }, { role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }]
-    expect(roleSwapOf(pair({ members: [{ ...members[0], eligibility: onlyPrimary }, members[1]] }), '2026-09-01', 'secondary')?.ineligible).toEqual(['secondary'])
-    expect(roleSwapOf(pair({ members: [members[0], { ...members[1], eligibility: expired }] }), '2026-09-01', 'secondary')?.ineligible).toEqual(['primary'])
+    expect(roleSwapOf(pair({ members: [{ ...members[0], eligibility: onlyPrimary }, members[1]] }), '2026-09-01', 'secondary')?.refused).toEqual({ secondary: 'notEligible' })
+    expect(roleSwapOf(pair({ members: [members[0], { ...members[1], eligibility: expired }] }), '2026-09-01', 'secondary')?.refused).toEqual({ primary: 'notEligible' })
+
+    const away = (member_id: string, kind: 'unavailable' | 'prefer_not', starts_on: string, ends_on: string) =>
+      ({ member_id, kind, starts_on, ends_on, note: null })
+    expect(roleSwapOf(pair({ availability: [away('m2', 'unavailable', '2026-08-31', '2026-09-01')] }), '2026-09-01', 'secondary')?.refused)
+      .toEqual({ primary: 'unavailable' })
+    // Ineligibility is what the API refuses first.
+    const both = pair({ members: [{ ...members[0], eligibility: onlyPrimary }, members[1]], availability: [away('m1', 'unavailable', '2026-09-01', '2026-09-01')] })
+    expect(roleSwapOf(both, '2026-09-01', 'secondary')?.refused).toEqual({ secondary: 'notEligible' })
+    const notThatDay = [away('m1', 'prefer_not', '2026-09-01', '2026-09-01'), away('m1', 'unavailable', '2026-09-02', '2026-09-03'), away('m2', 'unavailable', '2026-08-01', '2026-08-31')]
+    expect(roleSwapOf(pair({ availability: notThatDay }), '2026-09-01', 'secondary')?.refused).toEqual({})
   })
 
   it('needs two team members in two roles', () => {

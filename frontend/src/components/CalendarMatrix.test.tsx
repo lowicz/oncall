@@ -1637,7 +1637,8 @@ describe('CalendarMatrix role swap (P6)', () => {
       { id: 'm1', display_name: 'Anna Kowalska' },
       { id: 'm2', display_name: 'Marek Nowak', eligibility: [{ role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }] },
     ]
-    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members }))
+    const availability = [{ member_id: 'm1', kind: 'unavailable' as const, starts_on: '2026-09-10', ends_on: '2026-09-11', note: 'Urlop' }]
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek({ members, availability }))
     const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
     const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     renderScreen(matrix())
@@ -1645,7 +1646,10 @@ describe('CalendarMatrix role swap (P6)', () => {
     fireEvent.click(trigger(dialog))
     const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
 
-    expect(within(frame).getByRole('alert')).toHaveTextContent('Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.')
+    expect(within(frame).getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
+      'Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.',
+      'Anna Kowalska ma tego dnia wpis niedostępności, więc nie przejmie SECONDARY i tej zamiany nie da się zapisać.',
+    ])
     expect(within(frame).queryByText(/reguł twardych/)).not.toBeInTheDocument()
     expectBlocked(swapButton(dialog))
     fireEvent.click(swapButton(dialog))

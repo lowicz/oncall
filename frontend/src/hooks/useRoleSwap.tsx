@@ -39,6 +39,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const policy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy, enabled })
   const anchor: LateShiftAnchor = policy.data?.late_shift_anchor ?? 'secondary'
   const swap = enabled && data && serviceDate ? roleSwapOf(data, serviceDate, anchor) : null
+  const refused = Boolean(swap && Object.keys(swap.refused).length > 0)
   const ref = data?.assignments.find((item) => item.service_date === serviceDate && item.role === 'primary')
 
   const [open, setOpen] = useState(false)
@@ -55,7 +56,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const check = useQuery({
     queryKey: ['role-swap-check', serviceDate, ref?.schedule_id, ref?.schedule_version, carry],
     queryFn: () => api.batchOverrideCheck({ batches: [{ schedule_id: ref!.schedule_id, assignments: lines }] }),
-    enabled: open && Boolean(ref) && swap?.ineligible.length === 0,
+    enabled: open && Boolean(ref && swap) && !refused,
   })
   // An acknowledgement covers the violations it was given for.
   useEffect(() => setAcknowledged(false), [check.data])
@@ -134,7 +135,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   })
 
   const blocked = !ref
-    || Boolean(swap?.ineligible.length)
+    || refused
     || check.isLoading
     || ((check.data?.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
@@ -154,7 +155,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
     <section id={FRAME_ID} className="swap-frame" aria-labelledby={`${FRAME_ID}-title`}>
       <h3 id={`${FRAME_ID}-title`} className="swap-frame-h">{t.title}</h3>
       <RoleSwapPreview swap={swap} carry={carry} onCarry={setCarryChoice} disabled={save.isPending} />
-      {swap.ineligible.length === 0 && <DecisionFrame
+      {!refused && <DecisionFrame
         violations={check.data}
         checkFailed={check.isError}
         violationsTitle={t.breaksRules}

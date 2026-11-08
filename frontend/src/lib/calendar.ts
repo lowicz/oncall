@@ -150,6 +150,16 @@ function isEligible(member: CalendarData['members'][number], role: AssignmentRol
   ) ?? true
 }
 
+/** The member recorded an unavailability covering the day. */
+function isUnavailable(data: CalendarData, memberId: string, serviceDate: string) {
+  return data.availability.some(
+    (item) => item.member_id === memberId
+      && item.kind === 'unavailable'
+      && item.starts_on <= serviceDate
+      && item.ends_on >= serviceDate,
+  )
+}
+
 export interface StaffingCandidate {
   id: string
   display_name: string
@@ -258,9 +268,9 @@ export interface SwapHolder { id: string; name: string }
 export interface RoleSwap {
   primary: SwapHolder
   secondary: SwapHolder
-  /** The on-call roles whose new holder may not hold them that day: the
-   *  swap cannot be made while any is listed. */
-  ineligible: ('primary' | 'secondary')[]
+  /** Why the new holder of an on-call role may not take it that day, as the
+   *  API would refuse it: the swap cannot be made while any is set. */
+  refused: Partial<Record<'primary' | 'secondary', 'notEligible' | 'unavailable'>>
   /** 11–19 is the anchor holder's and may go along with the anchor role:
    *  the coordinator's choice, offered exactly where the API would carry it
    *  in a single correction (`_couples_late_shift` with `_same_holder`).
@@ -288,9 +298,11 @@ export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: Late
   const primary = holder(primaryMember)
   const secondary = holder(secondaryMember)
   if (!primary || !secondary || primary.id === secondary.id) return null
-  const ineligible = (['primary', 'secondary'] as const).filter(
-    (role) => !isEligible((role === 'primary' ? secondaryMember : primaryMember)!, role, serviceDate),
-  )
+  const refused: RoleSwap['refused'] = {}
+  for (const [role, taker] of [['primary', secondaryMember!], ['secondary', primaryMember!]] as const) {
+    if (!isEligible(taker, role, serviceDate)) refused[role] = 'notEligible'
+    else if (isUnavailable(data, taker.id, serviceDate)) refused[role] = 'unavailable'
+  }
   const late = holder(memberOf('late_shift'))
   const day = data.days.find((item) => item.service_date === serviceDate)
   let lateShift: RoleSwap['lateShift'] = null
@@ -302,7 +314,7 @@ export function roleSwapOf(data: CalendarData, serviceDate: string, anchor: Late
       lateShift = { anchor, from, to, eligible: isEligible(member, 'late_shift', serviceDate) }
     }
   }
-  return { primary, secondary, ineligible, lateShift }
+  return { primary, secondary, refused, lateShift }
 }
 
 /** The batch that performs `swap` (or, with the roles' holders as they were,

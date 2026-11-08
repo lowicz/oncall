@@ -183,7 +183,10 @@ export const schedule = {
     unchanged: 'bez zmian',
     carries: (anchor: string, to: string) => `Polityka wiąże 11–19 z ${anchor}, a ${to} ma do niej uprawnienia. Odznaczenie zostawia 11–19 bez zmian i pokaże regułę powiązania do potwierdzenia.`,
     notEligible: (to: string) => `${to} nie ma uprawnień do 11–19, więc 11–19 zostaje bez zmian.`,
-    roleNotEligible: (to: string, role: string) => `${to} nie ma tego dnia uprawnień do ${role}, więc tej zamiany nie da się zapisać.`,
+    refusals: {
+      notEligible: (to: string, role: string) => `${to} nie ma tego dnia uprawnień do ${role}, więc tej zamiany nie da się zapisać.`,
+      unavailable: (to: string, role: string) => `${to} ma tego dnia wpis niedostępności, więc nie przejmie ${role} i tej zamiany nie da się zapisać.`,
+    },
     breaksRules: 'Ta zamiana złamie reguły twarde',
     reason: 'Powód korekty (minimum 10 znaków)',
     roles: (roles: string[]) => roles.join(' i '),
