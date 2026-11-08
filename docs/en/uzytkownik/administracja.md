@@ -78,7 +78,8 @@ sign-in from the directory. In [SSO sign-in](../wdrozenie/sso.md) it picks the
 account Keycloak lets the person into.
 
 The panel keeps track of unsaved changes: the **Save** button gives their count.
-Trying to close it, open another person, go to another screen, or reload requires a decision whether to discard the entered changes.
+Trying to close it (Esc or the cross), open another person, go to another screen, or reload requires a decision whether to discard the entered changes.
+The **Discard changes** button in the footer drops them at once, without asking.
 Changing the role and disabling the account require an additional confirmation.
 
 ### Leaving the rotation
@@ -102,7 +103,8 @@ The **Delete account…** button in the panel footer opens a red sheet with a
 list of effects: the account is disabled immediately, the personal data
 removed, the duty history and points stay for fairness, and this person's
 published duties after today will be left unstaffed. The operation is
-confirmed by **typing the person's username**; until then the button is
+confirmed by **typing the person's username** (the field only hints “type the
+username”, never the username itself); until then the button is
 disabled. It cannot be undone.
 
 The first name, last name, e-mail, phone and personnel number disappear from

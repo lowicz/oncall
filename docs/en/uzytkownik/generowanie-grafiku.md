@@ -35,7 +35,8 @@ Below the fields you can see the saved settings (the rotation mode and the
 
 The **Drafts** list shows the existing drafts with their state (`DRAFT`, `FOR
 APPROVAL`), version, number of assignments and creation date. **Open** goes
-to the proposal, the bin icon deletes the draft. If you have drafts in both
+to the proposal, the bin icon deletes the draft after a confirmation that says how many manual
+corrections are lost with it. If you have drafts in both
 the daily and the weekly mode, the expandable section **Compare the daily and
 weekly variants** sets their metrics side by side before you choose the one
 to publish. When there is only one draft of each mode, the section picks both

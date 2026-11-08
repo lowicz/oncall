@@ -36,14 +36,19 @@ zamiast dwóch osób pokazuje dwa dyżury: oddawany i brany w zamian. Decyzję
 podejmujesz w tym samym miejscu:
 
 - **Zastępca** klika „Akceptuję” albo „Odrzuć”. Przy wyłączonym zatwierdzaniu
-  arkusz zapowiada, że akceptacja od razu wpisze zamianę do grafiku.
+  arkusz zapowiada, że akceptacja od razu wpisze zamianę do grafiku, a
+  potwierdzenie mówi to samo („Przyjęto. Zamiana wpisana do grafiku.”, z
+  przyciskiem **Otwórz dzień**). Gdy zatwierdzanie jest włączone, potwierdzenie
+  brzmi „Przyjęto. Czeka na zatwierdzenie koordynatora.”.
 - **Koordynator lub administrator** klika „Zatwierdź i wpisz do grafiku” albo
   „Odrzuć” - tylko gdy zatwierdzanie zamian jest włączone.
 - **Autor** może „Wycofać” własną prośbę, dopóki nie zapadła decyzja.
 
-Odrzucenie i wycofanie wymagają **podania powodu** w polu widocznym od razu w
-arkuszu; powód widzą obie strony, zostaje przy wniosku i w audycie. Przycisk
-„Odrzuć” jest nieaktywny, dopóki powód jest pusty.
+**Odrzucenie** wymaga powodu, ale pole pojawia się dopiero po kliknięciu
+„Odrzuć”: w tym samym wierszu przycisków zostaje „Potwierdź odrzucenie”,
+nieaktywny, dopóki powód jest pusty. Powód widzą obie strony, zostaje przy
+wniosku i w audycie. **Wycofanie** własnej prośby nie wymaga powodu; jeśli go
+nie podasz, przy wniosku zostaje „wycofane przez autora”.
 
 ## Zgłoszenie prośby
 
@@ -195,7 +200,8 @@ wolny od pracy. Takiego kandydata lista oznacza „nie można: …”.
 Jak to przebiega:
 
 1. **Wnioskodawca** po wybraniu kandydata widzi ramkę „Ta zamiana łamie reguły
-   grafiku” z listą: kto, którą regułę i w które dni. Przycisk „Wyślij prośbę”
+   grafiku” z listą: kto, którą regułę i w które dni, oraz linkiem „Które
+   reguły można potwierdzić?” do tego rozdziału. Przycisk „Wyślij prośbę”
    działa dopiero po zaznaczeniu „Rozumiem i świadomie łamię te reguły”;
    **powód** jest opcjonalny. Wybranie innego kandydata albo innego dyżuru w
    zamian, także innego wyboru **Biorę**, cofa zaznaczenie.

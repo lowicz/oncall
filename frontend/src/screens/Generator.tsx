@@ -561,7 +561,7 @@ export function GeneratorPanel() {
         title={t.deleteDialog.title}
         confirmLabel={t.deleteDialog.confirm}
         confirmColor="error"
-        description={toDelete && t.deleteDialog.description(toDelete.name, formatDate(toDelete.starts_on), formatDate(toDelete.ends_on))}
+        description={toDelete && t.deleteDialog.description(toDelete.name, formatDate(toDelete.starts_on), formatDate(toDelete.ends_on), toDelete.version, toDelete.override_count)}
         error={remove.error ? remove.error.message : null}
       />
       <Panel

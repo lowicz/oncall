@@ -148,3 +148,6 @@ export function groupSwaps(items: SwapRequest[], viewer: SwapViewer): SwapGroups
 /** The requester may pull a request back until it is decided. */
 export const canWithdraw = (item: SwapRequest, viewer: SwapViewer) =>
   isOpen(item) && item.requester_name === viewer.displayName
+
+/** What a withdrawal records when the author gives no reason; recorded text stays Polish whatever the interface language. */
+export const WITHDRAWN_BY_AUTHOR = 'wycofane przez autora'

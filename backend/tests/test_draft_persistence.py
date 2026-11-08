@@ -69,6 +69,7 @@ async def test_drafts_listing_finds_an_orphaned_draft(
     entry = next(item for item in listing.json() if item["id"] == draft["id"])
     assert entry["status"] == "draft"
     assert entry["assignment_count"] == len(draft["assignments"])
+    assert entry["override_count"] == 0
     assert entry["created_at"] is not None
 
 
@@ -149,6 +150,8 @@ async def test_manual_correction_survives_a_reload(client: AsyncClient, db: Asyn
     )
     assert changed["assignee_name"] == replacement["display_name"]
     assert changed["is_override"] is True
+    listing = (await client.get("/api/v1/scheduling/drafts")).json()
+    assert next(item for item in listing if item["id"] == draft["id"])["override_count"] == 1
 
 
 @pytest.mark.anyio

@@ -3365,6 +3365,10 @@
             "title": "Name",
             "type": "string"
           },
+          "override_count": {
+            "title": "Override Count",
+            "type": "integer"
+          },
           "rotation_mode": {
             "$ref": "#/components/schemas/RotationMode"
           },
@@ -3396,6 +3400,7 @@
           "rotation_mode",
           "solver_status",
           "assignment_count",
+          "override_count",
           "created_at"
         ],
         "title": "ScheduleSummaryResponse",

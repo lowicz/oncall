@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { focusManager } from '@tanstack/react-query'
+import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { loadRealStylesheet } from '../test/stylesheet'
 import { SwapPanel } from './Swaps'
@@ -9,6 +10,11 @@ import { api, ApiError } from '../api'
 import type { AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapPolicy, SwapRequest, SwapReturnOption, SwapScope } from '../api'
 
 // The suite clock is 2026-09-10 (src/test/setup.ts).
+
+const Address = () => {
+  const { pathname, search } = useLocation()
+  return <output aria-label="Adres">{pathname + search}</output>
+}
 
 const swap = (over: Partial<SwapRequest> & { id: string }): SwapRequest => ({
   schedule_id: 'sched-1',
@@ -48,9 +54,18 @@ const inbox = (name: RegExp) => screen.getByRole('button', { name })
 const stepsOf = (sheet: HTMLElement) =>
   within(within(sheet).getByRole('list', { name: 'Etap wniosku' })).getAllByRole('listitem').map((item) => item.textContent)
 
+// jsdom has no scrollIntoView; the reason field brings itself into view when it appears.
+const scrollIntoView = vi.fn()
+
+beforeEach(() => {
+  Element.prototype.scrollIntoView = scrollIntoView
+})
+
 afterEach(() => {
   vi.restoreAllMocks()
+  scrollIntoView.mockClear()
   focusManager.setFocused(undefined)
+  delete (Element.prototype as Partial<Element>).scrollIntoView
 })
 
 describe('SwapPanel without the coordinator approval', () => {
@@ -67,7 +82,7 @@ describe('SwapPanel without the coordinator approval', () => {
   it('leaves the coordinator out of the stages and writes the swap in on acceptance', async () => {
     stub([swap({ id: '1' })], NO_APPROVAL)
     const accept = vi.spyOn(api, 'acceptSwap').mockResolvedValue(swap({ id: '1', status: 'approved' }))
-    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
+    renderScreen(<><SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember /><Address /></>)
 
     fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
@@ -77,7 +92,9 @@ describe('SwapPanel without the coordinator approval', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
     await waitFor(() => expect(accept).toHaveBeenCalled())
     expect(accept.mock.calls[0][0]).toEqual({ id: '1', acknowledge: false })
-    expect(await screen.findByText('Zamiana wpisana do grafiku')).toBeInTheDocument()
+    expect(await screen.findByText('Przyjęto. Zamiana wpisana do grafiku.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Otwórz dzień' }))
+    expect(screen.getByLabelText('Adres')).toHaveTextContent('/grafik?dzien=2026-09-14')
   })
 
   it('keeps the stage for a request a coordinator already holds', async () => {
@@ -115,7 +132,7 @@ describe('SwapPanel inbox', () => {
     fireEvent.click(within(row).getByRole('button', { name: /Zdecyduj/ }))
     const sheet = await screen.findByRole('dialog', { name: 'Zamiana · pon 14 wrz PRIMARY' })
     expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeEnabled()
-    expect(within(sheet).getByRole('button', { name: 'Odrzuć' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Odrzuć' })).toBeEnabled()
   })
 
   it('files a request waiting for someone else under "W toku", with a preview only', async () => {
@@ -215,8 +232,14 @@ describe('SwapPanel inbox', () => {
     expect(screen.queryByLabelText(/Powód odrzucenia/)).not.toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
-    const confirm = within(sheet).getByRole('button', { name: 'Odrzuć' })
+    // The reason field appears only once Reject is clicked, in the same footer.
+    expect(within(sheet).queryByLabelText(/Powód odrzucenia/)).not.toBeInTheDocument()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Odrzuć' }))
+    expect(within(sheet).queryByRole('button', { name: 'Odrzuć' })).not.toBeInTheDocument()
+    const confirm = within(sheet).getByRole('button', { name: 'Potwierdź odrzucenie' })
     expect(confirm).toBeDisabled()
+    expect(within(sheet).getByLabelText(/Powód odrzucenia/)).toHaveFocus()
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
 
     fireEvent.change(within(sheet).getByLabelText(/Powód odrzucenia/), { target: { value: 'Jestem na urlopie' } })
     expect(confirm).toBeEnabled()
@@ -237,11 +260,23 @@ describe('SwapPanel inbox', () => {
     expect(inbox(/^Moje/)).toHaveAttribute('aria-pressed', 'true')
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
     const withdraw = within(sheet).getByRole('button', { name: 'Wycofaj' })
-    expect(withdraw).toBeDisabled()
+    expect(withdraw).toBeEnabled()
     fireEvent.change(within(sheet).getByLabelText(/Powód wycofania/), { target: { value: 'Zmiana planów' } })
     fireEvent.click(withdraw)
     await waitFor(() => expect(cancel).toHaveBeenCalled())
     expect(cancel.mock.calls[0][0]).toEqual({ id: '1', reason: 'Zmiana planów' })
+  })
+
+  it('withdraws without a reason, recording the author as the cause', async () => {
+    stub([swap({ id: '1', requester_name: 'Anna Kowalska' })])
+    const cancel = vi.spyOn(api, 'cancelSwap').mockResolvedValue(swap({ id: '1', status: 'cancelled' }))
+    renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Podgląd/ }))
+    const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Wycofaj' }))
+    await waitFor(() => expect(cancel).toHaveBeenCalled())
+    expect(cancel.mock.calls[0][0]).toEqual({ id: '1', reason: 'wycofane przez autora' })
   })
 
   it('opens the inbox named in the address', async () => {
@@ -585,6 +620,7 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
       'Piotr Zieliński: Więcej niż 3 dyżury on-call w okresie 7 dni. (14-09-2099, 15-09-2099, 18-09-2099, 19-09-2099)',
     )
     expect(within(box).getByText('Naruszenie zobaczą Piotr i koordynator, który zatwierdza zamianę. Trafi do dziennika audytu.')).toBeInTheDocument()
+    expect(within(box).getByRole('link', { name: 'Które reguły można potwierdzić?' })).toHaveAttribute('href', '/docs/uzytkownik/zamiany.html#zamiana-łamiąca-reguły')
     // The tick is the requester's word; a reason is theirs to give or not.
     const reason = screen.getByLabelText(/Powód/)
     expect(reason).not.toBeRequired()
@@ -790,13 +826,17 @@ describe('SwapPanel stages and sheets', () => {
     expect(within(box).getByRole('listitem')).toHaveTextContent(
       'Piotr Zieliński (Ty): Więcej niż 3 dyżury on-call w okresie 7 dni. (14-09-2026, 15-09-2026)',
     )
-    expect(within(box).getByText('Twoja akceptacja potwierdza to naruszenie i trafia do dziennika audytu.')).toBeInTheDocument()
+    expect(within(box).getByText(/Twoja akceptacja potwierdza to naruszenie i trafia do dziennika audytu\./)).toBeInTheDocument()
+    expect(within(box).getByRole('link', { name: 'Które reguły można potwierdzić?' })).toHaveAttribute('href', '/docs/uzytkownik/zamiany.html#zamiana-łamiąca-reguły')
 
     expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeDisabled()
     fireEvent.click(acknowledgement(sheet))
     fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
     await waitFor(() => expect(accept).toHaveBeenCalled())
     expect(accept.mock.calls[0][0]).toEqual({ id: '1', acknowledge: true })
+    // The request now waits for the coordinator, and the toast says so.
+    expect(await screen.findByText('Przyjęto. Czeka na zatwierdzenie koordynatora.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Otwórz dzień' })).not.toBeInTheDocument()
   })
 
   it('has the coordinator acknowledge them before approving, and forgets the tick with the sheet', async () => {

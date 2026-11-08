@@ -200,6 +200,8 @@ class ScheduleSummary:
     rotation_mode: RotationMode | None
     solver_status: str | None
     assignment_count: int
+    #: Slots a person changed by hand after the solver placed them.
+    override_count: int
     created_at: datetime | None
 
 

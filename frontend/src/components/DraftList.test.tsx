@@ -14,6 +14,7 @@ const draft = (id: string, over: Partial<ScheduleSummary> = {}): ScheduleSummary
   rotation_mode: 'daily',
   solver_status: 'OPTIMAL',
   assignment_count: 76,
+  override_count: 0,
   created_at: '2026-09-08T08:00:00Z',
   ...over,
 })

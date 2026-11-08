@@ -136,7 +136,8 @@ export const generator: Messages['generator'] = {
   deleteDialog: {
     title: 'Delete the draft?',
     confirm: 'Delete',
-    description: (name: string, startsOn: string, endsOn: string) => `${name} (${startsOn} - ${endsOn}). This cannot be undone.`,
+    description: (name: string, startsOn: string, endsOn: string, version: number, corrections: number) =>
+      `${name} (${startsOn} - ${endsOn}). ${corrections > 0 ? `Draft v${version} has ${pluralEn(corrections, ['manual correction', 'manual corrections'])}; ${corrections === 1 ? 'it' : 'they'} will be lost. ` : ''}This cannot be undone.`,
   },
   settings: {
     title: 'Generator settings',

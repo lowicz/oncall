@@ -45,7 +45,7 @@ const emptyCalendar = (startsOn: string, endsOn: string): CalendarData => ({
 
 const proposal: ScheduleSummary = {
   id: 'd8', name: 'Szkic', starts_on: '2026-10-04', ends_on: '2026-10-31', status: 'proposed', version: 8,
-  rotation_mode: 'hybrid', solver_status: 'OPTIMAL', assignment_count: 84, created_at: '2026-09-09T09:12:00Z',
+  rotation_mode: 'hybrid', solver_status: 'OPTIMAL', assignment_count: 84, override_count: 0, created_at: '2026-09-09T09:12:00Z',
 }
 
 function LocationProbe() {

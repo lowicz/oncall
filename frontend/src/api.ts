@@ -378,6 +378,8 @@ export interface ScheduleSummary {
   rotation_mode: RotationMode
   solver_status: string
   assignment_count: number
+  /** Slots changed by hand after the solver placed them. */
+  override_count: number
   created_at: string | null
 }
 

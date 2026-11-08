@@ -72,7 +72,8 @@ logowaniu z katalogu. Przy [logowaniu przez SSO](../wdrozenie/sso.md) wskazuje
 konto, na które Keycloak wpuszcza osobę.
 
 Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę.
-Próba zamknięcia, otwarcia innej osoby, przejścia na inny ekran albo odświeżenia wymaga decyzji, czy odrzucić wprowadzone zmiany.
+Próba zamknięcia (Esc albo krzyżyk), otwarcia innej osoby, przejścia na inny ekran albo odświeżenia wymaga decyzji, czy odrzucić wprowadzone zmiany.
+Przycisk **Odrzuć zmiany** w stopce porzuca je od razu, bez pytania.
 Zmiana roli i wyłączenie konta wymagają dodatkowego potwierdzenia.
 
 ### Wyjście z rotacji
@@ -96,7 +97,8 @@ Przycisk **Usuń konto…** w stopce panelu otwiera czerwony arkusz z listą
 skutków: konto zostaje wyłączone natychmiast, dane osobowe usunięte, historia
 dyżurów i punkty zostają dla sprawiedliwości, a opublikowane dyżury tej osoby
 po dziś pozostaną bez obsady. Operację potwierdza się, **wpisując login**
-osoby; do tego czasu przycisk jest nieaktywny. Nie da się jej cofnąć.
+osoby (pole podpowiada tylko „wpisz login”, nie sam login); do tego czasu
+przycisk jest nieaktywny. Nie da się jej cofnąć.
 
 Z konta znikają imię, nazwisko, e-mail, telefon i numer pracownika. Jeśli osoba
 była w rotacji, jej miejsce w zespole zostaje pod pseudonimem
