@@ -609,16 +609,27 @@ def _wanting_marek(**values) -> ForwardingState:
     )
 
 
-async def test_a_failure_is_told_once_the_alert_went_out() -> None:
+async def test_a_failure_is_told_once_the_alert_for_this_target_went_out() -> None:
+    anna = ForwardingTarget(DAY, ANNA, "Anna Kowalska", "+48601234567")
+    marek = replace(anna, receiver=Receiver(MAREK, "Marek Nowak"), number="+48602345678")
     retrying = await _now(
         handover=HANDOVER, state=_wanting_marek(last_outcome=ForwardingOutcome.failed)
     )
+    alerted_for_anna = await _now(
+        handover=HANDOVER,
+        state=_wanting_marek(
+            last_outcome=ForwardingOutcome.failed, alerted_for=anna.failure_alert_key
+        ),
+    )
     alerted = await _now(
         handover=HANDOVER,
-        state=_wanting_marek(last_outcome=ForwardingOutcome.failed, alert_sent=True),
+        state=_wanting_marek(
+            last_outcome=ForwardingOutcome.failed, alerted_for=marek.failure_alert_key
+        ),
     )
 
     assert retrying.status is SwitchStatus.switching
+    assert alerted_for_anna.status is SwitchStatus.switching
     assert (alerted.status, alerted.confirmed_at) == (SwitchStatus.failed, None)
 
 

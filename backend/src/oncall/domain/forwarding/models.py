@@ -178,8 +178,8 @@ class ForwardingState:
     failing_since: datetime | None
     attempts: int
     next_attempt_at: datetime | None
-    #: Whether the failure alert for the current target went out.
-    alert_sent: bool = False
+    #: The target whose failure alert went out (`ForwardingTarget.failure_alert_key`).
+    alerted_for: str | None = None
 
 
 @dataclass(frozen=True)

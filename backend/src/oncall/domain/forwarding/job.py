@@ -89,6 +89,11 @@ class ForwardingTarget:
         identity = f"{self.number}|{self.holder_id}|{self.holder_name}".encode()
         return f"{self.day.isoformat()}:{hashlib.sha256(identity).hexdigest()[:16]}"
 
+    @property
+    def failure_alert_key(self) -> str:
+        """What the state records once the failure alert for this target went out."""
+        return f"forwarding-failed:{self.alert_token}"
+
 
 @dataclass(frozen=True)
 class ForwardingAccount:

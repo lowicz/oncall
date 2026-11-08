@@ -41,7 +41,7 @@ from oncall.infrastructure.sqlalchemy.scheduling_models import Assignment, Sched
 from oncall.notifications.triggers import enqueue_rotation_notice, notify_assignment_overridden
 from oncall.secrets import SettingsCipher, decrypt, encrypt
 from oncall.wco import WcoClient, WcoError
-from tests.conftest import create_member, create_published_schedule, create_user
+from tests.conftest import create_member, create_published_schedule, create_user, login
 from tests.smtp_relay import private_ca
 from tests.wco_fake import CHANGE_PASSWORD, PERFORM_LOGIN, USER, FakeWco, https_wco
 
@@ -1521,3 +1521,27 @@ async def test_a_failure_during_a_handover_alerts_the_receiver_too(
         "koord@example.com",
     }
     assert all("Numer przejął: Marek Nowak" in alert.body for alert in alerts)
+
+
+async def test_an_alert_for_the_primary_is_not_told_as_the_receivers_failure(
+    client, db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco(faults={USER: 403})
+    _use_fake(monkeypatch, fake)
+    anna, marek = await _pair(db, frozen_clock)
+    await _settings(db, fake, ForwardingMode.live)
+    await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+    await login(client, "anna")
+    assert (await client.get("/api/v1/forwarding/now")).json()["status"] == "failed"
+
+    fake.faults = {f"{USER}/1001": 500}
+    await _hand_over(db, frozen_clock, anna, marek)
+    await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+    retrying = (await client.get("/api/v1/forwarding/now")).json()
+
+    frozen_clock.advance(timedelta(minutes=11))
+    await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock))
+    alerted = (await client.get("/api/v1/forwarding/now")).json()
+
+    assert (retrying["holder_name"], retrying["status"]) == ("Marek Nowak", "switching")
+    assert (alerted["holder_name"], alerted["status"]) == ("Marek Nowak", "failed")

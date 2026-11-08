@@ -177,7 +177,7 @@ class SqlAlchemyForwardingState:
             failing_since=row.failing_since,
             attempts=row.attempts,
             next_attempt_at=row.next_attempt_at,
-            alert_sent=row.alerted_for is not None,
+            alerted_for=row.alerted_for,
         )
 
 
@@ -632,7 +632,7 @@ class SqlAlchemyForwardingAttempts:
         failing_since = as_utc(row.failing_since or now)
         if not immediate and as_utc(now) - failing_since < TRANSIENT_ALERT_AFTER:
             return
-        alert_key = f"forwarding-failed:{target.alert_token}"
+        alert_key = target.failure_alert_key
         queued = await enqueue_forwarding_alert(
             self._session,
             target,

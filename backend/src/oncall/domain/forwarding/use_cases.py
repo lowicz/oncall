@@ -229,7 +229,11 @@ def _status(
         and state.desired_member_name == target.holder_name
         and state.desired_number == target.number
     )
-    if wanted and state.last_outcome in FAILING_OUTCOMES and state.alert_sent:
+    if (
+        wanted
+        and state.last_outcome in FAILING_OUTCOMES
+        and state.alerted_for == target.failure_alert_key
+    ):
         return SwitchStatus.failed, None
     if mode is ForwardingMode.dry_run:
         if wanted and state.last_outcome is ForwardingOutcome.dry_run:
