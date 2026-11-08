@@ -8,8 +8,7 @@ import { Box, Checkbox, Field, Textarea, cx } from '../ui'
  * A decision the user has to take knowingly: a frame with a checkbox that the
  * caller makes gate its action button, so consent lives where the facts are.
  */
-export function AcknowledgeBox({ tone = 'bad', title, label, checked, onChange, disabled, children }: {
-  tone?: 'bad' | 'warn'
+export function AcknowledgeBox({ title, label, checked, onChange, disabled, children }: {
   title: ReactNode
   label: ReactNode
   checked: boolean
@@ -18,7 +17,7 @@ export function AcknowledgeBox({ tone = 'bad', title, label, checked, onChange, 
   children?: ReactNode
 }) {
   return (
-    <Box tone={tone} title={title}>
+    <Box tone="bad" title={title}>
       {children}
       <Checkbox label={label} checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
     </Box>
