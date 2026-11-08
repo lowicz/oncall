@@ -25,6 +25,7 @@ describe('Chip', () => {
     const chip = screen.getByRole('button', { name: '2 luki' })
     expect(chip).toHaveClass('chip', 'chip-bad', 'chip-btn', 'c')
     expect(chip).toHaveAttribute('title', 'Pokaż luki')
+    expect(chip).toHaveAccessibleDescription('Pokaż luki')
     fireEvent.click(chip)
     expect(onClick).toHaveBeenCalledOnce()
   })
@@ -35,9 +36,16 @@ describe('Chip', () => {
     expect(screen.getByText('Bez zmian')).toHaveClass('chip', 'chip-muted')
   })
 
+  it('reads its title out when it is plain text', () => {
+    render(<Chip tone="warn" title="Koordynator jeszcze nie opublikował tego okresu">3 dni poza zakresem</Chip>)
+    expect(screen.getByText('Koordynator jeszcze nie opublikował tego okresu')).toHaveClass('sr-only')
+  })
+
   it('rows are a named list only when labelled', () => {
     const { container, rerender } = render(<ChipRow label="Ryzyka" className="r"><span>a</span></ChipRow>)
     expect(screen.getByRole('list', { name: 'Ryzyka' })).toHaveClass('risk', 'r')
+    rerender(<ChipRow label="Ryzyka"><><span>a</span>{false}<><span>b</span></></><></>{null}<span>c</span>d</ChipRow>)
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['a', 'b', 'c', 'd'])
     rerender(<ChipRow><span>a</span></ChipRow>)
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
     expect(container.firstElementChild).toHaveClass('risk')

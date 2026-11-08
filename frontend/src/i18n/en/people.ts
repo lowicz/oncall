@@ -130,6 +130,8 @@ export const people: Messages['people'] = {
     ended: (date: string) => `Rotation ended ${date}`,
     exitUntil: (date: string) => `Exit on ${date}.`,
     noExitDate: 'No exit date.',
+    periodSpan: (from: string, until: string) => `from ${from} to ${until}`,
+    periodOpen: (from: string) => `from ${from}, no end date`,
     qualifications: (roles: string) => `Qualifications: ${roles}.`,
     noQualifications: 'none - the generator will not assign this person any role',
     dutyQualifications: 'Duty qualifications',

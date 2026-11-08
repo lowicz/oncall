@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConnectionTest, ConnectionTestOutcome, ForwardingMode, ForwardingOutcome, ForwardingSettings, ForwardingState, api } from '../../api'
 import { CopyButton } from '../../components/CopyButton'
@@ -119,18 +119,18 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
             )}
           </Field>
           <Field label={t.settings.baseUrl} id="forwarding-base-url" hint={t.settings.baseUrlHint} required>
-            {({ id, describedBy }) => <Input id={id} type="url" mono value={form.base_url} aria-describedby={describedBy} required onChange={(event) => setForm({ ...form, base_url: event.target.value })} />}
+            {({ id, describedBy }) => <Input id={id} name="base_url" type="url" mono value={form.base_url} aria-describedby={describedBy} required onChange={(event) => setForm({ ...form, base_url: event.target.value })} />}
           </Field>
         </div>
         <div className="frow">
           <Field label={t.settings.vpbxNumber} id="forwarding-vpbx">
-            {({ id }) => <Input id={id} mono value={form.vpbx_number} autoComplete="off" onChange={(event) => setForm({ ...form, vpbx_number: event.target.value })} />}
+            {({ id }) => <Input id={id} name="vpbx_number" type="tel" mono value={form.vpbx_number} autoComplete="off" autoCapitalize="off" spellCheck={false} onChange={(event) => setForm({ ...form, vpbx_number: event.target.value })} />}
           </Field>
           <Field label={t.settings.username} id="forwarding-username">
-            {({ id }) => <Input id={id} value={form.username} autoComplete="off" onChange={(event) => setForm({ ...form, username: event.target.value })} />}
+            {({ id }) => <Input id={id} name="username" value={form.username} autoComplete="off" autoCapitalize="none" spellCheck={false} onChange={(event) => setForm({ ...form, username: event.target.value })} />}
           </Field>
           <Field label={t.settings.wcoUserId} id="forwarding-user-id" hint={t.settings.wcoUserIdHint}>
-            {({ id, describedBy }) => <Input id={id} mono value={form.wco_user_id} aria-describedby={describedBy} autoComplete="off" onChange={(event) => setForm({ ...form, wco_user_id: event.target.value })} />}
+            {({ id, describedBy }) => <Input id={id} name="wco_user_id" mono value={form.wco_user_id} aria-describedby={describedBy} autoComplete="off" autoCapitalize="none" spellCheck={false} onChange={(event) => setForm({ ...form, wco_user_id: event.target.value })} />}
           </Field>
         </div>
         {password === null ? (
@@ -146,7 +146,7 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
             <Field label={t.settings.password} id="forwarding-password" hint={t.settings.passwordHint} required={!saved.password_set}>
               {({ id, describedBy }) => (
                 <div className="row row-nowrap">
-                  <Input id={id} type="password" autoComplete="new-password" value={password} aria-describedby={describedBy} required={!saved.password_set} onChange={(event) => setPassword(event.target.value)} />
+                  <Input id={id} name="wco-password" type="password" autoComplete="new-password" autoCapitalize="none" spellCheck={false} value={password} aria-describedby={describedBy} required={!saved.password_set} onChange={(event) => setPassword(event.target.value)} />
                   {saved.password_set && <Button size="sm" variant="ghost" onClick={() => setPassword(null)}>{t.settings.keepPassword}</Button>}
                 </div>
               )}
@@ -220,7 +220,7 @@ function Secret({ value }: Readonly<{ value: string }>) {
   const [visible, setVisible] = useState(false)
   return (
     <div className="token-once">
-      <code>{visible ? value : '•'.repeat(12)}</code>
+      <code translate="no">{visible ? value : '•'.repeat(12)}</code>
       <IconButton label={visible ? t.hidePassword : t.showPassword} icon="eye" size="sm" active={visible} onClick={() => setVisible((current) => !current)} />
       <CopyButton value={value} />
     </div>
@@ -236,6 +236,7 @@ function RevealDialog({ open, onClose }: Readonly<{ open: boolean; onClose: () =
   const t = useMessages().forwarding.reveal
   const common = useMessages().common
   const [confirmation, setConfirmation] = useState('')
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [left, setLeft] = useState(REVEAL_SECONDS)
   const reveal = useMutation({
     mutationFn: api.revealForwardingPassword,
@@ -259,6 +260,7 @@ function RevealDialog({ open, onClose }: Readonly<{ open: boolean; onClose: () =
       title={t.title}
       size="sm"
       dismissible={!reveal.isPending}
+      initialFocus={passwordRef}
       actions={revealed ? (
         <Button onClick={close}>{common.close}</Button>
       ) : (
@@ -289,7 +291,7 @@ function RevealDialog({ open, onClose }: Readonly<{ open: boolean; onClose: () =
         <form id="forwarding-reveal" className="stack-sm" onSubmit={(event) => { event.preventDefault(); reveal.mutate(confirmation) }}>
           <p className="small">{t.audited}</p>
           <Field label={t.yourPassword} id="forwarding-confirmation">
-            {({ id }) => <Input id={id} type="password" autoComplete="current-password" autoFocus value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />}
+            {({ id }) => <Input ref={passwordRef} id={id} name="password-confirmation" type="password" autoComplete="current-password" autoCapitalize="none" spellCheck={false} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />}
           </Field>
           {reveal.error && <Box tone="bad" role="alert" title={reveal.error.message} />}
         </form>

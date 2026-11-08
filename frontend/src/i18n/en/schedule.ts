@@ -40,6 +40,8 @@ export const schedule: Messages['schedule'] = {
     unstaffedDay: 'unstaffed day',
     weekendHoliday: 'weekend / holiday (2X)',
     event: 'event (a dot in the cell)',
+    keys: 'Keys',
+    keysText: 'Arrow keys move around the grid, PageUp and PageDown jump a week.',
   },
   dayList: {
     label: 'Schedule day by day',

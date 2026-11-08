@@ -76,7 +76,7 @@ export function ShareLinksPanel() {
       {error && <Box tone="bad" role="alert" title={error.message} />}
       {created && (
         <Box tone="ok" role="status" title={t.shareLinks.created(formatDate(created.expires_at))}>
-          <div className="token-once"><code>{created.url}</code><CopyButton value={created.url} /></div>
+          <div className="token-once"><code translate="no">{created.url}</code><CopyButton value={created.url} /></div>
         </Box>
       )}
       <SectionHeading

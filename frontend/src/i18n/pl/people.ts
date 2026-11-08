@@ -132,6 +132,8 @@ export const people = {
     ended: (date: string) => `Rotacja zakończona ${date}`,
     exitUntil: (date: string) => `Wyjście do ${date}.`,
     noExitDate: 'Bez daty wyjścia.',
+    periodSpan: (from: string, until: string) => `od ${from} do ${until}`,
+    periodOpen: (from: string) => `od ${from}, bez daty końca`,
     qualifications: (roles: string) => `Kwalifikacje: ${roles}.`,
     noQualifications: 'brak - generator nie przydzieli tej osobie żadnej roli',
     dutyQualifications: 'Kwalifikacje dyżurowe',

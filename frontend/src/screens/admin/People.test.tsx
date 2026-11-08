@@ -226,6 +226,7 @@ describe('PeoplePanel person panel', () => {
     fireEvent.click(within(dialog).getByRole('tab', { name: /Rotacja/ }))
     const period = (await within(dialog).findAllByText('02-09-2025 → ∞'))[0].closest('.list-row') as HTMLElement
     expect(within(period).getByText('PRIMARY')).toBeInTheDocument()
+    expect(within(period).getByText('od 02-09-2025, bez daty końca')).toHaveClass('sr-only')
     fireEvent.click(within(period).getByRole('button', { name: 'Edytuj' }))
     fireEvent.change(within(dialog).getByLabelText('Od'), { target: { value: '2025-10-01' } })
     fireEvent.change(within(dialog).getByLabelText('Do (opcjonalnie)'), { target: { value: '2025-12-31' } })
@@ -909,6 +910,7 @@ describe('PeoplePanel rotation tab', () => {
     expect(within(dialog).getByText('Rotacja zakończona 30-06-2026')).toBeInTheDocument()
     expect(within(dialog).queryByText(/Wyjście do 30-06-2026\.|Bez daty wyjścia/)).not.toBeInTheDocument()
     const period = within(dialog).getByText('02-09-2025 → 30-06-2026').closest('.list-row') as HTMLElement
+    expect(within(period).getByText('od 02-09-2025 do 30-06-2026')).toHaveClass('sr-only')
     expect(within(period).getByText('historia')).toBeInTheDocument()
     expect(within(period).queryByRole('button', { name: 'Edytuj' })).not.toBeInTheDocument()
 

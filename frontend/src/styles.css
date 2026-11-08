@@ -115,18 +115,18 @@ small, .small { font-size: 12px; line-height: 16px; }
 
 /* ---------- 3 primitives ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 14px/21px var(--font); padding: 8px 18px; border-radius: 999px; border: 1px solid var(--line2); background: var(--s1); color: var(--fg); white-space: nowrap; text-decoration: none; min-height: 40px; cursor: pointer; }
-.btn:hover:not(:disabled) { background: var(--s2); border-color: var(--line2); }
+.btn:hover:not(:disabled, [aria-disabled="true"]) { background: var(--s2); border-color: var(--line2); }
 .btn-pri { background: var(--act); color: var(--act-ink); border-color: transparent; }
-.btn-pri:hover:not(:disabled) { background: var(--act); filter: brightness(0.95); }
+.btn-pri:hover:not(:disabled, [aria-disabled="true"]) { background: var(--act); filter: brightness(0.95); }
 .btn-danger { background: var(--danger); color: var(--act-ink); border-color: transparent; }
-.btn-danger:hover:not(:disabled) { background: var(--danger); filter: brightness(0.95); }
+.btn-danger:hover:not(:disabled, [aria-disabled="true"]) { background: var(--danger); filter: brightness(0.95); }
 .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
-.btn-ghost:hover:not(:disabled) { color: var(--fg); background: var(--s2); }
+.btn-ghost:hover:not(:disabled, [aria-disabled="true"]) { color: var(--fg); background: var(--s2); }
 .btn-sm { padding: 5px 14px; font-size: 12px; line-height: 16px; min-height: 32px; }
 .btn-block { width: 100%; }
 /* The 24 px icon beside 21 px text would make a button with an icon 2 px taller than one without; keep every button at its text height. */
 .btn .icon { margin: -2px 0; }
-.btn:disabled { opacity: 0.5; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; }
 .ib { width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--line); background: transparent; display: inline-grid; place-items: center; color: var(--muted); flex: 0 0 auto; padding: 0; }
 .ib:hover:not(:disabled) { color: var(--fg); background: var(--s2); }
 .ib-sm { width: 32px; height: 32px; }
@@ -164,6 +164,7 @@ small, .small { font-size: 12px; line-height: 16px; }
 .chip-btn { cursor: pointer; }
 .chip-btn:hover { background: var(--s2); }
 .risk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip-row-item { display: contents; }
 
 .tag { font: 600 12px/16px var(--label); padding: 1px 9px; border-radius: 999px; background: var(--s3); color: var(--muted); white-space: nowrap; }
 .tag-late { color: var(--late-text); }
@@ -258,7 +259,6 @@ small, .small { font-size: 12px; line-height: 16px; }
 .list-row-warn { box-shadow: inset 3px 0 0 var(--warn); }
 .list-h { padding: 6px 12px; font: 600 12px/16px var(--label); color: var(--muted); background: var(--s2); border-bottom: 1px solid var(--line); }
 
-.tbl-wrap { overflow-x: auto; position: relative; }
 table.lg { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 21px; }
 table.lg thead th { text-align: left; font: 600 12px/16px var(--label); color: var(--muted); padding: 8px; border-bottom: 1px solid var(--line2); white-space: nowrap; }
 table.lg td, table.lg tbody th { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -353,6 +353,8 @@ table.lg th button[aria-sort] { color: var(--fg); }
 .panel-modal .panel-head::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; border-radius: 2px; background: var(--line2); }
 .panel-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
 .panel-title { font: 700 20px/24px var(--font); }
+/* The title takes focus only so a screen reader starts there; it is not a control, so it draws no ring. */
+.panel-title:focus-visible { outline: none; }
 .panel-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .panel-close { margin-left: auto; }
 .panel-body { padding: 16px 20px; overflow: auto; overscroll-behavior: contain; display: grid; gap: 14px; align-content: start; }

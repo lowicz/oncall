@@ -113,7 +113,7 @@ describe('DutyScreen header', () => {
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
     renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
-    expect(await screen.findByRole('status')).toHaveTextContent('Grafik na ten okres nie został jeszcze opublikowany')
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Grafik na ten okres nie został jeszcze opublikowany'))
     expect(screen.getByRole('link', { name: /Generuj kolejny zakres/ })).toHaveAttribute('href', '/generator')
   })
 })
@@ -371,7 +371,7 @@ describe('DutyScreen states not covered above', () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
-    expect(await screen.findByRole('status')).toHaveTextContent('Koordynator jeszcze nie opublikował grafiku na ten okres.')
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Koordynator jeszcze nie opublikował grafiku na ten okres.'))
     expect(screen.getByText('Grafik na ten okres nie jest opublikowany')).toBeInTheDocument()
   })
 

@@ -408,9 +408,13 @@ export function GeneratorPanel() {
                   <Button
                     variant="primary"
                     icon="send"
-                    disabled={propose.isPending || conflictCount > 0 || generating}
+                    disabled={propose.isPending || generating}
+                    aria-disabled={conflictCount > 0 || undefined}
+                    aria-describedby={conflictCount > 0 ? 'generator-propose-blocked' : undefined}
                     loading={propose.isPending}
-                    onClick={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
+                    onClick={() => {
+                      if (conflictCount === 0) propose.mutate({ id: result.id, expectedVersion: result.version })
+                    }}
                   >
                     {t.header.propose}
                   </Button>
@@ -448,7 +452,8 @@ export function GeneratorPanel() {
       {opened.error && <ErrorState error={opened.error} onRetry={() => opened.refetch()} />}
       {!result && rangeForm}
       {result && (
-        <section className="stack" aria-label={result.name}>
+        <section className="stack" aria-labelledby="generator-draft-title">
+          <h2 id="generator-draft-title" className="sr-only">{result.name}</h2>
           <Steps
             label={t.draft.stage}
             steps={STAGES.map((stage) => ({
@@ -456,7 +461,7 @@ export function GeneratorPanel() {
               state: STAGES.indexOf(stage) < STAGES.indexOf(result.status) ? 'done' : stage === result.status ? 'on' : 'todo',
             }))}
           />
-          {result.status === 'draft' && conflictCount > 0 && <span className="small who-bad">{t.proposeBlocked}</span>}
+          {result.status === 'draft' && conflictCount > 0 && <span id="generator-propose-blocked" className="small who-bad">{t.proposeBlocked}</span>}
           <ChipRow label={t.draft.state}>
             <Chip tone={SOLVER_OK.has(result.solver_status) ? 'ok' : 'bad'}>
               {t.draft.staffing(days, result.assignments.length)}

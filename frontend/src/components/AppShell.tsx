@@ -50,7 +50,7 @@ function RailLink({ path, label, icon, badge }: { path: string; label: string; i
     <NavLink to={path} end={path === '/'} className={({ isActive }) => cx('nav-link', isActive && 'active')}>
       <Icon name={icon} />
       <span>{label}</span>
-      {badge ? <span className="nav-cnt" aria-label={t.shell.pendingDecisions(badge)}>{badge}</span> : null}
+      {badge ? <><span className="nav-cnt" aria-hidden="true">{badge}</span><span className="sr-only">{t.shell.pendingDecisions(badge)}</span></> : null}
     </NavLink>
   )
 }
@@ -98,7 +98,7 @@ function AccountMenu({ displayName, avatar, roleLine, version, share, onPalette,
       <LanguageMenuRadio />
       <MenuSeparator />
       <MenuLink to={docsHref(language)} external><Icon name="doc" /> {t.shell.documentation}</MenuLink>
-      {!share && <MenuItem onClick={onPalette}><Icon name="search" /> {t.shell.commandPalette} <span className="kbd ml-auto">Ctrl K</span></MenuItem>}
+      {!share && <MenuItem onClick={onPalette}><Icon name="search" /> {t.shell.commandPalette} <span className="kbd ml-auto" translate="no">Ctrl K</span></MenuItem>}
       <MenuSeparator />
       <MenuItem onClick={onLogout} disabled={logoutPending}><Icon name="logout" /> {t.shell.logout}</MenuItem>
       {version && (
@@ -205,7 +205,7 @@ export function AppShell({ displayName, avatar = null, access, share }: {
           </nav>
           <div className="rail-foot">
             <a href={docsHref(language)} className="nav-link p-0"><Icon name="doc" /><span>{t.shell.documentation}</span></a>
-            <button type="button" onClick={() => setPaletteOpen(true)}>{t.shell.palette} <span className="kbd">Ctrl</span> <span className="kbd">K</span></button>
+            <button type="button" onClick={() => setPaletteOpen(true)}>{t.shell.palette} <span className="kbd" translate="no">Ctrl</span> <span className="kbd" translate="no">K</span></button>
             {branding.version && <span>{t.shell.versionLine(branding.version)}</span>}
           </div>
         </aside>
@@ -235,7 +235,7 @@ export function AppShell({ displayName, avatar = null, access, share }: {
               <button type="button" className="now-search" onClick={() => setPaletteOpen(true)} aria-label={t.shell.searchHint} aria-keyshortcuts="Control+K">
                 <Icon name="search" />
                 <span>{t.shell.search}</span>
-                <span className="kbd">Ctrl K</span>
+                <span className="kbd" translate="no">Ctrl K</span>
               </button>
             )}
             {accountMenu}
@@ -252,7 +252,7 @@ export function AppShell({ displayName, avatar = null, access, share }: {
               <NavLink key={item.path} to={item.path} end={item.path === '/'} className={({ isActive }) => cx('tab-link', isActive && 'active')}>
                 <Icon name={item.icon} size={18} />
                 {navLabel(item)}
-                {badge(item.path) ? <span className="nav-cnt">{badge(item.path)}</span> : null}
+                {badge(item.path) ? <><span className="nav-cnt" aria-hidden="true">{badge(item.path)}</span><span className="sr-only">{t.shell.pendingDecisions(badge(item.path))}</span></> : null}
               </NavLink>
             ))}
             <NavLink to="/wiecej" className={({ isActive }) => cx('tab-link', isActive && 'active')}>
