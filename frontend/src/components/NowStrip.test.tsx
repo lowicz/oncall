@@ -7,7 +7,6 @@ import { NowStrip, coverageEnd, formatUntil } from './NowStrip'
 import { api } from '../api'
 import type { CurrentDuty, PublishedSchedule } from '../api'
 
-/** The freshness-dot rule the loaded stylesheet defines for a stale reading. */
 /** The last rule whose selector list names `selector`, as the cascade would apply it. */
 function dotRule(selector: string): CSSStyleRule | undefined {
   let found: CSSStyleRule | undefined

@@ -15,7 +15,7 @@ the result of the fairness criterion. Who is on duty at this moment, until
 when and on which phone number is shown all the time by the “On duty now”
 strip above every screen, so the screen itself does not repeat the staffing.
 A role nobody holds is bold in the strip and marked with a red dot:
-**brak obsady** (unstaffed).
+**unstaffed**.
 
 The actions on the right depend on the role: a team member has **File
 availability** (it leads to the Mine screen), a coordinator and an

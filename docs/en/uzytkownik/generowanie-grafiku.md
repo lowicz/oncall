@@ -84,8 +84,8 @@ Actions in the header: **Generate a new draft**, and then **Submit for
 approval** for a draft or **Publish…** for a proposal. The **⋯** (**More**)
 menu has **Generator settings** and, for a proposal, **Back to draft**.
 **Generate a new draft** creates another draft for the same range and opens
-it; the current draft, with its corrections, stays in the draft list, which
-the message after generating says.
+it; the open schedule, with its corrections, stays as it is, which the
+message after generating says.
 
 The page has two columns. On the left:
 

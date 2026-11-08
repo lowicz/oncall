@@ -79,8 +79,8 @@ Akcje w nagłówku: **Generuj nowy szkic**, a dalej **Przekaż do akceptacji**
 dla szkicu albo **Publikuj…** dla propozycji. Menu **⋯** (**Więcej**) ma
 **Ustawienia generatora** i, dla propozycji, **Wróć do szkicu**. **Generuj
 nowy szkic** tworzy kolejny szkic dla tego samego zakresu i otwiera go;
-bieżący szkic, z poprawkami, zostaje na liście szkiców, o czym mówi
-komunikat po wygenerowaniu.
+otwarty grafik, z poprawkami, zostaje bez zmian, o czym mówi komunikat po
+wygenerowaniu.
 
 Strona ma dwie kolumny. Po lewej:
 

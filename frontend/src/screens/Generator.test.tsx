@@ -896,7 +896,7 @@ describe('GeneratorPanel lifecycle actions', () => {
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
     fireEvent.click(await screen.findByRole('button', { name: 'Generuj nowy szkic' }))
-    expect(await screen.findByText('Utworzono nowy szkic · poprzedni zostaje na liście szkiców')).toBeInTheDocument()
+    expect(await screen.findByText('Utworzono nowy szkic · otwarty grafik zostaje bez zmian')).toBeInTheDocument()
   })
 
   it('keeps the settings in the "more" menu of an open draft and gives the focus back to it', async () => {
