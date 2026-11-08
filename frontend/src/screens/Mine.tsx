@@ -671,14 +671,12 @@ function PointsSection({ displayName, compact, onAvailability }: {
         id="moje-punkty"
         title={compact ? t.headingCompact : t.heading}
         controls={!compact && (
-          <>
-            <Segmented<'12m' | 'month'>
-              label={t.period}
-              value={period}
-              onChange={setPeriod}
-              options={[{ value: '12m', label: t.twelveMonths }, { value: 'month', label: t.thisMonth }]}
-            />
-          </>
+          <Segmented<'12m' | 'month'>
+            label={t.period}
+            value={period}
+            onChange={setPeriod}
+            options={[{ value: '12m', label: t.twelveMonths }, { value: 'month', label: t.thisMonth }]}
+          />
         )}
       />
       <div className="panel panel-padded stack-sm">
