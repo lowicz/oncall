@@ -20,6 +20,9 @@ export interface UndoableOptions<Result> {
   /** `undo_window_seconds` from `/api/v1/config`: how long the server holds
    *  the change's e-mails. */
   windowSeconds: number
+  /** Receives the same Undo the toast offers and the instant it expires, for
+   *  a second way to it beside the change itself. */
+  onOffer?: (undo: () => void, until: number) => void
 }
 
 /**
@@ -55,5 +58,6 @@ export async function undoable<Result>(options: UndoableOptions<Result>): Promis
     action: { label: options.undoLabel, onClick: undo },
     until: { at: until, expired: message.expired ?? messages().common.undoClosed },
   })
+  options.onOffer?.(undo, until)
   return result
 }

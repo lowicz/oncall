@@ -4,11 +4,11 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
-from oncall.domain.overrides.models import AssignmentChange, OverrideMove
-from oncall.domain.roster import Slot
+from oncall.domain.overrides.models import AssignmentChange, BatchOverrideKind, OverrideMove
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.notifications import triggers
+from oncall.notifications.templates import format_date, swapped_holders
 from oncall.rules import RuleViolation
 
 
@@ -90,25 +90,35 @@ class SqlAlchemyOverrideJournal:
         self,
         *,
         schedule_id: uuid.UUID,
-        slots: list[Slot],
+        kind: BatchOverrideKind,
         moves: list[OverrideMove],
         changes: list[AssignmentChange],
         violations: list[RuleViolation],
-        reason: str,
+        reason: str | None,
     ) -> None:
+        role_swap = kind is BatchOverrideKind.role_swap
         await triggers.notify_assignments_overridden_in_batch(
-            self._session, changes=changes, reason=reason
+            self._session, changes=changes, reason=reason, role_swap=role_swap
         )
+        if role_swap:
+            action = "schedule.role_swap"
+            summary = (
+                f"Zamieniono role dnia {format_date(moves[0].service_date)}: "
+                + swapped_holders(changes)
+            )
+        else:
+            action = "schedule.override_batch"
+            summary = f"Przepisano wsadowo {len(moves)} dyżurów"
         record_audit(
             self._session,
             actor=self._actor,
-            action="schedule.override_batch",
+            action=action,
             entity_type="schedule",
             entity_id=schedule_id,
-            summary=f"Przepisano wsadowo {len(slots)} dyżurów" + acknowledged_suffix(violations),
+            summary=summary + acknowledged_suffix(violations),
             details={
                 "reason": reason,
-                "slots": [f"{day}:{role.value}" for day, role in slots],
+                "slots": [f"{move.service_date}:{move.role.value}" for move in moves],
                 "moves": _moves_detail(moves),
                 "rule_violations": violations_detail(violations),
             },

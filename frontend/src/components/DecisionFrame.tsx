@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { RuleViolation } from '../api'
+import { NumberHandover, RuleViolation } from '../api'
 import { formatDate } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { Box, Checkbox, cx } from '../ui'
@@ -27,7 +27,8 @@ export function AcknowledgeBox({ title, label, checked, onChange, disabled, chil
 /**
  * Everything a change needs before it is saved, inside the panel that makes
  * it rather than in a confirmation dialog: one rule line, or the broken rules
- * with their acknowledgement; the balance (`children`); and the save error,
+ * with their acknowledgement; the open number handover the change ends, stated
+ * rather than asked about (NP-16); the balance (`children`); and the save error,
  * focused so it is announced and in reach.
  * The caller owns the state and gates its save button on it.
  */
@@ -35,6 +36,7 @@ export function DecisionFrame({
   violations,
   checkFailed = false,
   violationsTitle,
+  endsHandover,
   acknowledged,
   onAcknowledge,
   error,
@@ -46,13 +48,15 @@ export function DecisionFrame({
   /** The check itself failed: the save checks the rules again. */
   checkFailed?: boolean
   violationsTitle: string
+  /** The open number handover saving would end. */
+  endsHandover?: NumberHandover | null
   acknowledged: boolean
   onAcknowledge: (acknowledged: boolean) => void
   error?: string | null
   pending?: boolean
   children?: ReactNode
 }>) {
-  const { common } = useMessages()
+  const { common, schedule } = useMessages()
   const t = common.decision
   let rule = { tone: 'rule-line-wait', text: t.checking }
   if (checkFailed) rule = { tone: 'rule-line-warn', text: t.checkFailed }
@@ -78,6 +82,9 @@ export function DecisionFrame({
         </AcknowledgeBox>
       ) : (
         <output className={cx('rule-line', rule.tone)}>{rule.text}</output>
+      )}
+      {endsHandover && (
+        <Box tone="warn">{schedule.confirm.endsHandover(endsHandover.from_name, endsHandover.to_name)}</Box>
       )}
       {children}
       {error && <Box tone="bad" role="alert" focus title={error} />}

@@ -869,6 +869,53 @@ def assignments_overridden_in_batch(
     )
 
 
+def swapped_holders(changes: Sequence[tuple[date, AssignmentRole, str, str]]) -> str:
+    """`Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19`: who holds which
+    roles of the day after a role swap, in the order of the changes."""
+    roles: dict[str, list[str]] = {}
+    for _, role, _, new_name in changes:
+        roles.setdefault(new_name, []).append(ROLE_LABELS[role])
+    return ", ".join(f"{name} {' i '.join(labels)}" for name, labels in roles.items())
+
+
+def roles_swapped(
+    *,
+    changes: list[tuple[date, AssignmentRole, str, str]],
+    reason: str | None,
+    app: Brand,
+    automatic: bool = False,
+) -> RenderedEmail:
+    """Two people traded one day's on-call roles; both read every change, as
+    the swap is one decision about the two of them. `automatic` as in
+    `assignment_overridden`: PRIMARY always changes hands here."""
+    service_date = changes[0][0]
+    day = format_day(service_date)
+    holders = swapped_holders(changes)
+    because = f"Powód: {reason}\n" if reason else ""
+    advice = _AUTOMATIC_SWITCH if automatic else _SWITCH_NUMBER
+    body = (
+        f"Koordynator zamienił role dnia {day}: {holders}.\n"
+        f"{_change_lines(changes)}\n"
+        f"{because}\n"
+        f"{advice}\n"
+        f"Aktualny grafik: {app.url}/\n"
+    )
+    return _render(
+        app=app,
+        subject=f"Zamiana ról {day}: {holders}",
+        body=body,
+        eyebrow="Korekta grafiku",
+        title="Zamiana ról",
+        lead=join(
+            text("Koordynator zamienił role dnia "), _day(service_date), text(f": {holders}.")
+        ),
+        slots=_change_slots(changes),
+        paragraphs=[join(strong("Powód: "), text(reason))] if reason else None,
+        note=Note(advice),
+        action=_schedule_action(app),
+    )
+
+
 def _segment_line(role: AssignmentRole, starts_on: date, ends_on: date) -> str:
     return f"{_slot_line(starts_on, role)} · ostatni dzień: {format_day(ends_on)}"
 

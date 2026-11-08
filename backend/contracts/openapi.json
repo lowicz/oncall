@@ -646,6 +646,11 @@
             "format": "date",
             "title": "Service Date",
             "type": "string"
+          },
+          "with_late_shift": {
+            "default": false,
+            "title": "With Late Shift",
+            "type": "boolean"
           }
         },
         "required": [
@@ -655,6 +660,15 @@
         ],
         "title": "BatchOverrideItem",
         "type": "object"
+      },
+      "BatchOverrideKind": {
+        "description": "What one batch decision is, which decides its reason, audit and e-mail.",
+        "enum": [
+          "correction",
+          "role_swap"
+        ],
+        "title": "BatchOverrideKind",
+        "type": "string"
       },
       "BatchOverrideRequest": {
         "additionalProperties": false,
@@ -678,11 +692,21 @@
             "title": "Expected Version",
             "type": "integer"
           },
+          "kind": {
+            "$ref": "#/components/schemas/BatchOverrideKind",
+            "default": "correction"
+          },
           "reason": {
-            "maxLength": 500,
-            "minLength": 10,
-            "title": "Reason",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           },
           "schedule_id": {
             "format": "uuid",
@@ -693,8 +717,7 @@
         "required": [
           "schedule_id",
           "expected_version",
-          "assignments",
-          "reason"
+          "assignments"
         ],
         "title": "BatchOverrideRequest",
         "type": "object"

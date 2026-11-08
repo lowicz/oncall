@@ -44,6 +44,9 @@ Korekta koordynatora - pojedyncza albo wsadowa (np. przy zakończeniu rotacji) -
 powiadamia obie strony każdego przepisanego slotu: osobę zdejmowaną i
 przejmującą. Przy korekcie wsadowej każda osoba dostaje jedną wiadomość z listą
 wyłącznie tych slotów, które oddała albo przejęła, oraz z powodem korekty.
+Zamiana miejscami PRIMARY i SECONDARY jednego dnia przychodzi jako wiadomość
+„Zamiana ról” z obsadą dnia po zamianie, a powód zawiera tylko wtedy, gdy go
+podano.
 
 Wiadomości o korekcie wychodzą 10 sekund po niej; sama zmiana grafiku i wpis
 audytu powstają od razu. Korekta odwrotna (przywrócenie poprzedniej osoby)

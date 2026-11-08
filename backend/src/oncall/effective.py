@@ -22,8 +22,9 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import Delete, Update, event, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import ORMExecuteState, Session, UOWTransaction
 
 from oncall.domain.roster import SlotOrigin
 from oncall.domain.vocabulary import AssignmentRole, ScheduleOrigin, ScheduleStatus
@@ -62,6 +63,48 @@ _effective_cache: dict[
     tuple[date, date], tuple[float, dict[tuple[date, AssignmentRole], EffectiveAssignment]]
 ] = {}
 _effective_locks: dict[tuple[date, date], asyncio.Lock] = {}
+#: Bumped by every commit that empties the cache, so a load that started
+#: before it does not store the roster the commit replaced.
+_cache_generation = 0
+_RESOLVED_TABLES = (Assignment.__table__, Schedule.__table__)
+_WROTE_RESOLVED = "oncall.wrote_resolved_assignments"
+
+
+# A committed write to assignments or schedules empties this process's cache,
+# so the writer's next read sees it. Other processes keep theirs until the TTL.
+@event.listens_for(Session, "after_flush")
+def _note_flushed_write(session: Session, _flush: UOWTransaction) -> None:
+    if any(
+        isinstance(row, (Assignment, Schedule))
+        for row in (*session.new, *session.dirty, *session.deleted)
+    ):
+        session.info[_WROTE_RESOLVED] = True
+
+
+@event.listens_for(Session, "do_orm_execute")
+def _note_bulk_write(state: ORMExecuteState) -> None:
+    statement = state.statement
+    if isinstance(statement, (Update, Delete)) and statement.table in _RESOLVED_TABLES:
+        state.session.info[_WROTE_RESOLVED] = True
+
+
+@event.listens_for(Session, "after_commit")
+def _forget_on_commit(session: Session) -> None:
+    global _cache_generation
+    if session.info.pop(_WROTE_RESOLVED, False):
+        _cache_generation += 1
+        _effective_cache.clear()
+
+
+def _make_room(now: float) -> None:
+    """At the size limit, drop the expired ranges, or the oldest one if none expired."""
+    if len(_effective_cache) < _CACHE_LIMIT:
+        return
+    expired = [key for key, (until, _) in _effective_cache.items() if until <= now]
+    oldest = min(_effective_cache, key=lambda key: _effective_cache[key][0])
+    for key in expired or [oldest]:
+        _effective_cache.pop(key, None)
+        _effective_locks.pop(key, None)
 
 
 async def effective_assignments(
@@ -93,13 +136,11 @@ async def effective_assignments(
             cached = _effective_cache.get(cache_key)
             if cached is not None and cached[0] > now:
                 return cached[1]
+            generation = _cache_generation
             result = await _load_effective_assignments(db, starts_on, ends_on)
-            if len(_effective_cache) >= _CACHE_LIMIT:
-                expired = [key for key, (until, _) in _effective_cache.items() if until <= now]
-                oldest = min(_effective_cache, key=lambda key: _effective_cache[key][0])
-                for key in expired or [oldest]:
-                    _effective_cache.pop(key, None)
-                    _effective_locks.pop(key, None)
+            if generation != _cache_generation:
+                return result
+            _make_room(now)
             _effective_cache[cache_key] = (now + cache_seconds, result)
             return result
     return await _load_effective_assignments(db, starts_on, ends_on)

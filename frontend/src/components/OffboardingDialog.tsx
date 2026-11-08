@@ -95,7 +95,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
         schedule_id: scheduleId,
         assignments: assignmentsFor(group),
       }))
-      return batches.length > 0 ? api.batchOverrideCheck({ batches }) : []
+      return batches.length > 0 ? (await api.batchOverrideCheck({ batches })).violations : []
     },
     onSuccess: (result) => {
       setViolations(result)

@@ -103,6 +103,7 @@ export const labels = {
     'calendar.event_deleted': 'Usunięto wydarzenie',
     'schedule.draft_override': 'Korekta szkicu',
     'schedule.override_batch': 'Wsadowa korekta grafiku',
+    'schedule.role_swap': 'Zamieniono role dnia',
     'schedule.override_carried': 'Przeniesiono korektę',
     'schedule.withdrawn': 'Cofnięto do szkicu',
     'forwarding.settings_updated': 'Zmieniono przełączanie numeru',

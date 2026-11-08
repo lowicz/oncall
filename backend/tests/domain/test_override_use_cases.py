@@ -1,6 +1,7 @@
 """Coordinator correction use cases against in-memory ports: no database, no HTTP."""
 
 import uuid
+from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
@@ -10,6 +11,7 @@ from oncall.domain.overrides.models import (
     UNSTAFFED,
     BatchOverrideCheck,
     BatchOverrideInput,
+    BatchOverrideKind,
     BatchOverrideLine,
     OverrideCheck,
     OverrideInput,
@@ -371,3 +373,155 @@ async def test_a_late_shift_override_has_no_opposite_role_to_collide_with(world)
 
     assert result.assignee_name == "Anna"
     assert world.roster.handed_over == [((DAY, AssignmentRole.late_shift), world.anna.id)]
+
+
+# --- role swap ----------------------------------------------------------------
+
+
+def role_swap(
+    world: World, *, with_late_shift=True, reason=None, today=None, lines=None, acknowledged=False
+):
+    """Anna (PRIMARY) and Bartek (SECONDARY and 11-19) trade places."""
+    return override_duties_in_batch(
+        BatchOverrideInput(
+            actor=COORDINATOR,
+            schedule_id=world.roster.schedule_ref.id,
+            expected_version=world.roster.schedule_ref.version,
+            lines=lines
+            or (
+                BatchOverrideLine(DAY, AssignmentRole.primary, world.bartek.id),
+                BatchOverrideLine(DAY, AssignmentRole.secondary, world.anna.id, with_late_shift),
+            ),
+            reason=reason,
+            kind=BatchOverrideKind.role_swap,
+            acknowledge_rule_violations=acknowledged,
+        ),
+        world.overrides,
+        today=today or TODAY,
+    )
+
+
+async def test_a_role_swap_trades_places_with_11_19_as_one_decision(world) -> None:
+    results = await role_swap(world)
+
+    assert [(item.role, item.assignee_name) for item in results] == [
+        (AssignmentRole.primary, "Bartek"),
+        (AssignmentRole.secondary, "Anna"),
+        (AssignmentRole.late_shift, "Anna"),
+    ]
+    assert world.roster.schedule_ref.version == 2
+    ((name, call),) = world.journal.events
+    assert name == "duties_overridden_in_batch"
+    assert call["kind"] is BatchOverrideKind.role_swap
+    assert call["reason"] is None
+    assert call["violations"] == []
+    assert call["changes"] == [
+        (DAY, AssignmentRole.primary, "Anna", "Bartek"),
+        (DAY, AssignmentRole.secondary, "Bartek", "Anna"),
+        (DAY, AssignmentRole.late_shift, "Bartek", "Anna"),
+    ]
+
+
+async def test_a_role_swap_may_leave_11_19_where_it_is(world) -> None:
+    with pytest.raises(errors.RuleViolationsNotAcknowledged) as refused:
+        await role_swap(world, with_late_shift=False)
+    assert "late_shift_anchor" in {item.rule for item in refused.value.violations}
+
+    await role_swap(world, with_late_shift=False, acknowledged=True)
+    assert [slot for slot, _ in world.roster.handed_over] == [
+        (DAY, AssignmentRole.primary),
+        (DAY, AssignmentRole.secondary),
+    ]
+
+
+async def test_a_role_swap_of_a_past_day_needs_a_reason(world) -> None:
+    with pytest.raises(errors.HistoricalCorrectionNeedsReason):
+        await role_swap(world, today=DAY + timedelta(days=1), reason="krótko")
+    assert world.roster.schedule_ref.version == 1
+
+    await role_swap(world, today=DAY + timedelta(days=1), reason="Zamiana uzgodniona po fakcie")
+    assert world.journal.events[0][1]["reason"] == "Zamiana uzgodniona po fakcie"
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        # A third person is a correction, not a swap.
+        lambda world: (
+            BatchOverrideLine(DAY, AssignmentRole.primary, world.ewa.id),
+            BatchOverrideLine(DAY, AssignmentRole.secondary, world.anna.id),
+        ),
+        lambda world: (BatchOverrideLine(DAY, AssignmentRole.primary, world.bartek.id),),
+        lambda world: (
+            BatchOverrideLine(DAY, AssignmentRole.primary, world.bartek.id),
+            BatchOverrideLine(DAY, AssignmentRole.late_shift, world.anna.id),
+        ),
+    ],
+    ids=["third person", "one line", "not the on-call pair"],
+)
+async def test_a_role_swap_is_only_a_swap_of_the_on_call_pair(world, lines) -> None:
+    with pytest.raises(errors.NotARoleSwap):
+        await role_swap(world, lines=lines(world))
+    assert world.roster.handed_over == []
+
+
+@pytest.mark.parametrize(
+    "setup",
+    [
+        lambda world: setattr(world.policy, "anchor", LateShiftAnchor.independent),
+        lambda world: world.roster.assign(DAY, AssignmentRole.late_shift, world.ewa),
+        lambda world: world.team.by_id.__setitem__(
+            world.anna.id,
+            replace(
+                world.anna,
+                eligibility=tuple(
+                    period
+                    for period in world.anna.eligibility
+                    if period.role != AssignmentRole.late_shift
+                ),
+            ),
+        ),
+    ],
+    ids=["independent anchor", "11-19 held by someone else", "replacement not eligible"],
+)
+async def test_11_19_goes_along_only_where_a_correction_would_carry_it(world, setup) -> None:
+    setup(world)
+    with pytest.raises(errors.LateShiftNotCoupled):
+        await role_swap(world)
+    assert world.roster.schedule_ref.version == 1
+
+
+async def test_11_19_goes_along_only_with_a_known_replacement(world) -> None:
+    with pytest.raises(errors.LateShiftNotCoupled):
+        await role_swap(
+            world,
+            lines=(
+                BatchOverrideLine(DAY, AssignmentRole.primary, world.bartek.id),
+                BatchOverrideLine(DAY, AssignmentRole.secondary, uuid.uuid4(), True),
+            ),
+        )
+
+
+async def test_11_19_taken_along_and_listed_too_is_a_repeated_slot(world) -> None:
+    with pytest.raises(errors.RepeatedSlotInBatch):
+        await batch(
+            world,
+            BatchOverrideLine(DAY, AssignmentRole.secondary, world.ewa.id, True),
+            BatchOverrideLine(DAY, AssignmentRole.late_shift, world.ewa.id),
+        )
+
+
+async def test_the_batch_check_sees_the_swap_as_the_state_after_both_moves(world) -> None:
+    """PRIMARY and SECONDARY swapped is no `same_day_oncall`, though each move
+    on its own would put one person on both on-call roles."""
+    swap = (
+        BatchOverrideLine(DAY, AssignmentRole.primary, world.bartek.id),
+        BatchOverrideLine(DAY, AssignmentRole.secondary, world.anna.id, True),
+    )
+    schedule_id = world.roster.schedule_ref.id
+
+    assert (
+        await check_batch_override([BatchOverrideCheck(schedule_id, swap)], world.overrides) == []
+    )
+    alone = await check_batch_override([BatchOverrideCheck(schedule_id, swap[:1])], world.overrides)
+    assert "same_day_oncall" in {item.rule for item in alone}

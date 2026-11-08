@@ -64,7 +64,7 @@ describe('OffboardingDialog', () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => (
       calendarWith(startsOn === '2026-09-21' ? assignments : [])
     ))
-    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [threeInSeven], ends_handover: null })
     const batch = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     const finished = vi.spyOn(api, 'updateTeamMember').mockResolvedValue({} as never)
     const onDone = vi.fn()
@@ -113,7 +113,7 @@ describe('OffboardingDialog', () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => (
       calendarWith(startsOn === '2026-09-21' ? assignments : [])
     ))
-    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [], ends_handover: null })
     const batch = vi.spyOn(api, 'batchOverride').mockImplementation(async (input) => {
       if (input.schedule_id === 's2' && input.expected_version === 3) {
         assignments = [duty('2026-09-22', 's1', 2, 'm2'), duty('2026-10-05', 's2', 4, 'm1')]
@@ -187,7 +187,7 @@ describe('OffboardingDialog', () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => calendarWith(
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],
     ))
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [threeInSeven], ends_handover: null })
     renderScreen(
       <OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={() => {}} onChanged={() => {}} />,
     )
@@ -232,7 +232,7 @@ describe('OffboardingDialog', () => {
         { member_id: 'm3', kind: 'unavailable' as const, starts_on: '2026-11-01', ends_on: '2026-11-02', note: null },
       ] : [],
     }))
-    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([])
+    const check = vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [], ends_handover: null })
     const batch = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     const remove = vi.spyOn(api, 'deleteEligibility').mockResolvedValue(undefined)
     const update = vi.spyOn(api, 'updateEligibility').mockResolvedValue({} as never)
@@ -318,7 +318,7 @@ describe('OffboardingDialog', () => {
     vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => calendarWith(
       startsOn === '2026-09-21' ? [duty('2026-10-05', 's2', 3, 'm1')] : [],
     ))
-    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue([threeInSeven])
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [threeInSeven], ends_handover: null })
     renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
 
     fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'm2' } })

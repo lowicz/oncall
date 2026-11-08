@@ -151,6 +151,8 @@ OVERRIDE_ERROR_STATUSES = {
     override_errors.ScheduleSlotNotFound: status.HTTP_404_NOT_FOUND,
     override_errors.HistoricalCorrectionNeedsReason: status.HTTP_422_UNPROCESSABLE_CONTENT,
     override_errors.BatchCorrectionNeedsReason: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    override_errors.LateShiftNotCoupled: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    override_errors.NotARoleSwap: status.HTTP_422_UNPROCESSABLE_CONTENT,
     override_errors.RuleViolationsNotAcknowledged: status.HTTP_409_CONFLICT,
 }
 
@@ -242,7 +244,12 @@ async def batch_override_check(
                 BatchOverrideCheck(
                     schedule_id=batch.schedule_id,
                     lines=tuple(
-                        BatchOverrideLine(item.service_date, item.role, item.replacement_member_id)
+                        BatchOverrideLine(
+                            item.service_date,
+                            item.role,
+                            item.replacement_member_id,
+                            item.with_late_shift,
+                        )
                         for item in batch.assignments
                     ),
                 )
@@ -272,11 +279,17 @@ async def batch_override(
                 schedule_id=payload.schedule_id,
                 expected_version=payload.expected_version,
                 lines=tuple(
-                    BatchOverrideLine(item.service_date, item.role, item.replacement_member_id)
+                    BatchOverrideLine(
+                        item.service_date,
+                        item.role,
+                        item.replacement_member_id,
+                        item.with_late_shift,
+                    )
                     for item in payload.assignments
                 ),
                 reason=payload.reason,
                 acknowledge_rule_violations=payload.acknowledge_rule_violations,
+                kind=payload.kind,
             ),
             ports,
         )
