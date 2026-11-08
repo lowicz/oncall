@@ -178,12 +178,11 @@ breaks shows in the problems table. **Swap places** saves both roles (and
 - ends with a notification saying what changed and how many problems are left
   in the draft; its **Undo** button puts the previous people of every changed
   role back for a few seconds (the cells stay marked as manual). The button is
-  missing when the previous person of a role cannot be told apart, e.g. after
-  their rotation ended, their account was deleted, or when several team
-  members share the same name, nor when the previous person cannot take the
-  role back that day (they are unavailable or not eligible for it), nor after
-  filling an empty role - then correct
-  the cell again or generate the draft anew.
+  missing when the previous person of a role is no longer in the team, e.g.
+  after their rotation ended or their account was deleted, when they cannot
+  take the role back that day (they are unavailable or not eligible for it),
+  and after filling an empty role - then correct the cell again or generate
+  the draft anew.
 
 ## Generator settings
 

@@ -50,12 +50,6 @@ function focusTarget(focus: DraftFocus, data?: CalendarData) {
   return member && day ? { member, day } : null
 }
 
-/** The one member with this name; none when it is missing or shared, so Undo never puts back the wrong person. */
-function soleMember(members: Member[], name: string | null) {
-  const matches = members.filter((item) => item.display_name === name)
-  return matches.length === 1 ? matches[0] : undefined
-}
-
 /** The roles a cell opens on: its role, 11–19 alone included. */
 function pickFor(role: AssignmentRole): RolesPick {
   return role === 'late_shift' ? { onCall: null, lateChoice: true } : { onCall: role, lateChoice: null }
@@ -152,8 +146,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
         title: assignedTitle(changes, serviceDate, next.display_name),
         description: t.remainingProblems(problemCounts(value).total),
       })
-      const restorable = changes.every((item) => item.restoreTo && soleMember(members, item.from)?.id === item.restoreTo)
-      if (!restorable) {
+      if (changes.some((item) => !item.restoreTo)) {
         const value = await api.overrideDraft(input)
         const { title, description } = message(value)
         toast.success(title, { description })

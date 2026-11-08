@@ -297,7 +297,7 @@ export interface DraftSchedule {
   acceptance_floor: number | null
   fairness_proven?: boolean
   continuity_gap?: number | null
-  assignments: Assignment[]
+  assignments: Array<Assignment & { member_id?: string | null }>
   warnings?: ScheduleWarning[]
   /** Assignments landing on a hard „nie mogę"; the draft matrix banners them. */
   unavailability_conflicts?: UnavailabilityConflict[]

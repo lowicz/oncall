@@ -398,18 +398,21 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
   })
 
-  it('offers no Undo when the person replaced shares the name with somebody else', async () => {
+  it('hands the slot back by id when two people share the replaced name', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue({ ...calendar, members: [...calendar.members, { id: 'm3', display_name: 'Anna Kowalska' }] })
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
-    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue({ ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', is_override: true }, draft.assignments[1]] })
-    renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
+    const held = { ...draft, assignments: [{ ...draft.assignments[0], member_id: 'm3' }, draft.assignments[1]] }
+    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue({ ...draft, version: 2, assignments: [{ ...draft.assignments[0], assignee_name: 'Marek Nowak', member_id: 'm2', is_override: true }, draft.assignments[1]] })
+    renderScreen(<DraftScheduleMatrix result={held} onChange={() => {}} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Przypisz w szkicu' }))
 
     expect(await screen.findByText('Przypisano w szkicu 21 wrz · PRIMARY: Anna Kowalska → Marek Nowak')).toBeInTheDocument()
-    expect(save).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+    save.mockResolvedValue({ ...held, version: 3 })
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(save.mock.calls[1][0]).toEqual({ id: 'd1', expected_version: 2, service_date: '2026-09-21', assignments: [{ role: 'primary', replacement_member_id: 'm3' }] })
   })
 
   it('offers no Undo when the person replaced is unavailable that day', async () => {
@@ -593,6 +596,33 @@ describe('DraftScheduleMatrix roles and role swap', () => {
 
     panel = await openCell(/^Jan Wiśniewski, pon 21-09-2026/, 'Jan Wiśniewski · 21-09-2026')
     expect(within(panel).getByRole('alert')).toHaveTextContent('Jan Wiśniewski nie ma uprawnień do roli.')
+  })
+
+  it('swaps by id when two people share the name of a holder, Undo trading back to the same person', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue({ ...team, members: [...team.members, { id: 'm4', display_name: 'Anna Kowalska' }] })
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(balances)
+    const held = { ...pair, assignments: [{ ...pair.assignments[0], member_id: 'm4' }, ...pair.assignments.slice(1)] }
+    const save = vi.spyOn(api, 'overrideDraft').mockResolvedValue({ ...held, version: 2 })
+    renderScreen(<DraftScheduleMatrix result={held} onChange={() => {}} />)
+
+    const panel = await openCell(/^Celina Dąbrowska, pon 21-09-2026/, 'Wstaw: Celina Dąbrowska · 21-09-2026')
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zamień miejscami: Anna Kowalska na SECONDARY, Marek Nowak na PRIMARY' }))
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zamień miejscami' }))
+
+    await screen.findByRole('button', { name: 'Cofnij' })
+    expect(save.mock.calls[0][0].assignments).toEqual([
+      { role: 'primary', replacement_member_id: 'm2' },
+      { role: 'secondary', replacement_member_id: 'm4' },
+      { role: 'late_shift', replacement_member_id: 'm4' },
+    ])
+    save.mockResolvedValue({ ...held, version: 3 })
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(save.mock.calls[1][0].assignments).toEqual([
+      { role: 'primary', replacement_member_id: 'm4' },
+      { role: 'secondary', replacement_member_id: 'm2' },
+      { role: 'late_shift', replacement_member_id: 'm2' },
+    ])
   })
 
   it('swaps the day’s on-call pair with 11–19 in one draft correction, Undo trading back', async () => {

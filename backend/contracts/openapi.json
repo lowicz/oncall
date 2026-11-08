@@ -1505,6 +1505,56 @@
         "title": "DirectOverrideRequest",
         "type": "object"
       },
+      "DraftAssignmentResponse": {
+        "description": "A draft slot with its holder's id, so two people of one name stay apart.",
+        "properties": {
+          "assignee_name": {
+            "title": "Assignee Name",
+            "type": "string"
+          },
+          "is_override": {
+            "title": "Is Override",
+            "type": "boolean"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AssignmentRole"
+          },
+          "rule_violations": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RuleViolationResponse"
+            },
+            "title": "Rule Violations",
+            "type": "array"
+          },
+          "service_date": {
+            "format": "date",
+            "title": "Service Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_date",
+          "role",
+          "assignee_name",
+          "is_override",
+          "member_id"
+        ],
+        "title": "DraftAssignmentResponse",
+        "type": "object"
+      },
       "DraftFairnessImpactResponse": {
         "properties": {
           "acceptance_floor": {
@@ -1682,7 +1732,7 @@
           },
           "assignments": {
             "items": {
-              "$ref": "#/components/schemas/AssignmentResponse"
+              "$ref": "#/components/schemas/DraftAssignmentResponse"
             },
             "title": "Assignments",
             "type": "array"

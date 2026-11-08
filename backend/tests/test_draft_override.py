@@ -72,6 +72,7 @@ async def test_coordinator_can_edit_one_assignment_in_draft(client, db) -> None:
         if item["service_date"] == str(monday) and item["role"] == "primary"
     )
     assert changed["assignee_name"] == "Ola"
+    assert changed["member_id"] == str(ola.id)
     assert changed["is_override"] is True
     after = await client.get(f"/api/v1/scheduling/{schedule.id}/fairness-impact")
     assert after.status_code == 200, after.text

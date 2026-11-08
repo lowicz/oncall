@@ -102,6 +102,12 @@ class UnavailabilityConflictResponse(BaseModel):
     assignee_name: str
 
 
+class DraftAssignmentResponse(AssignmentResponse):
+    """A draft slot with its holder's id, so two people of one name stay apart."""
+
+    member_id: uuid.UUID | None
+
+
 class DraftScheduleResponse(BaseModel):
     id: uuid.UUID
     name: str
@@ -114,7 +120,7 @@ class DraftScheduleResponse(BaseModel):
     acceptance_floor: int | None = None
     fairness_proven: bool = False
     continuity_gap: float | None = None
-    assignments: list[AssignmentResponse]
+    assignments: list[DraftAssignmentResponse]
     warnings: list[ScheduleWarningResponse] = Field(default_factory=list)
     unavailability_conflicts: list[UnavailabilityConflictResponse] = Field(default_factory=list)
     uncovered_before: list[date] = Field(default_factory=list)
@@ -261,10 +267,11 @@ def schedule_response(view: ScheduleView) -> DraftScheduleResponse:
         fairness_proven=schedule.fairness_proven,
         continuity_gap=schedule.continuity_gap,
         assignments=[
-            AssignmentResponse(
+            DraftAssignmentResponse(
                 service_date=item.service_date,
                 role=item.role,
                 assignee_name=item.assignee_name,
+                member_id=item.member_id,
                 is_override=item.is_override,
             )
             for item in sorted(
