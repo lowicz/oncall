@@ -233,23 +233,32 @@ describe('MineScreen availability calendar', () => {
     expect(await screen.findByText('Zapisano: niedz 20 wrz „wolę nie”')).toBeInTheDocument()
   })
 
-  it('keeps focus on the day and ignores further input while a save runs', async () => {
+  it('keeps focus on the day while a save runs', async () => {
     stub()
-    const create = vi.spyOn(api, 'createAvailability').mockReturnValue(new Promise(() => {}))
+    vi.spyOn(api, 'replaceAvailabilityRange').mockReturnValue(new Promise(() => {}))
     renderScreen(<MineScreen displayName="Julia Nowak" />)
-    const grid = await idleCalendar()
-    const day = cell(/niedz 20-09-2026/)
+    await idleCalendar()
 
-    day.focus()
-    fireEvent.click(day)
-    await waitFor(() => expect(grid).toHaveAttribute('aria-busy', 'true'))
-    expect(day).toBeEnabled()
-    expect(day).toHaveFocus()
+    cell(/niedz 20-09-2026/).focus()
+    fireEvent.click(cell(/niedz 20-09-2026/))
 
-    fireEvent.pointerDown(cell(/pon 21-09-2026/), { button: 0 })
-    fireEvent.pointerEnter(cell(/wt 22-09-2026/))
-    fireEvent.click(cell(/pon 21-09-2026/))
-    expect(create).toHaveBeenCalledTimes(1)
+    expect(cell(/niedz 20-09-2026/)).toBeEnabled()
+    expect(cell(/niedz 20-09-2026/)).toHaveFocus()
+  })
+
+  it('ignores painting while the entries load', async () => {
+    stub()
+    vi.spyOn(api, 'availability').mockReturnValue(new Promise(() => {}))
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+    const grid = await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
+
+    fireEvent.pointerDown(cell(/niedz 20-09-2026/), { button: 0 })
+    fireEvent.pointerEnter(cell(/pon 21-09-2026/))
+    fireEvent.click(cell(/niedz 20-09-2026/))
+
+    expect(grid).toHaveAttribute('aria-busy', 'true')
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('cannot paint a day that has passed', async () => {
