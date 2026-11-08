@@ -304,7 +304,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                   }}
                 >
                   {roles.map((role) => <i key={role} className={cx('dot', roleDot[role])} aria-hidden="true" />)}
-                  {entry?.note && !preview && <Icon name="doc" size={10} className="avail-day-note" />}
+                  {entry?.note && !preview && <Icon name="doc" className="avail-day-note" />}
                   <span>
                     {date.slice(8)}
                     {entry && !preview && <small>{t.marks[entry.kind]}</small>}
@@ -369,10 +369,6 @@ function optimisticRange(
 }
 
 const PAINT_KEY = ['availability', 'paint']
-
-/** Until `/api/v1/config` has answered, Undo stays open as long as the
- *  server's default window. */
-const DEFAULT_UNDO_SECONDS = 10
 
 /** One range written with one brush; `before` is what the range held when it
  *  was painted, which its Undo writes back. */
@@ -513,7 +509,8 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
         }),
         undoLabel: t.undo,
         onUndoError: () => toast.error(t.undoFailed(range)),
-        windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_SECONDS,
+        // Until the config has answered, the server's default window.
+        windowSeconds: config.data?.undo_window_seconds ?? 10,
       })
     },
     onError: (error) => toast.error(error.message),
