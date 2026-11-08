@@ -212,9 +212,6 @@ export const generator: Messages['generator'] = {
     pending: (conflicts: number, consents: number) =>
       `To settle: ${[conflicts > 0 && pluralEn(conflicts, ['conflict', 'conflicts']), consents > 0 && pluralEn(consents, ['consent', 'consents'])].filter(Boolean).join(', ')}.`,
     ready: 'Ready to publish.',
-    effectsChanged: 'The effects of the publication changed.',
-    effectsChangedTitle: 'The effects of the publication changed since the window opened. Check them below.',
-    effectsSeen: 'I accept the new effects',
     checking: 'Checking changes and pending swaps…',
     checkFailed: 'Could not check the effects of publication. Close the window and try again.',
     resolveConflicts: (count: number) => `To settle: ${pluralEn(count, ['conflict', 'conflicts'])} with changes`,

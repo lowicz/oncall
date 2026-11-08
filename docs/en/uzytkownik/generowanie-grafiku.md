@@ -219,10 +219,7 @@ Draft ──► For approval ──► Published
    their own frame with a checkbox (“I understand and knowingly break these
    rules”, “I understand that these days stay unstaffed”). Next to the buttons
    the sheet says what is still missing (“To settle: 1 conflict, 2
-   consents.”), and **Publish v*N*** works only when nothing is. If the effects
-   change while the sheet is open (for example someone files a swap in the
-   range), the sheet says “The effects of the publication changed.” and does
-   not publish until the coordinator clicks **I accept the new effects**.
+   consents.”), and **Publish v*N*** works only when nothing is.
    **Back to the proposal** closes a sheet opened from a proposal without
    changes. Publication checks the full
    coverage of the range; missing staffing on any day stops the operation.

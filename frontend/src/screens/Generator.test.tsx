@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { focusManager } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { chooseFromMenu } from '../test/menu'
@@ -1189,6 +1188,18 @@ describe('GeneratorPanel draft correction', () => {
     expect(await screen.findByText('Szkic · v2')).toBeInTheDocument()
   }
 
+  it('drops a failed publication alert once the draft is corrected', async () => {
+    stubCorrection()
+    vi.spyOn(api, 'proposeSchedule').mockRejectedValue(new ApiError('Szkic zmienił się od otwarcia', 409))
+    renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
+
+    const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
+    fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
+    expect(await within(decision).findByRole('alert')).toHaveTextContent('Szkic zmienił się od otwarcia')
+    await correctD1()
+    expect(within(screen.getByRole('region', { name: 'Decyzja o szkicu' })).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('keeps the draft opened since when the earlier correction is undone', async () => {
     const { schedule, save } = stubCorrection()
     const { router } = renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
@@ -1602,16 +1613,6 @@ describe('GeneratorPanel publication sheet', () => {
     expect(within(dialog).getByText('1 zamiana anulowana')).toBeInTheDocument()
     expect(within(decision).getByText('1 zamiana anulowana')).toBeInTheDocument()
 
-    // A swap filed while the sheet is open changes the effects it showed.
-    check.mockResolvedValueOnce({ ...emptyPreview, pending_swaps: [{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }, { ...{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }, id: 's2', service_date: '2026-09-17' }] })
-    act(() => { focusManager.setFocused(false); focusManager.setFocused(true) })
-    expect(await within(dialog).findByText('Skutki publikacji zmieniły się.')).toBeInTheDocument()
-    expect(within(dialog).getByText('2 zamiany anulowane')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
-    focusManager.setFocused(undefined)
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Przyjmuję nowe skutki' }))
-    expect(within(dialog).getByText('Gotowe do publikacji.')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeEnabled()
   })
 
   it('refuses to publish when the consequences cannot be checked', async () => {

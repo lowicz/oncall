@@ -218,9 +218,6 @@ export const generator = {
     pending: (conflicts: number, consents: number) =>
       `Do rozstrzygnięcia: ${[conflicts > 0 && pluralPl(conflicts, ['konflikt', 'konflikty', 'konfliktów']), consents > 0 && pluralPl(consents, ['zgoda', 'zgody', 'zgód'])].filter(Boolean).join(', ')}.`,
     ready: 'Gotowe do publikacji.',
-    effectsChanged: 'Skutki publikacji zmieniły się.',
-    effectsChangedTitle: 'Skutki publikacji zmieniły się od otwarcia okna. Sprawdź je poniżej.',
-    effectsSeen: 'Przyjmuję nowe skutki',
     checking: 'Sprawdzam zmiany i oczekujące zamiany…',
     checkFailed: 'Nie udało się sprawdzić skutków publikacji. Zamknij okno i spróbuj ponownie.',
     resolveConflicts: (count: number) => `Do rozstrzygnięcia: ${pluralPl(count, ['konflikt', 'konflikty', 'konfliktów'])} ze zmianami`,

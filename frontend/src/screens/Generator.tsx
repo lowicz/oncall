@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { DraftSchedule, LateShiftAnchor, PublishPreview, RotationMode, ScheduleRun, ScheduleSummary, SchedulingPolicy, api } from '../api'
+import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSummary, SchedulingPolicy, api } from '../api'
 import { locale, messages, useMessages } from '../i18n'
 import { lateShiftAnchorLabels, lensLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { preferredScrollBehavior } from '../lib/motion'
@@ -174,9 +174,6 @@ export function GeneratorPanel() {
   // the sheet without publishing takes it back, so the draft stays as it was.
   const [backgroundProposal, setBackgroundProposal] = useState<{ id: string; expectedVersion: number } | null>(null)
   const publishFromDraft = backgroundProposal !== null
-  // The preview the sheet showed when it opened; a later one that differs
-  // has to be looked at before publishing.
-  const [seenPreview, setSeenPreview] = useState<PublishPreview | null>(null)
   const [publishAcknowledged, setPublishAcknowledged] = useState(false)
   const [changeResolutions, setChangeResolutions] = useState<Record<string, 'draft' | 'change'>>({})
   const publishPreview = useQuery({
@@ -184,7 +181,6 @@ export function GeneratorPanel() {
     queryFn: () => api.publishPreview(result!.id),
     // The page states what the publication changes before the sheet opens.
     enabled: result?.status === 'proposed',
-    refetchInterval: publishConfirmOpen ? 30_000 : false,
   })
   useEffect(() => { setChangeResolutions({}); setPublishAcknowledged(false) }, [result?.id, result?.version])
   // Each kind of violation the publication carries is consented to on its own,
@@ -209,8 +205,10 @@ export function GeneratorPanel() {
     return () => { shownId.current = undefined }
   }, [result?.id])
   const correct = (value: DraftSchedule) => {
-    if (shownId.current === value.id) setResult(value)
-    else invalidateDrafts()
+    if (shownId.current === value.id) {
+      setResult(value)
+      proposeToPublish.reset()
+    } else invalidateDrafts()
   }
   // Rotation mode, the 11–19 anchor and the swap approval are stored policy,
   // not request parameters; they are written only on an explicit save, never
@@ -323,8 +321,7 @@ export function GeneratorPanel() {
   const openPublication = (id: string) => {
     publish.reset()
     setPublishFor(id)
-    setSeenPreview(null)
-    publishPreview.refetch().then(({ data }) => setSeenPreview(data ?? null))
+    publishPreview.refetch()
   }
   // Publishing straight from a draft hands it over in the background and
   // opens the sheet only once its effects are known.
@@ -349,7 +346,6 @@ export function GeneratorPanel() {
       publish.reset()
       setBackgroundProposal({ id: proposal.id, expectedVersion: proposal.version })
       setPublishFor(proposal.id)
-      setSeenPreview(effects)
     },
     onError: () => invalidateDrafts(),
   })
@@ -401,7 +397,6 @@ export function GeneratorPanel() {
   // What the publication sheet still waits for, said next to its button.
   const preview = publishPreview.data
   const unresolvedConflicts = preview?.lost_changes.filter((item) => !changeResolutions[`${item.service_date}:${item.role}`]).length ?? 0
-  const effectsChanged = seenPreview !== null && preview !== seenPreview
   const missingConsents = [
     result !== null && result.starts_on <= today && !publishAcknowledged,
     Boolean(preview?.rest_violations.length) && !restAcknowledged,
@@ -767,14 +762,14 @@ export function GeneratorPanel() {
                 <output className="dialog-foot-status">
                   {publishPreview.isFetching
                     ? t.publish.checking
-                    : effectsChanged ? t.publish.effectsChanged : unresolvedConflicts + missingConsents > 0 ? t.publish.pending(unresolvedConflicts, missingConsents) : t.publish.ready}
+                    : unresolvedConflicts + missingConsents > 0 ? t.publish.pending(unresolvedConflicts, missingConsents) : t.publish.ready}
                 </output>
               )}
               <Button onClick={closePublication} disabled={publish.isPending}>{t.publish.back(publishFromDraft)}</Button>
               <Button
                 variant="primary"
                 loading={publish.isPending}
-                disabled={publish.isPending || publishPreview.isFetching || publishPreview.isError || !preview || effectsChanged || unresolvedConflicts + missingConsents > 0}
+                disabled={publish.isPending || publishPreview.isFetching || publishPreview.isError || !preview || unresolvedConflicts + missingConsents > 0}
                 onClick={() => publish.mutate({
                   id: result.id,
                   expectedVersion: result.version,
@@ -796,11 +791,6 @@ export function GeneratorPanel() {
             </Box>
           )}
           {publishPreview.error && <Box tone="bad" role="alert" title={t.publish.checkFailed} />}
-          {effectsChanged && (
-            <Box tone="warn" title={t.publish.effectsChangedTitle}>
-              <Button size="sm" className="mt-6" onClick={() => setSeenPreview(preview!)}>{t.publish.effectsSeen}</Button>
-            </Box>
-          )}
           {preview && <PublicationEffects preview={preview} soft={counts.soft} />}
           {preview?.lost_changes.length ? (
             <Box tone="warn" title={t.publish.resolveConflicts(preview.lost_changes.length)}>

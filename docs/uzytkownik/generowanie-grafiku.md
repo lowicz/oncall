@@ -214,10 +214,7 @@ Szkic ──► Do akceptacji ──► Opublikowany
    („Rozumiem i świadomie łamię te reguły”, „Rozumiem, że te dni zostają bez
    obsady”). Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
    rozstrzygnięcia: 1 konflikt, 2 zgody.”), a **Publikuj v*N*** działa dopiero,
-   gdy niczego nie brakuje. Jeśli skutki zmienią się, gdy arkusz jest otwarty
-   (na przykład ktoś złoży zamianę w tym zakresie), arkusz mówi „Skutki
-   publikacji zmieniły się.” i nie publikuje, dopóki koordynator nie kliknie
-   **Przyjmuję nowe skutki**. **Wróć do propozycji** zamyka arkusz otwarty z
+   gdy niczego nie brakuje. **Wróć do propozycji** zamyka arkusz otwarty z
    propozycji bez zmian.
    Publikacja sprawdza pełne pokrycie zakresu; brak obsady któregokolwiek
    dnia zatrzymuje operację.
