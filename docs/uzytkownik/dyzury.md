@@ -46,9 +46,10 @@ koordynatorowi także propozycję czekającą na publikację; przycisk **Otwórz
 propozycję** prowadzi prosto do niej w Generatorze. Członek zespołu ma tu
 **Eksport ICS**.
 
-Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli
-opublikowany grafik kończy się wcześniej). Nagłówek sekcji nad macierzą
-nazywa zakres, jego długość i liczbę osób w rotacji. Osoby są na osi
+Domyślny zakres zaczyna się dziś i obejmuje cztery tygodnie (albo mniej, jeśli opublikowany grafik kończy się wcześniej).
+Jeśli publikacja już wygasła, ekran pokazuje cztery tygodnie od dziś i ostrzeżenie z datą końca, a koordynatorowi także drogę do Generatora (albo do czekającej propozycji).
+Nieprawidłowy zakres z adresu pokazuje akcję **Pokaż od dziś**, zamiast pozostawiać ekran bez kontrolek.
+Nagłówek sekcji nad macierzą nazywa zakres, jego długość i liczbę osób w rotacji. Osoby są na osi
 pionowej, kolejne dni na poziomej. Kolumna z osobami i nagłówki dat zostają
 widoczne podczas przewijania.
 
@@ -135,6 +136,9 @@ Na Grafiku początek zakresu i długość są częścią adresu strony
 przekazać dalej; starsze linki z `od` i `do` nadal działają. Paleta poleceń
 otwiera grafik z podświetloną osobą albo z panelem wskazanego dnia;
 podświetlenie osoby wyłącza znacznik obok nagłówka.
+
+Jeśli pierwsze pobranie grafiku nie powiedzie się, pasek „Dyżur teraz” pokazuje **brak danych** i **brak połączenia**, a nie **brak obsady**.
+Błędy pobierania podają następny krok: sprawdzenie połączenia i ponowienie próby.
 
 ## Małe ekrany
 

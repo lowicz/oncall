@@ -11,6 +11,7 @@ export const duty = {
     asOf: (time: string) => `Stan z ${time}`,
     asOfInline: (time: string) => `stan z ${time}`,
     notApplicable: 'nie dotyczy',
+    noData: 'brak danych',
     unstaffed: 'brak obsady',
     holiday: (name: string) => `święto · ${name}`,
     dayOff: 'dzień wolny · 2X',

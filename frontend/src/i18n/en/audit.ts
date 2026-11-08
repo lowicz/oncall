@@ -30,7 +30,7 @@ export const audit: Messages['audit'] = {
   emptyLogins: (label: string) => `There are no “${label}” events in the selected range. Change the date range or the other filters.`,
   emptyHint: 'Change or clear the filters to see more events.',
   details: 'Details',
-  loading: 'Loading events',
+  loading: 'Loading events…',
   loadMore: 'Load more',
   retention: (auditDays: number, loginDays: number) => {
     const entries = auditDays > 0

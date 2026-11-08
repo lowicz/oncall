@@ -207,6 +207,10 @@ async def dashboard(
         current=await _current_duties(audience, resolved, today, ports),
         today_is_day_off=is_day_off(today, holiday_names),
         today_holiday_name=holiday_names.get(today),
+        # A share link sees only its own window, not where publication ends.
+        last_published_ends_on=None
+        if audience.share_range is not None
+        else await ports.calendar.latest_publication_end(),
     )
 
 

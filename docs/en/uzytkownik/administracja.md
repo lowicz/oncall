@@ -77,9 +77,9 @@ The personnel number matters with a directory (LDAP / AD): it must match
 sign-in from the directory. In [SSO sign-in](../wdrozenie/sso.md) it picks the
 account Keycloak lets the person into.
 
-The panel keeps track of unsaved changes: the **Save** button gives their
-count, and an attempt to close lists what would be lost. Changing the role
-and disabling the account require an additional confirmation.
+The panel keeps track of unsaved changes: the **Save** button gives their count.
+Trying to close it, open another person, go to another screen, or reload requires a decision whether to discard the entered changes.
+Changing the role and disabling the account require an additional confirmation.
 
 ### Leaving the rotation
 

@@ -135,8 +135,8 @@ correction:
 The **Generator settings** button opens a side panel with the **From** /
 **To** range and the solver settings. **Save generation settings** saves them
 **globally for the whole team**; they apply from the next generation.
-**Generate** starts a generation right away with the range from the panel,
-and **Restore saved** reverts the unsaved changes.
+**Generate** starts a generation right away with the range from the panel, and **Restore saved** reverts the unsaved changes.
+Closing the panel, going to another screen, reloading, or opening another draft with unsaved settings requires a decision whether to discard them.
 
 | Setting | Range | Notes |
 | --- | --- | --- |
@@ -184,6 +184,9 @@ collides with the draft, the publication sheet lists every such case with a
 **Decision** field, in which you choose which version is to apply - only then
 does it publish. A proposal can also be taken back with the **Back to draft**
 button or deleted from the list of drafts.
+
+A publication error stays in the open sheet as an alert with the message and the next step.
+A draft deletion error stays in the confirmation dialog that started the operation.
 
 Publication replaces only those published schedules that fit entirely within
 the new range; a partial overlap is resolved per slot, and the coverage

@@ -7,6 +7,7 @@ import { Avatar, Icon, List, ListRow, PageHeader, SectionHeading, Button } from 
 import { DensitySegmented, ThemeSegmented } from '../components/AppShell'
 import { LanguageSegmented } from '../components/LanguageControl'
 import { useBranding } from '../hooks/useBranding'
+import { leaveWithoutAsking } from '../hooks/useUnsavedChanges'
 
 /**
  * The fifth bottom tab on a phone: every screen the four tabs do not hold,
@@ -23,7 +24,7 @@ export function MoreScreen({ displayName, avatar = null, access }: { displayName
     mutationFn: api.logout,
     onSuccess: () => {
       queryClient.clear()
-      window.location.assign('/')
+      leaveWithoutAsking('/')
     },
   })
   const groups = [

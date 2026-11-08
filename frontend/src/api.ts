@@ -97,6 +97,8 @@ export interface PublishedSchedule {
   current: CurrentDuty[]
   today_is_day_off: boolean
   today_holiday_name: string | null
+  /** The last day of the most recent publication, also once it has passed. */
+  last_published_ends_on?: string | null
 }
 
 export type SwapStatus =

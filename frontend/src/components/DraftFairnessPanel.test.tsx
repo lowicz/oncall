@@ -201,7 +201,7 @@ describe('DraftFairnessPanel people', () => {
     const load = vi.spyOn(api, 'draftFairnessImpact').mockRejectedValue(new ApiError('Szkic zmienił wersję', 409))
     renderScreen(<DraftFairnessPanel result={result} />)
 
-    expect(screen.getByRole('status', { name: 'Przeliczanie sprawiedliwości' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Przeliczanie sprawiedliwości…' })).toBeInTheDocument()
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Szkic zmienił wersję')
     load.mockResolvedValue(impact())

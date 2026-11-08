@@ -101,8 +101,8 @@ describe('loading placeholders', () => {
     expect(screen.getByRole('status', { name: t().loading })).toBeInTheDocument()
     // The heading bar plus four rows.
     expect(container.querySelectorAll('.sk')).toHaveLength(5)
-    rerender(<LoadingBlock label="Wczytywanie grafiku" rows={2} className="tall" />)
-    expect(screen.getByRole('status', { name: 'Wczytywanie grafiku' })).toHaveClass('sk-block', 'tall')
+    rerender(<LoadingBlock label="Wczytywanie grafiku…" rows={2} className="tall" />)
+    expect(screen.getByRole('status', { name: 'Wczytywanie grafiku…' })).toHaveClass('sk-block', 'tall')
     expect(container.querySelectorAll('.sk')).toHaveLength(3)
   })
 })

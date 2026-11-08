@@ -39,7 +39,7 @@ export function ErrorState({ error, onRetry, className }: {
       <p className="empty-title">{t.common.fetchFailed}</p>
       <p className="empty-desc">{message}</p>
       {onRetry && <div className="empty-action"><Button variant="primary" size="sm" icon="refresh" onClick={onRetry}>{t.common.retry}</Button></div>}
-      {status !== null && <p className="empty-code">HTTP {status}</p>}
+      {status !== null && <p className="empty-code">HTTP{'\u00a0'}{status}</p>}
     </div>
   )
 }

@@ -4,7 +4,7 @@ export const forwarding = {
   subtitle: 'Numer on-call jest przekierowywany przez Orange WCO na telefon osoby na dyżurze PRIMARY, od godziny przypomnienia o dyżurze. Czasy w strefie Europe/Warsaw.',
   settings: {
     title: 'Konto WCO',
-    loading: 'Wczytywanie ustawień',
+    loading: 'Wczytywanie ustawień…',
     /** "zapisano 12-10-2026, 09:00", the moment already formatted. */
     savedAt: (moment: string) => `zapisano ${moment}`,
     mode: 'Tryb',
@@ -50,7 +50,7 @@ export const forwarding = {
   },
   state: {
     title: 'Stan',
-    loading: 'Wczytywanie stanu',
+    loading: 'Wczytywanie stanu…',
     desired: 'Cel',
     /** "Anna Kowalska · +48600600600 · dyżur 15-10-2026", the day already formatted. */
     desiredValue: (name: string, number: string, day: string) => `${name} · ${number} · dyżur ${day}`,

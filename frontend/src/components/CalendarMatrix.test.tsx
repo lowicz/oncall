@@ -677,7 +677,7 @@ describe('CalendarMatrix states', () => {
   it('waits for the screen to settle the range before asking for it', () => {
     const load = vi.spyOn(api, 'calendar')
     renderScreen(<CalendarMatrix role="member" displayName="Anna Kowalska" range={WEEK_OF_TODAY} enabled={false} />)
-    expect(screen.getByLabelText('Wczytywanie grafiku')).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByLabelText('Wczytywanie grafiku…')).toHaveAttribute('aria-busy', 'true')
     expect(load).not.toHaveBeenCalled()
   })
 

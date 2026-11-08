@@ -57,6 +57,7 @@ The **New swap** button in the screen header opens the form in a panel; the
 **Request a swap** button on the Mine screen opens it with the duty already
 chosen. The form leads through four steps: duty, candidate, in return, reason
 and sending.
+Once a request has been started, closing the panel, going to another screen, or reloading requires a decision whether to discard the entered data.
 
 1. In the **My duty** field pick your upcoming duty. The list has one item a
    day: the date, every role you hold that day (for example “SECONDARY +

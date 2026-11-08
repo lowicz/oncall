@@ -14,7 +14,7 @@ export const people = {
   exportCsv: 'Eksport CSV',
   newAccount: 'Nowe konto',
   accounts: 'Konta',
-  searchPlaceholder: 'Szukaj osoby, loginu lub numeru',
+  searchPlaceholder: 'Szukaj osoby, loginu lub numeru…',
   filters: {
     all: 'Wszystkie',
     rotation: 'W rotacji',
@@ -22,7 +22,7 @@ export const people = {
     inactive: 'Wyłączone',
     pending: 'Oczekujące',
   },
-  loadingAccounts: 'Wczytywanie kont',
+  loadingAccounts: 'Wczytywanie kont…',
   emptyFilter: 'Brak kont dla wybranego filtra',
   tableCaption: 'Konta systemu i ich status w rotacji.',
   columns: {
@@ -182,12 +182,6 @@ export const people = {
     toSave: (changes: string) => `Do zapisania: ${changes}`,
     confirm: 'Potwierdź i zapisz',
   },
-  confirmClose: {
-    title: 'Zamknąć bez zapisywania?',
-    unsaved: (changes: string) => `Masz niezapisane zmiany: ${changes}.`,
-    text: 'Zamknięcie panelu je wyrzuci.',
-    confirm: 'Zamknij bez zapisywania',
-  },
   deleteDialog: {
     title: (name: string) => `Usuwam konto ${name} i jego dane osobowe`,
     confirm: 'Usuń konto i dane',
@@ -236,7 +230,7 @@ export const people = {
     reason: (name: string) => `Zakończenie rotacji ${name}`,
     confirmEnd: 'Potwierdź zakończenie rotacji',
     rewriteAndEnd: 'Przepisz dyżury i zakończ rotację',
-    searchingDuties: 'Szukam przyszłych dyżurów',
+    searchingDuties: 'Szukam przyszłych dyżurów…',
     refusalTitle: 'Przepisanie złamie reguły twarde',
     refusalNext: 'Wybierz innych zastępców albo potwierdź świadome naruszenie; trafi ono do dziennika audytu.',
     acknowledge: 'Rozumiem i świadomie łamię te reguły',

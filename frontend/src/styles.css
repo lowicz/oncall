@@ -182,6 +182,13 @@ small, .small { font-size: 12px; line-height: 16px; }
 .st-pub::before, .st-ok::before { background: var(--ok-dot); }
 .st-warn::before { background: var(--warn-dot); }
 .st-bad::before { background: var(--bad-dot); }
+/* A state that opens its details: the on-call number's whereabouts. */
+.pill { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/16px var(--label); padding: 2px 9px; border: 0; border-radius: 999px; background: var(--s3); color: var(--fg); white-space: nowrap; cursor: pointer; text-align: left; }
+.pill::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok-dot); flex: 0 0 auto; }
+.pill-pending::before { background: var(--warn-dot); }
+.pill-failed::before { background: var(--bad-dot); }
+.status-line { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; line-height: 16px; color: var(--muted); }
+.status-line::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ok-dot); flex: 0 0 auto; }
 
 .rm { display: inline-block; font: 700 12px/16px var(--label); padding: 2px 0; width: 32px; border-radius: 6px; text-align: center; white-space: nowrap; }
 .rm-sw, .rm-ko { position: relative; }
@@ -200,6 +207,8 @@ small, .small { font-size: 12px; line-height: 16px; }
 
 .field { display: grid; gap: 4px; min-width: 0; }
 .field-label { font: 600 12px/16px var(--label); color: var(--muted); }
+.fieldset { margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.fieldset > legend { padding: 0; margin-bottom: 4px; }
 .field-req { color: var(--bad-text); }
 .in { min-height: 40px; width: 100%; border: 1px solid var(--line2); border-radius: var(--r); padding: 0 12px; background: var(--s1); color: var(--fg); font-size: 14px; line-height: 21px; }
 .in::placeholder { color: var(--dim); }
@@ -222,6 +231,8 @@ small, .small { font-size: 12px; line-height: 16px; }
 .frow { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: start; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 21px; cursor: pointer; }
 .check input { margin: 2px 0 0; accent-color: var(--sig); flex: 0 0 auto; }
+.check-off { color: var(--muted); cursor: not-allowed; }
+.check-off input { opacity: 0.5; }
 .check-body { display: grid; gap: 2px; }
 .check-body small { color: var(--muted); font-size: 12px; line-height: 16px; }
 .form { display: grid; gap: 12px; }
@@ -371,6 +382,14 @@ table.lg th button[aria-sort] { color: var(--fg); }
 .panel-body .steps { gap: 6px; }
 .panel-body .step { gap: 6px; }
 .panel-body .step + .step::before { width: 12px; }
+/* A phone's one short decision: above the home bar, its scroll kept to itself, controls finger-sized. */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; width: min(100%, 560px); margin: 0 auto; max-height: 92vh; overflow: auto; overscroll-behavior: contain; background: var(--s1); border: 1px solid var(--line2); border-bottom: 0; border-radius: 16px 16px 0 0; padding: 10px 14px calc(20px + env(safe-area-inset-bottom)); display: grid; gap: 12px; box-shadow: var(--shadow); z-index: 41; outline: none; }
+.sheet-grip { width: 36px; height: 4px; border-radius: 999px; background: var(--line2); margin: 0 auto 4px; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sheet-title { font: 700 20px/24px var(--font); }
+.sheet :is(button, .btn, .check) { min-height: 44px; }
+.sheet .ib { min-width: 44px; }
+.sheet .seg { display: grid; grid-template-columns: 1fr 1fr; justify-self: stretch; border-radius: 16px; }
 .pop-positioner { z-index: 50; }
 .pop { background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-lg); padding: 10px 12px; display: grid; gap: 6px; font-size: 12px; line-height: 16px; box-shadow: var(--shadow-sm); width: max-content; max-width: min(320px, calc(100vw - 24px)); outline: none; }
 .pop-title { font: 700 12px/16px var(--font); }

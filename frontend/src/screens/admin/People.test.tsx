@@ -244,10 +244,30 @@ describe('PeoplePanel person panel', () => {
       target: { value: 'new@example.com' },
     })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Anuluj' }))
-    const warning = await screen.findByRole('dialog', { name: 'Zamknąć bez zapisywania?' })
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
     expect(within(warning).getByText(/e-mail/)).toBeInTheDocument()
-    fireEvent.click(within(warning).getByRole('button', { name: 'Zamknij bez zapisywania' }))
+    fireEvent.click(within(warning).getByRole('button', { name: 'Odrzuć zmiany' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+  })
+
+  it('does not switch rows until unsaved edits are explicitly discarded', async () => {
+    mockData([
+      user({ id: 'u1' }),
+      user({ id: 'u2', username: 'ewa', first_name: 'Ewa', last_name: 'Maj', display_name: 'Ewa Maj' }),
+    ])
+    renderScreen(<PeoplePanel />)
+    const anna = await openRow('anna')
+    fireEvent.change(within(anna).getByLabelText('E-mail'), { target: { value: 'changed@example.com' } })
+
+    fireEvent.click(within(await rowOf('ewa')).getByRole('button', { name: 'Otwórz' }))
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
+    fireEvent.click(within(warning).getByRole('button', { name: 'Anuluj' }))
+    expect(screen.getByRole('dialog', { name: /Anna Kowalska/ })).toBeInTheDocument()
+    expect(within(anna).getByLabelText('E-mail')).toHaveValue('changed@example.com')
+
+    fireEvent.click(within(await rowOf('ewa')).getByRole('button', { name: 'Otwórz' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).getByRole('button', { name: 'Odrzuć zmiany' }))
+    expect(await screen.findByRole('dialog', { name: /Ewa Maj/ })).toBeInTheDocument()
   })
 
   it('deletes an account only after the login is typed into the red sheet', async () => {
@@ -685,11 +705,11 @@ describe('PeoplePanel account tab', () => {
     fireEvent.change(within(dialog).getByLabelText('Nazwisko'), { target: { value: 'Nowak' } })
 
     fireEvent.keyDown(dialog, { key: 'Escape' })
-    const warning = await screen.findByRole('dialog', { name: 'Zamknąć bez zapisywania?' })
-    expect(within(warning).getByText(/Masz niezapisane zmiany: nazwisko\./)).toBeInTheDocument()
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
+    expect(within(warning).getByText(/Niezapisane: nazwisko/)).toBeInTheDocument()
     fireEvent.click(within(warning).getByRole('button', { name: 'Anuluj' }))
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Zamknąć bez zapisywania?' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument())
     expect(screen.getByRole('dialog', { name: /Anna Kowalska/ })).toBeInTheDocument()
     expect(within(dialog).getByLabelText('Nazwisko')).toHaveValue('Nowak')
   })

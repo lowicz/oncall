@@ -12,6 +12,9 @@ export const schedule = {
   draftWaiting: (range: string) => `szkic ${range} czeka na akceptację`,
   clearHighlight: (name: string) => `Wyłącz podświetlenie: ${name}`,
   rangeInvalid: 'Data „do” jest wcześniejsza niż „od”.',
+  showFromToday: 'Pokaż od dziś',
+  publicationExpired: (date: string) => `Opublikowany grafik skończył się ${date}.`,
+  publicationExpiredHint: 'Opublikuj kolejny zakres.',
   peopleInRotation: (count: number) => `${pluralPl(count, ['osoba', 'osoby', 'osób'])} w rotacji`,
   /** The header actions; the dashboard shows the first two as well. */
   actions: {
@@ -94,7 +97,7 @@ export const schedule = {
     conflictPeople: (count: number) => count === 1 ? '1 osoba z dyżurem w dniu niedostępności' : `${count} osób z dyżurem w dniu niedostępności`,
     fullCoverage: 'Pełna obsada w całym zakresie',
   },
-  loading: 'Wczytywanie grafiku',
+  loading: 'Wczytywanie grafiku…',
   empty: {
     nobodyYet: 'Nikt nie jest jeszcze w rotacji',
     addPeople: 'Dodaj osoby na ekranie Osoby.',
