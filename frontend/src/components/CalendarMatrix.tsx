@@ -141,6 +141,7 @@ export function CalendarMatrix({
     setEventFormOpen(false)
   }
   const openDay = (day: Day, member: Member | undefined, nextRole: AssignmentRole) => {
+    if (override.isPending) return
     setSelected({ member, day })
     setSelectedRole(nextRole)
     setStaffOpen(false)
@@ -527,7 +528,7 @@ export function CalendarMatrix({
 
       <Panel
         open={Boolean(selected)}
-        onClose={closeInspector}
+        onClose={() => { if (!override.isPending) closeInspector() }}
         title={selected ? formatDay(selected.day.service_date) : ''}
         meta={selected && (
           <>

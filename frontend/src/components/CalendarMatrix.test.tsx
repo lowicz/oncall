@@ -286,6 +286,32 @@ describe('CalendarMatrix override decision frame', () => {
     expect(override).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the change form open while the save is in flight, so its refusal is seen', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWithPrimary())
+    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Marek Nowak'))
+    let refuse: (error: Error) => void = () => {}
+    vi.spyOn(api, 'directOverride').mockReturnValue(new Promise((_, reject) => { refuse = reject }))
+    renderScreen(matrix())
+
+    const confirm = await confirmHandOver()
+    expect(await screen.findByRole('status')).toHaveTextContent('Bez naruszeń reguł twardych')
+    fireEvent.click(confirm)
+    await waitFor(() => expect(confirm).toBeDisabled())
+
+    const panel = screen.getByRole('dialog')
+    fireEvent.keyDown(panel, { key: 'Escape' })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zamknij panel' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Marek Nowak, / })[0])
+    expect(screen.getByRole('dialog')).toBe(panel)
+    expect(within(panel).getByRole('combobox', { name: 'Osoba' })).toHaveValue('m2')
+
+    refuse(new ApiError('Grafik zmienił wersję', 409))
+    const refusal = await within(panel).findByRole('alert')
+    expect(refusal).toHaveTextContent('Grafik zmienił wersję')
+    expect(refusal).toHaveFocus()
+  })
+
   it('shows no warning when the override is clean', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar())
     vi.spyOn(api, 'directOverrideCheck').mockResolvedValue([])
