@@ -409,7 +409,7 @@ export function GeneratorPanel() {
                     aria-describedby={conflictCount > 0 ? 'generator-propose-blocked' : undefined}
                     loading={propose.isPending}
                     onClick={() => {
-                      if (conflictCount === 0 && !generating) propose.mutate({ id: result.id, expectedVersion: result.version })
+                      if (conflictCount === 0) propose.mutate({ id: result.id, expectedVersion: result.version })
                     }}
                   >
                     {t.header.propose}

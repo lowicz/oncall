@@ -44,7 +44,12 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
       </button>
     )
   }
-  return <span className={cx('chip', `chip-${tone}`, className)} title={title}>{content}</span>
+  return (
+    <span className={cx('chip', `chip-${tone}`, className)} title={title}>
+      {content}
+      {title && <span className="sr-only"> {title}</span>}
+    </span>
+  )
 }
 
 /** The chips inside any Fragments, each with a key unique along its path. */

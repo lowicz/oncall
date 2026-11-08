@@ -65,7 +65,7 @@ const ME: CurrentUser = {
   email: 'julia@example.com', phone: '+48600100200', share: null, avatar_url: null,
 }
 
-// The calendar ignores input while it loads or saves, so a test paints only once it is idle.
+// The calendar ignores input while it loads, so a test paints only once it is idle.
 async function idleCalendar() {
   const grid = await screen.findByRole('grid', { name: /Kalendarz dostępności/ })
   await waitFor(() => expect(grid).not.toHaveAttribute('aria-busy'))
@@ -235,13 +235,14 @@ describe('MineScreen availability calendar', () => {
 
   it('keeps focus on the day while a save runs', async () => {
     stub()
-    vi.spyOn(api, 'replaceAvailabilityRange').mockReturnValue(new Promise(() => {}))
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockReturnValue(new Promise(() => {}))
     renderScreen(<MineScreen displayName="Julia Nowak" />)
     await idleCalendar()
 
     cell(/niedz 20-09-2026/).focus()
     fireEvent.click(cell(/niedz 20-09-2026/))
 
+    await waitFor(() => expect(replace).toHaveBeenCalledOnce())
     expect(cell(/niedz 20-09-2026/)).toBeEnabled()
     expect(cell(/niedz 20-09-2026/)).toHaveFocus()
   })

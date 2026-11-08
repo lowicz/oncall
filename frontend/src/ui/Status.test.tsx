@@ -36,6 +36,11 @@ describe('Chip', () => {
     expect(screen.getByText('Bez zmian')).toHaveClass('chip', 'chip-muted')
   })
 
+  it('reads its title out when it is plain text', () => {
+    render(<Chip tone="warn" title="Koordynator jeszcze nie opublikował tego okresu">3 dni poza zakresem</Chip>)
+    expect(screen.getByText('Koordynator jeszcze nie opublikował tego okresu')).toHaveClass('sr-only')
+  })
+
   it('rows are a named list only when labelled', () => {
     const { container, rerender } = render(<ChipRow label="Ryzyka" className="r"><span>a</span></ChipRow>)
     expect(screen.getByRole('list', { name: 'Ryzyka' })).toHaveClass('risk', 'r')
