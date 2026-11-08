@@ -106,7 +106,10 @@ Z tego panelu:
   „Potwierdź korektę historyczną”, które prosi o powód (co najmniej 10 znaków,
   wymóg audytu), a zapis następuje z tego okna. Gdy zapis zostanie odrzucony,
   na przykład bo grafik zmienił się w międzyczasie, powód odmowy pojawia się w
-  panelu i dostaje fokus, a przy korekcie historycznej w jej oknie,
+  panelu i dostaje fokus, a przy korekcie historycznej w jej oknie. Wyjątkiem
+  jest odmowa wskazująca nowo złamane reguły: okno się wtedy zamyka, reguły i
+  ich potwierdzenie pojawiają się w panelu, a wpisany powód zostaje na
+  następne otwarcie okna,
 - **koordynator i administrator** mogą z tego samego panelu dodać wydarzenie
   kalendarza na ten dzień.
 

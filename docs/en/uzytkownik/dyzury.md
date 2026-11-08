@@ -110,7 +110,10 @@ From this panel:
   a reason (at least 10 characters, an audit requirement), and the save is
   made from that dialog. When the save is refused, for example because the
   schedule changed in the meantime, the reason for the refusal appears in the
-  panel and takes the focus, or in the dialog for a historical correction,
+  panel and takes the focus, or in the dialog for a historical correction.
+  The exception is a refusal that names newly broken rules: the dialog then
+  closes, the rules and their acknowledgement appear in the panel, and the
+  reason you typed is kept for the next time the dialog opens,
 - a **coordinator and an administrator** can add a calendar event on that day
   from the same panel.
 
