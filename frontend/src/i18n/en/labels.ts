@@ -101,6 +101,7 @@ export const labels: Messages['labels'] = {
     'calendar.event_deleted': 'Event deleted',
     'schedule.draft_override': 'Draft correction',
     'schedule.override_batch': 'Batch schedule correction',
+    'schedule.role_swap': 'Swapped the day\'s roles',
     'schedule.override_carried': 'Correction carried over',
     'schedule.withdrawn': 'Returned to draft',
     'forwarding.settings_updated': 'Number forwarding changed',
