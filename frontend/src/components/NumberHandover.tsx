@@ -123,7 +123,7 @@ function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block
         {t.receiver} <b>{secondary.assignee_name}</b> · {roleLabels().secondary}
         {phone && <> · <a className="mono handover-tel" href={`tel:${phone.replace(/\s+/g, '')}`}>{phone.replace(/ /g, ' ')}</a></>}
       </p>
-      <Field label={t.duration} id={`${id}-duration`} hint={t.latestHint(latestClock)}>
+      <Field label={t.duration} hint={t.latestHint(latestClock)}>
         {({ labelId, describedBy }) => (
           <Segmented<Choice>
             label={t.duration}
@@ -142,7 +142,7 @@ function HandoverForm({ now, primary, secondary, viewer, onDone, onCancel, block
         )}
       </Field>
       {choice === 'custom' && (
-        <Field label={t.customTime} id={`${id}-time`} error={time !== '' && !fits ? t.customInvalid(latestClock) : undefined}>
+        <Field label={t.customTime} error={time !== '' && !fits ? t.customInvalid(latestClock) : undefined}>
           {({ id: inputId, describedBy, invalid }) => (
             <Input
               id={inputId}
