@@ -307,6 +307,11 @@ async def test_the_correction_check_names_the_handover_it_would_end(
     assert secondary["ends_handover"]["to_name"] == "Marek Nowak"
     assert late_shift["ends_handover"] is None
 
+    settings = await db.scalar(select(CallForwardingSettings))
+    settings.mode = ForwardingMode.off
+    await db.commit()
+    assert (await check("secondary"))["ends_handover"] is None
+
 
 async def test_the_batch_correction_check_names_the_handover_it_would_end(
     client, db, pair, frozen_clock

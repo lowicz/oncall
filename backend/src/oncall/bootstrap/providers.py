@@ -33,8 +33,8 @@ from oncall.domain.forwarding.ports import (
     CurrentState,
     ForwardingNowPorts,
     HandoverChangePorts,
+    HandoverCheckPorts,
     HandoverPorts,
-    OpenHandover,
     RevealPorts,
     SettingsPorts,
 )
@@ -179,8 +179,10 @@ def forwarding_now_reader(db: DbSession) -> ForwardingNowPorts:
     )
 
 
-def open_handover_reader(db: DbSession) -> OpenHandover:
-    return SqlAlchemyHandovers(db)
+def handover_checker(db: DbSession) -> HandoverCheckPorts:
+    return HandoverCheckPorts(
+        settings=SqlAlchemyForwardingSettings(db), handovers=SqlAlchemyHandovers(db)
+    )
 
 
 def handover_changer(db: DbSession, actor: CurrentUser) -> HandoverChangePorts:
@@ -437,7 +439,7 @@ ForwardingConnectionTester = Annotated[ConnectionTestPorts, Depends(forwarding_c
 ForwardingStateReader = Annotated[CurrentState, Depends(forwarding_state_reader)]
 ForwardingNowReader = Annotated[ForwardingNowPorts, Depends(forwarding_now_reader)]
 HandoverChanger = Annotated[HandoverChangePorts, Depends(handover_changer)]
-OpenHandoverReader = Annotated[OpenHandover, Depends(open_handover_reader)]
+HandoverChecker = Annotated[HandoverCheckPorts, Depends(handover_checker)]
 GenerationRequestProvider = Annotated[GenerationRequestPorts, Depends(generation_requests)]
 DraftWriter = Annotated[DraftPorts, Depends(draft_writer)]
 PublicationReader = Annotated[PublicationPorts, Depends(publication_reader)]

@@ -29,6 +29,7 @@ from oncall.domain.forwarding.models import (
 from oncall.domain.forwarding.ports import (
     ForwardingNowPorts,
     HandoverChangePorts,
+    HandoverCheckPorts,
     HandoverPorts,
 )
 from oncall.domain.forwarding.use_cases import (
@@ -444,7 +445,8 @@ async def test_a_correction_of_the_pair_on_its_day_names_the_handover() -> None:
     next_day = (DAY + timedelta(days=1), AssignmentRole.primary)
 
     async def ends(*slots, handovers=store, now=NOW):
-        return await handover_ended_by_correction(slots, handovers, now=now)
+        ports = HandoverCheckPorts(_Settings(ForwardingMode.live), handovers)  # type: ignore[arg-type]
+        return await handover_ended_by_correction(slots, ports, now=now)
 
     for role in (AssignmentRole.primary, AssignmentRole.secondary):
         assert await ends((DAY, role)) == HANDOVER
@@ -453,6 +455,17 @@ async def test_a_correction_of_the_pair_on_its_day_names_the_handover() -> None:
     assert await ends() is None
     assert await ends((DAY, AssignmentRole.primary), now=HANDOVER.until) is None
     assert await ends((DAY, AssignmentRole.primary), handovers=_Store()) is None
+
+
+async def test_while_forwarding_is_off_a_correction_names_no_handover() -> None:
+    """Nothing happens in mode off (D5): the worker ends no handover and
+    sends no mail, so the frame must not promise either."""
+    ports = HandoverCheckPorts(_Settings(ForwardingMode.off), _Store(HANDOVER))  # type: ignore[arg-type]
+
+    assert (
+        await handover_ended_by_correction([(DAY, AssignmentRole.secondary)], ports, now=NOW)
+        is None
+    )
 
 
 # --- where the number rings now ----------------------------------------------

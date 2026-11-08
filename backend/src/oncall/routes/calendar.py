@@ -8,7 +8,7 @@ from oncall.auth import CsrfGuard, CurrentPrincipal
 from oncall.bootstrap.providers import (
     CalendarReader,
     CalendarWriter,
-    OpenHandoverReader,
+    HandoverChecker,
     OverrideProvider,
 )
 from oncall.domain.calendar import errors as calendar_errors
@@ -180,7 +180,7 @@ async def direct_override_check(
     payload: DirectOverrideCheckRequest,
     _: Coordinator,
     ports: OverrideProvider,
-    handovers: OpenHandoverReader,
+    handovers: HandoverChecker,
     __: CsrfGuard,
 ) -> OverrideCheckResponse:
     """The hard rules the override would break, computed before the fact so
@@ -231,7 +231,7 @@ async def batch_override_check(
     payload: BatchOverrideCheckRequest,
     _: Coordinator,
     ports: OverrideProvider,
-    handovers: OpenHandoverReader,
+    handovers: HandoverChecker,
     __: CsrfGuard,
 ) -> OverrideCheckResponse:
     """The hard rules the batches would break together, without writing any

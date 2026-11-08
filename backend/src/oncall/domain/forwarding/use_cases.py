@@ -42,7 +42,7 @@ from oncall.domain.forwarding.ports import (
     CurrentState,
     ForwardingNowPorts,
     HandoverChangePorts,
-    OpenHandover,
+    HandoverCheckPorts,
     PasswordReader,
     RevealPorts,
     SettingsPorts,
@@ -280,12 +280,15 @@ async def forwarding_now(
 
 
 async def handover_ended_by_correction(
-    slots: Iterable[tuple[date, AssignmentRole]], handovers: OpenHandover, *, now: datetime
+    slots: Iterable[tuple[date, AssignmentRole]], ports: HandoverCheckPorts, *, now: datetime
 ) -> NumberHandover | None:
     """The handover a correction of these slots would end (NP-16): the open
     one, when a slot is PRIMARY or SECONDARY on its day. The correction
-    frame says so before the coordinator saves."""
-    handover = await handovers.open()
+    frame says so before the coordinator saves. Nothing while forwarding is
+    off (D5): the worker ends no handover then."""
+    if (await ports.settings.current()).mode is ForwardingMode.off:
+        return None
+    handover = await ports.handovers.open()
     if handover is None or now >= handover.until:
         return None
     if any(day == handover.day and role in ONCALL_ROLES for day, role in slots):

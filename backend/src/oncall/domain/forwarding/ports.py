@@ -144,6 +144,12 @@ class OpenHandover(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class HandoverCheckPorts:
+    settings: CurrentSettings
+    handovers: OpenHandover
+
+
 class HandoverStore(Protocol):
     async def open(self) -> NumberHandover | None:
         """The handover nobody ended yet; at most one exists."""
