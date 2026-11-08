@@ -68,12 +68,12 @@ export const mine = {
     },
     /** A duty on a day filed as "unavailable": the entry does not lift it. */
     collision: {
-      title: (count: number, roles: string, day: string) => (count === 1
+      title: (days: number, duties: number, roles: string, day: string) => (days === 1
         ? `Masz dyżur ${roles} ${day}, a zgłaszasz „nie mogę”`
-        : `Masz ${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} w dni „nie mogę”`),
-      titleFor: (name: string, count: number, roles: string, day: string) => (count === 1
+        : `Masz ${pluralPl(duties, ['dyżur', 'dyżury', 'dyżurów'])} w dni „nie mogę”`),
+      titleFor: (name: string, days: number, duties: number, roles: string, day: string) => (days === 1
         ? `${name} ma dyżur ${roles} ${day}, a wpis to „nie mogę”`
-        : `${name} ma ${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} w dni „nie mogę”`),
+        : `${name} ma ${pluralPl(duties, ['dyżur', 'dyżury', 'dyżurów'])} w dni „nie mogę”`),
       askForSwap: (count: number): string => (count === 1
         ? 'Wpis nie zdejmuje dyżuru. Poproś kogoś o zamianę tego dnia.'
         : 'Wpis nie zdejmuje dyżurów. Poproś kogoś o zamianę tych dni.'),

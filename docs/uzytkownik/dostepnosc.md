@@ -50,7 +50,8 @@ dlaczego, potem zaznaczasz dni.
   („powód: urlop”), jeśli go podano.
 - Komunikat ma przycisk **Cofnij**, aktywny przez 10 sekund. Cofnięcie
   przywraca zaznaczone dni do stanu sprzed zapisu: wpisy, które tam były,
-  wracają w całości, z rodzajem i powodem. Jeśli cofnięcie się nie uda,
+  wracają na te dni z rodzajem i powodem, a dni poza zaznaczeniem zostają
+  bez zmian. Jeśli cofnięcie się nie uda,
   komunikat o tym mówi, a **Cofnij** można kliknąć ponownie.
 
 Dni już zgłoszone mają kolor trybu i literę (`N`, `W`, `C`); dzień z powodem
@@ -91,6 +92,12 @@ imieniu:
 - osoba dostaje o tym powiadomienie,
 - może wpis usunąć,
 - operacja trafia do audytu jako „Zgłoszono dostępność (w imieniu)”.
+
+Jeśli „nie mogę” trafia na dyżur tej osoby, ramka pod kalendarzem mówi o tym
+jej imieniem, na przykład „Beata Lis ma dyżur PRIMARY 9 mar, a wpis to „nie
+mogę””. Zamiast **Poproś o zamianę** ma dla każdego takiego dnia przycisk
+**Otwórz dzień**, który otwiera ten dzień w grafiku, gdzie można zmienić
+obsadę.
 
 Jeżeli Twoje konto samo nie jest w rotacji, wybór osoby jest obowiązkowy -
 dopóki go nie zrobisz, sekcja pokazuje prośbę „Wybierz osobę” zamiast

@@ -386,18 +386,18 @@ const applyPaint = (list: AvailabilityEntry[], command: PaintCommand) => (
 )
 
 /**
- * The writes that undo a paint: clear the painted range, then write back
- * every entry it touched, whole, with its kind and reason. An entry the paint
- * cut into is restored as the one entry it was, not as the pieces left around
- * the range.
+ * The writes that undo a paint: clear the painted range, then write back the
+ * part of every entry it touched that lies inside the range, with its kind and
+ * reason. Days outside the range are never written, so a later paint there
+ * stays as it is.
  */
 function undoSteps(command: PaintCommand): PaintCommand[] {
   return [
     { member: command.member, startsOn: command.startsOn, endsOn: command.endsOn, brush: 'clear', note: undefined, before: [] },
     ...command.before.map((entry) => ({
       member: command.member,
-      startsOn: entry.starts_on,
-      endsOn: entry.ends_on,
+      startsOn: entry.starts_on > command.startsOn ? entry.starts_on : command.startsOn,
+      endsOn: entry.ends_on < command.endsOn ? entry.ends_on : command.endsOn,
       brush: entry.kind,
       note: entry.note ?? undefined,
       before: [],
@@ -524,6 +524,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
   })
   const shown = pending.filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
   const collisions = dutyCollisions(duties, shown, today)
+  const collidingDuties = collisions.reduce((count, collision) => count + collision.roles.length, 0)
 
   const heading = targetMember ? t.headingFor(targetMember.display_name) : t.heading
   return (
@@ -578,6 +579,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
             </Field>
           </div>
           <AvailabilityCalendar
+            key={member}
             month={month}
             entries={shown}
             duties={duties}
@@ -606,8 +608,8 @@ function AvailabilitySection({ role, hasTeamMember, displayName }: {
               tone="warn"
               role="status"
               title={targetMember
-                ? t.collision.titleFor(targetMember.display_name, collisions.length, roleNames(collisions[0].roles), formatShortDate(collisions[0].date))
-                : t.collision.title(collisions.length, roleNames(collisions[0].roles), formatShortDate(collisions[0].date))}
+                ? t.collision.titleFor(targetMember.display_name, collisions.length, collidingDuties, roleNames(collisions[0].roles), formatShortDate(collisions[0].date))
+                : t.collision.title(collisions.length, collidingDuties, roleNames(collisions[0].roles), formatShortDate(collisions[0].date))}
             >
               {targetMember ? t.collision.fixInSchedule(collisions.length) : t.collision.askForSwap(collisions.length)}
               <div className="row avail-box-actions">

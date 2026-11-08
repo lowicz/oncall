@@ -64,12 +64,12 @@ export const mine: Messages['mine'] = {
       closeToClear: 'Tap the last day to clear the whole range.',
     },
     collision: {
-      title: (count: number, roles: string, day: string) => (count === 1
+      title: (days: number, duties: number, roles: string, day: string) => (days === 1
         ? `You have a ${roles} duty on ${day} and are filing “unavailable”`
-        : `You have ${pluralEn(count, ['duty', 'duties'])} on “unavailable” days`),
-      titleFor: (name: string, count: number, roles: string, day: string) => (count === 1
+        : `You have ${pluralEn(duties, ['duty', 'duties'])} on “unavailable” days`),
+      titleFor: (name: string, days: number, duties: number, roles: string, day: string) => (days === 1
         ? `${name} has a ${roles} duty on ${day} and the entry is “unavailable”`
-        : `${name} has ${pluralEn(count, ['duty', 'duties'])} on “unavailable” days`),
+        : `${name} has ${pluralEn(duties, ['duty', 'duties'])} on “unavailable” days`),
       askForSwap: (count: number) => (count === 1
         ? 'The entry does not lift the duty. Ask someone to swap that day.'
         : 'The entry does not lift the duties. Ask someone to swap those days.'),

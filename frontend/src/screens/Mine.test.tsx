@@ -352,7 +352,7 @@ describe('MineScreen availability calendar', () => {
     ])
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
 
-    const frame = (await screen.findByText('Masz 2 dyżury w dni „nie mogę”')).closest('.box') as HTMLElement
+    const frame = (await screen.findByText('Masz 3 dyżury w dni „nie mogę”')).closest('.box') as HTMLElement
     expect(frame).toHaveTextContent('Wpis nie zdejmuje dyżurów. Poproś kogoś o zamianę tych dni.')
     expect(within(frame).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
       '/zamiany?data=2026-09-20&rola=secondary',
@@ -1041,7 +1041,7 @@ describe('MineScreen availability Undo', () => {
     await waitFor(() => expect(screen.queryByText('Zapisano: niedz 20 wrz „nie mogę”')).not.toBeInTheDocument())
   })
 
-  it('writes back the whole entry a paint cut into, with its kind and reason', async () => {
+  it('writes back the painted part of every entry the paint cut into, with its kind and reason', async () => {
     stub()
     vi.spyOn(api, 'availability').mockResolvedValue([
       { id: 'a1', kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: 'szkolenie', created_at: '2026-08-20T10:00:00Z' },
@@ -1064,8 +1064,35 @@ describe('MineScreen availability Undo', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledTimes(4))
     expect(replace.mock.calls.slice(1).map(([input]) => input)).toEqual([
       { kind: null, starts_on: '2026-09-21', ends_on: '2026-09-25', note: undefined },
-      { kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: 'szkolenie' },
+      { kind: 'prefer_not', starts_on: '2026-09-21', ends_on: '2026-09-22', note: 'szkolenie' },
       { kind: 'prefer', starts_on: '2026-09-24', ends_on: '2026-09-24', note: undefined },
+    ])
+  })
+
+  it('leaves a later paint outside the undone range as it is', async () => {
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: null, created_at: '2026-08-20T10:00:00Z' },
+    ])
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Wolę nie/ })
+    await idleCalendar()
+
+    fireEvent.pointerDown(cell(/pon 21-09-2026/), { button: 0 })
+    fireEvent.pointerEnter(cell(/wt 22-09-2026/))
+    fireEvent.pointerUp(window)
+    const first = (await screen.findByText('Zapisano: 21 – 22 wrz „nie mogę”')).closest('.toast') as HTMLElement
+    fireEvent.click(screen.getByRole('radio', { name: 'chętnie' }))
+    fireEvent.click(cell(/sob 19-09-2026/))
+    await screen.findByText('Zapisano: sob 19 wrz „chętnie”')
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
+    fireEvent.click(within(first).getByRole('button', { name: 'Cofnij' }))
+
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(4))
+    expect(replace.mock.calls.slice(2).map(([input]) => input)).toEqual([
+      { kind: null, starts_on: '2026-09-21', ends_on: '2026-09-22', note: undefined },
+      { kind: 'prefer_not', starts_on: '2026-09-21', ends_on: '2026-09-22', note: undefined },
     ])
   })
 
@@ -1160,6 +1187,29 @@ describe('MineScreen availability on a phone', () => {
     expect(replace).toHaveBeenCalledOnce()
     expect(screen.queryByText('Zakres: od 22 wrz')).not.toBeInTheDocument()
     expect(await screen.findByText('Zapisano: 22 – 25 wrz „nie mogę”')).toBeInTheDocument()
+  })
+
+  it('drops a started range when the person changes', async () => {
+    pretendNarrow()
+    stub()
+    vi.spyOn(api, 'team').mockResolvedValue(TEAM)
+    vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
+    const replace = vi.spyOn(api, 'replaceMemberAvailabilityRange').mockResolvedValue(null)
+    renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
+    const picker = await screen.findByRole('combobox', { name: 'Osoba' })
+    await screen.findByRole('option', { name: 'Beata Lis' })
+    await idleCalendar()
+
+    fireEvent.click(cell(/wt 22-09-2026/), { detail: 1 })
+    expect(screen.getByText('Zakres: od 22 wrz')).toBeInTheDocument()
+    fireEvent.change(picker, { target: { value: 'm-beata' } })
+    await screen.findByRole('heading', { name: 'Dostępność: Beata Lis' })
+    expect(screen.queryByText(/Zakres: od/)).not.toBeInTheDocument()
+    await idleCalendar()
+
+    fireEvent.click(cell(/pt 25-09-2026/), { detail: 1 })
+    expect(screen.getByText('Zakres: od 25 wrz')).toBeInTheDocument()
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('drops a started range on Cancel and says a cleared range is cleared', async () => {

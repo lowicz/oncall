@@ -50,7 +50,8 @@ you choose what and why, then you mark the days.
   leave”) when one was given.
 - The message has an **Undo** button, active for 10 seconds. Undo returns the
   marked days to how they were before the save: the entries that were there
-  come back whole, with their mode and reason. If Undo fails, the message
+  come back on those days, with their mode and reason, and days outside the
+  selection stay as they are. If Undo fails, the message
   says so and **Undo** can be clicked again.
 
 Days already filed carry the colour of the mode and a letter (`U`, `P`, `W`);
@@ -92,6 +93,12 @@ and saves entries on their behalf:
 - the person gets a notification about it,
 - they can remove the entry,
 - the operation goes to the audit as “Availability filed (on behalf)”.
+
+If “unavailable” lands on that person's duty, the frame under the calendar
+says so by name, for example “Beata Lis has a PRIMARY duty on 9 Mar and the
+entry is “unavailable””. Instead of **Request a swap** it has an **Open the
+day** button for each such day, which opens that day in the schedule, where
+the cover can be changed.
 
 If your own account is not in the rotation, picking a person is mandatory -
 until you do, the section shows the prompt “Pick a person” instead of the
