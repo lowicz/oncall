@@ -11,6 +11,8 @@ import {
   orderMembers,
   roleSwapLines,
   roleSwapOf,
+  lateShiftLink,
+  staffChanges,
   staffingCandidates,
   startsWeek,
 } from './calendar'
@@ -173,13 +175,10 @@ describe('staffingCandidates (MED6-03)', () => {
     const calendar = roster({
       assignments: [{ ...assignment('2026-09-01', 'primary', 'Anna'), member_id: 'm1' }],
     })
-    const result = staffingCandidates(calendar, '2026-09-01', 'primary')
+    const result = staffingCandidates(calendar, '2026-09-01', ['primary'])
 
     expect(result.map((item) => item.display_name)).toEqual(['Bartek', 'Celina', 'Anna'])
-    expect(result.find((item) => item.id === 'm1')).toMatchObject({
-      isCurrent: true,
-      disabledReason: 'już pełni tę rolę tego dnia',
-    })
+    expect(result.find((item) => item.id === 'm1')?.disabledReason).toBe('już pełni tę rolę tego dnia')
     expect(result.find((item) => item.id === 'm2')?.disabledReason).toBeUndefined()
   })
 
@@ -193,7 +192,7 @@ describe('staffingCandidates (MED6-03)', () => {
         note: null,
       }],
     })
-    const bartek = staffingCandidates(calendar, '2026-09-01', 'primary')
+    const bartek = staffingCandidates(calendar, '2026-09-01', ['primary'])
       .find((item) => item.id === 'm2')
     expect(bartek?.disabledReason).toBe('niedostępna tego dnia')
   })
@@ -202,7 +201,7 @@ describe('staffingCandidates (MED6-03)', () => {
     const calendar = roster({
       assignments: [{ ...assignment('2026-09-01', 'secondary', 'Celina'), member_id: 'm3' }],
     })
-    const celina = staffingCandidates(calendar, '2026-09-01', 'primary')
+    const celina = staffingCandidates(calendar, '2026-09-01', ['primary'])
       .find((item) => item.id === 'm3')
     expect(celina?.disabledReason).toBe('ma już drugi on-call tego dnia')
   })
@@ -211,7 +210,7 @@ describe('staffingCandidates (MED6-03)', () => {
     const calendar = roster({
       assignments: [{ ...assignment('2026-09-01', 'primary', 'Celina'), member_id: 'm3' }],
     })
-    const celina = staffingCandidates(calendar, '2026-09-01', 'late_shift')
+    const celina = staffingCandidates(calendar, '2026-09-01', ['late_shift'])
       .find((item) => item.id === 'm3')
     expect(celina?.disabledReason).toBeUndefined()
   })
@@ -224,7 +223,7 @@ describe('staffingCandidates (MED6-03)', () => {
         { id: 'm3', display_name: 'Celina', active_from: '2026-01-01', active_until: '2026-08-31' },
       ],
     })
-    expect(staffingCandidates(calendar, '2026-09-01', 'primary').map((item) => item.id))
+    expect(staffingCandidates(calendar, '2026-09-01', ['primary']).map((item) => item.id))
       .toEqual(['m1'])
   })
 
@@ -238,7 +237,7 @@ describe('staffingCandidates (MED6-03)', () => {
       ],
     })
     expect(
-      staffingCandidates(calendar, '2026-09-01', 'primary')[0].disabledReason,
+      staffingCandidates(calendar, '2026-09-01', ['primary'])[0].disabledReason,
     ).toBe('nie ma uprawnień do roli')
   })
 })
@@ -356,7 +355,7 @@ describe('staffingCandidates for the secondary role', () => {
       ],
       assignments: [{ ...assignment('2026-09-01', 'primary', 'Anna'), member_id: 'm1' }],
     })
-    const reasons = Object.fromEntries(staffingCandidates(calendar, '2026-09-01', 'secondary')
+    const reasons = Object.fromEntries(staffingCandidates(calendar, '2026-09-01', ['secondary'])
       .map((item) => [item.display_name, item.disabledReason]))
     expect(reasons).toEqual({
       Anna: 'ma już drugi on-call tego dnia',
@@ -444,5 +443,90 @@ describe('roleSwapOf (P6)', () => {
       { service_date: '2026-09-01', role: 'secondary', replacement_member_id: 'm1', with_late_shift: true },
     ])
     expect(roleSwapLines(swap, '2026-09-01', false).map((line) => line.with_late_shift)).toEqual([false, false])
+  })
+})
+
+describe('staffingCandidates for several roles (P7)', () => {
+  const roster = () => data({
+    members: [
+      { id: 'm1', display_name: 'Anna' },
+      { id: 'm2', display_name: 'Bartek', eligibility: [{ role: 'secondary', starts_on: '2026-01-01', ends_on: null }] },
+      { id: 'm3', display_name: 'Celina' },
+    ],
+    assignments: [
+      { ...assignment('2026-09-01', 'primary', 'Anna'), member_id: 'm1' },
+      { ...assignment('2026-09-01', 'late_shift', 'Celina'), member_id: 'm3' },
+    ],
+  })
+
+  it('keeps a person who may take only part of the roles, saying which', () => {
+    const byName = Object.fromEntries(staffingCandidates(roster(), '2026-09-01', ['secondary', 'late_shift'])
+      .map((item) => [item.display_name, item]))
+    expect(byName.Anna.disabledReason).toBe('ma już drugi on-call tego dnia')
+    expect(byName.Bartek).toMatchObject({ disabledReason: undefined, partial: { notEligible: ['late_shift'], holds: [] } })
+    expect(byName.Celina).toMatchObject({ disabledReason: undefined, partial: { notEligible: [], holds: ['late_shift'] } })
+  })
+
+  it('disables a person who may take none of them', () => {
+    const [celina] = staffingCandidates(roster(), '2026-09-01', ['late_shift']).filter((item) => item.id === 'm3')
+    expect(celina).toMatchObject({ disabledReason: 'już pełni tę rolę tego dnia', partial: undefined })
+    const [bartek] = staffingCandidates(roster(), '2026-09-01', ['primary']).filter((item) => item.id === 'm2')
+    expect(bartek.disabledReason).toBe('nie ma uprawnień do roli')
+  })
+})
+
+describe('lateShiftLink', () => {
+  const pair = (late: { name: string; id: string | null }, anchor: { name: string; id: string | null }) => data({
+    assignments: [
+      { ...assignment('2026-09-01', 'secondary', anchor.name), member_id: anchor.id },
+      { ...assignment('2026-09-01', 'late_shift', late.name), member_id: late.id },
+    ],
+  })
+
+  it('says whether the anchor role holder has 11–19 too', () => {
+    expect(lateShiftLink(pair({ name: 'Anna', id: 'm1' }, { name: 'Anna', id: 'm1' }), '2026-09-01', 'secondary'))
+      .toEqual({ anchor: 'secondary', coupled: true, holder: 'Anna', anchorHolder: 'Anna' })
+    expect(lateShiftLink(pair({ name: 'Anna', id: 'm1' }, { name: 'Bartek', id: 'm2' }), '2026-09-01', 'secondary'))
+      .toMatchObject({ coupled: false })
+  })
+
+  it('reads the name on rows without an identity', () => {
+    expect(lateShiftLink(pair({ name: 'Anna', id: null }, { name: 'Anna', id: null }), '2026-09-01', 'secondary'))
+      .toMatchObject({ coupled: true })
+    expect(lateShiftLink(pair({ name: 'Anna', id: null }, { name: 'Bartek', id: null }), '2026-09-01', 'secondary'))
+      .toMatchObject({ coupled: false })
+  })
+
+  it('links nothing without a coupling, on a day off or while a slot is empty', () => {
+    const coupled = pair({ name: 'Anna', id: 'm1' }, { name: 'Anna', id: 'm1' })
+    expect(lateShiftLink(coupled, '2026-09-01', 'independent')).toBeNull()
+    expect(lateShiftLink(coupled, '2026-09-01', 'primary')).toBeNull()
+    expect(lateShiftLink(coupled, '2026-09-05', 'secondary')).toBeNull()
+    expect(lateShiftLink({ ...coupled, days: coupled.days.map((item) => ({ ...item, is_day_off: true })) }, '2026-09-01', 'secondary')).toBeNull()
+  })
+})
+
+describe('staffChanges', () => {
+  it('names who has each role now and whom Undo gives it back to', () => {
+    const calendar = data({
+      members: [
+        { id: 'm1', display_name: 'Anna' },
+        { id: 'm2', display_name: 'Bartek', eligibility: [{ role: 'primary', starts_on: '2026-01-01', ends_on: null }] },
+        { id: 'm3', display_name: 'Celina' },
+      ],
+      assignments: [
+        { ...assignment('2026-09-01', 'primary', 'Anna'), member_id: 'm1' },
+        { ...assignment('2026-09-01', 'secondary', 'Bartek'), member_id: 'm2' },
+        { ...assignment('2026-09-01', 'late_shift', 'Celina'), member_id: 'm3' },
+      ],
+      availability: [{ member_id: 'm3', kind: 'unavailable', starts_on: '2026-09-01', ends_on: '2026-09-01', note: null }],
+    })
+    expect(staffChanges(calendar, '2026-09-01', ['primary', 'secondary', 'late_shift'])).toEqual([
+      { role: 'primary', from: 'Anna', restoreTo: 'm1' },
+      // Not eligible for SECONDARY any more, or unavailable that day: nothing to give back to.
+      { role: 'secondary', from: 'Bartek', restoreTo: null },
+      { role: 'late_shift', from: 'Celina', restoreTo: null },
+    ])
+    expect(staffChanges(calendar, '2026-09-02', ['primary'])).toEqual([{ role: 'primary', from: null, restoreTo: null }])
   })
 })

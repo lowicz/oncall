@@ -427,14 +427,13 @@ async def test_reversing_a_partly_sent_override_tells_only_who_already_heard(
     db, frozen_clock
 ) -> None:
     today, _members = await _seed_team(db)
-    correction = {"service_date": today, "role": AssignmentRole.primary}
     await notify_assignment_overridden(
-        db, **correction, previous_name="Anna Kowalska", new_name="Marek Nowak"
+        db, changes=[(today, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak")]
     )
     original = await _mark_sent(db, "anna@example.com")
 
     await notify_assignment_overridden(
-        db, **correction, previous_name="Marek Nowak", new_name="Anna Kowalska"
+        db, changes=[(today, AssignmentRole.primary, "Marek Nowak", "Anna Kowalska")]
     )
 
     db.expire_all()

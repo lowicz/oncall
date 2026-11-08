@@ -581,16 +581,18 @@ describe('the Polish interface', () => {
   })
 
   it('a day correction that breaks a hard rule, decided in the panel', async () => {
-    vi.spyOn(api, 'directOverrideCheck').mockResolvedValue({
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({
       violations: [
         { rule: 'three_in_seven', message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.', member_name: 'Marek Nowak', days: ['2026-09-10', '2026-09-11'] },
       ],
       ends_handover: null,
     })
-    vi.spyOn(api, 'swapImpact').mockResolvedValue({
-      service_date: '2026-09-11', role: 'primary', points: 1, window_start: '2025-09-11', window_end: '2026-09-10',
-      requester: { member_id: 'm3', display_name: 'Ola Wiśniewska', before: member('m3', 'Ola Wiśniewska'), after: member('m3', 'Ola Wiśniewska', { primary: balance(3, 3.5) }) },
-      replacement: { member_id: 'm2', display_name: 'Marek Nowak', before: member('m2', 'Marek Nowak'), after: member('m2', 'Marek Nowak', { primary: balance(5, 3.5) }) },
+    vi.spyOn(api, 'batchOverrideImpact').mockResolvedValue({
+      service_date: '2026-09-11', points: 1, window_start: '2025-09-11', window_end: '2026-09-10',
+      members: [
+        { member_id: 'm2', display_name: 'Marek Nowak', before: member('m2', 'Marek Nowak'), after: member('m2', 'Marek Nowak', { primary: balance(5, 3.5) }) },
+        { member_id: 'm3', display_name: 'Ola Wiśniewska', before: member('m3', 'Ola Wiśniewska'), after: member('m3', 'Ola Wiśniewska', { primary: balance(3, 3.5) }) },
+      ],
     })
     renderScreen(
       <Routes><Route path="/grafik" element={<ScheduleScreen role="coordinator" displayName="Ewa Maj" hasTeamMember />} /></Routes>,
@@ -601,6 +603,27 @@ describe('the Polish interface', () => {
     await screen.findByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
     await screen.findByText('Wpływ na bilans')
     await snapshotOf('schedule-coordinator-correction')
+  })
+
+  it('PRIMARY and 11–19 for one person in one correction', async () => {
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue({ violations: [], ends_handover: null })
+    vi.spyOn(api, 'batchOverrideImpact').mockResolvedValue({
+      service_date: '2026-09-11', points: 1, window_start: '2025-09-11', window_end: '2026-09-10',
+      members: [
+        { member_id: 'm2', display_name: 'Marek Nowak', before: member('m2', 'Marek Nowak'), after: member('m2', 'Marek Nowak', { primary: balance(5, 3.5), late_shift: balance(3, 2.5) }) },
+        { member_id: 'm3', display_name: 'Ola Wiśniewska', before: member('m3', 'Ola Wiśniewska'), after: member('m3', 'Ola Wiśniewska', { primary: balance(3, 3.5) }) },
+      ],
+    })
+    renderScreen(
+      <Routes><Route path="/grafik" element={<ScheduleScreen role="coordinator" displayName="Ewa Maj" hasTeamMember />} /></Routes>,
+      { route: '/grafik?dzien=2026-09-11' },
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'PRIMARY: Ola Wiśniewska. Zmień obsadę' }))
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^11–19/ }))
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Osoba na PRIMARY i 11–19' }), { target: { value: 'm2' } })
+    await screen.findByText('Bez naruszeń reguł twardych po obu zmianach')
+    await screen.findByText('Marek Nowak · przejmuje PRIMARY i 11–19')
+    await snapshotOf('schedule-coordinator-roles')
   })
 
   it('schedule of a member as a list', async () => {

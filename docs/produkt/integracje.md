@@ -46,7 +46,9 @@ przejmującą. Przy korekcie wsadowej każda osoba dostaje jedną wiadomość z 
 wyłącznie tych slotów, które oddała albo przejęła, oraz z powodem korekty.
 Zamiana miejscami PRIMARY i SECONDARY jednego dnia przychodzi jako wiadomość
 „Zamiana ról” z obsadą dnia po zamianie, a powód zawiera tylko wtedy, gdy go
-podano.
+podano. Korekta kilku ról jednego dnia (np. SECONDARY i 11–19 dla jednej
+osoby) przychodzi jak pojedyncza: jedna wiadomość „Zmiana przydziału” dla
+każdej osoby, z listą tylko jej slotów.
 
 Wiadomości o korekcie wychodzą 10 sekund po niej; sama zmiana grafiku i wpis
 audytu powstają od razu. Korekta odwrotna (przywrócenie poprzedniej osoby)
@@ -289,6 +291,8 @@ Przed korektą grafiku klient może pobrać naruszenia reguł twardych bez zmian
 Wsady są sprawdzane razem, więc wynik obejmuje też regułę łamaną na styku dwóch grafików, np. więcej niż trzy dyżury z rzędu.
 Oba niczego nie zapisują i zwracają obiekt z polami `violations`, listą naruszeń, oraz `ends_handover`: przekazanie numeru on-call, które korekta zakończyłaby, bo dotyka PRIMARY albo SECONDARY dnia tego przekazania, albo `null`.
 Punkty zapisu sprawdzają reguły ponownie, dlatego świadome naruszenie nadal wymaga `acknowledge_rule_violations: true`.
+`POST /api/v1/calendar/override/batch/impact` przyjmuje jeden wsad (`schedule_id`, `assignments`) i również niczego nie zapisuje: zwraca w `members` bilans punktów przed zmianą i po niej każdej osoby, której wsad daje albo zabiera slot, najpierw przejmujących.
+Wsad `POST /api/v1/calendar/override/batch` z `kind: multi_role` zapisuje role jednego dnia jako jedną korektę: powód jest potrzebny tylko dla dnia, który minął, PRIMARY i SECONDARY nie zmieniają się w nim razem, a pusty slot grafiku można nim obsadzić.
 Wszystkie żądania zmieniające i sprawdzające decyzję wymagają zalogowanej sesji, właściwej roli oraz tokenu CSRF.
 
 ## Audyt

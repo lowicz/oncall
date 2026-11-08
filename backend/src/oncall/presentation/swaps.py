@@ -7,8 +7,15 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from oncall.domain.roster import Slot
-from oncall.domain.swaps.models import ReplacementOption, ReturnOption, SwapRequestView, SwapScope
+from oncall.domain.swaps.models import (
+    ReplacementOption,
+    ReturnOption,
+    SwapImpactSide,
+    SwapRequestView,
+    SwapScope,
+)
 from oncall.domain.vocabulary import AssignmentRole, AvailabilityKind, LateShiftAnchor, SwapStatus
+from oncall.fairness_data import member_response
 from oncall.presentation.reports import FairnessMemberResponse
 from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
 
@@ -153,6 +160,15 @@ class SwapImpactMemberResponse(BaseModel):
     display_name: str
     before: FairnessMemberResponse
     after: FairnessMemberResponse
+
+
+def impact_side_response(item: SwapImpactSide) -> SwapImpactMemberResponse:
+    return SwapImpactMemberResponse(
+        member_id=item.member_id,
+        display_name=item.display_name,
+        before=member_response(item.before),
+        after=member_response(item.after),
+    )
 
 
 class SwapImpactResponse(BaseModel):

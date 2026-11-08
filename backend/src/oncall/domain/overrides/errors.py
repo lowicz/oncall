@@ -82,6 +82,21 @@ class NotARoleSwap(DomainError):
         super().__init__("overrides.not_a_role_swap")
 
 
+class RolesOfSeveralDays(DomainError):
+    """A correction of a day's roles names one day."""
+
+    def __init__(self) -> None:
+        super().__init__("overrides.roles_of_several_days")
+
+
+class OnCallPairInOneCorrection(DomainError):
+    """PRIMARY and SECONDARY never change in one correction of a day's roles:
+    one person may not hold both, and two people trade them by a role swap."""
+
+    def __init__(self) -> None:
+        super().__init__("overrides.on_call_pair_in_one_correction")
+
+
 class RuleViolationsNotAcknowledged(DomainError):
     """A correction that breaks a hard rule goes through only once the
     coordinator has seen the violations and explicitly acknowledged them."""

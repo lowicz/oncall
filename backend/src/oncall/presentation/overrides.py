@@ -7,12 +7,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from oncall.domain.clock import business_today
 from oncall.domain.forwarding.models import NumberHandover
-from oncall.domain.overrides.models import BatchOverrideKind, DutyOverridden
+from oncall.domain.overrides.models import BatchOverrideKind, CorrectionImpact, DutyOverridden
 from oncall.domain.vocabulary import AssignmentRole
 from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.forwarding import HandoverResponse
 from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
+from oncall.presentation.swaps import SwapImpactMemberResponse, impact_side_response
 from oncall.rules import RuleViolation
 
 
@@ -99,11 +100,33 @@ class BatchOverrideRequest(BaseModel):
     schedule_id: uuid.UUID
     expected_version: int = Field(ge=1)
     assignments: list[BatchOverrideItem] = Field(min_length=1, max_length=200)
-    #: At least 10 characters for a `correction`, and for a `role_swap` of a
-    #: past day; a `role_swap` of today or later may go without one.
+    #: At least 10 characters for a `correction`, and for a `role_swap` or a
+    #: `multi_role` of a past day; today or later they may go without one.
     reason: str | None = Field(default=None, max_length=500)
     acknowledge_rule_violations: bool = False
     kind: BatchOverrideKind = BatchOverrideKind.correction
+
+
+class CorrectionImpactResponse(BaseModel):
+    """What a correction would do to the balance of everybody it moves a slot
+    from or to, in the fairness report's window."""
+
+    service_date: date
+    points: float
+    window_start: date
+    window_end: date
+    #: The people taking slots first, then the people giving them up.
+    members: list[SwapImpactMemberResponse]
+
+
+def correction_impact_response(impact: CorrectionImpact) -> CorrectionImpactResponse:
+    return CorrectionImpactResponse(
+        service_date=impact.service_date,
+        points=impact.points,
+        window_start=impact.window_start,
+        window_end=impact.window_end,
+        members=[impact_side_response(item) for item in impact.members],
+    )
 
 
 def override_assignment_response(result: DutyOverridden) -> AssignmentResponse:

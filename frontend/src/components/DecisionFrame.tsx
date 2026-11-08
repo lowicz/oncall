@@ -36,6 +36,7 @@ export function DecisionFrame({
   violations,
   checkFailed = false,
   violationsTitle,
+  clean,
   endsHandover,
   acknowledged,
   onAcknowledge,
@@ -48,6 +49,8 @@ export function DecisionFrame({
   /** The check itself failed: the save checks the rules again. */
   checkFailed?: boolean
   violationsTitle: string
+  /** The rule line when nothing breaks, where the change words it better. */
+  clean?: string
   /** The open number handover saving would end. */
   endsHandover?: NumberHandover | null
   acknowledged: boolean
@@ -60,7 +63,7 @@ export function DecisionFrame({
   const t = common.decision
   let rule = { tone: 'rule-line-wait', text: t.checking }
   if (checkFailed) rule = { tone: 'rule-line-warn', text: t.checkFailed }
-  else if (violations) rule = { tone: '', text: t.clean }
+  else if (violations) rule = { tone: '', text: clean ?? t.clean }
   return (
     <div className="decision">
       {violations?.length ? (

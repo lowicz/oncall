@@ -200,6 +200,11 @@ MESSAGES: dict[str, str] = {
         "Swapping places covers PRIMARY and SECONDARY of one day,"
         " each handed to the holder of the other role"
     ),
+    "overrides.roles_of_several_days": "A change of roles covers one day",
+    "overrides.on_call_pair_in_one_correction": (
+        "PRIMARY and SECONDARY do not change in one correction: one person cannot hold"
+        " both on-calls that day, and two people trade them with “Swap places”"
+    ),
     "overrides.rule_violations_not_acknowledged": (
         "The correction would break the schedule's hard rules; confirm the deliberate violation"
     ),

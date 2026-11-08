@@ -47,7 +47,9 @@ the slots they gave up or took over, together with the reason for the
 correction.
 Swapping places between one day's PRIMARY and SECONDARY arrives as a
 “Zamiana ról” message with the day's staffing after the swap, carrying a
-reason only when one was given.
+reason only when one was given. A correction of several roles of one day
+(for example SECONDARY and 11–19 for one person) arrives like a single one:
+one “Zmiana przydziału” message for each person, listing only their slots.
 
 Messages about a correction go out 10 seconds after it; the schedule change and
 its audit entry are recorded immediately. The reverse correction (putting the
@@ -295,6 +297,8 @@ Before a schedule correction, a client can retrieve hard-rule violations without
 The batches are checked together, so the result also covers a rule broken where two schedules meet, such as more than three duties in a row.
 Both write nothing and return an object with `violations`, the list of violations, and `ends_handover`: the on-call number handover the correction would end, because it touches the PRIMARY or SECONDARY of that handover's day, or `null`.
 The write endpoints check the rules again, so a deliberate violation still requires `acknowledge_rule_violations: true`.
+`POST /api/v1/calendar/override/batch/impact` takes one batch (`schedule_id`, `assignments`) and writes nothing either: in `members` it returns the points balance before and after the change of everyone the batch gives a slot to or takes one from, the people taking slots first.
+A `POST /api/v1/calendar/override/batch` with `kind: multi_role` saves the roles of one day as one correction: a reason is needed only for a past day, PRIMARY and SECONDARY never change in it together, and it can fill an empty slot of the schedule.
 Every request that changes or checks a decision requires a signed-in session, the appropriate role, and a CSRF token.
 
 ## Audit

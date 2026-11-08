@@ -374,10 +374,7 @@ async def test_override_journal_records_moves_and_rule_ids(db, people) -> None:
     ]
     await journal.duty_overridden(
         schedule_id=people["schedule"].id,
-        service_date=DAY,
-        role=AssignmentRole.primary,
-        previous_name="Bartek",
-        new_name="Anna",
+        changes=[(DAY, AssignmentRole.primary, "Bartek", "Anna")],
         reason=None,
         historical=False,
         moves=[OverrideMove(DAY, AssignmentRole.primary, "Bartek")],

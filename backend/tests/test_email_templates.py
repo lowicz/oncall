@@ -254,10 +254,14 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         app=APP,
     ),
     "assignment_overridden": lambda: templates.assignment_overridden(
-        service_date=DAY,
-        role=AssignmentRole.primary,
-        previous_name="Anna Kowalska",
-        new_name="Marek Nowak",
+        changes=[(DAY, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak")],
+        app=APP,
+    ),
+    "assignment_overridden_roles": lambda: templates.assignment_overridden(
+        changes=[
+            (DAY, AssignmentRole.secondary, "Anna Kowalska", "Marek Nowak"),
+            (DAY, AssignmentRole.late_shift, "Jan Wiśniewski", "Marek Nowak"),
+        ],
         app=APP,
     ),
     "assignments_changed_by_publication": lambda: templates.assignments_changed_by_publication(
@@ -323,10 +327,7 @@ RENDERINGS: dict[str, Callable[[], RenderedEmail]] = {
         ),
     ),
     "assignment_overridden_automatic": lambda: templates.assignment_overridden(
-        service_date=DAY,
-        role=AssignmentRole.primary,
-        previous_name="Anna Kowalska",
-        new_name="Marek Nowak",
+        changes=[(DAY, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak")],
         app=APP,
         automatic=True,
     ),
@@ -495,7 +496,7 @@ def test_dates_read_as_the_screens_print_them() -> None:
     assert format_range(DAY, END) == "24-09-2026 – 21-10-2026"
 
 
-@pytest.mark.parametrize("name", ["swap_requested", "roles_swapped"])
+@pytest.mark.parametrize("name", ["swap_requested", "roles_swapped", "assignment_overridden_roles"])
 def test_the_html_matches_the_snapshot(name: str) -> None:
     html = RENDERINGS[name]().html
     snapshot = SNAPSHOTS / f"email_{name}.html"

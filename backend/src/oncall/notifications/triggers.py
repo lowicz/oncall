@@ -653,37 +653,39 @@ async def notify_availability_created_on_behalf(
 async def notify_assignment_overridden(
     db: AsyncSession,
     *,
-    service_date: date,
-    role: AssignmentRole,
-    previous_name: str,
-    new_name: str,
+    changes: list[tuple[date, AssignmentRole, str, str]],
 ) -> None:
+    """One mail per person a correction of one day's roles touched, listing
+    only the slots they gave up or took over: SECONDARY and 11-19 taken over
+    together read as one change."""
     settings = get_settings()
-    changes = [(service_date, role, previous_name, new_name)]
     now = utc_now()
     cancelled = await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now)
-    names = [name for name in (previous_name, new_name) if name not in cancelled]
+    names = [
+        name
+        for name in dict.fromkeys(name for change in changes for name in change[2:])
+        if name not in cancelled
+    ]
     emails = await _emails_for_names(db, names)
     mode = await db.scalar(select(CallForwardingSettings.mode).limit(1))
-    await _enqueue_for(
-        db,
-        emails,
-        names=names,
-        build=lambda: templates.assignment_overridden(
-            service_date=service_date,
-            role=role,
-            previous_name=previous_name,
-            new_name=new_name,
-            app=Brand.from_settings(settings),
-            automatic=mode is ForwardingMode.live,
-        ),
-        context={
-            "event": "assignment_overridden",
-            "service_date": service_date.isoformat(),
-            "undo_key": _undo_key(changes),
-        },
-        send_after=now + UNDO_WINDOW,
-    )
+    for name in names:
+        own = [change for change in changes if name in change[2:]]
+        await _enqueue_for(
+            db,
+            emails,
+            names=[name],
+            build=lambda own=own: templates.assignment_overridden(
+                changes=own,
+                app=Brand.from_settings(settings),
+                automatic=mode is ForwardingMode.live,
+            ),
+            context={
+                "event": "assignment_overridden",
+                "service_date": changes[0][0].isoformat(),
+                "undo_key": _undo_key(changes),
+            },
+            send_after=now + UNDO_WINDOW,
+        )
 
 
 async def notify_assignments_changed_by_publication(

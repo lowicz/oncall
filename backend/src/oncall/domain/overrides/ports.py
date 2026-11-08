@@ -1,11 +1,9 @@
 import uuid
 from dataclasses import dataclass
-from datetime import date
 from typing import Protocol
 
 from oncall.domain.overrides.models import AssignmentChange, BatchOverrideKind, OverrideMove
-from oncall.domain.ports import PublishedRoster, RosterPolicy, TeamDirectory
-from oncall.domain.vocabulary import AssignmentRole
+from oncall.domain.ports import FairnessHistory, PublishedRoster, RosterPolicy, TeamDirectory
 from oncall.rules import RuleViolation
 
 
@@ -17,10 +15,7 @@ class OverrideJournal(Protocol):
         self,
         *,
         schedule_id: uuid.UUID,
-        service_date: date,
-        role: AssignmentRole,
-        previous_name: str,
-        new_name: str,
+        changes: list[AssignmentChange],
         reason: str | None,
         historical: bool,
         moves: list[OverrideMove],
@@ -45,3 +40,4 @@ class OverridePorts:
     roster: PublishedRoster
     policy: RosterPolicy
     journal: OverrideJournal
+    fairness: FairnessHistory
