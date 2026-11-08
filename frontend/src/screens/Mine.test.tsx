@@ -180,7 +180,7 @@ describe('MineScreen points and swaps', () => {
     renderScreen(<MineScreen displayName="Julia Nowak" />)
     expect(await screen.findByText('+0,5', { selector: '.big' })).toBeInTheDocument()
     expect(screen.getByText('W normie')).toBeInTheDocument()
-    expect(screen.getByText(/Masz o 0,5 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\./)).toBeInTheDocument()
+    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz o 0,5 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\. Generator wyrówna to w kolejnym zakresie\.$/)
     const table = await screen.findByRole('table', { name: 'Punkty miesiąc po miesiącu' })
     expect(within(table).getByText('wrzesień')).toBeInTheDocument()
     expect(within(table).getByText('sierpień')).toBeInTheDocument()
@@ -790,7 +790,8 @@ describe('MineScreen points states', () => {
     vi.spyOn(api, 'fairness').mockResolvedValue({ ...REPORT, members: [{ ...REPORT.members[0], primary: balance(4, deviation) }] })
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     expect(await screen.findByText('0,0', { selector: '.big' })).toBeInTheDocument()
-    expect(screen.getByText('Masz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział.', { exact: false })).toBeInTheDocument()
+    // Nothing to even out: the box stops at the norm.
+    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\.$/)
   })
 
   it('says when the month has no duties and switches back to twelve months', async () => {

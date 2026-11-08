@@ -729,9 +729,9 @@ function PointsSection({ displayName, compact, onAvailability }: {
               <Box tone={within ? 'ok' : 'warn'} title={within ? t.within : t.outside}>
                 {shown > 0 ? t.aboveShare(formatPoints(shown)) : shown < 0 ? t.belowShare(formatPoints(-shown)) : t.atShare}
                 {' '}{t.norm(formatPoints(threshold))}
-                {' '}{within
+                {shown !== 0 && <>{' '}{within
                   ? t.generatorEvensOut
-                  : balance.deviation > 0 ? t.generatorFewer : t.generatorMore}
+                  : balance.deviation > 0 ? t.generatorFewer : t.generatorMore}</>}
               </Box>
             )}
             {!compact && duties.isLoading && <LoadingBlock label={t.loadingMonths} rows={2} />}
