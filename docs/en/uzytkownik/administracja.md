@@ -61,8 +61,9 @@ creation” box says from when and in which roles the person will get duties.
 After creation the same panel shows what was created (the account, the
 rotation and the roles), the activation link and the **Open the rotation**
 button, which leads to that person's Rotation tab. If the server refuses to
-save the rotation, the account and the link stay, the panel gives the
-reason, and you finish the rotation on the tab.
+save the rotation or some of the qualifications, the account and the link
+stay, the panel says what was not saved and why, and you finish the rest on
+the tab.
 
 Every qualification change waits for **Save**, like the other fields of the
 panel, and joins the list of unsaved changes: **Edit** changes a period's
@@ -122,7 +123,8 @@ each duty. The exit date is saved only in that dialog; closing it leaves the
 date on the list of unsaved changes. Qualification changes wait too, because
 the server does not let a qualification end while published duties still need
 it: the dialog itself closes the periods on the exit date, and whatever is
-left of those changes is saved by the next **Save**. The **End the rotation…**
+left of those changes is saved by the next **Save** - the periods end on the
+exit date at the latest, and those that would start after it leave the list. The **End the rotation…**
 button on the Rotation tab opens the same dialog, with the date from the “Exit
 on” field or, when it is empty, today's; without duties the dialog only closes
 the qualifications and saves the exit date.

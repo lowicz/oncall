@@ -57,8 +57,9 @@ wymagany) i kwalifikacje dyżurowe do zaznaczenia. Ramka „Po utworzeniu”
 mówi, od kiedy i w jakich rolach osoba dostanie dyżury. Po utworzeniu ten
 sam panel pokazuje, co powstało (konto, rotację i role), link aktywacyjny
 i przycisk **Otwórz rotację**, który prowadzi do zakładki Rotacja tej
-osoby. Jeśli serwer odmówi zapisania rotacji, konto i link zostają, panel
-podaje przyczynę, a rotację dokończysz na zakładce.
+osoby. Jeśli serwer odmówi zapisania rotacji albo części kwalifikacji, konto
+i link zostają, panel podaje, czego nie zapisano i dlaczego, a resztę
+dokończysz na zakładce.
 
 Każda zmiana kwalifikacji czeka na **Zapisz**, tak jak pozostałe pola
 panelu, i trafia na listę niezapisanych zmian: **Edytuj** zmienia daty
@@ -116,7 +117,8 @@ zastępcę. Data wyjścia zapisuje się dopiero w tym oknie; zamknięcie go
 zostawia ją na liście niezapisanych zmian. Zmiany kwalifikacji też czekają, bo
 serwer nie pozwala zakończyć kwalifikacji, której potrzebują jeszcze
 opublikowane dyżury: okno samo zamyka okresy z dniem wyjścia, a to, co z tych
-zmian zostanie, zapisuje kolejne **Zapisz**. To samo okno otwiera przycisk
+zmian zostanie, zapisuje kolejne **Zapisz** - okresy kończą się najpóźniej w
+dniu wyjścia, a te, które zaczynałyby się po nim, znikają z listy. To samo okno otwiera przycisk
 **Zakończ rotację…** na zakładce Rotacja, z datą z pola „Wyjście do” albo, gdy
 jest puste, z dzisiejszą; przy braku dyżurów okno tylko zamyka kwalifikacje i
 zapisuje datę wyjścia.
