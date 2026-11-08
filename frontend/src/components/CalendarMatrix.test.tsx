@@ -950,11 +950,11 @@ describe('CalendarMatrix staffing form', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź korektę historyczną' })).not.toBeInTheDocument())
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Grafik zmienił wersję')
 
-    // Trying again starts from an empty reason and no refusal.
+    // Trying again keeps the reason and drops the refusal.
     confirm = await openConfirm()
     expect(within(confirm).queryByRole('alert')).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
-    fireEvent.change(within(confirm).getByRole('textbox', { name: /Powód korekty historycznej/ }), { target: { value: 'Zamiana ustalona telefonicznie' } })
+    expect(within(confirm).getByRole('textbox', { name: /Powód korekty historycznej/ })).toHaveValue('Zamiana ustalona telefonicznie')
     fireEvent.click(within(confirm).getByRole('button', { name: 'Zapisz zmianę obsady' }))
 
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
@@ -963,6 +963,48 @@ describe('CalendarMatrix staffing form', () => {
       replacement_member_id: 'm3', reason: 'Zamiana ustalona telefonicznie', acknowledge_rule_violations: false,
     })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('closes the past-day dialog on a new violation so the panel can take the acknowledgement', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week())
+    vi.spyOn(api, 'directOverrideCheck')
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([threeInSeven])
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(impactFor('Anna Kowalska', 'Ola Wiśniewska'))
+    const save = vi.spyOn(api, 'directOverride')
+      .mockRejectedValueOnce(new ApiError('Korekta złamie reguły twarde grafiku; potwierdź świadome naruszenie', 409, [threeInSeven]))
+      .mockResolvedValue({} as never)
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, 'PRIMARY: Anna Kowalska. Zmień obsadę')
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba' }), { target: { value: 'm3' } })
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+    const openConfirm = async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz zmianę obsady…' }))
+      return screen.findByRole('dialog', { name: 'Potwierdź korektę historyczną' })
+    }
+    let confirm = await openConfirm()
+    fireEvent.change(within(confirm).getByRole('textbox', { name: /Powód korekty historycznej/ }), { target: { value: 'Zamiana ustalona telefonicznie' } })
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Zapisz zmianę obsady' }))
+
+    // The refusal moves to the panel, beside the violations and their acknowledgement.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Potwierdź korektę historyczną' })).not.toBeInTheDocument())
+    expect(await within(dialog).findByText(/Więcej niż 3 dyżury on-call w okresie 7 dni/)).toBeInTheDocument()
+    const refusal = within(dialog).getByRole('alert')
+    expect(refusal).toHaveTextContent('Korekta złamie reguły twarde grafiku')
+    await waitFor(() => expect(refusal).toHaveFocus())
+    const acknowledgement = within(dialog).getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
+    expect(acknowledgement).not.toBeChecked()
+    expectBlocked(within(dialog).getByRole('button', { name: 'Zapisz zmianę obsady…' }))
+
+    fireEvent.click(acknowledgement)
+    confirm = await openConfirm()
+    expect(within(confirm).getByRole('textbox', { name: /Powód korekty historycznej/ })).toHaveValue('Zamiana ustalona telefonicznie')
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Zapisz zmianę obsady' }))
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
+    expect(save.mock.calls[1][0]).toMatchObject({
+      reason: 'Zamiana ustalona telefonicznie', acknowledge_rule_violations: true,
+    })
   })
 
   it('lets the change go ahead when the rule check itself fails', async () => {

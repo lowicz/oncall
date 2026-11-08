@@ -127,6 +127,7 @@ export function CalendarMatrix({
   const [staffMemberId, setStaffMemberId] = useState<string | null>(null)
   const [violationsAcknowledged, setViolationsAcknowledged] = useState(false)
   const [confirmHistorical, setConfirmHistorical] = useState(false)
+  const [historicalReason, setHistoricalReason] = useState('')
   const [eventTitle, setEventTitle] = useState('')
   const [eventColor, setEventColor] = useState<CalendarEventColor>('blue')
   const [eventFormOpen, setEventFormOpen] = useState(false)
@@ -156,9 +157,11 @@ export function CalendarMatrix({
     onError: (error) => {
       // The roster moved between the check and the write, and the override
       // now breaks a rule the panel did not show: check again so the
-      // violations and their acknowledgement appear.
+      // violations and their acknowledgement appear, in the panel rather
+      // than behind the past-day dialog.
       if (error instanceof ApiError && error.violations.length > 0) {
         queryClient.invalidateQueries({ queryKey: ['override-check'] })
+        setConfirmHistorical(false)
       }
     },
   })
@@ -320,6 +323,7 @@ export function CalendarMatrix({
     const safeRole: AssignmentRole = nextRole === 'late_shift' && selected?.day.is_day_off ? 'primary' : nextRole
     setSelectedRole(safeRole)
     setStaffMemberId(null)
+    setHistoricalReason('')
     override.reset()
     setStaffOpen(true)
   }
@@ -598,7 +602,7 @@ export function CalendarMatrix({
                   id={id}
                   name={id}
                   value={selectedRole}
-                  onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null); override.reset() }}
+                  onChange={(event) => { setSelectedRole(event.target.value as AssignmentRole); setStaffMemberId(null); setHistoricalReason(''); override.reset() }}
                 >
                   {ROLES.filter((item) => item !== 'late_shift' || !selected.day.is_day_off).map((item) => (
                     <option key={item} value={item}>{roleLabels()[item]}</option>
@@ -614,7 +618,7 @@ export function CalendarMatrix({
                   name={id}
                   value={staffMemberId ?? ''}
                   aria-describedby={describedBy}
-                  onChange={(event) => { setStaffMemberId(event.target.value || null); override.reset() }}
+                  onChange={(event) => { setStaffMemberId(event.target.value || null); setHistoricalReason(''); override.reset() }}
                 >
                   <option value="">{t.inspector.pickPerson}</option>
                   {staffCandidates.map((candidate) => (
@@ -770,11 +774,12 @@ export function CalendarMatrix({
         confirmLabel={t.confirm.save}
         reasonLabel={t.confirm.historicalReason}
         reasonMinLength={10}
+        initialReason={historicalReason}
         confirmDisabled={saveBlocked}
         pending={override.isPending}
         error={override.error?.message}
         onCancel={() => setConfirmHistorical(false)}
-        onConfirm={saveOverride}
+        onConfirm={(reason) => { setHistoricalReason(reason); saveOverride(reason) }}
       />
       <ConfirmDialog
         open={Boolean(eventToDelete)}

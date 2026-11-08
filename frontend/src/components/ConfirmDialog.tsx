@@ -17,6 +17,7 @@ export function ConfirmDialog({
   confirmColor = 'primary',
   reasonLabel,
   reasonMinLength = 1,
+  initialReason = '',
   confirmDisabled = false,
   pending = false,
   error,
@@ -30,6 +31,8 @@ export function ConfirmDialog({
   confirmColor?: 'primary' | 'error' | 'warning'
   reasonLabel?: string
   reasonMinLength?: number
+  /** The reason the dialog opens with, e.g. one typed before a refusal. */
+  initialReason?: string
   /** Something in `description` still needs the user's input, e.g. an
    *  acknowledgement checkbox. */
   confirmDisabled?: boolean
@@ -44,8 +47,8 @@ export function ConfirmDialog({
   const [reason, setReason] = useState('')
   const reasonRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
-    if (open) setReason('')
-  }, [open])
+    if (open) setReason(initialReason)
+  }, [open, initialReason])
   const needsReason = Boolean(reasonLabel)
   const tooShort = reason.trim().length > 0 && reason.trim().length < reasonMinLength
   const blocked = pending || confirmDisabled || (needsReason && reason.trim().length < reasonMinLength)
