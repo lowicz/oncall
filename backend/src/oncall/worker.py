@@ -62,6 +62,7 @@ from oncall.domain.forwarding.job import (
 )
 from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome
 from oncall.domain.forwarding.passwords import AfterLogin, generate_password
+from oncall.domain.forwarding.ports import HandoverPorts
 from oncall.domain.handover import remind_of_handover
 from oncall.domain.scheduling import generation
 from oncall.domain.scheduling.errors import GenerationFailed
@@ -75,6 +76,8 @@ from oncall.infrastructure.sqlalchemy.digest import digest_ports
 from oncall.infrastructure.sqlalchemy.forwarding import (
     SqlAlchemyForwardingAttempts,
     SqlAlchemyForwardingConfiguration,
+    SqlAlchemyHandoverJournal,
+    SqlAlchemyHandovers,
 )
 from oncall.infrastructure.sqlalchemy.handover import handover_ports
 from oncall.infrastructure.sqlalchemy.roster import SqlAlchemyPublishedRoster
@@ -366,6 +369,7 @@ async def _prepare_forwarding(
             settings.handover_reminder_hour,
             SqlAlchemyPublishedRoster(db),
             configuration,
+            HandoverPorts(SqlAlchemyHandovers(db), SqlAlchemyHandoverJournal(db, None)),
         )
         if target is None:
             return None

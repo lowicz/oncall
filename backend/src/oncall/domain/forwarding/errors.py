@@ -45,3 +45,55 @@ class CredentialsRefused(DomainError):
 
     def __init__(self) -> None:
         super().__init__("forwarding.credentials_refused")
+
+
+class ForwardingOff(DomainError):
+    """A handover is asked for while forwarding is off: nothing would switch
+    the number, and the application cannot tell where it rings."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.handover_forwarding_off")
+
+
+class NotInThePair(DomainError):
+    """Somebody who is neither the day's PRIMARY or SECONDARY nor a
+    coordinator starts or ends a handover."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.handover_not_in_pair")
+
+
+class HandoverNeedsPair(DomainError):
+    """The duty day has no PRIMARY or no SECONDARY to hand the number between."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.handover_needs_pair")
+
+
+class HandoverActive(DomainError):
+    """A second handover is asked for while one holds."""
+
+    def __init__(self, receiver: str) -> None:
+        super().__init__("forwarding.handover_active", name=receiver)
+
+
+class HandoverUntilOutOfRange(DomainError):
+    """The end is not after now, or after the end of the duty day, when the
+    number passes to the next PRIMARY anyway."""
+
+    def __init__(self, latest: str) -> None:
+        super().__init__("forwarding.handover_until_out_of_range", latest=latest)
+
+
+class ReceiverHasNoPhone(DomainError):
+    """The SECONDARY has no phone number to forward to."""
+
+    def __init__(self, receiver: str) -> None:
+        super().__init__("forwarding.handover_receiver_has_no_phone", name=receiver)
+
+
+class HandoverNotFound(DomainError):
+    """No open handover has this id: it ended, or never existed."""
+
+    def __init__(self) -> None:
+        super().__init__("forwarding.handover_not_found")

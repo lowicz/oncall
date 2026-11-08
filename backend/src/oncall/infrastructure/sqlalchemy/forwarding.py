@@ -2,14 +2,17 @@
 
 import uuid
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, exists, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from oncall.audit import record_audit
-from oncall.domain.clock import as_utc, utc_now
+from oncall.domain.clock import BUSINESS_TIMEZONE, as_utc, utc_now
+from oncall.domain.forwarding import errors
 from oncall.domain.forwarding.job import (
     ForwardingAccount,
     ForwardingAttempt,
@@ -19,12 +22,15 @@ from oncall.domain.forwarding.job import (
     RecordedForwarding,
 )
 from oncall.domain.forwarding.models import (
+    FAILING_OUTCOMES,
     ConnectionTest,
     ConnectionTestOutcome,
     ForwardingMode,
     ForwardingOutcome,
     ForwardingSettings,
     ForwardingState,
+    HandoverEnd,
+    NumberHandover,
     SettingsChange,
 )
 from oncall.domain.forwarding.passwords import Passwords
@@ -35,6 +41,7 @@ from oncall.infrastructure.sqlalchemy.base import load_singleton
 from oncall.infrastructure.sqlalchemy.forwarding_models import (
     CallForwardingSettings,
     CallForwardingState,
+    ForwardingHandover,
 )
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
@@ -43,6 +50,7 @@ from oncall.notifications.templates import FORWARDING_FAILURES
 from oncall.notifications.triggers import (
     enqueue_forwarding_alert,
     enqueue_forwarding_recovered,
+    notify_handover_ended_by_roster_change,
 )
 
 PERMANENT_BACKOFF = timedelta(hours=1)
@@ -54,6 +62,12 @@ CONNECTION_TEST_WORDS = {
     ConnectionTestOutcome.login_refused: "WCO odrzuciło dane logowania",
     ConnectionTestOutcome.connection: "nie udało się połączyć z WCO",
     ConnectionTestOutcome.configuration: "konfiguracja WCO jest niedostępna",
+}
+#: How a handover ended, as the audit trail says it.
+HANDOVER_END_WORDS = {
+    HandoverEnd.manual: "zakończone ręcznie",
+    HandoverEnd.expired: "minął czas przekazania",
+    HandoverEnd.roster_change: "korekta grafiku zmieniła parę dyżurną",
 }
 
 
@@ -163,6 +177,7 @@ class SqlAlchemyForwardingState:
             failing_since=row.failing_since,
             attempts=row.attempts,
             next_attempt_at=row.next_attempt_at,
+            alerted_for=row.alerted_for,
         )
 
 
@@ -368,12 +383,7 @@ class SqlAlchemyForwardingAttempts:
             same_desired
             and target.number == row.applied_number
             and row.alerted_for is None
-            and row.last_outcome
-            not in (
-                ForwardingOutcome.failed,
-                ForwardingOutcome.skipped_no_primary,
-                ForwardingOutcome.skipped_no_phone,
-            )
+            and row.last_outcome not in FAILING_OUTCOMES
         ):
             return None
         values: dict[str, object] = {"lease_until": lease_until}
@@ -515,8 +525,8 @@ class SqlAlchemyForwardingAttempts:
         reached = current_number == attempt.target.number
         self._desired(row, attempt.target)
         row.applied_number = current_number
-        row.applied_member_id = attempt.target.member_id if reached else None
-        row.applied_member_name = attempt.target.member_name if reached else None
+        row.applied_member_id = attempt.target.holder_id if reached else None
+        row.applied_member_name = attempt.target.holder_name if reached else None
         row.applied_at = now
         row.last_attempt_at = now
         row.last_outcome = outcome
@@ -531,7 +541,7 @@ class SqlAlchemyForwardingAttempts:
                 action="forwarding.test",
                 entity_type="call_forwarding_state",
                 entity_id=row.id,
-                summary=f"Próba przełączenia numeru na {attempt.target.member_name}",
+                summary=f"Próba przełączenia numeru na {attempt.target.holder_name}",
                 details={
                     "day": attempt.target.day.isoformat(),
                     "desired_number": attempt.target.number,
@@ -547,10 +557,10 @@ class SqlAlchemyForwardingAttempts:
                 action="forwarding.applied",
                 entity_type="call_forwarding_state",
                 entity_id=row.id,
-                summary=f"Numer on-call przełączono na {attempt.target.member_name}",
+                summary=f"Numer on-call przełączono na {attempt.target.holder_name}",
                 details={
                     "day": attempt.target.day.isoformat(),
-                    "member_id": str(attempt.target.member_id),
+                    "member_id": str(attempt.target.holder_id),
                     "number": attempt.target.number,
                 },
             )
@@ -571,11 +581,7 @@ class SqlAlchemyForwardingAttempts:
         invalidate_credentials: bool,
         now: datetime,
     ) -> RecordedForwarding:
-        same_episode = self._same_desired(row, target) and row.last_outcome in (
-            ForwardingOutcome.failed,
-            ForwardingOutcome.skipped_no_primary,
-            ForwardingOutcome.skipped_no_phone,
-        )
+        same_episode = self._same_desired(row, target) and row.last_outcome in FAILING_OUTCOMES
         if not same_episode:
             self._start_episode(row, target, now=now)
         attempts = row.attempts + 1 if same_episode else 1
@@ -626,7 +632,7 @@ class SqlAlchemyForwardingAttempts:
         failing_since = as_utc(row.failing_since or now)
         if not immediate and as_utc(now) - failing_since < TRANSIENT_ALERT_AFTER:
             return
-        alert_key = f"forwarding-failed:{target.alert_token}"
+        alert_key = target.failure_alert_key
         queued = await enqueue_forwarding_alert(
             self._session,
             target,
@@ -664,14 +670,14 @@ class SqlAlchemyForwardingAttempts:
     def _same_desired(row: CallForwardingState, target: ForwardingTarget) -> bool:
         return (
             row.desired_for_day == target.day
-            and row.desired_member_name == target.member_name
+            and row.desired_member_name == target.holder_name
             and row.desired_number == target.number
         )
 
     @staticmethod
     def _desired(row: CallForwardingState, target: ForwardingTarget) -> None:
         row.desired_for_day = target.day
-        row.desired_member_name = target.member_name
+        row.desired_member_name = target.holder_name
         row.desired_number = target.number
 
     def _start_episode(
@@ -680,3 +686,150 @@ class SqlAlchemyForwardingAttempts:
         self._desired(row, target)
         row.failing_since = now
         row.attempts = 0
+
+
+class SqlAlchemyHandovers:
+    """The number handovers, with the names of their two people."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def open(self) -> NumberHandover | None:
+        giver, receiver = aliased(TeamMember), aliased(TeamMember)
+        row = (
+            await self._session.execute(
+                select(ForwardingHandover, giver.display_name, receiver.display_name)
+                .join(giver, giver.id == ForwardingHandover.from_member_id)
+                .join(receiver, receiver.id == ForwardingHandover.to_member_id)
+                .where(ForwardingHandover.ended_at.is_(None))
+                .order_by(ForwardingHandover.starts_at.desc())
+                .limit(1)
+            )
+        ).first()
+        if row is None:
+            return None
+        handover, from_name, to_name = row
+        return NumberHandover(
+            id=handover.id,
+            day=handover.day,
+            from_member_id=handover.from_member_id,
+            from_name=from_name,
+            to_member_id=handover.to_member_id,
+            to_name=to_name,
+            starts_at=as_utc(handover.starts_at),
+            until=as_utc(handover.until),
+        )
+
+    async def start(
+        self,
+        *,
+        day: date,
+        from_member_id: uuid.UUID,
+        to_member_id: uuid.UUID,
+        until: datetime,
+        now: datetime,
+        by_user_id: uuid.UUID,
+    ) -> NumberHandover:
+        row = ForwardingHandover(
+            day=day,
+            from_member_id=from_member_id,
+            to_member_id=to_member_id,
+            starts_at=now,
+            until=until,
+            created_by_user_id=by_user_id,
+        )
+        try:
+            # A partial unique index allows one open handover a day; losing
+            # that race undoes the insert alone, under a savepoint.
+            async with self._session.begin_nested():
+                self._session.add(row)
+                await self._session.flush()
+        except IntegrityError as error:
+            existing = await self.open()
+            if existing is None or not _unique_violation(error):
+                raise
+            raise errors.HandoverActive(existing.to_name) from None
+        started = await self.open()
+        assert started is not None and started.id == row.id
+        return started
+
+    async def end(
+        self,
+        handover: NumberHandover,
+        reason: HandoverEnd,
+        *,
+        at: datetime,
+        by_user_id: uuid.UUID | None,
+    ) -> bool:
+        ended = await self._session.execute(
+            update(ForwardingHandover)
+            .where(ForwardingHandover.id == handover.id, ForwardingHandover.ended_at.is_(None))
+            .values(ended_at=at, end_reason=reason, ended_by_user_id=by_user_id)
+            .execution_options(synchronize_session=False)
+        )
+        return cast(CursorResult[Any], ended).rowcount == 1
+
+
+def _unique_violation(error: IntegrityError) -> bool:
+    """Whether a unique index refused the row, as PostgreSQL or SQLite says."""
+    return (
+        getattr(error.orig, "sqlstate", None) == "23505"
+        or getattr(error.orig, "sqlite_errorname", None) == "SQLITE_CONSTRAINT_UNIQUE"
+    )
+
+
+def _clock(moment: datetime) -> str:
+    return f"{as_utc(moment).astimezone(BUSINESS_TIMEZONE):%H:%M}"
+
+
+class SqlAlchemyHandoverJournal:
+    """Audit entries of handovers, in the name of whoever acted (the worker:
+    `actor` None), and the mail of an end the roster forced."""
+
+    def __init__(self, session: AsyncSession, actor: User | None) -> None:
+        self._session = session
+        self._actor = actor
+
+    def started(self, handover: NumberHandover) -> None:
+        record_audit(
+            self._session,
+            actor=self._actor,
+            action="forwarding.handover_started",
+            entity_type="forwarding_handover",
+            entity_id=handover.id,
+            summary=(
+                f"Przekazano numer on-call: {handover.from_name} → {handover.to_name} "
+                f"do {_clock(handover.until)}"
+            ),
+            details=_details(handover),
+        )
+
+    def ended(self, handover: NumberHandover, reason: HandoverEnd) -> None:
+        record_audit(
+            self._session,
+            actor=self._actor,
+            action="forwarding.handover_ended",
+            entity_type="forwarding_handover",
+            entity_id=handover.id,
+            summary=(
+                f"Zakończono przekazanie numeru on-call: {handover.from_name} → "
+                f"{handover.to_name}, {HANDOVER_END_WORDS[reason]}"
+            ),
+            details=_details(handover) | {"reason": reason.value},
+        )
+
+    async def ended_by_roster_change(
+        self, handover: NumberHandover, primary_name: str | None
+    ) -> None:
+        await notify_handover_ended_by_roster_change(
+            self._session, handover, primary_name=primary_name
+        )
+
+
+def _details(handover: NumberHandover) -> dict[str, object]:
+    return {
+        "day": handover.day.isoformat(),
+        "from_member_id": str(handover.from_member_id),
+        "to_member_id": str(handover.to_member_id),
+        "until": handover.until.isoformat(),
+    }

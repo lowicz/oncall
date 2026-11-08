@@ -20,6 +20,7 @@ from oncall.domain.calendar.models import WEEKDAYS
 from oncall.domain.clock import BUSINESS_TIMEZONE
 from oncall.domain.digest import Gap
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
+from oncall.domain.forwarding.models import NumberHandover
 from oncall.domain.vocabulary import ONCALL_ROLES, ROLE_LABELS, AssignmentRole
 from oncall.notifications import layout
 from oncall.notifications.layout import (
@@ -1124,10 +1125,15 @@ def forwarding_failed(
     if action is not status:
         paragraphs.append(join(text(f"{status.label}: "), link(status.url)))
     links = "".join(f"{each.label}: {each.url}\n" for each in dict.fromkeys((action, status)))
-    primary = f"{target.member_name} ({desired})" if target.member_name else "brak"
+    receiver = target.receiver
+    primary = target.member_name or "brak"
+    if receiver is None and target.member_name:
+        primary = f"{primary} ({desired})"
+    taken_over = f"Numer przejął: {receiver.name} ({desired}).\n" if receiver else ""
     body = (
         f"{lead_text}\n"
         f"Dyżur PRIMARY: {primary}.\n"
+        f"{taken_over}"
         f"Ostatni potwierdzony numer WCO: {current}; {when}.\n"
         f"Przyczyna: {reason}.{fill_phone}\n\n"
         f"{instruction}\n"
@@ -1143,6 +1149,7 @@ def forwarding_failed(
         facts=[
             Fact("Dzień dyżuru", _day(target.day)),
             Fact("PRIMARY", strong(target.member_name or "brak")),
+            *([Fact("Numer przejął", strong(receiver.name))] if receiver else []),
             Fact("Numer docelowy", mono(desired)),
             Fact("Ostatni numer WCO", mono(current)),
             Fact("Potwierdzony", text(when)),
@@ -1159,9 +1166,14 @@ def forwarding_recovered(*, target: ForwardingTarget, app: Brand) -> RenderedEma
     lead_text = "Automatyczne przełączanie numeru on-call znów działa."
     number = masked_phone(target.number)
     action = Action("Sprawdź przełączanie", f"{app.url}/przelaczanie")
+    receiver = target.receiver
+    holder = (
+        f"Dyżur PRIMARY: {target.member_name}, numer przejął: {receiver.name}"
+        if receiver
+        else f"Dyżur PRIMARY: {target.member_name or 'brak'}"
+    )
     body = (
-        f"{lead_text}\n"
-        f"Dyżur PRIMARY: {target.member_name or 'brak'} ({number}), {format_day(target.day)}.\n\n"
+        f"{lead_text}\n{holder} ({number}), {format_day(target.day)}.\n\n"
         f"{action.label}: {action.url}\n"
     )
     return _render(
@@ -1174,9 +1186,46 @@ def forwarding_recovered(*, target: ForwardingTarget, app: Brand) -> RenderedEma
         facts=[
             Fact("Dzień dyżuru", _day(target.day)),
             Fact("PRIMARY", strong(target.member_name or "brak")),
+            *([Fact("Numer przejął", strong(receiver.name))] if receiver else []),
             Fact("Numer", mono(number)),
             Fact("Status", status_tag("Przełączony", Tone.ok)),
         ],
+        action=action,
+    )
+
+
+def handover_ended_by_roster_change(
+    *, handover: NumberHandover, primary_name: str | None, app: Brand
+) -> RenderedEmail:
+    """The one handover end its two people are written about: a correction
+    took one of them out of the day's pair, so the number moved without
+    either of them doing anything."""
+    pair = f"{handover.from_name} → {handover.to_name}"
+    subject = "Przekazanie numeru on-call zakończone przez korektę grafiku"
+    lead_text = (
+        f"Przekazanie numeru on-call {pair} zakończyło się, bo korekta grafiku "
+        f"zmieniła parę dyżurną dnia {format_day(handover.day)}."
+    )
+    where = (
+        f"Numer on-call wraca do osoby na dyżurze PRIMARY: {primary_name}."
+        if primary_name
+        else "W grafiku nie ma teraz osoby na dyżurze PRIMARY: zgłoś to koordynatorowi."
+    )
+    action = _schedule_action(app)
+    body = f"{lead_text}\n{where}\n\n{action.label}: {action.url}\n"
+    return _render(
+        app=app,
+        subject=subject,
+        body=body,
+        eyebrow="Numer on-call",
+        title="Przekazanie numeru zakończone",
+        lead=text(lead_text),
+        facts=[
+            Fact("Dzień dyżuru", _day(handover.day)),
+            Fact("Przekazanie", text(pair)),
+            Fact("PRIMARY teraz", strong(primary_name or "brak")),
+        ],
+        note=Note(where, Tone.bad if primary_name is None else Tone.warn),
         action=action,
     )
 

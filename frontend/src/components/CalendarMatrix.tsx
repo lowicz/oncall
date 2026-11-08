@@ -325,17 +325,19 @@ export function CalendarMatrix({
   // An acknowledgement covers the violations it was given for, never a set
   // that changed under it.
   useEffect(() => setViolationsAcknowledged(false), [overrideCheck.data])
+  const violations = overrideCheck.data?.violations
+  const endsHandover = overrideCheck.data?.ends_handover
   const historical = Boolean(selected && selected.day.service_date < today)
   const saveBlocked = Boolean(staffBlockReason)
     || overrideCheck.isLoading
-    || ((overrideCheck.data?.length ?? 0) > 0 && !violationsAcknowledged)
+    || ((violations?.length ?? 0) > 0 && !violationsAcknowledged)
   // The correction closes the inspector; the toast says what changed and who
   // is told, and reopens the day.
   const announceOverride = (target: { member?: Member; day: Day }, next: string) => {
     const role = roleLabels()[selectedRole]
     const date = formatShortDate(target.day.service_date)
     const previous = selectedAssignment?.assignee_name
-    const acknowledged = (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged
+    const acknowledged = (violations?.length ?? 0) > 0 && violationsAcknowledged
     toast.success(previous ? t.toast.changed(date, role, previous, next) : t.toast.filled(role, date, next), {
       description: [previous ? t.toast.emailBoth : t.toast.emailOne(next), acknowledged ? t.toast.violationAudited : ''].filter(Boolean).join(' '),
       action: { label: t.toast.openDay, onClick: () => openDay(target.day, target.member, selectedRole) },
@@ -348,7 +350,7 @@ export function CalendarMatrix({
     role: selectedRole,
     replacement_member_id: staffMemberId,
     reason,
-    acknowledge_rule_violations: (overrideCheck.data?.length ?? 0) > 0 && violationsAcknowledged,
+    acknowledge_rule_violations: (violations?.length ?? 0) > 0 && violationsAcknowledged,
   }, { onSuccess: () => announceOverride(selected, chosenCandidate.display_name) })
   const openStaffChange = (nextRole: AssignmentRole) => {
     // The role select drops „11–19" on a day off, so never open the form with
@@ -668,7 +670,7 @@ export function CalendarMatrix({
             </Field>
             {!staffBlockReason && (
               <DecisionFrame
-                violations={overrideCheck.data}
+                violations={violations}
                 checkFailed={overrideCheck.isError}
                 violationsTitle={t.confirm.breaksRules}
                 acknowledged={violationsAcknowledged}
@@ -676,6 +678,12 @@ export function CalendarMatrix({
                 error={confirmHistorical ? null : override.error?.message}
                 pending={override.isPending}
               >
+                {/* NP-16: the number handover this correction ends, stated
+                    rather than asked about: ending it is the correction's
+                    own effect. */}
+                {endsHandover && (
+                  <Box tone="warn">{t.confirm.endsHandover(endsHandover.from_name, endsHandover.to_name)}</Box>
+                )}
                 {/* MED6-04: the same balance projection a team member sees
                     before a swap, beside the rules it is decided with. */}
                 {selectedAssignment ? (

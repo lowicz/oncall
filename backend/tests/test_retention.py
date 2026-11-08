@@ -120,13 +120,16 @@ async def test_audit_rows_expire_by_tier(db, db_factory) -> None:
             _audit("schedule.draft_override", 366 * DAY),
             _audit("schedule.override_carried", 366 * DAY),
             _audit("schedule.override", 364 * DAY),  # within its age: stays
+            # A number handover keeps its record on its own row.
+            _audit("forwarding.handover_started", 366 * DAY),
+            _audit("forwarding.handover_ended", 366 * DAY),
         ]
     )
     await db.commit()
 
     report = await prune_expired(db_factory, POLICY, now=NOW)
 
-    assert report.deleted["audit"] == 5
+    assert report.deleted["audit"] == 7
     assert report.deleted["logins"] == 6
     assert await _actions(db) == [
         "auth.login",

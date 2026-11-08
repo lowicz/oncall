@@ -253,7 +253,7 @@ The existing `POST` and `DELETE` endpoints remain available for older clients.
 Before a schedule correction, a client can retrieve hard-rule violations without changing data.
 `POST /api/v1/calendar/override/check` checks one slot, while `POST /api/v1/calendar/override/batch/check` takes a list of `batches`: an `assignments` batch for each schedule one decision touches.
 The batches are checked together, so the result also covers a rule broken where two schedules meet, such as more than three duties in a row.
-Both return a list of violations and write nothing.
+Both write nothing and return an object with `violations`, the list of violations, and `ends_handover`: the on-call number handover the correction would end, because it touches the PRIMARY or SECONDARY of that handover's day, or `null`.
 The write endpoints check the rules again, so a deliberate violation still requires `acknowledge_rule_violations: true`.
 Every request that changes or checks a decision requires a signed-in session, the appropriate role, and a CSRF token.
 

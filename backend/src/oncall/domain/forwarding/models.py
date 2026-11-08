@@ -4,6 +4,7 @@ from datetime import date, datetime
 from enum import StrEnum
 
 from oncall.domain.forwarding.passwords import Passwords
+from oncall.domain.vocabulary import AssignmentRole
 
 #: Where the WCO admin panel answers unless an administrator says otherwise.
 DEFAULT_BASE_URL = "https://wco.orange.pl"
@@ -31,6 +32,37 @@ class ForwardingOutcome(StrEnum):
     skipped_no_primary = "skipped_no_primary"
     skipped_no_phone = "skipped_no_phone"
     dry_run = "dry_run"
+
+
+#: The outcomes after which the pass still owes the current target.
+FAILING_OUTCOMES = (
+    ForwardingOutcome.failed,
+    ForwardingOutcome.skipped_no_primary,
+    ForwardingOutcome.skipped_no_phone,
+)
+
+
+class HandoverEnd(StrEnum):
+    """Why a number handover ended."""
+
+    #: One of the pair, a coordinator or an administrator ended it.
+    manual = "manual"
+    #: Its `until` passed, or the duty day it was made on did.
+    expired = "expired"
+    #: A change to the roster took one of its two people out of the day's pair.
+    roster_change = "roster_change"
+
+
+class SwitchStatus(StrEnum):
+    """Whether WCO already rings where the number should ring now."""
+
+    #: WCO confirmed the number, or in a dry run the pass recorded it.
+    confirmed = "confirmed"
+    #: The pass has not reached it yet, or retries a failure it does not
+    #: alert about yet.
+    switching = "switching"
+    #: The failure alert went out: the number still rings somewhere else.
+    failed = "failed"
 
 
 class ConnectionTestOutcome(StrEnum):
@@ -146,3 +178,39 @@ class ForwardingState:
     failing_since: datetime | None
     attempts: int
     next_attempt_at: datetime | None
+    #: The target whose failure alert went out (`ForwardingTarget.failure_alert_key`).
+    alerted_for: str | None = None
+
+
+@dataclass(frozen=True)
+class NumberHandover:
+    """The day's PRIMARY lets the SECONDARY take the on-call number until
+    `until`; at most one is open, and the forwarding pass reads it."""
+
+    id: uuid.UUID
+    #: The duty day it was made on (`oncall.domain.forwarding.job.forwarding_day`).
+    day: date
+    from_member_id: uuid.UUID
+    from_name: str
+    to_member_id: uuid.UUID
+    to_name: str
+    starts_at: datetime
+    until: datetime
+
+
+@dataclass(frozen=True)
+class ForwardingNow:
+    """Where the on-call number rings now, as anyone signed in may read it:
+    names and roles, never a number. Everything but `mode` is None while
+    forwarding is off, since the application then cannot tell."""
+
+    mode: ForwardingMode
+    day: date | None = None
+    holder_member_id: uuid.UUID | None = None
+    holder_name: str | None = None
+    #: PRIMARY, or SECONDARY while a handover holds.
+    holder_role: AssignmentRole | None = None
+    handover: NumberHandover | None = None
+    status: SwitchStatus | None = None
+    #: When WCO confirmed the number (a dry run: when the pass recorded it).
+    confirmed_at: datetime | None = None
