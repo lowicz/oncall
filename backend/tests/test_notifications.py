@@ -14,7 +14,13 @@ from oncall.notifications.base import (
     NotificationMessage,
     TemporaryNotificationError,
 )
-from oncall.notifications.service import drain_outbox, enqueue_notification, retry_delay
+from oncall.notifications.service import (
+    UNDO_WINDOW,
+    cancel_notifications,
+    drain_outbox,
+    enqueue_notification,
+    retry_delay,
+)
 
 
 class FakeProvider:
@@ -47,6 +53,16 @@ def message(recipient: str = "anna@example.com") -> NotificationMessage:
     )
 
 
+def undoable_message() -> NotificationMessage:
+    return NotificationMessage(
+        channel="email",
+        recipient="anna@example.com",
+        subject="Temat",
+        body="Treść",
+        context={"event": "test", "undo_key": "correction:1", "member": "Anna Kowalska"},
+    )
+
+
 async def test_retry_delay_grows_exponentially_and_caps() -> None:
     assert retry_delay(1) == timedelta(minutes=2)
     assert retry_delay(2) == timedelta(minutes=4)
@@ -62,6 +78,7 @@ async def test_enqueue_and_drain_sends_message(db, db_factory, frozen_clock) -> 
     assert provider.sent[0].recipient == "anna@example.com"
     row = await _stored(db_factory)
     assert row.status == NotificationStatus.sent
+    assert as_utc(row.send_after) == frozen_clock.instant
     assert as_utc(row.sent_at) == frozen_clock.instant
 
 
@@ -151,6 +168,67 @@ async def test_dedup_key_prevents_duplicates(db) -> None:
     assert second is None
     count = await db.scalar(select(func.count()).select_from(NotificationOutbox))
     assert count == 1
+
+
+async def test_drain_waits_until_a_reversible_notification_can_be_sent(
+    db, db_factory, frozen_clock
+) -> None:
+    await enqueue_notification(
+        db,
+        message(),
+        send_after=frozen_clock.instant + UNDO_WINDOW,
+    )
+    await db.commit()
+    provider = FakeProvider()
+
+    assert (await drain_outbox(db_factory, {"email": provider}))["sent"] == 0
+    assert provider.sent == []
+
+    frozen_clock.advance(UNDO_WINDOW)
+    assert (await drain_outbox(db_factory, {"email": provider}))["sent"] == 1
+    assert [sent.recipient for sent in provider.sent] == ["anna@example.com"]
+
+
+async def test_undo_cancels_a_notification_before_the_worker_can_claim_it(
+    db, db_factory, frozen_clock
+) -> None:
+    notification_id = await enqueue_notification(
+        db,
+        undoable_message(),
+        send_after=frozen_clock.instant + UNDO_WINDOW,
+    )
+    assert notification_id is not None
+    assert await cancel_notifications(db, undo_key="other") == set()
+    assert await cancel_notifications(db, undo_key="correction:1") == {"Anna Kowalska"}
+    assert await cancel_notifications(db, undo_key="correction:1") == set()
+    await db.commit()
+
+    row = await _stored(db_factory)
+    assert as_utc(row.cancelled_at) == frozen_clock.instant
+    frozen_clock.advance(UNDO_WINDOW)
+    provider = FakeProvider()
+    assert (await drain_outbox(db_factory, {"email": provider}))["sent"] == 0
+    assert provider.sent == []
+
+
+async def test_a_notification_can_be_cancelled_until_the_worker_sends_it(
+    db, db_factory, frozen_clock
+) -> None:
+    for _ in range(2):
+        await enqueue_notification(
+            db,
+            undoable_message(),
+            send_after=frozen_clock.instant + UNDO_WINDOW,
+        )
+    await db.commit()
+    frozen_clock.advance(UNDO_WINDOW)
+    provider = FakeProvider()
+    assert (await drain_outbox(db_factory, {"email": provider}, batch_size=1))["sent"] == 1
+
+    assert await cancel_notifications(db, undo_key="correction:1") == {"Anna Kowalska"}
+    await db.commit()
+    assert (await drain_outbox(db_factory, {"email": provider}))["sent"] == 0
+    assert len(provider.sent) == 1
 
 
 async def test_drain_respects_next_attempt_time(db, db_factory, frozen_clock) -> None:

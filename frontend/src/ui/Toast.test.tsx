@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { messages } from '../i18n'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { ToastProvider, useToast } from './Toast'
 
 type Api = ReturnType<typeof useToast>
@@ -38,12 +39,97 @@ describe('toasts', () => {
     expect(within(item).getByText('Grafik wrzesień')).toHaveClass('toast-desc')
   })
 
-  it('offers an action that runs its handler', async () => {
+  it('offers an action that runs its handler until its deadline', async () => {
     const onClick = vi.fn()
-    renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick } }))
+    renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick }, until: { at: Date.now() + 10_000, expired: 'E-maile już wyszły' } }))
     const item = await toastNamed('Usunięto wpis')
     fireEvent.click(within(item).getByRole('button', { name: 'Cofnij' }))
     expect(onClick).toHaveBeenCalledOnce()
+    screen.getByRole('button', { name: 'raise' }).focus()
+
+    await act(() => vi.advanceTimersByTimeAsync(9000))
+    expect(screen.getByText('Usunięto wpis')).toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(1100))
+    await waitFor(() => expect(screen.queryByText('Usunięto wpis')).not.toBeInTheDocument())
+  })
+
+  it.each([
+    ['the pointer is over the notifications', (item: HTMLElement) => fireEvent.mouseEnter(item.closest('.toasts') as HTMLElement)],
+    ['its action has keyboard focus', (item: HTMLElement) => {
+      fireEvent.keyDown(document, { key: 'Tab' })
+      within(item).getByRole('button', { name: 'Cofnij' }).focus()
+    }],
+  ])('drops its action at the deadline but stays open while %s', async (_, pause) => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', {
+      description: 'E-maile wyjdą za chwilę',
+      action: { label: 'Cofnij', onClick: vi.fn() },
+      until: { at: Date.now() + 10_000, expired: 'E-maile już wyszły' },
+    }))
+    pause(await toastNamed('Zapisano zmianę'))
+
+    await act(() => vi.advanceTimersByTimeAsync(9000))
+    expect(screen.getByRole('button', { name: 'Cofnij' })).toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(6000))
+    const item = await toastNamed('Zapisano zmianę')
+    expect(within(item).queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+    expect(within(item).getByText('E-maile już wyszły')).toHaveClass('toast-desc')
+    expect(within(item).queryByText('E-maile wyjdą za chwilę')).not.toBeInTheDocument()
+  })
+
+  it('moves focus from a withdrawn action to its close button', async () => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', {
+      action: { label: 'Cofnij', onClick: vi.fn() },
+      until: { at: Date.now() + 10_000, expired: 'E-maile już wyszły' },
+    }))
+    const item = await toastNamed('Zapisano zmianę')
+    fireEvent.keyDown(document, { key: 'Tab' })
+    within(item).getByRole('button', { name: 'Cofnij' }).focus()
+
+    await act(() => vi.advanceTimersByTimeAsync(10_100))
+    expect(within(item).queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
+    expect(within(item).getByRole('button', { name: messages().common.closeNotification })).toHaveFocus()
+  })
+
+  it('pauses an action toast while the pointer is over the notifications', async () => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', { action: { label: 'Cofnij', onClick: vi.fn() } }))
+    await toastNamed('Zapisano zmianę')
+    const viewport = screen.getByRole('region', { name: messages().common.notifications })
+
+    fireEvent.mouseEnter(viewport)
+    await act(() => vi.advanceTimersByTimeAsync(15_000))
+    expect(screen.getByText('Zapisano zmianę')).toBeInTheDocument()
+
+    fireEvent.mouseLeave(viewport)
+    await act(() => vi.advanceTimersByTimeAsync(11_000))
+    await waitFor(() => expect(screen.queryByText('Zapisano zmianę')).not.toBeInTheDocument())
+  })
+
+  it('pauses an action toast while its action has keyboard focus', async () => {
+    renderToasts((toast) => toast.success('Zapisano zmianę', { action: { label: 'Cofnij', onClick: vi.fn() } }))
+    const item = await toastNamed('Zapisano zmianę')
+    const action = within(item).getByRole('button', { name: 'Cofnij' })
+
+    fireEvent.keyDown(document, { key: 'Tab' })
+    action.focus()
+    await act(() => vi.advanceTimersByTimeAsync(15_000))
+    expect(screen.getByText('Zapisano zmianę')).toBeInTheDocument()
+
+    screen.getByRole('button', { name: 'raise' }).focus()
+    await act(() => vi.advanceTimersByTimeAsync(11_000))
+    await waitFor(() => expect(screen.queryByText('Zapisano zmianę')).not.toBeInTheDocument())
+  })
+
+  it('sets its title in the toast text size, not the heading size', async () => {
+    loadRealStylesheet()
+    renderToasts((toast) => toast.success('Zapisano'))
+    const title = getComputedStyle(await screen.findByText('Zapisano'))
+    expect([title.fontSize, title.lineHeight, title.fontWeight]).toEqual(['12px', '16px', '600'])
+  })
+
+  it('uses a polite live region for notifications', () => {
+    renderToasts()
+    expect(screen.getByRole('region', { name: messages().common.notifications }))
+      .toHaveAttribute('aria-live', 'polite')
   })
 
   it('closes on its close button', async () => {

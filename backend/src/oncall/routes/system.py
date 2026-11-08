@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from oncall.config import get_settings
+from oncall.notifications.service import UNDO_WINDOW
 from oncall.presentation.system import HealthResponse, PublicConfigResponse
 
 router = APIRouter()
@@ -22,4 +23,5 @@ async def public_config() -> PublicConfigResponse:
         version=settings.version,
         audit_retention_days=settings.retention_audit_days,
         login_audit_retention_days=settings.retention_login_audit_days,
+        undo_window_seconds=int(UNDO_WINDOW.total_seconds()),
     )

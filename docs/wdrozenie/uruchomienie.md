@@ -89,7 +89,7 @@ Pełna lista z komentarzami jest w `.env.example`.
 | `ONCALL_GENERATION_CONCURRENCY` | `1` | równoległe generowania w procesie roboczym |
 | `ONCALL_RETENTION_AUDIT_DAYS` | `365` | po ilu dniach znikają wpisy audytu o operacjach; `0` = bezterminowo, patrz [Retencja danych](#retencja-danych) |
 | `ONCALL_RETENTION_LOGIN_AUDIT_DAYS` | `90` | to samo dla zwykłych logowań i nieudanych prób |
-| `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | wysłane, nieudane i pominięte e-maile |
+| `ONCALL_RETENTION_OUTBOX_DAYS` | `90` | wysłane, nieudane, pominięte i anulowane e-maile |
 | `ONCALL_RETENTION_RUNS_DAYS` | `30` | zakończone uruchomienia generatora |
 | `ONCALL_SMTP_HOST` | puste | serwer poczty wychodzącej; puste wyłącza wysyłkę e-maili, patrz [Serwer SMTP](#serwer-smtp) |
 | `ONCALL_SECRETS_KEY` | puste | klucz Fernet, którym `api` i `worker` szyfrują sekrety trzymane w bazie (hasło Orange WCO automatycznego przekierowania numeru on-call); kilka kluczy po przecinku to rotacja: pierwszy szyfruje, każdy odszyfrowuje; puste wyłącza funkcje, które go potrzebują; klucz chroni wartość, którą administrator może odsłonić na ekranie przełączania numeru, więc jego granica jest taka sama jak konta administratora; nowy klucz wypisuje `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
@@ -225,7 +225,7 @@ To nie retencja: wniosek zostaje w bazie jako zamknięty.
 | --- | --- | --- |
 | audyt: operacje (`ONCALL_RETENTION_AUDIT_DAYS`) | 365 dni | niczego; kogo zastąpiła korekta grafiku, ponowna publikacja odczytuje z samego dyżuru, nie z dziennika |
 | audyt: logowania i nieudane próby (`ONCALL_RETENTION_LOGIN_AUDIT_DAYS`) | 90 dni | ostatnich pięciu minut, z których korzysta ogranicznik prób logowania |
-| e-maile wysłane, nieudane i pominięte (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 dni | wiadomości oczekujących i w trakcie wysyłki, niezależnie od wieku |
+| e-maile wysłane, nieudane, pominięte i anulowane (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 dni | wiadomości oczekujących i w trakcie wysyłki, niezależnie od wieku |
 | zakończone uruchomienia generatora (`ONCALL_RETENTION_RUNS_DAYS`) | 30 dni | uruchomień w kolejce i w toku |
 | wygasłe sesje oraz linki aktywacyjne i resetu hasła | dzień po wygaśnięciu, bez ustawienia | sesji i linków jeszcze ważnych |
 

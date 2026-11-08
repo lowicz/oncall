@@ -11,7 +11,7 @@ afterEach(() => vi.restoreAllMocks())
 
 async function signInRefusedWith(error: Error) {
   vi.spyOn(api, 'publicConfig').mockResolvedValue({
-    app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false,
+    app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false,
   })
   vi.spyOn(api, 'login').mockRejectedValue(error)
   renderScreen(<Login />)
@@ -22,7 +22,7 @@ async function signInRefusedWith(error: Error) {
 }
 
 const CONFIG = {
-  app_name: 'On-call', app_subtitle: '', ldap_enabled: false, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false,
+  app_name: 'On-call', app_subtitle: '', ldap_enabled: false, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false,
 }
 
 /** The address bar as the router sees it, so a test can say what a reload would repeat. */
@@ -126,7 +126,7 @@ describe('Login', () => {
 
   it('shows the configured subtitle with its own casing', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false,
+      app_name: 'On-call', app_subtitle: 'Zespół infrastruktury (UAT)', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false,
     })
     renderScreen(<Login />)
     expect(await screen.findByText(/Zespół infrastruktury \(UAT\)/)).toHaveTextContent('On-call · Zespół infrastruktury (UAT)')
@@ -134,7 +134,7 @@ describe('Login', () => {
 
   it('suppresses the browser-native password reveal so its own toggle is the only one shown', async () => {
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
-      app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false,
+      app_name: 'On-call', app_subtitle: '', ldap_enabled: true, version: '1.4.0', audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false,
     })
     renderScreen(<Login />)
     const passwordInput = await screen.findByLabelText('Hasło')

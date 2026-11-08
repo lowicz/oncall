@@ -399,7 +399,7 @@ table.lg th button[aria-sort] { color: var(--fg); }
 .toast-warn .toast-dot { background: var(--warn); }
 .toast-bad .toast-dot { background: var(--bad); }
 .toast-content { flex: 1; min-width: 0; display: grid; gap: 2px; }
-.toast-title { font-weight: 600; }
+.toast-title { font-size: inherit; font-weight: 600; }
 .toast-desc { color: var(--muted); }
 .toast .btn, .toast .ib { flex: 0 0 auto; }
 .pal-popup { position: fixed; left: 50%; top: 12vh; transform: translateX(-50%); width: min(560px, calc(100vw - 24px)); background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden; z-index: 45; outline: none; max-height: 70vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }

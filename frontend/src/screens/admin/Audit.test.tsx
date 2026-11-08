@@ -7,7 +7,7 @@ import { AuditPanel } from './Audit'
 
 const config = (over: Partial<PublicConfig> = {}): PublicConfig => ({
   ldap_enabled: false, app_name: 'On-call', app_subtitle: '', version: '1.4.0',
-  audit_retention_days: 365, login_audit_retention_days: 90, sso_enabled: false, ...over,
+  audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 10, sso_enabled: false, ...over,
 })
 
 afterEach(() => vi.restoreAllMocks())
