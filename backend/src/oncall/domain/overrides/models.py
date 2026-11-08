@@ -43,6 +43,12 @@ class BatchOverrideLine:
 
 
 @dataclass(frozen=True)
+class BatchOverrideCheck:
+    schedule_id: uuid.UUID
+    lines: tuple[BatchOverrideLine, ...]
+
+
+@dataclass(frozen=True)
 class BatchOverrideInput:
     actor: Actor
     schedule_id: uuid.UUID

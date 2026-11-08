@@ -10,6 +10,7 @@ from oncall.domain.availability.models import (
     AvailabilityDeclaration,
     AvailabilityEntry,
     AvailabilityQuery,
+    AvailabilityRangeReplacement,
     AvailabilityWithdrawal,
     MemberById,
     OwnMember,
@@ -17,6 +18,7 @@ from oncall.domain.availability.models import (
 from oncall.domain.availability.use_cases import (
     declare_availability,
     list_availability,
+    replace_availability_range,
     withdraw_availability,
 )
 from oncall.domain.errors import NotATeamMember
@@ -120,7 +122,7 @@ async def test_an_identical_entry_and_an_overlapping_one_are_told_apart(world) -
     with pytest.raises(errors.AvailabilityOverlaps):
         await declare(world, own(world), OwnMember(), kind=AvailabilityKind.unavailable)
 
-    assert world.ledger.pending is None
+    assert world.ledger.recorded is None
 
 
 async def test_a_hard_unavailability_over_a_duty_warns_and_names_the_duties(world) -> None:
@@ -150,6 +152,100 @@ async def test_a_soft_preference_never_looks_for_duty_conflicts(world) -> None:
     declared = await declare(world, own(world), OwnMember(), kind=AvailabilityKind.prefer)
     assert declared.duty_conflicts == ()
     assert declared.warning is None
+
+
+async def test_replacing_a_range_cuts_existing_entries_and_paints_once(world) -> None:
+    original = stored(
+        world,
+        AvailabilityKind.prefer,
+        DAY - timedelta(days=2),
+        DAY + timedelta(days=2),
+    )
+
+    result = await replace_availability_range(
+        AvailabilityRangeReplacement(
+            actor=own(world),
+            member=OwnMember(),
+            starts_on=DAY,
+            ends_on=DAY,
+            kind=AvailabilityKind.unavailable,
+            note="urlop",
+        ),
+        world.availability_writes,
+        today=TODAY,
+    )
+
+    assert world.ledger.removed == [original.id]
+    assert [
+        (entry.kind, entry.starts_on, entry.ends_on, entry.note)
+        for entry in sorted(world.ledger.by_id.values(), key=lambda entry: entry.starts_on)
+    ] == [
+        (AvailabilityKind.prefer, DAY - timedelta(days=2), DAY - timedelta(days=1), None),
+        (AvailabilityKind.unavailable, DAY, DAY, "urlop"),
+        (AvailabilityKind.prefer, DAY + timedelta(days=1), DAY + timedelta(days=2), None),
+    ]
+    assert result is not None
+    assert result.entry.kind == AvailabilityKind.unavailable
+    assert world.journal.names == ["withdrawn", "declared"]
+
+
+async def test_clearing_a_range_can_leave_no_painted_entry(world) -> None:
+    original = stored(world, AvailabilityKind.prefer_not, DAY, DAY)
+
+    result = await replace_availability_range(
+        AvailabilityRangeReplacement(own(world), OwnMember(), DAY, DAY, None),
+        world.availability_writes,
+        today=TODAY,
+    )
+
+    assert result is None
+    assert world.ledger.removed == [original.id]
+    assert world.ledger.by_id == {}
+
+
+async def test_replacing_a_range_keeps_an_elapsed_piece_and_its_author(world) -> None:
+    original = stored(world, AvailabilityKind.unavailable, TODAY - timedelta(days=37), DAY)
+
+    await replace_availability_range(
+        AvailabilityRangeReplacement(
+            world.coordinator,
+            MemberById(world.anna.id),
+            TODAY,
+            TODAY,
+            AvailabilityKind.prefer,
+        ),
+        world.availability_writes,
+        today=TODAY,
+    )
+
+    assert [
+        (entry.kind, entry.starts_on, entry.ends_on, entry.created_by_user_id)
+        for entry in sorted(world.ledger.by_id.values(), key=lambda entry: entry.starts_on)
+    ] == [
+        (
+            AvailabilityKind.unavailable,
+            TODAY - timedelta(days=37),
+            TODAY - timedelta(days=1),
+            original.created_by_user_id,
+        ),
+        (AvailabilityKind.prefer, TODAY, TODAY, world.coordinator.user_id),
+        (AvailabilityKind.unavailable, TODAY + timedelta(days=1), DAY, original.created_by_user_id),
+    ]
+    assert world.journal.names == ["withdrawn", "declared"]
+
+
+async def test_replacing_an_invalid_range_changes_nothing(world) -> None:
+    original = stored(world, AvailabilityKind.prefer, DAY, DAY)
+
+    with pytest.raises(errors.AvailabilityRangeReversed):
+        await replace_availability_range(
+            AvailabilityRangeReplacement(own(world), OwnMember(), DAY, DAY - timedelta(1), None),
+            world.availability_writes,
+            today=TODAY,
+        )
+
+    assert world.ledger.by_id == {original.id: original}
+    assert world.journal.events == []
 
 
 async def test_withdrawing_removes_only_the_members_own_entry(world) -> None:

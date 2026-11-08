@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import date, datetime
+from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -11,21 +12,29 @@ from oncall.domain.vocabulary import AvailabilityKind
 from oncall.i18n import translate
 
 
-class AvailabilityCreate(BaseModel):
+class _AvailabilityRange(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: AvailabilityKind
     starts_on: date
     ends_on: date
     note: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
-    def validate_dates(self) -> AvailabilityCreate:
+    def validate_dates(self) -> Self:
         if self.ends_on < self.starts_on:
             raise ValueError(translate("availability.range_reversed"))
         if (self.ends_on - self.starts_on).days > 366:
             raise ValueError(translate("availability.range_too_long"))
         return self
+
+
+class AvailabilityCreate(_AvailabilityRange):
+    kind: AvailabilityKind
+
+
+class AvailabilityRangeReplace(_AvailabilityRange):
+    #: None clears the range.
+    kind: AvailabilityKind | None
 
 
 class AvailabilityResponse(BaseModel):

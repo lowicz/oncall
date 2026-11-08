@@ -240,5 +240,7 @@ export const people: Messages['people'] = {
       `Confirm rewriting ${pluralEn(count, ['duty', 'duties'])} and ending all of this person's qualifications on ${date}.`,
     noDuties: 'No duties after the exit date; ending the rotation needs no rewrite.',
     pickReplacement: 'Pick a replacement',
+    alreadyRewritten: (count: number) =>
+      `${pluralEn(count, ['duty', 'duties'])} already rewritten. Confirm again to rewrite the rest and end the rotation.`,
   },
 }

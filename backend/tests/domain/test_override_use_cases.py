@@ -8,6 +8,7 @@ import pytest
 from oncall.domain.overrides import errors
 from oncall.domain.overrides.models import (
     UNSTAFFED,
+    BatchOverrideCheck,
     BatchOverrideInput,
     BatchOverrideLine,
     OverrideCheck,
@@ -15,6 +16,7 @@ from oncall.domain.overrides.models import (
     OverrideMove,
 )
 from oncall.domain.overrides.use_cases import (
+    check_batch_override,
     check_override,
     override_duties_in_batch,
     override_duty,
@@ -249,6 +251,13 @@ async def test_a_batch_refuses_repeated_and_missing_slots(world) -> None:
             world, BatchOverrideLine(DAY + timedelta(days=1), AssignmentRole.primary, world.ewa.id)
         )
     assert world.roster.schedule_ref.version == 1
+
+
+async def test_a_batch_check_needs_at_least_one_line(world) -> None:
+    with pytest.raises(errors.EmptyBatch):
+        await check_batch_override(
+            [BatchOverrideCheck(world.roster.schedule_ref.id, ())], world.overrides
+        )
 
 
 async def test_a_batch_needs_lines_and_a_reason(world) -> None:

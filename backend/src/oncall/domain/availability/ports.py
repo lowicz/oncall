@@ -10,13 +10,13 @@ from oncall.domain.team import Member
 
 
 class AvailabilityLedger(Protocol):
-    async def overlapping_entry(
+    async def overlapping_entries(
         self, member_id: uuid.UUID, starts_on: date, ends_on: date
-    ) -> AvailabilityEntry | None:
-        """An entry of this member sharing a day with the range, if any.
+    ) -> list[AvailabilityEntry]:
+        """Entries sharing a day with the range, held until the unit of work ends.
 
-        The answer holds until the unit of work ends: a concurrent declaration
-        for the same member waits here instead of racing past the check.
+        Locking the member makes an empty result stable too, so a concurrent
+        declaration or range replacement for that member waits.
         """
         ...
 

@@ -194,6 +194,13 @@ export interface AvailabilityInput {
   note?: string
 }
 
+export interface AvailabilityRangeInput {
+  kind: AvailabilityKind | null
+  starts_on: string
+  ends_on: string
+  note?: string
+}
+
 export interface HistoryImportRow {
   row_number?: number | null
   service_date: string
@@ -870,6 +877,16 @@ export const api = {
     request<CalendarData>(
       `/api/v1/calendar?starts_on=${encodeURIComponent(startsOn)}&ends_on=${encodeURIComponent(endsOn)}`,
     ),
+  batchOverrideCheck: (input: {
+    batches: Array<{
+      schedule_id: string
+      assignments: Array<{
+        service_date: string
+        role: AssignmentRole
+        replacement_member_id: string
+      }>
+    }>
+  }) => send<RuleViolation[]>('POST', '/api/v1/calendar/override/batch/check', input),
   batchOverride: (input: {
     schedule_id: string
     expected_version: number
@@ -909,11 +926,15 @@ export const api = {
   availability: () => request<AvailabilityEntry[]>('/api/v1/availability/me'),
   createAvailability: (input: AvailabilityInput) =>
     send<AvailabilityEntry>('POST', '/api/v1/availability/me', input),
+  replaceAvailabilityRange: (input: AvailabilityRangeInput) =>
+    send<AvailabilityEntry | null>('PUT', '/api/v1/availability/me/range', input),
   deleteAvailability: (id: string) => send<void>('DELETE', `/api/v1/availability/me/${id}`),
   memberAvailability: (memberId: string) =>
     request<AvailabilityEntry[]>(`/api/v1/availability/members/${memberId}`),
   createMemberAvailability: (memberId: string, input: AvailabilityInput) =>
     send<AvailabilityEntry>('POST', `/api/v1/availability/members/${memberId}`, input),
+  replaceMemberAvailabilityRange: (memberId: string, input: AvailabilityRangeInput) =>
+    send<AvailabilityEntry | null>('PUT', `/api/v1/availability/members/${memberId}/range`, input),
   deleteMemberAvailability: (memberId: string, id: string) =>
     send<void>('DELETE', `/api/v1/availability/members/${memberId}/${id}`),
   previewHistory: async (file: File) => {

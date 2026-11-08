@@ -82,10 +82,13 @@ liczy się w raportach; kończy się tylko przydzielanie nowych dyżurów po tej
 dacie. Dyżury już opublikowane po tej dacie trzeba przepisać - panel pokazuje
 wtedy ostrzeżenie „Skutek dla grafiku” z przyciskiem **Przepisz przyszłe
 dyżury i zakończ rotację…**, który dla każdego takiego dyżuru wybiera zastępcę.
-Jeśli wybrani zastępcy złamaliby regułę twardą, okno wymienia naruszenia pod
-nagłówkiem „Przepisanie złamie reguły twarde”: wybierz innych zastępców albo
-zaznacz, że łamiesz reguły świadomie, i potwierdź ponownie. Potwierdzone
-naruszenie trafia do dziennika audytu.
+Przed zapisem okno sprawdza reguły twarde dla wszystkich grafików naraz. Jeśli
+wybrani zastępcy złamaliby regułę twardą, wymienia naruszenia pod nagłówkiem
+„Przepisanie złamie reguły twarde”: wybierz innych zastępców albo zaznacz, że
+łamiesz reguły świadomie, i potwierdź. Potwierdzone naruszenie trafia do
+dziennika audytu. Jeśli zapis przerwie błąd, gdy część grafików jest już
+przepisana, okno podaje, ile dyżurów już przepisano; ponowne potwierdzenie
+przepisuje pozostałe.
 
 ### Usunięcie konta i danych osobowych
 

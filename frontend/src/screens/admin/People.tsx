@@ -581,11 +581,13 @@ export function PeoplePanel() {
 
       {selectedRow?.member && (
         <OffboardingDialog
+          key={selectedRow.member.id}
           open={offboardingOpen}
           member={selectedRow.member}
           activeUntil={rotationUntil}
           onClose={() => setOffboardingOpen(false)}
           onDone={() => { setOffboardingOpen(false); setSelectedId(null); refresh() }}
+          onChanged={refresh}
         />
       )}
 
