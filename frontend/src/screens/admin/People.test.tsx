@@ -388,6 +388,22 @@ describe('PeoplePanel person panel', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('fills the panel afresh when Back reopens a person whose edits were discarded on leaving', async () => {
+    mockData()
+    const { router } = renderScreen(<PeoplePanel />, { route: '/osoby' })
+    const dialog = await openRow('anna')
+    fireEvent.change(within(dialog).getByLabelText('E-mail'), { target: { value: 'new@example.com' } })
+
+    act(() => { void router.navigate('/osoby') })
+    const warning = await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })
+    fireEvent.click(within(warning).getByRole('button', { name: 'Odrzuć zmiany' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+
+    await act(() => router.navigate(-1))
+    const reopened = await screen.findByRole('dialog', { name: /Anna Kowalska/ })
+    expect(within(reopened).getByLabelText('E-mail')).toHaveValue('anna@example.com')
+  })
+
   it('does not switch rows until unsaved edits are explicitly discarded', async () => {
     mockData([
       user({ id: 'u1' }),

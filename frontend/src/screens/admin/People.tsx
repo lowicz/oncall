@@ -364,7 +364,11 @@ export function PeoplePanel() {
     setReissuedUrl('')
   }
   useEffect(() => {
-    if (!selectedId || filledFor.current === selectedId) return
+    if (!selectedId) {
+      filledFor.current = null
+      return
+    }
+    if (filledFor.current === selectedId) return
     const row = allRows.find(({ user }) => user.id === selectedId)
     if (row) applyDetails(row, tab)
     // eslint-disable-next-line react-hooks/exhaustive-deps
