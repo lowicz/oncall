@@ -196,6 +196,28 @@ class NumberHandover:
     to_name: str
     starts_at: datetime
     until: datetime
+    #: Who started it; None once their account is gone.
+    started_by_name: str | None = None
+
+
+@dataclass(frozen=True)
+class PairMember:
+    """One side of the duty day's pair, as the handover controls need it:
+    whether a phone number is set, never the number."""
+
+    name: str
+    #: Whether the reader is this person.
+    is_you: bool
+    has_phone: bool
+
+
+@dataclass(frozen=True)
+class HandoverPair:
+    """The duty day's PRIMARY and SECONDARY, between whom the number is
+    handed over."""
+
+    primary: PairMember
+    secondary: PairMember
 
 
 @dataclass(frozen=True)
@@ -206,6 +228,9 @@ class ForwardingNow:
 
     mode: ForwardingMode
     day: date | None = None
+    #: When the duty day ends and the number passes to the next PRIMARY: the
+    #: latest a handover may last.
+    day_ends_at: datetime | None = None
     holder_member_id: uuid.UUID | None = None
     holder_name: str | None = None
     #: PRIMARY, or SECONDARY while a handover holds.
@@ -214,3 +239,6 @@ class ForwardingNow:
     status: SwitchStatus | None = None
     #: When WCO confirmed the number (a dry run: when the pass recorded it).
     confirmed_at: datetime | None = None
+    #: The duty day's pair, only for whoever may hand the number over
+    #: between them (D1): either of them or a coordinator.
+    pair: HandoverPair | None = None

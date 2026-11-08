@@ -5,7 +5,7 @@ where the number rings. The worker's side is in `test_forwarding_worker.py`."""
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from oncall.domain.forwarding import errors
@@ -83,12 +83,14 @@ async def test_while_forwarding_is_off_nothing_can_be_handed_over_or_read(
     assert now.json() == {
         "mode": "off",
         "day": None,
+        "day_ends_at": None,
         "holder_member_id": None,
         "holder_name": None,
         "holder_role": None,
         "handover": None,
         "status": None,
         "confirmed_at": None,
+        "pair": None,
     }
 
 
@@ -106,18 +108,21 @@ async def test_the_primary_hands_the_number_over_and_everyone_reads_where_it_rin
     assert started.status_code == 201, started.text
     handover = started.json()
     assert (handover["from_name"], handover["to_name"]) == ("Anna Kowalska", "Marek Nowak")
+    assert handover["started_by_name"] == "Anna Kowalska"
     await login(client, "jan")
     now = await client.get(NOW)
     assert now.status_code == 200
     assert now.json() | {"handover": None} == {
         "mode": "live",
         "day": frozen_clock.business_today().isoformat(),
+        "day_ends_at": f"{frozen_clock.business_today() + timedelta(days=1)}T09:00:00+02:00",
         "holder_member_id": str(pair["Marek Nowak"].id),
         "holder_name": "Marek Nowak",
         "holder_role": "secondary",
         "handover": None,
         "status": "switching",
         "confirmed_at": None,
+        "pair": None,
     }
     assert now.json()["handover"]["id"] == handover["id"]
     # No phone number ever: the duty cards show the ones the reader may see.
@@ -281,6 +286,64 @@ async def test_a_share_link_reads_the_holder_only_within_its_range(
     assert await holder(today + timedelta(days=1), today + timedelta(days=3)) is None
 
 
+async def test_only_an_administrator_reads_who_started_the_handover(
+    client, db, pair, frozen_clock
+) -> None:
+    await _mode(db, ForwardingMode.live)
+    await create_user(db, "admin", role=UserRole.admin)
+    await create_user(db, "widz", role=UserRole.viewer)
+    await login(client, "anna")
+    assert (await _start(client, frozen_clock)).status_code == 201
+
+    async def started_by(username):
+        await login(client, username)
+        return (await client.get(NOW)).json()["handover"]["started_by_name"]
+
+    assert await started_by("admin") == "Anna Kowalska"
+    for username in ("koordynator", "anna", "marek", "jan", "widz"):
+        assert await started_by(username) is None, username
+    await login(client, "admin")
+    today = frozen_clock.business_today()
+    created = await client.post(
+        "/api/v1/admin/share-links",
+        json={
+            "label": "Dyspozytor",
+            "starts_on": str(today),
+            "ends_on": str(today),
+            "expires_days": 7,
+        },
+    )
+    token = created.json()["url"].rsplit("/share/", 1)[1]
+    guest = client.__class__(transport=client._transport, base_url="http://test")
+    await guest.post("/api/v1/share/exchange", json={"token": token})
+    shared = (await guest.get(NOW)).json()
+    assert shared["holder_name"] == "Marek Nowak"
+    assert shared["handover"]["started_by_name"] is None
+
+
+async def test_only_the_pair_and_a_coordinator_read_the_pair(
+    client, db, pair, frozen_clock
+) -> None:
+    await _mode(db, ForwardingMode.live)
+    await create_user(db, "widz", role=UserRole.viewer)
+
+    async def pair_for(username):
+        await login(client, username)
+        return (await client.get(NOW)).json()["pair"]
+
+    def sides(anna_is_you: bool, marek_is_you: bool) -> dict:
+        return {
+            "primary": {"name": "Anna Kowalska", "is_you": anna_is_you, "has_phone": True},
+            "secondary": {"name": "Marek Nowak", "is_you": marek_is_you, "has_phone": True},
+        }
+
+    assert await pair_for("anna") == sides(anna_is_you=True, marek_is_you=False)
+    assert await pair_for("marek") == sides(anna_is_you=False, marek_is_you=True)
+    assert await pair_for("koordynator") == sides(anna_is_you=False, marek_is_you=False)
+    assert await pair_for("jan") is None
+    assert await pair_for("widz") is None
+
+
 async def test_the_correction_check_names_the_handover_it_would_end(
     client, db, pair, frozen_clock
 ) -> None:
@@ -306,6 +369,7 @@ async def test_the_correction_check_names_the_handover_it_would_end(
 
     assert secondary["ends_handover"]["id"] == handover["id"]
     assert secondary["ends_handover"]["to_name"] == "Marek Nowak"
+    assert secondary["ends_handover"]["started_by_name"] is None
     assert late_shift["ends_handover"] is None
 
     settings = await db.scalar(select(CallForwardingSettings))
@@ -353,6 +417,7 @@ async def test_the_batch_correction_check_names_the_handover_it_would_end(
 
     assert offboarding["ends_handover"]["id"] == handover["id"]
     assert offboarding["ends_handover"]["to_name"] == "Marek Nowak"
+    assert offboarding["ends_handover"]["started_by_name"] is None
     assert later_only["ends_handover"] is None
 
 
@@ -382,3 +447,23 @@ async def test_the_store_answers_a_second_open_handover_as_the_first(
         await pending
 
     assert "Marek Nowak" in str(refused.value)
+
+
+async def test_a_handover_whose_starter_is_gone_names_nobody(db, pair, frozen_clock) -> None:
+    store = SqlAlchemyHandovers(db)
+    started = await store.start(
+        day=frozen_clock.business_today(),
+        from_member_id=pair["Anna Kowalska"].id,
+        to_member_id=pair["Marek Nowak"].id,
+        until=frozen_clock.instant + timedelta(hours=1),
+        now=frozen_clock.instant,
+        by_user_id=pair["Anna Kowalska"].user_id,
+    )
+    await db.execute(
+        update(ForwardingHandover)
+        .where(ForwardingHandover.id == started.id)
+        .values(created_by_user_id=None)
+    )
+
+    assert started.started_by_name == "Anna Kowalska"
+    assert (await store.open()).started_by_name is None

@@ -2,7 +2,7 @@ import type { Messages } from '../pl'
 
 export const forwarding: Messages['forwarding'] = {
   title: 'Number forwarding',
-  subtitle: 'The on-call number is forwarded through Orange WCO to the phone of the person on PRIMARY duty, from the duty reminder hour. Times are in Europe/Warsaw.',
+  subtitle: 'The on-call number is forwarded through Orange WCO to the phone of the person on PRIMARY duty (during a number handover: SECONDARY), from the duty reminder hour. Times are in Europe/Warsaw.',
   settings: {
     title: 'WCO account',
     loading: 'Loading settings…',
@@ -74,6 +74,11 @@ export const forwarding: Messages['forwarding'] = {
     passwordChangedAt: 'WCO password changed',
     rotationPendingSince: 'Password change under way since',
     credentialsInvalidSince: 'Passwords refused',
+    handover: 'Handover',
+    handoverValue: (from: string, to: string, until: string) => `${from} → ${to} · until ${until}`,
+    handoverStartedBy: (name: string, at: string) => ` · started by ${name}, ${at}`,
+    endHandover: 'End',
+    handoverEnded: (name: string) => `Handover ended; ${name} answers the on-call number again`,
   },
   reveal: {
     action: 'Show password',

@@ -61,7 +61,8 @@ export interface RuleViolation {
   days: string[]
 }
 
-/** The open number handover a correction would end (`/forwarding/handover`). */
+/** An open number handover: the day's SECONDARY takes the on-call number
+ *  from the PRIMARY until `until` (`/forwarding/handover`). */
 export interface NumberHandover {
   id: string
   day: string
@@ -71,6 +72,8 @@ export interface NumberHandover {
   to_name: string
   starts_at: string
   until: string
+  /** Who started it; null once their account is gone. */
+  started_by_name: string | null
 }
 
 export interface OverrideCheck {
@@ -526,6 +529,44 @@ export interface ForwardingState {
   failing_since: string | null
   attempts: number
   next_attempt_at: string | null
+}
+
+/** Whether WCO already rings where the number should ring now. */
+export type SwitchStatus = 'confirmed' | 'switching' | 'failed'
+
+/** One side of the duty day's pair: whether a phone number is set, never the number. */
+export interface PairMember {
+  name: string
+  /** Whether the reader is this person. */
+  is_you: boolean
+  has_phone: boolean
+}
+
+/** The duty day's PRIMARY and SECONDARY, between whom the number is handed over. */
+export interface HandoverPair {
+  primary: PairMember
+  secondary: PairMember
+}
+
+/** Where the on-call number rings now, for every role and share link: names
+ *  and roles, never a number. Only `mode` is set while forwarding is off. */
+export interface ForwardingNow {
+  mode: ForwardingMode
+  day: string | null
+  /** The end of the duty day: the latest a handover may last. */
+  day_ends_at: string | null
+  holder_member_id: string | null
+  holder_name: string | null
+  holder_role: AssignmentRole | null
+  handover: NumberHandover | null
+  status: SwitchStatus | null
+  confirmed_at: string | null
+  /**
+   * The duty day's pair, which before the reminder hour is the previous
+   * calendar day's; only for either of them or a coordinator, who may hand
+   * the number over (D1).
+   */
+  pair: HandoverPair | null
 }
 
 export type ConnectionTestOutcome = 'ok' | 'password_expired' | 'login_refused' | 'connection' | 'configuration'
@@ -1202,6 +1243,9 @@ export const api = {
   /** The administrator's own sign-in password confirms it is them. */
   revealForwardingPassword: (password: string) =>
     send<RevealedPasswords>('POST', '/api/v1/admin/forwarding/password/reveal', { password }),
+  forwardingNow: () => request<ForwardingNow>('/api/v1/forwarding/now'),
+  startHandover: (until: string) => send<NumberHandover>('POST', '/api/v1/forwarding/handover', { until }),
+  endHandover: (id: string) => send<void>('DELETE', `/api/v1/forwarding/handover/${id}`),
   auditEvents: (params: {
     action?: string; actor?: string; q?: string; starts_on?: string; ends_on?: string
     include_logins?: boolean; limit?: number; offset?: number
