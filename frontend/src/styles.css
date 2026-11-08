@@ -657,9 +657,11 @@ table.report-table td.key { font-weight: 600; }
   .nav-link { justify-content: center; padding: 8px; position: relative; }
   .nav-cnt { position: absolute; margin: 0; transform: translate(14px, -10px); }
 }
+/* Every rule that moves is named here, so it wins by source order; a new transition joins the list. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
-  .spinner, .sk { animation: none !important; }
+  .dialog-backdrop, .toast, .progress i { transition: none; }
+  .scroll-area-frame::after { transition: none; }
+  .spinner, .sk { animation: none; }
 }
 @media (pointer: coarse) {
   :is(button, .btn, [role='button'], .seg button, .filter-chip button) { min-height: 44px; }

@@ -22,13 +22,23 @@ describe('shared interaction styles', () => {
 
   it('stops motion without hiding loading indicators', () => {
     loadRealMediaQuery('(prefers-reduced-motion: reduce)')
-    const { container } = render(<><span className="spinner" /><span className="sk" /></>)
+    const { container } = render(
+      <>
+        <span className="spinner" />
+        <span className="sk" />
+        <div className="toast" />
+        <div className="progress"><i /></div>
+      </>,
+    )
     const spinner = container.querySelector('.spinner')!
     const skeleton = container.querySelector('.sk')!
     expect(getComputedStyle(spinner).animationName).toBe('none')
     expect(getComputedStyle(skeleton).animationName).toBe('none')
     expect(getComputedStyle(spinner).display).toBe('inline-block')
     expect(getComputedStyle(skeleton).display).toBe('block')
+    for (const moving of [container.querySelector('.toast')!, container.querySelector('.progress i')!]) {
+      expect(getComputedStyle(moving).transition).toBe('none')
+    }
   })
 
   it('draws state text with the readable text tokens', () => {
