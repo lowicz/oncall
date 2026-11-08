@@ -96,6 +96,17 @@ def _forget_on_commit(session: Session) -> None:
         _effective_cache.clear()
 
 
+def _make_room(now: float) -> None:
+    """At the size limit, drop the expired ranges, or the oldest one if none expired."""
+    if len(_effective_cache) < _CACHE_LIMIT:
+        return
+    expired = [key for key, (until, _) in _effective_cache.items() if until <= now]
+    oldest = min(_effective_cache, key=lambda key: _effective_cache[key][0])
+    for key in expired or [oldest]:
+        _effective_cache.pop(key, None)
+        _effective_locks.pop(key, None)
+
+
 async def effective_assignments(
     db: AsyncSession,
     starts_on: date,
@@ -129,12 +140,7 @@ async def effective_assignments(
             result = await _load_effective_assignments(db, starts_on, ends_on)
             if generation != _cache_generation:
                 return result
-            if len(_effective_cache) >= _CACHE_LIMIT:
-                expired = [key for key, (until, _) in _effective_cache.items() if until <= now]
-                oldest = min(_effective_cache, key=lambda key: _effective_cache[key][0])
-                for key in expired or [oldest]:
-                    _effective_cache.pop(key, None)
-                    _effective_locks.pop(key, None)
+            _make_room(now)
             _effective_cache[cache_key] = (now + cache_seconds, result)
             return result
     return await _load_effective_assignments(db, starts_on, ends_on)
