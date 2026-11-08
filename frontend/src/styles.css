@@ -468,7 +468,7 @@ button.rank-c:hover:not(:disabled):not([aria-disabled='true']) { background: var
 /* How a selected row's day is taken: under the row, kept apart from the next one. */
 .rank-sub { padding: 0 0 6px 12px; }
 /* Blocked but still focusable, so its reason is read: muted, not faded. */
-.rank-blocked { cursor: not-allowed; }
+button.rank-c.rank-blocked { cursor: not-allowed; }
 .rank-blocked .rank-no, .rank-blocked .rank-nm { color: var(--muted); }
 .rank-no { font: 700 12px/16px var(--label); color: var(--dim); text-align: center; }
 .rank-nm { font-weight: 600; font-size: 14px; line-height: 21px; min-width: 0; }

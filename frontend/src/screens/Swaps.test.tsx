@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { SwapPanel } from './Swaps'
 import { api, ApiError } from '../api'
 import type { AssignmentRole, RuleViolation, SwapImpact, SwapOption, SwapPolicy, SwapRequest, SwapReturnOption, SwapScope } from '../api'
@@ -486,6 +487,9 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     const celina = within(group).getByRole('radio', { name: /Celina Aktywna/ })
     expect(within(group).getAllByRole('radio').filter((candidate) => candidate.tabIndex === 0)).toEqual([adam])
     expect(beata).toHaveAttribute('aria-disabled', 'true')
+    loadRealStylesheet()
+    expect(getComputedStyle(beata).cursor).toBe('not-allowed')
+    expect(getComputedStyle(adam).cursor).toBe('pointer')
 
     adam.focus()
     await user.keyboard('{ArrowRight}')
@@ -1247,6 +1251,9 @@ describe('SwapPanel exchange: the "in return" step', () => {
     expect(blocked).toHaveTextContent('–pon 21 wrzSECONDARY + 11–19 · za 26674 dni · nie można: Obie role on-call jednego dnia.reguła twarda')
     expect(blocked).toHaveAttribute('aria-disabled', 'true')
     expect(blocked).not.toBeDisabled()
+    loadRealStylesheet()
+    expect(getComputedStyle(blocked).cursor).toBe('not-allowed')
+    expect(getComputedStyle(clean).cursor).toBe('pointer')
 
     nothing.focus()
     await user.keyboard('{ArrowLeft}')
