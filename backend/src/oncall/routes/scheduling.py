@@ -123,9 +123,7 @@ async def _written_schedule(
     if schedule is None:
         with _scheduling_errors():
             raise errors.ScheduleNotFound()
-    return schedule_response(
-        await queries.view_schedule(schedule, reads, today=business_today())
-    )
+    return schedule_response(await queries.view_schedule(schedule, reads, today=business_today()))
 
 
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED, response_model=dict)
