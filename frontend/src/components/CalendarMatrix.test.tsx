@@ -238,8 +238,9 @@ describe('CalendarMatrix override decision frame', () => {
 
     await startStaffChange(/Anna Kowalska.*SECONDARY/, 'Marek Nowak')
 
-    // No confirmation dialog: the rules sit in the panel under the chosen person.
-    expect(await screen.findByText(/Ta korekta złamie reguły twarde/)).toBeInTheDocument()
+    // No confirmation dialog: the rules sit in the panel under the chosen
+    // person, announced the moment they appear.
+    expect((await screen.findByText(/Ta korekta złamie reguły twarde/)).closest('[role="alert"]')).toHaveTextContent(/Więcej niż 3 dyżury/)
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(screen.getByText(/Więcej niż 3 dyżury on-call w okresie 7 dni/)).toBeInTheDocument()
     expect(screen.getByText(/Naruszenie trafi do dziennika audytu/)).toBeInTheDocument()
@@ -297,8 +298,9 @@ describe('CalendarMatrix override decision frame', () => {
     expect(override.mock.calls[0][0]).toMatchObject({ acknowledge_rule_violations: false })
     expect(await screen.findByText(/Ta korekta złamie reguły twarde/)).toBeInTheDocument()
     expect(check).toHaveBeenCalledTimes(2)
-    // The refusal is announced and focused in the frame.
-    const refusal = screen.getByRole('alert')
+    // The refusal is announced and focused in the frame, beside the rules it found.
+    const [rules, refusal] = screen.getAllByRole('alert')
+    expect(rules).toHaveTextContent('Ta korekta złamie reguły twarde')
     expect(refusal).toHaveTextContent('Korekta złamie reguły twarde grafiku')
     expect(refusal).toHaveFocus()
     expect(screen.getByRole('checkbox', { name: ACKNOWLEDGE })).not.toBeChecked()

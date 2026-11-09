@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { Toast as BaseToast } from '@base-ui/react/toast'
 import { messages } from '../i18n'
 import { loadRealStylesheet } from '../test/stylesheet'
+import { expectNoAxeViolations } from '../test/axe'
 import { ToastProvider, useToast } from './Toast'
 
 type Api = ReturnType<typeof useToast>
@@ -27,6 +28,14 @@ function renderToasts(show: Show = () => {}) {
 const toastNamed = async (title: string) => (await screen.findByText(title)).closest('.toast') as HTMLElement
 
 describe('toasts', () => {
+  it('keeps its close button named for a screen reader while it can be focused', async () => {
+    renderToasts((toast) => toast.success('Zapisano', { action: { label: 'Cofnij', onClick: () => {} } }))
+    const item = await toastNamed('Zapisano')
+    const close = within(item).getByRole('button', { name: messages().common.closeNotification })
+    expect(close).not.toHaveAttribute('aria-hidden', 'true')
+    await expectNoAxeViolations(item)
+  })
+
   it.each([
     ['success', 'toast-ok'],
     ['warn', 'toast-warn'],

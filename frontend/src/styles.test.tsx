@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { loadRealMediaQuery, loadRealStylesheet } from './test/stylesheet'
 
 describe('shared interaction styles', () => {
+  it('raises toasts on a phone above the bottom tabs, within the thumb\'s reach', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<><div className="toasts" /><nav className="tabs-bottom" /></>)
+    const toasts = getComputedStyle(container.querySelector('.toasts')!)
+    expect(toasts.top).toBe('auto')
+    expect(toasts.bottom).toBe('calc(72px + env(safe-area-inset-bottom))')
+  })
+
   it('gives every button a 44 px coarse-pointer target', () => {
     loadRealMediaQuery('(pointer: coarse)')
     const { container } = render(
