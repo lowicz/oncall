@@ -1287,7 +1287,7 @@ describe('MineScreen availability Undo', () => {
     stub()
     vi.spyOn(api, 'availability').mockResolvedValue([
       { id: 'a1', kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: 'szkolenie', created_at: '2026-08-20T10:00:00Z' },
-      { id: 'a2', kind: 'prefer', starts_on: '2026-09-24', ends_on: '2026-09-24', note: null, created_at: '2026-08-20T10:00:00Z' },
+      { id: 'a2', kind: 'prefer', starts_on: '2026-09-24', ends_on: '2026-09-27', note: null, created_at: '2026-08-20T10:00:00Z' },
     ])
     vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
     vi.spyOn(api, 'undoAvailabilityRange').mockReturnValue(new Promise(() => {}))

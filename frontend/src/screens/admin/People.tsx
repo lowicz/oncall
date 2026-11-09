@@ -759,8 +759,8 @@ export function PeoplePanel() {
   // Back to what is saved, in the same panel; the link goes with the
   // changes, so focus goes to the panel's title.
   const panelTitle = useRef<HTMLHeadingElement>(null)
-  const discardChanges = () => {
-    if (selectedRow) applyDetails(selectedRow, tab)
+  const discardChanges = (row: Row) => {
+    applyDetails(row, tab)
     panelTitle.current?.focus()
   }
   const error = users.error || team.error || createRotation.error
@@ -1059,7 +1059,7 @@ export function PeoplePanel() {
               <span className="panel-foot-note small muted">
                 {t.details.unsaved(pendingChanges.join(' · '))}
                 {/* Named for its effect, so it needs no dialog; closing by Escape or the corner button still asks. */}
-                <button type="button" className="link-btn" onClick={discardChanges}>{t.details.discard}</button>
+                <button type="button" className="link-btn" onClick={() => discardChanges(selectedRow)}>{t.details.discard}</button>
               </span>
             ) : (
               <>
