@@ -10,7 +10,9 @@ export const calendarEvents = {
     loading: 'Wczytywanie wydarzeń…',
     empty: 'Brak wydarzeń w wybranym zakresie',
     edit: 'Edytuj',
+    editLabel: (title: string) => `Edytuj „${title}”`,
     delete: 'Usuń',
+    deleteLabel: (title: string) => `Usuń „${title}”`,
   },
   form: {
     newEvent: 'Nowe wydarzenie',

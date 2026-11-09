@@ -18,7 +18,7 @@ describe('CalendarEventsPanel deletion', () => {
     const create = vi.spyOn(api, 'createCalendarEvent').mockResolvedValue({ ...EVENT, id: 'e9' })
     renderScreen(<CalendarEventsPanel />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń „Szkolenie BHP”' }))
 
     await waitFor(() => expect(remove).toHaveBeenCalledWith('e1'))
     expect(screen.queryByRole('dialog', { name: 'Usunąć wydarzenie?' })).not.toBeInTheDocument()
@@ -37,7 +37,7 @@ describe('CalendarEventsPanel deletion', () => {
     const create = vi.spyOn(api, 'createCalendarEvent').mockRejectedValue(new Error('Serwer niedostępny'))
     renderScreen(<CalendarEventsPanel />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń „Szkolenie BHP”' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Cofnij' }))
 
     expect(await screen.findByText('Nie udało się cofnąć')).toBeInTheDocument()
@@ -51,9 +51,9 @@ describe('CalendarEventsPanel deletion', () => {
     vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
     renderScreen(<CalendarEventsPanel />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edytuj' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edytuj „Szkolenie BHP”' }))
     expect(screen.getByLabelText(/Nazwa/)).toHaveValue('Szkolenie BHP')
-    fireEvent.click(screen.getByRole('button', { name: 'Usuń' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń „Szkolenie BHP”' }))
 
     await waitFor(() => expect(screen.getByLabelText(/Nazwa/)).toHaveValue(''))
   })
@@ -147,10 +147,13 @@ describe('CalendarEventsPanel form', () => {
     const update = vi.spyOn(api, 'updateCalendarEvent').mockResolvedValue({ ...EVENT, title: 'Szkolenie BHP II' })
     renderScreen(<CalendarEventsPanel />)
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Edytuj' }))[0])
+    fireEvent.click(await screen.findByRole('button', { name: 'Edytuj „Szkolenie BHP”' }))
     const form = screen.getByRole('form', { name: 'Edycja wydarzenia' })
     expect(within(form).getByRole('heading', { name: 'Edytuj wydarzenie' })).toBeInTheDocument()
+    // The edit starts in the name field, not on the button left behind.
+    expect(within(form).getByLabelText(/Nazwa/)).toHaveFocus()
     expect(within(form).getByLabelText(/Nazwa/)).toHaveValue('Szkolenie BHP')
+    expect(within(form).getByRole('radiogroup', { name: 'Kolor' })).toBeInTheDocument()
     expect(within(form).getByLabelText(/^Do/)).toHaveValue('2026-09-26')
     fireEvent.change(within(form).getByLabelText(/Nazwa/), { target: { value: 'Szkolenie BHP II' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Zapisz' }))
@@ -166,7 +169,7 @@ describe('CalendarEventsPanel form', () => {
       id: 'e1', title: 'Szkolenie BHP', starts_on: '2026-09-24', ends_on: '2026-09-26', color: 'blue',
     }))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edytuj' })[1])
+    fireEvent.click(screen.getByRole('button', { name: 'Edytuj „Audyt ISO”' }))
     fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))
     const fresh = screen.getByRole('form', { name: 'Nowe wydarzenie' })
     expect(within(fresh).getByLabelText(/Nazwa/)).toHaveValue('')
@@ -189,7 +192,7 @@ describe('CalendarEventsPanel form', () => {
     vi.spyOn(api, 'deleteCalendarEvent').mockRejectedValue(new Error('Wydarzenie już usunięto'))
     renderScreen(<CalendarEventsPanel />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Usuń' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń „Szkolenie BHP”' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Wydarzenie już usunięto')
     expect(screen.queryByText(/Usunięto „/)).not.toBeInTheDocument()

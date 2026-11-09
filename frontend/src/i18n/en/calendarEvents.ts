@@ -11,7 +11,9 @@ export const calendarEvents: Messages['calendarEvents'] = {
     loading: 'Loading events…',
     empty: 'No events in the selected range',
     edit: 'Edit',
+    editLabel: (title: string) => `Edit “${title}”`,
     delete: 'Delete',
+    deleteLabel: (title: string) => `Delete “${title}”`,
   },
   form: {
     newEvent: 'New event',

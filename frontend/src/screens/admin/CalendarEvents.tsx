@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarEvent, CalendarEventInput, api } from '../../api'
 import { useMessages } from '../../i18n'
@@ -18,6 +18,7 @@ export function CalendarEventsPanel() {
   const [editing, setEditing] = useState<CalendarEvent | null>(null)
   const editingId = editing?.id ?? null
   const [form, setForm] = useState<CalendarEventInput>(emptyInput)
+  const titleRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const queryKey = ['calendar-events', range.starts_on, range.ends_on]
   const events = useQuery({ queryKey, queryFn: () => api.calendarEvents(range.starts_on, range.ends_on) })
@@ -63,6 +64,8 @@ export function CalendarEventsPanel() {
   const edit = (event: CalendarEvent) => {
     setEditing(event)
     setForm({ starts_on: event.starts_on, ends_on: event.ends_on, title: event.title, color: event.color })
+    // The form changes its heading only; the edit starts where it is typed.
+    titleRef.current?.focus()
   }
   const error = events.error ?? save.error ?? remove.error
 
@@ -90,8 +93,8 @@ export function CalendarEventsPanel() {
                   highlight={editingId === event.id}
                   aside={(
                     <>
-                      <Button size="sm" onClick={() => edit(event)}>{t.calendarEvents.list.edit}</Button>
-                      <Button size="sm" variant="ghost" icon="trash" disabled={remove.isPending} onClick={() => { remove.reset(); remove.mutate(event) }}>{t.calendarEvents.list.delete}</Button>
+                      <Button size="sm" aria-label={t.calendarEvents.list.editLabel(event.title)} onClick={() => edit(event)}>{t.calendarEvents.list.edit}</Button>
+                      <Button size="sm" variant="ghost" icon="trash" aria-label={t.calendarEvents.list.deleteLabel(event.title)} disabled={remove.isPending} onClick={() => { remove.reset(); remove.mutate(event) }}>{t.calendarEvents.list.delete}</Button>
                     </>
                   )}
                 >
@@ -112,31 +115,31 @@ export function CalendarEventsPanel() {
         >
           <SectionHeading as="h3" title={editingId ? t.calendarEvents.form.editEvent : t.calendarEvents.form.newEvent} />
           <Field label={t.calendarEvents.form.name} id="event-title" required>
-            {({ id }) => <Input id={id} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />}
+            {({ id }) => <Input ref={titleRef} id={id} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />}
           </Field>
           <div className="frow">
             <DateField id="event-start" label={t.calendarEvents.form.from} value={form.starts_on} onChange={(starts_on) => setForm({ ...form, starts_on, ends_on: starts_on > form.ends_on ? starts_on : form.ends_on })} required />
             <DateField id="event-end" label={t.calendarEvents.form.to} value={form.ends_on} onChange={(ends_on) => setForm({ ...form, ends_on })} required minDate={form.starts_on} />
           </div>
-          <Field label={t.calendarEvents.form.color} id="event-color">
-            {({ id }) => (
-              <div className="color-pick" role="radiogroup" aria-label={t.calendarEvents.form.color} id={id}>
-                {eventColors().map((color) => (
-                  <button
-                    type="button"
-                    key={color.value}
-                    role="radio"
-                    aria-checked={form.color === color.value}
-                    aria-label={color.label}
-                    title={color.label}
-                    className={cx(form.color === color.value && 'on')}
-                    style={{ background: `var(--ev-${color.value})` }}
-                    onClick={() => setForm({ ...form, color: color.value })}
-                  />
-                ))}
-              </div>
-            )}
-          </Field>
+          {/* A group of buttons has no form control for a <label> to point at, so the heading names it. */}
+          <div className="field">
+            <span className="field-label" id="event-color-label">{t.calendarEvents.form.color}</span>
+            <div className="color-pick" role="radiogroup" aria-labelledby="event-color-label">
+              {eventColors().map((color) => (
+                <button
+                  type="button"
+                  key={color.value}
+                  role="radio"
+                  aria-checked={form.color === color.value}
+                  aria-label={color.label}
+                  title={color.label}
+                  className={cx(form.color === color.value && 'on')}
+                  style={{ background: `var(--ev-${color.value})` }}
+                  onClick={() => setForm({ ...form, color: color.value })}
+                />
+              ))}
+            </div>
+          </div>
           {error && <Box tone="bad" role="alert" title={error.message} />}
           <div className="row">
             <Button type="submit" variant="primary" disabled={!form.title.trim() || save.isPending} loading={save.isPending}>{editingId ? t.calendarEvents.form.save : t.calendarEvents.form.add}</Button>
