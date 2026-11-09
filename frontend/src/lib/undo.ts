@@ -44,7 +44,7 @@ export function newUndoId(): string {
  * so it never outlasts the server's; when it closes the toast drops "Cofnij"
  * and shows the message's `expired` text, even if hover or focus keeps it
  * open, and the inverse is no longer run.
- * A failed inverse remains available for another attempt and is reported by
+ * A done inverse is confirmed in a toast of its own. A failed inverse remains available for another attempt and is reported by
  * the caller, which owns the operation-specific error copy.
  */
 export async function undoable<Result>(options: UndoableOptions<Result>): Promise<Result> {
@@ -58,7 +58,10 @@ export async function undoable<Result>(options: UndoableOptions<Result>): Promis
     if (undoing || Date.now() >= until) return
     undoing = true
     options.undo(result).then(
-      () => options.toast.close(toastId),
+      () => {
+        options.toast.close(toastId)
+        options.toast.success(messages().common.undone)
+      },
       (error: unknown) => {
         undoing = false
         options.onUndoError(error)

@@ -9,6 +9,8 @@ export const common: Messages['common'] = {
   undoEmailsSent: 'The e-mails have gone out',
   undo: 'Undo',
   undoFailed: 'Could not undo',
+  undone: 'Undone',
+  downloaded: (file: string) => `Downloaded ${file}`,
   loading: 'Loading…',
   loadingScreen: 'Loading screen…',
   scrollHint: 'Scroll horizontally to see more',

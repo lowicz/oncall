@@ -14,14 +14,17 @@ been disabled and how many are awaiting activation. The **Accounts** table has
 the columns an administrator actually reads: the person with their e-mail,
 the username with the personnel number, the account role, the rotation (`IN
 THE ROTATION` with the entry date and qualifications, `FROM 12 OCT` for a
-person who is only about to join, `ended`, “outside the rotation”), the phone
+person who is only about to join, `ended`, “outside the rotation”;
+qualifications that start later carry their date, for example “P · S from
+16 Nov”), the phone
 (a missing one for a person in the rotation is red, because the “On duty now”
 strip needs it) and the sign-in method (local or LDAP / AD, and for a local
 account without a password the `AWAITING ACTIVATION` badge - see below). The
 section header has a search field (person, username, number, phone) and the
 filters **All**, **In the rotation**, **Outside the rotation**, **Disabled**,
 **Pending** - a single Tab stop from the keyboard, where the arrow keys change
-the filter. **Export CSV** saves the visible rows, **New account** opens the
+the filter. **Export CSV** saves the visible rows and confirms it with a notification
+naming the file, **New account** opens the
 panel for creating a local account.
 
 Clicking a person (or **Open**) opens a panel with three tabs:
@@ -62,8 +65,10 @@ channel.
 
 A new account can join the rotation straight away: the **In the duty
 rotation** field in the “New local account” panel reveals the entry date,
-the phone (then required) and the duty qualifications to select. The “After
-creation” box says from when and in which roles the person will get duties.
+the phone (then required) and the duty qualifications to select. While
+something is missing, a sentence beside the inactive **Create account** button
+says what (the first name, the login, a valid personnel number, the entry
+date or the phone). The “After creation” box says from when and in which roles the person will get duties.
 After creation the same panel shows what was created (the account, the
 rotation and the roles), the activation link and the **Open the rotation**
 button, which leads to that person's Rotation tab. If the server refuses to
@@ -77,8 +82,9 @@ dates, **End today** ends the period as of yesterday (the published schedule
 stays, the generator skips the role from the next run), a period that has not
 started yet has **Delete** instead, and **Add period** and **Add** next to a
 missing role add a new period. A changed row is marked “changed, unsaved”
-(or “deleted”, “new”) and has a **Restore** button. After saving, ending or
-deleting a period shows a message with an **Undo** button, which puts the
+(or “deleted”, “new”) and has a **Restore** button. After saving, ending,
+deleting or changing the dates of a period shows a message with an **Undo**
+button, which puts the
 previous dates back or creates the deleted period again; when the same save
 moved the entry into the rotation later, **Undo** also puts the previous entry
 date back. A period put back ends on the exit date from the rotation at the

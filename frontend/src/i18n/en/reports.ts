@@ -2,7 +2,7 @@ import type { Messages } from '../pl'
 
 export const reports: Messages['reports'] = {
   title: 'Monthly report',
-  subtitle: 'A CSV for HR: each person\'s duty days (primary and secondary together) on workdays and on weekends and holidays, with the split by role and the points (1X/2X). 11-19 shifts are not duty days; a holiday on a Saturday or Sunday counts as a weekend.',
+  subtitle: 'A CSV for HR: each person\'s duty days (PRIMARY and SECONDARY together) on workdays and on weekends and holidays, with the split by role and the points (1X/2X). 11–19 shifts are not duty days; a holiday on a Saturday or Sunday counts as a weekend.',
   month: 'Report month',
   preparing: 'Preparing…',
   downloadCsv: 'Export CSV',
@@ -18,15 +18,15 @@ export const reports: Messages['reports'] = {
   columns: {
     person: 'Person',
     dutyDays: 'Duty days',
-    dutyDaysNote: 'primary + secondary',
+    dutyDaysNote: 'PRIMARY + SECONDARY',
     daysOff: 'weekends and holidays',
     dutyTotal: 'total',
     points: 'Points',
     workdays: 'workdays',
     weekends: 'weekends',
     holidays: 'holidays',
-    pointsPrimary: 'primary',
-    pointsSecondary: 'secondary',
+    pointsPrimary: 'PRIMARY',
+    pointsSecondary: 'SECONDARY',
     pointsTotal: 'total',
     total: 'Total',
   },

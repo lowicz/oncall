@@ -8,6 +8,10 @@ export const common = {
   undoEmailsSent: 'E-maile już wyszły',
   undo: 'Cofnij',
   undoFailed: 'Nie udało się cofnąć',
+  /** Said once an Undo has gone through. */
+  undone: 'Cofnięto',
+  /** Said once a file has been handed to the browser. */
+  downloaded: (file: string) => `Pobrano plik ${file}`,
   loading: 'Wczytywanie…',
   loadingScreen: 'Wczytywanie ekranu…',
   scrollHint: 'Przewiń w poziomie, aby zobaczyć więcej',

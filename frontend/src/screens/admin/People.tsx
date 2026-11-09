@@ -9,7 +9,7 @@ import { roleLabels as dutyRoleLabels, shortRoleLabels } from '../../lib/labels'
 import { roleLabels as accountRoleLabels } from '../../lib/nav'
 import { addDays, formatDate, formatMoment, formatShortDate, warsawDate } from '../../lib/dates'
 import { csvCell, downloadBlob } from '../../lib/download'
-import { isPolishPhone } from '../../lib/phone'
+import { isPolishPhone, phoneText } from '../../lib/phone'
 import { useUrlParams } from '../../hooks/useUrlParams'
 import { locale, messages, useMessages } from '../../i18n'
 import { useBranding } from '../../hooks/useBranding'
@@ -81,8 +81,14 @@ function RotationCell({ member, today }: { member?: TeamMember; today: string })
   const t = useMessages().people.rotation
   const state = rotationState(member, today)
   if (state === 'outside') return <span className="muted">{t.outside}</span>
-  const roles = heldRoles(member, today < member!.active_from ? member!.active_from : today)
-  const qualifications = roles.length > 0 ? roles.map((role) => shortRoleLabels()[role]).join(' · ') : t.noQualifications
+  const day = today < member!.active_from ? member!.active_from : today
+  const roles = heldRoles(member, day)
+  // Qualifications that start later are named with their date, not as none.
+  const upcoming = roles.length > 0 ? undefined : member!.eligibility.map((item) => item.starts_on).filter((start) => start > day).sort((a, b) => a.localeCompare(b))[0]
+  const shown = upcoming ? heldRoles(member, upcoming) : roles
+  const qualifications = shown.length > 0
+    ? `${shown.map((role) => shortRoleLabels()[role]).join(' · ')}${upcoming ? ` ${t.from(formatShortDate(upcoming))}` : ''}`
+    : t.noQualifications
   if (state === 'entering') return <><StatusBadge tone="warn">{t.from(formatShortDate(member!.active_from))}</StatusBadge><small>{qualifications}</small></>
   if (state === 'ended') return <><StatusBadge tone="muted">{t.ended}</StatusBadge><small>{t.until(formatDate(member!.active_until!))}</small></>
   return (
@@ -657,6 +663,25 @@ export function PeoplePanel() {
       const others = offboard
         ? [...accountChanges, ...entryChanges]
         : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !isRemoval(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
+      // New dates of a period are offered back like its removal; the toast
+      // names them first and lists whatever else went with them.
+      const dateEdits = row.member && !offboard ? periodEdits.filter((entry) => !isRemoval(entry)) : []
+      if (accessChanges.length === 0 && dateEdits.length > 0) {
+        const dated = dateEdits.map(periodChange)
+        const rest = others.filter((change) => !dated.includes(change))
+        const updated = await undoable({
+          execute: () => saveChanges(row, offboard),
+          undo: async () => {
+            await Promise.all(dateEdits.map(({ item }) => api.updateEligibility({ id: item.id, input: { starts_on: item.starts_on, ends_on: item.ends_on } })))
+            refresh()
+          },
+          message: () => ({
+            title: t.toast.saved(dated.join(', ')),
+            description: rest.length > 0 ? t.toast.alsoSaved(rest.join(', ')) : undefined,
+          }),
+        })
+        return { updated, offboard }
+      }
       if (accessChanges.length === 0) {
         const updated = await saveChanges(row, offboard)
         if (others.length > 0) toast.success(t.toast.saved(others.join(', ')))
@@ -770,6 +795,7 @@ export function PeoplePanel() {
   const selectedActivation = selectedRow ? activationState(selectedRow.user, now) : null
   const exportCsv = () => {
     downloadBlob(t.csv.fileName(today), new Blob([`\uFEFF${csvOf(rows, today, now)}`], { type: 'text/csv;charset=utf-8' }))
+    toast.success(m.common.downloaded(t.csv.fileName(today)))
   }
   const roleOptions = roles.map((role) => ({ value: role, label: accountRoleLabels()[role] }))
   // Digits only, as the server requires; said under the field in the
@@ -777,8 +803,16 @@ export function PeoplePanel() {
   const personnelError = (value: string | null | undefined) => (value && !/^\d+$/.test(value) ? t.fields.personnelNumberFix : undefined)
   const personnelHint = branding.ldapEnabled ? `${t.fields.personnelNumberHint} ${t.fields.personnelNumberLdapHint}` : t.fields.personnelNumberHint
   const newName = newForm.first_name.trim() || t.newAccountPanel.thisPerson
-  // The phone sits beside the e-mail, or with the entry date once the person
-  // joins the rotation, where the strip "Teraz" needs it.
+  // The phone sits under the e-mail, or under the entry date once the person
+  // joins the rotation, where the strip "Teraz" needs it; a row of its own
+  // keeps its hint readable.
+  // What the create button still waits for, said beside it.
+  let createBlocker: string | null = null
+  if (!newForm.first_name.trim()) createBlocker = t.newAccountPanel.missing.firstName
+  else if (!newForm.username.trim()) createBlocker = t.newAccountPanel.missing.username
+  else if (personnelError(newForm.personnel_number)) createBlocker = t.newAccountPanel.missing.personnelNumber
+  else if (newRotation.on && !newRotation.from) createBlocker = t.newAccountPanel.missing.entry
+  else if (newRotation.on && !newForm.phone) createBlocker = t.newAccountPanel.missing.phone
   const newPhone = (
     <Field label={t.fields.phone} id="new-phone" hint={t.fields.phoneNewHint} required={newRotation.on}>
       {({ id, describedBy }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono value={newForm.phone ?? ''} aria-describedby={describedBy} required={newRotation.on} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value || null })} />}
@@ -871,7 +905,7 @@ export function PeoplePanel() {
                     <td><StatusBadge tone={roleTone[row.user.role]}>{accountRoleLabels()[row.user.role]}</StatusBadge></td>
                     <td>{row.user.role === 'viewer' && !row.member ? <span className="muted">{t.row.notApplicable}</span> : <RotationCell member={row.member} today={today} />}</td>
                     <td className={cx('mono', (needsPhone || phoneToFix) && 'who-bad')}>
-                      {row.user.phone ?? (needsPhone ? t.row.missing : <span className="muted">–</span>)}
+                      {(row.user.phone && phoneText(row.user.phone)) ?? (needsPhone ? t.row.missing : <span className="muted">–</span>)}
                       {phoneToFix && <small>{t.row.fixPhone}</small>}
                     </td>
                     <td>
@@ -904,13 +938,15 @@ export function PeoplePanel() {
         ) : <StatusBadge tone={roleTone[newForm.role]}>{accountRoleLabels()[newForm.role]}</StatusBadge>}
         footer={!created && (
           <>
+            <output className="foot-status" id="new-account-status">{createBlocker}</output>
             <Button onClick={() => setNewOpen(false)}>{m.common.cancel}</Button>
             <Button
               type="submit"
               form="new-account-form"
               variant="primary"
               loading={createAccount.isPending}
-              disabled={!newForm.username.trim() || !newForm.first_name.trim() || Boolean(personnelError(newForm.personnel_number)) || (newRotation.on && (!newForm.phone || !newRotation.from))}
+              disabled={createBlocker !== null}
+              aria-describedby={createBlocker ? 'new-account-status' : undefined}
             >
               {t.newAccountPanel.create}
             </Button>
@@ -956,12 +992,10 @@ export function PeoplePanel() {
                 {({ id, describedBy, invalid }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} inputMode="numeric" invalid={invalid} value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
               </Field>
             </div>
-            <div className="frow">
-              <Field label={t.fields.email} id="new-email">
-                {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
-              </Field>
-              {!newRotation.on && newPhone}
-            </div>
+            <Field label={t.fields.email} id="new-email">
+              {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" value={newForm.email ?? ''} onChange={(e) => setNewForm({ ...newForm, email: e.target.value || null })} />}
+            </Field>
+            {!newRotation.on && newPhone}
             <Field label={t.fields.accountRole} id="new-role" hint={t.fields.accountRoleHint}>
               {({ labelId }) => <Segmented<UserRole> wrap label={t.fields.accountRole} labelId={labelId} value={newForm.role} onChange={(role) => setNewForm({ ...newForm, role })} options={roleOptions} />}
             </Field>
@@ -974,10 +1008,8 @@ export function PeoplePanel() {
               />
               {newRotation.on && (
                 <>
-                  <div className="frow">
-                    <DateField id="new-rotation-from" label={t.rotationTab.entryFrom} value={newRotation.from} onChange={(from) => setNewRotation({ ...newRotation, from })} />
-                    {newPhone}
-                  </div>
+                  <DateField id="new-rotation-from" label={t.rotationTab.entryFrom} value={newRotation.from} onChange={(from) => setNewRotation({ ...newRotation, from })} />
+                  {newPhone}
                   <Field label={t.rotationTab.dutyQualifications} id="new-qualifications">
                     {({ labelId }) => (
                       <div className="filter-chips" role="group" aria-labelledby={labelId}>
@@ -1109,43 +1141,41 @@ export function PeoplePanel() {
                     {({ id, describedBy, invalid }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={ldapFieldsLocked} inputMode="numeric" invalid={invalid} value={accountForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, personnel_number: e.target.value || null })} />}
                   </Field>
                 </div>
-                <div className="frow">
-                  <Field label={t.fields.email} id="acc-email">
-                    {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" disabled={ldapFieldsLocked} value={accountForm.email ?? ''} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value || null })} />}
-                  </Field>
-                  <Field
-                    label={t.fields.phone}
-                    id="acc-phone"
-                    hint={t.fields.phoneHint}
-                    error={!phoneChecked ? undefined : !accountForm.phone
-                      ? (selectedState === 'active' || selectedState === 'entering' ? t.fields.phoneRequired : undefined)
-                      : (isPolishPhone(accountForm.phone) ? undefined : t.fields.phoneFix)}
-                  >
-                    {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onBlur={() => setPhoneChecked(true)} onChange={(e) => { setPhoneChecked(false); setAccountForm({ ...accountForm, phone: e.target.value || null }) }} />}
-                  </Field>
-                </div>
+                {/* One under the other, so the phone's hint and error keep the full width. */}
+                <Field label={t.fields.email} id="acc-email">
+                  {({ id }) => <Input id={id} name="email" autoComplete="off" type="email" disabled={ldapFieldsLocked} value={accountForm.email ?? ''} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value || null })} />}
+                </Field>
+                <Field
+                  label={t.fields.phone}
+                  id="acc-phone"
+                  hint={t.fields.phoneHint}
+                  error={!phoneChecked ? undefined : !accountForm.phone
+                    ? (selectedState === 'active' || selectedState === 'entering' ? t.fields.phoneRequired : undefined)
+                    : (isPolishPhone(accountForm.phone) ? undefined : t.fields.phoneFix)}
+                >
+                  {({ id, describedBy, invalid }) => <Input id={id} name="phone" autoComplete="off" autoCapitalize="off" spellCheck={false} type="tel" mono invalid={invalid} value={accountForm.phone ?? ''} aria-describedby={describedBy} onBlur={() => setPhoneChecked(true)} onChange={(e) => { setPhoneChecked(false); setAccountForm({ ...accountForm, phone: e.target.value || null }) }} />}
+                </Field>
               </TabPanel>
               <TabPanel<DetailTab> value="rotation" className="stack-sm">
                 {selectedRow.member ? (
                   <>
-                    <div className="frow">
-                      <DateField
-                        id="rotation-from"
-                        label={t.rotationTab.entryFrom}
-                        value={rotationFrom}
-                        onChange={setRotationFrom}
-                        error={earlyRoles.length > 0 ? t.rotationTab.periodsBeforeEntry(roleList(earlyRoles), earlyRoles.length) : undefined}
-                      />
-                      <DateField
-                        id="rotation-until"
-                        label={t.rotationTab.exitUntilLabel}
-                        value={rotationUntil}
-                        onChange={setRotationUntil}
-                        hint={exitDuties.calendar.isLoading ? t.rotationTab.checkingDuties
-                          : exitDuties.duties.length > 0 ? t.rotationTab.dutiesAfterExit(exitDuties.duties.length)
-                            : exitCutsPeriods ? t.rotationTab.periodsAfterExit : t.rotationTab.exitHint}
-                      />
-                    </div>
+                    {/* One under the other: the entry's error and the exit's hint keep the full width. */}
+                    <DateField
+                      id="rotation-from"
+                      label={t.rotationTab.entryFrom}
+                      value={rotationFrom}
+                      onChange={setRotationFrom}
+                      error={earlyRoles.length > 0 ? t.rotationTab.periodsBeforeEntry(roleList(earlyRoles), earlyRoles.length) : undefined}
+                    />
+                    <DateField
+                      id="rotation-until"
+                      label={t.rotationTab.exitUntilLabel}
+                      value={rotationUntil}
+                      onChange={setRotationUntil}
+                      hint={exitDuties.calendar.isLoading ? t.rotationTab.checkingDuties
+                        : exitDuties.duties.length > 0 ? t.rotationTab.dutiesAfterExit(exitDuties.duties.length)
+                          : exitCutsPeriods ? t.rotationTab.periodsAfterExit : t.rotationTab.exitHint}
+                    />
                     {entryBlockers.length > 0 && <Box tone="warn" role="status" title={t.rotationTab.entrySavedAlone(entryBlockers.join(', '))} />}
                     <SectionHeading
                       as="h3"

@@ -85,6 +85,13 @@ export const people: Messages['people'] = {
   newAccountPanel: {
     title: 'New local account',
     create: 'Create account',
+    missing: {
+      firstName: 'Enter a first name to create the account.',
+      username: 'Enter a login to create the account.',
+      personnelNumber: 'Correct the personnel number to create the account.',
+      phone: 'A person in the rotation needs a phone number.',
+      entry: 'Choose the date of joining the rotation.',
+    },
     activationLink: 'Activation link (valid for 24 hours)',
     afterCreation: 'After creation',
     afterCreationText: 'You will get an activation link, valid for 24 hours, to pass on. Until the person sets a password they cannot sign in, and the account list shows them as “awaiting activation”.',

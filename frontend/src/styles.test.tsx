@@ -29,6 +29,20 @@ describe('shared interaction styles', () => {
     expect([seg.display, seg.gridAutoFlow]).toEqual(['grid', 'column'])
   })
 
+  it('keeps the matrix panel as wide as its days, never wider than the page', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="mx panel" />)
+    const mx = getComputedStyle(container.querySelector('.mx')!)
+    expect([mx.width, mx.maxWidth]).toEqual(['fit-content', '100%'])
+  })
+
+  it('puts the unsaved note of a panel on a row of its own above the buttons', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="panel-foot"><span className="panel-foot-note" /></div>)
+    const note = getComputedStyle(container.querySelector('.panel-foot-note')!)
+    expect([note.flexBasis, note.order]).toEqual(['100%', '-1'])
+  })
+
   it('gives a stated reason not to send a row of its own over the footer buttons', () => {
     loadRealStylesheet()
     const { container } = render(<div className="panel-foot"><output className="foot-status">Wybierz dyżur.</output></div>)

@@ -13,14 +13,15 @@ Pod tytułem jest bilans kont: ile ich jest, ile osób w rotacji, kto wchodzi
 do niej i kiedy, ile kont wyłączono i ile oczekuje na aktywację. Tabela **Konta** ma kolumny, które
 administrator naprawdę czyta: osoba z e-mailem, login z numerem pracownika,
 rola konta, rotacja (`W ROTACJI` z datą wejścia i kwalifikacjami, `OD 12 PAŹ`
-dla osoby, która dopiero wchodzi, `zakończona`, „poza rotacją”), telefon
+dla osoby, która dopiero wchodzi, `zakończona`, „poza rotacją”; kwalifikacje,
+które zaczną się później, mają swoją datę, na przykład „P · S od 16 lis”), telefon
 (brak u osoby w rotacji jest czerwony, bo pasek „Dyżur teraz” go potrzebuje)
 i sposób logowania (lokalne albo LDAP / AD, a przy koncie lokalnym bez
 hasła znacznik `OCZEKUJE NA AKTYWACJĘ` - patrz niżej). W nagłówku sekcji jest
 pole wyszukiwania (osoba, login, numer, telefon) i filtry **Wszystkie**, **W
 rotacji**, **Poza rotacją**, **Wyłączone**, **Oczekujące** - z klawiatury
 jeden przystanek klawisza Tab, filtr zmieniają strzałki. **Eksportuj CSV**
-zapisuje widoczne wiersze, **Nowe konto** otwiera panel zakładania konta
+zapisuje widoczne wiersze i potwierdza to powiadomieniem z nazwą pliku, **Nowe konto** otwiera panel zakładania konta
 lokalnego.
 
 Kliknięcie osoby (albo **Otwórz**) otwiera panel z trzema zakładkami:
@@ -59,7 +60,9 @@ przekaż osobie bezpiecznym kanałem.
 
 Nowe konto może od razu wejść do rotacji: pole **W rotacji dyżurów** w
 panelu „Nowe konto lokalne” odsłania datę wejścia, telefon (wtedy
-wymagany) i kwalifikacje dyżurowe do zaznaczenia. Ramka „Po utworzeniu”
+wymagany) i kwalifikacje dyżurowe do zaznaczenia. Dopóki czegoś brakuje,
+obok nieaktywnego przycisku **Utwórz konto** jest zdanie, czego (imienia,
+loginu, poprawnego numeru pracownika, daty wejścia albo telefonu). Ramka „Po utworzeniu”
 mówi, od kiedy i w jakich rolach osoba dostanie dyżury. Po utworzeniu ten
 sam panel pokazuje, co powstało (konto, rotację i role), link aktywacyjny
 i przycisk **Otwórz rotację**, który prowadzi do zakładki Rotacja tej
@@ -74,9 +77,9 @@ grafik zostaje, generator pomija rolę od następnego uruchomienia), okres,
 który jeszcze się nie zaczął, ma zamiast tego **Usuń**, a **Dodaj okres**
 i **Dodaj** przy brakującej roli dodają nowy okres. Zmieniony wiersz ma
 dopisek „zmieniony, niezapisany” (albo „usunięty”, „nowy”) i przycisk
-**Przywróć**. Po zapisie zakończenie albo usunięcie okresu pokazuje
-komunikat z przyciskiem **Cofnij**, który przywraca poprzednie daty albo
-odtwarza usunięty okres; gdy ten sam zapis przesunął wejście do rotacji na
+**Przywróć**. Po zapisie zakończenie, usunięcie albo zmiana dat okresu
+pokazuje komunikat z przyciskiem **Cofnij**, który przywraca poprzednie daty
+albo odtwarza usunięty okres; gdy ten sam zapis przesunął wejście do rotacji na
 później, **Cofnij** przywraca też poprzednią datę wejścia. Przywrócony okres
 kończy się najpóźniej w dniu wyjścia z rotacji.
 

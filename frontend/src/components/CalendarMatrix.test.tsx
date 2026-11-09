@@ -604,7 +604,9 @@ describe('CalendarMatrix event deletion', () => {
     await waitFor(() => expect(create).toHaveBeenCalledWith({ starts_on: '2026-09-01', ends_on: '2026-09-25', title: 'Audyt', color: 'red' }))
     await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
     // The inspector still open on that day shows the event again.
-    expect(await within(screen.getByRole('dialog')).findByText('Audyt', { selector: 'span' })).toBeInTheDocument()
+    expect(await within(screen.getByRole('dialog', { name: /\d{2}-\d{2}-\d{4}/ })).findByText('Audyt', { selector: 'span' })).toBeInTheDocument()
+    // The Undo itself is confirmed.
+    expect(await screen.findByText('Cofnięto')).toBeInTheDocument()
   })
 
   it('leaves a restored event out of an inspector open on a day outside its range', async () => {
@@ -621,7 +623,7 @@ describe('CalendarMatrix event deletion', () => {
 
     await waitFor(() => expect(create).toHaveBeenCalled())
     await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
-    expect(within(screen.getByRole('dialog')).queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: /\d{2}-\d{2}-\d{4}/ })).queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
   })
 })
 

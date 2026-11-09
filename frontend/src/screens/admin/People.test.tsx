@@ -644,20 +644,29 @@ describe('PeoplePanel new account in the rotation', () => {
     renderScreen(<PeoplePanel />)
     fireEvent.click(await screen.findByRole('button', { name: 'Nowe konto' }))
     const dialog = await screen.findByRole('dialog', { name: 'Nowe konto lokalne' })
+    const submit = within(dialog).getByRole('button', { name: 'Utwórz konto' })
+    // A button that cannot be pressed says beside it what it waits for.
+    expect(submit).toHaveAccessibleDescription('Wpisz imię, żeby utworzyć konto.')
+    fireEvent.change(within(dialog).getByLabelText(/^Imię/), { target: { value: 'Ewa' } })
+    expect(submit).toHaveAccessibleDescription('Wpisz login, żeby utworzyć konto.')
     fireEvent.change(within(dialog).getByLabelText(/^Login/), { target: { value: 'ewa' } })
+    fireEvent.change(within(dialog).getByLabelText(/^Numer pracownika/), { target: { value: 'x1' } })
+    expect(submit).toHaveAccessibleDescription('Popraw numer pracownika, żeby utworzyć konto.')
+    fireEvent.change(within(dialog).getByLabelText(/^Numer pracownika/), { target: { value: '' } })
 
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /W rotacji dyżurów/ }))
-    expect(within(dialog).getByText(/Ta osoba wejdzie do rotacji 10-09-2026 bez kwalifikacji/)).toBeInTheDocument()
-    fireEvent.change(within(dialog).getByLabelText(/^Imię/), { target: { value: 'Ewa' } })
-    const submit = within(dialog).getByRole('button', { name: 'Utwórz konto' })
+    expect(within(dialog).getByText(/Ewa wejdzie do rotacji 10-09-2026 bez kwalifikacji/)).toBeInTheDocument()
     // The rotation needs the phone the strip "Teraz" shows.
     expect(submit).toBeDisabled()
+    expect(submit).toHaveAccessibleDescription('Osoba w rotacji potrzebuje numeru telefonu.')
     expect(within(dialog).getByLabelText(/^Telefon/)).toBeRequired()
     fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '600 100 200' } })
     expect(submit).toBeEnabled()
+    expect(submit).not.toHaveAttribute('aria-describedby')
     // ...and the entry date the rotation starts on.
     fireEvent.change(within(dialog).getByLabelText('Wejście od'), { target: { value: '' } })
     expect(submit).toBeDisabled()
+    expect(submit).toHaveAccessibleDescription('Wybierz datę wejścia do rotacji.')
     fireEvent.change(within(dialog).getByLabelText('Wejście od'), { target: { value: '2026-09-14' } })
     const roles = within(dialog).getByRole('group', { name: 'Kwalifikacje dyżurowe' })
     fireEvent.click(within(roles).getByRole('button', { name: 'SECONDARY' }))
@@ -672,7 +681,7 @@ describe('PeoplePanel new account in the rotation', () => {
     fireEvent.click(within(roles).getByRole('button', { name: 'SECONDARY' }))
     fireEvent.click(submit)
 
-    const done = await within(dialog).findByRole('status')
+    const done = (await within(dialog).findByText(/^Konto utworzone/)).closest('[role="status"]')!
     expect(done).toHaveTextContent('Konto utworzone · w rotacji od 14-09-2026 · PRIMARY, SECONDARY')
     expect(done).toHaveTextContent('activate?token=secret')
     expect(done).toHaveTextContent('Link aktywacyjny ważny 24 godziny. Przekaż go bezpiecznym kanałem.')
@@ -707,7 +716,7 @@ describe('PeoplePanel new account in the rotation', () => {
     fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '600100200' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Utwórz konto' }))
 
-    expect(await within(dialog).findByRole('status')).toHaveTextContent(/^Konto utworzonehttp/)
+    expect((await within(dialog).findByText(/^Konto utworzone/)).closest('[role="status"]')).toHaveTextContent(/^Konto utworzonehttp/)
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Konto jest gotowe, ale rotacji nie zapisanoOsoba jest już w rotacji')
     expect(within(dialog).queryByText('w rotacji od 10-09-2026')).not.toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Dodaj do rotacji' }))
@@ -738,7 +747,7 @@ describe('PeoplePanel new account in the rotation', () => {
     for (const role of ['11–19', 'SECONDARY', 'PRIMARY']) fireEvent.click(within(roles).getByRole('button', { name: role }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Utwórz konto' }))
 
-    expect(await within(dialog).findByRole('status')).toHaveTextContent(`Konto utworzone · w rotacji od 10-09-2026 · ${status}`)
+    expect((await within(dialog).findByText(/^Konto utworzone/)).closest('[role="status"]')).toHaveTextContent(`Konto utworzone · w rotacji od 10-09-2026 · ${status}`)
     // The rotation is saved, so the alert names only what is missing from it.
     expect(within(dialog).getByRole('alert')).toHaveTextContent(`Konto i rotację zapisano, ale ${missing}Okresy nakładają się`)
     expect(within(dialog).getByRole('button', { name: 'Otwórz rotację' })).toBeInTheDocument()
@@ -818,10 +827,22 @@ describe('PeoplePanel table states and export', () => {
     expect(within(anna).getByText('od 02-09-2025 · bez kwalifikacji')).toBeInTheDocument()
   })
 
+  it('names qualifications that start later with their date, not as none', async () => {
+    mockData([user({ id: 'u1', role: 'viewer', phone: '+48 1' })], [member({ id: 'm1', eligibility: [
+      { id: 'e1', role: 'primary', starts_on: '2026-11-16', ends_on: null },
+      { id: 'e2', role: 'secondary', starts_on: '2026-11-16', ends_on: null },
+    ] })])
+    renderScreen(<PeoplePanel />)
+
+    const anna = await rowOf('anna')
+    expect(within(anna).getByText('od 02-09-2025 · P · S od 16 lis')).toBeInTheDocument()
+  })
+
   it('finds people by phone and personnel number and says when nobody matches', async () => {
     mockData(mixedAccounts(), mixedMembers())
     renderScreen(<PeoplePanel />)
-    await rowOf('anna')
+    // Printed grouped, as everywhere else a number is shown.
+    expect([...(await rowOf('anna')).querySelectorAll('td')].map((td) => td.textContent)).toContain('+48\u00a0601\u00a0220\u00a0118')
     const search = screen.getByRole('searchbox', { name: /Szukaj osoby/ })
 
     fireEvent.change(search, { target: { value: '500 100' } })
@@ -860,6 +881,7 @@ describe('PeoplePanel table states and export', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Eksportuj CSV' }))
 
     expect(click).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText('Pobrano plik osoby-2026-09-10.csv')).toBeInTheDocument()
     await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:people'))
     expect(Array.from(new Uint8Array(await exported!.slice(0, 3).arrayBuffer()))).toEqual([0xef, 0xbb, 0xbf])
     expect((await exported!.text()).split('\n')).toEqual([
@@ -1860,6 +1882,10 @@ describe('PeoplePanel qualification periods', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zapisz (1)' }))
     await waitFor(() => expect(save).toHaveBeenCalledWith({ id: 'e1', input: { starts_on: '2025-10-01', ends_on: null } }))
     expect(await screen.findByText('Zapisano: okres PRIMARY')).toBeInTheDocument()
+    // New dates are offered back like a removal: Undo writes the stored ones.
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ id: 'e1', input: { starts_on: '2025-09-02', ends_on: null } }))
+    expect(await screen.findByText('Cofnięto')).toBeInTheDocument()
   })
 
   it('ends a qualification today on save and puts its end date back with Undo', async () => {
