@@ -644,12 +644,15 @@ async def test_the_candidate_list_takes_the_rotation_into_account(world) -> None
         today=TODAY,
     )
 
+    def dawid(options):
+        return next(option for option in options if option.member == world.dawid)
+
     # A rest rule no longer rules the candidate out: it is what a request to
     # them has to acknowledge.
-    assert {item.rule: item.days for item in breaking[0].rule_violations} == FOURTH_DAY_IN_A_ROW
-    assert breaking[0].blocking_violations == ()
-    assert breaking[0].next_step is None
-    assert offered[0].rule_violations == ()
+    assert {item.rule: item.days for item in dawid(breaking).rule_violations} == FOURTH_DAY_IN_A_ROW
+    assert dawid(breaking).blocking_violations == ()
+    assert dawid(breaking).next_step is None
+    assert dawid(offered).rule_violations == ()
 
 
 async def test_options_leave_out_whoever_cannot_take_the_slot(world) -> None:
@@ -663,10 +666,14 @@ async def test_options_leave_out_whoever_cannot_take_the_slot(world) -> None:
         today=TODAY,
     )
 
-    # Bartek holds the opposite on-call role that day, the rest cannot serve.
-    assert [option.member.display_name for option in options] == ["Dawid"]
-    assert options[0].blocking_violations == ()
-    assert options[0].next_step is None
+    # Bartek holds the opposite on-call role that day: listed, but blocked
+    # with the reason; the rest cannot serve at all.
+    by_name = {option.member.display_name: option for option in options}
+    assert sorted(by_name) == ["Bartek", "Dawid"]
+    assert by_name["Dawid"].blocking_violations == ()
+    assert by_name["Dawid"].next_step is None
+    assert "same_day_oncall" in {item.rule for item in by_name["Bartek"].blocking_violations}
+    assert by_name["Bartek"].next_step == BLOCKED_NEXT_STEP
 
 
 async def test_options_for_a_past_day_are_empty_before_anything_is_read() -> None:

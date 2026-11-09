@@ -233,7 +233,9 @@ async def test_the_candidates_are_judged_for_the_scope(world, anchor) -> None:
         return {option.member.display_name: option for option in listed}
 
     whole = await options(anchor, "whole")
-    assert set(whole) == {"Bartek", "Celina", "Dawid"}
+    # Ewa holds the other on-call role that day: listed, but blocked.
+    assert set(whole) == {"Bartek", "Celina", "Dawid", "Ewa"}
+    assert ("double_oncall", "Ewa") in rules(whole["Ewa"].blocking_violations)
     assert whole["Dawid"].slots == ((DAY, anchor), (DAY, LATE))
     assert whole["Celina"].slots == ((DAY, anchor),)
     assert rules(whole["Celina"].warning_violations) == split("Anna", "Celina")
@@ -285,7 +287,11 @@ async def test_under_an_independent_late_shift_the_whole_duty_needs_both_roles(
         world.swaps,
         today=TODAY,
     )
-    assert {option.member.display_name: option.slots for option in listed} == {
+    assert {
+        option.member.display_name: option.slots
+        for option in listed
+        if not option.blocking_violations
+    } == {
         "Bartek": ((DAY, anchor), (DAY, LATE)),
         "Dawid": ((DAY, anchor), (DAY, LATE)),
     }
