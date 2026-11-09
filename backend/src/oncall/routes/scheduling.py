@@ -116,16 +116,14 @@ def _scheduling_errors():
 
 
 async def _written_schedule(
-    schedule_id: uuid.UUID, reads: ScheduleQueryPorts, *, warnings: list[str] | None = None
+    schedule_id: uuid.UUID, reads: ScheduleQueryPorts
 ) -> DraftScheduleResponse:
     """The schedule read back after its unit of work is written."""
     schedule = await reads.schedules.schedule(schedule_id)
     if schedule is None:
         with _scheduling_errors():
             raise errors.ScheduleNotFound()
-    return schedule_response(
-        await queries.view_schedule(schedule, reads, today=business_today(), warnings=warnings)
-    )
+    return schedule_response(await queries.view_schedule(schedule, reads, today=business_today()))
 
 
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED, response_model=dict)
@@ -213,7 +211,7 @@ async def override_draft_assignment(
     __: CsrfGuard,
 ) -> DraftScheduleResponse:
     with _scheduling_errors():
-        warnings = await drafts.correct_draft(
+        await drafts.correct_draft(
             DraftCorrection(
                 actor=actor_from(user),
                 schedule_id=schedule_id,
@@ -225,7 +223,7 @@ async def override_draft_assignment(
             ),
             ports,
         )
-    return await _written_schedule(schedule_id, reads, warnings=warnings)
+    return await _written_schedule(schedule_id, reads)
 
 
 @router.get("/drafts", response_model=list[ScheduleSummaryResponse])

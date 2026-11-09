@@ -4,6 +4,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { renderScreen } from '../test/render'
 import { OffboardingDialog } from './OffboardingDialog'
+import { useDutiesAfterExit } from '../hooks/useDutiesAfterExit'
 import { ApiError, api } from '../api'
 import type { CalendarData, TeamMember } from '../api'
 
@@ -380,6 +381,41 @@ describe('OffboardingDialog', () => {
     fireEvent.click(acknowledgement)
     expect(acknowledgement).not.toBeChecked()
     expect(confirm).toBeDisabled()
+  })
+
+  it('writes nothing for an exit date before the entry', async () => {
+    const entering: TeamMember = {
+      ...leaving,
+      active_from: '2026-11-16',
+      eligibility: [{ id: 'e1', role: 'primary', starts_on: '2026-11-16', ends_on: null }],
+    }
+    const calendar = vi.spyOn(api, 'calendar')
+    const removed = vi.spyOn(api, 'deleteEligibility')
+    const finished = vi.spyOn(api, 'updateTeamMember')
+    renderScreen(<OffboardingDialog open member={entering} activeUntil="2026-11-08" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Data wyjścia 08-11-2026 jest przed wejściem do rotacji 16-11-2026. Zmień datę w polu „Wyjście do”.')
+    expect(screen.queryByText(/Kwalifikacje tej osoby skończą się/)).not.toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Zakończ rotację' })
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(calendar).not.toHaveBeenCalled()
+    expect(removed).not.toHaveBeenCalled()
+    expect(finished).not.toHaveBeenCalled()
+  })
+
+  it('says only why it stops when the panel already searched the duties after that date', async () => {
+    const entering: TeamMember = { ...leaving, active_from: '2026-11-16' }
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendarWith([]))
+    function PanelSearch() {
+      useDutiesAfterExit(entering, '2026-11-08')
+      return null
+    }
+    renderScreen(<><PanelSearch /><OffboardingDialog open member={entering} activeUntil="2026-11-08" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} /></>)
+
+    await waitFor(() => expect(api.calendar).toHaveBeenCalled())
+    expect(screen.getByRole('alert')).toHaveTextContent('Data wyjścia 08-11-2026 jest przed wejściem do rotacji 16-11-2026.')
+    expect(screen.queryByText('Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.')).not.toBeInTheDocument()
   })
 
   it('reports a calendar that cannot be read', async () => {

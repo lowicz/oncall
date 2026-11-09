@@ -1182,7 +1182,7 @@ export function PeoplePanel() {
                       onAdd={addPeriod}
                       onDropNew={(period) => setNewPeriods((current) => current.filter((entry) => entry !== period))}
                     />
-                    {selectedState !== 'ended' && (
+                    {selectedState === 'active' && (
                       <div className="row">
                         <Button onClick={() => openOffboarding(rotationUntil || today)}>{t.rotationTab.endRotation}</Button>
                         <span className="muted small">{t.rotationTab.endRotationHint}</span>

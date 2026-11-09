@@ -34,7 +34,11 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
   const t = m.people.offboarding
   const toast = useToast()
   const navigate = useNavigate()
-  const { calendar, found, duties } = useDutiesAfterExit(member, activeUntil, open)
+  // The server refuses an exit before the entry only after the periods were
+  // closed, so such a date stops the dialog before its first write. No date
+  // is searched then, not even the one the panel already has cached.
+  const exitBeforeEntry = activeUntil < member.active_from
+  const { calendar, found, duties } = useDutiesAfterExit(member, exitBeforeEntry ? '' : activeUntil, open)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [violations, setViolations] = useState<RuleViolation[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
@@ -152,13 +156,13 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
       dismissible={!busy}
       size="lg"
       title={t.title(member.display_name)}
-      description={t.description(formatDate(activeUntil), duties.length)}
+      description={exitBeforeEntry ? undefined : t.description(formatDate(activeUntil), duties.length)}
       actions={(
         <>
           <Button onClick={onClose} disabled={busy}>{m.common.cancel}</Button>
           <Button
             variant="danger"
-            disabled={calendar.isLoading || !complete || busy || (violations.length > 0 && !acknowledged)}
+            disabled={exitBeforeEntry || calendar.isLoading || !complete || busy || (violations.length > 0 && !acknowledged)}
             loading={busy}
             onClick={() => (violations.length > 0
               ? submit.mutate()
@@ -169,6 +173,7 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
         </>
       )}
     >
+      {exitBeforeEntry && <Box tone="bad" role="alert" title={t.exitBeforeEntry(formatDate(activeUntil), formatDate(member.active_from))} />}
       {calendar.isLoading && <LoadingBlock label={t.searchingDuties} rows={2} />}
       {calendar.error && <Box tone="bad" role="alert" title={calendar.error.message} />}
       {check.error && <Box tone="bad" role="alert" title={check.error.message} />}

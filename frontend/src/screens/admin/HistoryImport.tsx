@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HistoryImportPreview, HistoryImportRecord, api } from '../../api'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -25,6 +25,8 @@ export function HistoryImportPanel() {
   const imports = useQuery({ queryKey: ['history-imports'], queryFn: api.historyImports })
   const [preview, setPreview] = useState<HistoryImportPreview | null>(null)
   const upload = useMutation({ mutationFn: api.previewHistory, onSuccess: setPreview })
+  // A real button opens the hidden input, so the keyboard and a screen reader reach it.
+  const fileInput = useRef<HTMLInputElement>(null)
   const commit = useMutation({
     mutationFn: api.commitHistory,
     onSuccess: () => {
@@ -60,20 +62,20 @@ export function HistoryImportPanel() {
       />
       <div className="panel panel-padded stack-sm">
         <div className="row">
-          <label className="btn btn-pri">
+          <Button variant="primary" loading={upload.isPending} onClick={() => fileInput.current!.click()}>
             {upload.isPending ? t.checking : t.chooseCsv}
-            <input
-              hidden
-              type="file"
-              accept=".csv,text/csv"
-              disabled={upload.isPending}
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) upload.mutate(file)
-                event.target.value = ''
-              }}
-            />
-          </label>
+          </Button>
+          <input
+            ref={fileInput}
+            hidden
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) upload.mutate(file)
+              event.target.value = ''
+            }}
+          />
           <AnchorButton href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download={t.templateFileName} icon="download">
             {t.downloadTemplate}
           </AnchorButton>

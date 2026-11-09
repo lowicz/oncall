@@ -107,7 +107,10 @@ missing it.
 Further down, **Proposed staffing** - a people × days matrix, in the same
 convention as the published schedule: the headers keep the weekday, the
 holiday and 2X, and a day missing `PRIMARY` or `SECONDARY` has its header
-marked as a gap; the **Legend** link explains the marks.
+marked as a gap; the **Legend** link explains the marks. From the keyboard the
+matrix is a single Tab stop, as the published schedule is: you move across the
+cells with the arrow keys, `Home` and `End` jump to the beginning and end of
+the row, `PageUp` and `PageDown` jump a week, and `Enter` opens the day panel.
 
 Under the matrix there are four tabs:
 

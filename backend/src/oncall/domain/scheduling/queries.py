@@ -36,16 +36,11 @@ async def view_schedule(
     ports: ScheduleQueryPorts,
     *,
     today: date,
-    warnings: list[str] | None = None,
 ) -> ScheduleView:
-    """The schedule with everything the generator screen shows next to it.
-
-    `warnings` replaces the rule warnings computed from the schedule, for a
-    correction that reports the rules its replacement breaks.
-    """
+    """The schedule with everything the generator screen shows next to it."""
     return ScheduleView(
         schedule=schedule,
-        rule_warnings=tuple(rule_warnings(schedule) if warnings is None else warnings),
+        rule_warnings=tuple(rule_warnings(schedule)),
         unavailability_conflicts=await drafts.unavailability_conflicts(schedule, ports.team),
         uncovered_before=tuple(await uncovered_dates(schedule.starts_on, ports.roster, today)),
         stale_changes_count=await stale_changes_count(schedule, ports.changes),

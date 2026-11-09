@@ -137,6 +137,19 @@ describe('HistoryImportPanel import', () => {
     ])
   })
 
+  it('opens the file dialog from a button the keyboard reaches', async () => {
+    vi.spyOn(api, 'historyImports').mockResolvedValue([])
+    const { container } = renderScreen(<HistoryImportPanel />)
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement
+    const opened = vi.spyOn(input, 'click')
+
+    const button = await screen.findByRole('button', { name: 'Wybierz CSV' })
+    button.focus()
+    expect(button).toHaveFocus()
+    fireEvent.click(button)
+    expect(opened).toHaveBeenCalledTimes(1)
+  })
+
   it('does nothing when the file dialog is closed without a file', async () => {
     vi.spyOn(api, 'historyImports').mockResolvedValue([])
     const previewHistory = vi.spyOn(api, 'previewHistory')
