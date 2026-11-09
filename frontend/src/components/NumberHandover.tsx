@@ -21,7 +21,7 @@ const PILL_STATES = { confirmed: 'ok', switching: 'pending', failed: 'failed' } 
 /** "numer on-call · przełączam · do 13:40": where it rings, then its state or end. */
 function pillWords(now: HeldNumber, where: string) {
   const t = messages().duty.handover
-  if (now.status === 'failed') return `${where} · ${t.failed}`
+  if (now.status === 'failed') return `${where} · ${now.mode === 'dry_run' ? t.failedDryRun : t.failed}`
   const until = now.handover ? t.until(formatClock(now.handover.until)) : null
   return [where, now.status === 'switching' ? t.switching : null, until].filter(Boolean).join(' · ')
 }
@@ -36,7 +36,7 @@ export function NumberPill({ now, where }: Readonly<{ now: HeldNumber; where: st
   const statusLine = {
     confirmed: now.confirmed_at ? t.confirmed(formatClock(now.confirmed_at)) : null,
     switching: t.switching,
-    failed: t.failed,
+    failed: now.mode === 'dry_run' ? t.failedDryRun : t.failed,
   }[now.status]
   return (
     <Popover title={t.title} className="pop-handover" trigger={<StatusPill state={PILL_STATES[now.status]}>{pillWords(now, where)}</StatusPill>}>

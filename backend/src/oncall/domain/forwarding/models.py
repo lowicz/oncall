@@ -61,7 +61,8 @@ class SwitchStatus(StrEnum):
     #: The pass has not reached it yet, or retries a failure it does not
     #: alert about yet.
     switching = "switching"
-    #: The failure alert went out: the number still rings somewhere else.
+    #: The failure alert went out: the number still rings somewhere else. In
+    #: a dry run, which alerts nobody, the pass failed.
     failed = "failed"
 
 

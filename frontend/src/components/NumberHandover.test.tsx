@@ -95,6 +95,14 @@ describe('NumberPill', () => {
     await expectNoAxeViolations(container)
   })
 
+  it('says at once that a dry run failed, and that nobody was e-mailed about it', async () => {
+    renderScreen(<NumberPill now={handedOver({ mode: 'dry_run', status: 'failed', confirmed_at: null })} where="numer on-call u Ciebie" />)
+    fireEvent.click(screen.getByRole('button', { name: 'numer on-call u Ciebie · nie przełączono (próba)' }))
+    const details = await screen.findByRole('dialog', { name: 'Numer on-call' })
+    expect(details).toHaveTextContent('Próbne logowanie do WCO nie powiodło się. W trybie próbnym nikt nie dostaje e-maila; proces próbuje dalej sam.')
+    expect(details).not.toHaveTextContent('Alarm e-mail')
+  })
+
   it('says a handover is still switching and until when it holds, in a dry run too, but not who started it', async () => {
     renderScreen(<NumberPill now={handedOver({ mode: 'dry_run', status: 'switching', confirmed_at: null })} where="numer on-call u Ciebie" />)
     const pill = screen.getByRole('button', { name: 'numer on-call u Ciebie · przełączam · do 11:00' })

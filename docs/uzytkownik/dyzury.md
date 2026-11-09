@@ -70,7 +70,9 @@ zmienia stan na bieżąco, a stan jest też podany tekstem, nie samym kolorem:
 | **nie przełączono** | WCO nie potwierdziło po progu alarmu; numer może nadal dzwonić u poprzedniej osoby |
 
 W trybie **Próbny** szczegóły mówią, że WCO nie zostanie zmienione: przekazanie
-jest zapisane, ale numer w centrali zostaje, jak był.
+jest zapisane, ale numer w centrali zostaje, jak był. Gdy próbne logowanie do
+WCO się nie uda, znacznik od razu mówi **nie przełączono (próba)**, a
+szczegóły - że w trybie próbnym nikt nie dostaje e-maila.
 
 ### Jak przekazać numer
 

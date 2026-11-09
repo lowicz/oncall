@@ -61,6 +61,8 @@ export const duty = {
     until: (clock: string) => `do ${clock}`,
     switching: 'przełączam',
     failed: 'nie przełączono',
+    /** A dry run that failed: nothing was to change in WCO, nobody was e-mailed. */
+    failedDryRun: 'nie przełączono (próba)',
     details: {
       title: 'Numer on-call',
       holder: (name: string, role: string) => `Odbiera ${name} (${role}).`,
@@ -69,6 +71,7 @@ export const duty = {
       switching: 'Przełączam numer: WCO jeszcze nie potwierdziło przekierowania.',
       failed: 'Nie udało się przełączyć numeru. Alarm e-mail poszedł do koordynatorów i do pary dyżurnej; proces próbuje dalej sam.',
       dryRun: 'Tryb próbny: WCO nie zostanie zmienione.',
+      failedDryRun: 'Próbne logowanie do WCO nie powiodło się. W trybie próbnym nikt nie dostaje e-maila; proces próbuje dalej sam.',
     },
     hand: 'Przekaż numer…',
     take: 'Przejmij numer…',

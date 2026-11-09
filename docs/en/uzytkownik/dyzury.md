@@ -74,7 +74,9 @@ state is also given in words, not by colour alone:
 | **not switched** | WCO did not confirm by the alert threshold; the number may still ring at the previous person |
 
 In **Dry run** mode the details say that WCO will not be changed: the handover
-is recorded, but the number at the switchboard stays as it was.
+is recorded, but the number at the switchboard stays as it was. When the trial
+sign-in to WCO fails, the badge says **not switched (trial)** at once, and the
+details say that in a dry run nobody gets an e-mail.
 
 ### How to hand the number over
 
