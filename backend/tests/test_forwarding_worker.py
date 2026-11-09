@@ -199,6 +199,24 @@ async def test_live_pass_updates_wco_once_and_records_audit_and_metrics(
     assert fake.calls == calls
 
 
+async def test_a_duty_saved_by_name_alone_forwards_to_that_member(
+    db, db_factory, frozen_clock, forwarding_key, monkeypatch
+) -> None:
+    fake = FakeWco()
+    _use_fake(monkeypatch, fake)
+    user, member = await _primary(db, frozen_clock)
+    for row in (await db.scalars(select(Assignment))).all():
+        row.member_id = None
+    await db.commit()
+    await _settings(db, fake, ForwardingMode.live)
+
+    assert await worker.scan_forwarding(db_factory, now_warsaw=_now(frozen_clock)) == 1
+
+    assert fake.user["number"] == user.phone
+    state = await _one(db_factory, CallForwardingState)
+    assert state.applied_member_id == member.id
+
+
 async def test_dry_run_reads_without_updating_and_runs_once_per_target(
     db, db_factory, frozen_clock, forwarding_key, monkeypatch
 ) -> None:
