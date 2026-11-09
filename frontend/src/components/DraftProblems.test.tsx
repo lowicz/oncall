@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { DraftSchedule } from '../api'
-import { DraftProblems, draftProblems, problemCounts } from './DraftProblems'
+import { DraftProblems } from './DraftProblems'
+import { draftProblems, problemCounts } from '../lib/draftProblems'
 
 const draft = (over: Partial<DraftSchedule>): DraftSchedule => ({
   id: 'd1',

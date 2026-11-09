@@ -102,7 +102,8 @@ export function RoleSwapTrigger({ swap, open, controls, undo, disabled, onToggle
           size="sm"
           icon="swap"
           aria-expanded={open}
-          aria-controls={controls}
+          // The frame exists only while open, so it is named only then.
+          aria-controls={open ? controls : undefined}
           aria-label={t.triggerLabel(swap.primary.name, swap.secondary.name)}
           disabled={disabled}
           onClick={onToggle}

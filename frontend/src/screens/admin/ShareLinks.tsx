@@ -8,7 +8,7 @@ import { CopyButton } from '../../components/CopyButton'
 import { DateField } from '../../components/DateField'
 import { Box, Button, Checkbox, EmptyState, ErrorState, Field, Input, List, ListRow, LoadingBlock, PageHeader, SectionHeading, Select, StatusBadge, StatusTone } from '../../ui'
 
-export const shareLinkStatus = (link: { used_at: string | null; revoked_at: string | null; expires_at: string }): { label: string; tone: StatusTone } => {
+const shareLinkStatus = (link: { used_at: string | null; revoked_at: string | null; expires_at: string }): { label: string; tone: StatusTone } => {
   const t = messages().shareLinks.status
   if (link.revoked_at) return { label: t.revoked, tone: 'bad' }
   if (link.used_at) return { label: t.used, tone: 'ok' }

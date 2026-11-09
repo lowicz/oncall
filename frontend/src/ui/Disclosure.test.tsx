@@ -11,6 +11,8 @@ describe('Disclosure', () => {
     )
     const summary = screen.getByRole('button', { name: /Ustawienia zaawansowane/ })
     expect(summary).toHaveAttribute('aria-expanded', 'false')
+    // It names the body it controls only while the body exists.
+    expect(summary).not.toHaveAttribute('aria-controls')
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(container.firstElementChild).toHaveClass('panel', 'details', 'mine')
 

@@ -1790,9 +1790,10 @@ describe('CalendarMatrix role swap (P6)', () => {
     const open = trigger(dialog)
     expect(open).toHaveTextContent('Zamień miejscami…')
     expect(open).toHaveAttribute('aria-expanded', 'false')
-    expect(open).toHaveAttribute('aria-controls', 'role-swap-frame')
+    expect(open).not.toHaveAttribute('aria-controls')
     fireEvent.click(open)
     expect(open).toHaveAttribute('aria-expanded', 'true')
+    expect(open).toHaveAttribute('aria-controls', 'role-swap-frame')
 
     const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
     expect(frame).toHaveAttribute('id', 'role-swap-frame')

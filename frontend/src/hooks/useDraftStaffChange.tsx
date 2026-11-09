@@ -20,7 +20,7 @@ import { roleLabels } from '../lib/labels'
 import { signed } from '../lib/numbers'
 import { useUndoable } from './useUndoable'
 import { Box, Button, useToast } from '../ui'
-import { problemCounts } from '../components/DraftProblems'
+import { problemCounts } from '../lib/draftProblems'
 import { RolesFieldset, StaffChangePreview } from '../components/StaffChangePreview'
 
 type Member = CalendarData['members'][number]

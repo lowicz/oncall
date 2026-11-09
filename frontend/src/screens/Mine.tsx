@@ -30,7 +30,7 @@ import { useUrlParams } from '../hooks/useUrlParams'
 import { DEFAULT_UNDO_WINDOW_SECONDS, newUndoId, undoable } from '../lib/undo'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
-import { coverageWindowText } from '../components/CalendarMatrix'
+import { coverageWindowText } from '../lib/coverage'
 import {
   Box,
   Button,

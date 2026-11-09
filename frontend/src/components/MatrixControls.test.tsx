@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { chooseFromMenu, openMenu } from '../test/menu'
-import { LegendPopover, MatrixControls, MatrixView } from './MatrixControls'
+import { LegendPopover, MatrixControls } from './MatrixControls'
+import type { MatrixView } from '../lib/matrixView'
 import type { MatrixZoom } from './CalendarMatrix'
 
 function setup(over: Partial<Parameters<typeof MatrixControls>[0]> = {}) {

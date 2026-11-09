@@ -4,13 +4,9 @@ import { useMessages } from '../i18n'
 import { roleLabels } from '../lib/labels'
 import { formatDayShort } from '../lib/dates'
 import { formatDecimal } from '../lib/numbers'
-import { draftFairnessImpactQuery } from '../lib/fairness'
+import { draftFairnessImpactQuery, shortfallCause, worstSpread } from '../lib/fairness'
 import { Box, Button, Disclosure, IconButton, Menu, MenuItem, StatusBadge } from '../ui'
-import { problemCounts } from './DraftProblems'
-import { shortfallCause, worstSpread } from './DraftFairnessPanel'
-
-/** CP-SAT statuses that mean the model was actually solved. */
-export const SOLVER_OK = new Set(['OPTIMAL', 'FEASIBLE'])
+import { SOLVER_OK, problemCounts } from '../lib/draftProblems'
 
 /**
  * The one panel above the draft matrix: the verdict (hard rules, the fairness

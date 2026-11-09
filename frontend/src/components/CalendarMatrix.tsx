@@ -2,6 +2,7 @@ import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, CalendarEventRef, UserRole, api } from '../api'
 import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
+import { coverageWindowText } from '../lib/coverage'
 import { eventDates, formatDate, formatDay, formatShortDate, formatWeekday, fourWeekRangeEnd, warsawDate } from '../lib/dates'
 import {
   LateShiftLink,
@@ -53,12 +54,6 @@ type Day = CalendarData['days'][number]
 type Member = CalendarData['members'][number]
 
 const ROLES: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
-
-/** Clock window of a duty, mirroring backend coverage.py (PLAN.md §3). */
-export function coverageWindowText(day: Pick<Day, 'is_day_off'>, role: AssignmentRole): string {
-  if (role === 'late_shift') return '11:00–19:00'
-  return day.is_day_off ? messages().schedule.allDay : '19:00–09:00'
-}
 
 /** How the 11–19 row stands to the policy's coupling (NP-07). */
 function lateTag(link: LateShiftLink) {

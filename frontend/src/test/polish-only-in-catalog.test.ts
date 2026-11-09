@@ -16,7 +16,7 @@ const POLISH = /[ąęłńóśżźćĄĘŁŃÓŚŻŹĆ]/
 
 /** Source files that spell Polish letters on purpose, with the reason. */
 const ALLOWED: Record<string, string> = {
-  'components/CommandPalette.tsx': 'the date parser accepts a Polish month name typed by hand',
+  'lib/dates.ts': 'the date parser accepts a Polish month name typed by hand',
 }
 
 function* sourceFiles(dir: string): Generator<string> {

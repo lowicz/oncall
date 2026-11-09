@@ -6,7 +6,7 @@ import { RoleSwap, Roster, draftSwapLines, roleSwapOf, staffChanges, swapHolders
 import { formatShortDate } from '../lib/dates'
 import { useUndoable } from './useUndoable'
 import { Box, Button, useToast } from '../ui'
-import { problemCounts } from '../components/DraftProblems'
+import { problemCounts } from '../lib/draftProblems'
 import { RoleSwapPreview, RoleSwapTrigger } from '../components/RoleSwapPreview'
 
 const FRAME_ID = 'draft-role-swap-frame'

@@ -4,7 +4,8 @@ import { Toast as BaseToast } from '@base-ui/react/toast'
 import { messages } from '../i18n'
 import { loadRealStylesheet } from '../test/stylesheet'
 import { expectNoAxeViolations } from '../test/axe'
-import { ToastProvider, useToast } from './Toast'
+import { ToastProvider } from './Toast'
+import { useToast } from './useToast'
 
 type Api = ReturnType<typeof useToast>
 type Show = (toast: Api) => void
@@ -60,6 +61,23 @@ describe('toasts', () => {
     expect(screen.getByText('Usunięto wpis')).toBeInTheDocument()
     await act(() => vi.advanceTimersByTimeAsync(1100))
     await waitFor(() => expect(screen.queryByText('Usunięto wpis')).not.toBeInTheDocument())
+  })
+
+  it('draws what is left of the action\'s window, for the eye only, and drops it with the action', async () => {
+    renderToasts((toast) => toast.success('Usunięto wpis', { action: { label: 'Cofnij', onClick: () => {} }, until: { at: Date.now() + 10_000, expired: 'E-maile już wyszły' } }))
+    const item = await toastNamed('Usunięto wpis')
+    fireEvent.mouseEnter(item.closest('.toasts') as HTMLElement)
+    const bar = item.querySelector<HTMLElement>('.toast-countdown')!
+    expect(bar).toHaveAttribute('aria-hidden', 'true')
+    expect(bar.style.animationDuration).toBe('10000ms')
+    await act(() => vi.advanceTimersByTimeAsync(10_100))
+    expect(within(item).getByText('E-maile już wyszły')).toBeInTheDocument()
+    expect(item.querySelector('.toast-countdown')).toBeNull()
+  })
+
+  it('draws no countdown on a toast without a deadline', async () => {
+    renderToasts((toast) => toast.success('Zapisano'))
+    expect((await toastNamed('Zapisano')).querySelector('.toast-countdown')).toBeNull()
   })
 
   it.each([

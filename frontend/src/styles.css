@@ -401,8 +401,6 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .panel-head { display: flex; align-items: flex-start; gap: 8px; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
 .panel-heading { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .panel-title { font: 700 20px/24px var(--font); }
-/* The title takes focus only so a screen reader starts there; it is not a control, so it draws no ring. */
-.panel-title:focus-visible { outline: none; }
 .panel-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .panel-close { margin-top: -4px; }
 .panel-body { padding: 16px 20px; overflow: auto; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
@@ -476,6 +474,10 @@ body:has(.panel-popup .panel-foot) .toasts { bottom: calc(80px + env(safe-area-i
 .toast-title { font-size: inherit; font-weight: 600; }
 .toast-desc { color: var(--muted); }
 .toast .btn, .toast .ib { flex: 0 0 auto; }
+/* What is left of an Undo window, shrinking to nothing as the server's window closes. */
+.toast { position: relative; }
+.toast-countdown { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 1px; background: var(--sig); transform-origin: left; animation: toast-countdown linear forwards; }
+@keyframes toast-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .pal-popup { position: fixed; left: 50%; top: 12vh; transform: translateX(-50%); width: min(560px, calc(100vw - 24px)); background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden; z-index: 45; outline: none; max-height: 70vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .pal-in { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .pal-in input { flex: 1; background: none; border: 0; outline: none; font-size: 14px; line-height: 21px; color: var(--fg); min-width: 0; }

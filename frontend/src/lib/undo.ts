@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { messages } from '../i18n'
-import type { ToastApi } from '../ui/Toast'
+import type { ToastApi } from '../ui/useToast'
 
 /** The server's Undo window for the moment before `/api/v1/config` has arrived. */
 export const DEFAULT_UNDO_WINDOW_SECONDS = 10

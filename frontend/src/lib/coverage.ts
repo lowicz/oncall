@@ -1,4 +1,4 @@
-import { CurrentDuty } from '../api'
+import { AssignmentRole, CurrentDuty } from '../api'
 import { weekdays } from './dates'
 import { messages } from '../i18n/messages'
 
@@ -30,4 +30,10 @@ export function formatUntil(end: Date | null, now: Date): string {
   const rest = minutes % 60
   const left = hours > 0 ? t.hoursMinutes(hours, rest) : t.minutes(rest)
   return t.untilWithLeft(when, left)
+}
+
+/** Clock window of a duty, mirroring backend coverage.py (PLAN.md §3). */
+export function coverageWindowText(day: { is_day_off: boolean }, role: AssignmentRole): string {
+  if (role === 'late_shift') return '11:00–19:00'
+  return day.is_day_off ? messages().schedule.allDay : '19:00–09:00'
 }
