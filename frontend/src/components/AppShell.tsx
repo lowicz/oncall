@@ -232,11 +232,16 @@ export function AppShell({ displayName, avatar = null, access, share }: {
         ) : (
           <NowStrip>
             {!share && (
-              <button type="button" className="now-search" onClick={() => setPaletteOpen(true)} aria-label={t.shell.searchHint} aria-keyshortcuts="Control+K">
-                <Icon name="search" />
-                <span>{t.shell.search}</span>
-                <span className="kbd" translate="no">Ctrl K</span>
-              </button>
+              // Named by the words it shows, so a voice user can say them;
+              // what it searches is its description.
+              <>
+                <button type="button" className="now-search" onClick={() => setPaletteOpen(true)} title={t.shell.searchHint} aria-describedby="now-search-hint" aria-keyshortcuts="Control+K">
+                  <Icon name="search" />
+                  <span>{t.shell.search}</span>
+                  <span className="kbd" translate="no" aria-hidden="true">Ctrl K</span>
+                </button>
+                <span id="now-search-hint" className="sr-only">{t.shell.searchHint}</span>
+              </>
             )}
             {accountMenu}
           </NowStrip>

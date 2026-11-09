@@ -432,7 +432,10 @@ describe('AppShell command palette', () => {
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     renderShell({ role: 'member', hasTeamMember: true })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Szukaj osoby, dnia, ekranu lub akcji' }))
+    // The strip's pill is named by what it shows and described by what it searches.
+    const search = await screen.findByRole('button', { name: 'Szukaj…' })
+    expect(search).toHaveAccessibleDescription('Szukaj osoby, dnia, ekranu lub akcji')
+    fireEvent.click(search)
     fireEvent.keyDown(await palette(), { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('combobox', { name: 'Szukaj' })).not.toBeInTheDocument())
 
@@ -459,7 +462,7 @@ describe('AppShell command palette', () => {
       label: 'Audyt', starts_on: '2026-09-05', ends_on: '2026-10-02', expires_at: '2026-10-03T00:00:00Z',
     })
     await screen.findByText(/zakres 05-09-2026/)
-    expect(screen.queryByRole('button', { name: 'Szukaj osoby, dnia, ekranu lub akcji' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Szukaj…' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^Konto: / }))
     expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: /Paleta poleceń/ })).not.toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true })

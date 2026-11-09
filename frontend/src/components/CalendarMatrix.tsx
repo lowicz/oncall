@@ -395,7 +395,7 @@ export function CalendarMatrix({
             <caption className="sr-only">{t.grid.caption(formatDate(range.starts_on), formatDate(range.ends_on))}</caption>
             <thead>
               <tr className="mrow">
-                <th scope="col" className="who" />
+                <th scope="row" className="who"><span className="sr-only">{t.grid.month}</span></th>
                 {months.map((month) => (
                   <th key={month.key} scope="col" colSpan={month.span} className="mo">
                     {month.span >= 4 ? month.label : month.shortLabel}
@@ -471,15 +471,16 @@ export function CalendarMatrix({
                               aria-label={cellLabel(
                                 member.display_name,
                                 day,
-                                assignments.map((assignment) => [
-                                  roleLabels()[assignment.role],
-                                  assignment.change_kind ? t.changes[assignment.change_kind] : '',
-                                ].filter(Boolean).join(' ')),
+                                assignments.map((assignment) => ({
+                                  role: assignment.role,
+                                  note: assignment.change_kind ? t.changes[assignment.change_kind] : undefined,
+                                })),
                                 availability?.kind,
                               )}
                             >
                               {assignments.map((assignment) => (
-                                <RoleMark key={assignment.role} role={assignment.role} change={assignment.change_kind} size={zoom === '8' ? 'sm' : undefined} />
+                                // The space keeps two marks two words, as the cell's name reads them.
+                                <Fragment key={assignment.role}><RoleMark role={assignment.role} change={assignment.change_kind} size={zoom === '8' ? 'sm' : undefined} />{' '}</Fragment>
                               ))}
                               {availability && <AvailabilityMark kind={availability.kind} />}
                             </button>
@@ -508,7 +509,7 @@ export function CalendarMatrix({
         )}
         footer={roleSwap.open ? roleSwap.footer : staffChange.open ? staffChange.footer : (
           <>
-            {canCoordinate && selected && !selectedDayPublished && (
+            {canCoordinate && selected && !selectedDayPublished && selected.day.service_date >= today && (
               <LinkButton
                 to={`/generator?od=${selected.day.service_date}&do=${fourWeekRangeEnd(selected.day.service_date)}`}
                 onClick={closeInspector}
@@ -539,7 +540,10 @@ export function CalendarMatrix({
       >
         {selected && !selectedDayPublished && (
           <Box tone="muted">
-            {t.inspector.outsideRange} {canCoordinate ? t.inspector.outsideRangeCoordinator : t.inspector.outsideRangeMember}
+            {selected.day.service_date < today
+              // A past day is history: nothing to generate for it any more.
+              ? (ROLES.some((item) => slots.has(`${selected.day.service_date}|${item}`)) ? t.inspector.pastImported : t.inspector.pastOutside)
+              : `${t.inspector.outsideRange} ${canCoordinate ? t.inspector.outsideRangeCoordinator : t.inspector.outsideRangeMember}`}
           </Box>
         )}
         {selected && (
@@ -603,7 +607,7 @@ export function CalendarMatrix({
                       >
                         {body}
                         {/* The whole row is the button; this only shows that it is one. */}
-                        <span className={cx('btn', 'btn-sm', slot && 'btn-ghost')} aria-hidden="true">{slot ? t.inspector.change : t.inspector.staff}</span>
+                        <span className={cx('btn', 'btn-sm', slot && 'btn-ghost')} aria-hidden="true">{slot ? t.inspector.changeStaffing : t.inspector.staff}</span>
                       </button>
                     ) : (
                       <div className={className}>{body}</div>

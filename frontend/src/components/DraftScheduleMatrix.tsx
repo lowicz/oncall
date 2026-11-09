@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
 import { useMessages } from '../i18n'
-import { availabilityLabels, cellLabel, roleLabels } from '../lib/labels'
+import { availabilityLabels, cellLabel } from '../lib/labels'
 import { REQUIRED_ROLES, Roster, availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
 import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
 import { useDraftRoleSwap } from '../hooks/useDraftRoleSwap'
 import { useDraftStaffChange } from '../hooks/useDraftStaffChange'
 import { useGridNavigation } from '../hooks/useGridNavigation'
-import { AvailabilityMark, Box, ErrorState, LoadingBlock, Panel, RoleMark, Tag, cx } from '../ui'
+import { AvailabilityMark, Box, ErrorState, InlineError, LoadingBlock, Panel, RoleMark, Tag, cx } from '../ui'
 
 type Member = CalendarData['members'][number]
 type Day = CalendarData['days'][number]
@@ -41,7 +41,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   onChange: (value: DraftSchedule) => void
   focus?: DraftFocus | null
 }) {
-  const { generator: { matrix: t } } = useMessages()
+  const { generator: { matrix: t }, common } = useMessages()
   const today = warsawDate()
   const [selected, setSelected] = useState<{ member: Member; day: Day } | null>(null)
   const metadata = useQuery({
@@ -131,7 +131,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
             <caption className="sr-only">{t.caption}</caption>
             <thead>
               <tr className="mrow">
-                <th scope="col" className="who" />
+                <th scope="row" className="who"><span className="sr-only">{t.month}</span></th>
                 {months.map((month) => (
                   <th key={month.key} scope="col" colSpan={month.span} className="mo">
                     {month.span >= 4 ? month.label : month.span < 3 ? month.shortLabel.split(' ')[0] : month.shortLabel}
@@ -182,12 +182,16 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                           aria-label={cellLabel(
                             member.display_name,
                             day,
-                            assignments.map((assignment) => [roleLabels()[assignment.role], assignment.is_override ? t.correction : '', conflict ? t.clash : ''].filter(Boolean).join(' ')),
+                            assignments.map((assignment) => ({
+                              role: assignment.role,
+                              note: [assignment.is_override ? t.correction : '', conflict ? t.clash : ''].filter(Boolean).join(' '),
+                            })),
                             availability?.kind,
                           )}
                         >
                           {assignments.map((assignment) => (
-                            <RoleMark key={assignment.role} role={assignment.role} change={assignment.is_override ? 'manual_override' : null} size={days.length > 28 ? 'sm' : undefined} />
+                            // The space keeps two marks two words, as the cell's name reads them.
+                            <Fragment key={assignment.role}><RoleMark role={assignment.role} change={assignment.is_override ? 'manual_override' : null} size={days.length > 28 ? 'sm' : undefined} />{' '}</Fragment>
                           ))}
                           {availability && <AvailabilityMark kind={availability.kind} />}
                         </button>
@@ -205,7 +209,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
         onClose={closePanel}
         title={selected ? panelTitle(selected.member.display_name, formatDate(selected.day.service_date)) : ''}
         meta={selected?.day.is_day_off && <Tag>{t.dayOffTag(selected.day.holiday_name ?? t.dayOff)}</Tag>}
-        footer={roleSwap.open ? roleSwap.footer : staffChange.footer}
+        footer={policy.data && (roleSwap.open ? roleSwap.footer : staffChange.footer)}
       >
         {selected && (
           <>
@@ -226,8 +230,13 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                 {selectedAvailability.note ? t.quotedNote(selectedAvailability.note) : ''}
               </Box>
             )}
-            {roleSwap.trigger}
-            {roleSwap.frame || staffChange.form}
+            {/* The 11–19 choices follow the policy's anchor, so they wait for it rather than change under the cursor. */}
+            {policy.data ? (
+              <>
+                {roleSwap.trigger}
+                {roleSwap.frame || staffChange.form}
+              </>
+            ) : policy.isError ? <InlineError error={policy.error} /> : <LoadingBlock label={common.loading} rows={2} />}
           </>
         )}
       </Panel>

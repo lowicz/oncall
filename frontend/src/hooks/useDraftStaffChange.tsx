@@ -191,11 +191,14 @@ export function useDraftStaffChange({ draft, roster, selected, unavailable, anch
     <>
       <Button onClick={onClose}>{common.cancel}</Button>
       <span className="sp" />
+      {/* Focusable while blocked, so the group above says what is missing. */}
       <Button
         variant="primary"
-        disabled={!ready || save.isPending}
+        aria-disabled={!ready || undefined}
         loading={save.isPending}
-        onClick={() => save.mutate({ serviceDate: selected.day.service_date, changes, next: selected.member })}
+        onClick={() => {
+          if (ready) save.mutate({ serviceDate: selected.day.service_date, changes, next: selected.member })
+        }}
       >
         {label}
       </Button>

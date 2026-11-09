@@ -7,7 +7,7 @@ import { useNarrow } from '../hooks/useMediaQuery'
 import { messages, useMessages } from '../i18n'
 import { formatClock } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
-import { undoable } from '../lib/undo'
+import { DEFAULT_UNDO_WINDOW_SECONDS, undoable } from '../lib/undo'
 import { Box, Button, Field, Input, Popover, Segmented, Sheet, StatusPill, useToast } from '../ui'
 
 /** Who looks at the day's pair: either side of it, a coordinator, or nobody who may act. */
@@ -102,7 +102,7 @@ function HandoverForm({ now, pair, receiverPhone, viewer, onDone, onCancel, bloc
       message: (handover) => ({ title: t.switchingToast(handover.to_name, formatClock(handover.until)) }),
       undoLabel: common.undo,
       onUndoError: () => toast.error(t.undoFailed),
-      windowSeconds: config.data?.undo_window_seconds ?? 10,
+      windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_WINDOW_SECONDS,
     }),
     onSuccess: () => {
       refresh()

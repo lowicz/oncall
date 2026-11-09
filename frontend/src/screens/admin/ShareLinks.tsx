@@ -54,7 +54,7 @@ export function ShareLinksPanel() {
         aria-label={t.shareLinks.form.title}
         onSubmit={(event) => { event.preventDefault(); create.mutate(form) }}
       >
-        <SectionHeading as="h3" title={t.shareLinks.form.title} />
+        <SectionHeading title={t.shareLinks.form.title} />
         <div className="frow">
           <Field label={t.shareLinks.form.recipient} id="share-label" required>
             {({ id }) => <Input id={id} value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} required placeholder={t.shareLinks.form.recipientPlaceholder} />}

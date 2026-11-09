@@ -123,7 +123,16 @@ describe('Segmented', () => {
     expect(option('Dzień').tabIndex).toBe(0)
     expect(option('Tydzień').tabIndex).toBe(-1)
     expect(option('Tydzień')).toHaveAttribute('data-tone', 'ch')
-    expect(option('Wyłączone')).toBeDisabled()
+    expect(option('Wyłączone')).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('keeps a blocked option focusable but never chooses it', () => {
+    const onChange = vi.fn()
+    render(<Zoom onChange={onChange} />)
+    fireEvent.click(option('Wyłączone'))
+    expect(onChange).not.toHaveBeenCalled()
+    expect(option('Wyłączone')).toHaveAttribute('aria-checked', 'false')
+    expect(option('Wyłączone')).toBeEnabled()
   })
 
   it('chooses on click', () => {

@@ -176,7 +176,12 @@ describe('handing the number over', () => {
     actions('primary')
     fireEvent.click(screen.getByRole('button', { name: 'Przekaż numer…' }))
     const popover = await screen.findByRole('dialog')
-    expect(within(durations()).getByRole('radio', { name: '2 h' })).toBeDisabled()
+    // Blocked, not removed: still focusable, it says why in the group's description.
+    const twoHours = within(durations()).getByRole('radio', { name: '2 h' })
+    expect(twoHours).toHaveAttribute('aria-disabled', 'true')
+    expect(durations()).toHaveAccessibleDescription(/Najpóźniej do 09:00/)
+    fireEvent.click(twoHours)
+    expect(twoHours).toHaveAttribute('aria-checked', 'false')
     expect(within(durations()).getByRole('radio', { name: '1 h' })).toBeEnabled()
     expect(within(durations()).getByRole('radio', { name: 'do 09:00' })).toHaveAttribute('aria-checked', 'true')
     expect(popover).toHaveTextContent('Numer wraca do Ciebie o 09:00.')

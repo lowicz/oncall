@@ -6,7 +6,7 @@ import { messages, useMessages } from '../i18n'
 import { LateShiftLink, OnCall, StaffChange, StaffingCandidate, correctionRoles, lateShiftLink, staffChanges, staffingCandidates } from '../lib/calendar'
 import { formatShortDate, warsawDate } from '../lib/dates'
 import { availabilityLabels, roleLabels } from '../lib/labels'
-import { Button, Field, Input, Select, useToast } from '../ui'
+import { Button, Field, InlineError, Input, LoadingBlock, Select, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
 import { RolesFieldset, StaffChangeImpact, StaffChangePreview } from '../components/StaffChangePreview'
 
@@ -190,7 +190,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
       if (changes.some((item) => !item.restoreTo)) {
         const result = await execute()
         toast.success(title, {
-          description: [emailsTo(people, name), audited].filter(Boolean).join(' '),
+          description: [historical ? schedule.toast.pastDayNoEmail : emailsTo(people, name), audited].filter(Boolean).join(' '),
           action: { label: schedule.toast.openDay, onClick: () => onOpenDay(changes[0].role) },
         })
         return result
@@ -210,8 +210,8 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
         },
         message: () => ({
           title,
-          description: [schedule.toast.emailsLater(people), audited].filter(Boolean).join(' '),
-          expired: common.undoEmailsSent,
+          description: [historical ? schedule.toast.pastDayNoEmail : schedule.toast.emailsLater(people), audited].filter(Boolean).join(' '),
+          expired: historical ? undefined : common.undoEmailsSent,
         }),
       })
     },
@@ -239,7 +239,10 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
 
   // A day that drops out of the publication while the form is open has
   // nothing left to correct; the inspector says why.
-  const form = open && day?.published && serviceDate && (
+  // The 11–19 choices follow the policy's anchor, so they wait for it rather
+  // than change under the cursor.
+  const waiting = policy.isError ? <InlineError error={policy.error} /> : <LoadingBlock label={common.loading} rows={2} />
+  const form = open && day?.published && serviceDate && (!policy.data ? waiting : (
     <section id={FORM_ID} className="swap-frame" aria-labelledby={`${FORM_ID}-title`}>
       <h3 id={`${FORM_ID}-title`} className="swap-frame-h">{t.title}</h3>
       <RolesFieldset
@@ -290,10 +293,11 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
           <StaffChangePreview changes={changes} name={chosen!.display_name} onCall={onCall} link={link} />
           <StaffChangeImpact scheduleId={ref!.schedule_id} lines={lines} changes={changes} name={chosen!.display_name} />
           {historical && (
-            <Field label={t.reason} id="staff-change-reason">
-              {({ id }) => (
+            <Field label={t.reason} id="staff-change-reason" hint={schedule.toast.pastDayNoEmail}>
+              {({ id, describedBy }) => (
                 <Input
                   id={id}
+                  aria-describedby={describedBy}
                   name={id}
                   value={reason}
                   minLength={MIN_REASON_LENGTH}
@@ -306,9 +310,9 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
         </DecisionFrame>
       )}
     </section>
-  )
+  ))
 
-  const footer = form && (
+  const footer = form && policy.data && (
     <>
       <Button variant="ghost" disabled={pending} onClick={close}>{common.cancel}</Button>
       <span className="sp" />

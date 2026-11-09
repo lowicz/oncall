@@ -196,6 +196,7 @@ export const swaps: Messages['swaps'] = {
     takes: 'takes over the duty',
     exchanges: (gives: string, takes: string) => `gives ${gives}, takes ${takes}`,
     points: (before: string, after: string, change: string) => `points ${before} → ${after} (${change})`,
+    distance: 'Deviation',
     closer: 'closer to balance',
     further: 'further from balance',
     unchanged: 'no change',

@@ -27,7 +27,7 @@ import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { usePublicConfig } from '../hooks/usePublicConfig'
 import { useUrlParams } from '../hooks/useUrlParams'
-import { newUndoId, undoable } from '../lib/undo'
+import { DEFAULT_UNDO_WINDOW_SECONDS, newUndoId, undoable } from '../lib/undo'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
 import { coverageWindowText } from '../components/CalendarMatrix'
@@ -540,7 +540,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
         undoLabel: t.undo,
         onUndoError: () => toast.error(t.undoFailed(range)),
         // Until the config has answered, the server's default window.
-        windowSeconds: config.data?.undo_window_seconds ?? 10,
+        windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_WINDOW_SECONDS,
       })
     },
     onError: (error, command) => toast.error(t.notSaved(rangeText(command.startsOn, command.endsOn)), { description: error.message }),

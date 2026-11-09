@@ -234,6 +234,8 @@ export const swaps = {
     /** Either side of an exchange: the day handed over and the day taken. */
     exchanges: (gives: string, takes: string) => `oddaje ${gives}, bierze ${takes}`,
     points: (before: string, after: string, change: string) => `punkty ${before} → ${after} (${change})`,
+    /** The summary line: the deviation from balance, summed over the roles the change moves. */
+    distance: 'Odchylenie',
     closer: 'bliżej równowagi',
     further: 'dalej od równowagi',
     unchanged: 'bez zmiany',

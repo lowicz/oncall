@@ -445,6 +445,27 @@ async def test_reversing_a_partly_sent_override_tells_only_who_already_heard(
     assert "Anna Kowalska (poprzednio: Marek Nowak)" in reversal[0].body
 
 
+async def test_a_correction_of_a_past_day_mails_nobody(db) -> None:
+    today, _members = await _seed_team(db)
+    yesterday = today - timedelta(days=1)
+
+    await notify_assignment_overridden(
+        db, changes=[(yesterday, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak")]
+    )
+    await notify_assignments_overridden_in_batch(
+        db,
+        changes=[
+            (yesterday, AssignmentRole.secondary, "Marek Nowak", "Ola Wiśniewska"),
+            (today, AssignmentRole.primary, "Anna Kowalska", "Ola Wiśniewska"),
+        ],
+        reason="Porządkowanie historii",
+    )
+
+    rows = await _outbox_rows(db)
+    assert sorted(row.recipient for row in rows) == ["anna@example.com", "ola@example.com"]
+    assert all(yesterday.isoformat() not in str(row.context) for row in rows)
+
+
 async def test_reversing_a_partly_sent_batch_tells_only_who_already_heard(db, frozen_clock) -> None:
     today, _members = await _seed_team(db)
     changes = [

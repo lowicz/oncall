@@ -5,6 +5,7 @@ import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSumm
 import { locale, messages, useMessages } from '../i18n'
 import { lateShiftAnchorLabels, lensLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { preferredScrollBehavior } from '../lib/motion'
+import { groupByKey } from '../lib/calendar'
 import { draftFairnessImpactQuery } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
@@ -186,9 +187,10 @@ export function GeneratorPanel() {
   useEffect(() => { setChangeResolutions({}); setPublishAcknowledged(false) }, [result?.id, result?.version])
   // Each kind of violation the publication carries is consented to on its own,
   // and only for the preview it was shown with.
-  const [restAcknowledged, setRestAcknowledged] = useState(false)
+  /** The rules broken by the publication that the coordinator consented to break, one consent per rule. */
+  const [restAcknowledged, setRestAcknowledged] = useState<ReadonlySet<string>>(new Set())
   const [gapAcknowledged, setGapAcknowledged] = useState(false)
-  useEffect(() => { setRestAcknowledged(false); setGapAcknowledged(false) }, [publishPreview.data])
+  useEffect(() => { setRestAcknowledged(new Set()); setGapAcknowledged(false) }, [publishPreview.data])
   const impact = useQuery(draftFairnessImpactQuery(result))
   const [toDelete, setToDelete] = useState<ScheduleSummary | null>(null)
   const invalidateDrafts = () => {
@@ -400,11 +402,13 @@ export function GeneratorPanel() {
   // What the publication sheet still waits for, said next to its button.
   const preview = publishPreview.data
   const unresolvedConflicts = preview?.lost_changes.filter((item) => !changeResolutions[`${item.service_date}:${item.role}`]).length ?? 0
+  const restGroups = groupByKey(preview?.rest_violations ?? [], (violation) => violation.rule)
   const missingConsents = [
     result !== null && result.starts_on <= today && !publishAcknowledged,
-    Boolean(preview?.rest_violations.length) && !restAcknowledged,
+    ...[...restGroups.keys()].map((rule) => !restAcknowledged.has(rule)),
     Boolean(preview?.uncovered_before.length) && !gapAcknowledged,
   ].filter(Boolean).length
+  const publishBlocked = publishPreview.isFetching || publishPreview.isError || !preview || unresolvedConflicts + missingConsents > 0
   const numberField = (key: 'fairness_weight' | 'preference_weight' | 'continuity_weight' | 'solve_seconds', label: string, hint: string, min: number, max: number, step: number) => (
     <Field label={label} id={`policy-${key}`} hint={hint}>
       {({ id, describedBy }) => (
@@ -783,18 +787,22 @@ export function GeneratorPanel() {
                 </output>
               )}
               <Button onClick={closePublication} disabled={publish.isPending}>{t.publish.back(publishFromDraft)}</Button>
+              {/* Focusable while blocked, so the status beside it says what is missing. */}
               <Button
                 variant="primary"
                 loading={publish.isPending}
-                disabled={publish.isPending || publishPreview.isFetching || publishPreview.isError || !preview || unresolvedConflicts + missingConsents > 0}
-                onClick={() => publish.mutate({
-                  id: result.id,
-                  expectedVersion: result.version,
-                  acknowledgeLostChanges: Boolean(preview?.lost_changes.length),
-                  acknowledgeGap: Boolean(preview?.uncovered_before.length),
-                  acknowledgeRestViolations: Boolean(preview?.rest_violations.length),
-                  changeResolutions,
-                })}
+                aria-disabled={publishBlocked || undefined}
+                onClick={() => {
+                  if (publishBlocked) return
+                  publish.mutate({
+                    id: result.id,
+                    expectedVersion: result.version,
+                    acknowledgeLostChanges: Boolean(preview.lost_changes.length),
+                    acknowledgeGap: Boolean(preview.uncovered_before.length),
+                    acknowledgeRestViolations: Boolean(preview.rest_violations.length),
+                    changeResolutions,
+                  })
+                }}
               >
                 {publish.isPending ? t.publish.publishing : t.publish.publishNow}
               </Button>
@@ -841,15 +849,26 @@ export function GeneratorPanel() {
               </div>
             </Box>
           ) : null}
-          {preview?.rest_violations.length ? (
-            <AcknowledgeBox title={t.publish.restTitle} label={t.publish.acknowledgeRest} checked={restAcknowledged} onChange={setRestAcknowledged}>
+          {[...restGroups].map(([rule, violations]) => (
+            <AcknowledgeBox
+              key={rule}
+              title={t.publish.restTitle(violations[0].message)}
+              label={t.publish.acknowledgeRest}
+              checked={restAcknowledged.has(rule)}
+              onChange={(checked) => setRestAcknowledged((current) => {
+                const next = new Set(current)
+                if (checked) next.add(rule)
+                else next.delete(rule)
+                return next
+              })}
+            >
               <ul className="box-list">
-                {preview.rest_violations.map((violation) => (
-                  <li key={`${violation.member_name}-${violation.rule}`}>{t.publish.restItem(violation.member_name, violation.message, violation.days.map(formatDate).join(', '))}</li>
+                {violations.map((violation) => (
+                  <li key={`${violation.member_name}-${violation.days[0]}`}>{t.publish.restItem(violation.member_name, violation.days.map(formatDate).join(', '))}</li>
                 ))}
               </ul>
             </AcknowledgeBox>
-          ) : null}
+          ))}
           {preview?.uncovered_before.length ? (
             <AcknowledgeBox title={t.publish.gapTitle(preview.uncovered_before.map(formatDate).join(', '))} label={t.publish.acknowledgeGap} checked={gapAcknowledged} onChange={setGapAcknowledged} />
           ) : null}

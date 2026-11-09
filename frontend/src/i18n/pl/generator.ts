@@ -239,10 +239,11 @@ export const generator = {
     },
     keepDraft: (assignee: string) => `Zachowaj szkic: ${assignee}`,
     gapTitle: (days: string) => `Przed grafikiem zostanie luka: ${days}`,
-    restTitle: 'Publikacja naruszy reguły odpoczynku',
-    restItem: (member: string, message: string, days: string) => `${member}: ${message} ${days}`,
+    /** One box per broken rule, titled with the rule's sentence from the API. */
+    restTitle: (rule: string) => `Publikacja naruszy regułę: ${rule.charAt(0).toLowerCase()}${rule.slice(1)}`,
+    restItem: (member: string, days: string) => `${member}: ${days}`,
     acknowledgeGap: 'Rozumiem, że te dni zostają bez obsady',
-    acknowledgeRest: 'Rozumiem i świadomie łamię te reguły',
+    acknowledgeRest: 'Rozumiem i świadomie łamię tę regułę',
     acknowledge: 'Rozumiem, że zmieniam dzień, który już trwa lub minął, i że zespół zobaczy zmianę od razu.',
   },
   matrix: {
@@ -250,6 +251,7 @@ export const generator = {
     region: 'Macierz szkicu',
     caption: 'Szkic grafiku. Osoby w wierszach, dni w kolumnach. Kliknij komórkę, aby skorygować przydział. Strzałkami przechodzisz po siatce, PageUp i PageDown przeskakują o tydzień.',
     person: 'Osoba',
+    month: 'Miesiąc',
     correction: 'korekta',
     clash: 'kolizja z niedostępnością',
     dayOffTag: (name: string) => `2X · ${name}`,
