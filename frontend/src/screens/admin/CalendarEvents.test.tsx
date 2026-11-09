@@ -134,6 +134,12 @@ describe('CalendarEventsPanel form', () => {
     })
     await waitFor(() => expect(within(form).getByLabelText(/Nazwa/)).toHaveValue(''))
     expect(within(form).getByLabelText(/^Od/)).toHaveValue('2026-09-10')
+    // The toast names what was added, with its dates, and takes it back.
+    const toast = (await screen.findByText('Dodano „Szkolenie BHP”')).closest('.toast') as HTMLElement
+    expect(toast).toHaveTextContent('24-09-2026 – 26-09-2026')
+    const remove = vi.spyOn(api, 'deleteCalendarEvent').mockResolvedValue(undefined)
+    fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('new'))
   })
 
   it('edits an event in place and can be cancelled back to a new one', async () => {
@@ -154,6 +160,11 @@ describe('CalendarEventsPanel form', () => {
       id: 'e1', title: 'Szkolenie BHP II', starts_on: '2026-09-24', ends_on: '2026-09-26', color: 'blue',
     })
     expect(await screen.findByRole('form', { name: 'Nowe wydarzenie' })).toBeInTheDocument()
+    expect(await screen.findByText('Zapisano „Szkolenie BHP II”')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith({
+      id: 'e1', title: 'Szkolenie BHP', starts_on: '2026-09-24', ends_on: '2026-09-26', color: 'blue',
+    }))
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Edytuj' })[1])
     fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))

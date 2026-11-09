@@ -26,5 +26,7 @@ export const calendarEvents: Messages['calendarEvents'] = {
   },
   toast: {
     deleted: (title: string) => `Deleted “${title}”`,
+    added: (title: string) => `Added “${title}”`,
+    updated: (title: string) => `Saved “${title}”`,
   },
 }

@@ -191,6 +191,10 @@ to zakres samego wydarzenia.
 pytania. Powiadomienie „Usunięto „…”” ma przycisk **Cofnij**, który przez kilka
 sekund przywraca wydarzenie z tą samą nazwą, kolorem i całym zakresem dat.
 
+**Dodaj** i **Zapisz** potwierdzają zapis powiadomieniem z nazwą i datami
+wydarzenia („Dodano „…””, „Zapisano „…””). Jego **Cofnij** usuwa dodane
+wydarzenie albo przywraca nazwę, kolor i daty sprzed edycji.
+
 ## Import historii (`/import`, koordynator)
 
 1. Pobierz szablon CSV ze strony albo użyj `examples/history.csv`.

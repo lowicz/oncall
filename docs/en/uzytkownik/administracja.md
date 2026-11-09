@@ -202,6 +202,10 @@ once, without a question. The “Deleted “…”” notification has an **Undo
 button that brings the event back for a few seconds, with the same name,
 colour and whole date range.
 
+**Add** and **Save** confirm the change with a notification naming the event
+and its dates (“Added “…””, “Saved “…””). Its **Undo** deletes the added event
+or brings back the name, colour and dates it had before the edit.
+
 ## History import (`/import`, coordinator)
 
 1. Download the CSV template from the page or use `examples/history.csv`.
