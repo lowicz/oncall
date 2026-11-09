@@ -1253,7 +1253,9 @@ describe('PeoplePanel rotation tab', () => {
     expect(await within(dialog).findByText('Puste: bez daty końca.')).toBeInTheDocument()
     // The saved exit date needs no check of the duties after it.
     expect(calendar).not.toHaveBeenCalled()
-    expect(within(dialog).getByRole('button', { name: 'Zakończ rotację…' })).toBeInTheDocument()
+    // Not in the rotation yet, so there is no rotation to end: an exit date
+    // of today would precede the entry.
+    expect(within(dialog).queryByRole('button', { name: 'Zakończ rotację…' })).not.toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Zapisz' })).toBeDisabled()
   })
 

@@ -97,6 +97,9 @@ class _Contacts:
     async def phone(self, member_id: uuid.UUID) -> str | None:
         return self.phones.get(member_id)
 
+    async def member_named(self, display_name: str) -> uuid.UUID | None:
+        return None
+
 
 PHONES = {ANNA: "+48601234567", MAREK: "+48602345678", JAN: "+48603456789"}
 

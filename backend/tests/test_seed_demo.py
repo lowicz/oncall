@@ -65,6 +65,10 @@ async def test_seed_demo_builds_the_configured_english_schedule(
         assert schedule is not None
         assignee_names = set((await db.scalars(select(Assignment.assignee_name))).all())
         assert assignee_names == set(ENGLISH_NAMES)
+        # Each duty names its holder by id too, as a generated roster does.
+        ids = {m.display_name: m.id for m in members}
+        for row in (await db.scalars(select(Assignment))).all():
+            assert row.member_id == ids[row.assignee_name]
 
 
 async def test_seed_demo_relinks_members_when_the_schedule_exists(
@@ -79,9 +83,13 @@ async def test_seed_demo_relinks_members_when_the_schedule_exists(
     await seed_demo()
     async with db_factory() as db:
         await db.execute(TeamMember.__table__.update().values(user_id=None))
+        await db.execute(Assignment.__table__.update().values(member_id=None))
         await db.commit()
 
     await seed_demo()  # the schedule already exists: the second run relinks members
+
+    async with db_factory() as db:
+        assert None not in set((await db.scalars(select(Assignment.member_id))).all())
 
     async with db_factory() as db:
         members = (await db.scalars(select(TeamMember))).all()

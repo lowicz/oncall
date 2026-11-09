@@ -35,6 +35,11 @@ export function useDutiesAfterExit(member: TeamMember | undefined, activeUntil: 
     enabled: enabled && Boolean(member) && Boolean(activeUntil),
   })
   const found = calendar.data ?? { assignments: [], members: [], availability: [] }
-  const duties = found.assignments.filter((item) => item.member_id === member?.id && item.service_date > activeUntil)
+  // A duty without an id (imported before the person joined) is theirs by
+  // name, as the server matches it.
+  const holds = (item: { member_id?: string | null; assignee_name: string }) => (item.member_id
+    ? item.member_id === member?.id
+    : item.assignee_name === member?.display_name)
+  const duties = found.assignments.filter((item) => holds(item) && item.service_date > activeUntil)
   return { calendar, found, duties }
 }

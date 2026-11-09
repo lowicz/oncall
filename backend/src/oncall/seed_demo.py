@@ -1,8 +1,9 @@
 import asyncio
 import os
-from datetime import timedelta
+import uuid
+from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.auth import hash_password
@@ -81,6 +82,15 @@ async def seed_demo() -> None:
             user_ids = {name: user.id for name, user in zip(names, member_users, strict=True)}
             for member in members:
                 member.user_id = user_ids[member.display_name]
+                # A demo made before its duties carried the person's id.
+                await db.execute(
+                    update(Assignment)
+                    .where(
+                        Assignment.member_id.is_(None),
+                        Assignment.assignee_name == member.display_name,
+                    )
+                    .values(member_id=member.id)
+                )
             await db.commit()
             print("Demo accounts and team-member links synchronized.")
             return
@@ -88,6 +98,7 @@ async def seed_demo() -> None:
         members: list[TeamMember] = []
         for index, name in enumerate(names):
             member = TeamMember(
+                id=uuid.uuid4(),
                 user_id=member_users[index].id,
                 display_name=name,
                 active_from=business_today() - timedelta(days=365),
@@ -108,27 +119,30 @@ async def seed_demo() -> None:
             status=ScheduleStatus.published,
             published_at=utc_now(),
         )
+
+        # Every duty names its holder by id too, as a generated roster does:
+        # the end of rotation and the number forwarding find people by it.
+        def duty(service_date: date, role: AssignmentRole, holder: TeamMember) -> Assignment:
+            return Assignment(
+                service_date=service_date,
+                role=role,
+                assignee_name=holder.display_name,
+                member_id=holder.id,
+            )
+
         for offset in range(14):
             service_date = starts_on + timedelta(days=offset)
             assignments = [
-                Assignment(
-                    service_date=service_date,
-                    role=AssignmentRole.primary,
-                    assignee_name=names[offset % len(names)],
-                ),
-                Assignment(
-                    service_date=service_date,
-                    role=AssignmentRole.secondary,
-                    assignee_name=names[(offset + 1) % len(names)],
-                ),
+                duty(service_date, AssignmentRole.primary, members[offset % len(members)]),
+                duty(service_date, AssignmentRole.secondary, members[(offset + 1) % len(members)]),
             ]
             polish_days = polish_holidays(service_date, service_date)
             if is_working_day(service_date, polish_days):
                 assignments.append(
-                    Assignment(
-                        service_date=service_date,
-                        role=AssignmentRole.late_shift,
-                        assignee_name=names[(offset + 1) % len(names)],
+                    duty(
+                        service_date,
+                        AssignmentRole.late_shift,
+                        members[(offset + 1) % len(members)],
                     )
                 )
             schedule.assignments.extend(assignments)

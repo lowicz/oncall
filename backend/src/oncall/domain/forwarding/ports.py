@@ -58,6 +58,10 @@ class ForwardingContacts(Protocol):
 
     async def phone(self, member_id: uuid.UUID) -> str | None: ...
 
+    async def member_named(self, display_name: str) -> uuid.UUID | None:
+        """The team member a duty without an id names, as `Duty.held_by` matches it."""
+        ...
+
 
 class SettingsJournal(Protocol):
     """The audit entry of a settings change, in the name of the administrator."""

@@ -98,6 +98,7 @@ class _Contacts:
         self.number = number
         self.published = published
         self.asked: list[uuid.UUID] = []
+        self.named: dict[str, uuid.UUID] = {}
 
     async def roster_published(self) -> bool:
         return self.published
@@ -105,6 +106,9 @@ class _Contacts:
     async def phone(self, member_id: uuid.UUID) -> str | None:
         self.asked.append(member_id)
         return self.number
+
+    async def member_named(self, display_name: str) -> uuid.UUID | None:
+        return self.named.get(display_name)
 
 
 async def test_the_desired_target_maps_the_primary_phone_to_wco_unchanged() -> None:
@@ -158,6 +162,21 @@ async def test_a_missing_or_imported_primary_has_no_target_number() -> None:
     assert "Osoba z importu" not in no_account.alert_token
     with pytest.raises(ValueError, match="no number"):
         wco_number(no_account)
+
+
+async def test_a_duty_without_an_id_rings_the_team_member_it_names() -> None:
+    now = datetime(2026, 9, 15, 12, 0, tzinfo=ZoneInfo("Europe/Warsaw"))
+    piotr = uuid.uuid4()
+    imported = Duty(
+        now.date(), AssignmentRole.primary, None, "Piotr Zieliński", False, uuid.uuid4()
+    )
+    contacts = _Contacts("+48604567890")
+    contacts.named["Piotr Zieliński"] = piotr
+
+    target = await desired_target(now, 9, _Roster(imported), contacts, NO_HANDOVERS)
+
+    assert target == ForwardingTarget(now.date(), piotr, "Piotr Zieliński", "+48604567890")
+    assert contacts.asked == [piotr]
 
 
 async def test_before_the_first_publication_there_is_no_target_at_all() -> None:

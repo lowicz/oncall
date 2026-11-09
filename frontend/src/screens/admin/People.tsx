@@ -1194,7 +1194,9 @@ export function PeoplePanel() {
                       onAdd={addPeriod}
                       onDropNew={(period) => setNewPeriods((current) => current.filter((entry) => entry !== period))}
                     />
-                    {selectedState !== 'ended' && (
+                    {/* Only a person already in the rotation can end it: for one who has
+                        not entered yet the dialog's exit date would precede the entry. */}
+                    {selectedState === 'active' && (
                       <div className="row">
                         <Button onClick={() => openOffboarding(rotationUntil || today)}>{t.rotationTab.endRotation}</Button>
                         <span className="muted small">{t.rotationTab.endRotationHint}</span>

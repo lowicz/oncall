@@ -141,7 +141,11 @@ left of those changes is saved by the next **Save** - the periods end on the
 exit date at the latest, and those that would start after it leave the list. The **End the rotation…**
 button on the Rotation tab opens the same dialog, with the date from the “Exit
 on” field or, when it is empty, today's; without duties the dialog only closes
-the qualifications and saves the exit date.
+the qualifications and saves the exit date. The button is there only for a
+person already in the rotation: for one who has yet to enter, change the
+entry date or delete the periods. A duty saved without a link to an account
+(for example imported from history before the person joined) counts as
+theirs when it carries their name.
 
 In the dialog the **The same replacement for all** field puts one person into
 every duty that person can take; each row can then be changed on its own. Next

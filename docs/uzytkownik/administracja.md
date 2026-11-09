@@ -133,7 +133,10 @@ zmian zostanie, zapisuje kolejne **Zapisz** - okresy kończą się najpóźniej 
 dniu wyjścia, a te, które zaczynałyby się po nim, znikają z listy. To samo okno otwiera przycisk
 **Zakończ rotację…** na zakładce Rotacja, z datą z pola „Wyjście do” albo, gdy
 jest puste, z dzisiejszą; przy braku dyżurów okno tylko zamyka kwalifikacje i
-zapisuje datę wyjścia.
+zapisuje datę wyjścia. Przycisk jest tylko u osoby, która już jest w rotacji:
+tej, która dopiero wejdzie, zmienia się datę wejścia albo usuwa okresy. Dyżur
+zapisany bez powiązania z kontem (na przykład z importu historii sprzed
+dołączenia osoby) liczy się jako jej, jeśli nosi jej nazwisko.
 
 W oknie pole **Ten sam zastępca dla wszystkich** wpisuje jedną osobę do
 każdego dyżuru, który ta osoba może wziąć; każdy wiersz można potem zmienić

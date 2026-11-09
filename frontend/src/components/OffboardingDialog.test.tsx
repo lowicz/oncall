@@ -331,6 +331,18 @@ describe('OffboardingDialog', () => {
     expect(screen.getByRole('button', { name: 'Przepisz 2 dyżury i zakończ rotację' })).toBeEnabled()
   })
 
+  it('counts a duty written without an id as the person\'s by name', async () => {
+    const imported = { ...duty('2026-09-22', 's1', 1, 'm1'), member_id: null }
+    const someoneElse = { ...duty('2026-09-23', 's1', 1, 'm2'), member_id: null }
+    vi.spyOn(api, 'calendar').mockImplementation(async (startsOn) => (
+      calendarWith(startsOn === '2026-09-21' ? [imported, someoneElse] : [])
+    ))
+    renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={vi.fn()} onDone={vi.fn()} onChanged={() => {}} />)
+
+    expect(await screen.findByRole('button', { name: 'Przepisz 1 dyżur i zakończ rotację' })).toBeInTheDocument()
+    expect(screen.queryByText('Brak dyżurów po dacie wyjścia; zakończenie rotacji nie wymaga przepisania.')).not.toBeInTheDocument()
+  })
+
   it('ends a rotation without duties and shows why the save failed', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendarWith([]))
     vi.spyOn(api, 'updateTeamMember').mockRejectedValue(new ApiError('Brak uprawnień', 403))
