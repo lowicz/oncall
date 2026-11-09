@@ -1,6 +1,7 @@
 import uuid
 from datetime import date
 
+from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -14,7 +15,6 @@ from oncall.domain.availability.models import (
 )
 from oncall.domain.roster import Duty
 from oncall.domain.team import Member
-from oncall.domain.vocabulary import AvailabilityKind
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.infrastructure.sqlalchemy.availability_model import (
     Availability,
@@ -208,19 +208,18 @@ class SqlAlchemyAvailability:
         # A created action, so a draft that read these days sees them change.
         actor = self._actor
         label = KIND_LABELS[entry.kind]
+        who = (
+            f"{actor.display_name} w imieniu {member.display_name}"
+            if on_behalf
+            else member.display_name
+        )
         record_audit(
             self._session,
             actor=actor,
             action="availability.created_on_behalf" if on_behalf else "availability.created",
             entity_type="availability",
             entity_id=self._recorded.id if self._recorded is not None else None,
-            summary=(
-                f"{actor.display_name} w imieniu {member.display_name}: przywrócono "
-                f"„{label}” {entry.starts_on} – {entry.ends_on}"
-                if on_behalf
-                else f"{member.display_name}: przywrócono „{label}” "
-                f"{entry.starts_on} – {entry.ends_on}"
-            ),
+            summary=f"{who}: przywrócono „{label}” {entry.starts_on} – {entry.ends_on}",
             details={
                 "kind": entry.kind.value,
                 "restored": True,
@@ -230,6 +229,10 @@ class SqlAlchemyAvailability:
 
     async def undone(self, undo_id: uuid.UUID) -> None:
         await cancel_notifications(self._session, undo_key=triggers.availability_undo_key(undo_id))
+
+
+#: A snapshot's entries as the JSON column holds them.
+_SNAPSHOT_ENTRIES = TypeAdapter(list[NewAvailabilityEntry])
 
 
 class SqlAlchemyRangeSnapshots:
@@ -246,18 +249,7 @@ class SqlAlchemyRangeSnapshots:
                 actor_user_id=snapshot.actor_user_id,
                 starts_on=snapshot.starts_on,
                 ends_on=snapshot.ends_on,
-                entries=[
-                    {
-                        "kind": entry.kind.value,
-                        "starts_on": entry.starts_on.isoformat(),
-                        "ends_on": entry.ends_on.isoformat(),
-                        "note": entry.note,
-                        "created_by_user_id": (
-                            str(entry.created_by_user_id) if entry.created_by_user_id else None
-                        ),
-                    }
-                    for entry in snapshot.entries
-                ],
+                entries=_SNAPSHOT_ENTRIES.dump_python(list(snapshot.entries), mode="json"),
             )
         )
 
@@ -282,19 +274,5 @@ class SqlAlchemyRangeSnapshots:
             actor_user_id=row.actor_user_id,
             starts_on=row.starts_on,
             ends_on=row.ends_on,
-            entries=tuple(
-                NewAvailabilityEntry(
-                    member_id=row.member_id,
-                    created_by_user_id=(
-                        uuid.UUID(entry["created_by_user_id"])
-                        if entry["created_by_user_id"]
-                        else None
-                    ),
-                    kind=AvailabilityKind(entry["kind"]),
-                    starts_on=date.fromisoformat(entry["starts_on"]),
-                    ends_on=date.fromisoformat(entry["ends_on"]),
-                    note=entry["note"],
-                )
-                for entry in row.entries
-            ),
+            entries=tuple(_SNAPSHOT_ENTRIES.validate_python(row.entries)),
         )
