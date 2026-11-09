@@ -1957,7 +1957,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     expectReady(swapButton(dialog))
   })
 
-  it('says in the frame who may not take the other role and holds the swap without checking it', async () => {
+  it('says on the trigger who may not take the other role and opens no frame for the swap', async () => {
     const members = [
       { id: 'm1', display_name: 'Anna Kowalska' },
       { id: 'm2', display_name: 'Marek Nowak', eligibility: [{ role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }] },
@@ -1968,16 +1968,16 @@ describe('CalendarMatrix role swap (P6)', () => {
     const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     renderScreen(matrix())
     const dialog = await openDay(THURSDAY)
-    fireEvent.click(trigger(dialog))
-    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+    const refused = trigger(dialog)
 
-    expect(within(frame).getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
-      'Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.',
-      'Anna Kowalska ma tego dnia wpis niedostępności, więc nie przejmie SECONDARY i tej zamiany nie da się zapisać.',
-    ])
-    expect(within(frame).queryByText(/reguł twardych/)).not.toBeInTheDocument()
-    expectBlocked(swapButton(dialog))
-    fireEvent.click(swapButton(dialog))
+    expect(refused).toHaveAttribute('aria-disabled', 'true')
+    expect(refused).toHaveAccessibleDescription(
+      'Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zrobić. '
+      + 'Anna Kowalska ma tego dnia wpis niedostępności, więc nie przejmie SECONDARY i tej zamiany nie da się zrobić.',
+    )
+    fireEvent.click(refused)
+    expect(refused).toHaveAttribute('aria-expanded', 'false')
+    expect(within(dialog).queryByRole('region', { name: 'Zamiana miejscami' })).not.toBeInTheDocument()
     expect(save).not.toHaveBeenCalled()
     expect(check).not.toHaveBeenCalled()
   })

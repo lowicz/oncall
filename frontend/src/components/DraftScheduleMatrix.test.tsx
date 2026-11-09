@@ -789,7 +789,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
   })
 
-  it('keeps a swap one holder may not take from being saved', async () => {
+  it('keeps a swap one holder may not take from being opened', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue({
       ...team,
       members: [
@@ -803,14 +803,11 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     renderScreen(<DraftScheduleMatrix result={pair} onChange={() => {}} />)
 
     const panel = await openCell(/^Marek Nowak, pon 21-09-2026/, 'Wstaw: Marek Nowak · 21-09-2026')
-    fireEvent.click(within(panel).getByRole('button', { name: /^Zamień miejscami:/ }))
-    const frame = within(panel).getByRole('region', { name: 'Zamiana miejscami' })
-    expect(within(frame).getByRole('alert')).toHaveTextContent('Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.')
-    expect(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ })).not.toBeChecked()
-    expect(frame).toHaveTextContent('Anna Kowalska nie ma uprawnień do 11–19, więc 11–19 zostaje bez zmian.')
-    const swapButton = within(panel).getByRole('button', { name: 'Zamień miejscami' })
-    expect(swapButton).toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(swapButton)
+    const refused = within(panel).getByRole('button', { name: /^Zamień miejscami:/ })
+    expect(refused).toHaveAttribute('aria-disabled', 'true')
+    expect(refused).toHaveAccessibleDescription('Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zrobić.')
+    fireEvent.click(refused)
+    expect(within(panel).queryByRole('region', { name: 'Zamiana miejscami' })).not.toBeInTheDocument()
     expect(save).not.toHaveBeenCalled()
   })
 })

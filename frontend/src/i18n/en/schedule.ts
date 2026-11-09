@@ -202,8 +202,8 @@ export const schedule: Messages['schedule'] = {
     carriesInDraft: 'Unticking leaves 11–19 unchanged.',
     notEligible: (to: string) => `${to} is not eligible for 11–19, so 11–19 stays unchanged.`,
     refusals: {
-      notEligible: (to: string, role: string) => `${to} is not eligible for ${role} that day, so this swap cannot be saved.`,
-      unavailable: (to: string, role: string) => `${to} is marked unavailable that day, so they cannot take ${role} and this swap cannot be saved.`,
+      notEligible: (to: string, role: string) => `${to} is not eligible for ${role} that day, so this swap cannot be made.`,
+      unavailable: (to: string, role: string) => `${to} is marked unavailable that day, so they cannot take ${role} and this swap cannot be made.`,
     },
     breaksRules: 'This swap will break hard rules',
     reason: 'Reason for the correction (at least 10 characters)',

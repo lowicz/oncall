@@ -549,7 +549,7 @@ button.role-row:hover .btn-ghost { color: var(--fg); }
 .role-row-gap .role-n { color: var(--bad-text); }
 /* P6 swap places: the pair action between the PRIMARY and SECONDARY rows,
    and the frame it opens under the rows. */
-.swap-row { display: flex; justify-content: center; margin: -2px 0; }
+.swap-row { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: -2px 0; text-align: center; }
 .swap-frame { display: grid; gap: 10px; padding: 10px 12px; border: 1px solid var(--sig-line); border-radius: 10px; background: var(--s1); }
 .swap-frame-h { margin: 0; font: 700 14px/21px var(--font); }
 .swap-preview { display: grid; gap: 4px; font-size: 14px; line-height: 21px; }

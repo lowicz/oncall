@@ -219,8 +219,8 @@ export const schedule = {
     carriesInDraft: 'Odznaczenie zostawia 11–19 bez zmian.',
     notEligible: (to: string) => `${to} nie ma uprawnień do 11–19, więc 11–19 zostaje bez zmian.`,
     refusals: {
-      notEligible: (to: string, role: string) => `${to} nie ma tego dnia uprawnień do ${role}, więc tej zamiany nie da się zapisać.`,
-      unavailable: (to: string, role: string) => `${to} ma tego dnia wpis niedostępności, więc nie przejmie ${role} i tej zamiany nie da się zapisać.`,
+      notEligible: (to: string, role: string) => `${to} nie ma tego dnia uprawnień do ${role}, więc tej zamiany nie da się zrobić.`,
+      unavailable: (to: string, role: string) => `${to} ma tego dnia wpis niedostępności, więc nie przejmie ${role} i tej zamiany nie da się zrobić.`,
     },
     breaksRules: 'Ta zamiana złamie reguły twarde',
     reason: 'Powód korekty (minimum 10 znaków)',

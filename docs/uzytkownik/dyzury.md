@@ -251,7 +251,7 @@ Z tego panelu:
   wiersz po wierszu (kto przechodzi na którą rolę), linię reguł sprawdzoną na
   stanie po zamianie i wpływ na bilans punktów obu osób. Gdy jedna z osób nie
   ma tego dnia uprawnień do roli drugiej albo ma wpis niedostępności na ten
-  dzień, ramka mówi to pod jej wierszem i zamiany nie da się zapisać. Jeśli
+  dzień, przycisk jest nieaktywny, a zdanie pod nim mówi dlaczego. Jeśli
   polityka wiąże 11–19 z rolą, którą oddaje osoba pełniąca też 11–19, ramka ma pole
   „razem z SECONDARY” (albo „razem z PRIMARY”), zaznaczone dokładnie wtedy,
   gdy druga osoba ma uprawnienia do 11–19, z jednym zdaniem dlaczego.

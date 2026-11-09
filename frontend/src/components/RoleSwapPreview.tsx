@@ -5,19 +5,12 @@ import { roleLabels } from '../lib/labels'
 import { Button, Checkbox, RoleMark } from '../ui'
 import { SwapImpactPreview } from './SwapImpactPreview'
 
-function PreviewRow({ role, from, to, refusal }: Readonly<{
-  role: AssignmentRole
-  from: string
-  to: string
-  refusal: RoleSwap['refused']['primary']
-}>) {
-  const t = useMessages().schedule.roleSwap
+function PreviewRow({ role, from, to }: Readonly<{ role: AssignmentRole; from: string; to: string }>) {
   return (
     <div className="swap-preview-row">
       <RoleMark role={role} />
       <div className="swap-cell">
         <span>{from} → <b>{to}</b></span>
-        {refusal && <p className="field-msg" role="alert">{t.refusals[refusal](to, roleLabels()[role])}</p>}
       </div>
     </div>
   )
@@ -36,8 +29,8 @@ export function RoleSwapPreview({ swap, carry, onCarry, disabled, inDraft = fals
   const late = swap.lateShift
   return (
     <div className="swap-preview">
-      <PreviewRow role="primary" from={swap.primary.name} to={swap.secondary.name} refusal={swap.refused.primary} />
-      <PreviewRow role="secondary" from={swap.secondary.name} to={swap.primary.name} refusal={swap.refused.secondary} />
+      <PreviewRow role="primary" from={swap.primary.name} to={swap.secondary.name} />
+      <PreviewRow role="secondary" from={swap.secondary.name} to={swap.primary.name} />
       {late && (
         <div className="swap-preview-row">
           <RoleMark role="late_shift" />
@@ -81,7 +74,9 @@ export function RoleSwapImpact({ swap, serviceDate, carry }: Readonly<{ swap: Ro
 }
 
 /** „Zamień miejscami…" between the PRIMARY and SECONDARY rows; while the
- *  Undo window of a swap of this day is open, „Cofnij zamianę" instead. */
+ *  Undo window of a swap of this day is open, „Cofnij zamianę" instead. A
+ *  swap one of them may not take is refused here, with the reason under the
+ *  button, so no frame opens on it. */
 export function RoleSwapTrigger({ swap, open, controls, undo, disabled, onToggle }: Readonly<{
   swap: RoleSwap
   open: boolean
@@ -91,6 +86,12 @@ export function RoleSwapTrigger({ swap, open, controls, undo, disabled, onToggle
   onToggle: () => void
 }>) {
   const t = useMessages().schedule.roleSwap
+  const takers = { primary: swap.secondary.name, secondary: swap.primary.name }
+  const refusals = (['primary', 'secondary'] as const).flatMap((role) => {
+    const refusal = swap.refused[role]
+    return refusal ? [t.refusals[refusal](takers[role], roleLabels()[role])] : []
+  })
+  const refusalId = `${controls}-refused`
   return (
     <div className="swap-row">
       {undo ? (
@@ -105,12 +106,17 @@ export function RoleSwapTrigger({ swap, open, controls, undo, disabled, onToggle
           // The frame exists only while open, so it is named only then.
           aria-controls={open ? controls : undefined}
           aria-label={t.triggerLabel(swap.primary.name, swap.secondary.name)}
+          aria-describedby={refusals.length ? refusalId : undefined}
+          aria-disabled={refusals.length ? true : undefined}
           disabled={disabled}
-          onClick={onToggle}
+          onClick={() => {
+            if (!refusals.length) onToggle()
+          }}
         >
           {t.trigger}
         </Button>
       )}
+      {!undo && refusals.length > 0 && <p id={refusalId} className="field-msg">{refusals.join(' ')}</p>}
     </div>
   )
 }

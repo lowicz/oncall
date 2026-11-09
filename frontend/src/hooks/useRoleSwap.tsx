@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, AssignmentRole, CalendarData, api } from '../api'
 import { usePublicConfig } from './usePublicConfig'
 import { useMessages } from '../i18n'
-import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders, swapRefused } from '../lib/calendar'
+import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders } from '../lib/calendar'
 import { formatDay, warsawDate } from '../lib/dates'
 import { DEFAULT_UNDO_WINDOW_SECONDS, undoable } from '../lib/undo'
 import { Button, Field, Input, useToast } from '../ui'
@@ -37,7 +37,6 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const policy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy, enabled })
   // Offered once the policy says where 11–19 belongs, so its choice never changes under the cursor.
   const swap = enabled && data && serviceDate && policy.data ? roleSwapOf(data, serviceDate, policy.data.late_shift_anchor) : null
-  const refused = swapRefused(swap)
   const ref = data?.assignments.find((item) => item.service_date === serviceDate && item.role === 'primary')
 
   const [open, setOpen] = useState(false)
@@ -54,7 +53,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const check = useQuery({
     queryKey: ['role-swap-check', serviceDate, ref?.schedule_id, ref?.schedule_version, carry],
     queryFn: () => api.batchOverrideCheck({ batches: [{ schedule_id: ref!.schedule_id, assignments: lines }] }),
-    enabled: open && Boolean(ref && swap) && !refused,
+    enabled: open && Boolean(ref && swap),
   })
   // An acknowledgement covers the violations it was given for.
   useEffect(() => setAcknowledged(false), [check.data])
@@ -133,7 +132,6 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   })
 
   const blocked = !ref
-    || refused
     || check.isLoading
     || ((check.data?.violations.length ?? 0) > 0 && !acknowledged)
     || (historical && reason.trim().length < MIN_REASON_LENGTH)
@@ -153,7 +151,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
     <section id={FRAME_ID} className="swap-frame" aria-labelledby={`${FRAME_ID}-title`}>
       <h3 id={`${FRAME_ID}-title`} className="swap-frame-h">{t.title}</h3>
       <RoleSwapPreview swap={swap} carry={carry} onCarry={setCarryChoice} disabled={save.isPending} />
-      {!refused && <DecisionFrame
+      <DecisionFrame
         violations={check.data?.violations}
         checkFailed={check.isError}
         violationsTitle={t.breaksRules}
@@ -179,7 +177,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
             )}
           </Field>
         )}
-      </DecisionFrame>}
+      </DecisionFrame>
     </section>
   )
 
