@@ -248,7 +248,7 @@ export const generator = {
   matrix: {
     loading: 'Wczytywanie macierzy szkicu…',
     region: 'Macierz szkicu',
-    caption: 'Szkic grafiku. Osoby w wierszach, dni w kolumnach. Kliknij komórkę, aby skorygować przydział.',
+    caption: 'Szkic grafiku. Osoby w wierszach, dni w kolumnach. Kliknij komórkę, aby skorygować przydział. Strzałkami przechodzisz po siatce, PageUp i PageDown przeskakują o tydzień.',
     person: 'Osoba',
     correction: 'korekta',
     clash: 'kolizja z niedostępnością',

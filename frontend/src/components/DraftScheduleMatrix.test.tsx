@@ -178,6 +178,22 @@ describe('DraftScheduleMatrix grid', () => {
     expect(within(region).getAllByRole('columnheader').find((cell) => cell.textContent === 'czw10')).toHaveClass('td')
   })
 
+  it('is one tab stop the arrow keys move through, as the published grid', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue({ ...calendar, days: range('2026-09-21', '2026-09-22') })
+    renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
+
+    const region = await screen.findByRole('region', { name: 'Macierz szkicu' })
+    expect(region.querySelector('caption')).toHaveTextContent('Strzałkami przechodzisz po siatce, PageUp i PageDown przeskakują o tydzień.')
+    const cells = within(region).getAllByRole('button')
+    expect(cells.map((cell) => cell.tabIndex)).toEqual([0, -1, -1, -1])
+    cells[0].focus()
+    fireEvent.keyDown(cells[0], { key: 'ArrowRight' })
+    expect(cells[1]).toHaveFocus()
+    fireEvent.keyDown(cells[1], { key: 'ArrowDown' })
+    expect(cells[3]).toHaveFocus()
+    expect(cells.map((cell) => cell.tabIndex)).toEqual([-1, -1, -1, 0])
+  })
+
   it('keeps a proposed draft read-only', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar)
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)

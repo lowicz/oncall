@@ -7,6 +7,7 @@ import { REQUIRED_ROLES, Roster, availabilityByDay, groupByKey, monthGroups, sta
 import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
 import { useDraftRoleSwap } from '../hooks/useDraftRoleSwap'
 import { useDraftStaffChange } from '../hooks/useDraftStaffChange'
+import { useGridNavigation } from '../hooks/useGridNavigation'
 import { AvailabilityMark, Box, ErrorState, LoadingBlock, Panel, RoleMark, Tag, cx } from '../ui'
 
 type Member = CalendarData['members'][number]
@@ -70,6 +71,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const days = useMemo(() => metadata.data?.days ?? [], [metadata.data])
   const members = metadata.data?.members ?? []
   const months = useMemo(() => monthGroups(days), [days])
+  const grid = useGridNavigation(members.length, days.length)
   // Every cell looks its duties and availability up instead of searching the payload.
   const cellAssignments = useMemo(
     () => groupByKey(result.assignments, (item) => `${item.service_date}|${item.assignee_name}`),
@@ -155,10 +157,10 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => (
+              {members.map((member, rowIndex) => (
                 <tr key={member.id}>
                   <th scope="row" className="who"><span className="who-name" title={member.display_name}>{member.display_name}</span></th>
-                  {days.map((day) => {
+                  {days.map((day, colIndex) => {
                     const assignments = cellAssignments.get(`${day.service_date}|${member.display_name}`) ?? []
                     const availability = availabilityOf(member.id, day.service_date)
                     const conflict = conflictKeys.has(`${day.service_date}:${member.display_name}`)
@@ -170,6 +172,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                           className={cx('cell', isSelected && 'cell-sel', day.events.length > 0 && 'cell-ev')}
                           style={day.events[0] ? { ['--ev' as string]: `var(--ev-${day.events[0].color})` } : undefined}
                           disabled={!editable}
+                          {...grid.cellProps(rowIndex, colIndex)}
                           // An empty cell on a day with a gap opens on the empty role.
                           onClick={() => openCell(member, day, assignments[0]?.role ?? missingRoles(result, day.service_date)[0] ?? 'primary')}
                           aria-label={cellLabel(

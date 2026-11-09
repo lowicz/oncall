@@ -103,7 +103,10 @@ sprawiedliwości.
 Niżej **Proponowana obsada** - macierz osoby × dni, w tej samej konwencji co
 opublikowany grafik: nagłówki zachowują dzień tygodnia, święto i 2X, a dzień,
 w którym brakuje `PRIMARY` albo `SECONDARY`, ma nagłówek oznaczony jako luka;
-link **Legenda** objaśnia oznaczenia.
+link **Legenda** objaśnia oznaczenia. Z klawiatury macierz to jeden przystanek
+klawisza Tab, jak opublikowany grafik: po komórkach poruszasz się strzałkami,
+`Home` i `End` skaczą na początek i koniec wiersza, `PageUp` i `PageDown`
+przeskakują o tydzień, a `Enter` otwiera panel dnia.
 
 Pod macierzą cztery zakładki:
 

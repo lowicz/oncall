@@ -240,7 +240,7 @@ export const generator: Messages['generator'] = {
   matrix: {
     loading: 'Loading the draft matrix…',
     region: 'Draft matrix',
-    caption: 'Draft schedule. People in rows, days in columns. Click a cell to correct an assignment.',
+    caption: 'Draft schedule. People in rows, days in columns. Click a cell to correct an assignment. The arrow keys move across the grid, PageUp and PageDown jump a week.',
     person: 'Person',
     correction: 'correction',
     clash: 'clash with unavailability',
