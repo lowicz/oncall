@@ -788,9 +788,11 @@ table.report-table td.key { font-weight: 600; }
   .thumb-action { position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 15; box-shadow: var(--shadow-sm); }
   .page:has(.thumb-action) { padding-bottom: 96px; }
   /* The inbox's choices stay on one row; a long one wraps inside its own
-     button rather than running into the next. */
+     button rather than running into the next, its count dropping under the
+     label, so the row fits a 360 px screen without widening the page. */
   .seg-inbox { display: grid; grid-auto-flow: column; grid-auto-columns: auto; width: 100%; border-radius: 22px; }
-  .seg-inbox button { padding-left: 4px; padding-right: 4px; white-space: normal; border-radius: 18px; }
+  .seg-inbox button { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 6px; padding-left: 4px; padding-right: 4px; white-space: normal; border-radius: 18px; }
+  .seg-inbox .tab-count { margin-left: 0; }
   /* The month stays in view while the calendar scrolls: the heading dissolves
      into the section, so the month row can stick under the top bar. */
   .avail-head, .avail-head .sech-ctl { display: contents; }

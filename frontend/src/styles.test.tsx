@@ -28,7 +28,11 @@ describe('shared interaction styles', () => {
     const seg = getComputedStyle(container.querySelector('.seg-inbox')!)
     expect([seg.display, seg.gridAutoFlow]).toEqual(['grid', 'column'])
     // A label too long for its share of the row wraps inside its button.
-    expect(getComputedStyle(container.querySelector('.seg-inbox button')!).whiteSpace).toBe('normal')
+    const button = getComputedStyle(container.querySelector('.seg-inbox button')!)
+    expect(button.whiteSpace).toBe('normal')
+    // Its count may drop under the label: glued to the last word, it made
+    // the row wider than a 360 px screen and pushed the page past its gutter.
+    expect([button.display, button.flexWrap]).toEqual(['inline-flex', 'wrap'])
   })
 
   it('lets any other wrapping choice flow onto further rows on a phone', () => {
