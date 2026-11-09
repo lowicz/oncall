@@ -35,9 +35,10 @@ export function OffboardingDialog({ open, member, activeUntil, onClose, onDone, 
   const toast = useToast()
   const navigate = useNavigate()
   // The server refuses an exit before the entry only after the periods were
-  // closed, so such a date stops the dialog before its first write.
+  // closed, so such a date stops the dialog before its first write. No date
+  // is searched then, not even the one the panel already has cached.
   const exitBeforeEntry = activeUntil < member.active_from
-  const { calendar, found, duties } = useDutiesAfterExit(member, activeUntil, open && !exitBeforeEntry)
+  const { calendar, found, duties } = useDutiesAfterExit(member, exitBeforeEntry ? '' : activeUntil, open)
   const [replacements, setReplacements] = useState<Record<string, string>>({})
   const [violations, setViolations] = useState<RuleViolation[]>([])
   const [acknowledged, setAcknowledged] = useState(false)
