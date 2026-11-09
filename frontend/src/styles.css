@@ -750,6 +750,9 @@ table.report-table td.key { font-weight: 600; }
   .panel-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   /* In the thumb's reach, just above the bottom tabs, where the action was taken. */
   .toasts { bottom: calc(72px + env(safe-area-inset-bottom)); left: 12px; right: 12px; width: auto; }
+  /* A row's actions go under its text, which keeps the full width. */
+  .list-row { grid-template-columns: minmax(0, 1fr); }
+  .list-aside { justify-content: flex-start; }
   .tabs-bottom { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; background: var(--rail-bg); padding: 6px 4px calc(8px + env(safe-area-inset-bottom)); z-index: 20; }
   .tab-link { display: grid; justify-items: center; gap: 2px; font: 600 12px/16px var(--font); color: var(--rail-muted); text-decoration: none; padding: 2px 0; position: relative; }
   .tab-link.active { color: var(--rail-active); }

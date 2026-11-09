@@ -20,6 +20,13 @@ describe('shared interaction styles', () => {
     expect(toasts.bottom).toBe('calc(72px + env(safe-area-inset-bottom))')
   })
 
+  it('puts a list row\'s actions under its text on a phone', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<div className="list-row"><div className="list-main" /><div className="list-aside" /></div>)
+    expect(getComputedStyle(container.querySelector('.list-row')!).gridTemplateColumns).toBe('minmax(0, 1fr)')
+    expect(getComputedStyle(container.querySelector('.list-aside')!).justifyContent).toBe('flex-start')
+  })
+
   it('gives every button a 44 px coarse-pointer target', () => {
     loadRealMediaQuery('(pointer: coarse)')
     const { container } = render(
