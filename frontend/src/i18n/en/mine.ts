@@ -68,6 +68,7 @@ export const mine: Messages['mine'] = {
     noteHint: 'Optional · visible to coordinators and administrators.',
     range: {
       from: (day: string) => `Range: from ${day}`,
+      entry: (kind: string, note: string) => `This day: “${kind}”, reason: ${note}.`,
       closeToSave: (kind: string) => `Tap the last day to save “${kind}” for the whole range.`,
       closeToClear: 'Tap the last day to clear the whole range.',
     },

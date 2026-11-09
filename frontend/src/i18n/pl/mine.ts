@@ -72,6 +72,7 @@ export const mine = {
     /** A range started by a tap on the phone, waiting for its last day. */
     range: {
       from: (day: string) => `Zakres: od ${day}`,
+      entry: (kind: string, note: string) => `Ten dzień: „${kind}”, powód: ${note}.`,
       closeToSave: (kind: string) => `Dotknij ostatni dzień, żeby zapisać „${kind}” dla całego zakresu.`,
       closeToClear: 'Dotknij ostatni dzień, żeby wyczyścić cały zakres.',
     },

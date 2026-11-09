@@ -1394,6 +1394,24 @@ describe('MineScreen availability Undo', () => {
 describe('MineScreen availability on a phone', () => {
   const cell = (label: RegExp) => screen.getByRole('gridcell', { name: label })
 
+  it('says the reason of the day a range starts on, which a phone cannot hover', async () => {
+    pretendNarrow()
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'prefer_not', starts_on: '2026-09-22', ends_on: '2026-09-23', note: 'szkolenie', created_at: '2026-08-20T10:00:00Z' },
+    ])
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await screen.findByRole('gridcell', { name: /wt 22-09-2026, Wolę nie/ })
+    await idleCalendar()
+
+    fireEvent.click(cell(/wt 22-09-2026/), { detail: 1 })
+    const frame = screen.getByText('Zakres: od 22 wrz').closest('.box') as HTMLElement
+    expect(frame).toHaveTextContent('Ten dzień: „wolę nie”, powód: szkolenie.')
+    fireEvent.click(within(frame).getByRole('button', { name: 'Anuluj' }))
+    fireEvent.click(cell(/czw 24-09-2026/), { detail: 1 })
+    expect(screen.getByText('Zakres: od 24 wrz').closest('.box')).not.toHaveTextContent('powód')
+  })
+
   it('starts a range with the first tap and saves it with the second', async () => {
     pretendNarrow()
     stub()

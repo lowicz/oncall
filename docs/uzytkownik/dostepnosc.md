@@ -64,7 +64,8 @@ dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie strony
 Pod kalendarzem stoi jedno zdanie o gestach i link **Legenda**, który
 wyjaśnia kropkę, obwódkę i litery. Dni już zgłoszone mają kolor trybu i
 literę (`N` - nie mogę, `W` - wolę nie, `C` - chętnie); dzień z powodem ma w
-rogu małą ikonę notatki, a sam powód widać po najechaniu na dzień. Kropka w
+rogu małą ikonę notatki, a sam powód widać po najechaniu na dzień; na
+telefonie pierwsze dotknięcie dnia z powodem pokazuje go w ramce „Zakres: od…”. Kropka w
 rogu dnia to Twój dyżur. Dni minionych nie da się zaznaczyć.
 
 Jeśli „nie mogę” trafia na dzień z dyżurem, dzień dostaje bursztynową

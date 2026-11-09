@@ -66,7 +66,8 @@ Under the calendar there is one sentence about the gestures and a **Legend**
 link that explains the dot, the outline and the letters. Days already filed
 carry the colour of the mode and a letter (`U` - unavailable, `P` - prefer
 not, `W` - willing); a day with a reason has a small note icon in its corner,
-and the reason itself is shown when you hover over the day. A dot in the
+and the reason itself is shown when you hover over the day; on a phone the
+first tap on a day with a reason shows it in the “Range: from…” frame. A dot in the
 corner of a day is your duty. Past days cannot be selected.
 
 If “unavailable” lands on a day with a duty, the day gets an amber outline and

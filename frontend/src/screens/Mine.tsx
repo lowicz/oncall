@@ -215,6 +215,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
     return map
   }, [duties])
   const entryFor = (date: string) => entries.find((entry) => entry.starts_on <= date && entry.ends_on >= date)
+  const pickedEntry = pick && entryFor(pick.anchor)
   const paint = (a: string, b: string) => {
     const [startsOn, endsOn] = a <= b ? [a, b] : [b, a]
     lastPainted.current = endsOn
@@ -327,6 +328,8 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
       </div>
       {pick && (
         <Box tone="sig" role="status" title={range.from(formatShortDate(pick.anchor))}>
+          {/* A phone has no hover, so the reason of the day touched first is said here. */}
+          {pickedEntry?.note && <div>{range.entry(brushes[pickedEntry.kind], pickedEntry.note)}</div>}
           {brush === 'clear' ? range.closeToClear : range.closeToSave(brushes[brush])}
           <div className="row avail-box-actions">
             <Button size="sm" onClick={() => setPick(null)}>{words.common.cancel}</Button>
