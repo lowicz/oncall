@@ -382,6 +382,27 @@ describe('OffboardingDialog', () => {
     expect(confirm).toBeDisabled()
   })
 
+  it('writes nothing for an exit date before the entry', async () => {
+    const entering: TeamMember = {
+      ...leaving,
+      active_from: '2026-11-16',
+      eligibility: [{ id: 'e1', role: 'primary', starts_on: '2026-11-16', ends_on: null }],
+    }
+    const calendar = vi.spyOn(api, 'calendar')
+    const removed = vi.spyOn(api, 'deleteEligibility')
+    const finished = vi.spyOn(api, 'updateTeamMember')
+    renderScreen(<OffboardingDialog open member={entering} activeUntil="2026-11-08" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Data wyjścia 08-11-2026 jest przed wejściem do rotacji 16-11-2026. Zmień datę w polu „Wyjście do”.')
+    expect(screen.queryByText(/Kwalifikacje tej osoby skończą się/)).not.toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Zakończ rotację' })
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(calendar).not.toHaveBeenCalled()
+    expect(removed).not.toHaveBeenCalled()
+    expect(finished).not.toHaveBeenCalled()
+  })
+
   it('reports a calendar that cannot be read', async () => {
     vi.spyOn(api, 'calendar').mockRejectedValue(new Error('Serwer niedostępny'))
     renderScreen(<OffboardingDialog open member={leaving} activeUntil="2026-09-20" onClose={() => {}} onDone={vi.fn()} onChanged={() => {}} />)

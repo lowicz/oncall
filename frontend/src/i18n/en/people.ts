@@ -254,6 +254,7 @@ export const people: Messages['people'] = {
       : `${pluralEn(count, ['duty', 'duties'])} after ${date} ${pluralFormEn(count, ['gets', 'get'])} the replacement picked below, and this person's qualifications end on ${date}.`,
     reason: (name: string) => `Rotation ended for ${name}`,
     rewriteAndEnd: (count: number) => count === 0 ? 'End the rotation' : `Rewrite ${pluralEn(count, ['duty', 'duties'])} and end the rotation`,
+    exitBeforeEntry: (exit: string, entry: string) => `The exit date ${exit} is before the rotation entry ${entry}. Change the date in the “Exit on” field.`,
     searchingDuties: 'Looking for future duties…',
     refusalTitle: 'The rewrite would break hard rules',
     refusalNext: 'Pick other replacements or confirm a deliberate violation; it will go into the audit log.',
