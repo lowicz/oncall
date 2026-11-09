@@ -33,7 +33,8 @@ export function ImpactSide({ side, direction }: Readonly<{ side: SwapImpactMembe
   const moved = LENSES.filter((key) => delta(side.before[key].actual, side.after[key].actual))
   const distance = (state: 'before' | 'after') =>
     Math.round(moved.reduce((total, key) => total + Math.abs(side[state][key].deviation), 0) * 100) / 100
-  const overall = trend(distance('before'), distance('after'))
+  const [from, to] = [distance('before'), distance('after')]
+  const overall = trend(from, to)
   return (
     <div className="stack-sm">
       <div className="impact-h">{side.display_name} · {direction}</div>
@@ -42,7 +43,7 @@ export function ImpactSide({ side, direction }: Readonly<{ side: SwapImpactMembe
           <summary className="small">
             {t.distance}{' '}
             <span className={cx('impact-d', TREND_CLASS[overall])}>
-              {formatDecimal(distance('before'))} → {formatDecimal(distance('after'))} · {t[overall]}
+              {formatDecimal(from)} → {formatDecimal(to)} · {t[overall]}
             </span>
           </summary>
           {moved.map((key) => {

@@ -582,10 +582,7 @@ button.role-row:hover .btn-ghost { color: var(--fg); }
 .impact-d { font: 12px/16px var(--mono); text-align: right; white-space: nowrap; }
 .impact-d-ok { color: var(--ok); } .impact-d-warn { color: var(--warn); }
 .impact-more { display: grid; gap: 6px; }
-.impact-more > summary { cursor: pointer; list-style: none; }
-.impact-more > summary::-webkit-details-marker { display: none; }
-.impact-more > summary::before { content: '▸' / ''; display: inline-block; width: 1em; color: var(--muted); }
-.impact-more[open] > summary::before { content: '▾' / ''; }
+.impact-more > summary { cursor: pointer; }
 .rank { display: grid; gap: 6px; }
 .rank-c { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: none; color: inherit; text-align: left; font: inherit; }
 button.rank-c { cursor: pointer; }

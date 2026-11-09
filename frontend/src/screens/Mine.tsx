@@ -257,10 +257,10 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   const turnMonth = (event: React.KeyboardEvent, date: string) => {
     event.preventDefault()
     const months = event.key === 'PageUp' ? -1 : 1
-    const next = shiftMonth(month, months)
+    const days = monthDays(shiftMonth(month, months))
     // A month wholly passed has no day to land on.
-    if (monthDays(next).at(-1)! < today) return
-    turnedTo.current = monthDays(next)[Math.min(Number(date.slice(8)), monthDays(next).length) - 1]
+    if (days.at(-1)! < today) return
+    turnedTo.current = days[Math.min(Number(date.slice(8)), days.length) - 1]
     onStepMonth(months)
   }
   const selection = drag ?? pick
@@ -293,6 +293,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                 roles.length ? t.duty(roles.map((role) => roleNames[role]).join(', ')) : null,
                 conflict ? t.dutyCollision : null,
               ].filter(Boolean).join(', ')
+              const cell = grid.cellProps(rowIndex, colIndex)
               return (
                 <button
                   type="button"
@@ -311,8 +312,8 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                     conflict && 'avail-day-conflict',
                   )}
                   disabled={past}
-                  {...grid.cellProps(rowIndex, colIndex)}
-                  onKeyDown={(event) => (event.key === 'PageUp' || event.key === 'PageDown' ? turnMonth(event, date) : grid.cellProps(rowIndex, colIndex).onKeyDown(event))}
+                  {...cell}
+                  onKeyDown={(event) => (event.key === 'PageUp' || event.key === 'PageDown' ? turnMonth(event, date) : cell.onKeyDown(event))}
                   onPointerDown={(event) => {
                     if (disabled || narrow || event.button !== 0) return
                     // Shift+click closes a range from the last painted day.

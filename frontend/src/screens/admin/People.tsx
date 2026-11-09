@@ -659,13 +659,14 @@ export function PeoplePanel() {
     mutationFn: async (row: Row) => {
       const before = row.user
       const offboard = needsOffboarding
+      const kept = periodEdits.filter((entry) => !isRemoval(entry))
       // What the dialog saves, or a removal's own Undo toast names, is not listed here.
       const others = offboard
         ? [...accountChanges, ...entryChanges]
-        : [...accountChanges, ...rotationChanges, ...periodEdits.filter((entry) => !isRemoval(entry)).map(periodChange), ...newPeriods.map(newPeriodChange)]
+        : [...accountChanges, ...rotationChanges, ...kept.map(periodChange), ...newPeriods.map(newPeriodChange)]
       // New dates of a period are offered back like its removal; the toast
       // names them first and lists whatever else went with them.
-      const dateEdits = row.member && !offboard ? periodEdits.filter((entry) => !isRemoval(entry)) : []
+      const dateEdits = row.member && !offboard ? kept : []
       if (accessChanges.length === 0 && dateEdits.length > 0) {
         const dated = dateEdits.map(periodChange)
         const rest = others.filter((change) => !dated.includes(change))
@@ -905,7 +906,7 @@ export function PeoplePanel() {
                     <td><StatusBadge tone={roleTone[row.user.role]}>{accountRoleLabels()[row.user.role]}</StatusBadge></td>
                     <td>{row.user.role === 'viewer' && !row.member ? <span className="muted">{t.row.notApplicable}</span> : <RotationCell member={row.member} today={today} />}</td>
                     <td className={cx('mono', (needsPhone || phoneToFix) && 'who-bad')}>
-                      {(row.user.phone && phoneText(row.user.phone)) ?? (needsPhone ? t.row.missing : <span className="muted">–</span>)}
+                      {row.user.phone ? phoneText(row.user.phone) : (needsPhone ? t.row.missing : <span className="muted">–</span>)}
                       {phoneToFix && <small>{t.row.fixPhone}</small>}
                     </td>
                     <td>
