@@ -756,6 +756,13 @@ export function PeoplePanel() {
     saveAll.mutate(selectedRow)
   }
   const requestClose = () => unsavedChanges.requestAction(closeDetails)
+  // Back to what is saved, in the same panel; the link goes with the
+  // changes, so focus goes to the panel's title.
+  const panelTitle = useRef<HTMLHeadingElement>(null)
+  const discardChanges = () => {
+    if (selectedRow) applyDetails(selectedRow, tab)
+    panelTitle.current?.focus()
+  }
   const error = users.error || team.error || createRotation.error
   const ldapFieldsLocked = selectedRow?.user.auth_source === 'ldap'
   const selectedState = rotationState(selectedRow?.member, today)
@@ -1021,6 +1028,7 @@ export function PeoplePanel() {
       <Panel
         open={Boolean(selectedRow)}
         onClose={requestClose}
+        titleRef={panelTitle}
         wide
         title={selectedRow ? (
           <span className="row">
@@ -1051,7 +1059,7 @@ export function PeoplePanel() {
               <span className="panel-foot-note small muted">
                 {t.details.unsaved(pendingChanges.join(' · '))}
                 {/* Named for its effect, so it needs no dialog; closing by Escape or the corner button still asks. */}
-                <button type="button" className="link-btn" onClick={closeDetails}>{t.details.discard}</button>
+                <button type="button" className="link-btn" onClick={discardChanges}>{t.details.discard}</button>
               </span>
             ) : (
               <>

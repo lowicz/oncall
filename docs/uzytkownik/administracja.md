@@ -110,7 +110,8 @@ konto, na które Keycloak wpuszcza osobę.
 
 Panel pilnuje niezapisanych zmian: przycisk **Zapisz** podaje ich liczbę.
 Próba zamknięcia (Esc albo krzyżyk), otwarcia innej osoby, przejścia na inny ekran albo odświeżenia wymaga decyzji, czy odrzucić wprowadzone zmiany.
-Przycisk **Odrzuć zmiany** w stopce porzuca je od razu, bez pytania.
+Przycisk **Odrzuć zmiany** w stopce porzuca je od razu, bez pytania; panel
+zostaje otwarty z zapisanymi danymi osoby.
 Każdy zapis kończy się powiadomieniem w rogu ekranu, które mówi, co zapisano („Zapisano: telefon”); tak samo utworzenie konta i dodanie do rotacji.
 Zmiana roli i wyłączenie albo włączenie konta zapisują się bez dodatkowego pytania, a powiadomienie („Zmieniono rolę: Jan Kowalski → Koordynator”) ma przycisk **Cofnij**, który przez kilka sekund przywraca poprzednią rolę i stan konta.
 

@@ -118,7 +118,8 @@ account Keycloak lets the person into.
 
 The panel keeps track of unsaved changes: the **Save** button gives their count.
 Trying to close it (Esc or the cross), open another person, go to another screen, or reload requires a decision whether to discard the entered changes.
-The **Discard changes** button in the footer drops them at once, without asking.
+The **Discard changes** button in the footer drops them at once, without asking;
+the panel stays open with the person's saved details.
 Every save ends with a notification in the corner of the screen that says what was saved (“Saved: phone”); so do creating an account and adding to the rotation.
 A role change and disabling or enabling the account save without an extra question, and the notification (“Role changed: Jan Kowalski → Coordinator”) has an **Undo** button that puts the previous role and account state back for a few seconds.
 

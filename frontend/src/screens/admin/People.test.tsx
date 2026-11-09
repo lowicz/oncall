@@ -410,15 +410,18 @@ describe('PeoplePanel person panel', () => {
     expect(await screen.findByRole('dialog', { name: /Ewa Maj/ })).toBeInTheDocument()
   })
 
-  it('discards unsaved changes from the footer without asking', async () => {
+  it('discards unsaved changes from the footer without asking, keeping the person open', async () => {
     mockData()
     renderScreen(<PeoplePanel />)
     const dialog = await openRow('anna')
-    fireEvent.change(within(dialog).getByLabelText('E-mail'), {
-      target: { value: 'new@example.com' },
-    })
+    const email = within(dialog).getByLabelText('E-mail')
+    const saved = (email as HTMLInputElement).value
+    fireEvent.change(email, { target: { value: 'new@example.com' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Odrzuć zmiany' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: /Anna Kowalska/ })).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('E-mail')).toHaveValue(saved)
+    expect(within(dialog).queryByRole('button', { name: 'Odrzuć zmiany' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('heading', { name: /Anna Kowalska/ })).toHaveFocus()
     expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument()
   })
 

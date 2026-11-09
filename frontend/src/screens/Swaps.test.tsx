@@ -308,6 +308,8 @@ describe('SwapPanel inbox', () => {
     fireEvent.click(withdraw)
     await waitFor(() => expect(cancel).toHaveBeenCalled())
     expect(cancel.mock.calls[0][0]).toEqual({ id: '1', reason: 'Zmiana planów' })
+    // The request leaves this inbox with the sheet, so focus lands on the inbox heading.
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Skrzynka' })).toHaveFocus())
   })
 
   it('withdraws without a reason, recording the author as the cause', async () => {

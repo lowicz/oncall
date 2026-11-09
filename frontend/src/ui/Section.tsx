@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef } from 'react'
+import { ReactNode, RefObject, useEffect, useRef } from 'react'
 import { cx } from './cx'
 
 /** The title of a screen: the fact first (a date, a range, a name), the
@@ -21,17 +21,19 @@ export function PageHeader({ title, sub, actions, className }: {
 }
 
 /** A ruled section heading: title, mono meta, controls on the right. */
-export function SectionHeading({ title, meta, controls, className, as: Heading = 'h2', id }: {
+export function SectionHeading({ title, meta, controls, className, as: Heading = 'h2', id, headingRef }: {
   title: ReactNode
   meta?: ReactNode
   controls?: ReactNode
   className?: string
   as?: 'h2' | 'h3'
   id?: string
+  /** Makes the heading a place focus can be sent to, after what held it is gone. */
+  headingRef?: RefObject<HTMLHeadingElement | null>
 }) {
   return (
     <div className={cx('sech', className)}>
-      <Heading className="sech-title" id={id}>{title}</Heading>
+      <Heading className="sech-title" id={id} ref={headingRef} tabIndex={headingRef ? -1 : undefined}>{title}</Heading>
       {meta && <span className="sech-meta">{meta}</span>}
       {controls && <div className="sech-ctl">{controls}</div>}
     </div>

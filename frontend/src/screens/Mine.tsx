@@ -949,12 +949,16 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
   const [checked, setChecked] = useState(false)
   const value = draft ?? me.data?.phone ?? ''
   const typed = value.trim()
+  // The save button falls idle once the number is stored, so focus goes
+  // back to the number it saved.
+  const field = useRef<HTMLInputElement>(null)
   const save = useMutation({
     mutationFn: () => api.updateMyPhone(typed || null),
     onSuccess: (updated) => {
       queryClient.setQueryData(meKey, updated)
       setDraft(null)
       toast.success(t.saved)
+      field.current?.focus()
     },
   })
   // No verdict on a value that has not arrived yet.
@@ -966,7 +970,7 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
       <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); setChecked(true); save.mutate() }}>
         <Field label={t.label} id="my-phone" hint={t.hint} error={error}>
           {({ id, describedBy, invalid }) => (
-            <Input id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onBlur={() => setChecked(true)} onChange={(event) => { setChecked(false); setDraft(event.target.value) }} />
+            <Input ref={field} id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onBlur={() => setChecked(true)} onChange={(event) => { setChecked(false); setDraft(event.target.value) }} />
           )}
         </Field>
         {save.error && <Box tone="bad" role="alert" focus title={save.error.message} />}

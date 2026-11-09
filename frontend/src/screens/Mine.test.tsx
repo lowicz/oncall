@@ -618,6 +618,8 @@ describe('MineScreen phone', () => {
     await waitFor(() => expect(input).toHaveValue('+48600100300'))
     expect(await screen.findByText('Zapisano numer telefonu')).toBeInTheDocument()
     expect(save).toBeDisabled()
+    // The idle button cannot hold focus, so it goes back to the number.
+    expect(input).toHaveFocus()
   })
 
   it('asks a rotation member for a number, flags one that is not Polish and shows the refusal', async () => {

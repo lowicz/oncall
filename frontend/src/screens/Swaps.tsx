@@ -1,4 +1,4 @@
-import { Fragment, ReactNode, useCallback, useEffect, useState } from 'react'
+import { Fragment, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapImpactMember, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
@@ -480,6 +480,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const [reason, setReason] = useState('')
   const [rejecting, setRejecting] = useState(false)
   const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setRejecting(false); setSheetAcknowledgedFor(null) }
+  // A decision moves the request to another inbox, so the row that opened
+  // the sheet is gone when it closes: focus goes to the inbox heading instead.
+  const inboxHeading = useRef<HTMLHeadingElement>(null)
+  const decided = useRef(false)
   const openSwaps = useQuery({ queryKey: ['swaps', 'open'], queryFn: () => api.swaps({ status: OPEN_STATUSES, limit: OPEN_LIMIT }) })
   const closedSwaps = useInfiniteQuery({
     queryKey: ['swaps', 'closed'],
@@ -650,6 +654,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   }, [sent, resetCreate, setInbox])
   const settle = (notify: (result: SwapRequest) => void) => ({
     onSuccess: (result: SwapRequest) => {
+      decided.current = true
       openSheet(null)
       refresh()
       notify(result)
@@ -761,6 +766,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         <>
           <SectionHeading
             title={t.swaps.inbox.heading}
+            headingRef={inboxHeading}
             controls={(
               <Segmented<Inbox>
                 label={t.swaps.inbox.heading}
@@ -886,6 +892,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       <Panel
         open={Boolean(openItem)}
         onClose={() => openSheet(null)}
+        finalFocus={() => {
+          if (!decided.current) return true
+          decided.current = false
+          return inboxHeading.current
+        }}
         title={openItem ? sheetTitle(openItem) : ''}
         // Wide enough for both names of an exchange row and the approval's three buttons.
         wide

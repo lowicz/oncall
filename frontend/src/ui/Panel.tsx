@@ -12,7 +12,7 @@ import { useMessages } from '../i18n/messages'
  * matrix without closing it); Escape closes it. On a phone it is a modal
  * bottom sheet with a backdrop.
  */
-export function Panel({ open, onClose, title, meta, children, footer, className, wide, finalFocus }: {
+export function Panel({ open, onClose, title, meta, children, footer, className, wide, finalFocus, titleRef: givenTitleRef }: {
   open: boolean
   /** The panel has no trigger: the page opens it through `open`, so the only
    *  change it ever asks for is to close (Escape, the close button, a tap on
@@ -25,12 +25,16 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
   footer?: ReactNode
   className?: string
   wide?: boolean
-  /** Where focus goes on closing when what opened the panel is gone, a menu item. */
-  finalFocus?: RefObject<HTMLElement | null>
+  /** Where focus goes on closing when what opened the panel is gone, a menu
+   *  item; a function decides at the moment of closing (`true` is the opener). */
+  finalFocus?: RefObject<HTMLElement | null> | (() => HTMLElement | null | boolean)
+  /** The title, focusable, for a screen that moves focus back to the panel's top. */
+  titleRef?: RefObject<HTMLHeadingElement | null>
 }) {
   const narrow = useNarrow()
   const t = useMessages()
-  const titleRef = useRef<HTMLHeadingElement>(null)
+  const ownTitleRef = useRef<HTMLHeadingElement>(null)
+  const titleRef = givenTitleRef ?? ownTitleRef
   return (
     <BaseDialog.Root
       open={open}
