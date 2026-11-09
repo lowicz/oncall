@@ -7,6 +7,7 @@ import { useNarrow } from '../hooks/useMediaQuery'
 import { messages, useMessages } from '../i18n'
 import { formatClock } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
+import { phoneText, telHref } from '../lib/phone'
 import { DEFAULT_UNDO_WINDOW_SECONDS, undoable } from '../lib/undo'
 import { Box, Button, Field, Input, Popover, Segmented, Sheet, StatusPill, useToast } from '../ui'
 
@@ -120,7 +121,7 @@ function HandoverForm({ now, pair, receiverPhone, viewer, onDone, onCancel, bloc
     <form className="stack-sm handover-form" onSubmit={submit}>
       <p>
         {t.receiver} <b>{secondary.name}</b> · {roleLabels().secondary}
-        {receiverPhone && <> · <a className="mono handover-tel" href={`tel:${receiverPhone.replace(/\s+/g, '')}`}>{receiverPhone.replaceAll(' ', ' ')}</a></>}
+        {receiverPhone && <> · <a className="mono handover-tel" href={telHref(receiverPhone)}>{phoneText(receiverPhone)}</a></>}
       </p>
       <Field label={t.duration} hint={t.latestHint(latestClock)}>
         {({ labelId, describedBy }) => (

@@ -333,8 +333,18 @@ async def test_only_the_pair_and_a_coordinator_read_the_pair(
 
     def sides(anna_is_you: bool, marek_is_you: bool) -> dict:
         return {
-            "primary": {"name": "Anna Kowalska", "is_you": anna_is_you, "has_phone": True},
-            "secondary": {"name": "Marek Nowak", "is_you": marek_is_you, "has_phone": True},
+            "primary": {
+                "name": "Anna Kowalska",
+                "member_id": str(pair["Anna Kowalska"].id),
+                "is_you": anna_is_you,
+                "has_phone": True,
+            },
+            "secondary": {
+                "name": "Marek Nowak",
+                "member_id": str(pair["Marek Nowak"].id),
+                "is_you": marek_is_you,
+                "has_phone": True,
+            },
         }
 
     assert await pair_for("anna") == sides(anna_is_you=True, marek_is_you=False)

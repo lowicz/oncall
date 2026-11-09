@@ -680,7 +680,10 @@ describe('CalendarMatrix risk chips', () => {
 
     const gaps = await screen.findByRole('button', { name: /4 dni bez pełnej obsady/ })
     expect(gaps).toHaveTextContent('4 dni bez pełnej obsady · 08-09, 09-09, 10-09…')
-    expect(within(riskRow()).getByText('2 dni poza opublikowanym grafikiem')).toHaveAttribute('title', 'Obsadzenie wymaga wygenerowania i opublikowania nowego grafiku')
+    // What it means is read once, as the chip's text; no title says it a second time.
+    const unpublished = within(riskRow()).getByText('2 dni poza opublikowanym grafikiem')
+    expect(unpublished).toHaveTextContent('2 dni poza opublikowanym grafikiem Obsadzenie wymaga wygenerowania i opublikowania nowego grafiku')
+    expect(unpublished).not.toHaveAttribute('title')
     expect(within(riskRow()).queryByText('Pełna obsada w całym zakresie')).not.toBeInTheDocument()
 
     fireEvent.click(gaps)
@@ -711,7 +714,7 @@ describe('CalendarMatrix risk chips', () => {
   it('tells a member that unstaffed days past the publication wait for the coordinator', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({ assignments: covered(DATES.slice(0, 6)) }, { '2026-09-13': { published: false } }))
     renderScreen(<CalendarMatrix role="member" displayName="Anna Kowalska" range={WEEK_OF_TODAY} />)
-    expect(await screen.findByText('1 dzień poza opublikowanym grafikiem')).toHaveAttribute('title', 'Koordynator jeszcze nie opublikował tego okresu')
+    expect(await screen.findByText('1 dzień poza opublikowanym grafikiem')).toHaveTextContent('Koordynator jeszcze nie opublikował tego okresu')
     expect(screen.queryByRole('button', { name: /bez pełnej obsady/ })).not.toBeInTheDocument()
   })
 

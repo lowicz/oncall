@@ -59,7 +59,7 @@ describe('NowStrip', () => {
     expect(getComputedStyle(name).textOverflow).not.toBe('ellipsis')
     expect(getComputedStyle(name).whiteSpace).toBe('normal')
     expect(getComputedStyle(name.closest('.now-slot')!).flexWrap).toBe('wrap')
-    expect(within(strip).getByRole('link', { name: '+48 600 100 005' })).toHaveAttribute('href', 'tel:+48600100005')
+    expect(within(strip).getByRole('link', { name: '+48\u00a0600\u00a0100\u00a0005' })).toHaveAttribute('href', 'tel:+48600100005')
   })
 
   it('sets the role chips white on the header band and leaves them filled everywhere else', async () => {
@@ -216,7 +216,7 @@ describe('NowStrip', () => {
     const pill = await within(strip).findByRole('button', { name: 'numer on-call · przełączam · do 13:40' })
     expect(pill.closest('.now-slot')).toHaveAttribute('data-role', 'secondary')
     expect(within(strip).getAllByRole('button', { name: /numer on-call/ })).toHaveLength(1)
-    expect(within(strip).getByRole('link', { name: '+48 601 220 118' })).toBeInTheDocument()
+    expect(within(strip).getByRole('link', { name: '+48\u00a0601\u00a0220\u00a0118' })).toBeInTheDocument()
     // The name beside the pill stays whole and the slot may wrap the pill to a second row.
     expect(getComputedStyle(pill.closest('.now-slot')!).flexWrap).toBe('wrap')
     expect(getComputedStyle(within(strip).getByText('Marek Nowak')).textOverflow).not.toBe('ellipsis')
@@ -244,7 +244,7 @@ describe('NowStrip', () => {
     const breakAt = children.findIndex((child) => getComputedStyle(child).flexBasis === '100%')
     expect(getComputedStyle(slot).flexWrap).toBe('wrap')
     expect(children.indexOf(within(slot).getByText('Anna Kowalska'))).toBeLessThan(breakAt)
-    expect(children.indexOf(within(slot).getByRole('link', { name: '+48 601 220 118' }))).toBeLessThan(breakAt)
+    expect(children.indexOf(within(slot).getByRole('link', { name: '+48\u00a0601\u00a0220\u00a0118' }))).toBeLessThan(breakAt)
     expect(children.indexOf(pill)).toBeGreaterThan(breakAt)
   })
 

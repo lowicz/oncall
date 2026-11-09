@@ -77,7 +77,7 @@ export const people = {
     email: 'E-mail',
     phone: 'Telefon · na pasku „Teraz”',
     phoneNewHint: 'Format: +48 i dziewięć cyfr. Wymagany dla osób w rotacji; widzą go zalogowane osoby.',
-    phoneHint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby na pasku „Teraz” i na karcie dyżurnego.',
+    phoneHint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby i odbiorcy linków udostępnienia na pasku „Teraz” i na karcie dyżurnego.',
     phoneRequired: 'Wymagany dla osób w rotacji.',
     phoneFix: 'Popraw numer: +48 i dziewięć cyfr.',
     accountRole: 'Rola konta',

@@ -147,6 +147,9 @@ describe('ShareLinksPanel creation', () => {
     fireEvent.change(within(form).getByLabelText(/Odbiorca/), { target: { value: 'dyspozytornia' } })
     fireEvent.change(within(form).getByLabelText(/Grafik od/), { target: { value: '2026-10-01' } })
     fireEvent.change(within(form).getByLabelText(/Grafik do/), { target: { value: '2026-10-31' } })
+    // Each validity agrees with its number.
+    expect(within(within(form).getByLabelText('Ważność linku')).getAllByRole('option').map((option) => option.textContent))
+      .toEqual(['1 dzień', '3 dni', '7 dni', '14 dni', '30 dni'])
     fireEvent.change(within(form).getByLabelText('Ważność linku'), { target: { value: '14' } })
     fireEvent.click(within(form).getByRole('button', { name: 'Utwórz link' }))
 

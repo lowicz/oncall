@@ -31,6 +31,13 @@ describe('StatusLine', () => {
 })
 
 describe('Chip', () => {
+  it('says what a plain chip means once, as its text, with no title read twice', () => {
+    render(<Chip tone="warn" title="Koordynator jeszcze nie opublikował">4 dni poza grafikiem</Chip>)
+    const chip = screen.getByText('4 dni poza grafikiem')
+    expect(chip).toHaveTextContent('4 dni poza grafikiem Koordynator jeszcze nie opublikował')
+    expect(chip).not.toHaveAttribute('title')
+  })
+
   it('is a button when it leads somewhere', () => {
     const onClick = vi.fn()
     render(<Chip tone="bad" onClick={onClick} title="Pokaż luki" className="c">2 luki</Chip>)

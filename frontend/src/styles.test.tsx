@@ -86,6 +86,8 @@ describe('shared interaction styles', () => {
         <span className="role-r role-r-s">SECONDARY</span>
         <button type="button" className="avail-day avail-day-na">7</button>
         <button type="button" className="now-search">Szukaj</button>
+        <span className="tag tag-late">powiązana z SECONDARY</span>
+        <button type="button" className="tab">Rotacja</button>
       </>,
     )
     const style = (selector: string) => getComputedStyle(container.querySelector(selector)!)
@@ -96,6 +98,9 @@ describe('shared interaction styles', () => {
     expect(style('.role-r-s').color).toBe('var(--sec-text)')
     expect(style('.avail-day-na').color).toBe('var(--fg)')
     expect(style('.now-search').backgroundColor).toBe('rgba(0, 0, 0, 0)')
+    expect(style('.tag-late').color).toBe('var(--late-text)')
+    // A tab is as tall as the other small controls; a coarse pointer raises every button to 44 px.
+    expect(style('.tab').minHeight).toBe('32px')
   })
 
   it('reveals the skip link when it receives keyboard focus', () => {

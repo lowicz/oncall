@@ -3264,6 +3264,11 @@
             "title": "Is You",
             "type": "boolean"
           },
+          "member_id": {
+            "format": "uuid",
+            "title": "Member Id",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -3271,6 +3276,7 @@
         },
         "required": [
           "name",
+          "member_id",
           "is_you",
           "has_phone"
         ],

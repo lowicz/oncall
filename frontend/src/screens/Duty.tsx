@@ -180,7 +180,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const numberPill = held && (
     <NumberPill now={held} where={hasTeamMember && held.holder_name === displayName ? t.duty.handover.atYou : t.duty.handover.at(held.holder_name)} />
   )
-  const receiverPhone = pair && current.find((duty) => duty.assignee_name === pair.secondary.name && duty.contact_phone)?.contact_phone
+  const receiverPhone = pair && current.find((duty) => duty.member_id === pair.secondary.member_id && duty.contact_phone)?.contact_phone
   const handoverActions = held && pair && viewer && (
     <HandoverActions now={held} pair={pair} receiverPhone={receiverPhone ?? null} viewer={viewer} />
   )

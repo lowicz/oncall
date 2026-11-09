@@ -130,6 +130,7 @@ class PairMemberResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     name: str
+    member_id: uuid.UUID
     #: Whether the reader is this person.
     is_you: bool
     #: Whether a phone number is set; the number itself is never told here.

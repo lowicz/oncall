@@ -156,7 +156,7 @@ export const mine: Messages['mine'] = {
   phone: {
     heading: 'My phone',
     label: 'Phone number',
-    hint: 'Format: +48 and nine digits (bare digits get the prefix). Signed-in people see it on the “Now” strip and on the on-call card.',
+    hint: 'Format: +48 and nine digits (bare digits get the prefix). Signed-in people and share-link recipients see it on the “Now” strip and on the on-call card.',
     fix: 'Fix the number: +48 and nine digits.',
     required: 'Required for people in the rotation.',
     save: 'Save number',

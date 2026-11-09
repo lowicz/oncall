@@ -55,7 +55,7 @@ describe.each([
   ['light', light],
 ])('%s theme text tokens', (_, theme) => {
   it('keeps dim and role text readable on the deepest surfaces', () => {
-    for (const foreground of ['dim', 'sec-text']) {
+    for (const foreground of ['dim', 'sec-text', 'late-text']) {
       expect(contrast(rgb(token(theme, foreground)), rgb(token(theme, 's3')))).toBeGreaterThanOrEqual(4.5)
     }
   })

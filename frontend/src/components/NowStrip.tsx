@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, api } from '../api'
 import { roleLabels } from '../lib/labels'
 import { coverageEnd, formatUntil } from '../lib/coverage'
+import { phoneText, telHref } from '../lib/phone'
 import { locale, useMessages } from '../i18n'
 import { RoleLabel, Skeleton, cx } from '../ui'
 import { heldNumber, useForwardingNow } from '../hooks/useForwardingNow'
@@ -68,8 +69,8 @@ export function NowStrip({ children }: { children?: React.ReactNode }) {
               <>
                 <span className="now-who" title={duty.assignee_name}>{duty.assignee_name}</span>
                 {duty.contact_phone && (
-                  <a className="now-tel" href={`tel:${duty.contact_phone.replace(/\s+/g, '')}`}>
-                    {duty.contact_phone}
+                  <a className="now-tel" href={telHref(duty.contact_phone)}>
+                    {phoneText(duty.contact_phone)}
                   </a>
                 )}
                 {slotPill(role, duty.assignee_name)}

@@ -337,8 +337,8 @@ const FORWARDING_AT_ANNA: ForwardingNow = {
   holder_member_id: 'm1', holder_name: 'Anna Kowalska', holder_role: 'primary',
   handover: null, status: 'confirmed', confirmed_at: '2026-09-10T06:55:00Z',
   pair: {
-    primary: { name: 'Anna Kowalska', is_you: true, has_phone: true },
-    secondary: { name: 'Marek Nowak', is_you: false, has_phone: false },
+    primary: { name: 'Anna Kowalska', member_id: 'm1', is_you: true, has_phone: true },
+    secondary: { name: 'Marek Nowak', member_id: 'm2', is_you: false, has_phone: false },
   },
 }
 
@@ -560,8 +560,8 @@ describe('the Polish interface', () => {
     vi.spyOn(api, 'forwardingNow').mockResolvedValue({
       ...FORWARDING_AT_ANNA, holder_member_id: 'm2', holder_name: 'Marek Nowak', holder_role: 'secondary',
       pair: {
-        primary: { name: 'Anna Kowalska', is_you: false, has_phone: true },
-        secondary: { name: 'Marek Nowak', is_you: true, has_phone: true },
+        primary: { name: 'Anna Kowalska', member_id: 'm1', is_you: false, has_phone: true },
+        secondary: { name: 'Marek Nowak', member_id: 'm2', is_you: true, has_phone: true },
       },
       handover: {
         id: 'h1', day: TODAY, from_member_id: 'm1', from_name: 'Anna Kowalska', to_member_id: 'm2', to_name: 'Marek Nowak',

@@ -324,6 +324,7 @@ async def _pair(
     async def side(name: str, member_id: uuid.UUID) -> PairMember:
         return PairMember(
             name=name,
+            member_id=member_id,
             is_you=member_id == you,
             has_phone=await ports.contacts.phone(member_id) is not None,
         )

@@ -9,7 +9,7 @@ import { HandoverActions, HandoverViewer, NumberPill } from './NumberHandover'
 
 // The suite clock is Thursday 2026-09-10, 09:00 in Warsaw (src/test/setup.ts);
 // the duty day ends at 09:00 the next morning.
-const side = (name: string, over: Partial<PairMember> = {}): PairMember => ({ name, is_you: false, has_phone: true, ...over })
+const side = (name: string, over: Partial<PairMember> = {}): PairMember => ({ name, member_id: name, is_you: false, has_phone: true, ...over })
 const PAIR: HandoverPair = { primary: side('Anna Kowalska'), secondary: side('Marek Nowak') }
 const MAREK_PHONE = '+48 602 345 678'
 

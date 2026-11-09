@@ -662,8 +662,8 @@ async def test_a_dry_run_counts_as_confirmed_once_the_pass_recorded_it() -> None
 
 def _sides(anna_is_you: bool, marek_is_you: bool, marek_has_phone: bool = True) -> HandoverPair:
     return HandoverPair(
-        PairMember("Anna Kowalska", is_you=anna_is_you, has_phone=True),
-        PairMember("Marek Nowak", is_you=marek_is_you, has_phone=marek_has_phone),
+        PairMember("Anna Kowalska", ANNA, is_you=anna_is_you, has_phone=True),
+        PairMember("Marek Nowak", MAREK, is_you=marek_is_you, has_phone=marek_has_phone),
     )
 
 
