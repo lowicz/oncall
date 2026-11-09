@@ -13,6 +13,7 @@ from oncall.domain.availability.models import (
     AvailabilityDeclaration,
     AvailabilityQuery,
     AvailabilityRangeReplacement,
+    AvailabilityRangeUndo,
     AvailabilityWithdrawal,
     MemberById,
     MemberRef,
@@ -49,6 +50,7 @@ AVAILABILITY_ERROR_STATUSES = {
     errors.AvailabilityAlreadyExists: status.HTTP_409_CONFLICT,
     errors.AvailabilityOverlaps: status.HTTP_409_CONFLICT,
     errors.AvailabilityEntryNotFound: status.HTTP_404_NOT_FOUND,
+    errors.AvailabilityUndoNotFound: status.HTTP_404_NOT_FOUND,
 }
 
 
@@ -102,12 +104,22 @@ async def _replace_range(
                 ends_on=payload.ends_on,
                 kind=payload.kind,
                 note=payload.note,
+                undo_id=payload.undo_id,
             ),
             ports,
         )
     if declared is None:
         return None
     return availability_response(declared.entry, declared.member, declared.warning)
+
+
+async def _undo_range(
+    user: User, member: MemberRef, undo_id: uuid.UUID, ports: AvailabilityWritePorts
+) -> None:
+    with domain_errors_as_http(AVAILABILITY_ERROR_STATUSES):
+        await use_cases.undo_availability_range(
+            AvailabilityRangeUndo(actor_from(user), member, undo_id), ports
+        )
 
 
 async def _delete(
@@ -145,6 +157,14 @@ async def replace_my_availability_range(
 ) -> AvailabilityResponse | None:
     """Atomically replace or clear one range while preserving its outside pieces."""
     return await _replace_range(user, OwnMember(), payload, ports)
+
+
+@router.post("/me/range/undo/{undo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def undo_my_availability_range(
+    undo_id: uuid.UUID, user: MemberUser, ports: AvailabilityWriter, _: CsrfGuard
+) -> None:
+    """Put back, in one request, what the stroke sent with this `undo_id` replaced."""
+    await _undo_range(user, OwnMember(), undo_id, ports)
 
 
 @router.delete("/me/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -190,6 +210,18 @@ async def replace_member_availability_range(
 ) -> AvailabilityResponse | None:
     """Atomically replace a range on behalf of a rotation member."""
     return await _replace_range(user, MemberById(member_id), payload, ports)
+
+
+@router.post("/members/{member_id}/range/undo/{undo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def undo_member_availability_range(
+    member_id: uuid.UUID,
+    undo_id: uuid.UUID,
+    user: Coordinator,
+    ports: AvailabilityWriter,
+    _: CsrfGuard,
+) -> None:
+    """Undo a stroke made on behalf of a rotation member."""
+    await _undo_range(user, MemberById(member_id), undo_id, ports)
 
 
 @router.delete("/members/{member_id}/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)

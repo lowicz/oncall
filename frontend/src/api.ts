@@ -230,6 +230,8 @@ export interface AvailabilityRangeInput {
   starts_on: string
   ends_on: string
   note?: string
+  /** Names the save for its Undo; the server keeps what the range held. */
+  undo_id?: string
 }
 
 export interface HistoryImportRow {
@@ -993,6 +995,8 @@ export const api = {
     send<AvailabilityEntry>('POST', '/api/v1/availability/me', input),
   replaceAvailabilityRange: (input: AvailabilityRangeInput) =>
     send<AvailabilityEntry | null>('PUT', '/api/v1/availability/me/range', input),
+  undoAvailabilityRange: (undoId: string) =>
+    send<void>('POST', `/api/v1/availability/me/range/undo/${undoId}`),
   deleteAvailability: (id: string) => send<void>('DELETE', `/api/v1/availability/me/${id}`),
   memberAvailability: (memberId: string) =>
     request<AvailabilityEntry[]>(`/api/v1/availability/members/${memberId}`),
@@ -1000,6 +1004,8 @@ export const api = {
     send<AvailabilityEntry>('POST', `/api/v1/availability/members/${memberId}`, input),
   replaceMemberAvailabilityRange: (memberId: string, input: AvailabilityRangeInput) =>
     send<AvailabilityEntry | null>('PUT', `/api/v1/availability/members/${memberId}/range`, input),
+  undoMemberAvailabilityRange: (memberId: string, undoId: string) =>
+    send<void>('POST', `/api/v1/availability/members/${memberId}/range/undo/${undoId}`),
   deleteMemberAvailability: (memberId: string, id: string) =>
     send<void>('DELETE', `/api/v1/availability/members/${memberId}/${id}`),
   previewHistory: async (file: File) => {

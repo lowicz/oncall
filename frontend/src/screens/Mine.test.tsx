@@ -6,7 +6,7 @@ import { focusManager } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
 import { MineScreen } from './Mine'
 import { api, ApiError } from '../api'
-import type { AvailabilityEntry, AvailabilityRangeInput, CalendarData, CurrentUser, FairnessReport, SwapRequest } from '../api'
+import type { AvailabilityRangeInput, CalendarData, CurrentUser, FairnessReport, SwapRequest } from '../api'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -257,7 +257,7 @@ describe('MineScreen availability calendar', () => {
     fireEvent.click(cell(/niedz 20-09-2026/))
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith({
-      kind: null, starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined,
+      kind: null, starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined, undo_id: expect.any(String),
     }))
     expect(await screen.findByText('Wyczyszczono: niedz 20 wrz')).toBeInTheDocument()
   })
@@ -274,7 +274,7 @@ describe('MineScreen availability calendar', () => {
     fireEvent.change(screen.getByLabelText('Powód do kolejnych wpisów'), { target: { value: 'szkolenie' } })
     fireEvent.click(cell(/niedz 20-09-2026/))
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie' }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'prefer_not', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'szkolenie', undo_id: expect.any(String) }))
     expect(await screen.findByText('Zapisano: niedz 20 wrz „wolę nie”')).toBeInTheDocument()
     // The toast repeats the reason, so it is plain the reason went with the entry.
     expect(screen.getByText('powód: szkolenie')).toBeInTheDocument()
@@ -950,7 +950,7 @@ describe('MineScreen availability painting', () => {
     expect(duty).toHaveAccessibleName('śr 23-09-2026, dyżur: PRIMARY, kolizja z dyżurem')
 
     fireEvent.pointerUp(window)
-    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-22', ends_on: '2026-09-25', note: undefined }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-22', ends_on: '2026-09-25', note: undefined, undo_id: expect.any(String) }))
     expect(await screen.findByText('Zapisano: 22 – 25 wrz „nie mogę”')).toBeInTheDocument()
   })
 
@@ -970,7 +970,7 @@ describe('MineScreen availability painting', () => {
     fireEvent.pointerUp(window)
     expect(await screen.findByText('Wyczyszczono: 22 – 23 wrz')).toBeInTheDocument()
     expect(replace).toHaveBeenCalledWith({
-      kind: null, starts_on: '2026-09-22', ends_on: '2026-09-23', note: undefined,
+      kind: null, starts_on: '2026-09-22', ends_on: '2026-09-23', note: undefined, undo_id: expect.any(String),
     })
   })
 
@@ -1008,7 +1008,7 @@ describe('MineScreen availability painting', () => {
     expect(await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).toBeInTheDocument()
     await idleCalendar()
     fireEvent.click(cell(/czw 24-09-2026/), { shiftKey: true })
-    await waitFor(() => expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined }))
+    await waitFor(() => expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined, undo_id: expect.any(String) }))
   })
 
   it('closes a range with a mouse Shift+click from the last painted day in one save', async () => {
@@ -1031,7 +1031,7 @@ describe('MineScreen availability painting', () => {
     fireEvent.click(cell(/czw 24-09-2026/), { detail: 1, shiftKey: true })
     expect(await screen.findByText('Zapisano: 20 – 24 wrz „nie mogę”')).toBeInTheDocument()
     expect(replace).toHaveBeenCalledTimes(2)
-    expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined })
+    expect(replace).toHaveBeenLastCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-24', note: undefined, undo_id: expect.any(String) })
   })
 
   it('saves paints one after another and keeps the elapsed part of a cut entry', async () => {
@@ -1216,7 +1216,7 @@ describe('MineScreen availability painting', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Dostępność niedostępna')
     fireEvent.click(cell(/niedz 20-09-2026/))
-    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined, undo_id: expect.any(String) }))
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
@@ -1237,7 +1237,7 @@ describe('MineScreen availability painting', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
     fireEvent.click(day)
     await waitFor(() => expect(replace).toHaveBeenCalledWith('m-beata', {
-      kind: null, note: undefined, starts_on: '2026-09-20', ends_on: '2026-09-20',
+      kind: null, note: undefined, starts_on: '2026-09-20', ends_on: '2026-09-20', undo_id: expect.any(String),
     }))
   })
 
@@ -1258,13 +1258,14 @@ describe('MineScreen availability Undo', () => {
     id: `${input.starts_on}:${input.kind}`, kind: input.kind, starts_on: input.starts_on, ends_on: input.ends_on, note: input.note ?? null, created_at: '2026-09-10T10:00:00Z',
   } : null))
 
-  it('undoes a paint on empty days by clearing the range again', async () => {
+  it('undoes a paint in one request that names the save', async () => {
     stub()
     vi.spyOn(api, 'publicConfig').mockResolvedValue({
       ldap_enabled: false, sso_enabled: false, app_name: 'On-call', app_subtitle: '', version: 'dev',
       audit_retention_days: 365, login_audit_retention_days: 90, undo_window_seconds: 30,
     })
     const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
+    const undo = vi.spyOn(api, 'undoAvailabilityRange').mockResolvedValue(undefined)
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await idleCalendar()
 
@@ -1272,19 +1273,22 @@ describe('MineScreen availability Undo', () => {
     const toast = (await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).closest('.toast') as HTMLElement
     fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
 
-    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
-    expect(replace).toHaveBeenLastCalledWith({ kind: null, starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined })
+    await waitFor(() => expect(undo).toHaveBeenCalledTimes(1))
+    const [{ undo_id: undoId }] = replace.mock.calls[0]
+    expect(undoId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    expect(undo).toHaveBeenCalledWith(undoId)
+    expect(replace).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(screen.queryByText('Zapisano: niedz 20 wrz „nie mogę”')).not.toBeInTheDocument())
   })
 
-  it('writes back the painted part of every entry the paint cut into, with its kind and reason', async () => {
+  it('draws back the part of every entry the paint cut into while the server restores it', async () => {
     stub()
     vi.spyOn(api, 'availability').mockResolvedValue([
       { id: 'a1', kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: 'szkolenie', created_at: '2026-08-20T10:00:00Z' },
       { id: 'a2', kind: 'prefer', starts_on: '2026-09-24', ends_on: '2026-09-24', note: null, created_at: '2026-08-20T10:00:00Z' },
-      { id: 'a3', kind: 'prefer', starts_on: '2026-09-28', ends_on: '2026-09-28', note: null, created_at: '2026-08-20T10:00:00Z' },
     ])
-    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
+    vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
+    vi.spyOn(api, 'undoAvailabilityRange').mockReturnValue(new Promise(() => {}))
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Wolę nie/ })
     await idleCalendar()
@@ -1297,97 +1301,40 @@ describe('MineScreen availability Undo', () => {
     expect(toast).toHaveTextContent('powód: urlop')
     fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
 
-    await waitFor(() => expect(replace).toHaveBeenCalledTimes(4))
-    expect(replace.mock.calls.slice(1).map(([input]) => input)).toEqual([
-      { kind: null, starts_on: '2026-09-21', ends_on: '2026-09-25', note: undefined },
-      { kind: 'prefer_not', starts_on: '2026-09-21', ends_on: '2026-09-22', note: 'szkolenie' },
-      { kind: 'prefer', starts_on: '2026-09-24', ends_on: '2026-09-24', note: undefined },
-    ])
+    expect(await screen.findByRole('gridcell', { name: /pon 21-09-2026, Wolę nie/ })).toBeInTheDocument()
+    expect(cell(/czw 24-09-2026/)).toHaveAccessibleName(expect.stringContaining('Chętnie wezmę'))
+    expect(cell(/śr 23-09-2026/)).not.toHaveAccessibleName(expect.stringContaining('Nie mogę'))
   })
 
-  it('leaves a later paint outside the undone range as it is', async () => {
+  it('runs a paint made during an Undo after that Undo', async () => {
     stub()
-    vi.spyOn(api, 'availability').mockResolvedValue([
-      { id: 'a1', kind: 'prefer_not', starts_on: '2026-09-18', ends_on: '2026-09-22', note: null, created_at: '2026-08-20T10:00:00Z' },
-    ])
+    let finishUndo: () => void = () => {}
+    const undo = vi.spyOn(api, 'undoAvailabilityRange').mockImplementation(
+      () => new Promise<void>((resolve) => { finishUndo = resolve }),
+    )
     const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(echo)
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Wolę nie/ })
     await idleCalendar()
 
-    fireEvent.pointerDown(cell(/pon 21-09-2026/), { button: 0 })
-    fireEvent.pointerEnter(cell(/wt 22-09-2026/))
-    fireEvent.pointerUp(window)
-    const first = (await screen.findByText('Zapisano: 21 – 22 wrz „nie mogę”')).closest('.toast') as HTMLElement
-    fireEvent.click(screen.getByRole('radio', { name: 'chętnie' }))
-    fireEvent.click(cell(/sob 19-09-2026/))
-    await screen.findByText('Zapisano: sob 19 wrz „chętnie”')
-    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
-    fireEvent.click(within(first).getByRole('button', { name: 'Cofnij' }))
-
-    await waitFor(() => expect(replace).toHaveBeenCalledTimes(4))
-    expect(replace.mock.calls.slice(2).map(([input]) => input)).toEqual([
-      { kind: null, starts_on: '2026-09-21', ends_on: '2026-09-22', note: undefined },
-      { kind: 'prefer_not', starts_on: '2026-09-21', ends_on: '2026-09-22', note: undefined },
-    ])
-  })
-
-  it('runs a paint made during an Undo after every step of that Undo', async () => {
-    stub()
-    // The server keeps one entry per day, so the final state does not depend
-    // on how the screen splits entries.
-    const days = new Map<string, Pick<AvailabilityEntry, 'kind' | 'note'>>(
-      ['18', '19', '20', '21', '22'].map((day) => [`2026-09-${day}`, { kind: 'prefer_not', note: null }]),
-    )
-    vi.spyOn(api, 'availability').mockImplementation(async () => [...days].map(([date, day]) => ({
-      id: date, ...day, starts_on: date, ends_on: date, created_at: '2026-08-20T10:00:00Z',
-    })))
-    const write = (input: AvailabilityRangeInput) => {
-      for (let day = Number(input.starts_on.slice(8)); day <= Number(input.ends_on.slice(8)); day += 1) {
-        const date = `2026-09-${String(day).padStart(2, '0')}`
-        if (input.kind) days.set(date, { kind: input.kind, note: input.note ?? null })
-        else days.delete(date)
-      }
-      return null
-    }
-    let finishClear: () => void = () => {}
-    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockImplementation(async (input) => {
-      if (input.kind === null) await new Promise<void>((resolve) => { finishClear = resolve })
-      return write(input)
-    })
-    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
-    await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Wolę nie/ })
-    await idleCalendar()
-
-    fireEvent.pointerDown(cell(/pon 21-09-2026/), { button: 0 })
-    fireEvent.pointerEnter(cell(/pt 25-09-2026/))
-    fireEvent.pointerUp(window)
-    const toast = (await screen.findByText('Zapisano: 21 – 25 wrz „nie mogę”')).closest('.toast') as HTMLElement
+    fireEvent.click(cell(/pon 21-09-2026/))
+    const toast = (await screen.findByText('Zapisano: pon 21 wrz „nie mogę”')).closest('.toast') as HTMLElement
     fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
-    await waitFor(() => expect(replace).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(undo).toHaveBeenCalledTimes(1))
     fireEvent.click(screen.getByRole('radio', { name: 'chętnie' }))
     fireEvent.click(cell(/pon 21-09-2026/))
-    finishClear()
+    expect(replace).toHaveBeenCalledTimes(1)
+    finishUndo()
 
     expect(await screen.findByText('Zapisano: pon 21 wrz „chętnie”')).toBeInTheDocument()
-    expect(replace.mock.calls.map(([input]) => [input.kind, input.starts_on, input.ends_on])).toEqual([
-      ['unavailable', '2026-09-21', '2026-09-25'],
-      [null, '2026-09-21', '2026-09-25'],
-      ['prefer_not', '2026-09-21', '2026-09-21'],
-      ['prefer_not', '2026-09-22', '2026-09-22'],
-      ['prefer', '2026-09-21', '2026-09-21'],
-    ])
-    expect(days.get('2026-09-21')).toEqual({ kind: 'prefer', note: null })
-    expect(days.get('2026-09-22')).toEqual({ kind: 'prefer_not', note: null })
-    expect(await screen.findByRole('gridcell', { name: /pon 21-09-2026, Chętnie wezmę/ })).toBeInTheDocument()
+    expect(replace.mock.calls.map(([input]) => input.kind)).toEqual(['unavailable', 'prefer'])
   })
 
   it('keeps Undo after a failed attempt and says what was not undone', async () => {
     stub()
-    const replace = vi.spyOn(api, 'replaceAvailabilityRange')
-      .mockResolvedValueOnce(null)
+    vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
+    const undo = vi.spyOn(api, 'undoAvailabilityRange')
       .mockRejectedValueOnce(new ApiError('Brak połączenia', 503))
-      .mockResolvedValue(null)
+      .mockResolvedValue(undefined)
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await idleCalendar()
 
@@ -1401,7 +1348,7 @@ describe('MineScreen availability Undo', () => {
 
     expect(await screen.findByText('Nie cofnięto: niedz 20 wrz. Spróbuj ponownie.')).toBeInTheDocument()
     fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
-    await waitFor(() => expect(replace).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(undo).toHaveBeenCalledTimes(2))
   })
 
   it('undoes a paint on behalf of another member through that member', async () => {
@@ -1409,6 +1356,7 @@ describe('MineScreen availability Undo', () => {
     vi.spyOn(api, 'team').mockResolvedValue(TEAM)
     vi.spyOn(api, 'memberAvailability').mockResolvedValue([])
     const replace = vi.spyOn(api, 'replaceMemberAvailabilityRange').mockResolvedValue(null)
+    const undo = vi.spyOn(api, 'undoMemberAvailabilityRange').mockResolvedValue(undefined)
     renderScreen(<MineScreen role="coordinator" hasTeamMember displayName="Adam Nowicki" />)
     const picker = await screen.findByRole('combobox', { name: 'Osoba' })
     await screen.findByRole('option', { name: 'Beata Lis' })
@@ -1420,7 +1368,7 @@ describe('MineScreen availability Undo', () => {
     const toast = (await screen.findByText('Zapisano: niedz 20 wrz „nie mogę”')).closest('.toast') as HTMLElement
     fireEvent.click(within(toast).getByRole('button', { name: 'Cofnij' }))
 
-    await waitFor(() => expect(replace).toHaveBeenLastCalledWith('m-beata', { kind: null, starts_on: '2026-09-20', ends_on: '2026-09-20', note: undefined }))
+    await waitFor(() => expect(undo).toHaveBeenCalledWith('m-beata', replace.mock.calls[0][1].undo_id))
   })
 
   it('points a coordinator to the schedule for a duty on a day filed as unavailable', async () => {
@@ -1469,7 +1417,7 @@ describe('MineScreen availability on a phone', () => {
     expect(replace).not.toHaveBeenCalled()
 
     fireEvent.click(cell(/pt 25-09-2026/), { detail: 1 })
-    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-22', ends_on: '2026-09-25', note: undefined }))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-22', ends_on: '2026-09-25', note: undefined, undo_id: expect.any(String) }))
     expect(replace).toHaveBeenCalledOnce()
     expect(screen.queryByText('Zakres: od 22 wrz')).not.toBeInTheDocument()
     expect(await screen.findByText('Zapisano: 22 – 25 wrz „nie mogę”')).toBeInTheDocument()

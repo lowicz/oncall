@@ -25,6 +25,16 @@ export interface UndoableOptions<Result> {
   onOffer?: (undo: () => void, until: number) => void
 }
 
+/** A random UUID naming one change for its Undo. `crypto.randomUUID` exists
+ *  only on HTTPS, and the application may be served over plain HTTP. */
+export function newUndoId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 /**
  * Executes a reversible mutation and offers its inverse in a toast until the
  * server's Undo window closes. The window is counted from before the request,

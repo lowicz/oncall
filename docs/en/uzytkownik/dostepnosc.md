@@ -55,8 +55,11 @@ so refreshing the page keeps the same calendar.
   leave”) when one was given.
 - The message has an **Undo** button, active for 10 seconds. Undo returns the
   marked days to how they were before the save: the entries that were there
-  come back on those days, with their mode and reason, and days outside the
-  selection stay as they are. If Undo fails, the message
+  come back on those days, with their mode, reason and author, and days
+  outside the selection stay as they are. The e-mails about the save (to the
+  person a coordinator saves for, and to coordinators about a duty) go out
+  only once the Undo window closes, and not at all after an Undo. If Undo
+  fails, the message
   says so and **Undo** can be clicked again.
 
 Under the calendar there is one sentence about the gestures and a **Legend**

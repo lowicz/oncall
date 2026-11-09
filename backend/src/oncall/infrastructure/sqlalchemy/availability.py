@@ -10,13 +10,19 @@ from oncall.domain.availability.models import (
     KIND_LABELS,
     AvailabilityEntry,
     NewAvailabilityEntry,
+    RangeSnapshot,
 )
 from oncall.domain.roster import Duty
 from oncall.domain.team import Member
+from oncall.domain.vocabulary import AvailabilityKind
 from oncall.infrastructure.sqlalchemy.access_models import User
-from oncall.infrastructure.sqlalchemy.availability_model import Availability
+from oncall.infrastructure.sqlalchemy.availability_model import (
+    Availability,
+    AvailabilityRangeSnapshot,
+)
 from oncall.infrastructure.sqlalchemy.team_models import TeamMember
 from oncall.notifications import triggers
+from oncall.notifications.service import cancel_notifications
 
 
 def _to_entry(row: Availability, created_by_name: str | None) -> AvailabilityEntry:
@@ -134,6 +140,7 @@ class SqlAlchemyAvailability:
         entry: NewAvailabilityEntry,
         on_behalf: bool,
         duty_conflicts: list[Duty],
+        undo_id: uuid.UUID | None = None,
     ) -> None:
         actor = self._actor
         label = KIND_LABELS[entry.kind]
@@ -159,6 +166,7 @@ class SqlAlchemyAvailability:
                 self._session,
                 member_name=member.display_name,
                 duties=[(duty.service_date, duty.role) for duty in duty_conflicts],
+                undo_id=undo_id,
             )
         if on_behalf:
             await triggers.notify_availability_created_on_behalf(
@@ -169,6 +177,7 @@ class SqlAlchemyAvailability:
                 starts_on=entry.starts_on,
                 ends_on=entry.ends_on,
                 note=entry.note,
+                undo_id=undo_id,
             )
 
     async def withdrawn(self, *, member: Member, entry: AvailabilityEntry, on_behalf: bool) -> None:
@@ -191,4 +200,101 @@ class SqlAlchemyAvailability:
                 "kind": entry.kind.value,
                 **_on_behalf_details(member, actor, on_behalf),
             },
+        )
+
+    async def restored(
+        self, *, member: Member, entry: NewAvailabilityEntry, on_behalf: bool
+    ) -> None:
+        # A created action, so a draft that read these days sees them change.
+        actor = self._actor
+        label = KIND_LABELS[entry.kind]
+        record_audit(
+            self._session,
+            actor=actor,
+            action="availability.created_on_behalf" if on_behalf else "availability.created",
+            entity_type="availability",
+            entity_id=self._recorded.id if self._recorded is not None else None,
+            summary=(
+                f"{actor.display_name} w imieniu {member.display_name}: przywrócono "
+                f"„{label}” {entry.starts_on} – {entry.ends_on}"
+                if on_behalf
+                else f"{member.display_name}: przywrócono „{label}” "
+                f"{entry.starts_on} – {entry.ends_on}"
+            ),
+            details={
+                "kind": entry.kind.value,
+                "restored": True,
+                **_on_behalf_details(member, actor, on_behalf),
+            },
+        )
+
+    async def undone(self, undo_id: uuid.UUID) -> None:
+        await cancel_notifications(self._session, undo_key=triggers.availability_undo_key(undo_id))
+
+
+class SqlAlchemyRangeSnapshots:
+    """A painted range's previous entries, as one JSON row per stroke."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def keep(self, snapshot: RangeSnapshot) -> None:
+        self._session.add(
+            AvailabilityRangeSnapshot(
+                id=snapshot.id,
+                member_id=snapshot.member_id,
+                actor_user_id=snapshot.actor_user_id,
+                starts_on=snapshot.starts_on,
+                ends_on=snapshot.ends_on,
+                entries=[
+                    {
+                        "kind": entry.kind.value,
+                        "starts_on": entry.starts_on.isoformat(),
+                        "ends_on": entry.ends_on.isoformat(),
+                        "note": entry.note,
+                        "created_by_user_id": (
+                            str(entry.created_by_user_id) if entry.created_by_user_id else None
+                        ),
+                    }
+                    for entry in snapshot.entries
+                ],
+            )
+        )
+
+    async def take(
+        self, undo_id: uuid.UUID, member_id: uuid.UUID, actor_user_id: uuid.UUID
+    ) -> RangeSnapshot | None:
+        row = await self._session.scalar(
+            select(AvailabilityRangeSnapshot)
+            .where(
+                AvailabilityRangeSnapshot.id == undo_id,
+                AvailabilityRangeSnapshot.member_id == member_id,
+                AvailabilityRangeSnapshot.actor_user_id == actor_user_id,
+            )
+            .with_for_update()
+        )
+        if row is None:
+            return None
+        await self._session.delete(row)
+        return RangeSnapshot(
+            id=row.id,
+            member_id=row.member_id,
+            actor_user_id=row.actor_user_id,
+            starts_on=row.starts_on,
+            ends_on=row.ends_on,
+            entries=tuple(
+                NewAvailabilityEntry(
+                    member_id=row.member_id,
+                    created_by_user_id=(
+                        uuid.UUID(entry["created_by_user_id"])
+                        if entry["created_by_user_id"]
+                        else None
+                    ),
+                    kind=AvailabilityKind(entry["kind"]),
+                    starts_on=date.fromisoformat(entry["starts_on"]),
+                    ends_on=date.fromisoformat(entry["ends_on"]),
+                    note=entry["note"],
+                )
+                for entry in row.entries
+            ),
         )

@@ -55,8 +55,10 @@ dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie strony
   („powód: urlop”), jeśli go podano.
 - Komunikat ma przycisk **Cofnij**, aktywny przez 10 sekund. Cofnięcie
   przywraca zaznaczone dni do stanu sprzed zapisu: wpisy, które tam były,
-  wracają na te dni z rodzajem i powodem, a dni poza zaznaczeniem zostają
-  bez zmian. Jeśli cofnięcie się nie uda,
+  wracają na te dni z rodzajem, powodem i autorem, a dni poza zaznaczeniem
+  zostają bez zmian. E-maile o zapisie (do osoby, w której imieniu zapisuje
+  koordynator, i do koordynatorów o dyżurze) wychodzą dopiero po zamknięciu
+  okna „Cofnij”, a po cofnięciu nie wychodzą wcale. Jeśli cofnięcie się nie uda,
   komunikat o tym mówi, a **Cofnij** można kliknąć ponownie.
 
 Pod kalendarzem stoi jedno zdanie o gestach i link **Legenda**, który

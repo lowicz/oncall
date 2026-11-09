@@ -71,7 +71,10 @@ from oncall.infrastructure.sqlalchemy.admin import (
     SqlAlchemyAuditTrail,
     SqlAlchemyRotation,
 )
-from oncall.infrastructure.sqlalchemy.availability import SqlAlchemyAvailability
+from oncall.infrastructure.sqlalchemy.availability import (
+    SqlAlchemyAvailability,
+    SqlAlchemyRangeSnapshots,
+)
 from oncall.infrastructure.sqlalchemy.calendar import (
     SqlAlchemyCalendarEvents,
     SqlAlchemyCalendarRoster,
@@ -236,6 +239,7 @@ def availability_writer(db: DbSession, actor: CurrentUser) -> AvailabilityWriteP
         roster=SqlAlchemyPublishedRoster(db),
         ledger=ledger,
         journal=ledger,
+        snapshots=SqlAlchemyRangeSnapshots(db),
     )
 
 

@@ -209,11 +209,12 @@ see [Verification](kopie-zapasowe.md#verification).
 
 ## Data retention
 
-Five tables grow with every use of the application and nothing but retention
+Six tables grow with every use of the application and nothing but retention
 ever deletes from them: the audit log (`audit_events`), the e-mail queue with
 the full text of every message (`notification_outbox`), generator runs
-(`schedule_runs`), sessions (`sessions`) and the one-time activation and
-password reset links (`account_tokens`). The worker process (`worker`) once
+(`schedule_runs`), sessions (`sessions`), the one-time activation and
+password reset links (`account_tokens`) and the remembered state of
+availability ranges for undoing a save (`availability_range_snapshots`). The worker process (`worker`) once
 every `ONCALL_RETENTION_INTERVAL_SECONDS` (an hour by default) deletes the
 rows older than the configured age, oldest first, in batches of
 `ONCALL_RETENTION_BATCH_SIZE` (1000 by default) rows, each in a short
@@ -233,6 +234,7 @@ is not retention: the request stays in the database as a closed one.
 | sent, failed, skipped and cancelled e-mails (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 days | messages waiting or being sent, whatever their age |
 | finished generator runs (`ONCALL_RETENTION_RUNS_DAYS`) | 30 days | queued and running runs |
 | expired sessions and activation or password reset links | a day after expiry, no setting | sessions and links still valid |
+| the state of availability ranges kept for undoing a save | a day after the save, no setting | nothing; Undo works for a few seconds |
 
 `0` in any `*_DAYS` variable switches that category off. Retention is on by
 default, also after an update from a release that did not have it: the first
@@ -249,7 +251,7 @@ the files on disk: retention stops the growth, it does not reverse it. The
 table sizes are shown by:
 
 ```bash
-docker compose exec db psql -U oncall -d oncall -c "select relname, pg_size_pretty(pg_total_relation_size(oid)) from pg_class where relname in ('audit_events', 'notification_outbox', 'schedule_runs', 'sessions', 'account_tokens')"
+docker compose exec db psql -U oncall -d oncall -c "select relname, pg_size_pretty(pg_total_relation_size(oid)) from pg_class where relname in ('audit_events', 'notification_outbox', 'schedule_runs', 'sessions', 'account_tokens', 'availability_range_snapshots')"
 ```
 
 The space taken by years without retention is given back once, in a

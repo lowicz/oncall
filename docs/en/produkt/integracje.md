@@ -290,6 +290,9 @@ The body contains `starts_on`, `ends_on`, an optional `note`, and `kind`: `unava
 The server cuts overlapping entries into the pieces outside the range and stores removals, preserved pieces, and the new entry in one transaction.
 Preserved pieces, including those before today, keep their author and note and send no notifications again; notifications and the audit trail cover only the days that changed.
 A failure in any part rolls back the whole operation.
+The body may also carry `undo_id`, a UUID chosen by the client: the server then keeps what the range held, and the save's e-mails wait until the Undo window (`undo_window_seconds`) closes.
+`POST /api/v1/availability/me/range/undo/{undo_id}` (for a coordinator `POST /api/v1/availability/members/{member_id}/range/undo/{undo_id}`) puts the range back as it was before the save in one request: the entries return with their author and note, days outside the range stay as they are, and the save's e-mails still waiting are not sent.
+Only the account that saved the range can undo it, and only once; otherwise the answer is `404`.
 The existing `POST` and `DELETE` endpoints remain available for older clients.
 
 Before a schedule correction, a client can retrieve hard-rule violations without changing data.
@@ -343,7 +346,7 @@ worker process's logs, so they are worth collecting.
 | `outbox` | `eligible`, `oldest_eligible_seconds`, `retrying`, `attempts_max`, `waiting`, `dead` |
 | `generation` | `run`, `outcome`, `queued_seconds`, `run_seconds` |
 | `generation_abandoned` | `runs` - how many runs were released after a process that died (a warning) |
-| `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens` - how many rows the pass removed; `capped` - how many tables reached the batch limit and still have a backlog; `seconds` |
+| `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens`, `snapshots` - how many rows the pass removed; `capped` - how many tables reached the batch limit and still have a backlog; `seconds` |
 | `forwarding` | `outcome` (`applied`, `unchanged`, `failed`, `skipped_no_primary`, `skipped_no_phone`, `dry_run`), `rotated` - `1` when the pass changed an expired Orange WCO password; `seconds`, `attempts` - consecutive failed attempts; a pass that did nothing emits no record |
 
 `queue` and `outbox` are sampled on a clock (`ONCALL_METRICS_INTERVAL_SECONDS`,

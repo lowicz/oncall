@@ -3,7 +3,11 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
-from oncall.domain.availability.models import AvailabilityEntry, NewAvailabilityEntry
+from oncall.domain.availability.models import (
+    AvailabilityEntry,
+    NewAvailabilityEntry,
+    RangeSnapshot,
+)
 from oncall.domain.ports import PublishedRoster, TeamDirectory
 from oncall.domain.roster import Duty
 from oncall.domain.team import Member
@@ -52,11 +56,35 @@ class AvailabilityJournal(Protocol):
         entry: NewAvailabilityEntry,
         on_behalf: bool,
         duty_conflicts: list[Duty],
-    ) -> None: ...
+        undo_id: uuid.UUID | None = None,
+    ) -> None:
+        """With an `undo_id` the e-mails wait for the Undo window."""
+        ...
 
     async def withdrawn(
         self, *, member: Member, entry: AvailabilityEntry, on_behalf: bool
     ) -> None: ...
+
+    async def restored(
+        self, *, member: Member, entry: NewAvailabilityEntry, on_behalf: bool
+    ) -> None:
+        """An entry an Undo put back: audited, never announced."""
+        ...
+
+    async def undone(self, undo_id: uuid.UUID) -> None:
+        """Withdraw the stroke's e-mails that are still waiting."""
+        ...
+
+
+class RangeSnapshots(Protocol):
+    async def keep(self, snapshot: RangeSnapshot) -> None: ...
+
+    async def take(
+        self, undo_id: uuid.UUID, member_id: uuid.UUID, actor_user_id: uuid.UUID
+    ) -> RangeSnapshot | None:
+        """The snapshot, removed so it is restored once; None when it is not
+        this account's stroke for this member, or is gone."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -71,3 +99,4 @@ class AvailabilityWritePorts:
     roster: PublishedRoster
     ledger: AvailabilityLedger
     journal: AvailabilityJournal
+    snapshots: RangeSnapshots

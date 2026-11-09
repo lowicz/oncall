@@ -91,6 +91,7 @@ MESSAGES: dict[str, str] = {
     "availability.already_exists": "Taki wpis dostępności już istnieje",
     "availability.overlaps": "Zakres nakłada się na istniejący wpis dostępności",
     "availability.entry_not_found": "Nie znaleziono wpisu",
+    "availability.undo_not_found": "Tej zmiany nie można już cofnąć",
     "availability.on_duty_warning": (
         "Masz w tym czasie dyżur. Zgłoszenie go nie zdejmuje, poproś o zamianę "
         "albo skontaktuj się z koordynatorem."

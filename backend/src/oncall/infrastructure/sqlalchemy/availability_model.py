@@ -2,9 +2,10 @@
 
 import uuid
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -62,3 +63,23 @@ class Availability(Base):
 
     member: Mapped[TeamMember] = relationship(back_populates="availability")
     created_by: Mapped[User | None] = relationship()
+
+
+class AvailabilityRangeSnapshot(Base):
+    """What one painted range held before the stroke, kept so the stroke's
+    Undo puts it back in one request with each entry's author and reason.
+    Taken once by the Undo; retention deletes what is left a day later."""
+
+    __tablename__ = "availability_range_snapshots"
+    __table_args__ = (Index("ix_availability_range_snapshots_created", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    member_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("team_members.id", ondelete="CASCADE"))
+    actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    starts_on: Mapped[date] = mapped_column(Date)
+    ends_on: Mapped[date] = mapped_column(Date)
+    #: The entries' parts inside the range: kind, dates, note and author.
+    entries: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now()
+    )

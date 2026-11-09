@@ -35,6 +35,8 @@ class AvailabilityCreate(_AvailabilityRange):
 class AvailabilityRangeReplace(_AvailabilityRange):
     #: None clears the range.
     kind: AvailabilityKind | None
+    #: The client's name for this stroke, for its Undo.
+    undo_id: uuid.UUID | None = None
 
 
 class AvailabilityResponse(BaseModel):
