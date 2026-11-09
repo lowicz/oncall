@@ -1491,6 +1491,35 @@ describe('MineScreen availability on a phone', () => {
     expect(await screen.findByText('Zapisano: 22 – 25 wrz „nie mogę”')).toBeInTheDocument()
   })
 
+  it('saves a range on the second tap when the end day already has an entry with a note', async () => {
+    pretendNarrow()
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'unavailable', starts_on: '2026-09-29', ends_on: '2026-09-29', note: null, created_at: '2026-09-01T10:00:00Z' },
+      { id: 'a2', kind: 'unavailable', starts_on: '2026-09-30', ends_on: '2026-09-30', note: 'urlop', created_at: '2026-09-01T10:00:00Z' },
+    ])
+    const replace = vi.spyOn(api, 'replaceAvailabilityRange').mockResolvedValue(null)
+    renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
+    await idleCalendar()
+    const tap = (day: HTMLElement) => {
+      fireEvent.pointerEnter(day, { pointerType: 'touch' })
+      fireEvent.pointerDown(day, { pointerType: 'touch', button: 0 })
+      fireEvent.pointerUp(day, { pointerType: 'touch', button: 0 })
+      fireEvent.click(day, { detail: 1 })
+    }
+
+    tap(cell(/wt 29-09-2026, Nie mogę/))
+    expect(screen.getByText('Zakres: od 29 wrz')).toBeInTheDocument()
+    const end = cell(/śr 30-09-2026, Nie mogę, powód: urlop/)
+    expect(end.querySelector('.avail-day-note')).not.toBeNull()
+    tap(end)
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith({ kind: 'unavailable', starts_on: '2026-09-29', ends_on: '2026-09-30', note: undefined }))
+    expect(replace).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Zakres: od 29 wrz')).not.toBeInTheDocument()
+    expect(await screen.findByText('Zapisano: 29 – 30 wrz „nie mogę”')).toBeInTheDocument()
+  })
+
   it('drops a started range when the person changes', async () => {
     pretendNarrow()
     stub()
