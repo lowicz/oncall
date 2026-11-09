@@ -206,10 +206,12 @@ async def override_duty(
         moves=moves,
         violations=violations,
     )
+    saved = await ports.roster.duty(schedule.id, slot)
     return DutyOverridden(
         service_date=override.service_date,
         role=override.role,
         assignee_name=replacement.display_name,
+        is_override=saved is not None and saved.is_override,
         violations=tuple(violations),
     )
 
@@ -503,12 +505,16 @@ async def override_duties_in_batch(
             violations=unique_violations,
             reason=reason or None,
         )
-    return [
-        DutyOverridden(
-            service_date=line.service_date,
-            role=line.role,
-            assignee_name=plan.replacements[line.replacement_member_id].display_name,
-            violations=tuple(unique_violations),
+    results = []
+    for line in plan.lines:
+        saved = await ports.roster.duty(plan.schedule.id, (line.service_date, line.role))
+        results.append(
+            DutyOverridden(
+                service_date=line.service_date,
+                role=line.role,
+                assignee_name=plan.replacements[line.replacement_member_id].display_name,
+                is_override=saved is not None and saved.is_override,
+                violations=tuple(unique_violations),
+            )
         )
-        for line in plan.lines
-    ]
+    return results

@@ -134,6 +134,6 @@ def override_assignment_response(result: DutyOverridden) -> AssignmentResponse:
         service_date=result.service_date,
         role=result.role,
         assignee_name=result.assignee_name,
-        is_override=True,
+        is_override=result.is_override,
         rule_violations=rule_violation_responses(result.violations),
     )

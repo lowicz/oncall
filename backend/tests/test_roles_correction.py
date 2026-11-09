@@ -91,6 +91,7 @@ async def test_two_roles_for_one_person_are_one_correction_and_undo_takes_the_ma
 
     saved = await client.post("/api/v1/calendar/override/batch", json=_body(schedule, lines))
     assert saved.status_code == 200, saved.text
+    assert [item["is_override"] for item in saved.json()] == [True, True]
     assert await _holders(db, schedule_id, today) == {
         AssignmentRole.primary: "Jan Wiśniewski",
         AssignmentRole.secondary: "Marek Nowak",
@@ -134,6 +135,8 @@ async def test_two_roles_for_one_person_are_one_correction_and_undo_takes_the_ma
         ),
     )
     assert undone.status_code == 200, undone.text
+    # The reply says what was saved: the slots are no longer corrections.
+    assert [item["is_override"] for item in undone.json()] == [False, False]
     assert await _holders(db, schedule_id, today) == {
         AssignmentRole.primary: "Jan Wiśniewski",
         AssignmentRole.secondary: "Anna Kowalska",
