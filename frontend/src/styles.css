@@ -788,8 +788,8 @@ table.report-table td.key { font-weight: 600; }
   .thumb-action { position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 15; box-shadow: var(--shadow-sm); }
   .page:has(.thumb-action) { padding-bottom: 96px; }
   /* The inbox's choices stay on one row, as equal columns. */
-  .seg-wrap { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; border-radius: 999px; }
-  .seg-wrap button { padding-left: 4px; padding-right: 4px; }
+  .seg-inbox { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; border-radius: 999px; }
+  .seg-inbox button { padding-left: 4px; padding-right: 4px; }
   /* The month stays in view while the calendar scrolls: the heading dissolves
      into the section, so the month row can stick under the top bar. */
   .avail-head, .avail-head .sech-ctl { display: contents; }

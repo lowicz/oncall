@@ -533,11 +533,16 @@ draft needs: with hard rule violations the main action is "Popraw N
 problemów" (fix N problems), which opens the cell of the first one,
 followed by "Przekaż do akceptacji" (send for approval), as in mockup 03; a
 clean draft leads with "Opublikuj…" (publish).
-**The Past Day Rule.** Correcting a day that has passed (for example one
+**The Past Day Rule.** A duty is past once its cover has ended, not at
+midnight of its day: a working day's night on-call at 09:00 the next
+morning, a day off's at midnight, 11-19 at 19:00 (`coverage.py`,
+`lib/coverage.ts`). Correcting a duty that has ended (for example one
 imported from history) needs a reason, asked in a field of the correction
 frame rather than in a separate dialog (this supersedes the dialog of
-mockup 04), and mails nobody: the frame says plainly that no one is
-notified about a past day.
+mockup 04); each role is judged on its own, so one ended role is enough to
+ask. A duty that has ended mails nobody, while the roles still in force
+mail as usual; when every changed role has ended, the frame says plainly
+that no one is notified.
 
 ### Duty matrix (signature component)
 The table `table.m` with `--cell` cells (35 px, compact 29 px), a sticky

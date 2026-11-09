@@ -87,12 +87,16 @@ Above the matrix there is **one decision panel**:
   with the role and the day; with an incomplete solver solution, a hint to
   click a cell with a gap and enter a person; under it the points spread
   before and after the draft,
-- **one main action**: **Fix *N* problems** opens the first clashing cell
-  (then **Publish…**), on a clean draft **Publish…**, and on a proposal
-  **Publish…** next to **Back to draft** (a proposal with a duty on an
-  “Unavailable” day has only **Back to draft**). Next to **Publish…** the **⋯**
-  menu (**Other actions**) has **Submit for approval** for teams where a second person
-  checks the draft.
+- **one main action**: on a draft with hard problems **Fix *N* problems**
+  opens the cell of the first one (a duty on an “Unavailable” day or a
+  broken rule), and a note under the button says what comes next: **then:
+  Submit for approval**. When the draft only breaks rules, the **⋯** menu
+  (**Other actions**) has **Submit for approval** and **Publish…** for a
+  coordinator who breaks them knowingly; a duty on an “Unavailable” day
+  leaves neither. A clean draft leads with **Publish…**, and its **⋯** menu
+  has **Submit for approval** for teams where a second person checks the
+  draft. A proposal has **Publish…** next to **Back to draft** (a proposal
+  with a duty on an “Unavailable” day has only **Back to draft**).
 
 On a proposal the panel also has a **What the publication changes** frame:
 how many changes will be carried over, how many pending swaps cancelled, how

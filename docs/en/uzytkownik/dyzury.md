@@ -237,11 +237,14 @@ From this panel:
   everyone the change touches. If the change breaks a hard rule, the rule
   line gives way to a “This correction will break hard rules” frame with
   the list of violations and an “I understand and knowingly break these
-  rules” box; such a violation goes to the audit log. A correction of a day
-  that has already passed asks for a reason (at least 10 characters, an
-  audit requirement) in a field of the same frame, and notifies nobody: the
-  field's hint says “Nobody is e-mailed about a change to a day that has
-  passed.”. **Save the staffing
+  rules” box; such a violation goes to the audit log. A correction of a duty
+  that has already ended asks for a reason (at least 10 characters, an
+  audit requirement) in a field of the same frame. A duty ends with its
+  cover: a working day's night duty at 09:00 the next day, a day off's duty
+  at midnight, 11–19 at 19:00, so a night duty changed at 01:30 is still an
+  ordinary correction. When every changed duty has ended, the correction
+  notifies nobody: the field's hint says “Nobody is e-mailed about a change
+  to a duty that has already ended.”. **Save the staffing
   change** (with two roles **Change staffing (2 roles)**) saves only once a
   person is chosen, the rules are checked, the violations are acknowledged
   and the reason is given. Two roles are one schedule change with one
@@ -271,9 +274,10 @@ From this panel:
   (or “together with PRIMARY”) box, ticked exactly when the other person is
   eligible for 11–19, with one sentence saying why. Unticking it leaves
   11–19 unchanged and shows the coupling rule for a knowing
-  acknowledgement. A reason is needed only for a day that has already passed
-  (a field in the frame, at least 10 characters), and nobody is e-mailed
-  about such a swap. **Swap places** saves the
+  acknowledgement. A reason is needed only when one of the swapped duties
+  has already ended (a field in the frame, at least 10 characters), and the
+  e-mail covers only the duties still running or ahead: in the evening 11–19
+  is over, PRIMARY and SECONDARY are not. **Swap places** saves the
   swap as one schedule change with one audit entry (“Swapped the day's roles”);
   both people get a “Zamiana ról” e-mail once the “Undo” window closes. The
   message after the save has an **Undo** button, and for the same time the

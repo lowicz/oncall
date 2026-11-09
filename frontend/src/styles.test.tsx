@@ -22,11 +22,18 @@ describe('shared interaction styles', () => {
 
   it('keeps a screen\'s main action above the bottom tabs and the inbox on one row on a phone', () => {
     loadRealMediaQuery('(max-width: 900px)')
-    const { container } = render(<><button className="thumb-action" /><div className="seg seg-wrap" /></>)
+    const { container } = render(<><button className="thumb-action" /><div className="seg seg-wrap seg-inbox" /></>)
     const action = getComputedStyle(container.querySelector('.thumb-action')!)
     expect([action.position, action.bottom]).toEqual(['fixed', 'calc(80px + env(safe-area-inset-bottom))'])
-    const seg = getComputedStyle(container.querySelector('.seg-wrap')!)
+    const seg = getComputedStyle(container.querySelector('.seg-inbox')!)
     expect([seg.display, seg.gridAutoFlow]).toEqual(['grid', 'column'])
+  })
+
+  it('lets any other wrapping choice flow onto further rows on a phone', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<div className="seg seg-wrap" />)
+    const seg = getComputedStyle(container.querySelector('.seg-wrap')!)
+    expect([seg.display, seg.flexWrap]).toEqual(['inline-flex', 'wrap'])
   })
 
   it('keeps the matrix panel as wide as its days, never wider than the page', () => {

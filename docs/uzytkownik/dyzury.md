@@ -229,10 +229,14 @@ Z tego panelu:
   zmiana dotyczy. Jeśli zmiana złamie regułę twardą, w miejscu linii reguł
   pojawia się ramka „Ta korekta złamie reguły twarde” z listą naruszeń i
   polem „Rozumiem i świadomie łamię te reguły”; takie naruszenie trafia do
-  dziennika audytu. Korekta dnia, który już minął, prosi o powód (co
-  najmniej 10 znaków, wymóg audytu) w polu tej samej ramki i nikogo nie
-  zawiadamia: pod polem stoi „Nikt nie dostaje e-maila o zmianie dnia, który
-  minął.”. Przycisk
+  dziennika audytu. Korekta dyżuru, który już się skończył, prosi o powód
+  (co najmniej 10 znaków, wymóg audytu) w polu tej samej ramki. Dyżur
+  kończy się wraz z czasem pokrycia: nocny dyżur dnia roboczego o 09:00
+  następnego dnia, dyżur dnia wolnego o północy, 11–19 o 19:00, więc nocny
+  dyżur zmieniony o 01:30 to wciąż zwykła korekta. Gdy skończyły się
+  wszystkie zmieniane dyżury, korekta nikogo nie zawiadamia: pod polem stoi
+  „Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.”.
+  Przycisk
   **Zapisz zmianę obsady** (przy dwóch rolach **Zmień obsadę (2 role)**)
   zapisuje dopiero wtedy, gdy wybrana jest osoba, reguły są sprawdzone,
   naruszenia potwierdzone, a powód podany. Dwie role to jedna zmiana
@@ -260,9 +264,11 @@ Z tego panelu:
   „razem z SECONDARY” (albo „razem z PRIMARY”), zaznaczone dokładnie wtedy,
   gdy druga osoba ma uprawnienia do 11–19, z jednym zdaniem dlaczego.
   Odznaczenie zostawia 11–19 bez zmian i pokazuje regułę powiązania do
-  świadomego potwierdzenia. Powód jest potrzebny tylko dla dnia, który już
-  minął (pole w ramce, co najmniej 10 znaków), i o takiej zamianie nikt nie
-  dostaje e-maila. **Zamień miejscami** zapisuje
+  świadomego potwierdzenia. Powód jest potrzebny tylko wtedy, gdy któryś z
+  zamienianych dyżurów już się skończył (pole w ramce, co najmniej 10
+  znaków), a e-mail dotyczy tylko dyżurów, które jeszcze trwają albo są
+  przed nami: wieczorem 11–19 jest już za nami, PRIMARY i SECONDARY nie.
+  **Zamień miejscami** zapisuje
   zamianę jako jedną zmianę grafiku z jednym wpisem audytu („Zamieniono role
   dnia”); obie osoby dostają e-mail „Zamiana ról” po zamknięciu okna
   „Cofnij”. Komunikat po zapisie ma przycisk **Cofnij**, a w panelu przez ten

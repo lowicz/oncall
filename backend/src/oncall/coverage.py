@@ -7,10 +7,11 @@ to answer "until when".
 """
 
 from collections.abc import Container
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
+from oncall.domain.clock import BUSINESS_TIMEZONE
 from oncall.domain.vocabulary import AssignmentRole
-from oncall.workdays import is_working_day
+from oncall.workdays import is_working_day, polish_holidays
 
 #: On-call coverage starts in the evening and ends the next morning.
 WORKDAY_START = "19:00"
@@ -36,3 +37,14 @@ def coverage_window(
     if is_day_off(day, holidays):
         return DAY_OFF_START, DAY_OFF_END
     return WORKDAY_START, WORKDAY_END
+
+
+def coverage_ended(day: date, role: AssignmentRole, now: datetime) -> bool:
+    """Whether the duty served on `day` in `role` is over at `now`: a working
+    day's night on-call runs until 09:00 the next morning."""
+    starts_at, ends_at = coverage_window(day, polish_holidays(day, day), role)
+    hours, minutes = map(int, ends_at.split(":"))
+    end = datetime.combine(day, time.min, BUSINESS_TIMEZONE) + timedelta(
+        days=1 if ends_at <= starts_at else 0, hours=hours, minutes=minutes
+    )
+    return now >= end

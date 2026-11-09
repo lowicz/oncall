@@ -1,9 +1,10 @@
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
-from oncall.domain.clock import business_today
+from oncall.coverage import coverage_ended
+from oncall.domain.clock import utc_now
 from oncall.domain.hard_rules import batch_substitution_check, substitution_check
 from oncall.domain.overrides.errors import (
     BatchCorrectionNeedsReason,
@@ -122,12 +123,10 @@ async def check_override(check: OverrideCheck, ports: OverridePorts) -> list[Rul
 
 
 async def override_duty(
-    override: OverrideInput, ports: OverridePorts, *, today: date | None = None
+    override: OverrideInput, ports: OverridePorts, *, now: datetime | None = None
 ) -> DutyOverridden:
     """Put a person on one slot of the published roster."""
-    today = today or business_today()
-    if override.service_date < today and len((override.reason or "").strip()) < MIN_REASON_LENGTH:
-        raise HistoricalCorrectionNeedsReason()
+    now = now or utc_now()
     holidays = polish_holidays(override.service_date, override.service_date)
     if override.role == AssignmentRole.late_shift and not is_working_day(
         override.service_date, holidays
@@ -164,6 +163,10 @@ async def override_duty(
     roles_to_move = [override.role] + (
         [AssignmentRole.late_shift] if coupled_partner is not None else []
     )
+    # A slot whose cover has ended is rewritten only with a reason.
+    historical = any(coverage_ended(override.service_date, role, now) for role in roles_to_move)
+    if historical and len((override.reason or "").strip()) < MIN_REASON_LENGTH:
+        raise HistoricalCorrectionNeedsReason()
     # A correction may break a hard rule only knowingly: the violations are
     # computed on the same resolved roster the matrix shows, the write is
     # refused until the coordinator acknowledges them, and they go to the
@@ -202,7 +205,7 @@ async def override_duty(
             for move in moves
         ],
         reason=override.reason,
-        historical=override.service_date < today,
+        historical=historical,
         moves=moves,
         violations=violations,
     )
@@ -434,12 +437,12 @@ async def preview_batch_impact(check: BatchOverrideCheck, ports: OverridePorts) 
 
 
 async def override_duties_in_batch(
-    batch: BatchOverrideInput, ports: OverridePorts, *, today: date | None = None
+    batch: BatchOverrideInput, ports: OverridePorts, *, now: datetime | None = None
 ) -> list[DutyOverridden]:
     """Rewrite several slots of one schedule as one decision: an offboarding,
     two people trading one day's on-call roles, or the roles of one day the
     coordinator hands over together."""
-    today = today or business_today()
+    now = now or utc_now()
     if not batch.lines:
         raise EmptyBatch()
     reason = (batch.reason or "").strip()
@@ -450,9 +453,9 @@ async def override_duties_in_batch(
         raise NotARoleSwap()
     if batch.kind is BatchOverrideKind.multi_role:
         await _check_roles_of_one_day(plan, ports)
-    historical = batch.lines[0].service_date < today
-    # A swap and a change of roles need a reason only for a past day, like a
-    # single correction; a `correction` always has one.
+    historical = any(coverage_ended(line.service_date, line.role, now) for line in plan.lines)
+    # A swap and a change of roles need a reason only once a slot's cover has
+    # ended, like a single correction; a `correction` always has one.
     if (
         batch.kind is not BatchOverrideKind.correction
         and historical

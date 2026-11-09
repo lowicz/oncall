@@ -4,7 +4,8 @@ import { ApiError, AssignmentRole, CalendarData, api } from '../api'
 import { usePublicConfig } from './usePublicConfig'
 import { useMessages } from '../i18n'
 import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders } from '../lib/calendar'
-import { formatDay, warsawDate } from '../lib/dates'
+import { correctionTiming } from '../lib/coverage'
+import { formatDay } from '../lib/dates'
 import { DEFAULT_UNDO_WINDOW_SECONDS, undoable } from '../lib/undo'
 import { Button, Field, Input, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
@@ -33,7 +34,8 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const config = usePublicConfig()
   const { schedule, common } = useMessages()
   const t = schedule.roleSwap
-  const enabled = coordinates && Boolean(data?.days.find((day) => day.service_date === serviceDate)?.published)
+  const day = data?.days.find((item) => item.service_date === serviceDate)
+  const enabled = coordinates && Boolean(day?.published)
   const policy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy, enabled })
   // Offered once the policy says where 11–19 belongs, so its choice never changes under the cursor.
   const swap = enabled && data && serviceDate && policy.data ? roleSwapOf(data, serviceDate, policy.data.late_shift_anchor) : null
@@ -47,7 +49,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
 
   // 11–19 goes along by default exactly where the API would carry it itself.
   const carry = Boolean(swap?.lateShift?.eligible) && (carryChoice ?? true)
-  const historical = Boolean(serviceDate && serviceDate < warsawDate())
+  const { historical, silent } = correctionTiming(day, ['primary', 'secondary', ...(carry ? ['late_shift' as const] : [])])
   const lines = swap && serviceDate ? roleSwapLines(swap, serviceDate, carry) : []
 
   const check = useQuery({
@@ -109,8 +111,8 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         toast,
         message: () => ({
           title: t.toast(formatDay(serviceDate), swapHolders(swap, carry, true)),
-          description: historical ? schedule.toast.pastDayNoEmail : t.emailsLater,
-          expired: historical ? undefined : common.undoEmailsSent,
+          description: silent ? schedule.toast.pastDayNoEmail : t.emailsLater,
+          expired: silent ? undefined : common.undoEmailsSent,
         }),
         undoLabel: t.undoAction,
         onUndoError: (error) => toast.error(t.undoFailed, { description: (error as Error).message }),
@@ -163,7 +165,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
       >
         <RoleSwapImpact swap={swap} serviceDate={serviceDate} carry={carry} />
         {historical && (
-          <Field label={t.reason} id="role-swap-reason" hint={schedule.toast.pastDayNoEmail}>
+          <Field label={t.reason} id="role-swap-reason" hint={silent ? schedule.toast.pastDayNoEmail : undefined}>
             {({ id, describedBy }) => (
               <Input
                 id={id}

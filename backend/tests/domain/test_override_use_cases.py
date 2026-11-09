@@ -2,7 +2,8 @@
 
 import uuid
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -36,6 +37,14 @@ from tests.domain.fakes import World, member
 DAY = date(2030, 3, 13)
 SATURDAY = date(2030, 3, 16)
 TODAY = DAY - timedelta(days=7)
+WARSAW = ZoneInfo("Europe/Warsaw")
+
+
+def at(day: date, hour: int, minute: int = 0) -> datetime:
+    """A wall-clock instant in Warsaw, where the duties run."""
+    return datetime.combine(day, time(hour, minute), WARSAW)
+
+
 COORDINATOR = Actor(uuid.uuid4(), "Koordynatorka", UserRole.coordinator)
 
 
@@ -51,7 +60,7 @@ def world() -> World:
     return world
 
 
-def override(world: World, replacement, *, role=AssignmentRole.primary, day=DAY, **extra):
+def override(world: World, replacement, *, role=AssignmentRole.primary, day=DAY, now=None, **extra):
     return override_duty(
         OverrideInput(
             actor=COORDINATOR,
@@ -62,7 +71,7 @@ def override(world: World, replacement, *, role=AssignmentRole.primary, day=DAY,
             **extra,
         ),
         world.overrides,
-        today=TODAY,
+        now=now or at(TODAY, 12),
     )
 
 
@@ -144,8 +153,33 @@ async def test_a_stale_version_changes_nothing(world) -> None:
 
 
 async def test_a_historical_correction_needs_a_reason(world) -> None:
+    # A working day's night on-call ends at 09:00 the next morning.
     with pytest.raises(errors.HistoricalCorrectionNeedsReason):
-        await override(world, world.ewa, day=TODAY - timedelta(days=1), reason="krótko")
+        await override(world, world.ewa, now=at(DAY + timedelta(days=1), 9), reason="krótko")
+    assert world.roster.schedule_ref.version == 1
+
+    await override(world, world.ewa, now=at(DAY + timedelta(days=1), 9), reason="Korekta po fakcie")
+    assert world.journal.events[0][1]["historical"] is True
+
+
+async def test_a_night_duty_still_in_force_is_corrected_without_a_reason(world) -> None:
+    await override(world, world.ewa, now=at(DAY + timedelta(days=1), 8, 59))
+
+    assert world.journal.events[0][1]["historical"] is False
+
+
+async def test_11_19_is_past_once_its_evening_comes(world) -> None:
+    late = {"role": AssignmentRole.late_shift, "acknowledge_rule_violations": True}
+    await override(world, world.ewa, now=at(DAY, 18, 59), **late)
+    with pytest.raises(errors.HistoricalCorrectionNeedsReason):
+        await override(world, world.anna, now=at(DAY, 19), **late)
+
+
+async def test_a_night_duty_carrying_an_ended_11_19_needs_a_reason(world) -> None:
+    # Bartek holds SECONDARY and 11-19, so the anchor moves both.
+    with pytest.raises(errors.HistoricalCorrectionNeedsReason):
+        await override(world, world.ewa, role=AssignmentRole.secondary, now=at(DAY, 22))
+    assert world.roster.schedule_ref.version == 1
 
 
 @pytest.mark.parametrize("acknowledged", [None, False])
@@ -398,7 +432,7 @@ async def test_a_late_shift_override_has_no_opposite_role_to_collide_with(world)
 
 
 def role_swap(
-    world: World, *, with_late_shift=True, reason=None, today=None, lines=None, acknowledged=False
+    world: World, *, with_late_shift=True, reason=None, now=None, lines=None, acknowledged=False
 ):
     """Anna (PRIMARY) and Bartek (SECONDARY and 11-19) trade places."""
     return override_duties_in_batch(
@@ -416,7 +450,7 @@ def role_swap(
             acknowledge_rule_violations=acknowledged,
         ),
         world.overrides,
-        today=today or TODAY,
+        now=now or at(TODAY, 12),
     )
 
 
@@ -454,12 +488,23 @@ async def test_a_role_swap_may_leave_11_19_where_it_is(world) -> None:
 
 
 async def test_a_role_swap_of_a_past_day_needs_a_reason(world) -> None:
+    after = at(DAY + timedelta(days=1), 9)
     with pytest.raises(errors.HistoricalCorrectionNeedsReason):
-        await role_swap(world, today=DAY + timedelta(days=1), reason="krótko")
+        await role_swap(world, now=after, reason="krótko")
     assert world.roster.schedule_ref.version == 1
 
-    await role_swap(world, today=DAY + timedelta(days=1), reason="Zamiana uzgodniona po fakcie")
+    await role_swap(world, now=after, reason="Zamiana uzgodniona po fakcie")
     assert world.journal.events[0][1]["reason"] == "Zamiana uzgodniona po fakcie"
+
+
+async def test_a_role_swap_decides_past_per_role(world) -> None:
+    night = at(DAY, 22)
+    # 11-19 ended at 19:00; the night's on-call roles are still in force.
+    with pytest.raises(errors.HistoricalCorrectionNeedsReason):
+        await role_swap(world, now=night)
+
+    await role_swap(world, now=night, with_late_shift=False, acknowledged=True)
+    assert world.roster.schedule_ref.version == 2
 
 
 @pytest.mark.parametrize(

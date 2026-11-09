@@ -789,6 +789,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               <Segmented<Inbox>
                 label={t.swaps.inbox.heading}
                 wrap
+                className="seg-inbox"
                 value={inbox}
                 onChange={setInbox}
                 options={INBOXES.map((value) => ({

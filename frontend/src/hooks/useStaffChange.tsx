@@ -4,7 +4,8 @@ import { ApiError, AssignmentRole, CalendarData, api } from '../api'
 import { useUndoable } from './useUndoable'
 import { messages, useMessages } from '../i18n'
 import { LateShiftLink, OnCall, StaffChange, StaffingCandidate, correctionRoles, lateShiftLink, staffChanges, staffingCandidates } from '../lib/calendar'
-import { formatShortDate, warsawDate } from '../lib/dates'
+import { correctionTiming } from '../lib/coverage'
+import { formatShortDate } from '../lib/dates'
 import { availabilityLabels, roleLabels } from '../lib/labels'
 import { Button, Field, InlineError, Input, LoadingBlock, Select, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
@@ -138,7 +139,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
   const [reason, setReason] = useState('')
 
   const { late, roles, candidates, chosen, ref, changes, lines, ready } = selection({ data, serviceDate, link, onCall, lateChoice, memberId, open })
-  const historical = Boolean(serviceDate && serviceDate < warsawDate())
+  const { historical, silent } = correctionTiming(day, roles)
 
   const check = useQuery({
     queryKey: ['staff-change-check', ref?.schedule_id, ref?.schedule_version, lines],
@@ -190,7 +191,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
       if (changes.some((item) => !item.restoreTo)) {
         const result = await execute()
         toast.success(title, {
-          description: [historical ? schedule.toast.pastDayNoEmail : emailsTo(people, name), audited].filter(Boolean).join(' '),
+          description: [silent ? schedule.toast.pastDayNoEmail : emailsTo(people, name), audited].filter(Boolean).join(' '),
           action: { label: schedule.toast.openDay, onClick: () => onOpenDay(changes[0].role) },
         })
         return result
@@ -210,8 +211,8 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
         },
         message: () => ({
           title,
-          description: [historical ? schedule.toast.pastDayNoEmail : schedule.toast.emailsLater(people), audited].filter(Boolean).join(' '),
-          expired: historical ? undefined : common.undoEmailsSent,
+          description: [silent ? schedule.toast.pastDayNoEmail : schedule.toast.emailsLater(people), audited].filter(Boolean).join(' '),
+          expired: silent ? undefined : common.undoEmailsSent,
         }),
       })
     },
@@ -293,7 +294,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
           <StaffChangePreview changes={changes} name={chosen!.display_name} onCall={onCall} link={link} />
           <StaffChangeImpact scheduleId={ref!.schedule_id} lines={lines} changes={changes} name={chosen!.display_name} />
           {historical && (
-            <Field label={t.reason} id="staff-change-reason" hint={schedule.toast.pastDayNoEmail}>
+            <Field label={t.reason} id="staff-change-reason" hint={silent ? schedule.toast.pastDayNoEmail : undefined}>
               {({ id, describedBy }) => (
                 <Input
                   id={id}

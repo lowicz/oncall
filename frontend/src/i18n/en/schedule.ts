@@ -149,7 +149,7 @@ export const schedule: Messages['schedule'] = {
     filled: (role: string, day: string, name: string) => `${role} staffed ${day}: ${name}`,
     emailBoth: 'Both people get an e-mail about the change.',
     emailOne: (name: string) => `${name} gets an e-mail about the duty.`,
-    pastDayNoEmail: 'Nobody is e-mailed about a change to a day that has passed.',
+    pastDayNoEmail: 'Nobody is e-mailed about a change to a duty that has already ended.',
     violationAudited: 'The rule breach is recorded in the audit log.',
     openDay: 'Show day',
     changedRoles: (day: string, name: string, roles: string) => `Staffing changed ${day}: ${name} ${roles}`,
@@ -182,7 +182,7 @@ export const schedule: Messages['schedule'] = {
     clean: 'No hard rule breaches after both changes',
     takes: (roles: string) => `takes ${roles}`,
     gives: (roles: string) => `gives up ${roles}`,
-    reason: 'Reason for correcting a past day (at least 10 characters)',
+    reason: 'Reason for correcting a duty that has already ended (at least 10 characters)',
     saveRoles: (count: number) => `Change staffing (${count} roles)`,
     tag: {
       coupled: (anchor: string) => `coupled with ${anchor}`,

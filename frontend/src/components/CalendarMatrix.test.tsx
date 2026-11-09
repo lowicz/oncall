@@ -1114,8 +1114,8 @@ describe('CalendarMatrix staffing form', () => {
 
     // The rules, the balance and the reason all stay in the panel: no dialog.
     await within(dialog).findByText('Bez naruszeń reguł twardych')
-    const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty dnia, który minął (minimum 10 znaków)' })
-    expect(reason).toHaveAccessibleDescription('Nikt nie dostaje e-maila o zmianie dnia, który minął.')
+    const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty dyżuru, który już się skończył (minimum 10 znaków)' })
+    expect(reason).toHaveAccessibleDescription('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')
     expectBlocked(saveButton())
     fireEvent.change(reason, { target: { value: 'za mało' } })
     expectBlocked(saveButton())
@@ -1138,7 +1138,7 @@ describe('CalendarMatrix staffing form', () => {
     })
     // The toast says what changed and that a past day tells nobody; Undo takes it back.
     expect(await screen.findByText('Zmieniono obsadę 8 wrz · PRIMARY: Anna Kowalska → Ola Wiśniewska')).toBeInTheDocument()
-    expect(screen.getByText('Nikt nie dostaje e-maila o zmianie dnia, który minął.')).toBeInTheDocument()
+    expect(screen.getByText('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: /^wt 08-09-2026/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
     await waitFor(() => expect(save).toHaveBeenCalledTimes(3))
@@ -1147,6 +1147,22 @@ describe('CalendarMatrix staffing form', () => {
       assignments: [line('2026-09-08', 'primary', 'm1')],
       reason: 'Zamiana ustalona telefonicznie', acknowledge_rule_violations: true,
     })
+  })
+
+  it('corrects a night duty still in force like any other until 09:00 the next morning', async () => {
+    vi.setSystemTime(new Date('2026-09-10T08:30:00+02:00'))
+    vi.spyOn(api, 'calendar').mockResolvedValue(week())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openForm(/^Anna Kowalska, śr 09-09-2026/, 'PRIMARY: Anna Kowalska. Zmień osobę')
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba na PRIMARY' }), { target: { value: 'm3' } })
+
+    await waitFor(() => expectReady(saveButton()))
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ reason: undefined })))
+    expect(await screen.findByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
   })
 
   it('names only the person on duty once an empty slot is filled, and opens the day again', async () => {
@@ -1177,14 +1193,14 @@ describe('CalendarMatrix staffing form', () => {
     renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
     const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, '11–19: brak obsady. Obsadź')
     fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba na 11–19' }), { target: { value: 'm3' } })
-    fireEvent.change(await within(dialog).findByRole('textbox', { name: /^Powód korekty dnia, który minął/ }), { target: { value: 'Uzupełnienie historii' } })
+    fireEvent.change(await within(dialog).findByRole('textbox', { name: /^Powód korekty dyżuru, który już się skończył/ }), { target: { value: 'Uzupełnienie historii' } })
     const confirm = within(dialog).getByRole('button', { name: /^Zapisz zmianę obsady$/ })
     await waitFor(() => expectReady(confirm))
     fireEvent.click(confirm)
 
     await waitFor(() => expect(save).toHaveBeenCalled())
     expect(await screen.findByText('Obsadzono 11–19 8 wrz: Ola Wiśniewska')).toBeInTheDocument()
-    expect(screen.getByText('Nikt nie dostaje e-maila o zmianie dnia, który minął.')).toBeInTheDocument()
+    expect(screen.getByText('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')).toBeInTheDocument()
   })
 
   it('waits for the swap policy before offering the roles', async () => {
@@ -1741,6 +1757,21 @@ describe('CalendarMatrix roles to change (P7)', () => {
     expect(within(form).getByRole('combobox', { name: 'Osoba na PRIMARY' })).toBeInTheDocument()
   })
 
+  it('asks a reason for an 11–19 already over, but keeps the night duty\'s e-mails', async () => {
+    vi.setSystemTime(new Date('2026-09-11T20:00:00+02:00'))
+    policy('secondary')
+    vi.spyOn(api, 'calendar').mockResolvedValue(friday('m2'))
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    render()
+    const form = await openRow(/^SECONDARY: Marek Nowak/)
+    fireEvent.change(within(form).getByRole('combobox', { name: 'Osoba na SECONDARY i 11–19' }), { target: { value: 'm3' } })
+
+    const reason = await within(form).findByRole('textbox', { name: 'Powód korekty dyżuru, który już się skończył (minimum 10 znaków)' })
+    expect(reason).not.toHaveAccessibleDescription()
+    fireEvent.click(check(form, /^11–19/))
+    expect(within(form).queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
   it('names three people in the toast of a change Undo cannot take back', async () => {
     policy('secondary')
     vi.spyOn(api, 'calendar').mockResolvedValue(friday('m1', {
@@ -1997,7 +2028,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     await within(dialog).findByText('Bez naruszeń reguł twardych')
 
     const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty (minimum 10 znaków)' })
-    expect(reason).toHaveAccessibleDescription('Nikt nie dostaje e-maila o zmianie dnia, który minął.')
+    expect(reason).toHaveAccessibleDescription('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')
     expectBlocked(swapButton(dialog))
     fireEvent.change(reason, { target: { value: '  Zamiana po fakcie ' } })
     expectReady(swapButton(dialog))
@@ -2008,8 +2039,33 @@ describe('CalendarMatrix role swap (P6)', () => {
     fireEvent.click(swapButton(dialog))
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
     expect(save.mock.calls[1][0]).toEqual(expect.objectContaining({ reason: 'Zamiana po fakcie' }))
-    // A past day is tidied up, not announced.
-    expect(await screen.findByText('Nikt nie dostaje e-maila o zmianie dnia, który minął.')).toBeInTheDocument()
+    // A duty whose cover has ended is tidied up, not announced.
+    expect(await screen.findByText('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')).toBeInTheDocument()
+  })
+
+  it('asks for a reason when the swap carries an 11–19 already over, and mails the night duty', async () => {
+    vi.setSystemTime(new Date('2026-09-10T20:00:00+02:00'))
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+
+    // 11–19 ended at 19:00, the night's PRIMARY and SECONDARY have not.
+    const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty (minimum 10 znaków)' })
+    expect(reason).not.toHaveAccessibleDescription()
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'razem z SECONDARY' }))
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'razem z SECONDARY' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Zamiana po zmianie dziennej' } })
+    await waitFor(() => expectReady(swapButton(dialog)))
+    fireEvent.click(swapButton(dialog))
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ reason: 'Zamiana po zmianie dziennej' })))
+    expect(await screen.findByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
   })
 
   it('checks again when the write meets a rule the frame did not show', async () => {

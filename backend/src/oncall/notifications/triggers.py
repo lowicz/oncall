@@ -9,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.config import get_settings
-from oncall.domain.clock import as_utc, business_today, utc_now
+from oncall.coverage import coverage_ended
+from oncall.domain.clock import as_utc, utc_now
 from oncall.domain.digest import DutyDigest
 from oncall.domain.forwarding.job import ForwardingFailure, ForwardingTarget
 from oncall.domain.forwarding.models import ForwardingMode, ForwardingOutcome, NumberHandover
@@ -67,12 +68,11 @@ def availability_undo_key(undo_id: uuid.UUID) -> str:
 
 
 def _upcoming(
-    changes: list[tuple[date, AssignmentRole, str, str]],
+    changes: list[tuple[date, AssignmentRole, str, str]], now: datetime
 ) -> list[tuple[date, AssignmentRole, str, str]]:
-    """The changes a correction mails about: tidying up a day that has
-    passed tells nobody, the audit trail keeps its reason."""
-    today = business_today()
-    return [change for change in changes if change[0] >= today]
+    """The changes a correction mails about: tidying up a duty whose cover
+    has ended tells nobody, the audit trail keeps its reason."""
+    return [change for change in changes if not coverage_ended(change[0], change[1], now)]
 
 
 def _held(undo_id: uuid.UUID | None) -> tuple[dict, datetime | None]:
@@ -687,11 +687,11 @@ async def notify_assignment_overridden(
 ) -> None:
     """One mail per person a correction of one day's roles touched, listing
     only the slots they gave up or took over: SECONDARY and 11-19 taken over
-    together read as one change. A past day mails nobody."""
+    together read as one change. A duty whose cover has ended mails nobody."""
     settings = get_settings()
     now = utc_now()
     cancelled = await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now)
-    upcoming = _upcoming(changes)
+    upcoming = _upcoming(changes, now)
     names = [
         name
         for name in dict.fromkeys(name for change in upcoming for name in change[2:])
@@ -768,16 +768,16 @@ async def notify_assignments_overridden_in_batch(
     """One mail per person a batch correction touched, listing only the slots
     they gave up or took over. Like a single correction it is not
     de-duplicated: two batches on one schedule are two decisions. A role swap
-    reads as one: „Zamiana ról" instead of a list of corrections. A past day
-    mails nobody."""
+    reads as one: „Zamiana ról" instead of a list of corrections. A duty
+    whose cover has ended mails nobody."""
     settings = get_settings()
-    upcoming = _upcoming(changes)
+    now = utc_now()
+    upcoming = _upcoming(changes, now)
     names = list(
         dict.fromkeys(
             name for _, _, previous_name, new_name in upcoming for name in (previous_name, new_name)
         )
     )
-    now = utc_now()
     cancelled = await cancel_notifications(db, undo_key=_inverse_undo_key(changes), now=now)
     names = [name for name in names if name not in cancelled]
     emails = await _emails_for_names(db, names)

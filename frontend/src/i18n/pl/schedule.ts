@@ -163,8 +163,8 @@ export const schedule = {
     emailBoth: 'E-mail o zmianie dostaną obie osoby.',
     emailOne: (name: string) => `E-mail o dyżurze dostanie ${name}.`,
     violationAudited: 'Naruszenie reguł zapisane w audycie.',
-    /** A past day is tidied up, not announced: the server sends no e-mail. */
-    pastDayNoEmail: 'Nikt nie dostaje e-maila o zmianie dnia, który minął.',
+    /** A duty whose cover has ended is tidied up, not announced: the server sends no e-mail. */
+    pastDayNoEmail: 'Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.',
     openDay: 'Pokaż dzień',
     changedRoles: (day: string, name: string, roles: string) => `Zmieniono obsadę ${day}: ${name} ${roles}`,
     emailMany: (count: number) => `E-mail o zmianie ${pluralFormPl(count, ['dostanie', 'dostaną', 'dostanie'])} ${pluralPl(count, ['osoba', 'osoby', 'osób'])}.`,
@@ -197,7 +197,7 @@ export const schedule = {
     clean: 'Bez naruszeń reguł twardych po obu zmianach',
     takes: (roles: string) => `przejmuje ${roles}`,
     gives: (roles: string) => `oddaje ${roles}`,
-    reason: 'Powód korekty dnia, który minął (minimum 10 znaków)',
+    reason: 'Powód korekty dyżuru, który już się skończył (minimum 10 znaków)',
     saveRoles: (count: number) => `Zmień obsadę (${count} role)`,
     /** The 11–19 row says how it stands to the policy's coupling. */
     tag: {

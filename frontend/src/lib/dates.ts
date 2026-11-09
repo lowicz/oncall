@@ -48,6 +48,12 @@ export function formatDate(value: string) {
  * Screens state the timezone once, in their own header or hint.
  */
 export function formatMoment(value: string) {
+  const [day, time] = warsawMoment(new Date(value)).split(' ')
+  return `${formatDate(day)}, ${time}`
+}
+
+/** A moment as "YYYY-MM-DD HH:MM" on the Warsaw clock, which sorts as it reads. */
+export function warsawMoment(at: Date) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Warsaw',
     year: 'numeric',
@@ -56,8 +62,8 @@ export function formatMoment(value: string) {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date(value)).map(({ type, value: part }) => [type, part]))
-  return `${parts.day}-${parts.month}-${parts.year}, ${parts.hour}:${parts.minute}`
+  }).formatToParts(at).map(({ type, value }) => [type, value]))
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`
 }
 
 /**

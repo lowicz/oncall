@@ -83,12 +83,16 @@ Nad macierzą jest **jeden panel decyzji**:
   publikację, z rolą i dniem; przy niepełnym rozwiązaniu solvera wskazówka,
   aby kliknąć komórkę z luką i wpisać osobę; pod spodem rozrzut punktów przed
   i po szkicu,
-- **jedna akcja główna**: **Popraw *N* problemy** otwiera pierwszą kolidującą
-  komórkę (potem **Opublikuj…**), w poprawnym szkicu **Opublikuj…**, a w
-  propozycji **Opublikuj…** obok **Wróć do szkicu** (propozycja z
-  dyżurem w dniu „nie mogę” ma tylko **Wróć do szkicu**). Obok
-  **Opublikuj…** menu **⋯** (**Inne akcje**) ma **Przekaż do akceptacji** dla
-  zespołów, w których szkic sprawdza druga osoba.
+- **jedna akcja główna**: w szkicu z problemami twardymi **Popraw *N*
+  problemy** otwiera komórkę pierwszego z nich (dyżuru w dniu „nie mogę”
+  albo złamanej reguły), a dopisek pod przyciskiem mówi, co dalej: **potem:
+  Przekaż do akceptacji**. Gdy szkic łamie tylko reguły, menu **⋯** (**Inne
+  akcje**) ma **Przekaż do akceptacji** i **Opublikuj…** dla koordynatora,
+  który łamie je świadomie; dyżur w dniu „nie mogę” nie zostawia żadnej z
+  nich. Poprawny szkic prowadzi **Opublikuj…**, a jego menu **⋯** ma
+  **Przekaż do akceptacji** dla zespołów, w których szkic sprawdza druga
+  osoba. Propozycja ma **Opublikuj…** obok **Wróć do szkicu** (propozycja z
+  dyżurem w dniu „nie mogę” ma tylko **Wróć do szkicu**).
 
 Propozycja ma w tym panelu także ramkę **Co zmieni publikacja**: ile zmian
 zostanie przeniesionych, ile oczekujących zamian anulowanych, ile wpisów
