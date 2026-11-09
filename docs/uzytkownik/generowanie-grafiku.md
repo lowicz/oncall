@@ -246,9 +246,10 @@ Szkic ──► Do akceptacji ──► Opublikowany
    ostrzeżenia do audytu), a pod nią to, co trzeba rozstrzygnąć: konflikty ze
    zmianami z licznikiem „Do rozstrzygnięcia”, zgody i - jeśli zakres już się
    zaczął - pole, że zespół zobaczy zmianę od razu. Naruszenia reguł
-   odpoczynku i luka przed grafikiem mają każde własną ramkę z polem wyboru
-   („Rozumiem i świadomie łamię te reguły”, „Rozumiem, że te dni zostają bez
-   obsady”). Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
+   twardych mają po jednej ramce na każdą złamaną regułę, zatytułowanej tą
+   regułą („Publikacja naruszy regułę: …”), z polem „Rozumiem i świadomie
+   łamię tę regułę”; luka przed grafikiem ma własną ramkę z polem „Rozumiem,
+   że te dni zostają bez obsady”. Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
    rozstrzygnięcia: 1 konflikt, 2 zgody.”), a **Opublikuj** działa dopiero,
    gdy niczego nie brakuje. **Wróć do propozycji** zamyka arkusz otwarty z
    propozycji bez zmian.

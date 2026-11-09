@@ -256,9 +256,11 @@ Draft ──► For approval ──► Published
    changed since generation, warnings to the audit), and under it what has to
    be settled: the conflicts with changes with a “To settle” counter, the consents and - if
    the range has already started - a box saying the team will see the change
-   immediately. Rest rule violations and a gap before the schedule each have
-   their own frame with a checkbox (“I understand and knowingly break these
-   rules”, “I understand that these days stay unstaffed”). Next to the buttons
+   immediately. Hard rule violations get one frame per broken rule, titled
+   with that rule (“Publication will break a rule: …”), with a checkbox “I
+   understand and knowingly break this rule”; a gap before the schedule has
+   its own frame with the checkbox “I understand that these days stay
+   unstaffed”. Next to the buttons
    the sheet says what is still missing (“To settle: 1 conflict, 2
    consents.”), and **Publish** works only when nothing is.
    **Back to the proposal** closes a sheet opened from a proposal without

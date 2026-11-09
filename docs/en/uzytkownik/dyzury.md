@@ -239,7 +239,9 @@ From this panel:
   the list of violations and an “I understand and knowingly break these
   rules” box; such a violation goes to the audit log. A correction of a day
   that has already passed asks for a reason (at least 10 characters, an
-  audit requirement) in a field of the same frame. **Save the staffing
+  audit requirement) in a field of the same frame, and notifies nobody: the
+  field's hint says “Nobody is e-mailed about a change to a day that has
+  passed.”. **Save the staffing
   change** (with two roles **Change staffing (2 roles)**) saves only once a
   person is chosen, the rules are checked, the violations are acknowledged
   and the reason is given. Two roles are one schedule change with one
@@ -270,7 +272,8 @@ From this panel:
   eligible for 11–19, with one sentence saying why. Unticking it leaves
   11–19 unchanged and shows the coupling rule for a knowing
   acknowledgement. A reason is needed only for a day that has already passed
-  (a field in the frame, at least 10 characters). **Swap places** saves the
+  (a field in the frame, at least 10 characters), and nobody is e-mailed
+  about such a swap. **Swap places** saves the
   swap as one schedule change with one audit entry (“Swapped the day's roles”);
   both people get a “Zamiana ról” e-mail once the “Undo” window closes. The
   message after the save has an **Undo** button, and for the same time the

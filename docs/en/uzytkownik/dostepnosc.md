@@ -54,7 +54,8 @@ so refreshing the page keeps the same calendar.
 - Saving is immediate; one message confirms the whole range, for example
   “Saved: 12 – 16 Oct “unavailable”” with the reason under it (“reason:
   leave”) when one was given.
-- The message has an **Undo** button, active for 10 seconds. Undo returns the
+- The message has an **Undo** button, active for 10 seconds; a bar along the
+  bottom of the message shows how much of that time is left. Undo returns the
   marked days to how they were before the save: the entries that were there
   come back on those days, with their mode, reason and author, and days
   outside the selection stay as they are. The e-mails about the save (to the

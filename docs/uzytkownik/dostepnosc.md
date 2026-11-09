@@ -54,7 +54,8 @@ dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie strony
 - Zapis jest natychmiastowy; potwierdza go jeden komunikat na cały zakres,
   na przykład „Zapisano: 12 – 16 paź „nie mogę”” z powodem pod spodem
   („powód: urlop”), jeśli go podano.
-- Komunikat ma przycisk **Cofnij**, aktywny przez 10 sekund. Cofnięcie
+- Komunikat ma przycisk **Cofnij**, aktywny przez 10 sekund; pasek u dołu
+  komunikatu pokazuje, ile z tego czasu zostało. Cofnięcie
   przywraca zaznaczone dni do stanu sprzed zapisu: wpisy, które tam były,
   wracają na te dni z rodzajem, powodem i autorem, a dni poza zaznaczeniem
   zostają bez zmian. E-maile o zapisie (do osoby, w której imieniu zapisuje

@@ -230,7 +230,9 @@ Z tego panelu:
   pojawia się ramka „Ta korekta złamie reguły twarde” z listą naruszeń i
   polem „Rozumiem i świadomie łamię te reguły”; takie naruszenie trafia do
   dziennika audytu. Korekta dnia, który już minął, prosi o powód (co
-  najmniej 10 znaków, wymóg audytu) w polu tej samej ramki. Przycisk
+  najmniej 10 znaków, wymóg audytu) w polu tej samej ramki i nikogo nie
+  zawiadamia: pod polem stoi „Nikt nie dostaje e-maila o zmianie dnia, który
+  minął.”. Przycisk
   **Zapisz zmianę obsady** (przy dwóch rolach **Zmień obsadę (2 role)**)
   zapisuje dopiero wtedy, gdy wybrana jest osoba, reguły są sprawdzone,
   naruszenia potwierdzone, a powód podany. Dwie role to jedna zmiana
@@ -259,7 +261,8 @@ Z tego panelu:
   gdy druga osoba ma uprawnienia do 11–19, z jednym zdaniem dlaczego.
   Odznaczenie zostawia 11–19 bez zmian i pokazuje regułę powiązania do
   świadomego potwierdzenia. Powód jest potrzebny tylko dla dnia, który już
-  minął (pole w ramce, co najmniej 10 znaków). **Zamień miejscami** zapisuje
+  minął (pole w ramce, co najmniej 10 znaków), i o takiej zamianie nikt nie
+  dostaje e-maila. **Zamień miejscami** zapisuje
   zamianę jako jedną zmianę grafiku z jednym wpisem audytu („Zamieniono role
   dnia”); obie osoby dostają e-mail „Zamiana ról” po zamknięciu okna
   „Cofnij”. Komunikat po zapisie ma przycisk **Cofnij**, a w panelu przez ten
