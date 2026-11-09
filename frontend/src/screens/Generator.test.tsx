@@ -502,7 +502,7 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
 
     const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
     expect(within(decision).queryByRole('button', { name: 'Opublikuj…' })).not.toBeInTheDocument()
-    expect(within(decision).getByText('potem: Opublikuj…')).toBeInTheDocument()
+    expect(within(decision).getByText('potem: Przekaż do akceptacji')).toBeInTheDocument()
     fireEvent.click(within(decision).getByRole('button', { name: 'Popraw 2 problemy' }))
     // The first conflict opens in the inspector, ready to correct.
     expect(await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 03-11-2026' })).toBeInTheDocument()
@@ -642,7 +642,7 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
 
   it('keeps a failed publication of one draft out of the next one', async () => {
     stub([summary({ id: 'd1' }), summary({ id: 'd2' })])
-    vi.spyOn(api, 'schedule').mockImplementation(async (id) => draft({ id, name: id }))
+    vi.spyOn(api, 'schedule').mockImplementation(async (id) => draft({ id, name: id, version: id === 'd2' ? 7 : 2 }))
     vi.spyOn(api, 'proposeSchedule').mockRejectedValue(new ApiError('Szkic zmienił się od otwarcia', 409))
     renderScreen(<><GeneratorPanel /><Go to="/generator?szkic=d2" /></>, { route: '/generator?szkic=d1' })
 
@@ -650,7 +650,9 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
     expect(await within(decision).findByRole('alert')).toHaveTextContent('Szkic zmienił się od otwarcia')
     fireEvent.click(screen.getByText('go /generator?szkic=d2'))
-    expect(await screen.findByRole('heading', { level: 2, name: 'd2' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Szkic · v7/ })).toBeInTheDocument()
+    // One heading names the draft: no hidden second one repeats it.
+    expect(screen.queryByRole('heading', { name: 'd2' })).not.toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Decyzja o szkicu' })).queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -1570,6 +1572,9 @@ describe('GeneratorPanel publication sheet', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^Publikuję/ })).not.toBeInTheDocument())
     expect(await screen.findByText('Opublikowany')).toBeInTheDocument()
     expect(await screen.findByText('Grafik jest opublikowany i widoczny dla zespołu.')).toBeInTheDocument()
+    // The matrix now shows what was published, not a proposal.
+    expect(screen.getByRole('heading', { name: 'Opublikowana obsada' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Proponowana obsada' })).not.toBeInTheDocument()
     // The coordinator learns that the team was told, and can go and look;
     // the toast names the version they confirmed, not the bumped row version.
     expect(screen.getByText('Opublikowano 8 – 18 wrz')).toBeInTheDocument()

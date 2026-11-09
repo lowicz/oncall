@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { DraftSchedule, PublishPreview, UnavailabilityConflict } from '../api'
+import { DraftSchedule, PublishPreview } from '../api'
 import { useMessages } from '../i18n'
 import { roleLabels } from '../lib/labels'
 import { formatDayShort } from '../lib/dates'
 import { formatDecimal } from '../lib/numbers'
 import { draftFairnessImpactQuery, shortfallCause, worstSpread } from '../lib/fairness'
 import { Box, Button, Disclosure, IconButton, Menu, MenuItem, StatusBadge } from '../ui'
-import { SOLVER_OK, problemCounts } from '../lib/draftProblems'
+import { HARD, SOLVER_OK, draftProblems, problemCounts } from '../lib/draftProblems'
+import type { DraftFocus } from './DraftScheduleMatrix'
 
 /**
  * The one panel above the draft matrix: the verdict (hard rules, the fairness
@@ -20,8 +21,8 @@ export function DraftDecision({ result, preview, busy, error, onFix, onPropose, 
   busy: boolean
   /** Why the draft could not be readied for publication. */
   error?: string
-  /** Opens the first conflict the draft has to lose. */
-  onFix: (conflict: UnavailabilityConflict) => void
+  /** Opens the cell of the first hard problem the draft has to lose. */
+  onFix: (focus: DraftFocus) => void
   /** Hands the draft over to a second person for approval. */
   onPropose: () => void
   /** Opens the publication sheet, from a draft or a proposal. */
@@ -37,6 +38,8 @@ export function DraftDecision({ result, preview, busy, error, onFix, onPropose, 
   const spread = impact.data ? worstSpread(impact.data) : null
   const criterion = impact.data ? formatDecimal(impact.data.criterion_points) : ''
   const editable = result.status === 'draft'
+  // The first hard problem that points at a cell: a conflict, or a broken rule on someone's duty.
+  const firstFix = draftProblems(result).find((problem) => HARD.has(problem.kind) && problem.focus)?.focus
 
   let why = <>{t.ready[result.status]}</>
   if (conflicts.length > 0) {
@@ -59,21 +62,32 @@ export function DraftDecision({ result, preview, busy, error, onFix, onPropose, 
   }
 
   let action = null
-  if (editable && conflicts.length > 0) {
+  if (editable && firstFix) {
+    // A draft with hard problems is fixed first and then handed over; a
+    // coordinator who breaks rules knowingly still reaches both hand-offs,
+    // which a conflict blocks.
     action = (
       <>
-        <Button variant="primary" disabled={busy} onClick={() => onFix(conflicts[0])}>{t.fix(conflicts.length)}</Button>
-        <span className="muted small">{t.thenPublish}</span>
+        <div className="row">
+          <Button variant="primary" disabled={busy} onClick={() => onFix(firstFix)}>{t.fix(counts.hard)}</Button>
+          {conflicts.length === 0 && (
+            <Menu trigger={<IconButton icon="more" label={t.more} disabled={busy} />}>
+              <MenuItem onClick={onPropose}>{t.propose}</MenuItem>
+              <MenuItem onClick={onPublish}>{t.publishDraft}</MenuItem>
+            </Menu>
+          )}
+        </div>
+        <span className="muted small">{t.thenPropose}</span>
       </>
     )
   } else if (editable) {
     action = (
-      <>
+      <div className="row">
         <Button variant="primary" icon="send" disabled={busy} onClick={onPublish}>{t.publishDraft}</Button>
         <Menu trigger={<IconButton icon="more" label={t.more} disabled={busy} />}>
           <MenuItem onClick={onPropose}>{t.propose}</MenuItem>
         </Menu>
-      </>
+      </div>
     )
   } else if (result.status === 'proposed' && conflicts.length > 0) {
     action = <Button variant="primary" disabled={busy} onClick={onWithdraw}>{t.backToDraft}</Button>

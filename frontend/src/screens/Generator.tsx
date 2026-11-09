@@ -566,14 +566,14 @@ export function GeneratorPanel() {
       {opened.error && <ErrorState error={opened.error} onRetry={() => opened.refetch()} />}
       {!result && rangeForm}
       {result && (
-        <section className="stack" aria-labelledby="generator-draft-title">
-          <h2 id="generator-draft-title" className="sr-only">{result.name}</h2>
+        // The page heading names the draft; a second, hidden one only repeated it.
+        <section className="stack">
           <DraftDecision
             result={result}
             preview={preview}
             busy={generating || propose.isPending || proposeToPublish.isPending || withdraw.isPending || publish.isPending}
             error={proposeToPublish.variables?.id === result.id ? proposeToPublish.error?.message : undefined}
-            onFix={(first) => setFocus({ service_date: first.service_date, assignee_name: first.assignee_name, role: first.role })}
+            onFix={setFocus}
             onPropose={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
             onPublish={() => result.status === 'draft' ? proposeToPublish.mutate({ id: result.id, expectedVersion: result.version }) : openPublication(result.id)}
             onWithdraw={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}
@@ -594,7 +594,7 @@ export function GeneratorPanel() {
             ))}
           </ChipRow>
           <SectionHeading
-            title={t.draft.proposedStaffing}
+            title={result.status === 'published' || result.status === 'superseded' ? t.draft.publishedStaffing : t.draft.proposedStaffing}
             meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? t.draft.clickToCorrect : ''}`}
             controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">{t.draft.legend}</button>} />}
           />
