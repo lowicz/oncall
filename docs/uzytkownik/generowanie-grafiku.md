@@ -111,10 +111,14 @@ Pod macierzą cztery zakładki:
   w dniu „nie mogę”, złamane reguły twarde, ostrzeżenia solvera, luki przed
   szkicem i informacja, że szkic jest nieaktualny. Przełącznik **Wg osoby** /
   **Wg reguły** grupuje wiersze, **Tylko twarde** ukrywa ostrzeżenia miękkie,
-  a przycisk **Popraw** przy wierszu otwiera właściwą komórkę macierzy. Dyżur
-  w dniu „nie mogę” blokuje publikację, a złamana reguła twarda wymaga zgody
-  w oknie publikacji. Stopka tabeli wylicza reguły twarde i prowadzi do ich
-  pełnego opisu.
+  a przycisk **Popraw** przy wierszu otwiera właściwą komórkę macierzy: przy
+  dyżurze w dniu „nie mogę” ten dyżur, przy złamanej regule twardej dyżur
+  tej osoby w pierwszym dniu, którego reguła dotyczy. Wiersze całego szkicu
+  (ostrzeżenia solvera, luki, nieaktualność) nie mają jednej komórki, więc nie
+  mają przycisku. Dyżur w dniu „nie mogę” blokuje publikację, a złamana reguła
+  twarda wymaga zgody w oknie publikacji. Stopka tabeli wylicza reguły twarde
+  i prowadzi do ich pełnego opisu. Na telefonie tabela staje się listą kart:
+  rodzaj, osoba z dniem i rolą, szczegół, a pod nim przycisk.
 - **Sprawiedliwość** - rozrzut punktów jako jedna liczba z wartością sprzed
   szkicu i znacznikiem **lepiej** / **gorzej**, pod nią werdykt, dalej
   kryterium odbioru w każdej roli, w weekendy i święta oraz tabela osób z

@@ -3867,6 +3867,25 @@
       "ScheduleWarningResponse": {
         "description": "One warning about a schedule, with the source that produced it.\n\nMerging both sources into bare strings made the solver's own warnings\nindistinguishable from the coordinator's rule warnings, and the latter\nopened with the word „Korekta\" even where nobody had corrected anything.",
         "properties": {
+          "days": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Name"
+          },
           "message": {
             "title": "Message",
             "type": "string"

@@ -116,9 +116,14 @@ Under the matrix there are four tabs:
   warnings, gaps before the draft and a note that the draft is out of date.
   The **By person** / **By rule** switch groups the rows, **Hard only** hides
   the soft warnings, and the **Fix** button on a row opens the right cell of
-  the matrix. A duty on an “Unavailable” day blocks the publication, and a
-  broken hard rule needs consent in the publication window. The table footer
-  lists the hard rules and leads to their full description.
+  the matrix: for a duty on an “Unavailable” day that duty, for a broken hard
+  rule the person's duty on the first day the rule concerns. Rows about the
+  whole draft (solver warnings, gaps, the draft being out of date) have no
+  single cell, so they have no button. A duty on an “Unavailable” day blocks
+  the publication, and a broken hard rule needs consent in the publication
+  window. The table footer lists the hard rules and leads to their full
+  description. On a phone the table becomes a list of cards: the kind, the
+  person with the day and role, the detail, and the button under it.
 - **Fairness** - the points spread as a single number with the value from
   before the draft and a **better** / **worse** badge, the verdict under it,
   then the acceptance criterion in every role, on weekends and on holidays and

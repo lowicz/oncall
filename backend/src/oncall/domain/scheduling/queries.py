@@ -28,6 +28,7 @@ from oncall.fairness import (
     lens_spread,
     project_duties,
 )
+from oncall.rules import RuleViolation
 from oncall.workdays import polish_holidays
 
 
@@ -36,7 +37,7 @@ async def view_schedule(
     ports: ScheduleQueryPorts,
     *,
     today: date,
-    warnings: list[str] | None = None,
+    warnings: list[RuleViolation] | None = None,
 ) -> ScheduleView:
     """The schedule with everything the generator screen shows next to it.
 

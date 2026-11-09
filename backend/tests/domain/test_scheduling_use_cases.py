@@ -213,7 +213,7 @@ async def test_two_people_trade_places_in_one_correction(world) -> None:
     assert held == {primary: "Bartek", secondary: "Anna", late: "Anna"}
     assert corrected.version == schedule.version + 1
     # The rest rules are read for both people who took a role.
-    assert {item.split(":")[0] for item in warnings} == {"Anna", "Bartek"}
+    assert {item.member_name for item in warnings} == {"Anna", "Bartek"}
     assert world.journal.events == [
         (
             "draft_corrected",

@@ -17,6 +17,7 @@ from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, RotationMo
 from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.rules import RuleViolationResponse
+from oncall.rules import describe
 
 #: Solver budget bounds. Below 5 s the model is barely built; above 300 s the
 #: request outlives every proxy timeout in front of it.
@@ -88,6 +89,9 @@ class ScheduleWarningResponse(BaseModel):
     #: schedule breaks as it stands.
     source: Literal["solver", "rules"]
     message: str
+    #: Who breaks the rule and on which days; only a „rules" warning has them.
+    member_name: str | None = None
+    days: list[date] = Field(default_factory=list)
 
 
 class UnavailabilityConflictResponse(BaseModel):
@@ -284,8 +288,13 @@ def schedule_response(view: ScheduleView) -> DraftScheduleResponse:
             for message in schedule.solver_warnings
         ]
         + [
-            ScheduleWarningResponse(source="rules", message=message)
-            for message in view.rule_warnings
+            ScheduleWarningResponse(
+                source="rules",
+                message=describe(violation),
+                member_name=violation.member_name,
+                days=list(violation.days),
+            )
+            for violation in view.rule_warnings
         ],
         unavailability_conflicts=[
             UnavailabilityConflictResponse(

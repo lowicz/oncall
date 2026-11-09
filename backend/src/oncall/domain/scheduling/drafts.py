@@ -16,6 +16,7 @@ from oncall.domain.scheduling.planning import member_rest_warnings
 from oncall.domain.scheduling.ports import DraftPorts
 from oncall.domain.team import Member
 from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole, ScheduleStatus
+from oncall.rules import RuleViolation
 from oncall.workdays import is_working_day, polish_holidays
 
 
@@ -37,7 +38,7 @@ async def unavailability_conflicts(
     return tuple(conflicts)
 
 
-async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[str]:
+async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[RuleViolation]:
     """Give roles of one draft day to other eligible and available members in
     one version: one person taking one or more roles, or two people trading
     places. The day is judged as it stands once every role is handed over."""
@@ -72,7 +73,7 @@ async def correct_draft(correction: DraftCorrection, ports: DraftPorts) -> list[
     if len(on_call) == 2 and on_call[0] is not None and on_call[0] == on_call[1]:
         raise errors.SecondOnCallSameDay()
     previous = {item.slot: item.assignee_name for item in schedule.assignments}
-    warnings: list[str] = []
+    warnings: list[RuleViolation] = []
     for member_id in dict.fromkeys(member.id for _, member in holders):
         warnings.extend(
             item for item in member_rest_warnings(corrected, member_id) if item not in warnings

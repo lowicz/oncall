@@ -3,6 +3,7 @@ import { messages, useMessages } from '../i18n'
 import { roleLabels } from '../lib/labels'
 import { formatDate, formatDayShort } from '../lib/dates'
 import { docsHref } from '../lib/nav'
+import { useNarrow } from '../hooks/useMediaQuery'
 import { Button, EmptyState, RoleMark, StatusBadge, StatusTone } from '../ui'
 import { DraftFocus } from './DraftScheduleMatrix'
 
@@ -41,11 +42,20 @@ export function draftProblems(result: DraftSchedule): Problem[] {
     })
   }
   for (const warning of result.warnings ?? []) {
+    const person = warning.member_name
+    const date = warning.days?.[0]
+    // A broken rule opens the person's on-call duty on its first day.
+    const duty = person && date
+      ? result.assignments.find((item) => item.service_date === date && item.assignee_name === person && item.role !== 'late_shift')
+      : undefined
     problems.push({
       key: `${warning.source}:${warning.message}`,
       kind: warning.source === 'rules' ? 'rule' : 'solver',
-      person: t.wholeDraft,
+      person: person ?? t.wholeDraft,
       detail: warning.message,
+      date: duty?.service_date,
+      role: duty?.role,
+      focus: duty && { service_date: duty.service_date, assignee_name: duty.assignee_name, role: duty.role },
     })
   }
   if (result.uncovered_before?.length) {
@@ -77,7 +87,8 @@ export function problemCounts(result: DraftSchedule) {
 /**
  * The problems table under a draft, grouped by person or by rule (captain's
  * choice B); the grouping and the hard-only filter live in the section
- * heading above it. A conflict row opens the matrix cell it points at.
+ * heading above it. A conflict row opens the matrix cell it points at. On a
+ * phone the rows become a list of cards, so the action stays on screen.
  */
 export function DraftProblems({ result, onFocus, editable, by, hardOnly = false }: {
   result: DraftSchedule
@@ -87,6 +98,7 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
   hardOnly?: boolean
 }) {
   const t = useMessages().generator.problems
+  const narrow = useNarrow()
   const all = draftProblems(result)
   const problems = hardOnly ? all.filter((problem) => HARD.has(problem.kind)) : all
   if (all.length === 0) {
@@ -109,6 +121,47 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
     groups.set(key, [...(groups.get(key) ?? []), problem])
   }
   const hard = all.filter((problem) => HARD.has(problem.kind)).length
+  // A card names the day and role in its header, so only the table marks the role.
+  const detail = (problem: Problem) => (
+    <span className="problems-cell">
+      {!narrow && problem.role && <RoleMark role={problem.role} size="sm" />}
+      {problem.detail}
+      <small className="muted">{t[KIND_SEVERITY[problem.kind]]}</small>
+    </span>
+  )
+  const action = (problem: Problem) => problem.focus && (
+    <Button size="sm" onClick={() => onFocus(problem.focus!)} disabled={!editable}>
+      {editable ? t.fix : t.showDay}
+    </Button>
+  )
+  const foot = (
+    <>
+      {t.hardRulesSummary(t.violations(hard))}
+      {' '}<a href={`${docsHref()}produkt/generator.html`}>{t.docsLink}</a>.
+    </>
+  )
+  if (narrow) {
+    return (
+      <div className="panel">
+        <ul className="list problems-list" aria-label={t.table}>
+          {[...groups.values()].flat().map((problem) => (
+            <li key={problem.key} className="list-row">
+              <div className="list-main stack-sm">
+                <div className="row">
+                  <StatusBadge tone={KIND_TONE[problem.kind]}>{t.kinds[problem.kind]}</StatusBadge>
+                  <b>{problem.person}</b>
+                  {problem.date && problem.role && <small>{formatDayShort(problem.date)} · {roleLabels()[problem.role]}</small>}
+                </div>
+                {detail(problem)}
+              </div>
+              {problem.focus && <div className="list-aside">{action(problem)}</div>}
+            </li>
+          ))}
+        </ul>
+        <p className="muted small problems-foot">{foot}</p>
+      </div>
+    )
+  }
   return (
     <div className="panel wide-scroll">
       <table className="lg" aria-label={t.table}>
@@ -133,27 +186,12 @@ export function DraftProblems({ result, onFocus, editable, by, hardOnly = false 
                   ? <StatusBadge tone={KIND_TONE[problem.kind]}>{t.kinds[problem.kind]}</StatusBadge>
                   : <><b>{problem.person}</b>{problem.date && problem.role && <small>{formatDayShort(problem.date)} · {roleLabels()[problem.role]}</small>}</>}
               </td>
-              <td>
-                <span className="problems-cell">
-                  {problem.role && <RoleMark role={problem.role} size="sm" />}
-                  {problem.detail}
-                  <small className="muted">{t[KIND_SEVERITY[problem.kind]]}</small>
-                </span>
-              </td>
-              <td className="n">
-                {problem.focus && (
-                  <Button size="sm" onClick={() => onFocus(problem.focus!)} disabled={!editable}>
-                    {editable ? t.fix : t.showDay}
-                  </Button>
-                )}
-              </td>
+              <td>{detail(problem)}</td>
+              <td className="n">{action(problem)}</td>
             </tr>
           )))}
           <tr>
-            <td colSpan={4} className="muted small problems-foot">
-              {t.hardRulesSummary(t.violations(hard))}
-              {' '}<a href={`${docsHref()}produkt/generator.html`}>{t.docsLink}</a>.
-            </td>
+            <td colSpan={4} className="muted small problems-foot">{foot}</td>
           </tr>
         </tbody>
       </table>

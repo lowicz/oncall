@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { DraftSchedule } from '../api'
@@ -62,6 +62,8 @@ describe('problemCounts', () => {
 })
 
 describe('DraftProblems', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
   it('says a clean draft has nothing to answer for', () => {
     renderScreen(<DraftProblems result={draft({})} onFocus={vi.fn()} editable by="person" />)
     expect(screen.getByText('Szkic nie ma otwartych problemów')).toBeInTheDocument()
@@ -92,6 +94,54 @@ describe('DraftProblems', () => {
 
     fireEvent.click(within(table).getAllByRole('button', { name: 'Popraw' })[1])
     expect(onFocus).toHaveBeenCalledWith({ service_date: '2026-09-18', assignee_name: 'Anna Kowalska', role: 'secondary' })
+  })
+
+  it('files a broken rule under its person and opens their on-call duty on its first day', () => {
+    const onFocus = vi.fn()
+    const result = draft({
+      assignments: [
+        { service_date: '2026-09-17', role: 'late_shift', assignee_name: 'Marek Nowak', member_id: 'm1', is_override: false },
+        { service_date: '2026-09-17', role: 'secondary', assignee_name: 'Marek Nowak', member_id: 'm1', is_override: false },
+      ],
+      warnings: [{
+        source: 'rules',
+        message: 'Marek Nowak: więcej niż 3 kolejne dni dyżuru. Dni: 17-09-2026, 18-09-2026',
+        member_name: 'Marek Nowak',
+        days: ['2026-09-17', '2026-09-18'],
+      }],
+    })
+    renderScreen(<DraftProblems result={result} onFocus={onFocus} editable by="person" />)
+
+    const table = screen.getByRole('table', { name: 'Problemy szkicu' })
+    expect(within(table).getByRole('rowheader', { name: 'Marek Nowak' })).toBeInTheDocument()
+    expect(within(table).queryByRole('rowheader', { name: 'Cały szkic' })).not.toBeInTheDocument()
+    fireEvent.click(within(table).getByRole('button', { name: 'Popraw' }))
+    expect(onFocus).toHaveBeenCalledWith({ service_date: '2026-09-17', assignee_name: 'Marek Nowak', role: 'secondary' })
+  })
+
+  it('lists the problems as cards on a phone, each with its action in reach', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => ({
+      matches: query === '(max-width: 900px)',
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }))
+    const onFocus = vi.fn()
+    renderScreen(<DraftProblems result={troubled} onFocus={onFocus} editable by="person" />)
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    const cards = within(screen.getByRole('list', { name: 'Problemy szkicu' })).getAllByRole('listitem')
+    expect(cards).toHaveLength(5)
+    expect(cards[1]).toHaveTextContent('Dyżur w dniu „nie mogę”Anna Kowalskapt 18 wrz · SECONDARY')
+    expect(cards[4]).toHaveTextContent('Szkic nieaktualnyCały szkic')
+    expect(within(cards[4]).queryByRole('button')).not.toBeInTheDocument()
+    fireEvent.click(within(cards[1]).getByRole('button', { name: 'Popraw' }))
+    expect(onFocus).toHaveBeenCalledWith({ service_date: '2026-09-18', assignee_name: 'Anna Kowalska', role: 'secondary' })
+    expect(screen.getByText('Reguły twarde (jedna rola na osobę i dzień, przerwa między dyżurami, kwalifikacje, „nie mogę”): 3 naruszenia.', { exact: false })).toBeInTheDocument()
   })
 
   it('groups the blocking problems by rule and only shows the day of a read-only draft', () => {

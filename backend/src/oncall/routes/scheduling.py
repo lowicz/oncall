@@ -49,6 +49,7 @@ from oncall.presentation.scheduling import (
     schedule_summary_response,
 )
 from oncall.routes.domain_edge import actor_from, domain_errors_as_http
+from oncall.rules import RuleViolation
 
 router = APIRouter(prefix="/api/v1/scheduling", tags=["scheduling"])
 
@@ -116,7 +117,10 @@ def _scheduling_errors():
 
 
 async def _written_schedule(
-    schedule_id: uuid.UUID, reads: ScheduleQueryPorts, *, warnings: list[str] | None = None
+    schedule_id: uuid.UUID,
+    reads: ScheduleQueryPorts,
+    *,
+    warnings: list[RuleViolation] | None = None,
 ) -> DraftScheduleResponse:
     """The schedule read back after its unit of work is written."""
     schedule = await reads.schedules.schedule(schedule_id)

@@ -311,6 +311,9 @@ export interface ScheduleWarning {
   /** 'solver' - what CP-SAT gave up; 'rules' - a hard rule the schedule breaks. */
   source: 'solver' | 'rules'
   message: string
+  /** Who breaks the rule and on which days; only a 'rules' warning has them. */
+  member_name?: string | null
+  days?: string[]
 }
 
 export interface UnavailabilityConflict {
