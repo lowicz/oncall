@@ -14,6 +14,21 @@ import { RoleSwapImpact, RoleSwapPreview, RoleSwapTrigger } from '../components/
 const MIN_REASON_LENGTH = 10
 const FRAME_ID = 'role-swap-frame'
 
+/** The save waits for the schedule, the rules check, a consent to what it
+ *  found, and a reason once a role's cover has ended. */
+function saveBlocked({ scheduled, check, acknowledged, historical, reason }: {
+  scheduled: boolean
+  check: { isLoading: boolean; data?: { violations: unknown[] } }
+  acknowledged: boolean
+  historical: boolean
+  reason: string
+}) {
+  return !scheduled
+    || check.isLoading
+    || ((check.data?.violations.length ?? 0) > 0 && !acknowledged)
+    || (historical && reason.trim().length < MIN_REASON_LENGTH)
+}
+
 /**
  * „Zamień miejscami…" in the day inspector (P6): the PRIMARY and SECONDARY of
  * one published day trade holders in one batch, previewed in the panel with
@@ -51,10 +66,6 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const carry = Boolean(swap?.lateShift?.eligible) && (carryChoice ?? true)
   const { historical, silent } = correctionTiming(day, ['primary', 'secondary', ...(carry ? ['late_shift' as const] : [])])
   const lines = swap && serviceDate ? roleSwapLines(swap, serviceDate, carry) : []
-  // What the toast says about e-mail, before and after its Undo expires.
-  const mail = silent
-    ? { description: schedule.toast.pastDayNoEmail }
-    : { description: t.emailsLater, expired: common.undoEmailsSent }
 
   const check = useQuery({
     queryKey: ['role-swap-check', serviceDate, ref?.schedule_id, ref?.schedule_version, carry],
@@ -115,7 +126,8 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         toast,
         message: () => ({
           title: t.toast(formatDay(serviceDate), swapHolders(swap, carry, true)),
-          ...mail,
+          description: silent ? schedule.toast.pastDayNoEmail : t.emailsLater,
+          expired: silent ? undefined : common.undoEmailsSent,
         }),
         undoLabel: t.undoAction,
         onUndoError: (error) => toast.error(t.undoFailed, { description: (error as Error).message }),
@@ -136,10 +148,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
     },
   })
 
-  const blocked = !ref
-    || check.isLoading
-    || ((check.data?.violations.length ?? 0) > 0 && !acknowledged)
-    || (historical && reason.trim().length < MIN_REASON_LENGTH)
+  const blocked = saveBlocked({ scheduled: Boolean(ref), check, acknowledged, historical, reason })
 
   const trigger = swap && (
     <RoleSwapTrigger

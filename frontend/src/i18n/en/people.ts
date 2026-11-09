@@ -75,7 +75,7 @@ export const people: Messages['people'] = {
     personnelNumberFix: 'A personnel number is digits only, e.g. 001234.',
     email: 'E-mail',
     phone: 'Phone · on the “Now” strip',
-    phoneNewHint: 'Format: +48 and nine digits. Required for people in the rotation; signed-in people can see it.',
+    phoneNewHint: 'Format: +48 and nine digits. Required for people in the rotation; signed-in people and share-link recipients can see it.',
     phoneHint: 'Format: +48 and nine digits (bare digits get the prefix). Signed-in people and share-link recipients see it on the “Now” strip and on the on-call card.',
     phoneRequired: 'Required for people in the rotation.',
     phoneFix: 'Fix the number: +48 and nine digits.',

@@ -76,7 +76,7 @@ export const people = {
     personnelNumberFix: 'Numer pracownika to same cyfry, np. 001234.',
     email: 'E-mail',
     phone: 'Telefon · na pasku „Teraz”',
-    phoneNewHint: 'Format: +48 i dziewięć cyfr. Wymagany dla osób w rotacji; widzą go zalogowane osoby.',
+    phoneNewHint: 'Format: +48 i dziewięć cyfr. Wymagany dla osób w rotacji; widzą go zalogowane osoby i odbiorcy linków udostępnienia.',
     phoneHint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby i odbiorcy linków udostępnienia na pasku „Teraz” i na karcie dyżurnego.',
     phoneRequired: 'Wymagany dla osób w rotacji.',
     phoneFix: 'Popraw numer: +48 i dziewięć cyfr.',

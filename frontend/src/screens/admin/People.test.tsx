@@ -616,6 +616,8 @@ describe('PeoplePanel new account', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Nowe konto lokalne' })
     const submit = within(dialog).getByRole('button', { name: 'Utwórz konto' })
     expect(submit).toBeDisabled()
+    // Share-link recipients see the on-call number as well as signed-in people.
+    expect(within(dialog).getByText(/widzą go zalogowane osoby i odbiorcy linków udostępnienia/)).toBeInTheDocument()
     fireEvent.change(within(dialog).getByLabelText(/^Login/), { target: { value: 'ewa' } })
     fireEvent.change(within(dialog).getByLabelText(/^Imię/), { target: { value: 'Ewa' } })
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Koordynator' }))
