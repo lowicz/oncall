@@ -59,4 +59,8 @@ export const auth = {
   shareLinkScreen: 'Link podglądowy',
   shareLinkExplanation: 'Link mógł wygasnąć albo zostać odwołany. Poproś o nowy osobę, która go wysłała.',
   exchangingLink: 'Wymiana linku na sesję',
+  shareSignedInTitle: 'Ta przeglądarka jest zalogowana',
+  shareReplacesSession: (name: string) => `Link podglądowy zastąpi sesję konta ${name} we wszystkich kartach tej przeglądarki. Żeby zostać na koncie, otwórz link w oknie prywatnym albo w innej przeglądarce.`,
+  shareReplaceConfirm: 'Otwórz podgląd i wyloguj',
+  shareStaySignedIn: 'Zostań na koncie',
 }

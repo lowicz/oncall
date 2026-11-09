@@ -58,4 +58,8 @@ export const auth: Messages['auth'] = {
   shareLinkScreen: 'Preview link',
   shareLinkExplanation: 'The link may have expired or been revoked. Ask the person who sent it for a new one.',
   exchangingLink: 'Exchanging the link for a session',
+  shareSignedInTitle: 'This browser is signed in',
+  shareReplacesSession: (name: string) => `The preview link replaces the session of ${name} in every tab of this browser. To stay signed in, open the link in a private window or another browser.`,
+  shareReplaceConfirm: 'Open the preview and sign out',
+  shareStaySignedIn: 'Stay signed in',
 }

@@ -103,5 +103,12 @@ jednorazowy token na ograniczoną sesję i usuwa token z paska adresu. Taka sesj
 - wygasa razem z linkiem,
 - przestaje działać natychmiast po odwołaniu linku.
 
+Przeglądarka ma jedną sesję, więc sesja podglądu zastępuje konto zalogowane w
+niej wcześniej, we wszystkich kartach. Gdy link otwiera ktoś zalogowany na
+konto, ekran najpierw o tym mówi i pozwala **Zostać na koncie** albo
+**Otworzyć podgląd i wylogować**; żeby mieć oba naraz, otwórz link w oknie
+prywatnym albo w innej przeglądarce. Link otwarty w trakcie innego podglądu
+zastępuje go bez pytania.
+
 Stałą formą dostępu pozostaje imienne konto `viewer`; link czasowy jest
 wyjątkiem.
