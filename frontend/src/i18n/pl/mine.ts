@@ -8,7 +8,7 @@ export const mine = {
   next: 'następny:',
   noDutyIn60Days: 'brak w najbliższych 60 dniach',
   exportIcs: 'Subskrypcja ICS',
-  proposeSwap: 'Zaproponuj zamianę',
+  proposeSwap: 'Poproś o zamianę…',
   duties: {
     heading: 'Najbliższe dyżury',
     meta: (count: number) => `najbliższe 60 dni · ${count}`,
@@ -17,7 +17,7 @@ export const mine = {
     emptyTitle: 'Brak nadchodzących dyżurów',
     emptyDescription: 'W najbliższych 60 dniach nie masz przydzielonego dyżuru.',
     details: 'Szczegóły',
-    swap: 'Zamień',
+    swap: 'Poproś o zamianę…',
     ongoing: 'trwa',
     /** The duty a colleague holds on the same day, spelled out in full. */
     partnerRoles: { primary: 'Primary', secondary: 'Secondary', late_shift: '11–19' },
@@ -91,7 +91,7 @@ export const mine = {
         ? 'Wpis nie zdejmuje dyżuru. Zmień obsadę tego dnia w grafiku.'
         : 'Wpis nie zdejmuje dyżurów. Zmień obsadę tych dni w grafiku.'),
       requestSwap: (day: string) => `Poproś o zamianę · ${day}`,
-      openDay: (day: string) => `Otwórz dzień · ${day}`,
+      openDay: (day: string) => `Pokaż dzień · ${day}`,
     },
     /** "Wpisujesz w imieniu: <b>name</b> · dostanie o tym powiadomienie…" - the name sits between the two parts. */
     onBehalfBefore: 'Wpisujesz w imieniu:',

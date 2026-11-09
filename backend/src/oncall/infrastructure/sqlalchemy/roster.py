@@ -69,6 +69,7 @@ def _from_effective(item: EffectiveAssignment) -> Duty:
         schedule_id=item.schedule_id,
         schedule_version=item.schedule_version,
         schedule_status=item.schedule_status,
+        published_at=item.published_at,
         original=item.original,
     )
 

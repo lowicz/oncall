@@ -40,6 +40,9 @@ async def test_current_duty_carries_window_and_contact(
     await login(client, "anna")
     body = (await client.get("/api/v1/schedules/published")).json()
 
+    # A publication is named by its date on the screens, not by a version.
+    assert body["published_at"] is not None
+
     late = next((item for item in body["current"] if item["role"] == "late_shift"), None)
     if is_day_off(TODAY, polish_holidays(TODAY, TODAY)):
         assert late is None

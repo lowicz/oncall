@@ -158,14 +158,14 @@ describe('MineScreen duties', () => {
     const saturday = (await screen.findByText('sob 19 wrz · PRIMARY')).closest('.list-row') as HTMLElement
     expect(within(saturday).getByText(/całodobowo · 2X · Secondary: Marek/)).toBeInTheDocument()
     expect(within(saturday).getByRole('button', { name: 'Kolizja z Twoją niedostępnością sob 19 wrz: pokaż w kalendarzu' })).toHaveTextContent(/^kolizja$/)
-    expect(within(saturday).getByRole('link', { name: 'Zamień' })).toHaveAttribute('href', '/zamiany?data=2026-09-19&rola=primary')
+    expect(within(saturday).getByRole('link', { name: 'Poproś o zamianę…' })).toHaveAttribute('href', '/zamiany?data=2026-09-19&rola=primary')
     // Two roles on one day are one row, with both windows.
     const monday = screen.getByText('pon 21 wrz · SECONDARY + 11–19').closest('.list-row') as HTMLElement
     expect(within(monday).getByText(/19:00–09:00 \+ 11:00–19:00 · 1X/)).toBeInTheDocument()
     expect(screen.queryByText(/LATE_SHIFT/)).not.toBeInTheDocument()
     // The header names the next duty and the primary action starts a swap from it.
     expect(screen.getByText(/następny:/)).toHaveTextContent('za 9 dni, PRIMARY')
-    expect(screen.getByRole('link', { name: 'Zaproponuj zamianę' })).toHaveAttribute('href', '/zamiany?data=2026-09-19&rola=primary')
+    expect(screen.getAllByRole('link', { name: 'Poproś o zamianę…' })[0]).toHaveAttribute('href', '/zamiany?data=2026-09-19&rola=primary')
   })
 
   it('shows an empty state rather than a bare list', async () => {
@@ -716,7 +716,7 @@ describe('MineScreen duty rows', () => {
     const later = screen.getByText('wt 15 wrz · SECONDARY').closest('.list-row') as HTMLElement
     expect(within(later).getByText(/^19:00–09:00 · 1X/)).toBeInTheDocument()
     expect(within(later).getByText('po korekcie')).toBeInTheDocument()
-    expect(within(later).getByRole('link', { name: 'Zamień' })).toHaveAttribute('href', '/zamiany?data=2026-09-15&rola=secondary')
+    expect(within(later).getByRole('link', { name: 'Poproś o zamianę…' })).toHaveAttribute('href', '/zamiany?data=2026-09-15&rola=secondary')
   })
 
   it('counts the duties of the last 90 days in the subtitle', async () => {
@@ -1403,7 +1403,7 @@ describe('MineScreen availability Undo', () => {
 
     const frame = (await screen.findByText('Beata Lis ma dyżur PRIMARY 20 wrz, a wpis to „nie mogę”')).closest('.box') as HTMLElement
     expect(frame).toHaveTextContent('Wpis nie zdejmuje dyżuru. Zmień obsadę tego dnia w grafiku.')
-    expect(within(frame).getByRole('link', { name: 'Otwórz dzień · 20 wrz' })).toHaveAttribute('href', '/grafik?dzien=2026-09-20')
+    expect(within(frame).getByRole('link', { name: 'Pokaż dzień · 20 wrz' })).toHaveAttribute('href', '/grafik?dzien=2026-09-20')
   })
 })
 

@@ -101,7 +101,7 @@ describe('DraftDecision', () => {
 
   it('publishes a clean proposal and still lets it go back to the draft', () => {
     const { panel, onPublish, onWithdraw } = show(draft({ status: 'proposed' }))
-    fireEvent.click(within(panel).getByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(within(panel).getByRole('button', { name: 'Opublikuj…' }))
     fireEvent.click(within(panel).getByRole('button', { name: 'Wróć do szkicu' }))
     expect(onPublish).toHaveBeenCalled()
     expect(onWithdraw).toHaveBeenCalled()

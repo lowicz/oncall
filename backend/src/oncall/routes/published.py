@@ -63,6 +63,7 @@ async def published_schedule(
         is_published=board.is_published,
         id=owner.schedule_id,
         version=owner.schedule_version,
+        published_at=owner.published_at,
         starts_on=board.duties[0].service_date,
         ends_on=board.duties[-1].service_date,
         assignments=[

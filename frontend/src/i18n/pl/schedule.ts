@@ -6,7 +6,7 @@ import { pluralFormPl, pluralPl } from '../../lib/plural'
  * chips and the day inspector with its staffing change and event form.
  */
 export const schedule = {
-  published: (range: string, version: number | null) => `Opublikowany ${range}${version ? ` (wersja ${version})` : ''}`,
+  published: (range: string, publishedOn: string | null) => `Opublikowany ${range}${publishedOn ? ` (publikacja z ${publishedOn})` : ''}`,
   noPublished: 'Brak opublikowanego grafiku',
   proposalWaiting: (range: string) => `propozycja ${range} czeka na publikację`,
   draftWaiting: (range: string) => `szkic ${range} czeka na akceptację`,
@@ -120,10 +120,10 @@ export const schedule = {
   inspector: {
     outsidePublication: 'poza publikacją',
     back: 'Wróć',
-    changeStaffing: 'Zmień osobę',
+    changeStaffing: 'Zmień osobę…',
     openGenerator: 'Otwórz generator z tym zakresem',
     event: 'Wydarzenie…',
-    requestSwap: 'Poproś o zamianę',
+    requestSwap: 'Poproś o zamianę…',
     outsideRange: 'Ten dzień jest poza opublikowanym zakresem grafiku.',
     outsideRangeCoordinator: 'Żeby go obsadzić, wygeneruj i opublikuj grafik obejmujący tę datę.',
     outsideRangeMember: 'Koordynator jeszcze nie opublikował grafiku na ten okres.',
@@ -136,7 +136,7 @@ export const schedule = {
     },
     collision: (name: string, role: string, date: string, kind: string) => `Kolizja: ${name} ma ${role} ${date} mimo zgłoszenia „${kind}”`,
     collisionNote: (note: string) => `Powód: „${note}”.`,
-    changePerson: 'Zmień osobę',
+    changePerson: 'Zmień osobę…',
     noFullCoverage: 'Brak pełnej obsady',
     unstaffedRoles: (roles: string) => `Nieobsadzone: ${roles}.`,
     dayStaffing: 'Obsada dnia',
@@ -161,7 +161,7 @@ export const schedule = {
     emailBoth: 'E-mail o zmianie dostaną obie osoby.',
     emailOne: (name: string) => `E-mail o dyżurze dostanie ${name}.`,
     violationAudited: 'Naruszenie reguł zapisane w audycie.',
-    openDay: 'Otwórz dzień',
+    openDay: 'Pokaż dzień',
     changedRoles: (day: string, name: string, roles: string) => `Zmieniono obsadę ${day}: ${name} ${roles}`,
     emailMany: (count: number) => `E-mail o zmianie ${pluralFormPl(count, ['dostanie', 'dostaną', 'dostanie'])} ${pluralPl(count, ['osoba', 'osoby', 'osób'])}.`,
     emailsLater: (count: number) => count === 2

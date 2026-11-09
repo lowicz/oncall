@@ -21,6 +21,7 @@ const publication = (over: Partial<PublishedSchedule> = {}): PublishedSchedule =
   is_published: true,
   id: 's1',
   version: 7,
+  published_at: '2026-09-02T20:30:00Z',
   starts_on: '2026-09-01',
   ends_on: '2026-10-03',
   assignments: [
@@ -89,7 +90,7 @@ describe('DutyScreen header', () => {
     renderScreen(<DutyScreen role="viewer" displayName="Podgląd" hasTeamMember={false} />)
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Czwartek, 10 września' })).toBeInTheDocument()
-    expect(await screen.findByText(/Opublikowany grafik do 3 paź · wersja 7/)).toBeInTheDocument()
+    expect(await screen.findByText(/Opublikowany grafik do 3 paź · publikacja z 2 wrz/)).toBeInTheDocument()
     expect(screen.getByText('tylko odczyt')).toBeInTheDocument()
     // The strip above the page carries the current duties; the desktop page
     // does not repeat them as cards.
@@ -475,8 +476,17 @@ describe('DutyScreen states not covered above', () => {
     vi.spyOn(api, 'swaps').mockResolvedValue([])
     vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
     renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
-    expect(await screen.findByText(/^Opublikowany grafik do 10 wrz · wersja 7/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Opublikowany grafik do 10 wrz · publikacja z 2 wrz/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Generuj kolejny zakres/ })).toHaveAttribute('href', '/generator')
+  })
+
+  it('names no publication day when the API gives none', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ published_at: null }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    vi.spyOn(api, 'fairness').mockResolvedValue(fairness(true))
+    renderScreen(<DutyScreen role="coordinator" displayName="Ewa Maj" hasTeamMember={false} />)
+    expect(await screen.findByText(/^Opublikowany grafik do 3 paź/)).not.toHaveTextContent('publikacja z')
   })
 
   it('opens the swaps from the subtitle', async () => {

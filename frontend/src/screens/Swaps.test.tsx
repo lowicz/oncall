@@ -97,11 +97,11 @@ describe('SwapPanel without the coordinator approval', () => {
     await waitFor(() => expect(stepsOf(sheet)).toEqual(['złożona', 'zastępca', 'w grafiku']))
     expect(within(sheet).getByText('Po Twojej akceptacji zamiana trafi do grafiku od razu.')).toBeInTheDocument()
 
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuj' }))
     await waitFor(() => expect(accept).toHaveBeenCalled())
     expect(accept.mock.calls[0][0]).toEqual({ id: '1', acknowledge: false })
     expect(await screen.findByText('Przyjęto. Zamiana wpisana do grafiku.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Otwórz dzień' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż dzień' }))
     expect(screen.getByLabelText('Adres')).toHaveTextContent('/grafik?dzien=2026-09-14')
   })
 
@@ -111,9 +111,9 @@ describe('SwapPanel without the coordinator approval', () => {
     vi.spyOn(api, 'acceptSwap').mockResolvedValue(swap({ id: '1', status: 'pending_coordinator' }))
     const { unmount } = renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
     fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
-    fireEvent.click(within(await screen.findByRole('dialog', { name: /^Zamiana ·/ })).getByRole('button', { name: 'Akceptuję' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: /^Zamiana ·/ })).getByRole('button', { name: 'Akceptuj' }))
     expect(await screen.findByText('Przyjęto. Czeka na zatwierdzenie koordynatora.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Otwórz dzień' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pokaż dzień' })).not.toBeInTheDocument()
     unmount()
 
     // Approval was switched off: the swap is already in the schedule.
@@ -121,9 +121,9 @@ describe('SwapPanel without the coordinator approval', () => {
     vi.spyOn(api, 'acceptSwap').mockResolvedValue(swap({ id: '1', status: 'approved' }))
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
     fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
-    fireEvent.click(within(await screen.findByRole('dialog', { name: /^Zamiana ·/ })).getByRole('button', { name: 'Akceptuję' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: /^Zamiana ·/ })).getByRole('button', { name: 'Akceptuj' }))
     expect(await screen.findByText('Przyjęto. Zamiana wpisana do grafiku.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Otwórz dzień' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pokaż dzień' })).toBeInTheDocument()
   })
 
   it('keeps the stage for a request a coordinator already holds', async () => {
@@ -160,7 +160,7 @@ describe('SwapPanel inbox', () => {
 
     fireEvent.click(within(row).getByRole('button', { name: /Zdecyduj/ }))
     const sheet = await screen.findByRole('dialog', { name: 'Zamiana · pon 14 wrz PRIMARY' })
-    expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeEnabled()
+    expect(within(sheet).getByRole('button', { name: 'Akceptuj' })).toBeEnabled()
     expect(within(sheet).getByRole('button', { name: 'Odrzuć' })).toBeEnabled()
   })
 
@@ -185,7 +185,7 @@ describe('SwapPanel inbox', () => {
     expect(inbox(/^Do zatwierdzenia/)).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('Piotr zgodził(a) się · czeka na Ciebie')).toBeInTheDocument()
     // A coordinator without a rotation slot has no request to file.
-    expect(screen.queryByRole('button', { name: 'Nowa zamiana' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Poproś o zamianę…' })).not.toBeInTheDocument()
 
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
     fireEvent.click(within(sheet).getByRole('button', { name: 'Zatwierdź i wpisz do grafiku' }))
@@ -419,7 +419,7 @@ describe('SwapPanel new request', () => {
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
     // The form waits behind the primary action; nothing is requested before it opens.
     expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     expect(impactCall).not.toHaveBeenCalled()
 
     const slot = await screen.findByLabelText(/Mój dyżur/)
@@ -457,7 +457,7 @@ describe('SwapPanel new request', () => {
     stubSchedule()
     vi.spyOn(api, 'swapOptions').mockResolvedValue([])
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -470,7 +470,7 @@ describe('SwapPanel new request', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).getByRole('button', { name: 'Odrzuć zmiany' }))
     await waitFor(() => expect(screen.queryByLabelText(/Mój dyżur/)).not.toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Poproś o zamianę…' }))
     expect(await screen.findByLabelText(/Mój dyżur/)).toHaveValue('')
   })
 
@@ -483,7 +483,7 @@ describe('SwapPanel new request', () => {
     const create = vi.spyOn(api, 'createSwap').mockResolvedValue(swap({ id: '9', service_date: '2099-09-14' }))
 
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -522,7 +522,7 @@ describe('SwapPanel new request', () => {
     vi.spyOn(api, 'createSwap').mockReturnValue(new Promise((resolve) => { finish = resolve }))
 
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -550,7 +550,7 @@ describe('SwapPanel new request', () => {
     vi.spyOn(api, 'swapImpact').mockResolvedValue(impact)
     vi.spyOn(api, 'createSwap').mockResolvedValue(swap({ id: '9', service_date: '2099-09-14' }))
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -582,7 +582,7 @@ describe('SwapPanel new request', () => {
       vi.spyOn(api, 'createSwap').mockResolvedValue(swap({ id: '9', service_date: '2099-09-14' }))
       const cancel = vi.spyOn(api, 'cancelSwap').mockResolvedValue(swap({ id: '9', status: 'cancelled' }))
       renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-      fireEvent.click(await screen.findByRole('button', { name: 'New swap' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Request a swap…' }))
       const slot = await screen.findByLabelText(/My duty/)
       await screen.findByRole('option', { name: /PRIMARY/ })
       fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -639,7 +639,7 @@ describe('SwapPanel new request', () => {
       today_holiday_name: null,
     })
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
 
     const send = screen.getByRole('button', { name: 'Wyślij prośbę' })
     await waitFor(() => expect(send).toHaveAccessibleDescription('Brak opublikowanego grafiku.'))
@@ -652,7 +652,7 @@ describe('SwapPanel new request', () => {
     const answer = await published()
     published.mockReset().mockRejectedValueOnce(new ApiError('Serwer nie odpowiada', 503)).mockResolvedValue(answer)
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
 
     const form = screen.getByRole('form', { name: 'Nowa prośba o zamianę' })
     const alert = await within(form).findByRole('alert')
@@ -692,7 +692,7 @@ describe('SwapPanel new request', () => {
 describe('SwapPanel candidate rules (BLK6-01)', () => {
   async function openForm() {
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -991,7 +991,7 @@ describe('SwapPanel stages and sheets', () => {
     expect(within(warnings).getAllByRole('listitem')[0]).toHaveTextContent('Piotr Zieliński: Brak odpoczynku po serii. (07-09-2026, 08-09-2026)')
     expect(within(warnings).getAllByRole('listitem')[1]).toHaveTextContent(/^Anna Kowalska: Dzieli blok weekendowy\.$/)
     expect(within(sheet).queryByRole('textbox')).not.toBeInTheDocument()
-    expect(within(sheet).queryByRole('button', { name: 'Akceptuję' })).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Akceptuj' })).not.toBeInTheDocument()
   })
 
   it.each([
@@ -1034,14 +1034,14 @@ describe('SwapPanel stages and sheets', () => {
     expect(within(box).getByText(/Twoja akceptacja potwierdza to naruszenie i trafia do dziennika audytu\./)).toBeInTheDocument()
     expect(within(box).getByRole('link', { name: 'Które reguły można potwierdzić?' })).toHaveAttribute('href', '/docs/uzytkownik/zamiany.html#zamiana-łamiąca-reguły')
 
-    expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Akceptuj' })).toBeDisabled()
     fireEvent.click(acknowledgement(sheet))
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuj' }))
     await waitFor(() => expect(accept).toHaveBeenCalled())
     expect(accept.mock.calls[0][0]).toEqual({ id: '1', acknowledge: true })
     // The request now waits for the coordinator, and the toast says so.
     expect(await screen.findByText('Przyjęto. Czeka na zatwierdzenie koordynatora.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Otwórz dzień' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pokaż dzień' })).not.toBeInTheDocument()
   })
 
   it('has the coordinator acknowledge them before approving, and forgets the tick with the sheet', async () => {
@@ -1078,9 +1078,9 @@ describe('SwapPanel stages and sheets', () => {
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
     fireEvent.click(acknowledgement(sheet))
     fireEvent.click(acknowledgement(sheet))
-    expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Akceptuj' })).toBeDisabled()
     fireEvent.click(acknowledgement(sheet))
-    expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeEnabled()
+    expect(within(sheet).getByRole('button', { name: 'Akceptuj' })).toBeEnabled()
     vi.mocked(api.swaps).mockImplementation(serve([
       swap({ id: '1', rule_violations: [...BROKEN, { ...BROKEN[0], rule: 'rest_after_run', message: 'Brak odpoczynku po serii.' }] }),
     ]))
@@ -1091,7 +1091,7 @@ describe('SwapPanel stages and sheets', () => {
 
     expect(await within(sheet).findByText(/Brak odpoczynku po serii/)).toBeInTheDocument()
     expect(acknowledgement(sheet)).not.toBeChecked()
-    expect(within(sheet).getByRole('button', { name: 'Akceptuję' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Akceptuj' })).toBeDisabled()
   })
 
   it('shows the requester what their open request breaks, with nothing to tick', async () => {
@@ -1181,7 +1181,7 @@ describe('SwapPanel stages and sheets', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
     const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuj' }))
     expect(await within(sheet).findByRole('alert')).toHaveTextContent('Zamiana została już rozstrzygnięta')
     // The refusal means the request moved; the open and the closed list are read again.
     await waitFor(() => expect(api.swaps).toHaveBeenCalledTimes(4))
@@ -1226,7 +1226,7 @@ describe('SwapPanel inbox states', () => {
   })
 
   it.each([
-    ['moje', 'member', true, 'Nie masz otwartych próśb', 'Nowa zamiana zaczyna się od Twojego dyżuru.'],
+    ['moje', 'member', true, 'Nie masz otwartych próśb', 'Prośba o zamianę zaczyna się od Twojego dyżuru.'],
     ['moje', 'viewer', false, 'Nie masz otwartych próśb', null],
     ['w-toku', 'member', true, 'Brak zamian w toku', null],
     ['w-toku', 'coordinator', false, 'Nic nie czeka na zatwierdzenie', null],
@@ -1237,7 +1237,7 @@ describe('SwapPanel inbox states', () => {
 
     expect(await screen.findByText(title)).toBeInTheDocument()
     if (description) expect(screen.getByText(description)).toBeInTheDocument()
-    else expect(screen.queryByText('Nowa zamiana zaczyna się od Twojego dyżuru.')).not.toBeInTheDocument()
+    else expect(screen.queryByText('Prośba o zamianę zaczyna się od Twojego dyżuru.')).not.toBeInTheDocument()
   })
 })
 
@@ -1260,7 +1260,7 @@ describe('SwapPanel composing', () => {
   })
 
   async function openComposer() {
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -1285,7 +1285,7 @@ describe('SwapPanel composing', () => {
       current: [], today_is_day_off: false, today_holiday_name: null,
     })
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await waitFor(() => expect(within(slot).getAllByRole('option')).toHaveLength(4))
 
@@ -1302,7 +1302,7 @@ describe('SwapPanel composing', () => {
     stub([])
     const create = vi.spyOn(api, 'createSwap')
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
 
     expect(await screen.findByRole('option', { name: 'Brak nadchodzących dyżurów' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Wyślij prośbę/ })).toBeDisabled()
@@ -1323,7 +1323,7 @@ describe('SwapPanel composing', () => {
       current: [], today_is_day_off: false, today_holiday_name: null,
     })
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await waitFor(() => expect(within(slot).getAllByRole('option')).toHaveLength(3))
 
@@ -1336,19 +1336,19 @@ describe('SwapPanel composing', () => {
   it('closes the form with its cancel button', async () => {
     stub([])
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
-    const panel = await screen.findByRole('dialog', { name: 'Nowa zamiana' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
+    const panel = await screen.findByRole('dialog', { name: 'Poproś o zamianę' })
     fireEvent.click(within(panel).getByRole('button', { name: 'Anuluj' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nowa zamiana' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Poproś o zamianę' })).not.toBeInTheDocument())
   })
 
   it('closes the form from its close button', async () => {
     stub([])
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
-    const panel = await screen.findByRole('dialog', { name: 'Nowa zamiana' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
+    const panel = await screen.findByRole('dialog', { name: 'Poproś o zamianę' })
     fireEvent.click(within(panel).getByRole('button', { name: 'Zamknij panel' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nowa zamiana' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Poproś o zamianę' })).not.toBeInTheDocument())
   })
 
   it('ranks candidates by how much the swap evens them out, blocked ones last', async () => {
@@ -1536,7 +1536,7 @@ describe('SwapPanel exchange: the "in return" step', () => {
   }
   async function pickPiotr() {
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /PRIMARY/ })
     fireEvent.change(slot, { target: { value: '2099-09-14' } })
@@ -1781,7 +1781,7 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
     expect(within(sheet).getByText('Ta wymiana nie łamie żadnej reguły')).toBeInTheDocument()
     expect(await within(sheet).findByText('Wpływ na bilans')).toBeInTheDocument()
 
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuję' }))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Akceptuj' }))
     await waitFor(() => expect(accept).toHaveBeenCalled())
     expect(accept.mock.calls[0][0]).toEqual({ id: '1', acknowledge: false })
   })
@@ -1865,7 +1865,7 @@ describe('SwapPanel exchange: the inbox and the sheet', () => {
     fireEvent.click(within(row).getByRole('button', { name: /^Podgląd/ }))
     const sheet = await screen.findByRole('dialog', { name: 'Wymiana · pon 14 wrz ⇄ wt 8 wrz' })
     expect(within(sheet).getByText('Termin dyżuru minął.')).toBeInTheDocument()
-    expect(within(sheet).queryByRole('button', { name: 'Akceptuję' })).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Akceptuj' })).not.toBeInTheDocument()
     // Nothing is left to weigh: no verdict on the rules and no projected balance.
     expect(within(sheet).queryByText('Ta wymiana nie łamie żadnej reguły')).not.toBeInTheDocument()
     expect(within(sheet).queryByText('Wpływ na bilans')).not.toBeInTheDocument()
@@ -1916,7 +1916,7 @@ describe('SwapPanel: what is given of a day', () => {
   }
   async function openDay(day: string, route?: string) {
     renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />, route ? { route } : undefined)
-    if (!route) fireEvent.click(await screen.findByRole('button', { name: 'Nowa zamiana' }))
+    if (!route) fireEvent.click(await screen.findByRole('button', { name: 'Poproś o zamianę…' }))
     const slot = await screen.findByLabelText(/Mój dyżur/)
     await screen.findByRole('option', { name: /^sob 19 wrz/ })
     if (!route) fireEvent.change(slot, { target: { value: day } })

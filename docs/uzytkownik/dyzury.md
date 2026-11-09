@@ -7,7 +7,7 @@ macierz osób × dni na wybrany zakres.
 ## Teraz
 
 Tytułem ekranu jest dzisiejsza data, a pod nią stan opublikowanego grafiku:
-do kiedy sięga i która to wersja. W dzień wolny lub święto podtytuł dodaje,
+do kiedy sięga i z którego dnia jest ta publikacja („publikacja z 28 sie”). W dzień wolny lub święto podtytuł dodaje,
 że obowiązuje stawka 2X (`PRIMARY` i `SECONDARY` trwają wtedy całą dobę).
 Podtytuł podaje też liczbę zamian czekających na Twoją decyzję (link do
 Zamian) oraz, dla koordynatora, wynik kryterium sprawiedliwości.
@@ -110,7 +110,7 @@ a w miejscu przycisku przekazania stoi przycisk zakończenia opisany niżej.
 - **Ręcznie**, w tym samym miejscu, w którym zaczęło się przekazanie: osoba
   na `PRIMARY` klika **Zabierz numer z powrotem**, osoba na `SECONDARY`
   **Oddaj numer**, a koordynator **Zakończ przekazanie**. Administrator może
-  też przyciskiem **Zakończ** na karcie Stan ekranu
+  też przyciskiem **Zakończ przekazanie** na karcie Stan ekranu
   [Przełączanie numeru](administracja.md#przełączanie-numeru-przelaczanie-administrator).
   Zakończenie nie pyta o potwierdzenie, bo ponowne przekazanie to jedno
   kliknięcie; powiadomienie mówi, kto znów odbiera numer.
@@ -140,7 +140,7 @@ przekazanie numeru on-call … zakończone ręcznie”), razem z tym, kto je zle
 
 ## Grafik: macierz osób × dni
 
-Nagłówek ekranu podaje zakres i wersję opublikowanego grafiku, a
+Nagłówek ekranu podaje zakres opublikowanego grafiku i datę jego publikacji, a
 koordynatorowi także propozycję czekającą na publikację; przycisk **Otwórz
 propozycję** prowadzi prosto do niej w Generatorze. Subskrypcję ICS członek
 zespołu znajdzie w menu **⋯** nad macierzą i na ekranie Moje dyżury.
@@ -243,8 +243,7 @@ Z tego panelu:
   zmianą przywraca poprzednią obsadę; e-maile wychodzą dopiero po
   zamknięciu okna „Cofnij”, a po cofnięciu nie wychodzą wcale. Gdy cofnąć
   się nie da (rola była pusta albo poprzednia osoba nie może jej tego dnia
-  przejąć), powiadomienie mówi, kto dostanie e-mail, a przycisk **Otwórz
-  dzień** otwiera panel tego dnia ponownie,
+  przejąć), powiadomienie mówi, kto dostanie e-mail, a przycisk **Pokaż dzień** otwiera panel tego dnia ponownie,
 - **koordynator i administrator** mogą zamienić miejscami osoby z PRIMARY i
   SECONDARY tego dnia jednym ruchem, bez korekt przez osobę trzecią. Przycisk
   **Zamień miejscami…** stoi między wierszami PRIMARY i SECONDARY, gdy obie
@@ -272,7 +271,7 @@ Z tego panelu:
 
 Gdy ktoś ma dyżur w dniu, na który zgłosił „nie mogę”, koordynator widzi nad
 obsadą dnia ramkę „Kolizja: Jan Wiśniewski ma PRIMARY 14 mar mimo zgłoszenia
-„Nie mogę””, z powodem zgłoszenia i przyciskiem **Zmień osobę**, który otwiera
+„Nie mogę””, z powodem zgłoszenia i przyciskiem **Zmień osobę…**, który otwiera
 zmianę obsady tej roli. Czytnik ekranu czyta ten sam tekst przy wierszu roli.
 
 Powody niedostępności pozostają prywatne: koordynator widzi je w szczegółach,

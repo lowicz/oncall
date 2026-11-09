@@ -306,7 +306,7 @@ export function GeneratorPanel() {
   })
   const publish = useMutation({
     mutationFn: (input: Parameters<typeof api.publishSchedule>[0]) => api.publishSchedule(input),
-    onSuccess: (value, { expectedVersion }) => {
+    onSuccess: (value) => {
       settle(value)
       setPublishFor(null)
       setBackgroundProposal(null)
@@ -314,7 +314,7 @@ export function GeneratorPanel() {
       // The range just published is no longer the next one to generate.
       queryClient.invalidateQueries({ queryKey: ['suggested-schedule-range'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
-      toast.success(t.toast.published(expectedVersion, formatRange(value.starts_on, value.ends_on)), {
+      toast.success(t.toast.published(formatRange(value.starts_on, value.ends_on)), {
         description: t.toast.publishedDescription,
         action: { label: t.toast.openSchedule, onClick: () => navigate(`/grafik?od=${value.starts_on}`) },
       })
@@ -522,7 +522,7 @@ export function GeneratorPanel() {
             <>
               {formatRange(result.starts_on, result.ends_on)}
               {' '}
-              <StatusBadge tone={statusTone[result.status]} className="ph-pill">{t.header.statusPill(scheduleStatusLabels()[result.status], result.version)}</StatusBadge>
+              <StatusBadge tone={statusTone[result.status]} className="ph-pill">{t.header.statusPill(scheduleStatusLabels()[result.status], result.status === 'draft' ? result.version : null)}</StatusBadge>
             </>
           )}
           sub={t.header.summary(result.assignments.length, days, rotationLabels()[result.rotation_mode])}
@@ -771,7 +771,7 @@ export function GeneratorPanel() {
           onClose={closePublication}
           dismissible={!publish.isPending}
           size="lg"
-          title={t.publish.title(!publishFromDraft, result.version, formatRange(result.starts_on, result.ends_on))}
+          title={t.publish.title(!publishFromDraft, formatRange(result.starts_on, result.ends_on))}
           description={t.publish.effect(result.assignments.length, days)}
           actions={(
             <>
@@ -796,7 +796,7 @@ export function GeneratorPanel() {
                   changeResolutions,
                 })}
               >
-                {publish.isPending ? t.publish.publishing : t.publish.publishVersion(result.version)}
+                {publish.isPending ? t.publish.publishing : t.publish.publishNow}
               </Button>
             </>
           )}

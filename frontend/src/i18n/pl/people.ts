@@ -11,7 +11,7 @@ export const people = {
     inactive: (count: number) => pluralPl(count, ['wyłączone', 'wyłączone', 'wyłączonych']),
     pending: (count: number) => pluralPl(count, ['oczekuje na aktywację', 'oczekują na aktywację', 'oczekuje na aktywację']),
   },
-  exportCsv: 'Eksport CSV',
+  exportCsv: 'Eksportuj CSV',
   newAccount: 'Nowe konto',
   accounts: 'Konta',
   searchPlaceholder: 'Szukaj osoby, loginu lub numeru…',

@@ -3,7 +3,7 @@ that project a change onto it."""
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from oncall.domain.vocabulary import AssignmentRole, LateShiftAnchor, ScheduleStatus
 
@@ -55,6 +55,8 @@ class Duty:
     #: resolved it (the duties in force); a calendar entry changes with it.
     schedule_version: int | None = None
     schedule_status: ScheduleStatus | None = None
+    #: When that schedule was published: a publication is named by its date.
+    published_at: datetime | None = None
     #: Who held the slot before its first manual change; None when that is
     #: not recorded, which a republish treats as "cannot tell".
     original: SlotOrigin | None = None

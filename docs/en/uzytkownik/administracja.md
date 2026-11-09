@@ -231,9 +231,9 @@ on a Saturday, Sunday or holiday will be rejected with the row number given.
 The import feeds the history from which the fairness report and the
 generator compute.
 
-**Undo import** next to an earlier import removes its duties from the history
+**Withdraw import…** next to an earlier import removes its duties from the history
 for good, so it first asks in a dialog with the number of rows that will
-leave the balance (“Undo the import “history 2025”? 312 rows will leave the
+leave the balance (“Withdraw the import “history 2025”? 312 rows will leave the
 balance.”). This cannot be reversed; the data come back only by importing
 the file again.
 
@@ -244,7 +244,7 @@ the file again.
    are the duty days (primary and secondary together): on working days, on
    weekends and holidays, and in total. 11-19 shifts are not duty days and
    have their own column.
-3. “Download CSV”.
+3. “Export CSV”.
 
 The screen warns if the published schedule does not cover the whole month,
 and says how many days it covers. When the table does not fit on the screen
@@ -344,7 +344,7 @@ numeru" and "Zmieniono hasło WCO".
 
 While the number is handed over, the card starts with a **Handover** row: who
 gave the number, who receives it, until when, and who started the handover
-and when. **End** ends it at once, without asking, and the number returns to
+and when. **End the handover** ends it at once, without asking, and the number returns to
 the person on PRIMARY.
 
 ### Switching the number by hand

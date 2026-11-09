@@ -7,7 +7,8 @@ people × days matrix for a chosen range.
 ## Now
 
 The title of the screen is today's date, and under it the state of the
-published schedule: how far it reaches and which version it is. On a day off
+published schedule: how far it reaches and the day it was published
+(“publication of 28 Aug”). On a day off
 or a holiday the subtitle adds that the 2X rate applies (`PRIMARY` and
 `SECONDARY` then last around the clock). The subtitle also gives the number
 of swaps waiting for your decision (a link to Swaps) and, for a coordinator,
@@ -113,7 +114,7 @@ when, and the hand-over button is replaced by the end button described below.
 - **By hand**, in the same place where the handover began: the person on
   `PRIMARY` clicks **Take the number back**, the person on `SECONDARY` **Give
   the number back**, and a coordinator **End the handover**. An administrator
-  can also use **End** on the State card of the
+  can also use **End the handover** on the State card of the
   [Number forwarding](administracja.md#number-forwarding-przelaczanie-administrator)
   screen. Ending asks no confirmation, because handing over again is one click;
   the notification says who answers the number again.
@@ -144,7 +145,8 @@ who started it.
 
 ## Schedule: the people × days matrix
 
-The screen header gives the range and version of the published schedule, and
+The screen header gives the range of the published schedule and the day it
+was published, and
 for a coordinator also the proposal waiting for publication; the **Open the
 proposal** button leads straight to it in the Generator. A team member finds
 the ICS subscription in the **⋯** menu above the matrix and on the My duties screen.
@@ -201,7 +203,7 @@ From this panel:
 - a **coordinator and an administrator** can change any assignment directly,
   without the replacement's consent and without an acceptance step. Every
   role row in the panel ends in a **Change…** button (an empty role:
-  **Staff…**), and clicking anywhere on the row does the same. Under the
+  **Assign…**), and clicking anywhere on the row does the same. Under the
   rows, which stay in place with the changed roles lit, a “Staffing change”
   frame opens with everything there is to know about the change, without a
   separate confirmation dialog. The **Roles to change** group has PRIMARY,
@@ -251,7 +253,7 @@ From this panel:
   out only once the “Undo” window closes, and after an undo they do not go
   out at all. When it cannot be undone (the role was empty, or the previous
   person cannot take it back that day), the notification says who gets an
-  e-mail, and its **Open day** button opens that day's panel again,
+  e-mail, and its **Show day** button opens that day's panel again,
 - a **coordinator and an administrator** can swap the people on PRIMARY and
   SECONDARY of that day in one move, without corrections through a third
   person. The **Swap places…** button sits between the PRIMARY and SECONDARY
@@ -281,7 +283,7 @@ From this panel:
 When someone holds a duty on a day they reported “Unavailable” for, a
 coordinator sees a frame above the day's staffing, “Conflict: Jan Wiśniewski
 holds PRIMARY on 14 Mar despite reporting “Unavailable””, with the reason given
-and a **Change the person** button that opens the staffing change of that
+and a **Change person…** button that opens the staffing change of that
 role. A screen reader reads the same text with the role row.
 
 Reasons for unavailability stay private: a coordinator sees them in the

@@ -120,6 +120,8 @@ export interface PublishedSchedule {
   is_published: boolean
   id: string | null
   version: number | null
+  /** When the schedule in force today was published: its name on screen. */
+  published_at?: string | null
   starts_on: string | null
   ends_on: string | null
   assignments: Assignment[]

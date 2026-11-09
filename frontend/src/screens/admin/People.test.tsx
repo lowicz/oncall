@@ -833,7 +833,7 @@ describe('PeoplePanel table states and export', () => {
 
     fireEvent.change(search, { target: { value: 'nikt taki' } })
     expect(screen.getByText('Brak kont dla wybranego filtra')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Eksport CSV' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Eksportuj CSV' })).toBeDisabled()
   })
 
   it('shows why the accounts could not be loaded', async () => {
@@ -857,7 +857,7 @@ describe('PeoplePanel table states and export', () => {
     renderScreen(<PeoplePanel />)
     await rowOf('anna')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Eksport CSV' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Eksportuj CSV' }))
 
     expect(click).toHaveBeenCalledTimes(1)
     await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:people'))

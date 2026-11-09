@@ -150,7 +150,7 @@ describe('GeneratorPanel draft persistence', () => {
     fireEvent.change(screen.getByLabelText(/^Od/), { target: { value: '2026-09-22' } })
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-22'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj kolejny zakres' }))
     await waitFor(() =>
       expect(generate).toHaveBeenCalledWith(
         { starts_on: '2026-09-22', ends_on: '2026-10-18' },
@@ -186,7 +186,7 @@ describe('GeneratorPanel draft persistence', () => {
 
     const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
     expect(within(decision).getByText('Propozycja czeka na publikację.')).toBeInTheDocument()
-    expect(await within(decision).findByRole('button', { name: 'Publikuj v1…' })).toBeInTheDocument()
+    expect(await within(decision).findByRole('button', { name: 'Opublikuj…' })).toBeInTheDocument()
     expect(within(decision).getByRole('button', { name: 'Wróć do szkicu' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Przekaż do akceptacji' })).not.toBeInTheDocument()
   })
@@ -282,7 +282,7 @@ describe('GeneratorPanel transitions', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Przekaż do akceptacji' }))
 
     // The decision must follow the server, not the pre-transition cache entry.
-    expect(await screen.findByRole('button', { name: 'Publikuj v2…' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Opublikuj…' })).toBeInTheDocument()
     await waitFor(() => expect(fetchOne).toHaveBeenCalledTimes(2))
     expect(screen.getByText('Przekazano do akceptacji: 17 – 18 wrz')).toBeInTheDocument()
   })
@@ -331,7 +331,7 @@ describe('GeneratorPanel transitions', () => {
     fireEvent.click(within(decision).getByRole('button', { name: 'Przeniesione zmiany i anulowane zamiany' }))
     expect(within(decision).getByText('anulowana · pt 18 wrz · SECONDARY: Ola Wiśniewska → Anna Kowalska')).toBeInTheDocument()
 
-    fireEvent.click(within(decision).getByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/Zespół dostanie e-mail, kanały ICS zaktualizują się od razu\./)).toBeInTheDocument()
     // The same effects stand in the sheet, above the decisions.
@@ -347,7 +347,7 @@ describe('GeneratorPanel transitions', () => {
     fireEvent.change(within(dialog).getByLabelText('Decyzja'), { target: { value: 'draft' } })
     expect(within(dialog).getByText('Do rozstrzygnięcia: 2 zgody.')).toBeInTheDocument()
     // Each kind of violation is consented to in its own frame before publishing.
-    const publishButton = within(dialog).getByRole('button', { name: 'Publikuj v2' })
+    const publishButton = within(dialog).getByRole('button', { name: 'Opublikuj' })
     const rest = within(dialog).getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })
     const gap = within(dialog).getByRole('checkbox', { name: 'Rozumiem, że te dni zostają bez obsady' })
     expect(rest.closest('.box')).toHaveTextContent('Publikacja naruszy reguły odpoczynku')
@@ -525,16 +525,16 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     expect(propose).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 1 })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     act(() => answer({ ...emptyPreview, pending_swaps: [{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }] }))
-    const dialog = await screen.findByRole('dialog', { name: 'Publikuję szkic v2 · 17 – 18 wrz' })
+    const dialog = await screen.findByRole('dialog', { name: 'Publikuję szkic · 17 – 18 wrz' })
     expect(within(dialog).getByText('1 zamiana anulowana')).toBeInTheDocument()
     expect(screen.queryByText('Przekazano do akceptacji: 17 – 18 wrz')).not.toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Wróć do szkicu' })).toBeInTheDocument()
-    const confirm = within(dialog).getByRole('button', { name: 'Publikuj v2' })
+    const confirm = within(dialog).getByRole('button', { name: 'Opublikuj' })
     await waitFor(() => expect(confirm).toBeEnabled())
     const suggestions = vi.mocked(api.suggestedScheduleRange).mock.calls.length
     fireEvent.click(confirm)
     await waitFor(() => expect(publish.mock.calls[0][0]).toMatchObject({ id: 'd1', expectedVersion: 2 }))
-    expect(await screen.findByText('Opublikowano v2 · 17 – 18 wrz')).toBeInTheDocument()
+    expect(await screen.findByText('Opublikowano 17 – 18 wrz')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Otwórz grafik' })).toBeInTheDocument()
     // The new draft form asks again which range comes next.
     await waitFor(() => expect(vi.mocked(api.suggestedScheduleRange).mock.calls.length).toBeGreaterThan(suggestions))
@@ -590,7 +590,7 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     expect(await screen.findByRole('form', { name: 'Nowy szkic' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('go /generator?szkic=d2'))
-    expect(await screen.findByRole('button', { name: 'Publikuj v4…' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Opublikuj…' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(withdraw).toHaveBeenCalledTimes(1)
   })
@@ -607,11 +607,11 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
     await waitFor(() => expect(api.publishPreview).toHaveBeenCalledWith('d1'))
     fireEvent.click(screen.getByText('go /generator?szkic=d2'))
-    expect(await screen.findByRole('button', { name: 'Publikuj v4…' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Do akceptacji/ })).toBeInTheDocument()
     act(() => answer(emptyPreview))
     await waitFor(() => expect(withdraw).toHaveBeenCalledWith({ id: 'd1', expectedVersion: 2, quiet: true }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('17 – 18 wrz Do akceptacji · v4')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('17 – 18 wrz Do akceptacji')
   })
 
   it('takes the draft back when the generator is left with its sheet open', async () => {
@@ -718,7 +718,7 @@ describe('GeneratorPanel resuming a generation', () => {
     const follow = vi.spyOn(api, 'followRun')
     renderScreen(<GeneratorPanel />)
 
-    expect(await screen.findByRole('button', { name: 'Utwórz szkic' })).toBeEnabled()
+    expect(await screen.findByRole('button', { name: 'Generuj kolejny zakres' })).toBeEnabled()
     expect(follow).not.toHaveBeenCalled()
   })
 
@@ -834,7 +834,7 @@ describe('GeneratorPanel queue and progress', () => {
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
     expect(screen.getByRole('region', { name: 'Postęp generowania' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj kolejny zakres' }))
     const progress = await screen.findByRole('progressbar', { name: 'Postęp generowania' })
     expect(progress).toHaveAttribute('aria-valuenow', '0')
     expect(progress.querySelector('i')).toHaveStyle({ transform: 'scaleX(0)' })
@@ -854,7 +854,7 @@ describe('GeneratorPanel queue and progress', () => {
     renderScreen(<GeneratorPanel />)
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj kolejny zakres' }))
     const live = screen.getByRole('region', { name: 'Postęp generowania' })
     await waitFor(() => expect(live).toHaveTextContent('Generowanie rozpoczęte.'))
     act(() => report?.(run({ id: 'r1', progress: 41 })))
@@ -875,7 +875,7 @@ describe('GeneratorPanel queue and progress', () => {
     renderScreen(<GeneratorPanel />)
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj kolejny zakres' }))
     expect(await screen.findByText('Przed początkiem szkicu pozostaje 2 nieobsadzonych dni: 19-09-2026, 20-09-2026.')).toBeInTheDocument()
     const progress = screen.getByRole('progressbar', { name: 'Postęp generowania' })
     expect(progress).toHaveAttribute('aria-valuenow', '90')
@@ -894,11 +894,11 @@ describe('GeneratorPanel queue and progress', () => {
     renderScreen(<GeneratorPanel />)
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj kolejny zakres' }))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Nie da się wygenerować grafiku')
     expect(within(alert).getByRole('listitem')).toHaveTextContent('Anna Kowalska: brak kwalifikacji PRIMARY')
-    expect(screen.getByRole('button', { name: 'Utwórz szkic' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Generuj kolejny zakres' })).toBeEnabled()
   })
 
   it('lists the reasons a resumed generation failed', async () => {
@@ -912,7 +912,7 @@ describe('GeneratorPanel queue and progress', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Generowanie nie powiodło się')
     expect(within(alert).getByRole('listitem')).toHaveTextContent('Brak osób z kwalifikacją SECONDARY')
-    expect(screen.getByRole('button', { name: 'Utwórz szkic' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Generuj kolejny zakres' })).toBeEnabled()
   })
 
   it('names a failure without a list when the run reported no conflicts', async () => {
@@ -921,7 +921,7 @@ describe('GeneratorPanel queue and progress', () => {
     renderScreen(<GeneratorPanel />)
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj kolejny zakres' }))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Worker niedostępny')
     expect(within(alert).queryByRole('list')).not.toBeInTheDocument()
@@ -1381,7 +1381,7 @@ describe('GeneratorPanel settings drawer', () => {
     const { router } = renderScreen(<GeneratorPanel />, { route: '/generator' })
 
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
-    fireEvent.click(screen.getByRole('button', { name: 'Utwórz szkic' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generuj kolejny zakres' }))
     fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
     const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
     await waitFor(() => expect(mode).toBeEnabled())
@@ -1541,9 +1541,9 @@ describe('GeneratorPanel publication sheet', () => {
     fireEvent.click(within(decision).getByRole('button', { name: 'Przeniesione zmiany i anulowane zamiany' }))
     expect(within(decision).getByText('przeniesiona · czw 17 wrz · SECONDARY: Ola Wiśniewska')).toBeInTheDocument()
 
-    fireEvent.click(within(decision).getByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
     const dialog = await screen.findByRole('dialog')
-    const confirm = within(dialog).getByRole('button', { name: 'Publikuj v2' })
+    const confirm = within(dialog).getByRole('button', { name: 'Opublikuj' })
     expect(confirm).toBeDisabled()
     expect(await within(dialog).findByText('Do rozstrzygnięcia: 1 zgoda.')).toBeInTheDocument()
 
@@ -1555,11 +1555,11 @@ describe('GeneratorPanel publication sheet', () => {
 
     finish(draft({ ...started, status: 'published', version: 3 }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^Publikuję/ })).not.toBeInTheDocument())
-    expect(await screen.findByText('Opublikowany · v3')).toBeInTheDocument()
+    expect(await screen.findByText('Opublikowany')).toBeInTheDocument()
     expect(await screen.findByText('Grafik jest opublikowany i widoczny dla zespołu.')).toBeInTheDocument()
     // The coordinator learns that the team was told, and can go and look;
     // the toast names the version they confirmed, not the bumped row version.
-    expect(screen.getByText('Opublikowano v2 · 8 – 18 wrz')).toBeInTheDocument()
+    expect(screen.getByText('Opublikowano 8 – 18 wrz')).toBeInTheDocument()
     expect(screen.getByText('E-maile i kanały ICS zaktualizowane.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Otwórz grafik' }))
     expect(screen.getByLabelText('location')).toHaveTextContent('/grafik?od=2026-09-08')
@@ -1582,7 +1582,7 @@ describe('GeneratorPanel publication sheet', () => {
     })
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
     const dialog = await screen.findByRole('dialog')
     const row = (await within(dialog).findByText('czw 17 wrz · PRIMARY')).parentElement as HTMLElement
     expect(row).toHaveTextContent(/^czw 17 wrz · PRIMARY · zamiana: Anna Kowalska, szkic: Marek Nowak$/)
@@ -1590,7 +1590,7 @@ describe('GeneratorPanel publication sheet', () => {
     expect(within(dialog).getByRole('option', { name: 'Zachowaj szkic: Marek Nowak' })).toBeInTheDocument()
     expect(within(dialog).queryByRole('checkbox', { name: /Rozumiem, że zmieniam dzień/ })).not.toBeInTheDocument()
     expect(await within(dialog).findByText('Do rozstrzygnięcia: 1 konflikt.')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Opublikuj' })).toBeDisabled()
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć do propozycji' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -1603,7 +1603,7 @@ describe('GeneratorPanel publication sheet', () => {
     const publish = vi.spyOn(api, 'publishSchedule')
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Zamknij' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -1617,9 +1617,9 @@ describe('GeneratorPanel publication sheet', () => {
     vi.spyOn(api, 'publishSchedule').mockRejectedValue(new ApiError('Propozycja zmieniła się od otwarcia okna', 409))
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
     const dialog = await screen.findByRole('dialog', { name: /Publikuję propozycję/ })
-    const publish = await within(dialog).findByRole('button', { name: 'Publikuj v2' })
+    const publish = await within(dialog).findByRole('button', { name: 'Opublikuj' })
     await waitFor(() => expect(publish).toBeEnabled())
     fireEvent.click(publish)
 
@@ -1632,7 +1632,7 @@ describe('GeneratorPanel publication sheet', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Wróć do propozycji' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Opublikuj…' }))
     const reopened = await screen.findByRole('dialog', { name: /Publikuję propozycję/ })
     expect(within(reopened).queryByText('Nie udało się opublikować')).not.toBeInTheDocument()
   })
@@ -1649,15 +1649,15 @@ describe('GeneratorPanel publication sheet', () => {
     const decision = await screen.findByRole('region', { name: 'Decyzja o szkicu' })
     expect(await within(decision).findByText('Co zmieni publikacja')).toBeInTheDocument()
     expect(check).toHaveBeenCalledTimes(1)
-    fireEvent.click(within(decision).getByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(within(decision).getByRole('button', { name: 'Opublikuj…' }))
     const dialog = await screen.findByRole('dialog')
     await waitFor(() => expect(check).toHaveBeenCalledTimes(2))
     expect(within(dialog).getByText('Sprawdzam zmiany i oczekujące zamiany…')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Opublikuj' })).toBeDisabled()
 
     act(() => answer({ ...emptyPreview, pending_swaps: [{ id: 's1', service_date: '2026-09-18', role: 'secondary', requester_name: 'Marek Nowak', replacement_name: 'Ola Wiśniewska', status: 'pending_replacement' }] }))
     expect(await within(dialog).findByText('Gotowe do publikacji.')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: 'Opublikuj' })).toBeEnabled()
     expect(within(dialog).getByText('1 zamiana anulowana')).toBeInTheDocument()
     expect(within(decision).getByText('1 zamiana anulowana')).toBeInTheDocument()
 
@@ -1669,9 +1669,9 @@ describe('GeneratorPanel publication sheet', () => {
     vi.spyOn(api, 'publishPreview').mockRejectedValue(new ApiError('Błąd serwera', 500))
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
     const dialog = await screen.findByRole('dialog')
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Nie udało się sprawdzić skutków publikacji.')
-    expect(within(dialog).getByRole('button', { name: 'Publikuj v2' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Opublikuj' })).toBeDisabled()
   })
 })

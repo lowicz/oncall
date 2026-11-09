@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PublishedSchedule, UserRole, api } from '../api'
-import { addDays, daysBetween, formatDate, formatRange, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
+import { addDays, daysBetween, formatDate, formatRange, formatShortDate, isIsoDate, warsawDate, weeksBetween, weeksWord } from '../lib/dates'
 import { useMessages } from '../i18n'
 import { CalendarMatrix, CalendarRange, MatrixZoom } from '../components/CalendarMatrix'
 import { MatrixControls, ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../components/MatrixControls'
@@ -102,7 +102,7 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
         sub={published.data && (
           <span>
             {publication?.starts_on && publication.ends_on
-              ? t.schedule.published(formatRange(publication.starts_on, publication.ends_on), publication.version)
+              ? t.schedule.published(formatRange(publication.starts_on, publication.ends_on), publication.published_at ? formatShortDate(warsawDate(publication.published_at)) : null)
               : t.schedule.noPublished}
             {pending && ` · ${pending.status === 'proposed'
               ? t.schedule.proposalWaiting(formatRange(pending.starts_on, pending.ends_on))

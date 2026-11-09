@@ -34,7 +34,7 @@ export const duty = {
     nobody: 'nikt nie odbierze tej roli',
   },
   /** The subtitle under today's date: the state of the published schedule. */
-  published: (until: string, version: number | null) => `Opublikowany grafik do ${until}${version ? ` · wersja ${version}` : ''}`,
+  published: (until: string, publishedOn: string | null) => `Opublikowany grafik do ${until}${publishedOn ? ` · publikacja z ${publishedOn}` : ''}`,
   notPublished: 'Grafik na ten okres nie jest opublikowany',
   todayIs: (what: string) => `dziś ${what}, stawka 2X`,
   todayHoliday: (name: string) => `święto: ${name}`,

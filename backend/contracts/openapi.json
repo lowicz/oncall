@@ -3656,6 +3656,18 @@
             ],
             "title": "Last Published Ends On"
           },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
           "starts_on": {
             "anyOf": [
               {

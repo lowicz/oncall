@@ -221,13 +221,13 @@ describe('HistoryImportPanel earlier imports', () => {
     const row = (await screen.findByText('Import historii 2025')).closest('.list-row') as HTMLElement
     expect(row).toHaveTextContent('01-01-2025 – 31-12-2025 · 730 wierszy · 01-09-2026')
     expect(screen.getByRole('heading', { name: 'Wcześniejsze importy' }).nextElementSibling).toHaveTextContent('1')
-    fireEvent.click(within(row).getByRole('button', { name: 'Cofnij import' }))
+    fireEvent.click(within(row).getByRole('button', { name: 'Wycofaj import…' }))
 
     // Undoing an import cannot itself be undone, so it is confirmed with its row count.
-    const dialog = await screen.findByRole('dialog', { name: 'Cofnąć import „Import historii 2025”?' })
+    const dialog = await screen.findByRole('dialog', { name: 'Wycofać import „Import historii 2025”?' })
     expect(dialog).toHaveTextContent('730 wierszy zniknie z bilansu. Tej operacji nie da się cofnąć.')
     expect(remove).not.toHaveBeenCalled()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cofnij import' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wycofaj import' }))
 
     await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
     expect(remove.mock.calls[0][0]).toBe('h1')
@@ -240,7 +240,7 @@ describe('HistoryImportPanel earlier imports', () => {
     const remove = vi.spyOn(api, 'deleteSchedule')
     renderScreen(<HistoryImportPanel />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Cofnij import' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Wycofaj import…' }))
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Anuluj' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -252,9 +252,9 @@ describe('HistoryImportPanel earlier imports', () => {
     vi.spyOn(api, 'deleteSchedule').mockRejectedValue(new Error('Grafik ma już korekty'))
     renderScreen(<HistoryImportPanel />)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Cofnij import' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Wycofaj import…' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cofnij import' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Wycofaj import' }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Grafik ma już korekty')
   })

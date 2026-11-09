@@ -19,7 +19,7 @@ export const fairness = {
   rollingActual: 'Kroczące 12 miesięcy faktycznie odbytych dyżurów.',
   asOf: 'Stan na dzień',
   today: 'Dziś',
-  exportCsv: 'Eksport CSV',
+  exportCsv: 'Eksportuj CSV',
   loadingReport: 'Wczytywanie raportu…',
   /** The lens the table sums across, and the label of the totals row. */
   total: 'Razem',

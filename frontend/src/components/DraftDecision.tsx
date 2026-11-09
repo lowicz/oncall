@@ -84,7 +84,7 @@ export function DraftDecision({ result, preview, busy, error, onFix, onPropose, 
   } else if (result.status === 'proposed') {
     action = (
       <>
-        <Button variant="primary" icon="send" disabled={busy} onClick={onPublish}>{t.publish(result.version)}</Button>
+        <Button variant="primary" icon="send" disabled={busy} onClick={onPublish}>{t.publishDraft}</Button>
         <Button size="sm" variant="ghost" disabled={busy} onClick={onWithdraw}>{t.backToDraft}</Button>
       </>
     )

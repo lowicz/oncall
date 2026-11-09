@@ -1,13 +1,14 @@
 import { LANGUAGES } from '../i18n/language'
 import { messages } from '../i18n/messages'
 
-export function warsawDate() {
+/** The calendar day in Warsaw, today's or that of a given moment. */
+export function warsawDate(at: string | Date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Warsaw',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date())
+  }).format(new Date(at))
 }
 
 /**

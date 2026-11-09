@@ -210,7 +210,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
     <>
       <span>
         {published
-          ? t.duty.published(formatShortDate(published.ends_on ?? today), published.version)
+          ? t.duty.published(formatShortDate(published.ends_on ?? today), published.published_at ? formatShortDate(warsawDate(published.published_at)) : null)
           : t.duty.notPublished}
         {schedule.data.today_is_day_off && ` · ${t.duty.todayIs(schedule.data.today_holiday_name ? t.duty.todayHoliday(schedule.data.today_holiday_name) : t.duty.todayDayOff)}`}
         {actionable > 0 && <> · <Link to="/zamiany">{t.duty.swapsWaiting(actionable)}</Link></>}

@@ -4,7 +4,7 @@ Ekran **Moje dyżury** (`/moje`) odpowiada na trzy pytania członka zespołu, w 
 kolejności: kiedy mam dyżur, co zgłosiłem, jak wyglądam na tle zespołu.
 Tytułem ekranu jest „Moje dyżury”, a pod nim: kto, w jakiej roli konta, ile
 dyżurów w ostatnich 90 dniach i kiedy jest następny. Po prawej są dwie
-akcje: **Subskrypcja ICS** i **Zaproponuj zamianę** (otwiera
+akcje: **Subskrypcja ICS** i **Poproś o zamianę…** (otwiera
 Zamiany z najbliższym dyżurem już wybranym).
 
 Na szerokim ekranie lewa kolumna to dyżury i kalendarz dostępności, prawa to
@@ -19,7 +19,7 @@ Lista dyżurów z najbliższych 60 dni, jeden wiersz na dzień: dzień i rola
 `SECONDARY + 11–19`), a pod spodem okno pokrycia, stawka (`1X` albo `2X`) i
 kto jeszcze ma tego dnia dyżur (`Secondary: Marek`). Dyżur trwający dziś jest
 podświetlony i ma przycisk **Szczegóły** (otwiera ten dzień na Grafiku);
-każdy inny ma przycisk **Zamień**, który otwiera ekran Zamiany z tym dyżurem
+każdy inny ma przycisk **Poproś o zamianę…**, który otwiera ekran Zamiany z tym dyżurem
 już wybranym. Dzień, który koliduje ze zgłoszonym „nie mogę”, ma bursztynową
 krawędź i dopisek **kolizja**; kliknięcie go przewija do kalendarza
 dostępności otwartego na miesiącu tego dnia. Link **Grafik** w
@@ -71,7 +71,7 @@ rogu dnia to Twój dyżur. Dni minionych nie da się zaznaczyć.
 Jeśli „nie mogę” trafia na dzień z dyżurem, dzień dostaje bursztynową
 obwódkę, a pod kalendarzem pojawia się ramka, na przykład „Masz dyżur PRIMARY
 9 mar, a zgłaszasz „nie mogę””. Zgłoszenie nie zdejmuje dyżuru, dlatego
-ramka ma dla każdego takiego dnia przycisk **Poproś o zamianę**, który
+ramka ma dla każdego takiego dnia przycisk **Poproś o zamianę…**, który
 otwiera ekran Zamiany z tym dyżurem już wybranym. Ramka obejmuje wszystkie
 nadchodzące kolizje w wyświetlanym miesiącu i znika, gdy żadnej nie ma.
 
@@ -105,8 +105,8 @@ imieniu (wybrana osoba też jest w adresie strony, jako `osoba=`):
 
 Jeśli „nie mogę” trafia na dyżur tej osoby, ramka pod kalendarzem mówi o tym
 jej imieniem, na przykład „Beata Lis ma dyżur PRIMARY 9 mar, a wpis to „nie
-mogę””. Zamiast **Poproś o zamianę** ma dla każdego takiego dnia przycisk
-**Otwórz dzień**, który otwiera ten dzień w grafiku, gdzie można zmienić
+mogę””. Zamiast **Poproś o zamianę…** ma dla każdego takiego dnia przycisk
+**Pokaż dzień**, który otwiera ten dzień w grafiku, gdzie można zmienić
 obsadę.
 
 Jeżeli Twoje konto samo nie jest w rotacji, wybór osoby jest obowiązkowy -

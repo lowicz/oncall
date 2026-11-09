@@ -19,7 +19,7 @@ i sposób logowania (lokalne albo LDAP / AD, a przy koncie lokalnym bez
 hasła znacznik `OCZEKUJE NA AKTYWACJĘ` - patrz niżej). W nagłówku sekcji jest
 pole wyszukiwania (osoba, login, numer, telefon) i filtry **Wszystkie**, **W
 rotacji**, **Poza rotacją**, **Wyłączone**, **Oczekujące** - z klawiatury
-jeden przystanek klawisza Tab, filtr zmieniają strzałki. **Eksport CSV**
+jeden przystanek klawisza Tab, filtr zmieniają strzałki. **Eksportuj CSV**
 zapisuje widoczne wiersze, **Nowe konto** otwiera panel zakładania konta
 lokalnego.
 
@@ -217,10 +217,10 @@ w sobotę, niedzielę albo święto zostanie odrzucony z podaniem numeru wiersza
 
 Import zasila historię, z której liczą raport sprawiedliwości i generator.
 
-**Cofnij import** przy wcześniejszym imporcie usuwa jego dyżury z historii na
+**Wycofaj import…** przy wcześniejszym imporcie usuwa jego dyżury z historii na
 stałe, więc najpierw pyta oknem z liczbą wierszy, które znikną z bilansu
-(„Cofnąć import „historia 2025”? 312 wierszy zniknie z bilansu.”). Tego
-cofnięcia nie da się już odwrócić; dane wrócą tylko po ponownym imporcie
+(„Wycofać import „historia 2025”? 312 wierszy zniknie z bilansu.”). Wycofania
+nie da się już odwrócić; dane wrócą tylko po ponownym imporcie
 pliku.
 
 ## Raport miesięczny (`/raporty`, koordynator)
@@ -230,7 +230,7 @@ pliku.
 2. Obejrzyj podgląd - jeden wiersz na osobę. Pierwsze, wyróżnione kolumny to
    dni dyżurowe (primary i secondary razem): w dni robocze, w weekendy i święta
    oraz łącznie. Zmiany 11-19 nie są dniami dyżurowymi i mają własną kolumnę.
-3. „Pobierz CSV”.
+3. „Eksportuj CSV”.
 
 Ekran ostrzega, jeśli opublikowany grafik nie pokrywa całego miesiąca, i podaje,
 ile dni pokrywa. Gdy tabela nie mieści się na ekranie (np. na telefonie), nad
@@ -325,7 +325,7 @@ akcjami „Przełączono numer on-call”, „Nie udało się przełączyć nume
 
 W czasie przekazania numeru karta zaczyna się wierszem **Przekazanie**: kto
 oddał numer, kto go odbiera, do której godziny, kto i kiedy przekazanie
-zlecił. **Zakończ** kończy je od razu, bez pytania, i numer wraca do osoby na
+zlecił. **Zakończ przekazanie** kończy je od razu, bez pytania, i numer wraca do osoby na
 PRIMARY.
 
 ### Ręczne przełączenie numeru

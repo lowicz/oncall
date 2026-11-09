@@ -10,7 +10,8 @@ export const generator: Messages['generator'] = {
   },
   header: {
     generating: (range: string) => `Generating ${range}`,
-    statusPill: (status: string, version: number) => `${status} · v${version}`,
+    /** Only a draft shows its number: a publication is named by its date elsewhere. */
+    statusPill: (status: string, version: number | null) => version ? `${status} · v${version}` : status,
     summary: (assignments: number, days: number, rotation: string) =>
       `${pluralEn(assignments, ['assignment', 'assignments'])} over ${pluralEn(days, ['day', 'days'])} · ${rotation}`,
     solverStatus: (status: string): string => {
@@ -54,7 +55,7 @@ export const generator: Messages['generator'] = {
     to: 'To',
     queued: 'Queued…',
     generating: 'Generating…',
-    create: 'Create draft',
+    create: 'Generate the next range',
     savedSettings: (rotation: string, anchor: string) => `Saved settings: ${rotation} · 11–19: ${anchor}`,
     unsavedNote: ' · you have unsaved changes in the settings',
     splitLonger: '. Split a longer period into consecutive, overlapping drafts.',
@@ -104,7 +105,6 @@ export const generator: Messages['generator'] = {
     publishDraft: 'Publish…',
     more: 'Other actions',
     propose: 'Submit for approval',
-    publish: (version: number) => `Publish v${version}…`,
     backToDraft: 'Back to draft',
     effects: {
       title: 'What the publication changes',
@@ -201,20 +201,20 @@ export const generator: Messages['generator'] = {
   toast: {
     proposed: (range: string) => `Sent for approval: ${range}`,
     withdrawn: (range: string) => `Returned to draft: ${range}`,
-    published: (version: number, range: string) => `Published v${version} · ${range}`,
+    published: (range: string) => `Published ${range}`,
     publishedDescription: 'E-mails and ICS feeds updated.',
     openSchedule: 'Open schedule',
     settingsSaved: 'Generation settings saved',
   },
   publish: {
-    title: (isProposal: boolean, version: number, range: string) => `Publishing the ${isProposal ? 'proposal' : 'draft'} v${version} · ${range}`,
+    title: (isProposal: boolean, range: string) => `Publishing the ${isProposal ? 'proposal' : 'draft'} · ${range}`,
     effect: (assignments: number, days: number) =>
       `${pluralEn(assignments, ['assignment', 'assignments'])} over ${pluralEn(days, ['day', 'days'])} ${pluralFormEn(assignments, ['becomes', 'become'])} the published schedule. The team gets an e-mail, the ICS feeds update at once. A publication can only be undone by a new publication.`,
     back: (fromDraft: boolean) => fromDraft ? 'Back to the draft' : 'Back to the proposal',
     publishing: 'Publishing…',
     failed: 'Could not publish',
     failedNext: (fromDraft: boolean) => `Return to the ${fromDraft ? 'draft' : 'proposal'}, check the changes and publish again.`,
-    publishVersion: (version: number) => `Publish v${version}`,
+    publishNow: 'Publish',
     pending: (conflicts: number, consents: number) =>
       `To settle: ${[conflicts > 0 && pluralEn(conflicts, ['conflict', 'conflicts']), consents > 0 && pluralEn(consents, ['consent', 'consents'])].filter(Boolean).join(', ')}.`,
     ready: 'Ready to publish.',
