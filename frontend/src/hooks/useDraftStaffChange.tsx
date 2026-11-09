@@ -29,14 +29,17 @@ type Day = CalendarData['days'][number]
  *  choice about 11–19 (null follows the policy). */
 interface RolesPick { onCall: OnCall | null; lateChoice: boolean | null }
 
-/** The roles a cell opens on: its role, 11–19 alone included. */
-function pickFor(role: AssignmentRole): RolesPick {
-  return role === 'late_shift' ? { onCall: null, lateChoice: true } : { onCall: role, lateChoice: null }
+/** The roles a cell opens on: every role it shows, 11–19 alone included. */
+function pickFor(roles: AssignmentRole[]): RolesPick {
+  return {
+    onCall: roles.find((role): role is OnCall => role !== 'late_shift') ?? null,
+    lateChoice: roles.includes('late_shift') ? true : null,
+  }
 }
 
 /** What stops `member` taking `roles` of the day, said under the roles: the
- *  roles they cannot take of several, or why they take none. Nothing when the
- *  roles are theirs already or their availability already says why. */
+ *  roles they cannot take of several, that they hold them all already, or why
+ *  they take none. Nothing when their availability already says why. */
 function memberError(
   candidate: StaffingCandidate | undefined,
   roster: Roster,
@@ -53,9 +56,11 @@ function memberError(
       ? t.notEligible(member.display_name, roleList(notEligible.map((role) => roleLabels()[role])))
       : t.holds(member.display_name, roleList(holds.map((role) => roleLabels()[role])))
   }
+  if (roles.length > 0 && roles.every((role) => isCurrentAssignee(member, slotOf(roster, serviceDate, role)))) {
+    return t.holdsAll(member.display_name)
+  }
   const reason = candidate ? candidate.disabledReason : messages().calendar.disabledReasons.notEligible
-  const holdsAll = roles.every((role) => isCurrentAssignee(member, slotOf(roster, serviceDate, role)))
-  return reason && !holdsAll && !unavailable ? t.cannot(member.display_name, reason) : undefined
+  return reason && !unavailable ? t.cannot(member.display_name, reason) : undefined
 }
 
 /** The toast title of a saved correction: the roles it moved, or its one slot. */
@@ -140,10 +145,10 @@ export function useDraftStaffChange({ draft, roster, selected, unavailable, anch
     onSuccess: onSaved,
   })
   const { reset } = save
-  /** Opens the group on a cell's role, its last error gone. */
-  const openFor = useCallback((role: AssignmentRole) => {
+  /** Opens the group on a cell's roles, its last error gone. */
+  const openFor = useCallback((roles: AssignmentRole[]) => {
     reset()
-    setPick(pickFor(role))
+    setPick(pickFor(roles))
   }, [reset])
 
   const serviceDate = selected?.day.service_date
@@ -197,5 +202,5 @@ export function useDraftStaffChange({ draft, roster, selected, unavailable, anch
     </>
   )
 
-  return { form, footer, ready, openFor }
+  return { form, footer, openFor }
 }

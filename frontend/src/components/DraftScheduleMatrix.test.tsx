@@ -242,7 +242,7 @@ describe('DraftScheduleMatrix inspector', () => {
     renderScreen(<DraftScheduleMatrix result={weekendDraft} onChange={() => {}} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, sob 26-09-2026/ }))
-    const panel = await screen.findByRole('dialog', { name: 'Marek Nowak · 26-09-2026' })
+    const panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 26-09-2026' })
     expect(within(panel).getByText('2X · dzień wolny')).toBeInTheDocument()
     expect(within(panel).getByText('Dzień wolny / 2X - zmiana 11–19 nie występuje.')).toBeInTheDocument()
     const warning = within(panel).getByText('Marek Nowak: Nie mogę').closest('.box')
@@ -269,11 +269,11 @@ describe('DraftScheduleMatrix inspector', () => {
 
     // Anna holds SECONDARY on Sunday: the inspector opens on it.
     fireEvent.click(await screen.findByRole('button', { name: /^Anna Kowalska, niedz 27-09-2026/ }))
-    let panel = await screen.findByRole('dialog', { name: 'Anna Kowalska · 27-09-2026' })
+    let panel = await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 27-09-2026' })
     expect(within(panel).getByText('2X · Święto testowe')).toBeInTheDocument()
     expect(within(panel).getByRole('checkbox', { name: 'SECONDARY' })).toBeChecked()
-    // The person already holds the role: nothing to move, nothing to say.
-    expect(within(panel).queryByRole('alert')).not.toBeInTheDocument()
+    // The person already holds the role: nothing to move, and the panel says why.
+    expect(within(panel).getByRole('alert')).toHaveTextContent('Anna Kowalska ma już te role tego dnia. Kliknij komórkę osoby, która ma je przejąć, albo zamień ich miejscami.')
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: /^Marek Nowak, niedz 27-09-2026/ }))
@@ -473,7 +473,7 @@ describe('DraftScheduleMatrix focus from the problems table', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Popraw' }))
     // Anna keeps PRIMARY that day, so the panel opens on SECONDARY saying why she cannot take it.
-    const panel = await screen.findByRole('dialog', { name: 'Anna Kowalska · 21-09-2026' })
+    const panel = await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 21-09-2026' })
     expect(within(panel).getByRole('checkbox', { name: 'SECONDARY' })).toBeChecked()
     expect(within(panel).getByRole('alert')).toHaveTextContent('Anna Kowalska ma już drugi on-call tego dnia.')
     fireEvent.click(within(panel).getByRole('button', { name: 'Anuluj' }))
@@ -483,7 +483,7 @@ describe('DraftScheduleMatrix focus from the problems table', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Popraw' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Popraw znowu' }))
-    expect(await screen.findByRole('dialog', { name: 'Anna Kowalska · 21-09-2026' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 21-09-2026' })).toBeInTheDocument()
   })
 })
 
@@ -561,10 +561,23 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     const late = { ...pair, assignments: [...pair.assignments.slice(0, 2), { ...pair.assignments[2], assignee_name: 'Celina Dąbrowska' }] }
     renderScreen(<DraftScheduleMatrix result={late} onChange={() => {}} />)
 
-    const panel = await openCell(/^Celina Dąbrowska, pon 21-09-2026/, 'Celina Dąbrowska · 21-09-2026')
+    const panel = await openCell(/^Celina Dąbrowska, pon 21-09-2026/, 'Wstaw: Celina Dąbrowska · 21-09-2026')
     expect(within(panel).getByRole('checkbox', { name: '11–19 · dziś: Celina Dąbrowska' })).toBeChecked()
     expect(within(panel).getByRole('checkbox', { name: 'PRIMARY' })).not.toBeChecked()
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
+  })
+
+  it('opens a cell on every role it shows, even when the policy ties 11–19 to the other role', async () => {
+    vi.spyOn(api, 'swapPolicy').mockResolvedValue({ coordinator_approval_required: true, late_shift_anchor: 'primary' })
+    vi.spyOn(api, 'calendar').mockResolvedValue(team)
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(balances)
+    renderScreen(<DraftScheduleMatrix result={pair} onChange={() => {}} />)
+
+    const panel = await openCell(/^Marek Nowak, pon 21-09-2026/, 'Wstaw: Marek Nowak · 21-09-2026')
+    await waitFor(() => expect(within(panel).getByRole('checkbox', { name: /^11–19/ })).toBeChecked())
+    expect(within(panel).getByRole('checkbox', { name: 'SECONDARY' })).toBeChecked()
+    expect(within(panel).getByRole('alert')).toHaveTextContent('Marek Nowak ma już te role tego dnia.')
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu (2 role)' })).toBeDisabled()
   })
 
   it('says under the roles why the person cannot take them, without changing what is ticked', async () => {
@@ -582,7 +595,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
 
     let panel = await openCell(/^Celina Dąbrowska, pon 21-09-2026/, 'Wstaw: Celina Dąbrowska · 21-09-2026')
     fireEvent.click(within(panel).getByRole('checkbox', { name: /^11–19/ }))
-    expect(panel).toHaveAccessibleName('Celina Dąbrowska · 21-09-2026')
+    expect(panel).toHaveAccessibleName('Wstaw: Celina Dąbrowska · 21-09-2026')
     expect(within(panel).getByRole('alert')).toHaveTextContent('Celina Dąbrowska nie ma uprawnień do 11–19. Odznacz 11–19 albo kliknij komórkę innej osoby.')
     expect(within(panel).getByRole('checkbox', { name: /^11–19/ })).toBeChecked()
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu (2 role)' })).toBeDisabled()
@@ -590,11 +603,11 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeEnabled()
 
     // Anna keeps PRIMARY: 11–19 she may take, a second PRIMARY she cannot.
-    panel = await openCell(/^Anna Kowalska, pon 21-09-2026/, 'Anna Kowalska · 21-09-2026')
+    panel = await openCell(/^Anna Kowalska, pon 21-09-2026/, 'Wstaw: Anna Kowalska · 21-09-2026')
     fireEvent.click(within(panel).getByRole('checkbox', { name: /^11–19/ }))
     expect(within(panel).getByRole('alert')).toHaveTextContent('Anna Kowalska ma już PRIMARY. Odznacz PRIMARY albo kliknij komórkę innej osoby.')
 
-    panel = await openCell(/^Jan Wiśniewski, pon 21-09-2026/, 'Jan Wiśniewski · 21-09-2026')
+    panel = await openCell(/^Jan Wiśniewski, pon 21-09-2026/, 'Wstaw: Jan Wiśniewski · 21-09-2026')
     expect(within(panel).getByRole('alert')).toHaveTextContent('Jan Wiśniewski nie ma uprawnień do roli.')
   })
 
@@ -688,7 +701,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     const save = vi.spyOn(api, 'overrideDraft').mockRejectedValue(new ApiError('Szkic zmienił wersję', 409))
     renderScreen(<DraftScheduleMatrix result={pair} onChange={() => {}} />)
 
-    const panel = await openCell(/^Anna Kowalska, pon 21-09-2026/, 'Anna Kowalska · 21-09-2026')
+    const panel = await openCell(/^Anna Kowalska, pon 21-09-2026/, 'Wstaw: Anna Kowalska · 21-09-2026')
     fireEvent.click(within(panel).getByRole('button', { name: /^Zamień miejscami:/ }))
     const frame = within(panel).getByRole('region', { name: 'Zamiana miejscami' })
     fireEvent.click(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ }))
@@ -750,7 +763,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     const save = vi.spyOn(api, 'overrideDraft')
     renderScreen(<DraftScheduleMatrix result={pair} onChange={() => {}} />)
 
-    const panel = await openCell(/^Marek Nowak, pon 21-09-2026/, 'Marek Nowak · 21-09-2026')
+    const panel = await openCell(/^Marek Nowak, pon 21-09-2026/, 'Wstaw: Marek Nowak · 21-09-2026')
     fireEvent.click(within(panel).getByRole('button', { name: /^Zamień miejscami:/ }))
     const frame = within(panel).getByRole('region', { name: 'Zamiana miejscami' })
     expect(within(frame).getByRole('alert')).toHaveTextContent('Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.')

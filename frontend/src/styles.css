@@ -396,12 +396,13 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .panel-modal { z-index: 41; }
 .panel-modal .panel-head { position: relative; padding-top: 24px; }
 .panel-modal .panel-head::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; border-radius: 2px; background: var(--line2); }
-.panel-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+.panel-head { display: flex; align-items: flex-start; gap: 8px; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+.panel-heading { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .panel-title { font: 700 20px/24px var(--font); }
 /* The title takes focus only so a screen reader starts there; it is not a control, so it draws no ring. */
 .panel-title:focus-visible { outline: none; }
 .panel-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.panel-close { margin-left: auto; }
+.panel-close { margin-top: -4px; }
 .panel-body { padding: 16px 20px; overflow: auto; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
 .panel-foot { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--line); padding: 12px 20px; }
 .panel-foot .sp { flex: 1; }

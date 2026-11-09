@@ -149,19 +149,20 @@ Under the matrix there are four tabs:
 
 ### Manual cell correction
 
-Click a cell; the day panel (titled “Insert: *person* · *day*”) opens on the
-cell's role. The **Roles to change** group works as in the day inspector of the
+Click a cell; the day panel (titled “Insert: *person* · *day*”) opens on every
+role of the cell, e.g. SECONDARY and `11–19` together. The **Roles to change** group works as in the day inspector of the
 published schedule: PRIMARY and SECONDARY exclude each other, and `11–19` is
 ticked from the start when the `11–19` coupling binds it to the ticked role and
 its current holder has both; a day off has no `11–19`. The person in the
 clicked row takes the ticked roles. Under the group a preview shows, role by
 role, who holds it now and who will after the correction, then that person's
 balance in each role; **Assign in the draft** saves it, with two roles
-**Assign in the draft (2 roles)**. A panel titled “*person* · *day*” has
-nothing to insert and the button is off: the person already holds those
-roles, is marked “unavailable” or cannot take one of them - then the reason
-stands under the group, e.g. no eligibility for `11–19` or the other on-call
-that day. What is ticked stays, so untick a role or click another person's
+**Assign in the draft (2 roles)**. When there is nothing to insert, the
+button is off and the reason stands under the group: the person already holds
+those roles (then click the cell of the person who should take them over, or
+use **Swap places…**), cannot take one of them, e.g. no eligibility for
+`11–19` or the other on-call that day, or is marked “unavailable”, which the
+frame above the group says. What is ticked stays, so untick a role or click another person's
 cell. A correction can also fill a role the solver left empty: click any empty
 cell of a day marked as a gap, and the panel opens on the empty role and shows
 “unstaffed → *person*”.

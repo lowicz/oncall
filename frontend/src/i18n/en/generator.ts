@@ -260,6 +260,7 @@ export const generator: Messages['generator'] = {
     noAssignment: 'none',
     notEligible: (name: string, roles: string) => `${name} is not eligible for ${roles}. Untick ${roles} or click another person's cell.`,
     holds: (name: string, roles: string) => `${name} already has ${roles}. Untick ${roles} or click another person's cell.`,
+    holdsAll: (name: string) => `${name} already has these roles that day. Click the cell of the person who should take them over, or swap places.`,
     cannot: (name: string, reason: string) => `${name}: ${reason}.`,
     nobodyHoldsRole: (name: string) => `Nobody has this role that day. ${name} gets the duty, nobody loses one.`,
     gapDay: 'staffing gap',

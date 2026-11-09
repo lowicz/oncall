@@ -46,8 +46,11 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
         {narrow && <BaseDialog.Backdrop className="dialog-backdrop" />}
         <BaseDialog.Popup initialFocus={titleRef} finalFocus={finalFocus} className={cx('panel-popup', narrow && 'panel-modal', wide && 'panel-wide', className)}>
           <div className="panel-head">
-            <BaseDialog.Title ref={titleRef} tabIndex={-1} className="panel-title">{title}</BaseDialog.Title>
-            {meta && <div className="panel-meta">{meta}</div>}
+            {/* The title and its badges wrap together; the close button keeps the first line. */}
+            <div className="panel-heading">
+              <BaseDialog.Title ref={titleRef} tabIndex={-1} className="panel-title">{title}</BaseDialog.Title>
+              {meta && <div className="panel-meta">{meta}</div>}
+            </div>
             <BaseDialog.Close render={<IconButton label={t.common.closePanel} icon="x" size="sm" className="panel-close" />} />
           </div>
           <div className="panel-body">{children}</div>

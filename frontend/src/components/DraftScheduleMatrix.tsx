@@ -105,18 +105,19 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
     if (!target) return
     consumed.current = focus
     setSelected(target)
-    openFor(focus.role)
+    openFor([focus.role])
   }, [focus, metadata.data, openFor])
-  const openCell = (member: Member, day: Day, role: AssignmentRole) => {
+  const openCell = (member: Member, day: Day, roles: AssignmentRole[]) => {
     roleSwap.close()
     setSelected({ member, day })
-    openFor(role)
+    openFor(roles)
   }
   const closePanel = () => {
     roleSwap.close()
     setSelected(null)
   }
-  const panelTitle = staffChange.ready && !roleSwap.open ? t.correctionTitle : t.dayTitle
+  // The panel puts the clicked person in; only the swap frame is about the day.
+  const panelTitle = roleSwap.open ? t.dayTitle : t.correctionTitle
 
   return (
     <div className="stack-sm">
@@ -170,8 +171,11 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
                           className={cx('cell', isSelected && 'cell-sel', day.events.length > 0 && 'cell-ev')}
                           style={day.events[0] ? { ['--ev' as string]: `var(--ev-${day.events[0].color})` } : undefined}
                           disabled={!editable}
-                          // An empty cell on a day with a gap opens on the empty role.
-                          onClick={() => openCell(member, day, assignments[0]?.role ?? missingRoles(result, day.service_date)[0] ?? 'primary')}
+                          // A cell opens on all its roles; an empty one on a day
+                          // with a gap on the empty role.
+                          onClick={() => openCell(member, day, assignments.length > 0
+                            ? assignments.map((assignment) => assignment.role)
+                            : [missingRoles(result, day.service_date)[0] ?? 'primary'])}
                           aria-label={cellLabel(
                             member.display_name,
                             day,

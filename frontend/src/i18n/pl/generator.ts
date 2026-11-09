@@ -268,6 +268,7 @@ export const generator = {
     noAssignment: 'brak',
     notEligible: (name: string, roles: string) => `${name} nie ma uprawnień do ${roles}. Odznacz ${roles} albo kliknij komórkę innej osoby.`,
     holds: (name: string, roles: string) => `${name} ma już ${roles}. Odznacz ${roles} albo kliknij komórkę innej osoby.`,
+    holdsAll: (name: string) => `${name} ma już te role tego dnia. Kliknij komórkę osoby, która ma je przejąć, albo zamień ich miejscami.`,
     cannot: (name: string, reason: string) => `${name} ${reason}.`,
     nobodyHoldsRole: (name: string) => `Nikt nie ma tej roli tego dnia. ${name} dostanie dyżur, nikt go nie straci.`,
     gapDay: 'luka w obsadzie',

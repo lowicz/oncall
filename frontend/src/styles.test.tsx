@@ -27,6 +27,15 @@ describe('shared interaction styles', () => {
     expect(getComputedStyle(container.querySelector('.list-aside')!).justifyContent).toBe('flex-start')
   })
 
+  it('keeps a panel\'s close button on the first line of a long title', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="panel-head"><div className="panel-heading" /><button className="panel-close" /></div>)
+    expect(getComputedStyle(container.querySelector('.panel-head')!).flexWrap).not.toBe('wrap')
+    const heading = getComputedStyle(container.querySelector('.panel-heading')!)
+    expect(heading.flexWrap).toBe('wrap')
+    expect(heading.minWidth).toBe('0px')
+  })
+
   it('gives every button a 44 px coarse-pointer target', () => {
     loadRealMediaQuery('(pointer: coarse)')
     const { container } = render(

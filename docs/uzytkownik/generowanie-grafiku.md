@@ -143,17 +143,18 @@ Pod macierzą cztery zakładki:
 ### Ręczna korekta komórki
 
 Kliknij komórkę, a panel dnia (tytuł „Wstaw: *osoba* · *dzień*”) otworzy się
-na roli z tej komórki. Grupa **Role do zmiany** działa jak w inspektorze dnia
+na wszystkich rolach z tej komórki, np. na SECONDARY i `11–19` razem. Grupa **Role do zmiany** działa jak w inspektorze dnia
 opublikowanego grafiku: PRIMARY i SECONDARY wykluczają się, a `11–19` jest
 zaznaczona od razu, gdy powiązanie `11–19` wiąże ją z zaznaczoną rolą i jej
 obecna osoba ma obie; w dzień wolny `11–19` nie ma. Zaznaczone role dostaje
 osoba z klikniętego wiersza. Pod grupą podgląd pokazuje rola po roli, kto ma
 ją teraz i kto po korekcie, a niżej bilans tej osoby w każdej roli; zapisuje
 **Przypisz w szkicu**, przy dwóch rolach **Przypisz w szkicu (2 role)**. Gdy
-nie ma czego wstawić, panel ma tytuł „*osoba* · *dzień*”, a przycisk jest
-wyłączony: osoba już ma te role, zaznaczyła „nie mogę” albo nie może objąć
-którejś z nich - wtedy powód stoi pod grupą, np. brak uprawnień do `11–19`
-albo drugi on-call tego dnia. Zaznaczenie zostaje, więc odznacz rolę albo
+nie ma czego wstawić, przycisk jest wyłączony, a powód stoi pod grupą: osoba
+już ma te role (wtedy kliknij komórkę osoby, która ma je przejąć, albo użyj
+**Zamień miejscami…**), nie może objąć którejś z nich, np. brak uprawnień do
+`11–19` albo drugi on-call tego dnia, albo zaznaczyła „nie mogę”, o czym mówi
+ramka nad grupą. Zaznaczenie zostaje, więc odznacz rolę albo
 kliknij komórkę innej osoby. Korekta może też obsadzić rolę, którą solver
 zostawił pustą: kliknij dowolną pustą komórkę dnia oznaczonego jako luka, a
 panel otworzy się na pustej roli i pokaże „brak obsady → *osoba*”.
