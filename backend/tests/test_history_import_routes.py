@@ -175,7 +175,7 @@ async def test_import_rejects_a_role_the_person_has_no_eligibility_for(client, d
         {
             "row_number": 2,
             "field": "role",
-            "message": "Osoba nie ma eligibility do roli PRIMARY w tym dniu",
+            "message": "Osoba nie ma kwalifikacji do roli PRIMARY w tym dniu",
         }
     ], body["errors"]
 

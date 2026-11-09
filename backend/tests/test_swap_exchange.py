@@ -470,7 +470,7 @@ async def test_the_requester_has_to_be_eligible_for_the_duty_taken_in_return(
     refused = await client.post("/api/v1/swaps", json=_exchange(team))
 
     assert refused.status_code == 422, refused.text
-    assert refused.json()["detail"] == "Autor prośby nie ma eligibility do dyżuru branego w zamian"
+    assert refused.json()["detail"] == "Autor prośby nie ma kwalifikacji do dyżuru branego w zamian"
     # What cannot be taken is not offered either.
     assert "secondary" not in {option["role"] for option in await _return_options(client, team)}
 

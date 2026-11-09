@@ -72,7 +72,7 @@ async def test_history_import_contract(client, db) -> None:
         {
             "row_number": 4,
             "field": "role",
-            "message": "Osoba nie ma eligibility do roli SECONDARY w tym dniu",
+            "message": "Osoba nie ma kwalifikacji do roli SECONDARY w tym dniu",
         },
         {
             "row_number": 5,

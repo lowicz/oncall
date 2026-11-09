@@ -36,7 +36,7 @@ MESSAGES: dict[str, str] = {
     # --- accounts and the rotation (oncall.domain.admin) ---------------------
     "admin.account_not_found": "Nie znaleziono użytkownika",
     "admin.rotation_member_not_found": "Nie znaleziono osoby w rotacji",
-    "admin.eligibility_not_found": "Nie znaleziono okresu eligibility",
+    "admin.eligibility_not_found": "Nie znaleziono okresu kwalifikacji",
     "admin.first_name_required": "Imię nie może być puste",
     "admin.last_name_cleared": "Nazwisko nie może być wartością null",
     "admin.username_taken": "Konto o takim loginie już istnieje",
@@ -65,18 +65,18 @@ MESSAGES: dict[str, str] = {
         "Data wyjścia z rotacji nie może poprzedzać daty wejścia"
     ),
     "admin.eligibility_outlives_membership": (
-        "Okresy eligibility muszą mieścić się w okresie członkostwa w rotacji"
+        "Okresy kwalifikacji muszą mieścić się w okresie członkostwa w rotacji"
     ),
     "admin.duties_after_exit": (
         "Osoba ma dyżury po dacie wyjścia z rotacji. Najpierw przepisz lub zwolnij sloty: {slots}"
     ),
     "admin.eligibility_outside_membership": (
-        "Okres eligibility musi mieścić się w okresie członkostwa w rotacji"
+        "Okres kwalifikacji musi mieścić się w okresie członkostwa w rotacji"
     ),
     "admin.eligibility_ends_before_start": "Data końcowa nie może poprzedzać daty początkowej",
-    "admin.eligibility_overlaps": "Okres eligibility nakłada się na istniejący okres tej roli",
+    "admin.eligibility_overlaps": "Okres kwalifikacji nakłada się na istniejący okres tej roli",
     "admin.duties_lose_eligibility": (
-        "Zmiana eligibility pozostawiłaby opublikowane dyżury bez uprawnień. "
+        "Zmiana kwalifikacji pozostawiłaby opublikowane dyżury bez uprawnień. "
         "Najpierw przepisz sloty: {slots}"
     ),
     "admin.username_has_spaces": "Login nie może zawierać spacji",
@@ -169,7 +169,7 @@ MESSAGES: dict[str, str] = {
     "history.file_too_large": "Plik przekracza 1 MB",
     "history.not_in_team": "Osoby nie ma w zespole",
     "history.outside_membership": "Data dyżuru jest poza okresem członkostwa tej osoby w rotacji",
-    "history.not_eligible": "Osoba nie ma eligibility do roli {role} w tym dniu",
+    "history.not_eligible": "Osoba nie ma kwalifikacji do roli {role} w tym dniu",
     "history.late_shift_allowed_working_days_only": (
         "Zmiana 11–19 jest dozwolona tylko w dni robocze"
     ),
@@ -181,7 +181,7 @@ MESSAGES: dict[str, str] = {
     "overrides.late_shift_working_days_only": "Zmiana 11–19 jest dostępna tylko w dni robocze",
     "overrides.published_schedule_not_found": "Nie znaleziono opublikowanego grafiku",
     "overrides.person_not_found": "Nie znaleziono osoby",
-    "overrides.person_not_eligible": "Osoba nie ma eligibility",
+    "overrides.person_not_eligible": "Osoba nie ma kwalifikacji",
     "overrides.person_unavailable": "Osoba jest niedostępna",
     "overrides.person_already_holds_role": "Ta osoba już pełni tę rolę tego dnia",
     "overrides.person_already_on_call": "Osoba ma już drugi on-call tego dnia",
@@ -236,7 +236,7 @@ MESSAGES: dict[str, str] = {
     "scheduling.date_outside_draft": "Data jest poza zakresem szkicu",
     "scheduling.late_shift_working_days_only": "Zmiana 11–19 jest dostępna tylko w dni robocze",
     "scheduling.replacement_not_found": "Nie znaleziono osoby",
-    "scheduling.replacement_not_eligible": "Osoba nie ma eligibility",
+    "scheduling.replacement_not_eligible": "Osoba nie ma kwalifikacji",
     "scheduling.replacement_unavailable": "Osoba jest niedostępna",
     "scheduling.second_on_call_same_day": "Osoba ma już drugi on-call tego dnia",
     "scheduling.variant_not_found": "Nie znaleziono jednego z wariantów",
@@ -283,7 +283,7 @@ MESSAGES: dict[str, str] = {
         "Nowy szkic ma w tym slocie innego pierwotnego wykonawcę"
     ),
     "scheduling.carry.replacement_not_eligible": (
-        "Zastępca nie ma eligibility albo jest niedostępny"
+        "Zastępca nie ma kwalifikacji albo jest niedostępny"
     ),
     "scheduling.carry.breaks_rules": "Przeniesienie narusza reguły grafiku",
     "scheduling.carry.second_on_call_same_day": (
@@ -302,7 +302,7 @@ MESSAGES: dict[str, str] = {
     "swaps.in_the_past": "Nie można zamienić dyżuru, który już się odbył",
     "swaps.slot_not_published": "Nie znaleziono opublikowanego grafiku",
     "swaps.slot_not_yours": "Ten slot nie należy do Ciebie",
-    "swaps.replacement_not_eligible": "Zastępca nie ma eligibility",
+    "swaps.replacement_not_eligible": "Zastępca nie ma kwalifikacji",
     "swaps.cannot_swap_with_yourself": "Nie można zamienić się ze sobą",
     "swaps.replacement_has_no_account": "Zastępca nie ma konta",
     "swaps.replacement_unavailable": "Zastępca jest niedostępny",
@@ -310,7 +310,7 @@ MESSAGES: dict[str, str] = {
     "swaps.return_needs_day_and_role": "Podaj dzień i rolę dyżuru branego w zamian",
     "swaps.return_on_the_same_day": "W zamian można wziąć dyżur tylko z innego dnia",
     "swaps.return_slot_not_theirs": "Dyżur brany w zamian nie należy do zastępcy",
-    "swaps.requester_not_eligible": "Autor prośby nie ma eligibility do dyżuru branego w zamian",
+    "swaps.requester_not_eligible": "Autor prośby nie ma kwalifikacji do dyżuru branego w zamian",
     "swaps.requester_unavailable": "Autor prośby jest niedostępny w dniu dyżuru branego w zamian",
     "swaps.slot_has_active_swap": "Dla tego slotu istnieje aktywna zamiana",
     "swaps.breaks_hard_rules": "Operacja łamie reguły twarde grafiku",

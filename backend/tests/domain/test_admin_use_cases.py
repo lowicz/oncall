@@ -367,10 +367,10 @@ async def test_membership_dates_must_hold_the_periods_and_the_duties(world) -> N
             membership(world, member, active_until=START + timedelta(days=29)),
             world.membership_administration,
         )
-    assert str(refused.value).count("(primary)") == 20
+    assert str(refused.value).count("(PRIMARY)") == 20
     assert str(refused.value).startswith(
         "Osoba ma dyżury po dacie wyjścia z rotacji. Najpierw przepisz lub zwolnij sloty: "
-        f"{START + timedelta(days=30)} (primary), "
+        f"{START + timedelta(days=30)} (PRIMARY), "
     )
 
     updated = await use_cases.change_membership(

@@ -347,7 +347,7 @@ async def test_rotation_membership(client, db, admin) -> None:
     assert_error(
         await client.patch(url, json={"active_until": (TODAY + timedelta(days=10)).isoformat()}),
         409,
-        "Okresy eligibility muszą mieścić się w okresie członkostwa w rotacji",
+        "Okresy kwalifikacji muszą mieścić się w okresie członkostwa w rotacji",
     )
     await client.delete(f"/api/v1/admin/eligibility/{granted.json()['id']}")
 
@@ -366,7 +366,7 @@ async def test_rotation_membership(client, db, admin) -> None:
         + ", ".join(
             f"{TODAY + timedelta(days=20 + offset)} ({role})"
             for offset in range(2)
-            for role in ("primary", "secondary", "late_shift")
+            for role in ("PRIMARY", "SECONDARY", "11–19")
         ),
     )
     moved = await client.patch(url, json={"active_until": (TODAY + timedelta(days=30)).isoformat()})
@@ -407,7 +407,7 @@ async def test_eligibility_periods(client, db, admin) -> None:
         404,
         "Nie znaleziono osoby w rotacji",
     )
-    outside = "Okres eligibility musi mieścić się w okresie członkostwa w rotacji"
+    outside = "Okres kwalifikacji musi mieścić się w okresie członkostwa w rotacji"
     assert_error(await grant(-1, 10), 409, outside)
     assert_error(await grant(0, None), 409, outside)
     assert_error(await grant(0, 61), 409, outside)
@@ -422,7 +422,7 @@ async def test_eligibility_periods(client, db, admin) -> None:
     assert (await _audit(db, "admin.eligibility_created")).summary == (
         f"Nadano Ola Nowak kwalifikację PRIMARY od {TODAY}"
     )
-    overlap = "Okres eligibility nakłada się na istniejący okres tej roli"
+    overlap = "Okres kwalifikacji nakłada się na istniejący okres tej roli"
     assert_error(await grant(20, 30), 409, overlap)
     assert (await grant(20, 30, role="secondary")).status_code == 201
     second = await grant(21, 40)
@@ -432,7 +432,7 @@ async def test_eligibility_periods(client, db, admin) -> None:
     assert_error(
         await client.patch(f"/api/v1/admin/eligibility/{uuid.uuid4()}", json={}),
         404,
-        "Nie znaleziono okresu eligibility",
+        "Nie znaleziono okresu kwalifikacji",
     )
     assert_error(
         await client.patch(item_url, json={"ends_on": (TODAY - timedelta(days=1)).isoformat()}),
@@ -453,8 +453,8 @@ async def test_eligibility_periods(client, db, admin) -> None:
         row.member_id = member.id
     await db.commit()
     uncovered = (
-        "Zmiana eligibility pozostawiłaby opublikowane dyżury bez uprawnień. "
-        f"Najpierw przepisz sloty: {TODAY + timedelta(days=10)} (primary)"
+        "Zmiana kwalifikacji pozostawiłaby opublikowane dyżury bez uprawnień. "
+        f"Najpierw przepisz sloty: {TODAY + timedelta(days=10)} (PRIMARY)"
     )
     assert_error(
         await client.patch(item_url, json={"ends_on": (TODAY + timedelta(days=5)).isoformat()}),
@@ -465,7 +465,7 @@ async def test_eligibility_periods(client, db, admin) -> None:
     assert_error(
         await client.delete(f"/api/v1/admin/eligibility/{uuid.uuid4()}"),
         404,
-        "Nie znaleziono okresu eligibility",
+        "Nie znaleziono okresu kwalifikacji",
     )
 
     changed = await client.patch(
