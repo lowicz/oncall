@@ -109,7 +109,9 @@ question; this person's sessions end only once the new password is set). Like
 every link to an account, pass the new link on to the person through a secure channel; the
 application does not send it.
 
-The personnel number matters with a directory (LDAP / AD): it must match
+The personnel number is digits only; the screen points out any other
+character under the field at once and does not save it. The number matters
+with a directory (LDAP / AD): it must match
 `employeeNumber` for the local account to link automatically on the first
 sign-in from the directory. In [SSO sign-in](../wdrozenie/sso.md) it picks the
 account Keycloak lets the person into.

@@ -879,7 +879,7 @@ describe('PeoplePanel new account form', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Nowe konto' }))
     const dialog = await screen.findByRole('dialog', { name: 'Nowe konto lokalne' })
     expect(await within(dialog).findByText('Konta AD logują się loginem domenowym.')).toBeInTheDocument()
-    expect(within(dialog).getByText('Klucz dowiązania z AD: zgodny z employeeNumber.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Same cyfry, np. 001234. Klucz dowiązania z AD: zgodny z employeeNumber.')).toBeInTheDocument()
     expect(within(dialog).getByText(/Przy pierwszym logowaniu LDAP z tym numerem pracownika/)).toBeInTheDocument()
 
     fireEvent.change(within(dialog).getByLabelText(/^Imię/), { target: { value: 'Ewa' } })
@@ -891,7 +891,13 @@ describe('PeoplePanel new account form', () => {
     fireEvent.change(within(dialog).getByLabelText('E-mail'), { target: { value: '' } })
     fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '' } })
     fireEvent.change(within(dialog).getByLabelText('Numer pracownika'), { target: { value: '' } })
-    fireEvent.change(within(dialog).getByLabelText('Numer pracownika'), { target: { value: '0042' } })
+    // A wrong format is said under the field, in Polish, and holds the account back.
+    fireEvent.change(within(dialog).getByLabelText(/^Numer pracownika/), { target: { value: 'T-001' } })
+    const personnel = within(dialog).getByLabelText(/^Numer pracownika/)
+    expect(personnel).toHaveAttribute('aria-invalid', 'true')
+    expect(personnel).toHaveAccessibleDescription('Numer pracownika to same cyfry, np. 001234.')
+    expect(within(dialog).getByRole('button', { name: 'Utwórz konto' })).toBeDisabled()
+    fireEvent.change(personnel, { target: { value: '0042' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Utwórz konto' }))
 
     expect(await within(dialog).findByText(/activate\?token=secret/)).toBeInTheDocument()

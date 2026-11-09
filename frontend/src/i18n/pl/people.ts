@@ -72,6 +72,8 @@ export const people = {
     usernameLocked: 'Loginu nie da się zmienić.',
     personnelNumber: 'Numer pracownika',
     personnelNumberLdapHint: 'Klucz dowiązania z AD: zgodny z employeeNumber.',
+    personnelNumberHint: 'Same cyfry, np. 001234.',
+    personnelNumberFix: 'Numer pracownika to same cyfry, np. 001234.',
     email: 'E-mail',
     phone: 'Telefon · na pasku „Teraz”',
     phoneNewHint: 'Format: +48 i dziewięć cyfr. Wymagany dla osób w rotacji; widzą go zalogowane osoby.',

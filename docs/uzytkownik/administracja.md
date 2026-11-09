@@ -102,7 +102,8 @@ tego reset hasła (link ważny godzinę, też bez pytania; sesje tej osoby
 wygasną dopiero po ustawieniu nowego hasła). Jak każdy link do konta, nowy link
 przekaż osobie bezpiecznym kanałem; aplikacja go nie wysyła.
 
-Numer pracownika ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
+Numer pracownika to same cyfry; inny znak ekran od razu wskazuje pod polem i
+nie pozwala zapisać. Numer ma znaczenie przy katalogu (LDAP / AD): musi zgadzać się z
 `employeeNumber`, żeby konto lokalne powiązało się automatycznie przy pierwszym
 logowaniu z katalogu. Przy [logowaniu przez SSO](../wdrozenie/sso.md) wskazuje
 konto, na które Keycloak wpuszcza osobę.
