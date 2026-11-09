@@ -20,6 +20,23 @@ async function refusal(call: () => Promise<unknown>): Promise<ApiError> {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('API errors', () => {
+  it('says in the interface language that the server cannot be reached', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+    for (const call of [
+      () => api.publicConfig(),
+      () => api.ownAvatar('/api/v1/auth/me/photo'),
+      () => api.monthlyReport('2026-09'),
+    ]) {
+      await expect(call()).rejects.toThrow('Brak połączenia z serwerem. Sprawdź sieć i spróbuj ponownie.')
+    }
+  })
+
+  it('lets a cancelled request keep its own error', async () => {
+    const aborted = new DOMException('The operation was aborted.', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(aborted)))
+    await expect(api.publicConfig()).rejects.toBe(aborted)
+  })
+
   it('shows the message the server gives for a rejected field', async () => {
     vi.stubGlobal('fetch', answer(422, {
       detail: [{ loc: ['body', 'username'], msg: 'Login nie może zawierać spacji', type: 'value_error' }],

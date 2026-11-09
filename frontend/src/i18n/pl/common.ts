@@ -37,6 +37,7 @@ export const common = {
   },
   reasonTooShort: (minLength: number) => `Wpisz co najmniej ${minLength} znaków`,
   httpError: (status: number) => `Błąd HTTP ${status}`,
+  networkError: 'Brak połączenia z serwerem. Sprawdź sieć i spróbuj ponownie.',
   imageReadFailed: 'Nie udało się odczytać obrazu',
   generatorFailed: 'Generator zakończył się błędem',
   logoutFailed: (status: number) => `Nie udało się wylogować (${status})`,
