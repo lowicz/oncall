@@ -176,8 +176,8 @@ export const swaps = {
     takesOnly: (role: string) => `Przejmie tylko ${role}, nie pełni 11–19.`,
     splitsDaysOff: 'Dzieli blok dni wolnych.',
     breaksRule: (message: string, days: string) => (days ? `Łamie regułę: ${message} (${days}).` : `Łamie regułę: ${message}.`),
-    aboveShare: (points: string) => `Ma już ${points} pkt powyżej udziału.`,
-    belowShare: (points: string) => `Ma ${points} pkt poniżej udziału.`,
+    aboveShare: (points: string) => `Ma już ${points} pkt powyżej sprawiedliwego udziału.`,
+    belowShare: (points: string) => `Ma ${points} pkt poniżej sprawiedliwego udziału.`,
     improvesBalance: 'Zamiana poprawia bilans.',
     /** The one number on a candidate's card: the balance against the share, "-0,5 pkt". */
     points: (points: string) => `${points} pkt`,

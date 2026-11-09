@@ -122,7 +122,7 @@ export const mine = {
     aboveShare: (points: string) => `Masz o ${points} pkt więcej niż Twój sprawiedliwy udział.`,
     belowShare: (points: string) => `Masz o ${points} pkt mniej niż Twój sprawiedliwy udział.`,
     atShare: 'Masz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział.',
-    norm: (points: string) => `Norma to ±${points} pkt od udziału należnego.`,
+    norm: (points: string) => `Norma to ±${points} pkt od sprawiedliwego udziału.`,
     generatorEvensOut: 'Generator wyrówna to w kolejnym zakresie.',
     generatorFewer: 'Generator da Ci mniej dyżurów w kolejnym zakresie.',
     generatorMore: 'Generator da Ci więcej dyżurów w kolejnym zakresie.',

@@ -89,11 +89,12 @@ describe('FairnessPanel criterion summary', () => {
   it('states the criterion and its verdict in the subtitle and the spread per lens in chips', async () => {
     vi.spyOn(api, 'fairness').mockResolvedValue(report(false))
     renderScreen(<FairnessPanel />)
-    expect(await screen.findByText(/kryterium: nikt poza ±3,0 pkt od udziału/)).toBeInTheDocument()
+    expect(await screen.findByText(/kryterium: nikt poza ±3,0 pkt od sprawiedliwego udziału/)).toBeInTheDocument()
     expect(screen.getByText('spełnione')).toBeInTheDocument()
     // Every lens shown with its textual state, not colour alone.
     expect(screen.getAllByText(/rozpiętość 1,5 · spełnia$/).length).toBeGreaterThanOrEqual(4)
-    expect(screen.getByText(/Średnia 5,0 pkt \/ os\./)).toBeInTheDocument()
+    // Fairness is judged against each person's fair share, so no team mean competes with it.
+    expect(screen.queryByText(/Średnia/)).not.toBeInTheDocument()
     expect(screen.getByText(/Weekendy: 2 \/ 2 os\. = 1,0/)).toBeInTheDocument()
   })
 
@@ -148,12 +149,12 @@ describe('FairnessPanel lens links', () => {
     // Razem: Jakub is +1 (−1 + 2), Anna 0 (+0.5 − 0.5): Jakub first.
     const names = () => screen.getAllByRole('rowheader').map((cell) => cell.textContent)
     expect(names()[0]).toContain('Jakub Polak')
-    expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 ponad udział' })).toBeInTheDocument()
+    expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 ponad sprawiedliwy udział' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'PRIMARY' }))
     expect(screen.getByRole('columnheader', { name: /Odchylenie · PRIMARY/ })).toBeInTheDocument()
-    expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 poniżej udziału' })).toBeInTheDocument()
-    expect(within(rowOf('Anna Kowalska')).getByRole('img', { name: '0,5 ponad udział' })).toBeInTheDocument()
+    expect(within(rowOf('Jakub Polak')).getByRole('img', { name: '1 poniżej sprawiedliwego udziału' })).toBeInTheDocument()
+    expect(within(rowOf('Anna Kowalska')).getByRole('img', { name: '0,5 ponad sprawiedliwy udział' })).toBeInTheDocument()
   })
 
   it('unfolds a row into the months and the reasons', async () => {
@@ -168,7 +169,7 @@ describe('FairnessPanel lens links', () => {
     expect(await screen.findByRole('img', { name: /Punkty miesiąc po miesiącu: .*sie 2, wrz 0/ })).toBeInTheDocument()
     expect(duties).toHaveBeenCalledWith('Anna Kowalska', undefined)
     expect(screen.getByText('Co zrobi generator')).toBeInTheDocument()
-    expect(screen.getByText(/Anna jest zgodnie z udziałem/)).toBeInTheDocument()
+    expect(screen.getByText(/Anna jest zgodnie ze sprawiedliwym udziałem/)).toBeInTheDocument()
     expect(screen.getByText('sob 15 sie')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zwiń: Anna Kowalska' }))
     expect(screen.queryByText('Co zrobi generator')).not.toBeInTheDocument()
@@ -243,7 +244,7 @@ describe('FairnessPanel Razem context (MED6-02)', () => {
 
     const row = rowOf('Jakub Polak')
     expect(row.textContent).toContain('/ 4')
-    expect(within(row).getByRole('img', { name: '2 poniżej udziału' })).toBeInTheDocument()
+    expect(within(row).getByRole('img', { name: '2 poniżej sprawiedliwego udziału' })).toBeInTheDocument()
   })
 
   it('explains a low total for someone who joined mid-window', async () => {
@@ -301,7 +302,7 @@ describe('FairnessPanel roles a person does not hold', () => {
     expect(screen.getByText('nie pełni tej roli')).toBeInTheDocument()
     // The roles they do hold still get a verdict when the bar follows them.
     fireEvent.click(screen.getByRole('button', { name: 'SECONDARY' }))
-    expect(screen.getByRole('img', { name: '0,5 poniżej udziału' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '0,5 poniżej sprawiedliwego udziału' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'PRIMARY' }))
     expect(screen.getAllByText('nie pełni tej roli')).toHaveLength(2)
   })

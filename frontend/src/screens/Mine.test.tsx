@@ -181,7 +181,7 @@ describe('MineScreen points and swaps', () => {
     renderScreen(<MineScreen displayName="Julia Nowak" />)
     expect(await screen.findByText('+0,5', { selector: '.big' })).toBeInTheDocument()
     expect(screen.getByText('W normie')).toBeInTheDocument()
-    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz o 0,5 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\. Generator wyrówna to w kolejnym zakresie\.$/)
+    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz o 0,5 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±2,0 pkt od sprawiedliwego udziału\. Generator wyrówna to w kolejnym zakresie\.$/)
     const table = await screen.findByRole('table', { name: 'Punkty miesiąc po miesiącu' })
     expect(within(table).getByText('wrzesień')).toBeInTheDocument()
     expect(within(table).getByText('sierpień')).toBeInTheDocument()
@@ -804,7 +804,7 @@ describe('MineScreen points states', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     const box = (await screen.findByText('W normie')).closest('.box')
     expect(box).toHaveClass('box-ok')
-    expect(box).toHaveTextContent(/^W normieMasz o 3,0 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±3,0 pkt od udziału należnego\. Generator wyrówna to w kolejnym zakresie\.$/)
+    expect(box).toHaveTextContent(/^W normieMasz o 3,0 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±3,0 pkt od sprawiedliwego udziału\. Generator wyrówna to w kolejnym zakresie\.$/)
   })
 
   it.each([
@@ -828,9 +828,9 @@ describe('MineScreen points states', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     expect(await screen.findByText('0,0', { selector: '.big' })).toBeInTheDocument()
     // The bar agrees with the big number: no sign, read as on share.
-    expect(screen.getByRole('img', { name: 'zgodnie z udziałem' })).toHaveTextContent(/^0,0$/)
+    expect(screen.getByRole('img', { name: 'zgodnie ze sprawiedliwym udziałem' })).toHaveTextContent(/^0,0$/)
     // Nothing to even out: the box stops at the norm.
-    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\.$/)
+    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział\. Norma to ±2,0 pkt od sprawiedliwego udziału\.$/)
   })
 
   it('says when the month has no duties and switches back to twelve months', async () => {

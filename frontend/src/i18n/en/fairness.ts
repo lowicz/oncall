@@ -3,14 +3,14 @@ import { pluralEn } from '../../lib/plural'
 
 export const fairness: Messages['fairness'] = {
   deviation: {
-    onShare: 'on share',
-    aboveShare: (value: string) => `${value} above share`,
-    belowShare: (value: string) => `${value} below share`,
+    onShare: 'on fair share',
+    aboveShare: (value: string) => `${value} above fair share`,
+    belowShare: (value: string) => `${value} below fair share`,
   },
   title: 'Fairness',
   subtitle: 'A rolling 12 months of duties against the fair share.',
   summary: (windowEnd: string, people: string, criterionPoints: string) =>
-    `12 months to ${windowEnd} · ${people} · criterion: nobody beyond ±${criterionPoints} pts from share`,
+    `12 months to ${windowEnd} · ${people} · criterion: nobody beyond ±${criterionPoints} pts from the fair share`,
   people: (count: number) => pluralEn(count, ['person', 'people']),
   criterionMet: 'met',
   criterionNotMet: 'not met',
@@ -28,7 +28,6 @@ export const fairness: Messages['fairness'] = {
   spreadChip: (lens: string, spread: string, verdict: string) => `${lens}: spread ${spread} · ${verdict}`,
   meets: 'meets',
   fails: 'fails',
-  averageChip: (points: string) => `Average ${points} pts / person`,
   weekendsChip: (duties: number, people: number, perPerson: string) => `Weekends: ${duties} / ${people} people = ${perPerson}`,
   team: 'Team',
   tableLabel: 'Duty balance',
@@ -37,7 +36,7 @@ export const fairness: Messages['fairness'] = {
   columns: {
     person: 'Person',
     deviation: (lens: string) => `Deviation · ${lens}`,
-    unitShare: (unit: string) => `${unit} / share`,
+    unitShare: (unit: string) => `${unit} / fair share`,
     details: 'Details',
   },
   units: {
@@ -54,7 +53,7 @@ export const fairness: Messages['fairness'] = {
     noLateShifts: 'no 11–19 shifts',
   },
   drilldown: {
-    monthByMonth: (name: string, average: string) => `${name} · month by month (pts / average ${average})`,
+    monthByMonth: (name: string, average: string) => `${name} · month by month (on average ${average} pts a month)`,
     loadingMonths: 'Loading months…',
     barsLabel: (values: string) => `Points month by month: ${values}`,
     barTitle: (month: string, points: number) => `${month}: ${points} pts`,
@@ -66,14 +65,14 @@ export const fairness: Messages['fairness'] = {
     inRotationSince: 'In the rotation since',
     generatorPlan: 'What the generator will do',
     plan: {
-      onShare: (name: string) => `${name} is on share; the generator has nothing to even out.`,
+      onShare: (name: string) => `${name} is on their fair share; the generator has nothing to even out.`,
       moreDuties: (name: string, points: string) => `In the next range ${name} will get more duties, ${points} pts to even out.`,
       fewerDuties: (name: string, points: string) => `In the next range ${name} will get fewer duties, ${points} pts to even out.`,
     },
   },
   definitions: {
     points: (lateShift: string) => `Definitions: pts = duties × multiplier (1X weekday, 2X weekend and holiday); ${lateShift} counted as shifts.`,
-    share: 'The share counts only the days on which the person belonged to the given rotation; a holiday on a weekend counts once, in the “Weekends” lens.',
+    share: 'The fair share counts only the days on which the person belonged to the given rotation; a holiday on a weekend counts once, in the “Weekends” lens.',
     anchored: (lateShift: string, count: number) =>
       `With anchoring the ${lateShift} shift belongs to the person holding the on-call role, so its points are already in the PRIMARY and SECONDARY columns; total ${lateShift} shifts in the window: ${count}.`,
     fullDescription: 'Full description:',

@@ -434,10 +434,10 @@ describe('SwapPanel new request', () => {
     expect(option).toHaveTextContent('Chętnie wezmę')
     expect(option).toHaveTextContent('bez naruszeń')
     expect(option).toHaveTextContent('−1 pkt względem udziału')
-    expect(screen.queryByText(/poniżej udziału/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/poniżej sprawiedliwego udziału/)).not.toBeInTheDocument()
     fireEvent.click(option)
     // The rest is read under the picked card.
-    expect(await screen.findByText('Ma 1 pkt poniżej udziału. Zamiana poprawia bilans.')).toBeInTheDocument()
+    expect(await screen.findByText('Ma 1 pkt poniżej sprawiedliwego udziału. Zamiana poprawia bilans.')).toBeInTheDocument()
 
     await waitFor(() => expect(impactCall).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', {}))
     // The balance is folded under one line that sums it up.
@@ -1389,10 +1389,10 @@ describe('SwapPanel composing', () => {
     expect(zenon).not.toHaveTextContent('pkt')
 
     fireEvent.click(celina)
-    expect(await screen.findByText('Ma 2 pkt poniżej udziału. Zamiana poprawia bilans.')).toBeInTheDocument()
+    expect(await screen.findByText('Ma 2 pkt poniżej sprawiedliwego udziału. Zamiana poprawia bilans.')).toBeInTheDocument()
     fireEvent.click(dorota)
-    expect(await screen.findByText(/^Ma już dyżur tego dnia\./)).toHaveTextContent('Ma już dyżur tego dnia. Ma już 2 pkt powyżej udziału.')
-    expect(screen.queryByText(/poniżej udziału/)).not.toBeInTheDocument()
+    expect(await screen.findByText(/^Ma już dyżur tego dnia\./)).toHaveTextContent('Ma już dyżur tego dnia. Ma już 2 pkt powyżej sprawiedliwego udziału.')
+    expect(screen.queryByText(/poniżej sprawiedliwego udziału/)).not.toBeInTheDocument()
   })
 
   it('names the rules a candidate bends before the request is sent', async () => {

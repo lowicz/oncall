@@ -285,7 +285,8 @@ describe('GeneratorPanel transitions', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Przekaż do akceptacji' }))
 
     // The decision must follow the server, not the pre-transition cache entry.
-    expect(await screen.findByRole('button', { name: 'Opublikuj…' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Wróć do szkicu' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Opublikuj…' })).toBeInTheDocument()
     await waitFor(() => expect(fetchOne).toHaveBeenCalledTimes(2))
     expect(screen.getByText('Przekazano do akceptacji: 17 – 18 wrz')).toBeInTheDocument()
   })
