@@ -311,6 +311,8 @@ export function GeneratorPanel() {
       setPublishFor(null)
       setBackgroundProposal(null)
       queryClient.invalidateQueries({ queryKey: ['published-schedule'] })
+      // The range just published is no longer the next one to generate.
+      queryClient.invalidateQueries({ queryKey: ['suggested-schedule-range'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
       toast.success(t.toast.published(expectedVersion, formatRange(value.starts_on, value.ends_on)), {
         description: t.toast.publishedDescription,

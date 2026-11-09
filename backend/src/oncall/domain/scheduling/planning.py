@@ -40,24 +40,29 @@ def is_covered(day: date, spans: list[CoveredSpan]) -> bool:
 
 
 def suggested_start(today: date, spans: list[CoveredSpan]) -> date:
-    """First safe uncovered day, without splitting a day-off block."""
-    earliest_start = today + timedelta(days=1) if is_covered(today, spans) else today
-    candidate = first_uncovered(earliest_start, spans)
-    holidays = polish_holidays(candidate - timedelta(days=7), candidate + timedelta(days=7))
-    if is_working_day(candidate, holidays):
-        return candidate
-    block_start = candidate
-    while not is_working_day(block_start - timedelta(days=1), holidays):
-        block_start -= timedelta(days=1)
-    block_end = candidate
-    while not is_working_day(block_end + timedelta(days=1), holidays):
-        block_end += timedelta(days=1)
-    block_days = [
-        block_start + timedelta(days=offset) for offset in range((block_end - block_start).days + 1)
-    ]
-    if any(is_covered(day, spans) for day in block_days):
-        return block_end + timedelta(days=1)
-    return max(today, block_start)
+    """First safe uncovered day, without splitting a day-off block.
+
+    A partly covered block is skipped whole, and the search goes on from the
+    day after it, which may itself be covered already."""
+    candidate = today + timedelta(days=1) if is_covered(today, spans) else today
+    while True:
+        candidate = first_uncovered(candidate, spans)
+        holidays = polish_holidays(candidate - timedelta(days=7), candidate + timedelta(days=7))
+        if is_working_day(candidate, holidays):
+            return candidate
+        block_start = candidate
+        while not is_working_day(block_start - timedelta(days=1), holidays):
+            block_start -= timedelta(days=1)
+        block_end = candidate
+        while not is_working_day(block_end + timedelta(days=1), holidays):
+            block_end += timedelta(days=1)
+        block_days = [
+            block_start + timedelta(days=offset)
+            for offset in range((block_end - block_start).days + 1)
+        ]
+        if not any(is_covered(day, spans) for day in block_days):
+            return max(today, block_start)
+        candidate = block_end + timedelta(days=1)
 
 
 def suggested_range(today: date, spans: list[CoveredSpan]) -> SuggestedRange:

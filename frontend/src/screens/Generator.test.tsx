@@ -531,10 +531,13 @@ describe('GeneratorPanel hard unavailability conflicts', () => {
     expect(within(dialog).getByRole('button', { name: 'Wróć do szkicu' })).toBeInTheDocument()
     const confirm = within(dialog).getByRole('button', { name: 'Publikuj v2' })
     await waitFor(() => expect(confirm).toBeEnabled())
+    const suggestions = vi.mocked(api.suggestedScheduleRange).mock.calls.length
     fireEvent.click(confirm)
     await waitFor(() => expect(publish.mock.calls[0][0]).toMatchObject({ id: 'd1', expectedVersion: 2 }))
     expect(await screen.findByText('Opublikowano v2 · 17 – 18 wrz')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Otwórz grafik' })).toBeInTheDocument()
+    // The new draft form asks again which range comes next.
+    await waitFor(() => expect(vi.mocked(api.suggestedScheduleRange).mock.calls.length).toBeGreaterThan(suggestions))
   })
 
   it('takes a draft back quietly when its publication sheet is closed', async () => {

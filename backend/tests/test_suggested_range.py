@@ -5,6 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.domain.clock import business_today
+from oncall.domain.scheduling.models import CoveredSpan
 from oncall.domain.scheduling.planning import range_end, suggested_start
 from oncall.domain.vocabulary import ScheduleOrigin, ScheduleStatus, UserRole
 from oncall.infrastructure.sqlalchemy.scheduling_models import Schedule
@@ -140,3 +141,14 @@ async def test_generation_request_rejects_unknown_fields(
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["type"] == "extra_forbidden"
+
+
+def test_a_split_weekend_before_a_published_range_starts_after_that_range() -> None:
+    # Published through Saturday 21 November and again 23 November - 20
+    # December: the lone uncovered Sunday cannot start a range, and the
+    # Monday after it is already published, so the next range starts after.
+    spans = [
+        CoveredSpan(date(2026, 11, 9), date(2026, 11, 21)),
+        CoveredSpan(date(2026, 11, 23), date(2026, 12, 20)),
+    ]
+    assert suggested_start(date(2026, 11, 9), spans) == date(2026, 12, 21)
