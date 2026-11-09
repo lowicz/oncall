@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { loadRealMediaQuery, loadRealStylesheet } from './test/stylesheet'
 
 describe('shared interaction styles', () => {
+  it('never cuts the time on the "Teraz" strip, giving it a row of its own instead', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="now-slot"><span className="now-until">do pon 00:00 · 2 h 1 min</span></div>)
+    const until = getComputedStyle(container.querySelector('.now-until')!)
+    expect(until.textOverflow).not.toBe('ellipsis')
+    expect(until.flexShrink).toBe('0')
+    expect(getComputedStyle(container.querySelector('.now-slot')!).flexWrap).toBe('wrap')
+  })
+
   it('raises toasts on a phone above the bottom tabs, within the thumb\'s reach', () => {
     loadRealMediaQuery('(max-width: 900px)')
     const { container } = render(<><div className="toasts" /><nav className="tabs-bottom" /></>)
