@@ -469,7 +469,7 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .toasts { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 60; display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); }
 /* A save in a side panel toasts while the panel stays open: lift the toasts above its footer, so its buttons stay reachable. */
 body:has(.panel-popup .panel-foot) .toasts { bottom: calc(80px + env(safe-area-inset-bottom)); }
-.toast { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--r); background: var(--s3); border: 1px solid var(--line2); font-size: 12px; line-height: 16px; box-shadow: var(--shadow-sm); transition: transform 0.2s, opacity 0.2s; }
+.toast { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--r); background: var(--s3); border: 1px solid var(--line2); font-size: 12px; line-height: 16px; box-shadow: var(--shadow-sm); transition: transform 0.2s, opacity 0.2s; position: relative; }
 .toast[data-starting-style], .toast[data-ending-style] { opacity: 0; transform: translateY(8px); }
 .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sig); flex: 0 0 auto; }
 .toast-ok .toast-dot { background: var(--ok); }
@@ -480,7 +480,6 @@ body:has(.panel-popup .panel-foot) .toasts { bottom: calc(80px + env(safe-area-i
 .toast-desc { color: var(--muted); }
 .toast .btn, .toast .ib { flex: 0 0 auto; }
 /* What is left of an Undo window, shrinking to nothing as the server's window closes. */
-.toast { position: relative; }
 .toast-countdown { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 1px; background: var(--sig); transform-origin: left; animation: toast-countdown linear forwards; }
 @keyframes toast-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .pal-popup { position: fixed; left: 50%; top: 12vh; transform: translateX(-50%); width: min(560px, calc(100vw - 24px)); background: var(--s1); border: 1px solid var(--line2); border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden; z-index: 45; outline: none; max-height: 70vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }

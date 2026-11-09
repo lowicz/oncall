@@ -51,6 +51,10 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const carry = Boolean(swap?.lateShift?.eligible) && (carryChoice ?? true)
   const { historical, silent } = correctionTiming(day, ['primary', 'secondary', ...(carry ? ['late_shift' as const] : [])])
   const lines = swap && serviceDate ? roleSwapLines(swap, serviceDate, carry) : []
+  // What the toast says about e-mail, before and after its Undo expires.
+  const mail = silent
+    ? { description: schedule.toast.pastDayNoEmail }
+    : { description: t.emailsLater, expired: common.undoEmailsSent }
 
   const check = useQuery({
     queryKey: ['role-swap-check', serviceDate, ref?.schedule_id, ref?.schedule_version, carry],
@@ -111,8 +115,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         toast,
         message: () => ({
           title: t.toast(formatDay(serviceDate), swapHolders(swap, carry, true)),
-          description: silent ? schedule.toast.pastDayNoEmail : t.emailsLater,
-          expired: silent ? undefined : common.undoEmailsSent,
+          ...mail,
         }),
         undoLabel: t.undoAction,
         onUndoError: (error) => toast.error(t.undoFailed, { description: (error as Error).message }),

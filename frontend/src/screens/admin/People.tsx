@@ -86,8 +86,9 @@ function RotationCell({ member, today }: { member?: TeamMember; today: string })
   // Qualifications that start later are named with their date, not as none.
   const upcoming = roles.length > 0 ? undefined : member!.eligibility.map((item) => item.starts_on).filter((start) => start > day).sort((a, b) => a.localeCompare(b))[0]
   const shown = upcoming ? heldRoles(member, upcoming) : roles
+  const since = upcoming ? ` ${t.from(formatShortDate(upcoming))}` : ''
   const qualifications = shown.length > 0
-    ? `${shown.map((role) => shortRoleLabels()[role]).join(' · ')}${upcoming ? ` ${t.from(formatShortDate(upcoming))}` : ''}`
+    ? `${shown.map((role) => shortRoleLabels()[role]).join(' · ')}${since}`
     : t.noQualifications
   if (state === 'entering') return <><StatusBadge tone="warn">{t.from(formatShortDate(member!.active_from))}</StatusBadge><small>{qualifications}</small></>
   if (state === 'ended') return <><StatusBadge tone="muted">{t.ended}</StatusBadge><small>{t.until(formatDate(member!.active_until!))}</small></>

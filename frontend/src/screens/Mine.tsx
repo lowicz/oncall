@@ -985,7 +985,7 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
   // Judged once the field is left or saved, never while it is being typed.
   const [checked, setChecked] = useState(false)
   // The stored number grouped as it is printed, with spaces one can edit.
-  const value = draft ?? (me.data?.phone ? phoneText(me.data.phone).replace(/\u00a0/g, ' ') : '')
+  const value = draft ?? (me.data?.phone ? phoneText(me.data.phone).replaceAll('\u00a0', ' ') : '')
   const typed = value.trim()
   // The save button falls idle once the number is stored, so focus goes
   // back to the number it saved.
