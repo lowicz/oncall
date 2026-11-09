@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, timedelta
 
 from sqlalchemy import delete, select
@@ -155,6 +156,35 @@ async def test_draft_override_warns_about_rest_rule_violation(client, db) -> Non
     # A warning without a name and a date says only that something is wrong.
     assert all(ola.display_name in item["message"] for item in warnings), warnings
     assert all("Dni: " in item["message"] for item in warnings), warnings
+
+
+async def test_a_correction_reports_every_rule_the_draft_breaks(client, db) -> None:
+    """The draft answered after a correction is the draft as a read gives it:
+    the rules broken by people the correction did not touch stay counted."""
+    schedule, ola, monday = await _draft_setup(client, db)
+    members = {
+        item["display_name"]: item["id"]
+        for item in (
+            await client.get(f"/api/v1/calendar?starts_on={monday}&ends_on={monday}")
+        ).json()["members"]
+    }
+    for assignment in (await db.scalars(select(Assignment))).all():
+        assignment.member_id = uuid.UUID(members[assignment.assignee_name])
+    await db.commit()
+
+    response = await client.post(
+        f"/api/v1/scheduling/{schedule.id}/override",
+        json={
+            "expected_version": schedule.version,
+            "service_date": str(monday + timedelta(days=6)),
+            "assignments": [{"role": "primary", "replacement_member_id": str(ola.id)}],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    read = await client.get(f"/api/v1/scheduling/{schedule.id}")
+    assert response.json()["warnings"] == read.json()["warnings"]
+    assert any("Marek" in item["message"] for item in response.json()["warnings"])
 
 
 async def test_a_correction_to_the_draft_does_not_mark_it_stale(client, db) -> None:

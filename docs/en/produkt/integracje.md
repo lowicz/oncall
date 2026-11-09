@@ -299,7 +299,7 @@ Both write nothing and return an object with `violations`, the list of violation
 The write endpoints check the rules again, so a deliberate violation still requires `acknowledge_rule_violations: true`.
 `POST /api/v1/calendar/override/batch/impact` takes one batch (`schedule_id`, `assignments`) and writes nothing either: in `members` it returns the points balance before and after the change of everyone the batch gives a slot to or takes one from, the people taking slots first.
 A `POST /api/v1/calendar/override/batch` with `kind: multi_role` saves the roles of one day as one correction: a reason is needed only for a past day, PRIMARY and SECONDARY never change in it together, and it can fill an empty slot of the schedule.
-A draft correction, `POST /api/v1/scheduling/{schedule_id}/override`, takes `service_date` and a list of `assignments` (`role`, `replacement_member_id`, each role once): one person takes one or more roles of the day, or two people trade places, in one draft version and one audit entry; whether someone holds both on-call roles is judged on the state after every change.
+A draft correction, `POST /api/v1/scheduling/{schedule_id}/override`, takes `service_date` and a list of `assignments` (`role`, `replacement_member_id`, each role once): one person takes one or more roles of the day, or two people trade places, in one draft version and one audit entry; whether someone holds both on-call roles is judged on the state after every change. The response is the draft as `GET /api/v1/scheduling/{schedule_id}` reads it, with `warnings` for everyone, not only for the people in the correction.
 Every request that changes or checks a decision requires a signed-in session, the appropriate role, and a CSRF token.
 
 ## Audit

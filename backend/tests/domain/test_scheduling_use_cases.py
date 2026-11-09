@@ -77,10 +77,10 @@ def _holders(schedule, day, holders, *, version=None) -> DraftCorrection:
     )
 
 
-async def test_a_correction_hands_the_slot_over_and_reports_the_rules_it_breaks(world) -> None:
+async def test_a_correction_hands_the_slot_over(world) -> None:
     schedule = world.schedules.put(complete_schedule(MONDAY, _rotation(world)))
 
-    warnings = await correct_draft(
+    await correct_draft(
         _correction(schedule, MONDAY, AssignmentRole.primary, world.dawid.id), world.drafts
     )
 
@@ -88,7 +88,6 @@ async def test_a_correction_hands_the_slot_over_and_reports_the_rules_it_breaks(
     held = next(item for item in corrected.assignments if item.slot == (MONDAY, "primary"))
     assert (held.assignee_name, held.member_id, held.is_override) == ("Dawid", world.dawid.id, True)
     assert corrected.version == schedule.version + 1
-    assert warnings == []
     assert world.journal.events == [
         ("draft_corrected", {"args": (schedule.id, [((MONDAY, "primary"), "Anna", "Dawid")])})
     ]
@@ -195,7 +194,7 @@ async def test_two_people_trade_places_in_one_correction(world) -> None:
         AssignmentRole.late_shift,
     )
 
-    warnings = await correct_draft(
+    await correct_draft(
         _holders(
             schedule,
             MONDAY,
@@ -212,8 +211,6 @@ async def test_two_people_trade_places_in_one_correction(world) -> None:
     }
     assert held == {primary: "Bartek", secondary: "Anna", late: "Anna"}
     assert corrected.version == schedule.version + 1
-    # The rest rules are read for both people who took a role.
-    assert {item.split(":")[0] for item in warnings} == {"Anna", "Bartek"}
     assert world.journal.events == [
         (
             "draft_corrected",
