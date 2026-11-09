@@ -83,13 +83,9 @@ async def test_seed_demo_relinks_members_when_the_schedule_exists(
     await seed_demo()
     async with db_factory() as db:
         await db.execute(TeamMember.__table__.update().values(user_id=None))
-        await db.execute(Assignment.__table__.update().values(member_id=None))
         await db.commit()
 
     await seed_demo()  # the schedule already exists: the second run relinks members
-
-    async with db_factory() as db:
-        assert None not in set((await db.scalars(select(Assignment.member_id))).all())
 
     async with db_factory() as db:
         members = (await db.scalars(select(TeamMember))).all()

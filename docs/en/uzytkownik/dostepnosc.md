@@ -108,7 +108,7 @@ too, as `osoba=`):
 
 If “unavailable” lands on that person's duty, the frame under the calendar
 says so by name, for example “Beata Lis has a PRIMARY duty on 9 Mar and the
-entry is “unavailable””. Instead of **Request a swap…** it has an **Show day** button for each such day, which opens that day in the schedule, where
+entry is “unavailable””. Instead of **Request a swap…** it has a **Show day** button for each such day, which opens that day in the schedule, where
 the cover can be changed.
 
 If your own account is not in the rotation, picking a person is mandatory -

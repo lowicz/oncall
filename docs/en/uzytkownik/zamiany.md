@@ -53,7 +53,7 @@ the same place:
 - The **replacement** clicks “Accept” or “Reject”. With approval switched off,
   the sheet announces that acceptance will write the swap into the schedule
   right away, and the confirmation says the same (“Accepted. The swap is
-  written into the schedule.”, with an **Show day** button). With approval
+  written into the schedule.”, with a **Show day** button). With approval
   switched on, the confirmation reads “Accepted. Waiting for the coordinator to
   approve.”.
 - A **coordinator or administrator** clicks “Approve and write into the

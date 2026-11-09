@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import date, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 import oncall.infrastructure.sqlalchemy.model_registry  # noqa: F401  # registers every mapper
 from oncall.auth import hash_password
@@ -82,15 +82,6 @@ async def seed_demo() -> None:
             user_ids = {name: user.id for name, user in zip(names, member_users, strict=True)}
             for member in members:
                 member.user_id = user_ids[member.display_name]
-                # A demo made before its duties carried the person's id.
-                await db.execute(
-                    update(Assignment)
-                    .where(
-                        Assignment.member_id.is_(None),
-                        Assignment.assignee_name == member.display_name,
-                    )
-                    .values(member_id=member.id)
-                )
             await db.commit()
             print("Demo accounts and team-member links synchronized.")
             return
