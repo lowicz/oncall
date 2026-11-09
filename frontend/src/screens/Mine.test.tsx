@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { focusManager } from '@tanstack/react-query'
+import { loadRealStylesheet } from '../test/stylesheet'
 import { renderScreen } from '../test/render'
 import { MineScreen } from './Mine'
 import { api, ApiError } from '../api'
@@ -291,6 +292,21 @@ describe('MineScreen availability calendar', () => {
     const noted = await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: urlop/ })
     expect(noted.querySelector('.avail-day-note')).not.toBeNull()
     expect(cell(/pon 21-09-2026/).querySelector('.avail-day-note')).toBeNull()
+  })
+
+  it('takes a press on the letter or the note icon as one on the day', async () => {
+    // The range preview drops both, so a press on them would fire no click and
+    // the second tap of a range would do nothing.
+    loadRealStylesheet()
+    stub()
+    vi.spyOn(api, 'availability').mockResolvedValue([
+      { id: 'a1', kind: 'unavailable', starts_on: '2026-09-20', ends_on: '2026-09-20', note: 'urlop', created_at: '2026-09-01T10:00:00Z' },
+    ])
+    renderScreen(<MineScreen displayName="Julia Nowak" />)
+
+    const noted = await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: urlop/ })
+    expect([...noted.children].map((child) => getComputedStyle(child).pointerEvents)).toEqual(['none', 'none'])
+    expect(getComputedStyle(noted).pointerEvents).not.toBe('none')
   })
 
   it('names the brush "Zaznaczam jako", keeps the eraser apart and lights it only while it is the brush', async () => {
