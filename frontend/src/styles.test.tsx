@@ -103,6 +103,13 @@ describe('shared interaction styles', () => {
     expect(style('.tab').minHeight).toBe('32px')
   })
 
+  it('sizes the label column of the swap sheet to its longest word, the same in every row', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="roles roles-text"><div className="role-row" /></div>)
+    expect(getComputedStyle(container.querySelector('.roles')!).gridTemplateColumns).toBe('max-content minmax(0, 1fr) auto')
+    expect(getComputedStyle(container.querySelector('.role-row')!).gridTemplateColumns).toBe('subgrid')
+  })
+
   it('reveals the skip link when it receives keyboard focus', () => {
     loadRealStylesheet()
     const { container } = render(<a className="sr-only skip-link" href="#tresc">Przejdź do treści</a>)

@@ -103,6 +103,7 @@ export const swaps: Messages['swaps'] = {
     withdraw: 'Withdraw',
     reject: 'Reject',
     confirmReject: 'Confirm rejection',
+    cancelReject: 'Cancel rejection',
     accept: 'Accept',
     approve: 'Approve and write into the schedule',
   },

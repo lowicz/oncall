@@ -125,6 +125,7 @@ export const swaps = {
     withdraw: 'Wycofaj',
     reject: 'Odrzuć',
     confirmReject: 'Potwierdź odrzucenie',
+    cancelReject: 'Anuluj odrzucenie',
     accept: 'Akceptuj',
     approve: 'Zatwierdź i wpisz do grafiku',
   },

@@ -17,6 +17,8 @@ export const common = {
   fetchFailed: 'Nie udało się pobrać danych. Sprawdź połączenie i spróbuj ponownie.',
   retry: 'Spróbuj ponownie',
   cancel: 'Anuluj',
+  /** Said after a link that opens in a new tab, for a screen reader. */
+  newTab: '(otwiera w nowej karcie)',
   unsavedChanges: {
     title: 'Odrzucić niezapisane zmiany?',
     description: 'Przejście dalej odrzuci wprowadzone zmiany.',

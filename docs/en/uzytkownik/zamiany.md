@@ -62,8 +62,9 @@ the same place:
   been made.
 
 **Rejection** requires a reason, but the field appears only after you click
-“Reject”: “Confirm rejection” takes its place in the same row of buttons and
-stays inactive as long as the reason is empty. Both sides see the reason, it
+“Reject”: the row of buttons then holds only “Confirm rejection”, inactive
+as long as the reason is empty, and “Cancel rejection”, which goes back to
+the decision and clears the field. Both sides see the reason, it
 stays with the request and in the audit. **Withdrawing** your own request needs
 no reason; if you give none, “wycofane przez autora” (withdrawn by the author)
 stays with the request.

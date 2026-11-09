@@ -299,9 +299,22 @@ describe('SwapPanel inbox', () => {
     expect(within(sheet).getByLabelText(/Powód odrzucenia/)).toHaveFocus()
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
 
+    // The footer finishes or drops the rejection, with nothing else beside it.
+    expect(within(sheet).queryByRole('button', { name: 'Akceptuj' })).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Zamknij' })).not.toBeInTheDocument()
+    // A change of mind goes back to the decision, the reason dropped with it.
+    fireEvent.change(within(sheet).getByLabelText(/Powód odrzucenia/), { target: { value: 'Pomyłka' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Anuluj odrzucenie' }))
+    expect(within(sheet).queryByLabelText(/Powód odrzucenia/)).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Potwierdź odrzucenie' })).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Akceptuj' })).toBeInTheDocument()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Odrzuć' }))
+    expect(within(sheet).getByLabelText(/Powód odrzucenia/)).toHaveValue('')
+
     fireEvent.change(within(sheet).getByLabelText(/Powód odrzucenia/), { target: { value: 'Jestem na urlopie' } })
-    expect(confirm).toBeEnabled()
-    fireEvent.click(confirm)
+    const confirmAgain = within(sheet).getByRole('button', { name: 'Potwierdź odrzucenie' })
+    expect(confirmAgain).toBeEnabled()
+    fireEvent.click(confirmAgain)
     await waitFor(() => expect(reject).toHaveBeenCalled())
     expect(reject.mock.calls[0][0]).toEqual({ id: '1', reason: 'Jestem na urlopie' })
     // The sheet closes; the toast that follows is a dialog of its own.
@@ -820,7 +833,7 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
       'Piotr Zieliński: Więcej niż 3 dyżury on-call w okresie 7 dni. (14-09-2099, 15-09-2099, 18-09-2099, 19-09-2099)',
     )
     expect(within(box).getByText('Naruszenie zobaczą Piotr i koordynator, który zatwierdza zamianę. Trafi do dziennika audytu.')).toBeInTheDocument()
-    expect(within(box).getByRole('link', { name: 'Które reguły można potwierdzić?' })).toHaveAttribute('href', '/docs/uzytkownik/zamiany.html#zamiana-łamiąca-reguły')
+    expect(within(box).getByRole('link', { name: 'Które reguły można potwierdzić? (otwiera w nowej karcie)' })).toHaveAttribute('href', '/docs/uzytkownik/zamiany.html#zamiana-łamiąca-reguły')
     // The tick is the requester's word; a reason is theirs to give or not.
     const reason = screen.getByLabelText(/Powód/)
     expect(reason).not.toBeRequired()
@@ -1032,7 +1045,7 @@ describe('SwapPanel stages and sheets', () => {
       'Piotr Zieliński (Ty): Więcej niż 3 dyżury on-call w okresie 7 dni. (14-09-2026, 15-09-2026)',
     )
     expect(within(box).getByText(/Twoja akceptacja potwierdza to naruszenie i trafia do dziennika audytu\./)).toBeInTheDocument()
-    expect(within(box).getByRole('link', { name: 'Które reguły można potwierdzić?' })).toHaveAttribute('href', '/docs/uzytkownik/zamiany.html#zamiana-łamiąca-reguły')
+    expect(within(box).getByRole('link', { name: 'Które reguły można potwierdzić? (otwiera w nowej karcie)' })).toHaveAttribute('href', '/docs/uzytkownik/zamiany.html#zamiana-łamiąca-reguły')
 
     expect(within(sheet).getByRole('button', { name: 'Akceptuj' })).toBeDisabled()
     fireEvent.click(acknowledgement(sheet))

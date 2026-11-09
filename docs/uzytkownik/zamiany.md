@@ -56,8 +56,9 @@ podejmujesz w tym samym miejscu:
 - **Autor** może „Wycofać” własną prośbę, dopóki nie zapadła decyzja.
 
 **Odrzucenie** wymaga powodu, ale pole pojawia się dopiero po kliknięciu
-„Odrzuć”: w tym samym wierszu przycisków zostaje „Potwierdź odrzucenie”,
-nieaktywny, dopóki powód jest pusty. Powód widzą obie strony, zostaje przy
+„Odrzuć”: wiersz przycisków ma wtedy tylko „Potwierdź odrzucenie”,
+nieaktywny, dopóki powód jest pusty, i „Anuluj odrzucenie”, które wraca do
+decyzji i czyści pole. Powód widzą obie strony, zostaje przy
 wniosku i w audycie. **Wycofanie** własnej prośby nie wymaga powodu; jeśli go
 nie podasz, przy wniosku zostaje „wycofane przez autora”.
 
