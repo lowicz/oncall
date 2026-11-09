@@ -446,7 +446,7 @@ async def test_reversing_a_partly_sent_override_tells_only_who_already_heard(
     assert "Anna Kowalska (poprzednio: Marek Nowak)" in reversal[0].body
 
 
-async def test_a_correction_of_a_past_day_mails_nobody(db) -> None:
+async def test_a_correction_of_a_past_day_mails_nobody(db, frozen_clock) -> None:
     today, _members = await _seed_team(db)
     yesterday = today - timedelta(days=1)
 
