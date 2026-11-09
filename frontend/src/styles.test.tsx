@@ -22,11 +22,13 @@ describe('shared interaction styles', () => {
 
   it('keeps a screen\'s main action above the bottom tabs and the inbox on one row on a phone', () => {
     loadRealMediaQuery('(max-width: 900px)')
-    const { container } = render(<><button className="thumb-action" /><div className="seg seg-wrap seg-inbox" /></>)
+    const { container } = render(<><button className="thumb-action" /><div className="seg seg-wrap seg-inbox"><button /></div></>)
     const action = getComputedStyle(container.querySelector('.thumb-action')!)
     expect([action.position, action.bottom]).toEqual(['fixed', 'calc(80px + env(safe-area-inset-bottom))'])
     const seg = getComputedStyle(container.querySelector('.seg-inbox')!)
     expect([seg.display, seg.gridAutoFlow]).toEqual(['grid', 'column'])
+    // A label too long for its share of the row wraps inside its button.
+    expect(getComputedStyle(container.querySelector('.seg-inbox button')!).whiteSpace).toBe('normal')
   })
 
   it('lets any other wrapping choice flow onto further rows on a phone', () => {
