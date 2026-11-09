@@ -100,5 +100,5 @@ export function useGridNavigation(rows: number, cols: number, { isCellDisabled =
     onFocus: () => setActive({ row, col }),
   })
 
-  return { cellProps, focusCell, active: { row: safeRow, col: safeCol } }
+  return { cellProps, focusCell }
 }

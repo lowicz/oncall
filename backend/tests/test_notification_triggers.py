@@ -1,5 +1,6 @@
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import select
@@ -443,6 +444,55 @@ async def test_reversing_a_partly_sent_override_tells_only_who_already_heard(
     assert cancelled == {"marek@example.com"}
     assert [row.recipient for row in reversal] == ["anna@example.com"]
     assert "Anna Kowalska (poprzednio: Marek Nowak)" in reversal[0].body
+
+
+async def test_a_correction_of_a_past_day_mails_nobody(db, frozen_clock) -> None:
+    today, _members = await _seed_team(db)
+    yesterday = today - timedelta(days=1)
+
+    await notify_assignment_overridden(
+        db, changes=[(yesterday, AssignmentRole.primary, "Anna Kowalska", "Marek Nowak")]
+    )
+    await notify_assignments_overridden_in_batch(
+        db,
+        changes=[
+            (yesterday, AssignmentRole.secondary, "Marek Nowak", "Ola Wiśniewska"),
+            (today, AssignmentRole.primary, "Anna Kowalska", "Ola Wiśniewska"),
+        ],
+        reason="Porządkowanie historii",
+    )
+
+    rows = await _outbox_rows(db)
+    assert sorted(row.recipient for row in rows) == ["anna@example.com", "ola@example.com"]
+    assert all(yesterday.isoformat() not in str(row.context) for row in rows)
+
+
+@pytest.mark.parametrize(
+    ("hour", "minute", "days_back", "role", "mailed"),
+    [
+        # A working day's night on-call runs until 09:00 the next morning.
+        (1, 30, 1, AssignmentRole.primary, True),
+        (9, 0, 1, AssignmentRole.primary, False),
+        # 11-19 is over at 19:00 the same day.
+        (18, 59, 0, AssignmentRole.late_shift, True),
+        (19, 0, 0, AssignmentRole.late_shift, False),
+    ],
+)
+async def test_a_correction_mails_until_the_duty_s_cover_ends(
+    db, frozen_clock, hour, minute, days_back, role, mailed
+) -> None:
+    frozen_clock.instant = datetime(
+        2026, 9, 15, hour, minute, tzinfo=ZoneInfo("Europe/Warsaw")
+    ).astimezone(UTC)
+    today, _members = await _seed_team(db)
+
+    await notify_assignment_overridden(
+        db, changes=[(today - timedelta(days=days_back), role, "Anna Kowalska", "Marek Nowak")]
+    )
+
+    rows = await _outbox_rows(db)
+    expected = ["anna@example.com", "marek@example.com"] if mailed else []
+    assert sorted(row.recipient for row in rows) == expected
 
 
 async def test_reversing_a_partly_sent_batch_tells_only_who_already_heard(db, frozen_clock) -> None:

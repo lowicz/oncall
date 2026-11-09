@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { messages } from '../i18n'
-import type { ToastApi } from '../ui/Toast'
+import type { ToastApi } from '../ui/useToast'
 import { undoable } from './undo'
 
 function toastDouble() {

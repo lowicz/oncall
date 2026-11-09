@@ -185,7 +185,8 @@ proces roboczy loguje się do WCO, odczytuje numer i zapisuje, co by ustawił,
 niczego w WCO nie zmieniając. Robi to raz na dzień dyżuru, o godzinie
 przypomnienia (`ONCALL_HANDOVER_REMINDER_HOUR`, domyślnie 9:00), i ponownie
 po korekcie grafiku albo zmianie ustawień. Alarmów e-mail w tym trybie nie
-ma.
+ma; nieudana próba od razu zmienia znacznik numeru u pary dyżurnej na „nie
+przełączono (próba)”.
 
 Wynik czytasz w dwóch miejscach:
 

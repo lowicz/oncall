@@ -108,6 +108,7 @@ const ACKNOWLEDGE = 'Rozumiem i świadomie łamię te reguły'
 
 beforeEach(() => {
   vi.spyOn(api, 'batchOverrideImpact').mockResolvedValue(correctionImpact('Anna Kowalska', 'Marek Nowak'))
+  vi.spyOn(api, 'swapPolicy').mockResolvedValue({ coordinator_approval_required: true, late_shift_anchor: 'secondary' })
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -603,7 +604,9 @@ describe('CalendarMatrix event deletion', () => {
     await waitFor(() => expect(create).toHaveBeenCalledWith({ starts_on: '2026-09-01', ends_on: '2026-09-25', title: 'Audyt', color: 'red' }))
     await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
     // The inspector still open on that day shows the event again.
-    expect(await within(screen.getByRole('dialog')).findByText('Audyt', { selector: 'span' })).toBeInTheDocument()
+    expect(await within(screen.getByRole('dialog', { name: /\d{2}-\d{2}-\d{4}/ })).findByText('Audyt', { selector: 'span' })).toBeInTheDocument()
+    // The Undo itself is confirmed.
+    expect(await screen.findByText('Cofnięto')).toBeInTheDocument()
   })
 
   it('leaves a restored event out of an inspector open on a day outside its range', async () => {
@@ -620,7 +623,7 @@ describe('CalendarMatrix event deletion', () => {
 
     await waitFor(() => expect(create).toHaveBeenCalled())
     await waitFor(() => expect(api.calendar).toHaveBeenCalledTimes(3))
-    expect(within(screen.getByRole('dialog')).queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog', { name: /\d{2}-\d{2}-\d{4}/ })).queryByText('Audyt', { selector: 'span' })).not.toBeInTheDocument()
   })
 })
 
@@ -679,7 +682,10 @@ describe('CalendarMatrix risk chips', () => {
 
     const gaps = await screen.findByRole('button', { name: /4 dni bez pełnej obsady/ })
     expect(gaps).toHaveTextContent('4 dni bez pełnej obsady · 08-09, 09-09, 10-09…')
-    expect(within(riskRow()).getByText('2 dni poza opublikowanym grafikiem')).toHaveAttribute('title', 'Obsadzenie wymaga wygenerowania i opublikowania nowego grafiku')
+    // What it means is read once, as the chip's text; no title says it a second time.
+    const unpublished = within(riskRow()).getByText('2 dni poza opublikowanym grafikiem')
+    expect(unpublished).toHaveTextContent('2 dni poza opublikowanym grafikiem Obsadzenie wymaga wygenerowania i opublikowania nowego grafiku')
+    expect(unpublished).not.toHaveAttribute('title')
     expect(within(riskRow()).queryByText('Pełna obsada w całym zakresie')).not.toBeInTheDocument()
 
     fireEvent.click(gaps)
@@ -710,7 +716,7 @@ describe('CalendarMatrix risk chips', () => {
   it('tells a member that unstaffed days past the publication wait for the coordinator', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(week({ assignments: covered(DATES.slice(0, 6)) }, { '2026-09-13': { published: false } }))
     renderScreen(<CalendarMatrix role="member" displayName="Anna Kowalska" range={WEEK_OF_TODAY} />)
-    expect(await screen.findByText('1 dzień poza opublikowanym grafikiem')).toHaveAttribute('title', 'Koordynator jeszcze nie opublikował tego okresu')
+    expect(await screen.findByText('1 dzień poza opublikowanym grafikiem')).toHaveTextContent('Koordynator jeszcze nie opublikował tego okresu')
     expect(screen.queryByRole('button', { name: /bez pełnej obsady/ })).not.toBeInTheDocument()
   })
 
@@ -849,7 +855,10 @@ describe('CalendarMatrix grid', () => {
     expect(within(grid).getByText('Z dyżurem w zakresie')).toBeInTheDocument()
     expect(within(grid).getByText('Pozostali')).toBeInTheDocument()
     expect(within(grid).getByText('poza rotacją')).toBeInTheDocument()
-    expect(within(grid).getByRole('button', { name: 'Marek Nowak, pon 28-09-2026, SECONDARY, 11–19 zamiana' })).toHaveClass('cell')
+    // Two marks read as one visible label, which the name carries before the roles in full.
+    const twoRoles = within(grid).getByRole('button', { name: 'Marek Nowak, pon 28-09-2026, S 11–19 (SECONDARY, 11–19 zamiana)' })
+    expect(twoRoles).toHaveClass('cell')
+    expect(twoRoles).toHaveTextContent('S 11–19')
     expect(within(grid).getByRole('button', { name: /^Anna Kowalska, czw 01-10-2026/ })).toHaveClass('cell-ev')
   })
 
@@ -927,6 +936,22 @@ describe('CalendarMatrix day inspector', () => {
     fireEvent.click(within(dialog).getByRole('link', { name: 'Otwórz generator z tym zakresem' }))
     expect(screen.getByTestId('path')).toHaveTextContent('/generator?od=2026-09-12&do=2026-10-11')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('calls a past day outside the publication history, with nothing to generate for it', async () => {
+    // Monday comes from the history import; Tuesday has passed with nobody on it.
+    vi.spyOn(api, 'calendar').mockResolvedValue(week({ assignments: covered(['2026-09-07', '2026-09-10']) }, {
+      '2026-09-07': { published: false },
+      '2026-09-08': { published: false },
+    }))
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+
+    const imported = await open(/^Anna Kowalska, pon 07-09-2026/)
+    expect(within(imported).getByText('Dzień z importu historii, poza opublikowanym grafikiem.')).toBeInTheDocument()
+    expect(within(imported).queryByText(/Żeby go obsadzić/)).not.toBeInTheDocument()
+    expect(within(imported).queryByRole('link', { name: 'Otwórz generator z tym zakresem' })).not.toBeInTheDocument()
+    const empty = await open(/^Anna Kowalska, wt 08-09-2026/)
+    expect(within(empty).getByText('Ten dzień minął poza opublikowanym grafikiem.')).toBeInTheDocument()
   })
 
   it('tells a member an unpublished day is still to come', async () => {
@@ -1020,6 +1045,7 @@ describe('CalendarMatrix staffing form', () => {
     fireEvent.click((await screen.findAllByRole('button', { name: cell }))[0])
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: roleRow }))
+    await within(dialog).findByRole('region', { name: 'Zmiana obsady' })
     return dialog
   }
 
@@ -1029,7 +1055,7 @@ describe('CalendarMatrix staffing form', () => {
     fireEvent.click((await screen.findAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ }))[0])
     const dialog = await screen.findByRole('dialog')
     const staffed = within(dialog).getByRole('button', { name: 'SECONDARY: Marek Nowak. Zmień osobę' })
-    const change = within(staffed).getByText('Zmień…')
+    const change = within(staffed).getByText('Zmień osobę…')
     expect(change).toHaveClass('btn', 'btn-sm', 'btn-ghost')
     expect(change).toHaveAttribute('aria-hidden', 'true')
     const gap = within(dialog).getByRole('button', { name: '11–19: brak obsady. Obsadź' })
@@ -1088,7 +1114,8 @@ describe('CalendarMatrix staffing form', () => {
 
     // The rules, the balance and the reason all stay in the panel: no dialog.
     await within(dialog).findByText('Bez naruszeń reguł twardych')
-    const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty dnia, który minął (minimum 10 znaków)' })
+    const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty dyżuru, który już się skończył (minimum 10 znaków)' })
+    expect(reason).toHaveAccessibleDescription('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')
     expectBlocked(saveButton())
     fireEvent.change(reason, { target: { value: 'za mało' } })
     expectBlocked(saveButton())
@@ -1109,9 +1136,9 @@ describe('CalendarMatrix staffing form', () => {
       assignments: [line('2026-09-08', 'primary', 'm3')],
       reason: 'Zamiana ustalona telefonicznie', acknowledge_rule_violations: false,
     })
-    // The toast says what changed and who is told; Undo takes it back.
+    // The toast says what changed and that a past day tells nobody; Undo takes it back.
     expect(await screen.findByText('Zmieniono obsadę 8 wrz · PRIMARY: Anna Kowalska → Ola Wiśniewska')).toBeInTheDocument()
-    expect(screen.getByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
+    expect(screen.getByText('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: /^wt 08-09-2026/ })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Cofnij' }))
     await waitFor(() => expect(save).toHaveBeenCalledTimes(3))
@@ -1120,6 +1147,22 @@ describe('CalendarMatrix staffing form', () => {
       assignments: [line('2026-09-08', 'primary', 'm1')],
       reason: 'Zamiana ustalona telefonicznie', acknowledge_rule_violations: true,
     })
+  })
+
+  it('corrects a night duty still in force like any other until 09:00 the next morning', async () => {
+    vi.setSystemTime(new Date('2026-09-10T08:30:00+02:00'))
+    vi.spyOn(api, 'calendar').mockResolvedValue(week())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openForm(/^Anna Kowalska, śr 09-09-2026/, 'PRIMARY: Anna Kowalska. Zmień osobę')
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba na PRIMARY' }), { target: { value: 'm3' } })
+
+    await waitFor(() => expectReady(saveButton()))
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ reason: undefined })))
+    expect(await screen.findByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
   })
 
   it('names only the person on duty once an empty slot is filled, and opens the day again', async () => {
@@ -1141,6 +1184,51 @@ describe('CalendarMatrix staffing form', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pokaż dzień' }))
     const reopened = await screen.findByRole('dialog', { name: /^pt 11-09-2026/ })
     expect(within(reopened).getByRole('button', { name: '11–19: brak obsady. Obsadź' })).toHaveClass('role-row-sel')
+  })
+
+  it('tells nobody when an empty slot of a past day is filled', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    const dialog = await openForm(/^Anna Kowalska, wt 08-09-2026/, '11–19: brak obsady. Obsadź')
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Osoba na 11–19' }), { target: { value: 'm3' } })
+    fireEvent.change(await within(dialog).findByRole('textbox', { name: /^Powód korekty dyżuru, który już się skończył/ }), { target: { value: 'Uzupełnienie historii' } })
+    const confirm = within(dialog).getByRole('button', { name: /^Zapisz zmianę obsady$/ })
+    await waitFor(() => expectReady(confirm))
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(save).toHaveBeenCalled())
+    expect(await screen.findByText('Obsadzono 11–19 8 wrz: Ola Wiśniewska')).toBeInTheDocument()
+    expect(screen.getByText('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')).toBeInTheDocument()
+  })
+
+  it('waits for the swap policy before offering the roles', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week())
+    let answer: (value: Awaited<ReturnType<typeof api.swapPolicy>>) => void = () => {}
+    vi.spyOn(api, 'swapPolicy').mockReturnValueOnce(new Promise((resolve) => { answer = resolve }))
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ }))[0])
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('button', { name: /^Zamień miejscami/ })).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'PRIMARY: Anna Kowalska. Zmień osobę' }))
+    // Until the policy says where 11–19 belongs, no choice is shown that could change by itself.
+    expect(within(dialog).getByRole('status', { name: 'Wczytywanie…' })).toBeInTheDocument()
+    expect(within(dialog).queryByRole('group', { name: 'Role do zmiany' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: /^Zapisz zmianę/ })).not.toBeInTheDocument()
+    answer({ coordinator_approval_required: true, late_shift_anchor: 'secondary' })
+    expect(await within(dialog).findByRole('group', { name: 'Role do zmiany' })).toBeInTheDocument()
+  })
+
+  it('says so when the swap policy cannot be read', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(week())
+    vi.spyOn(api, 'swapPolicy').mockRejectedValue(new ApiError('Polityka niedostępna', 503))
+    renderScreen(<CalendarMatrix role="coordinator" displayName="Koordynator" range={WEEK_OF_TODAY} />)
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Anna Kowalska, pt 11-09-2026/ }))[0])
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'PRIMARY: Anna Kowalska. Zmień osobę' }))
+    expect(await within(dialog).findByText('Polityka niedostępna')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('group', { name: 'Role do zmiany' })).not.toBeInTheDocument()
   })
 
   it('lets the change go ahead when the rule check itself fails', async () => {
@@ -1669,6 +1757,40 @@ describe('CalendarMatrix roles to change (P7)', () => {
     expect(within(form).getByRole('combobox', { name: 'Osoba na PRIMARY' })).toBeInTheDocument()
   })
 
+  it('asks a reason for an 11–19 already over, but keeps the night duty\'s e-mails', async () => {
+    vi.setSystemTime(new Date('2026-09-11T20:00:00+02:00'))
+    policy('secondary')
+    vi.spyOn(api, 'calendar').mockResolvedValue(friday('m2'))
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    render()
+    const form = await openRow(/^SECONDARY: Marek Nowak/)
+    fireEvent.change(within(form).getByRole('combobox', { name: 'Osoba na SECONDARY i 11–19' }), { target: { value: 'm3' } })
+
+    const reason = await within(form).findByRole('textbox', { name: 'Powód korekty dyżuru, który już się skończył (minimum 10 znaków)' })
+    expect(reason).not.toHaveAccessibleDescription()
+    fireEvent.click(check(form, /^11–19/))
+    expect(within(form).queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('counts in the toast only the people whose duty still mails', async () => {
+    vi.setSystemTime(new Date('2026-09-11T20:00:00+02:00'))
+    policy('secondary')
+    vi.spyOn(api, 'calendar').mockResolvedValue(friday('m1'))
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    render()
+    const form = await openRow(/^SECONDARY: Marek Nowak/)
+    fireEvent.click(check(form, /^11–19/))
+    fireEvent.change(within(form).getByRole('combobox', { name: 'Osoba na SECONDARY i 11–19' }), { target: { value: 'm3' } })
+    fireEvent.change(await within(form).findByRole('textbox'), { target: { value: 'Zmiana po dniu pracy' } })
+    const save = screen.getByRole('button', { name: 'Zmień obsadę (2 role)' })
+    await waitFor(() => expectReady(save))
+    fireEvent.click(save)
+
+    // Anna's 11–19 ended at 19:00: only Marek and Ola, of the night's SECONDARY, hear of it.
+    expect(await screen.findByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
+  })
+
   it('names three people in the toast of a change Undo cannot take back', async () => {
     policy('secondary')
     vi.spyOn(api, 'calendar').mockResolvedValue(friday('m1', {
@@ -1720,20 +1842,23 @@ describe('CalendarMatrix role swap (P6)', () => {
     const open = trigger(dialog)
     expect(open).toHaveTextContent('Zamień miejscami…')
     expect(open).toHaveAttribute('aria-expanded', 'false')
-    expect(open).toHaveAttribute('aria-controls', 'role-swap-frame')
+    expect(open).not.toHaveAttribute('aria-controls')
     fireEvent.click(open)
     expect(open).toHaveAttribute('aria-expanded', 'true')
+    expect(open).toHaveAttribute('aria-controls', 'role-swap-frame')
 
     const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
     expect(frame).toHaveAttribute('id', 'role-swap-frame')
     expect(frame).toHaveTextContent('PAnna Kowalska → Marek Nowak')
     expect(frame).toHaveTextContent('SMarek Nowak → Anna Kowalska')
     expect(frame).toHaveTextContent('11–19Marek Nowak → Anna Kowalska')
-    expect(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ })).toBeChecked()
-    expect(frame).toHaveTextContent('Polityka wiąże 11–19 z SECONDARY, a Anna Kowalska ma do niej uprawnienia.')
+    // One sentence under the box describes it; the name stays the label alone.
+    const carry = within(frame).getByRole('checkbox', { name: 'razem z SECONDARY' })
+    expect(carry).toBeChecked()
+    expect(carry).toHaveAccessibleDescription('Odznaczenie zostawia 11–19 bez zmian i wymaga potwierdzenia reguły powiązania z SECONDARY.')
     expect(within(frame).queryByRole('textbox')).not.toBeInTheDocument()
     // The rows the swap moves are lit while the frame is open.
-    for (const name of ['PRIMARY: Anna Kowalska. Zmień osobę', 'SECONDARY: Marek Nowak. Zmień osobę', '11–19: Marek Nowak. Zmień osobę']) {
+    for (const name of ['PRIMARY: Anna Kowalska. Zmień osobę', 'SECONDARY: Marek Nowak. Zmień osobę', '11–19: Marek Nowak. Zmień osobę. powiązana z SECONDARY']) {
       expect(within(dialog).getByRole('button', { name })).toHaveClass('role-row-sel')
     }
 
@@ -1809,7 +1934,7 @@ describe('CalendarMatrix role swap (P6)', () => {
 
     fireEvent.click(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ }))
     expect(frame).toHaveTextContent('11–19Marek Nowak (bez zmian)')
-    expect(within(dialog).getByRole('button', { name: '11–19: Marek Nowak. Zmień osobę' })).not.toHaveClass('role-row-sel')
+    expect(within(dialog).getByRole('button', { name: '11–19: Marek Nowak. Zmień osobę. powiązana z SECONDARY' })).not.toHaveClass('role-row-sel')
     expect(await within(frame).findByText(/11–19 bez SECONDARY/)).toBeInTheDocument()
     expect(check).toHaveBeenLastCalledWith({ batches: [{ schedule_id: 's1', assignments: swapLines(false) }] })
     await waitFor(() => expect(impact).toHaveBeenLastCalledWith('2026-09-10', 'primary', 'm2', expect.objectContaining({ scope: 'single', returnScope: 'single' })))
@@ -1884,7 +2009,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     expectReady(swapButton(dialog))
   })
 
-  it('says in the frame who may not take the other role and holds the swap without checking it', async () => {
+  it('says on the trigger who may not take the other role and opens no frame for the swap', async () => {
     const members = [
       { id: 'm1', display_name: 'Anna Kowalska' },
       { id: 'm2', display_name: 'Marek Nowak', eligibility: [{ role: 'secondary' as const, starts_on: '2026-01-01', ends_on: null }] },
@@ -1895,16 +2020,16 @@ describe('CalendarMatrix role swap (P6)', () => {
     const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
     renderScreen(matrix())
     const dialog = await openDay(THURSDAY)
-    fireEvent.click(trigger(dialog))
-    const frame = within(dialog).getByRole('region', { name: 'Zamiana miejscami' })
+    const refused = trigger(dialog)
 
-    expect(within(frame).getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
-      'Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.',
-      'Anna Kowalska ma tego dnia wpis niedostępności, więc nie przejmie SECONDARY i tej zamiany nie da się zapisać.',
-    ])
-    expect(within(frame).queryByText(/reguł twardych/)).not.toBeInTheDocument()
-    expectBlocked(swapButton(dialog))
-    fireEvent.click(swapButton(dialog))
+    expect(refused).toHaveAttribute('aria-disabled', 'true')
+    expect(refused).toHaveAccessibleDescription(
+      'Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zrobić. '
+      + 'Anna Kowalska ma tego dnia wpis niedostępności, więc nie przejmie SECONDARY i tej zamiany nie da się zrobić.',
+    )
+    fireEvent.click(refused)
+    expect(refused).toHaveAttribute('aria-expanded', 'false')
+    expect(within(dialog).queryByRole('region', { name: 'Zamiana miejscami' })).not.toBeInTheDocument()
     expect(save).not.toHaveBeenCalled()
     expect(check).not.toHaveBeenCalled()
   })
@@ -1922,6 +2047,7 @@ describe('CalendarMatrix role swap (P6)', () => {
     await within(dialog).findByText('Bez naruszeń reguł twardych')
 
     const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty (minimum 10 znaków)' })
+    expect(reason).toHaveAccessibleDescription('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')
     expectBlocked(swapButton(dialog))
     fireEvent.change(reason, { target: { value: '  Zamiana po fakcie ' } })
     expectReady(swapButton(dialog))
@@ -1932,6 +2058,33 @@ describe('CalendarMatrix role swap (P6)', () => {
     fireEvent.click(swapButton(dialog))
     await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
     expect(save.mock.calls[1][0]).toEqual(expect.objectContaining({ reason: 'Zamiana po fakcie' }))
+    // A duty whose cover has ended is tidied up, not announced.
+    expect(await screen.findByText('Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.')).toBeInTheDocument()
+  })
+
+  it('asks for a reason when the swap carries an 11–19 already over, and mails the night duty', async () => {
+    vi.setSystemTime(new Date('2026-09-10T20:00:00+02:00'))
+    vi.spyOn(api, 'calendar').mockResolvedValue(pairWeek())
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'swapImpact').mockResolvedValue(swapImpact())
+    const save = vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    renderScreen(matrix())
+    const dialog = await openDay(THURSDAY)
+    fireEvent.click(trigger(dialog))
+    await within(dialog).findByText('Bez naruszeń reguł twardych')
+
+    // 11–19 ended at 19:00, the night's PRIMARY and SECONDARY have not.
+    const reason = within(dialog).getByRole('textbox', { name: 'Powód korekty (minimum 10 znaków)' })
+    expect(reason).not.toHaveAccessibleDescription()
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'razem z SECONDARY' }))
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'razem z SECONDARY' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Zamiana po zmianie dziennej' } })
+    await waitFor(() => expectReady(swapButton(dialog)))
+    fireEvent.click(swapButton(dialog))
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ reason: 'Zamiana po zmianie dziennej' })))
+    expect(await screen.findByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
   })
 
   it('checks again when the write meets a rule the frame did not show', async () => {

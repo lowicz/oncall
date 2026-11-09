@@ -56,18 +56,21 @@ podejmujesz w tym samym miejscu:
 - **Autor** może „Wycofać” własną prośbę, dopóki nie zapadła decyzja.
 
 **Odrzucenie** wymaga powodu, ale pole pojawia się dopiero po kliknięciu
-„Odrzuć”: w tym samym wierszu przycisków zostaje „Potwierdź odrzucenie”,
-nieaktywny, dopóki powód jest pusty. Powód widzą obie strony, zostaje przy
+„Odrzuć”: wiersz przycisków ma wtedy tylko „Potwierdź odrzucenie”,
+nieaktywny, dopóki powód jest pusty, i „Anuluj odrzucenie”, które wraca do
+decyzji i czyści pole. Powód widzą obie strony, zostaje przy
 wniosku i w audycie. **Wycofanie** własnej prośby nie wymaga powodu; jeśli go
-nie podasz, przy wniosku zostaje „wycofane przez autora”.
+nie podasz, wniosek w skrzynce **Zamknięte** ma dopisek „wycofana przez
+autora” zamiast powodu.
 
 ## Zgłoszenie prośby
 
-Przycisk **Poproś o zamianę…** w nagłówku ekranu otwiera formularz w panelu; ten
+Przycisk **Poproś o zamianę…** w nagłówku ekranu (na telefonie nad dolnym
+paskiem, w zasięgu kciuka) otwiera formularz w panelu; ten
 sam przycisk na ekranie Moje dyżury i w panelu dnia grafiku otwiera go z
 wybranym dyżurem.
-Formularz prowadzi przez cztery kroki: dyżur, zastępca, w zamian (opcjonalnie) i
-wysłanie. Po wybraniu zastępcy pasek przechodzi od razu do wysłania, bo
+Formularz prowadzi przez cztery kroki: dyżur, zastępca, w zamian i wysłanie;
+krok „w zamian” jest opcjonalny. Po wybraniu zastępcy pasek przechodzi od razu do wysłania, bo
 „Nic, tylko oddaję dyżur” jest już wybrane.
 Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświeżenie wymaga decyzji, czy odrzucić wprowadzone dane.
 
@@ -118,7 +121,8 @@ Po rozpoczęciu wniosku zamknięcie panelu, przejście na inny ekran albo odświ
    opublikowanego grafiku; przy regule twardej - innej osoby albo innego
    dyżuru w zamian. Ekran potwierdza wysłanie komunikatem „Wysłano do:
    …” z przyciskiem **Cofnij** i przechodzi do skrzynki **Wysłane**. „Cofnij” w
-   ciągu 10 sekund wycofuje prośbę z powodem „cofnięte zaraz po wysłaniu”.
+   ciągu 10 sekund wycofuje prośbę; w skrzynce **Zamknięte** ma ona dopisek
+   „cofnięta zaraz po wysłaniu”.
    Wiadomość do zastępcy czeka na koniec tego czasu, więc o prośbie
    wycofanej w porę zastępca nie dostaje żadnej wiadomości.
 

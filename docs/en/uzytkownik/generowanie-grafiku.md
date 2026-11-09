@@ -87,12 +87,16 @@ Above the matrix there is **one decision panel**:
   with the role and the day; with an incomplete solver solution, a hint to
   click a cell with a gap and enter a person; under it the points spread
   before and after the draft,
-- **one main action**: **Fix *N* problems** opens the first clashing cell
-  (then **Publish…**), on a clean draft **Publish…**, and on a proposal
-  **Publish…** next to **Back to draft** (a proposal with a duty on an
-  “Unavailable” day has only **Back to draft**). Next to **Publish…** the **⋯**
-  menu (**Other actions**) has **Submit for approval** for teams where a second person
-  checks the draft.
+- **one main action**: on a draft with hard problems **Fix *N* problems**
+  opens the cell of the first one (a duty on an “Unavailable” day or a
+  broken rule), and a note under the button says what comes next: **then:
+  Submit for approval**. When the draft only breaks rules, the **⋯** menu
+  (**Other actions**) has **Submit for approval** and **Publish…** for a
+  coordinator who breaks them knowingly; a duty on an “Unavailable” day
+  leaves neither. A clean draft leads with **Publish…**, and its **⋯** menu
+  has **Submit for approval** for teams where a second person checks the
+  draft. A proposal has **Publish…** next to **Back to draft** (a proposal
+  with a duty on an “Unavailable” day has only **Back to draft**).
 
 On a proposal the panel also has a **What the publication changes** frame:
 how many changes will be carried over, how many pending swaps cancelled, how
@@ -198,14 +202,15 @@ breaks shows in the problems table. **Swap places** saves both roles (and
 
 ## Generator settings
 
-The **Generator settings** button opens a side panel with the **From** /
-**To** range and the solver settings. It is the one place where you change
-them; they are saved **globally for the whole team** and apply from the next
-generation. The footer has one main button: without changes **Generate**
-starts a generation right away with the range from the panel, and with
-unsaved changes **Save and generate** saves them and generates in one click.
-**Save** only saves, and the arrow icon (**Restore saved**) reverts the
-unsaved changes. The **How the weights work** link explains how the weights
+The **Generator settings** button opens a side panel with the solver
+settings. It is the one place where you change them; they are saved
+**globally for the whole team** and apply from the next generation. The panel
+does not edit the range, it only states it (“The generation covers …”): the
+range from the **New draft** form or the range of the open draft. The footer
+has one main button: without changes **Generate** starts a generation right
+away, and with unsaved changes **Save and generate** saves them and generates
+in one click. Only with changes do **Save**, which only saves, and the arrow
+icon (**Restore saved**), which reverts them, appear. The **How the weights work** link explains how the weights
 behave. Under a separate **Swap policy** heading is the switch for
 the coordinator's approval of swaps; it does not affect generation.
 Closing the panel, going to another screen, reloading, or opening another draft with unsaved settings requires a decision whether to discard them.
@@ -255,9 +260,11 @@ Draft ──► For approval ──► Published
    changed since generation, warnings to the audit), and under it what has to
    be settled: the conflicts with changes with a “To settle” counter, the consents and - if
    the range has already started - a box saying the team will see the change
-   immediately. Rest rule violations and a gap before the schedule each have
-   their own frame with a checkbox (“I understand and knowingly break these
-   rules”, “I understand that these days stay unstaffed”). Next to the buttons
+   immediately. Hard rule violations get one frame per broken rule, titled
+   with that rule (“Publication will break a rule: …”), with a checkbox “I
+   understand and knowingly break this rule”; a gap before the schedule has
+   its own frame with the checkbox “I understand that these days stay
+   unstaffed”. Next to the buttons
    the sheet says what is still missing (“To settle: 1 conflict, 2
    consents.”), and **Publish** works only when nothing is.
    **Back to the proposal** closes a sheet opened from a proposal without

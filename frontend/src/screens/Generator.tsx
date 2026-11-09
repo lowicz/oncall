@@ -5,15 +5,17 @@ import { DraftSchedule, LateShiftAnchor, RotationMode, ScheduleRun, ScheduleSumm
 import { locale, messages, useMessages } from '../i18n'
 import { lateShiftAnchorLabels, lensLabels, roleLabels, rotationLabels, scheduleStatusLabels } from '../lib/labels'
 import { preferredScrollBehavior } from '../lib/motion'
+import { groupByKey } from '../lib/calendar'
 import { draftFairnessImpactQuery } from '../lib/fairness'
 import { addDays, formatDate, formatDayShort, formatRange, isIsoDate, warsawDate } from '../lib/dates'
 import { useUnsavedChanges } from '../hooks/useUnsavedChanges'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { DraftFocus, DraftScheduleMatrix } from '../components/DraftScheduleMatrix'
 import { DraftFairnessPanel } from '../components/DraftFairnessPanel'
-import { DraftDecision, PublicationEffects, SOLVER_OK } from '../components/DraftDecision'
+import { DraftDecision, PublicationEffects } from '../components/DraftDecision'
+import { SOLVER_OK, problemCounts } from '../lib/draftProblems'
 import { DraftList } from '../components/DraftList'
-import { DraftProblems, ProblemGrouping, problemCounts } from '../components/DraftProblems'
+import { DraftProblems, ProblemGrouping } from '../components/DraftProblems'
 import { LegendPopover } from '../components/MatrixControls'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { AcknowledgeBox } from '../components/DecisionFrame'
@@ -186,9 +188,10 @@ export function GeneratorPanel() {
   useEffect(() => { setChangeResolutions({}); setPublishAcknowledged(false) }, [result?.id, result?.version])
   // Each kind of violation the publication carries is consented to on its own,
   // and only for the preview it was shown with.
-  const [restAcknowledged, setRestAcknowledged] = useState(false)
+  /** The rules broken by the publication that the coordinator consented to break, one consent per rule. */
+  const [restAcknowledged, setRestAcknowledged] = useState<ReadonlySet<string>>(new Set())
   const [gapAcknowledged, setGapAcknowledged] = useState(false)
-  useEffect(() => { setRestAcknowledged(false); setGapAcknowledged(false) }, [publishPreview.data])
+  useEffect(() => { setRestAcknowledged(new Set()); setGapAcknowledged(false) }, [publishPreview.data])
   const impact = useQuery(draftFairnessImpactQuery(result))
   const [toDelete, setToDelete] = useState<ScheduleSummary | null>(null)
   const invalidateDrafts = () => {
@@ -400,11 +403,13 @@ export function GeneratorPanel() {
   // What the publication sheet still waits for, said next to its button.
   const preview = publishPreview.data
   const unresolvedConflicts = preview?.lost_changes.filter((item) => !changeResolutions[`${item.service_date}:${item.role}`]).length ?? 0
+  const restGroups = groupByKey(preview?.rest_violations ?? [], (violation) => violation.rule)
   const missingConsents = [
     result !== null && result.starts_on <= today && !publishAcknowledged,
-    Boolean(preview?.rest_violations.length) && !restAcknowledged,
+    ...[...restGroups.keys()].map((rule) => !restAcknowledged.has(rule)),
     Boolean(preview?.uncovered_before.length) && !gapAcknowledged,
   ].filter(Boolean).length
+  const publishBlocked = publishPreview.isFetching || publishPreview.isError || !preview || unresolvedConflicts + missingConsents > 0
   const numberField = (key: 'fairness_weight' | 'preference_weight' | 'continuity_weight' | 'solve_seconds', label: string, hint: string, min: number, max: number, step: number) => (
     <Field label={label} id={`policy-${key}`} hint={hint}>
       {({ id, describedBy }) => (
@@ -561,14 +566,14 @@ export function GeneratorPanel() {
       {opened.error && <ErrorState error={opened.error} onRetry={() => opened.refetch()} />}
       {!result && rangeForm}
       {result && (
-        <section className="stack" aria-labelledby="generator-draft-title">
-          <h2 id="generator-draft-title" className="sr-only">{result.name}</h2>
+        // The page heading names the draft; a second, hidden one only repeated it.
+        <section className="stack">
           <DraftDecision
             result={result}
             preview={preview}
             busy={generating || propose.isPending || proposeToPublish.isPending || withdraw.isPending || publish.isPending}
             error={proposeToPublish.variables?.id === result.id ? proposeToPublish.error?.message : undefined}
-            onFix={(first) => setFocus({ service_date: first.service_date, assignee_name: first.assignee_name, role: first.role })}
+            onFix={setFocus}
             onPropose={() => propose.mutate({ id: result.id, expectedVersion: result.version })}
             onPublish={() => result.status === 'draft' ? proposeToPublish.mutate({ id: result.id, expectedVersion: result.version }) : openPublication(result.id)}
             onWithdraw={() => withdraw.mutate({ id: result.id, expectedVersion: result.version })}
@@ -589,7 +594,7 @@ export function GeneratorPanel() {
             ))}
           </ChipRow>
           <SectionHeading
-            title={t.draft.proposedStaffing}
+            title={result.status === 'published' || result.status === 'superseded' ? t.draft.publishedStaffing : t.draft.proposedStaffing}
             meta={`${formatRange(result.starts_on, result.ends_on)}${result.status === 'draft' ? t.draft.clickToCorrect : ''}`}
             controls={<LegendPopover showAvailability trigger={<button type="button" className="sech-link">{t.draft.legend}</button>} />}
           />
@@ -691,11 +696,14 @@ export function GeneratorPanel() {
         meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}
         footer={(
           <>
-            <IconButton icon="undo" label={t.settings.restore} disabled={!settingsDirty} onClick={() => setSettings(settingsOf(policy.data!))} />
+            {/* Restoring and saving alone exist only for a change; untouched, the drawer only generates. */}
+            {settingsDirty && <IconButton icon="undo" label={t.settings.restore} onClick={() => setSettings(settingsOf(policy.data!))} />}
             <span className="sp" />
-            <Button type="submit" form="generator-settings" disabled={savePolicy.isPending || policy.isLoading || !settingsDirty}>
-              {t.settings.save}
-            </Button>
+            {settingsDirty && (
+              <Button type="submit" form="generator-settings" disabled={savePolicy.isPending}>
+                {t.settings.save}
+              </Button>
+            )}
             <Button
               variant="primary"
               icon="wand"
@@ -710,10 +718,12 @@ export function GeneratorPanel() {
         )}
       >
         <form id="generator-settings" className="stack-sm" onSubmit={(event) => { event.preventDefault(); savePolicy.mutate(settings) }} aria-label={t.settings.form}>
-          <div className="frow">
-            <DateField id="settings-from" label={t.form.from} value={result?.starts_on ?? range.starts_on} onChange={(value) => setRange({ ...range, starts_on: value })} disabled={Boolean(result)} />
-            <DateField id="settings-to" label={t.form.to} value={result?.ends_on ?? range.ends_on} onChange={(value) => setRange({ ...range, ends_on: value })} disabled={Boolean(result)} hint={result ? t.settings.rangeOfOpenDraft : t.settings.maxDays} />
-          </div>
+          {/* The range is set on the page, once; the drawer only says which one it generates. */}
+          <p className="small muted">
+            {t.settings.range(formatRange((result ?? range).starts_on, (result ?? range).ends_on))}
+            {' '}
+            {result ? t.settings.rangeOfOpenDraft : t.settings.rangeOfForm}
+          </p>
           <Box tone="muted">
             {t.settings.globalNote}
             {' '}
@@ -721,22 +731,21 @@ export function GeneratorPanel() {
               <div className="small">{t.settings.weightsHelp}</div>
             </Popover>
           </Box>
-          <div className="frow">
-            <Field label={t.settings.rotationMode} id="policy-rotation-mode" hint={t.settings.rotationModeHint}>
-              {({ id, describedBy }) => (
-                <Select id={id} name="rotation_mode" value={settings.rotation_mode} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, rotation_mode: event.target.value as RotationMode })}>
-                  {Object.entries(rotationLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </Select>
-              )}
-            </Field>
-            <Field label={t.settings.lateShiftAnchor} id="policy-late-shift-anchor" hint={t.settings.lateShiftAnchorHint}>
-              {({ id, describedBy }) => (
-                <Select id={id} name="late_shift_anchor" value={settings.late_shift_anchor} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, late_shift_anchor: event.target.value as LateShiftAnchor })}>
-                  {Object.entries(lateShiftAnchorLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </Select>
-              )}
-            </Field>
-          </div>
+          {/* One under the other: side by side the 11–19 choice is cut off. */}
+          <Field label={t.settings.rotationMode} id="policy-rotation-mode" hint={t.settings.rotationModeHint}>
+            {({ id, describedBy }) => (
+              <Select id={id} name="rotation_mode" value={settings.rotation_mode} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, rotation_mode: event.target.value as RotationMode })}>
+                {Object.entries(rotationLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+            )}
+          </Field>
+          <Field label={t.settings.lateShiftAnchor} id="policy-late-shift-anchor" hint={t.settings.lateShiftAnchorHint}>
+            {({ id, describedBy }) => (
+              <Select id={id} name="late_shift_anchor" value={settings.late_shift_anchor} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, late_shift_anchor: event.target.value as LateShiftAnchor })}>
+                {Object.entries(lateShiftAnchorLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+            )}
+          </Field>
           {settings.rotation_mode === 'weekly' && (
             <Box tone="warn" title={t.settings.weeklyTitle}>
               {t.settings.weeklyBody}
@@ -762,7 +771,6 @@ export function GeneratorPanel() {
             disabled={policy.isLoading}
             onChange={(event) => setSettings({ ...settings, coordinator_swap_approval_required: event.target.checked })}
           />
-          {savePolicy.isSuccess && !settingsDirty && <span className="small muted" role="status">{t.settings.saved}</span>}
         </form>
       </Panel>
       {result && (
@@ -783,18 +791,22 @@ export function GeneratorPanel() {
                 </output>
               )}
               <Button onClick={closePublication} disabled={publish.isPending}>{t.publish.back(publishFromDraft)}</Button>
+              {/* Focusable while blocked, so the status beside it says what is missing. */}
               <Button
                 variant="primary"
                 loading={publish.isPending}
-                disabled={publish.isPending || publishPreview.isFetching || publishPreview.isError || !preview || unresolvedConflicts + missingConsents > 0}
-                onClick={() => publish.mutate({
-                  id: result.id,
-                  expectedVersion: result.version,
-                  acknowledgeLostChanges: Boolean(preview?.lost_changes.length),
-                  acknowledgeGap: Boolean(preview?.uncovered_before.length),
-                  acknowledgeRestViolations: Boolean(preview?.rest_violations.length),
-                  changeResolutions,
-                })}
+                aria-disabled={publishBlocked || undefined}
+                onClick={() => {
+                  if (publishBlocked) return
+                  publish.mutate({
+                    id: result.id,
+                    expectedVersion: result.version,
+                    acknowledgeLostChanges: Boolean(preview.lost_changes.length),
+                    acknowledgeGap: Boolean(preview.uncovered_before.length),
+                    acknowledgeRestViolations: Boolean(preview.rest_violations.length),
+                    changeResolutions,
+                  })
+                }}
               >
                 {publish.isPending ? t.publish.publishing : t.publish.publishNow}
               </Button>
@@ -841,15 +853,26 @@ export function GeneratorPanel() {
               </div>
             </Box>
           ) : null}
-          {preview?.rest_violations.length ? (
-            <AcknowledgeBox title={t.publish.restTitle} label={t.publish.acknowledgeRest} checked={restAcknowledged} onChange={setRestAcknowledged}>
+          {[...restGroups].map(([rule, violations]) => (
+            <AcknowledgeBox
+              key={rule}
+              title={t.publish.restTitle(violations[0].message)}
+              label={t.publish.acknowledgeRest}
+              checked={restAcknowledged.has(rule)}
+              onChange={(checked) => setRestAcknowledged((current) => {
+                const next = new Set(current)
+                if (checked) next.add(rule)
+                else next.delete(rule)
+                return next
+              })}
+            >
               <ul className="box-list">
-                {preview.rest_violations.map((violation) => (
-                  <li key={`${violation.member_name}-${violation.rule}`}>{t.publish.restItem(violation.member_name, violation.message, violation.days.map(formatDate).join(', '))}</li>
+                {violations.map((violation) => (
+                  <li key={`${violation.member_name}-${violation.days[0]}`}>{t.publish.restItem(violation.member_name, violation.days.map(formatDate).join(', '))}</li>
                 ))}
               </ul>
             </AcknowledgeBox>
-          ) : null}
+          ))}
           {preview?.uncovered_before.length ? (
             <AcknowledgeBox title={t.publish.gapTitle(preview.uncovered_before.map(formatDate).join(', '))} label={t.publish.acknowledgeGap} checked={gapAcknowledged} onChange={setGapAcknowledged} />
           ) : null}

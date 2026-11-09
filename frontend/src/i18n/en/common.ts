@@ -9,6 +9,8 @@ export const common: Messages['common'] = {
   undoEmailsSent: 'The e-mails have gone out',
   undo: 'Undo',
   undoFailed: 'Could not undo',
+  undone: 'Undone',
+  downloaded: (file: string) => `Downloaded ${file}`,
   loading: 'Loading…',
   loadingScreen: 'Loading screen…',
   scrollHint: 'Scroll horizontally to see more',
@@ -18,6 +20,8 @@ export const common: Messages['common'] = {
   fetchFailed: 'Could not load the data. Check the connection and try again.',
   retry: 'Try again',
   cancel: 'Cancel',
+  /** Said after a link that opens in a new tab, for a screen reader. */
+  newTab: '(opens in a new tab)',
   unsavedChanges: {
     title: 'Discard unsaved changes?',
     description: 'Continuing will discard the changes you entered.',

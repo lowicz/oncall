@@ -1,7 +1,7 @@
 import { queryOptions, skipToken } from '@tanstack/react-query'
 import { DraftFairnessImpact, DraftSchedule, FairnessCategory, FairnessDuty, FairnessMember, api } from '../api'
 import { messages } from '../i18n/messages'
-import { formatDecimal } from './numbers'
+import { formatDecimal, formatPoints } from './numbers'
 
 /** Widest deviation a bar renders at full length; beyond it the bar pins. */
 export const DEVIATION_SCALE = 3
@@ -53,4 +53,31 @@ export function monthlyTotals(duties: FairnessDuty[]): MonthTotals[] {
     byMonth.set(month, row)
   }
   return [...byMonth.values()].sort((a, b) => b.month.localeCompare(a.month))
+}
+
+export function impactLabel(before: number, after: number) {
+  const t = messages().generator.fairness.impact
+  const change = Math.round((Math.abs(before) - Math.abs(after)) * 100) / 100
+  if (Math.abs(change) < 0.05) return t.noChange
+  return change > 0 ? t.closer(formatPoints(change)) : t.further(formatPoints(-change))
+}
+
+/** The widest lens spread: the number the acceptance criterion judges. */
+export function worstSpread(impact: DraftFairnessImpact) {
+  return {
+    before: Math.max(0, ...impact.spreads.map((item) => item.before)),
+    after: Math.max(0, ...impact.spreads.map((item) => item.after)),
+  }
+}
+
+/**
+ * Why the criterion is missed. `inherited` when every lens outside it was
+ * outside it before the draft too: history the generator repays at a bounded
+ * pace, not a defect of this draft. `draft` when a lens that met the criterion
+ * stops meeting it - that is what editing cells or regenerating can fix.
+ */
+export function shortfallCause(impact: DraftFairnessImpact): 'met' | 'inherited' | 'draft' {
+  if (impact.criterion_met) return 'met'
+  const failing = impact.spreads.filter((item) => !item.meets_criterion)
+  return failing.length > 0 && failing.every((item) => item.before > impact.criterion_points) ? 'inherited' : 'draft'
 }

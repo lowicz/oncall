@@ -657,13 +657,25 @@ async def test_a_dry_run_counts_as_confirmed_once_the_pass_recorded_it() -> None
     assert (recorded.status, recorded.confirmed_at) == (SwitchStatus.confirmed, CONFIRMED_AT)
 
 
+async def test_a_dry_run_that_failed_is_told_at_once_with_no_alert() -> None:
+    # A dry run sends no alert, so it cannot wait for one: the pair sees the
+    # failure as soon as the pass records it.
+    failed = await _now(
+        mode=ForwardingMode.dry_run,
+        handover=HANDOVER,
+        state=_wanting_marek(last_outcome=ForwardingOutcome.failed),
+    )
+
+    assert (failed.status, failed.confirmed_at) == (SwitchStatus.failed, None)
+
+
 # --- the pair the handover controls act for ----------------------------------
 
 
 def _sides(anna_is_you: bool, marek_is_you: bool, marek_has_phone: bool = True) -> HandoverPair:
     return HandoverPair(
-        PairMember("Anna Kowalska", is_you=anna_is_you, has_phone=True),
-        PairMember("Marek Nowak", is_you=marek_is_you, has_phone=marek_has_phone),
+        PairMember("Anna Kowalska", ANNA, is_you=anna_is_you, has_phone=True),
+        PairMember("Marek Nowak", MAREK, is_you=marek_is_you, has_phone=marek_has_phone),
     )
 
 

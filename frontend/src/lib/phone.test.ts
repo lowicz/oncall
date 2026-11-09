@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isPolishPhone, phoneText, telHref } from './phone'
+import { isPolishPhone, phoneText, phoneTextNational, telHref } from './phone'
 
 describe('isPolishPhone', () => {
   it.each(['600100200', '600 100 200', '600-100-200', '48600100200', '+48 600 100 200', ' +48600100200 '])(
@@ -25,6 +25,11 @@ describe('a number as dialled and as printed', () => {
       expect(phoneText(value)).toBe('+48\u00a0602\u00a0345\u00a0678')
     },
   )
+
+  it('prints a Polish number for the strip without its country code, any other whole', () => {
+    expect(phoneTextNational('+48602345678')).toBe('602\u00a0345\u00a0678')
+    expect(phoneTextNational('+49 170 1234567')).toBe('+49\u00a0170\u00a01234567')
+  })
 
   it('prints a number that is not Polish as written, its spaces held', () => {
     expect(phoneText(' +49 170  1234567 ')).toBe('+49\u00a0170\u00a01234567')

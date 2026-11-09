@@ -36,14 +36,18 @@ export function cellLabel(
     holiday_name: string | null
     events?: Array<{ title: string }>
   },
-  duties: string[],
+  duties: Array<{ role: AssignmentRole; note?: string }>,
   availability?: AvailabilityKind,
 ) {
   const t = messages().labels
   const parts = [memberName, formatDay(day.service_date)]
   if (day.is_day_off) parts.push(day.holiday_name ?? t.cell.dayOffRate)
   if (day.events?.length) parts.push(t.cell.events(day.events.map((event) => event.title).join(', ')))
-  parts.push(duties.length > 0 ? duties.join(', ') : t.cell.noDuty)
+  const names = duties.map(({ role, note }) => [t.roles[role], note].filter(Boolean).join(' '))
+  // Two marks read as one visible label ("11–19 S"), which the name repeats
+  // so that a voice user can say what the cell shows.
+  if (duties.length > 1) parts.push(`${duties.map(({ role }) => t.shortRoles[role]).join(' ')} (${names.join(', ')})`)
+  else parts.push(names[0] ?? t.cell.noDuty)
   if (availability) parts.push(t.availability[availability])
   return parts.join(', ')
 }

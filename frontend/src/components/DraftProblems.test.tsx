@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { renderScreen } from '../test/render'
 import { DraftSchedule } from '../api'
-import { DraftProblems, draftProblems, problemCounts } from './DraftProblems'
+import { DraftProblems } from './DraftProblems'
+import { draftProblems, problemCounts } from '../lib/draftProblems'
 
 const draft = (over: Partial<DraftSchedule>): DraftSchedule => ({
   id: 'd1',
@@ -89,7 +90,7 @@ describe('DraftProblems', () => {
     expect(within(table).getByText('Limit czasu solvera').parentElement).toHaveTextContent('miękka')
     expect(within(table).getAllByText('twarda · blokuje publikację')).toHaveLength(2)
     expect(within(table).getByText('Przerwa między dyżurami krótsza niż 24 h').parentElement).toHaveTextContent('twarda · wymaga zgody przy publikacji')
-    expect(within(table).getByText('Reguły twarde (jedna rola na osobę i dzień, przerwa między dyżurami, kwalifikacje, „nie mogę”): 3 naruszenia.', { exact: false })).toBeInTheDocument()
+    expect(within(table).getByText('Reguły twarde (jedna rola on-call na osobę i dzień, najwyżej 3 dyżury on-call w 7 dniach i 2 dni przerwy po serii, nierozdzielny blok dni wolnych, 11–19 tylko w dni robocze, kwalifikacje, „nie mogę”): 3 naruszenia.', { exact: false })).toBeInTheDocument()
     expect(within(table).getByRole('link', { name: 'Pełna lista reguł w dokumentacji' })).toHaveAttribute('href', '/docs/produkt/generator.html')
 
     fireEvent.click(within(table).getAllByRole('button', { name: 'Popraw' })[1])
@@ -141,7 +142,7 @@ describe('DraftProblems', () => {
     expect(within(cards[4]).queryByRole('button')).not.toBeInTheDocument()
     fireEvent.click(within(cards[1]).getByRole('button', { name: 'Popraw' }))
     expect(onFocus).toHaveBeenCalledWith({ service_date: '2026-09-18', assignee_name: 'Anna Kowalska', role: 'secondary' })
-    expect(screen.getByText('Reguły twarde (jedna rola na osobę i dzień, przerwa między dyżurami, kwalifikacje, „nie mogę”): 3 naruszenia.', { exact: false })).toBeInTheDocument()
+    expect(screen.getByText('Reguły twarde (jedna rola on-call na osobę i dzień, najwyżej 3 dyżury on-call w 7 dniach i 2 dni przerwy po serii, nierozdzielny blok dni wolnych, 11–19 tylko w dni robocze, kwalifikacje, „nie mogę”): 3 naruszenia.', { exact: false })).toBeInTheDocument()
   })
 
   it('groups the blocking problems by rule and only shows the day of a read-only draft', () => {

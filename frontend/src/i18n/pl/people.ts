@@ -76,8 +76,8 @@ export const people = {
     personnelNumberFix: 'Numer pracownika to same cyfry, np. 001234.',
     email: 'E-mail',
     phone: 'Telefon · na pasku „Teraz”',
-    phoneNewHint: 'Format: +48 i dziewięć cyfr. Wymagany dla osób w rotacji; widzą go zalogowane osoby.',
-    phoneHint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby na pasku „Teraz” i na karcie dyżurnego.',
+    phoneNewHint: 'Format: +48 i dziewięć cyfr. Wymagany dla osób w rotacji; widzą go zalogowane osoby i odbiorcy linków udostępnienia.',
+    phoneHint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby i odbiorcy linków udostępnienia na pasku „Teraz” i na karcie dyżurnego.',
     phoneRequired: 'Wymagany dla osób w rotacji.',
     phoneFix: 'Popraw numer: +48 i dziewięć cyfr.',
     accountRole: 'Rola konta',
@@ -86,6 +86,14 @@ export const people = {
   newAccountPanel: {
     title: 'Nowe konto lokalne',
     create: 'Utwórz konto',
+    /** Beside the create button while it cannot be pressed: what is missing. */
+    missing: {
+      firstName: 'Wpisz imię, żeby utworzyć konto.',
+      username: 'Wpisz login, żeby utworzyć konto.',
+      personnelNumber: 'Popraw numer pracownika, żeby utworzyć konto.',
+      phone: 'Osoba w rotacji potrzebuje numeru telefonu.',
+      entry: 'Wybierz datę wejścia do rotacji.',
+    },
     activationLink: 'Link aktywacyjny (ważny 24 godziny)',
     afterCreation: 'Po utworzeniu',
     afterCreationText: 'Dostaniesz link aktywacyjny ważny 24 godziny do przekazania. Dopóki osoba nie ustawi hasła, nie może się zalogować, a lista kont pokazuje ją jako „oczekuje na aktywację”.',

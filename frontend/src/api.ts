@@ -544,6 +544,7 @@ export type SwitchStatus = 'confirmed' | 'switching' | 'failed'
 /** One side of the duty day's pair: whether a phone number is set, never the number. */
 export interface PairMember {
   name: string
+  member_id: string
   /** Whether the reader is this person. */
   is_you: boolean
   has_phone: boolean

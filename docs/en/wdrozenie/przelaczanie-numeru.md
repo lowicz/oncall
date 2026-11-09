@@ -187,7 +187,9 @@ Set **Mode** to **Dry run** and click **Save**. Within a few seconds the
 worker logs in to WCO, reads the number and records what it would set,
 changing nothing in WCO. It does so once per duty day, at the reminder hour
 (`ONCALL_HANDOVER_REMINDER_HOUR`, 9:00 by default), and again after a
-schedule correction or a settings change. This mode sends no alert e-mails.
+schedule correction or a settings change. This mode sends no alert e-mails;
+a failed trial at once turns the number badge of the pair on duty to “not
+switched (trial)”.
 
 You read the result in two places:
 

@@ -55,12 +55,14 @@ export function Chip({ tone = 'muted', children, onClick, className, title }: {
     )
     return title ? <Tooltip text={title}>{button}</Tooltip> : button
   }
-  return (
-    <span className={cx('chip', `chip-${tone}`, className)} title={title}>
+  // The words are read once, as text; the pointer gets them as a tooltip, not a `title` read a second time.
+  const chip = (
+    <span className={cx('chip', `chip-${tone}`, className)}>
       {content}
       {title && <span className="sr-only"> {title}</span>}
     </span>
   )
+  return title ? <Tooltip text={title}>{chip}</Tooltip> : chip
 }
 
 /** The chips inside any Fragments, each with a key unique along its path. */

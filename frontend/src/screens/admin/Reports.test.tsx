@@ -87,7 +87,10 @@ describe('MonthlyReportsPanel', () => {
     renderScreen(<MonthlyReportsPanel />)
 
     const table = await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
-    expect(within(table).getByRole('columnheader', { name: 'Dni dyżurowe primary + secondary' })).toHaveClass('key')
+    // Role names are written one way in every header, as in the rest of the product.
+    expect(within(table).getByRole('columnheader', { name: 'Dni dyżurowe PRIMARY + SECONDARY' })).toHaveClass('key')
+    expect(within(table).getAllByRole('columnheader', { name: 'PRIMARY' })).toHaveLength(2)
+    expect(within(table).getAllByRole('columnheader', { name: 'SECONDARY' })).toHaveLength(2)
     const [firstGroup] = within(table).getAllByRole('columnheader', { name: 'robocze' })
     expect(firstGroup).toHaveClass('key')
     expect(within(table).getByRole('columnheader', { name: 'weekendy i święta' })).toHaveClass('key')

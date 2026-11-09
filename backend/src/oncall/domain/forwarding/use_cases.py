@@ -241,6 +241,9 @@ def _status(
     if mode is ForwardingMode.dry_run:
         if wanted and state.last_outcome is ForwardingOutcome.dry_run:
             return SwitchStatus.confirmed, state.last_attempt_at
+        # A dry run alerts nobody, so its failure is told at once, on the pill.
+        if wanted and state.last_outcome in FAILING_OUTCOMES:
+            return SwitchStatus.failed, None
         return SwitchStatus.switching, None
     if (
         target.number is not None
@@ -324,6 +327,7 @@ async def _pair(
     async def side(name: str, member_id: uuid.UUID) -> PairMember:
         return PairMember(
             name=name,
+            member_id=member_id,
             is_you=member_id == you,
             has_phone=await ports.contacts.phone(member_id) is not None,
         )

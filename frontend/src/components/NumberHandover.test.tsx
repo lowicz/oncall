@@ -9,7 +9,7 @@ import { HandoverActions, HandoverViewer, NumberPill } from './NumberHandover'
 
 // The suite clock is Thursday 2026-09-10, 09:00 in Warsaw (src/test/setup.ts);
 // the duty day ends at 09:00 the next morning.
-const side = (name: string, over: Partial<PairMember> = {}): PairMember => ({ name, is_you: false, has_phone: true, ...over })
+const side = (name: string, over: Partial<PairMember> = {}): PairMember => ({ name, member_id: name, is_you: false, has_phone: true, ...over })
 const PAIR: HandoverPair = { primary: side('Anna Kowalska'), secondary: side('Marek Nowak') }
 const MAREK_PHONE = '+48 602 345 678'
 
@@ -95,6 +95,14 @@ describe('NumberPill', () => {
     await expectNoAxeViolations(container)
   })
 
+  it('says at once that a dry run failed, and that nobody was e-mailed about it', async () => {
+    renderScreen(<NumberPill now={handedOver({ mode: 'dry_run', status: 'failed', confirmed_at: null })} where="numer on-call u Ciebie" />)
+    fireEvent.click(screen.getByRole('button', { name: 'numer on-call u Ciebie · nie przełączono (próba)' }))
+    const details = await screen.findByRole('dialog', { name: 'Numer on-call' })
+    expect(details).toHaveTextContent('Próbne logowanie do WCO nie powiodło się. W trybie próbnym nikt nie dostaje e-maila; proces próbuje dalej sam.')
+    expect(details).not.toHaveTextContent('Alarm e-mail')
+  })
+
   it('says a handover is still switching and until when it holds, in a dry run too, but not who started it', async () => {
     renderScreen(<NumberPill now={handedOver({ mode: 'dry_run', status: 'switching', confirmed_at: null })} where="numer on-call u Ciebie" />)
     const pill = screen.getByRole('button', { name: 'numer on-call u Ciebie · przełączam · do 11:00' })
@@ -176,7 +184,12 @@ describe('handing the number over', () => {
     actions('primary')
     fireEvent.click(screen.getByRole('button', { name: 'Przekaż numer…' }))
     const popover = await screen.findByRole('dialog')
-    expect(within(durations()).getByRole('radio', { name: '2 h' })).toBeDisabled()
+    // Blocked, not removed: still focusable, it says why in the group's description.
+    const twoHours = within(durations()).getByRole('radio', { name: '2 h' })
+    expect(twoHours).toHaveAttribute('aria-disabled', 'true')
+    expect(durations()).toHaveAccessibleDescription(/Najpóźniej do 09:00/)
+    fireEvent.click(twoHours)
+    expect(twoHours).toHaveAttribute('aria-checked', 'false')
     expect(within(durations()).getByRole('radio', { name: '1 h' })).toBeEnabled()
     expect(within(durations()).getByRole('radio', { name: 'do 09:00' })).toHaveAttribute('aria-checked', 'true')
     expect(popover).toHaveTextContent('Numer wraca do Ciebie o 09:00.')

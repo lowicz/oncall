@@ -198,9 +198,6 @@ export function FairnessPanel() {
   const teamView = members.length > 1
   const sumOf = (key: Lens, field: 'actual' | 'expected') =>
     roundPoints(members.reduce((sum, member) => sum + categoryOf(member, key)[field], 0))
-  const averagePoints = report.data && criterionMembers.length > 0
-    ? roundPoints(criterionMembers.reduce((sum, member) => sum + totalBalance(member, lateShiftBalanced).actual, 0) / criterionMembers.length)
-    : 0
   const exportCsv = (data: FairnessReport) => {
     downloadBlob(t.csv.fileName(data.as_of), new Blob([`\uFEFF${csvOf(data, lateShiftBalanced)}`], { type: 'text/csv;charset=utf-8' }))
   }
@@ -290,7 +287,6 @@ export function FairnessPanel() {
               </Chip>
             )
           })}
-          <Chip tone="sig">{t.averageChip(formatPoints(averagePoints))}</Chip>
           {totals && criterionMembers.length > 0 && (
             <Chip>{t.weekendsChip(totals.weekend_duties, criterionMembers.length, formatPoints(totals.weekend_duties / criterionMembers.length))}</Chip>
           )}

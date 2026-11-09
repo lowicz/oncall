@@ -74,7 +74,9 @@ state is also given in words, not by colour alone:
 | **not switched** | WCO did not confirm by the alert threshold; the number may still ring at the previous person |
 
 In **Dry run** mode the details say that WCO will not be changed: the handover
-is recorded, but the number at the switchboard stays as it was.
+is recorded, but the number at the switchboard stays as it was. When the trial
+sign-in to WCO fails, the badge says **not switched (trial)** at once, and the
+details say that in a dry run nobody gets an e-mail.
 
 ### How to hand the number over
 
@@ -235,9 +237,14 @@ From this panel:
   everyone the change touches. If the change breaks a hard rule, the rule
   line gives way to a “This correction will break hard rules” frame with
   the list of violations and an “I understand and knowingly break these
-  rules” box; such a violation goes to the audit log. A correction of a day
-  that has already passed asks for a reason (at least 10 characters, an
-  audit requirement) in a field of the same frame. **Save the staffing
+  rules” box; such a violation goes to the audit log. A correction of a duty
+  that has already ended asks for a reason (at least 10 characters, an
+  audit requirement) in a field of the same frame. A duty ends with its
+  cover: a working day's night duty at 09:00 the next day, a day off's duty
+  at midnight, 11–19 at 19:00, so a night duty changed at 01:30 is still an
+  ordinary correction. When every changed duty has ended, the correction
+  notifies nobody: the field's hint says “Nobody is e-mailed about a change
+  to a duty that has already ended.”. **Save the staffing
   change** (with two roles **Change staffing (2 roles)**) saves only once a
   person is chosen, the rules are checked, the violations are acknowledged
   and the reason is given. Two roles are one schedule change with one
@@ -261,14 +268,16 @@ From this panel:
   places” frame in the panel: a row-by-row preview (who moves to which role),
   the rule line checked on the state after the swap and the effect on both
   people's points balance. When one of them is not eligible for the other's
-  role that day or is marked unavailable on it, the frame says so under that
-  row and the swap cannot be saved. If the policy binds 11–19 to the role
+  role that day or is marked unavailable on it, the button is inactive and a
+  sentence under it says why. If the policy binds 11–19 to the role
   given up by the person who also holds 11–19, the frame has a “together with SECONDARY”
   (or “together with PRIMARY”) box, ticked exactly when the other person is
   eligible for 11–19, with one sentence saying why. Unticking it leaves
   11–19 unchanged and shows the coupling rule for a knowing
-  acknowledgement. A reason is needed only for a day that has already passed
-  (a field in the frame, at least 10 characters). **Swap places** saves the
+  acknowledgement. A reason is needed only when one of the swapped duties
+  has already ended (a field in the frame, at least 10 characters), and the
+  e-mail covers only the duties still running or ahead: in the evening 11–19
+  is over, PRIMARY and SECONDARY are not. **Swap places** saves the
   swap as one schedule change with one audit entry (“Swapped the day's roles”);
   both people get a “Zamiana ról” e-mail once the “Undo” window closes. The
   message after the save has an **Undo** button, and for the same time the

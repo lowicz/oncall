@@ -16,35 +16,56 @@ function delta(before: number, after: number) {
   return change === 0 ? null : signed(change)
 }
 
-/** One person's balance before and after, lens by lens. */
+/** How far from balance before and after: `closer`, `further` or `unchanged`. */
+function trend(before: number, after: number) {
+  if (Math.abs(after) < Math.abs(before)) return 'closer'
+  if (Math.abs(after) > Math.abs(before)) return 'further'
+  return 'unchanged'
+}
+
+const TREND_CLASS = { closer: 'impact-d-ok', further: 'impact-d-warn', unchanged: '' } as const
+
+/** One person's balance before and after in one line, the distance from
+ *  balance summed over the lenses the change moves; lens by lens on demand. */
 export function ImpactSide({ side, direction }: Readonly<{ side: SwapImpactMember; direction: string }>) {
   const t = useMessages().swaps.impact
   const lenses = lensLabels()
-  const rows = LENSES.map((key) => {
-    const before = side.before[key]
-    const after = side.after[key]
-    const moved = delta(before.actual, after.actual)
-    if (!moved) return null
-    const closer = Math.abs(after.deviation) < Math.abs(before.deviation)
-    const further = Math.abs(after.deviation) > Math.abs(before.deviation)
-    return (
-      <div className="impact-row" key={key}>
-        <span>
-          <b>{lenses[key]}</b>
-          <span className="muted small"> {t.points(formatDecimal(before.actual), formatDecimal(after.actual), moved)}</span>
-        </span>
-        <span className={cx('impact-d', closer ? 'impact-d-ok' : further ? 'impact-d-warn' : '')}>
-          {signed(before.deviation)} → {signed(after.deviation)}
-          <br />
-          <small>{closer ? t.closer : further ? t.further : t.unchanged}</small>
-        </span>
-      </div>
-    )
-  }).filter(Boolean)
+  const moved = LENSES.filter((key) => delta(side.before[key].actual, side.after[key].actual))
+  const distance = (state: 'before' | 'after') =>
+    Math.round(moved.reduce((total, key) => total + Math.abs(side[state][key].deviation), 0) * 100) / 100
+  const [from, to] = [distance('before'), distance('after')]
+  const overall = trend(from, to)
   return (
     <div className="stack-sm">
       <div className="impact-h">{side.display_name} · {direction}</div>
-      {rows.length > 0 ? rows : <span className="muted small">{t.noChange}</span>}
+      {moved.length === 0 ? <span className="muted small">{t.noChange}</span> : (
+        <details className="impact-more">
+          <summary className="small">
+            {t.distance}{' '}
+            <span className={cx('impact-d', TREND_CLASS[overall])}>
+              {formatDecimal(from)} → {formatDecimal(to)} · {t[overall]}
+            </span>
+          </summary>
+          {moved.map((key) => {
+            const before = side.before[key]
+            const after = side.after[key]
+            const lens = trend(before.deviation, after.deviation)
+            return (
+              <div className="impact-row" key={key}>
+                <span>
+                  <b>{lenses[key]}</b>
+                  <span className="muted small"> {t.points(formatDecimal(before.actual), formatDecimal(after.actual), delta(before.actual, after.actual)!)}</span>
+                </span>
+                <span className={cx('impact-d', TREND_CLASS[lens])}>
+                  {signed(before.deviation)} → {signed(after.deviation)}
+                  <br />
+                  <small>{t[lens]}</small>
+                </span>
+              </div>
+            )
+          })}
+        </details>
+      )}
     </div>
   )
 }

@@ -9,7 +9,7 @@ import { MenuRadioGroup, Segmented } from '../ui'
  * and holiday names come from the server in the language of the request, so
  * what is cached from before the switch is in the wrong words.
  */
-export function useLanguageSwitch(): [Language, (language: Language) => void] {
+function useLanguageSwitch(): [Language, (language: Language) => void] {
   const [language, setLanguage] = useLanguage()
   const queryClient = useQueryClient()
   const change = useCallback((next: Language) => {

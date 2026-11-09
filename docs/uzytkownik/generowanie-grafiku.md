@@ -83,12 +83,16 @@ Nad macierzą jest **jeden panel decyzji**:
   publikację, z rolą i dniem; przy niepełnym rozwiązaniu solvera wskazówka,
   aby kliknąć komórkę z luką i wpisać osobę; pod spodem rozrzut punktów przed
   i po szkicu,
-- **jedna akcja główna**: **Popraw *N* problemy** otwiera pierwszą kolidującą
-  komórkę (potem **Opublikuj…**), w poprawnym szkicu **Opublikuj…**, a w
-  propozycji **Opublikuj…** obok **Wróć do szkicu** (propozycja z
-  dyżurem w dniu „nie mogę” ma tylko **Wróć do szkicu**). Obok
-  **Opublikuj…** menu **⋯** (**Inne akcje**) ma **Przekaż do akceptacji** dla
-  zespołów, w których szkic sprawdza druga osoba.
+- **jedna akcja główna**: w szkicu z problemami twardymi **Popraw *N*
+  problemy** otwiera komórkę pierwszego z nich (dyżuru w dniu „nie mogę”
+  albo złamanej reguły), a dopisek pod przyciskiem mówi, co dalej: **potem:
+  Przekaż do akceptacji**. Gdy szkic łamie tylko reguły, menu **⋯** (**Inne
+  akcje**) ma **Przekaż do akceptacji** i **Opublikuj…** dla koordynatora,
+  który łamie je świadomie; dyżur w dniu „nie mogę” nie zostawia żadnej z
+  nich. Poprawny szkic prowadzi **Opublikuj…**, a jego menu **⋯** ma
+  **Przekaż do akceptacji** dla zespołów, w których szkic sprawdza druga
+  osoba. Propozycja ma **Opublikuj…** obok **Wróć do szkicu** (propozycja z
+  dyżurem w dniu „nie mogę” ma tylko **Wróć do szkicu**).
 
 Propozycja ma w tym panelu także ramkę **Co zmieni publikacja**: ile zmian
 zostanie przeniesionych, ile oczekujących zamian anulowanych, ile wpisów
@@ -189,14 +193,15 @@ korektą. Każda korekta, także zamiana:
 
 ## Ustawienia generatora
 
-Przycisk **Ustawienia generatora** otwiera panel boczny z zakresem **Od** /
-**Do** i ustawieniami solvera. To jedyne miejsce, w którym je zmieniasz;
-zapisują się **globalnie dla całego zespołu** i obowiązują od następnego
-generowania. Stopka ma jeden przycisk główny: bez zmian **Generuj** uruchamia
-generowanie od razu z zakresem z panelu, a przy niezapisanych zmianach
-**Zapisz i generuj** zapisuje je i generuje jednym kliknięciem. **Zapisz**
-tylko zapisuje, a ikona strzałki (**Przywróć zapisane**) cofa niezapisane
-zmiany. Zasady działania wag wyjaśnia link **Jak działają wagi**. Pod osobnym
+Przycisk **Ustawienia generatora** otwiera panel boczny z ustawieniami
+solvera. To jedyne miejsce, w którym je zmieniasz; zapisują się **globalnie
+dla całego zespołu** i obowiązują od następnego generowania. Zakresu panel nie
+edytuje, tylko go podaje („Generowanie obejmie …”): to zakres z formularza
+**Nowy szkic** albo zakres otwartego szkicu. Stopka ma jeden przycisk główny:
+bez zmian **Generuj** uruchamia generowanie od razu, a przy niezapisanych
+zmianach **Zapisz i generuj** zapisuje je i generuje jednym kliknięciem. Dopiero
+przy zmianach pojawiają się **Zapisz**, które tylko zapisuje, i ikona strzałki
+(**Przywróć zapisane**), która je cofa. Zasady działania wag wyjaśnia link **Jak działają wagi**. Pod osobnym
 nagłówkiem **Polityka zamian** jest przełącznik zatwierdzania zamian przez
 koordynatora; nie wpływa na generowanie.
 Zamknięcie panelu, przejście na inny ekran, odświeżenie albo otwarcie innego szkicu przy niezapisanych ustawieniach wymaga decyzji, czy je odrzucić.
@@ -245,9 +250,10 @@ Szkic ──► Do akceptacji ──► Opublikowany
    ostrzeżenia do audytu), a pod nią to, co trzeba rozstrzygnąć: konflikty ze
    zmianami z licznikiem „Do rozstrzygnięcia”, zgody i - jeśli zakres już się
    zaczął - pole, że zespół zobaczy zmianę od razu. Naruszenia reguł
-   odpoczynku i luka przed grafikiem mają każde własną ramkę z polem wyboru
-   („Rozumiem i świadomie łamię te reguły”, „Rozumiem, że te dni zostają bez
-   obsady”). Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
+   twardych mają po jednej ramce na każdą złamaną regułę, zatytułowanej tą
+   regułą („Publikacja naruszy regułę: …”), z polem „Rozumiem i świadomie
+   łamię tę regułę”; luka przed grafikiem ma własną ramkę z polem „Rozumiem,
+   że te dni zostają bez obsady”. Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
    rozstrzygnięcia: 1 konflikt, 2 zgody.”), a **Opublikuj** działa dopiero,
    gdy niczego nie brakuje. **Wróć do propozycji** zamyka arkusz otwarty z
    propozycji bez zmian.

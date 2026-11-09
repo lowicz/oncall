@@ -48,6 +48,12 @@ export function formatDate(value: string) {
  * Screens state the timezone once, in their own header or hint.
  */
 export function formatMoment(value: string) {
+  const [day, time] = warsawMoment(new Date(value)).split(' ')
+  return `${formatDate(day)}, ${time}`
+}
+
+/** A moment as "YYYY-MM-DD HH:MM" on the Warsaw clock, which sorts as it reads. */
+export function warsawMoment(at: Date) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/Warsaw',
     year: 'numeric',
@@ -56,8 +62,8 @@ export function formatMoment(value: string) {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date(value)).map(({ type, value: part }) => [type, part]))
-  return `${parts.day}-${parts.month}-${parts.year}, ${parts.hour}:${parts.minute}`
+  }).formatToParts(at).map(({ type, value }) => [type, value]))
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`
 }
 
 /**
@@ -226,3 +232,28 @@ const pad = (part: number) => String(part).padStart(2, '0')
 
 /** The local calendar day of a moment, as YYYY-MM-DD. */
 const localDay = (moment: Date) => `${moment.getFullYear()}-${pad(moment.getMonth() + 1)}-${pad(moment.getDate())}`
+
+function isoDay(year: number, month: number, day: number): string | null {
+  const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return isIsoDate(iso) ? iso : null
+}
+
+/** "2026-09-24", "24-09-2026", "24 wrz", "24 Sep" or "24.09" as an ISO date, or null. */
+export function parseDayQuery(query: string, today = new Date()): string | null {
+  const text = query.trim().toLowerCase()
+  let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
+  if (match) return isoDay(Number(match[1]), Number(match[2]), Number(match[3]))
+  match = /^(\d{1,2})[-.](\d{1,2})(?:[-.](\d{4}))?$/.exec(text)
+  if (match) {
+    const year = match[3] ? Number(match[3]) : today.getFullYear()
+    return isoDay(year, Number(match[2]), Number(match[1]))
+  }
+  match = /^(\d{1,2})\s+([a-ząćęłńóśźż]{3,})(?:\s+(\d{4}))?$/.exec(text)
+  if (match) {
+    const month = monthFromName(match[2])
+    if (month === null) return null
+    const year = match[3] ? Number(match[3]) : today.getFullYear()
+    return isoDay(year, month, Number(match[1]))
+  }
+  return null
+}

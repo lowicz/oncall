@@ -1,38 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { DraftFairnessImpact, DraftSchedule, FairnessMember } from '../api'
-import { locale, messages, useMessages } from '../i18n'
+import { DraftSchedule, FairnessMember } from '../api'
+import { locale, useMessages } from '../i18n'
 import { lensLabels } from '../lib/labels'
-import { DEVIATION_SCALE, deviationWords, draftFairnessImpactQuery, totalBalance } from '../lib/fairness'
+import { DEVIATION_SCALE, deviationWords, draftFairnessImpactQuery, impactLabel, shortfallCause, totalBalance, worstSpread } from '../lib/fairness'
 import { formatDecimal, formatPoints, printedPoints, signedPoints } from '../lib/numbers'
 import { formatDate } from '../lib/dates'
 import { Box, Chip, ChipRow, DeviationBar, ErrorState, LoadingBlock, StatusBadge } from '../ui'
-
-export function impactLabel(before: number, after: number) {
-  const t = messages().generator.fairness.impact
-  const change = Math.round((Math.abs(before) - Math.abs(after)) * 100) / 100
-  if (Math.abs(change) < 0.05) return t.noChange
-  return change > 0 ? t.closer(formatPoints(change)) : t.further(formatPoints(-change))
-}
-
-/** The widest lens spread: the number the acceptance criterion judges. */
-export function worstSpread(impact: DraftFairnessImpact) {
-  return {
-    before: Math.max(0, ...impact.spreads.map((item) => item.before)),
-    after: Math.max(0, ...impact.spreads.map((item) => item.after)),
-  }
-}
-
-/**
- * Why the criterion is missed. `inherited` when every lens outside it was
- * outside it before the draft too: history the generator repays at a bounded
- * pace, not a defect of this draft. `draft` when a lens that met the criterion
- * stops meeting it - that is what editing cells or regenerating can fix.
- */
-export function shortfallCause(impact: DraftFairnessImpact): 'met' | 'inherited' | 'draft' {
-  if (impact.criterion_met) return 'met'
-  const failing = impact.spreads.filter((item) => !item.meets_criterion)
-  return failing.length > 0 && failing.every((item) => item.before > impact.criterion_points) ? 'inherited' : 'draft'
-}
 
 /**
  * Balance after this draft version: the spread as one number against the

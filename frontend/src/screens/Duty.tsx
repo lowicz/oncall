@@ -8,7 +8,8 @@ import { addDays, daysBetween, formatDateLong, formatDayShort, formatRange, form
 import { useMessages } from '../i18n'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { CalendarMatrix, CalendarRange, MatrixSummary, MatrixZoom } from '../components/CalendarMatrix'
-import { MatrixControls, ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../components/MatrixControls'
+import { MatrixControls } from '../components/MatrixControls'
+import { ONLY_ON_DUTY, VIEW_KEY, VIEW_SLUGS, WEEKS, isZoom, viewOf } from '../lib/matrixView'
 import { useUrlParams } from '../hooks/useUrlParams'
 import { HandoverActions, HandoverViewer, NumberPill } from '../components/NumberHandover'
 import { heldNumber, useForwardingNow } from '../hooks/useForwardingNow'
@@ -180,7 +181,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const numberPill = held && (
     <NumberPill now={held} where={hasTeamMember && held.holder_name === displayName ? t.duty.handover.atYou : t.duty.handover.at(held.holder_name)} />
   )
-  const receiverPhone = pair && current.find((duty) => duty.assignee_name === pair.secondary.name && duty.contact_phone)?.contact_phone
+  const receiverPhone = pair && current.find((duty) => duty.member_id === pair.secondary.member_id && duty.contact_phone)?.contact_phone
   const handoverActions = held && pair && viewer && (
     <HandoverActions now={held} pair={pair} receiverPhone={receiverPhone ?? null} viewer={viewer} />
   )

@@ -4,7 +4,8 @@ import { useLocation } from 'react-router-dom'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { api } from '../api'
 import { renderScreen } from '../test/render'
-import { CommandPalette, parseDayQuery } from './CommandPalette'
+import { CommandPalette } from './CommandPalette'
+import { parseDayQuery } from '../lib/dates'
 
 afterEach(() => vi.restoreAllMocks())
 

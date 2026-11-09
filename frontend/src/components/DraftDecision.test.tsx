@@ -55,7 +55,7 @@ function show(result: DraftSchedule, { fairness = impact(), effects, error }: { 
 afterEach(() => vi.restoreAllMocks())
 
 describe('DraftDecision', () => {
-  it('sends a draft with conflicts to fixing them, the publication after', async () => {
+  it('sends a draft with conflicts to fixing them, the hand-off for approval after', async () => {
     const { panel, onFix } = show(draft({
       unavailability_conflicts: [{ service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska' }],
     }))
@@ -63,8 +63,10 @@ describe('DraftDecision', () => {
     expect(within(panel).getByText('1 naruszenie reguł twardych')).toBeInTheDocument()
     expect(panel).toHaveTextContent('Blokują publikację: Anna Kowalska · PRIMARY czw 17 wrz.')
     expect(within(panel).getByText('Rozrzut 1 → 0,5 pkt.')).toBeInTheDocument()
-    expect(within(panel).getByText('potem: Opublikuj…')).toBeInTheDocument()
+    expect(within(panel).getByText('potem: Przekaż do akceptacji')).toBeInTheDocument()
+    // A conflict blocks both hand-offs, so nothing offers them yet.
     expect(within(panel).queryByRole('button', { name: 'Opublikuj…' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Inne akcje' })).not.toBeInTheDocument()
     fireEvent.click(within(panel).getByRole('button', { name: 'Popraw 1 problem' }))
     expect(onFix).toHaveBeenCalledWith({ service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska' })
   })
@@ -125,6 +127,26 @@ describe('DraftDecision', () => {
   it('points broken hard rules without a conflict at the problems tab', () => {
     const { panel } = show(draft({ warnings: [{ source: 'rules', message: 'Anna: 4 dni z rzędu.' }] }))
     expect(within(panel).getByText('Złamane reguły opisuje zakładka Problemy pod macierzą.')).toBeInTheDocument()
+    // No cell to open: the sheet asks for the consent instead.
+    expect(within(panel).getByRole('button', { name: 'Opublikuj…' })).toBeInTheDocument()
+  })
+
+  it('leads a draft breaking a rule on a duty to that cell, both hand-offs in the menu', async () => {
+    const { panel, onFix, onPropose, onPublish } = show(draft({
+      assignments: [{ service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska', member_id: 'm1', is_override: false }],
+      warnings: [{ source: 'rules', message: 'Anna: 4 dni z rzędu.', member_name: 'Anna Kowalska', days: ['2026-09-17'] }],
+    }))
+    expect(within(panel).getByText('potem: Przekaż do akceptacji')).toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Opublikuj…' })).not.toBeInTheDocument()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Popraw 1 problem' }))
+    expect(onFix).toHaveBeenCalledWith({ service_date: '2026-09-17', role: 'primary', assignee_name: 'Anna Kowalska' })
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Inne akcje' }))
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Przekaż do akceptacji' }))
+    expect(onPropose).toHaveBeenCalled()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Inne akcje' }))
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Opublikuj…' }))
+    expect(onPublish).toHaveBeenCalled()
   })
 
   it('calls a criterion missed before the draft an inherited debt', async () => {

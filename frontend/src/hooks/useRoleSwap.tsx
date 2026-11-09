@@ -1,19 +1,33 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ApiError, AssignmentRole, CalendarData, LateShiftAnchor, api } from '../api'
+import { ApiError, AssignmentRole, CalendarData, api } from '../api'
 import { usePublicConfig } from './usePublicConfig'
 import { useMessages } from '../i18n'
-import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders, swapRefused } from '../lib/calendar'
-import { formatDay, warsawDate } from '../lib/dates'
-import { undoable } from '../lib/undo'
+import { RoleSwap, roleSwapLines, roleSwapOf, swapHolders } from '../lib/calendar'
+import { correctionTiming } from '../lib/coverage'
+import { formatDay } from '../lib/dates'
+import { DEFAULT_UNDO_WINDOW_SECONDS, undoable } from '../lib/undo'
 import { Button, Field, Input, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
 import { RoleSwapImpact, RoleSwapPreview, RoleSwapTrigger } from '../components/RoleSwapPreview'
 
 const MIN_REASON_LENGTH = 10
 const FRAME_ID = 'role-swap-frame'
-/** The server's Undo window when `/api/v1/config` has not answered yet. */
-const DEFAULT_UNDO_SECONDS = 10
+
+/** The save waits for the schedule, the rules check, a consent to what it
+ *  found, and a reason once a role's cover has ended. */
+function saveBlocked({ scheduled, check, acknowledged, historical, reason }: {
+  scheduled: boolean
+  check: { isLoading: boolean; data?: { violations: unknown[] } }
+  acknowledged: boolean
+  historical: boolean
+  reason: string
+}) {
+  return !scheduled
+    || check.isLoading
+    || ((check.data?.violations.length ?? 0) > 0 && !acknowledged)
+    || (historical && reason.trim().length < MIN_REASON_LENGTH)
+}
 
 /**
  * „Zamień miejscami…" in the day inspector (P6): the PRIMARY and SECONDARY of
@@ -35,11 +49,11 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
   const config = usePublicConfig()
   const { schedule, common } = useMessages()
   const t = schedule.roleSwap
-  const enabled = coordinates && Boolean(data?.days.find((day) => day.service_date === serviceDate)?.published)
+  const day = data?.days.find((item) => item.service_date === serviceDate)
+  const enabled = coordinates && Boolean(day?.published)
   const policy = useQuery({ queryKey: ['swap-policy'], queryFn: api.swapPolicy, enabled })
-  const anchor: LateShiftAnchor = policy.data?.late_shift_anchor ?? 'secondary'
-  const swap = enabled && data && serviceDate ? roleSwapOf(data, serviceDate, anchor) : null
-  const refused = swapRefused(swap)
+  // Offered once the policy says where 11–19 belongs, so its choice never changes under the cursor.
+  const swap = enabled && data && serviceDate && policy.data ? roleSwapOf(data, serviceDate, policy.data.late_shift_anchor) : null
   const ref = data?.assignments.find((item) => item.service_date === serviceDate && item.role === 'primary')
 
   const [open, setOpen] = useState(false)
@@ -50,13 +64,13 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
 
   // 11–19 goes along by default exactly where the API would carry it itself.
   const carry = Boolean(swap?.lateShift?.eligible) && (carryChoice ?? true)
-  const historical = Boolean(serviceDate && serviceDate < warsawDate())
+  const { historical, silent } = correctionTiming(day, ['primary', 'secondary', ...(carry ? ['late_shift' as const] : [])])
   const lines = swap && serviceDate ? roleSwapLines(swap, serviceDate, carry) : []
 
   const check = useQuery({
     queryKey: ['role-swap-check', serviceDate, ref?.schedule_id, ref?.schedule_version, carry],
     queryFn: () => api.batchOverrideCheck({ batches: [{ schedule_id: ref!.schedule_id, assignments: lines }] }),
-    enabled: open && Boolean(ref && swap) && !refused,
+    enabled: open && Boolean(ref && swap),
   })
   // An acknowledgement covers the violations it was given for.
   useEffect(() => setAcknowledged(false), [check.data])
@@ -112,12 +126,12 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
         toast,
         message: () => ({
           title: t.toast(formatDay(serviceDate), swapHolders(swap, carry, true)),
-          description: t.emailsLater,
-          expired: common.undoEmailsSent,
+          description: silent ? schedule.toast.pastDayNoEmail : t.emailsLater,
+          expired: silent ? undefined : common.undoEmailsSent,
         }),
         undoLabel: t.undoAction,
         onUndoError: (error) => toast.error(t.undoFailed, { description: (error as Error).message }),
-        windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_SECONDS,
+        windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_WINDOW_SECONDS,
         onOffer: (undo, until) => setOffered({ serviceDate, undo, until, restores: swapHolders(swap, carry, false) }),
       })
     },
@@ -134,11 +148,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
     },
   })
 
-  const blocked = !ref
-    || refused
-    || check.isLoading
-    || ((check.data?.violations.length ?? 0) > 0 && !acknowledged)
-    || (historical && reason.trim().length < MIN_REASON_LENGTH)
+  const blocked = saveBlocked({ scheduled: Boolean(ref), check, acknowledged, historical, reason })
 
   const trigger = swap && (
     <RoleSwapTrigger
@@ -155,7 +165,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
     <section id={FRAME_ID} className="swap-frame" aria-labelledby={`${FRAME_ID}-title`}>
       <h3 id={`${FRAME_ID}-title`} className="swap-frame-h">{t.title}</h3>
       <RoleSwapPreview swap={swap} carry={carry} onCarry={setCarryChoice} disabled={save.isPending} />
-      {!refused && <DecisionFrame
+      <DecisionFrame
         violations={check.data?.violations}
         checkFailed={check.isError}
         violationsTitle={t.breaksRules}
@@ -167,10 +177,11 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
       >
         <RoleSwapImpact swap={swap} serviceDate={serviceDate} carry={carry} />
         {historical && (
-          <Field label={t.reason} id="role-swap-reason">
-            {({ id }) => (
+          <Field label={t.reason} id="role-swap-reason" hint={silent ? schedule.toast.pastDayNoEmail : undefined}>
+            {({ id, describedBy }) => (
               <Input
                 id={id}
+                aria-describedby={describedBy}
                 name={id}
                 value={reason}
                 minLength={MIN_REASON_LENGTH}
@@ -180,7 +191,7 @@ export function useRoleSwap({ data, serviceDate, coordinates }: {
             )}
           </Field>
         )}
-      </DecisionFrame>}
+      </DecisionFrame>
     </section>
   )
 

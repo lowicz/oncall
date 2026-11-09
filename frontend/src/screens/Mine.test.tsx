@@ -181,7 +181,7 @@ describe('MineScreen points and swaps', () => {
     renderScreen(<MineScreen displayName="Julia Nowak" />)
     expect(await screen.findByText('+0,5', { selector: '.big' })).toBeInTheDocument()
     expect(screen.getByText('W normie')).toBeInTheDocument()
-    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz o 0,5 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\. Generator wyrówna to w kolejnym zakresie\.$/)
+    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz o 0,5 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±2,0 pkt od sprawiedliwego udziału\. Generator wyrówna to w kolejnym zakresie\.$/)
     const table = await screen.findByRole('table', { name: 'Punkty miesiąc po miesiącu' })
     expect(within(table).getByText('wrzesień')).toBeInTheDocument()
     expect(within(table).getByText('sierpień')).toBeInTheDocument()
@@ -254,7 +254,7 @@ describe('MineScreen availability calendar', () => {
     const painted = await screen.findByRole('gridcell', { name: /niedz 20-09-2026, Nie mogę, powód: Wyjazd/ })
     expect(painted).toHaveAttribute('title', 'Nie mogę: Wyjazd')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' }))
     fireEvent.click(cell(/niedz 20-09-2026/))
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith({
@@ -316,7 +316,7 @@ describe('MineScreen availability calendar', () => {
 
     const kinds = screen.getByRole('radiogroup', { name: 'Zaznaczam jako' })
     expect(within(kinds).getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['nie mogę', 'wolę nie', 'chętnie'])
-    const eraser = screen.getByRole('button', { name: 'Wyczyść zaznaczenie' })
+    const eraser = screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' })
     expect(eraser).toHaveAttribute('aria-pressed', 'false')
 
     fireEvent.click(eraser)
@@ -334,7 +334,7 @@ describe('MineScreen availability calendar', () => {
 
     expect(screen.getByText('Kliknij dzień albo przeciągnij po kilku. Zapisujemy od razu.', { exact: false })).toBeInTheDocument()
     // Shift is for a keyboard and a mouse; a phone hides the sentence.
-    expect(screen.getByText('Shift+klik zaznacza zakres.')).toHaveClass('only-pointer')
+    expect(screen.getByText('Shift+klik albo Shift+Enter zaznacza zakres.')).toHaveClass('only-pointer')
     fireEvent.click(screen.getByRole('button', { name: 'Legenda' }))
     const legend = await screen.findByRole('dialog', { name: 'Legenda kalendarza' })
     expect(within(legend).getByText('Kropka: masz w tym dniu dyżur.')).toBeInTheDocument()
@@ -422,6 +422,38 @@ describe('MineScreen availability calendar', () => {
     await idleCalendar()
     await user.keyboard('{ArrowLeft} ')
     await waitFor(() => expect(replace).toHaveBeenCalledWith(expect.objectContaining({ starts_on: '2026-09-19', ends_on: '2026-09-19' })))
+  })
+
+  it('turns the month with PageUp and PageDown, to the same day or the month\'s last', async () => {
+    const user = userEvent.setup()
+    stub()
+    const { router } = renderScreen(<MineScreen displayName="Julia Nowak" />)
+    await idleCalendar()
+
+    cell(/śr 30-09-2026/).focus()
+    await user.keyboard('{PageDown}')
+    await waitFor(() => expect(router.state.location.search).toBe('?miesiac=2026-10'))
+    await waitFor(() => expect(cell(/pt 30-10-2026/)).toHaveFocus())
+    await user.keyboard('{ArrowRight}{PageDown}')
+    await waitFor(() => expect(cell(/pon 30-11-2026/)).toHaveFocus())
+    await user.keyboard('{PageUp}{PageUp}')
+    // Back in September the 30th is still ahead; August has passed and stays shut.
+    await waitFor(() => expect(cell(/śr 30-09-2026/)).toHaveFocus())
+    await user.keyboard('{PageUp}')
+    expect(router.state.location.search).toBe('?miesiac=2026-09')
+    expect(cell(/śr 30-09-2026/)).toHaveFocus()
+  })
+
+  it('lands on the first open day when the same day of the month has passed', async () => {
+    const user = userEvent.setup()
+    stub()
+    renderScreen(<MineScreen displayName="Julia Nowak" />, { route: '/moje?miesiac=2026-10' })
+    await idleCalendar()
+
+    cell(/pt 02-10-2026/).focus()
+    await user.keyboard('{PageUp}')
+    // 2 September has passed; 10 September, today, is the first day still open.
+    await waitFor(() => expect(cell(/czw 10-09-2026/)).toHaveFocus())
   })
 
   it('names a duty on an unavailable day and leads to a swap of that day', async () => {
@@ -624,14 +656,15 @@ describe('MineScreen phone', () => {
     const update = vi.spyOn(api, 'updateMyPhone').mockResolvedValue({ ...ME, phone: '+48600100300' })
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     const input = await screen.findByLabelText('Numer telefonu')
-    await waitFor(() => expect(input).toHaveValue('+48600100200'))
+    // Grouped as everywhere else it is printed.
+    await waitFor(() => expect(input).toHaveValue('+48 600 100 200'))
     const save = screen.getByRole('button', { name: 'Zapisz numer' })
     expect(save).toBeDisabled()
     fireEvent.change(input, { target: { value: '600 100 300' } })
     expect(save).toBeEnabled()
     fireEvent.click(save)
     await waitFor(() => expect(update).toHaveBeenCalledWith('600 100 300'))
-    await waitFor(() => expect(input).toHaveValue('+48600100300'))
+    await waitFor(() => expect(input).toHaveValue('+48 600 100 300'))
     expect(await screen.findByText('Zapisano numer telefonu')).toBeInTheDocument()
     expect(save).toBeDisabled()
     // The idle button cannot hold focus, so it goes back to the number.
@@ -681,7 +714,7 @@ describe('MineScreen phone', () => {
     const update = vi.spyOn(api, 'updateMyPhone').mockResolvedValue({ ...ME, role: 'viewer', has_team_member: false, phone: null })
     renderScreen(<MineScreen role="viewer" hasTeamMember={false} displayName="Julia Nowak" />)
     const input = await screen.findByLabelText('Numer telefonu')
-    await waitFor(() => expect(input).toHaveValue('+48600100200'))
+    await waitFor(() => expect(input).toHaveValue('+48 600 100 200'))
     fireEvent.change(input, { target: { value: ' ' } })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Zapisz numer' }))
@@ -804,7 +837,7 @@ describe('MineScreen points states', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     const box = (await screen.findByText('W normie')).closest('.box')
     expect(box).toHaveClass('box-ok')
-    expect(box).toHaveTextContent(/^W normieMasz o 3,0 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±3,0 pkt od udziału należnego\. Generator wyrówna to w kolejnym zakresie\.$/)
+    expect(box).toHaveTextContent(/^W normieMasz o 3,0 pkt więcej niż Twój sprawiedliwy udział\. Norma to ±3,0 pkt od sprawiedliwego udziału\. Generator wyrówna to w kolejnym zakresie\.$/)
   })
 
   it.each([
@@ -828,9 +861,9 @@ describe('MineScreen points states', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     expect(await screen.findByText('0,0', { selector: '.big' })).toBeInTheDocument()
     // The bar agrees with the big number: no sign, read as on share.
-    expect(screen.getByRole('img', { name: 'zgodnie z udziałem' })).toHaveTextContent(/^0,0$/)
+    expect(screen.getByRole('img', { name: 'zgodnie ze sprawiedliwym udziałem' })).toHaveTextContent(/^0,0$/)
     // Nothing to even out: the box stops at the norm.
-    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział\. Norma to ±2,0 pkt od udziału należnego\.$/)
+    expect(screen.getByText('W normie').closest('.box')).toHaveTextContent(/^W normieMasz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział\. Norma to ±2,0 pkt od sprawiedliwego udziału\.$/)
   })
 
   it('says when the month has no duties and switches back to twelve months', async () => {
@@ -978,7 +1011,7 @@ describe('MineScreen availability painting', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await idleCalendar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' }))
     fireEvent.pointerDown(cell(/wt 22-09-2026/), { button: 0 })
     fireEvent.pointerEnter(cell(/śr 23-09-2026/))
     expect(cell(/śr 23-09-2026/)).toHaveClass('avail-day-sel')
@@ -1064,7 +1097,7 @@ describe('MineScreen availability painting', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' }))
     fireEvent.click(cell(/niedz 20-09-2026/))
     fireEvent.click(cell(/wt 22-09-2026/))
 
@@ -1093,7 +1126,7 @@ describe('MineScreen availability painting', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Nie mogę' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' }))
     fireEvent.click(cell(/niedz 20-09-2026/))
     fireEvent.click(cell(/wt 22-09-2026/))
     expect(await screen.findByRole('gridcell', { name: 'wt 22-09-2026' })).toBeInTheDocument()
@@ -1252,7 +1285,7 @@ describe('MineScreen availability painting', () => {
     fireEvent.change(picker, { target: { value: 'm-beata' } })
 
     const day = await screen.findByRole('gridcell', { name: 'niedz 20-09-2026, Wolę nie, wpis: Adam Nowicki' })
-    fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' }))
     fireEvent.click(day)
     await waitFor(() => expect(replace).toHaveBeenCalledWith('m-beata', {
       kind: null, note: undefined, starts_on: '2026-09-20', ends_on: '2026-09-20', undo_id: expect.any(String),
@@ -1356,7 +1389,7 @@ describe('MineScreen availability Undo', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await idleCalendar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' }))
     fireEvent.change(screen.getByLabelText('Powód do kolejnych wpisów'), { target: { value: 'urlop' } })
     fireEvent.click(cell(/niedz 20-09-2026/))
     const toast = (await screen.findByText('Wyczyszczono: niedz 20 wrz')).closest('.toast') as HTMLElement
@@ -1518,7 +1551,7 @@ describe('MineScreen availability on a phone', () => {
     renderScreen(<MineScreen hasTeamMember displayName="Julia Nowak" />)
     await idleCalendar()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Wyczyść zaznaczenie' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gumka (usuwa wpis z dnia)' }))
     fireEvent.click(cell(/wt 22-09-2026/), { detail: 1 })
     expect(screen.getByText('Dotknij ostatni dzień, żeby wyczyścić cały zakres.', { exact: false })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Anuluj' }))

@@ -55,6 +55,7 @@ export const duty: Messages['duty'] = {
     until: (clock: string) => `until ${clock}`,
     switching: 'switching',
     failed: 'not switched',
+    failedDryRun: 'not switched (trial)',
     details: {
       title: 'On-call number',
       holder: (name: string, role: string) => `${name} answers it (${role}).`,
@@ -63,6 +64,7 @@ export const duty: Messages['duty'] = {
       switching: 'Switching the number: WCO has not confirmed the forwarding yet.',
       failed: 'The number could not be switched. An alert e-mail went to the coordinators and the pair on duty; the process keeps trying by itself.',
       dryRun: 'Dry run: WCO will not be changed.',
+      failedDryRun: 'The trial sign-in to WCO failed. In a dry run nobody gets an e-mail; the process keeps trying by itself.',
     },
     hand: 'Hand over the number…',
     take: 'Take the number…',

@@ -56,15 +56,17 @@ dostaje udział proporcjonalny do bieżącej dostępnej puli.
 
 Ekran **Sprawiedliwość** (`/sprawiedliwosc`) podaje kryterium i jego wynik
 już w podtytule: „12 miesięcy do 30 wrz · 5 osób · kryterium: nikt poza
-±2,0 pkt od udziału” ze znacznikiem **SPEŁNIONE** albo **NIESPEŁNIONE**.
+±2,0 pkt od sprawiedliwego udziału” ze znacznikiem **SPEŁNIONE** albo **NIESPEŁNIONE**.
 Pod nim rząd znaczników z liczbami, które koordynator i tak liczy w głowie:
-rozpiętość każdej soczewki z werdyktem, średnia punktów na osobę i średnia
-dni weekendowych. Znacznik soczewki, która nie spełnia kryterium, po najechaniu
+rozpiętość każdej soczewki z werdyktem i średnia dni weekendowych. Średniej
+punktów zespołu ekran nie podaje: każdą osobę mierzy jej sprawiedliwy udział,
+nie średnia. Znacznik soczewki, która nie spełnia kryterium, po najechaniu
 nazywa osobę najwyżej i najniżej.
 
-Sekcja **Zespół** to jedna tabela: dla każdej osoby odchylenie od udziału
-jako pasek dwukierunkowy (ponad udział w prawo, poniżej w lewo), potem
-**Razem** i każda soczewka jako `wykonane / udział` w kolumnach liczbowych.
+Sekcja **Zespół** to jedna tabela: dla każdej osoby odchylenie od
+sprawiedliwego udziału jako pasek dwukierunkowy (ponad udział w prawo, poniżej
+w lewo), potem **Razem** i każda soczewka jako `wykonane / sprawiedliwy udział`
+w kolumnach liczbowych.
 Linki w nagłówku sekcji (**Razem**, `PRIMARY`, `SECONDARY`, `11–19`,
 **Weekendy**, **Święta**) zmieniają tylko sortowanie i to, którą soczewkę
 pokazuje pasek. Rola, której osoba nie pełni, ma zamiast liczb „nie pełni tej

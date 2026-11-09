@@ -25,11 +25,12 @@ describe('Panel stacking', () => {
 })
 
 describe('Panel title', () => {
-  it('takes the initial focus without drawing a focus ring', async () => {
+  it('takes the initial focus and shows it with the focus ring every control has', async () => {
     loadRealStylesheet()
     render(<Panel open onClose={vi.fn()} title="Details"><button>Select candidate</button></Panel>)
     const title = screen.getByRole('heading', { name: 'Details' })
     await waitFor(() => expect(title).toHaveFocus())
-    expect(getComputedStyle(title).outline).toBe('none')
+    // A keyboard user sees where focus landed; jsdom resolves no var(), so the colour reads as currentcolor.
+    expect(getComputedStyle(title).outline).toBe('2px solid currentcolor')
   })
 })

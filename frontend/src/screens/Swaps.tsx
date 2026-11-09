@@ -219,7 +219,8 @@ function CandidateFacts({ option, breaks, deviation, benefit, takesOnly }: {
 }) {
   const t = useMessages().swaps.compose
   const facts = [
-    ...breaks.map((violation) => t.breaksRule(violation.message, violation.days.map(formatDate).join(', '))),
+    // The rule alone: its days are listed in full once the candidate is picked.
+    ...breaks.map((violation) => t.breaksRule(violation.message)),
     option.on_duty_that_day && t.onDutyThatDay,
     takesOnly && t.takesOnly(roleLabels()[takesOnly]),
     option.warning_violations?.some((violation) => violation.rule === 'day_off_block') && t.splitsDaysOff,
@@ -255,12 +256,20 @@ function SwapSteps({ status, approvalRequired }: { status: SwapStatus; approvalR
   )
 }
 
+/** A reason the application wrote itself, which is recorded in Polish, in the reader's language. */
+function recordedNote(note: string | null | undefined): string | undefined {
+  const t = messages().swaps.stage
+  if (note === UNDONE_RIGHT_AFTER_SENDING) return t.undone
+  if (note === WITHDRAWN_BY_AUTHOR) return t.withdrawnByAuthor
+  return undefined
+}
+
 /** Who acts next, under the status in the inbox table. */
 function stageDetail(item: SwapRequest, viewer: SwapViewer): string {
   const t = messages().swaps.stage
   const me = (name: string) => name === viewer.displayName
   if (item.status === 'approved') return t.inSchedule
-  if (!isOpen(item)) return item.decision_note ? t.reason(item.decision_note) : ''
+  if (!isOpen(item)) return recordedNote(item.decision_note) ?? (item.decision_note ? t.reason(item.decision_note) : '')
   if (item.status === 'pending_replacement') return me(item.replacement_name) ? t.waitingForYou : t.waitingFor(item.replacement_name)
   return canCoordinate(viewer.role)
     ? t.acceptedWaitingForYou(firstName(item.replacement_name))
@@ -309,7 +318,7 @@ function ExchangeRows({ item, viewer }: { item: SwapRequest; viewer: SwapViewer 
     { slots: returnSlotsOf(item), giver: item.replacement_name, taker: item.requester_name, name: t.inReturn, tone: 'role-r-s' },
   ]
   return (
-    <div className="roles">
+    <div className="roles roles-text">
       {directions.map(({ slots, giver, taker, name, tone }) => {
         const [label, labelTone, parties] = giver === viewer.displayName
           ? [t.youGive, 'role-r-p', t.forPerson(taker)]
@@ -341,8 +350,12 @@ const focusOnMount = (element: HTMLElement | null) => {
 
 /** Which of the broken rules a person may knowingly break, in the user documentation; opens apart so a half-written request survives. */
 function RulesDocsLink() {
-  const t = useMessages().swaps.rules
-  return <a href={`${docsHref()}${t.docsPath}`} target="_blank" rel="noreferrer">{t.whichRules}</a>
+  const { swaps: { rules: t }, common } = useMessages()
+  return (
+    <a className="ext-link" href={`${docsHref()}${t.docsPath}`} target="_blank" rel="noreferrer">
+      {t.whichRules}<Icon name="external" />{' '}<span className="sr-only">{common.newTab}</span>
+    </a>
+  )
 }
 
 /**
@@ -374,7 +387,7 @@ function SwapSheet({ item, viewer, approvalRequired, error, rejecting, reason, o
     <>
       <SwapSteps status={item.status} approvalRequired={approvalRequired} />
       {exchange ? <ExchangeRows item={item} viewer={viewer} /> : (
-      <div className="roles">
+      <div className="roles roles-text">
         <div className="role-row">
           <span className="role-r role-r-p">{t.gives}</span>
           <span className="role-n">{item.requester_name}</span>
@@ -392,7 +405,7 @@ function SwapSheet({ item, viewer, approvalRequired, error, rejecting, reason, o
         <div className="kv-row"><dt>{t.filed}</dt><dd className="mono">{formatDayShort(item.created_at.slice(0, 10))}</dd></div>
       </dl>
       {item.note && <Box title={t.reasonFrom(item.requester_name)}>{t.quoted(item.note)}</Box>}
-      {item.decision_note && <Box tone={item.status === 'rejected' ? 'bad' : 'muted'} title={t.decisionReason}>{t.quoted(item.decision_note)}</Box>}
+      {item.decision_note && <Box tone={item.status === 'rejected' ? 'bad' : 'muted'} title={t.decisionReason}>{recordedNote(item.decision_note) ?? t.quoted(item.decision_note)}</Box>}
       <ViolationList violations={brokenRules(item)} title={item.status === 'approved' ? rules.broken : rules.breaks} me={viewer.displayName}>
         {mustDecide && (
           <>
@@ -762,7 +775,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         title={t.swaps.title}
         sub={subtitle}
         actions={hasTeamMember && (
-          <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>{t.swaps.newSwap}</Button>
+          <Button variant="primary" icon="plus" className="thumb-action" onClick={() => setComposing(true)}>{t.swaps.newSwap}</Button>
         )}
       />
       {swapsError && <ErrorState error={swapsError} onRetry={() => { openSwaps.refetch(); closedSwaps.refetch() }} />}
@@ -776,6 +789,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               <Segmented<Inbox>
                 label={t.swaps.inbox.heading}
                 wrap
+                className="seg-inbox"
                 value={inbox}
                 onChange={setInbox}
                 options={INBOXES.map((value) => ({
@@ -911,7 +925,15 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             {openRules.length > 0 && <Tag tone="bad">{t.swaps.rules.tag}</Tag>}
           </>
         )}
-        footer={openItem && decision && (
+        // While a rejection is being written the footer finishes or drops it;
+        // the sheet's own close button still closes the sheet.
+        footer={openItem && decision && (decision.mustDecide && rejecting ? (
+          <>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => { setRejecting(false); setReason('') }}>{t.swaps.sheet.cancelReject}</Button>
+            <span className="sp" />
+            <Button size="sm" variant="danger" disabled={busy || !reason.trim()} loading={reject.isPending} onClick={() => reject.mutate({ id: openItem.id, reason: reason.trim() })}>{t.swaps.sheet.confirmReject}</Button>
+          </>
+        ) : (
           <>
             <Button size="sm" variant="ghost" onClick={() => openSheet(null)}>{t.common.close}</Button>
             <span className="sp" />
@@ -920,9 +942,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
             )}
             {decision.mustDecide && (
               <>
-                {rejecting
-                  ? <Button size="sm" variant="danger" disabled={busy || !reason.trim()} loading={reject.isPending} onClick={() => reject.mutate({ id: openItem.id, reason: reason.trim() })}>{t.swaps.sheet.confirmReject}</Button>
-                  : <Button size="sm" disabled={busy} onClick={() => setRejecting(true)}>{t.swaps.sheet.reject}</Button>}
+                <Button size="sm" disabled={busy} onClick={() => setRejecting(true)}>{t.swaps.sheet.reject}</Button>
                 <Button
                   size="sm"
                   variant="primary"
@@ -935,7 +955,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
               </>
             )}
           </>
-        )}
+        ))}
       >
         {openItem && (
           <SwapSheet

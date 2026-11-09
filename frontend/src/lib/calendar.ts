@@ -435,8 +435,3 @@ export function swapHolders(swap: RoleSwap, carry: boolean, after: boolean) {
     .map((person) => t.holder(person.name, t.roles(swapRoles(swap, person.id, carry, after))))
     .join(', ')
 }
-
-/** Whether either new holder of `swap` may not take their role that day. */
-export function swapRefused(swap: RoleSwap | null) {
-  return Boolean(swap && Object.keys(swap.refused).length > 0)
-}

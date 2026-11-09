@@ -118,21 +118,25 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
 
 export function Checkbox({ label, hint, className, blocked, ...rest }: {
   label: ReactNode
+  /** Said under the label and read as the box's description, not its name. */
   hint?: ReactNode
   /** Unavailable, but kept in the tab order (`aria-disabled`, not `disabled`)
    *  so the reason, said under the group, is reached with it. */
   blocked?: boolean
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const id = useId()
   return (
     <label className={cx('check', blocked && 'check-off', className)}>
       <input
         type="checkbox"
+        aria-labelledby={hint ? `${id}-label` : undefined}
+        aria-describedby={hint ? `${id}-hint` : undefined}
         {...rest}
         {...(blocked ? { 'aria-disabled': true, readOnly: true, onChange: undefined, onClickCapture: preventToggle } : {})}
       />
       <span className="check-body">
-        <span>{label}</span>
-        {hint && <small>{hint}</small>}
+        <span id={hint ? `${id}-label` : undefined}>{label}</span>
+        {hint && <small id={`${id}-hint`}>{hint}</small>}
       </span>
     </label>
   )
@@ -183,8 +187,9 @@ export function Segmented<T extends string>({ value, onChange, options, label, l
           data-value={option.value}
           data-tone={option.tone}
           className={cx(option.value === value && 'on')}
-          disabled={option.disabled}
-          onClick={() => { if (option.value !== value) onChange(option.value) }}
+          // Blocked, not removed: the group's description says why.
+          aria-disabled={option.disabled || undefined}
+          onClick={() => { if (!option.disabled && option.value !== value) onChange(option.value) }}
           onKeyDown={(event) => navigateRadioGroup(event, option.value, options, onChange)}
         >
           {option.label}

@@ -4,9 +4,10 @@ import { ApiError, AssignmentRole, CalendarData, api } from '../api'
 import { useUndoable } from './useUndoable'
 import { messages, useMessages } from '../i18n'
 import { LateShiftLink, OnCall, StaffChange, StaffingCandidate, correctionRoles, lateShiftLink, staffChanges, staffingCandidates } from '../lib/calendar'
-import { formatShortDate, warsawDate } from '../lib/dates'
+import { correctionTiming } from '../lib/coverage'
+import { formatShortDate } from '../lib/dates'
 import { availabilityLabels, roleLabels } from '../lib/labels'
-import { Button, Field, Input, Select, useToast } from '../ui'
+import { Button, Field, InlineError, Input, LoadingBlock, Select, useToast } from '../ui'
 import { DecisionFrame } from '../components/DecisionFrame'
 import { RolesFieldset, StaffChangeImpact, StaffChangePreview } from '../components/StaffChangePreview'
 
@@ -138,7 +139,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
   const [reason, setReason] = useState('')
 
   const { late, roles, candidates, chosen, ref, changes, lines, ready } = selection({ data, serviceDate, link, onCall, lateChoice, memberId, open })
-  const historical = Boolean(serviceDate && serviceDate < warsawDate())
+  const { ended, historical, silent } = correctionTiming(day, roles)
 
   const check = useQuery({
     queryKey: ['staff-change-check', ref?.schedule_id, ref?.schedule_version, lines],
@@ -174,7 +175,8 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
       const name = chosen!.display_name
       const given = historical ? reason.trim() : undefined
       const acknowledge = (violations?.length ?? 0) > 0 && acknowledged
-      const people = new Set([...changes.flatMap((item) => (item.from ? [item.from] : [])), name]).size
+      const mailed = changes.filter((item) => !ended.includes(item.role))
+      const people = new Set([...mailed.flatMap((item) => (item.from ? [item.from] : [])), name]).size
       const title = savedTitle(changes, roles, date, name)
       const audited = acknowledge ? schedule.toast.violationAudited : ''
       const execute = () => api.batchOverride({
@@ -190,7 +192,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
       if (changes.some((item) => !item.restoreTo)) {
         const result = await execute()
         toast.success(title, {
-          description: [emailsTo(people, name), audited].filter(Boolean).join(' '),
+          description: [silent ? schedule.toast.pastDayNoEmail : emailsTo(people, name), audited].filter(Boolean).join(' '),
           action: { label: schedule.toast.openDay, onClick: () => onOpenDay(changes[0].role) },
         })
         return result
@@ -210,8 +212,8 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
         },
         message: () => ({
           title,
-          description: [schedule.toast.emailsLater(people), audited].filter(Boolean).join(' '),
-          expired: common.undoEmailsSent,
+          description: [silent ? schedule.toast.pastDayNoEmail : schedule.toast.emailsLater(people), audited].filter(Boolean).join(' '),
+          expired: silent ? undefined : common.undoEmailsSent,
         }),
       })
     },
@@ -239,7 +241,10 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
 
   // A day that drops out of the publication while the form is open has
   // nothing left to correct; the inspector says why.
-  const form = open && day?.published && serviceDate && (
+  // The 11–19 choices follow the policy's anchor, so they wait for it rather
+  // than change under the cursor.
+  const waiting = policy.isError ? <InlineError error={policy.error} /> : <LoadingBlock label={common.loading} rows={2} />
+  const form = open && day?.published && serviceDate && (!policy.data ? waiting : (
     <section id={FORM_ID} className="swap-frame" aria-labelledby={`${FORM_ID}-title`}>
       <h3 id={`${FORM_ID}-title`} className="swap-frame-h">{t.title}</h3>
       <RolesFieldset
@@ -290,10 +295,11 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
           <StaffChangePreview changes={changes} name={chosen!.display_name} onCall={onCall} link={link} />
           <StaffChangeImpact scheduleId={ref!.schedule_id} lines={lines} changes={changes} name={chosen!.display_name} />
           {historical && (
-            <Field label={t.reason} id="staff-change-reason">
-              {({ id }) => (
+            <Field label={t.reason} id="staff-change-reason" hint={silent ? schedule.toast.pastDayNoEmail : undefined}>
+              {({ id, describedBy }) => (
                 <Input
                   id={id}
+                  aria-describedby={describedBy}
                   name={id}
                   value={reason}
                   minLength={MIN_REASON_LENGTH}
@@ -306,9 +312,9 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
         </DecisionFrame>
       )}
     </section>
-  )
+  ))
 
-  const footer = form && (
+  const footer = form && policy.data && (
     <>
       <Button variant="ghost" disabled={pending} onClick={close}>{common.cancel}</Button>
       <span className="sp" />

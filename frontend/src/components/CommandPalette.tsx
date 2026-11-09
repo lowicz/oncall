@@ -3,7 +3,7 @@ import { Dialog as BaseDialog } from '@base-ui/react/dialog'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
-import { isIsoDate, monthFromName } from '../lib/dates'
+import { parseDayQuery } from '../lib/dates'
 import { Access, docsHref, navLabel, visibleFor, allNav } from '../lib/nav'
 import { locale, useLanguage, useMessages } from '../i18n'
 import { Icon, IconName, cx } from '../ui'
@@ -16,31 +16,6 @@ interface Item {
   hint?: string
   icon: IconName
   run: () => void
-}
-
-function isoDay(year: number, month: number, day: number): string | null {
-  const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  return isIsoDate(iso) ? iso : null
-}
-
-/** "2026-09-24", "24-09-2026", "24 wrz", "24 Sep" or "24.09" as an ISO date, or null. */
-export function parseDayQuery(query: string, today = new Date()): string | null {
-  const text = query.trim().toLowerCase()
-  let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
-  if (match) return isoDay(Number(match[1]), Number(match[2]), Number(match[3]))
-  match = /^(\d{1,2})[-.](\d{1,2})(?:[-.](\d{4}))?$/.exec(text)
-  if (match) {
-    const year = match[3] ? Number(match[3]) : today.getFullYear()
-    return isoDay(year, Number(match[2]), Number(match[1]))
-  }
-  match = /^(\d{1,2})\s+([a-ząćęłńóśźż]{3,})(?:\s+(\d{4}))?$/.exec(text)
-  if (match) {
-    const month = monthFromName(match[2])
-    if (month === null) return null
-    const year = match[3] ? Number(match[3]) : today.getFullYear()
-    return isoDay(year, month, Number(match[1]))
-  }
-  return null
 }
 
 /**

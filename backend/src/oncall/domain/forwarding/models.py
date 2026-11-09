@@ -61,7 +61,8 @@ class SwitchStatus(StrEnum):
     #: The pass has not reached it yet, or retries a failure it does not
     #: alert about yet.
     switching = "switching"
-    #: The failure alert went out: the number still rings somewhere else.
+    #: The failure alert went out: the number still rings somewhere else. In
+    #: a dry run, which alerts nobody, the pass failed.
     failed = "failed"
 
 
@@ -206,6 +207,9 @@ class PairMember:
     whether a phone number is set, never the number."""
 
     name: str
+    #: The person's team member, so a screen finds their duty by id, not by
+    #: a name two people may share.
+    member_id: uuid.UUID
     #: Whether the reader is this person.
     is_you: bool
     has_phone: bool

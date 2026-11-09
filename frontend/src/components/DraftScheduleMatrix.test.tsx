@@ -83,6 +83,24 @@ describe('DraftScheduleMatrix correction', () => {
     const box = await screen.findByText('Bilans PRIMARY: Marek Nowak')
     expect(box.closest('.box')).toHaveTextContent('+14,01 → +15,01 (+1 punkt)')
   })
+
+  it('waits for the swap policy before offering the roles, and says when it cannot be read', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendar)
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
+    let refuse: (error: Error) => void = () => {}
+    vi.spyOn(api, 'swapPolicy').mockReturnValueOnce(new Promise((_, reject) => { refuse = reject }))
+    renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Marek Nowak, pon 21-09-2026, brak dyżuru' }))
+    const panel = await screen.findByRole('dialog')
+    // The 11–19 choices follow the policy, so nothing is offered before it answers.
+    expect(within(panel).getByRole('status', { name: 'Wczytywanie…' })).toBeInTheDocument()
+    expect(within(panel).queryByRole('group', { name: 'Role do zmiany' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: /^Przypisz w szkicu/ })).not.toBeInTheDocument()
+    refuse(new ApiError('Polityka niedostępna', 503))
+    expect(await within(panel).findByText('Polityka niedostępna')).toBeInTheDocument()
+    expect(within(panel).queryByRole('group', { name: 'Role do zmiany' })).not.toBeInTheDocument()
+  })
 })
 
 type Day = CalendarData['days'][number]
@@ -162,7 +180,7 @@ describe('DraftScheduleMatrix grid', () => {
     expect(within(eventPanel).queryByRole('button', { name: /Usuń/ })).not.toBeInTheDocument()
     fireEvent.click(within(eventPanel).getByRole('button', { name: 'Zamknij panel' }))
 
-    const clash = within(region).getByRole('button', { name: 'Anna Kowalska, czw 01-10-2026, PRIMARY korekta kolizja z niedostępnością, 11–19 kolizja z niedostępnością' })
+    const clash = within(region).getByRole('button', { name: 'Anna Kowalska, czw 01-10-2026, P 11–19 (PRIMARY korekta kolizja z niedostępnością, 11–19 kolizja z niedostępnością)' })
     expect(clash.closest('td')).toHaveClass('gap')
     expect(within(region).getByRole('button', { name: 'Marek Nowak, czw 01-10-2026, brak dyżuru, Wolę nie' })).toBeInTheDocument()
   })
@@ -255,6 +273,7 @@ describe('DraftScheduleMatrix inspector', () => {
   it('warns that an unavailable person will be refused and offers no day shift on a day off', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(weekend)
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
+    const save = vi.spyOn(api, 'overrideDraft')
     renderScreen(<DraftScheduleMatrix result={weekendDraft} onChange={() => {}} />)
 
     fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, sob 26-09-2026/ }))
@@ -270,7 +289,11 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(within(group).getByRole('checkbox', { name: 'SECONDARY' })).toBeChecked()
     expect(within(panel).queryByText(/Nikt nie ma tej roli tego dnia/)).not.toBeInTheDocument()
     expect(within(group).queryByRole('alert')).not.toBeInTheDocument()
-    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
+    // Blocked, the save stays in reach and does nothing.
+    const assign = within(panel).getByRole('button', { name: 'Przypisz w szkicu' })
+    expect(assign).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(assign)
+    expect(save).not.toHaveBeenCalled()
     // One on-call role of the day is empty: there is no pair to swap.
     expect(within(panel).queryByRole('button', { name: /Zamień miejscami/ })).not.toBeInTheDocument()
   })
@@ -290,7 +313,7 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(within(panel).getByRole('checkbox', { name: 'SECONDARY' })).toBeChecked()
     // The person already holds the role: nothing to move, and the panel says why.
     expect(within(panel).getByRole('alert')).toHaveTextContent('Anna Kowalska ma już te role tego dnia. Kliknij komórkę osoby, która ma je przejąć, albo zamień ich miejscami.')
-    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toHaveAttribute('aria-disabled', 'true')
 
     fireEvent.click(screen.getByRole('button', { name: /^Marek Nowak, niedz 27-09-2026/ }))
     panel = await screen.findByRole('dialog', { name: 'Wstaw: Marek Nowak · 27-09-2026' })
@@ -539,7 +562,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     expect(within(group).getByRole('checkbox', { name: '11–19 · razem z SECONDARY' })).not.toBeChecked()
     fireEvent.click(within(group).getByRole('checkbox', { name: 'PRIMARY' }))
     expect(within(group).getByRole('alert')).toHaveTextContent('Wybierz co najmniej jedną rolę.')
-    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toHaveAttribute('aria-disabled', 'true')
 
     // SECONDARY brings 11–19 along: Marek holds both, as the policy couples them.
     fireEvent.click(within(group).getByRole('checkbox', { name: 'SECONDARY' }))
@@ -580,7 +603,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     const panel = await openCell(/^Celina Dąbrowska, pon 21-09-2026/, 'Wstaw: Celina Dąbrowska · 21-09-2026')
     expect(within(panel).getByRole('checkbox', { name: '11–19 · dziś: Celina Dąbrowska' })).toBeChecked()
     expect(within(panel).getByRole('checkbox', { name: 'PRIMARY' })).not.toBeChecked()
-    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('opens a cell on every role it shows, even when the policy ties 11–19 to the other role', async () => {
@@ -593,7 +616,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     await waitFor(() => expect(within(panel).getByRole('checkbox', { name: /^11–19/ })).toBeChecked())
     expect(within(panel).getByRole('checkbox', { name: 'SECONDARY' })).toBeChecked()
     expect(within(panel).getByRole('alert')).toHaveTextContent('Marek Nowak ma już te role tego dnia.')
-    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu (2 role)' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu (2 role)' })).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('says under the roles why the person cannot take them, without changing what is ticked', async () => {
@@ -614,7 +637,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     expect(panel).toHaveAccessibleName('Wstaw: Celina Dąbrowska · 21-09-2026')
     expect(within(panel).getByRole('alert')).toHaveTextContent('Celina Dąbrowska nie ma uprawnień do 11–19. Odznacz 11–19 albo kliknij komórkę innej osoby.')
     expect(within(panel).getByRole('checkbox', { name: /^11–19/ })).toBeChecked()
-    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu (2 role)' })).toBeDisabled()
+    expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu (2 role)' })).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(within(panel).getByRole('checkbox', { name: /^11–19/ }))
     expect(within(panel).getByRole('button', { name: 'Przypisz w szkicu' })).toBeEnabled()
 
@@ -673,9 +696,9 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     expect(within(panel).queryByRole('group', { name: 'Role do zmiany' })).not.toBeInTheDocument()
     expect(frame).toHaveTextContent('Anna Kowalska → Marek Nowak')
     expect(frame).toHaveTextContent('Marek Nowak → Anna Kowalska')
-    const carry = within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ })
+    const carry = within(frame).getByRole('checkbox', { name: 'razem z SECONDARY' })
     expect(carry).toBeChecked()
-    expect(frame).toHaveTextContent('Polityka wiąże 11–19 z SECONDARY, a Anna Kowalska ma do niej uprawnienia. Odznaczenie zostawia 11–19 bez zmian.')
+    expect(carry).toHaveAccessibleDescription('Odznaczenie zostawia 11–19 bez zmian.')
     // A draft keeps no rules to check here: its problems are in the table.
     expect(frame.querySelector('.rule-line')).toBeNull()
     fireEvent.click(within(panel).getByRole('button', { name: 'Zamień miejscami' }))
@@ -766,7 +789,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
   })
 
-  it('keeps a swap one holder may not take from being saved', async () => {
+  it('keeps a swap one holder may not take from being opened', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue({
       ...team,
       members: [
@@ -780,14 +803,11 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     renderScreen(<DraftScheduleMatrix result={pair} onChange={() => {}} />)
 
     const panel = await openCell(/^Marek Nowak, pon 21-09-2026/, 'Wstaw: Marek Nowak · 21-09-2026')
-    fireEvent.click(within(panel).getByRole('button', { name: /^Zamień miejscami:/ }))
-    const frame = within(panel).getByRole('region', { name: 'Zamiana miejscami' })
-    expect(within(frame).getByRole('alert')).toHaveTextContent('Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zapisać.')
-    expect(within(frame).getByRole('checkbox', { name: /razem z SECONDARY/ })).not.toBeChecked()
-    expect(frame).toHaveTextContent('Anna Kowalska nie ma uprawnień do 11–19, więc 11–19 zostaje bez zmian.')
-    const swapButton = within(panel).getByRole('button', { name: 'Zamień miejscami' })
-    expect(swapButton).toHaveAttribute('aria-disabled', 'true')
-    fireEvent.click(swapButton)
+    const refused = within(panel).getByRole('button', { name: /^Zamień miejscami:/ })
+    expect(refused).toHaveAttribute('aria-disabled', 'true')
+    expect(refused).toHaveAccessibleDescription('Marek Nowak nie ma tego dnia uprawnień do PRIMARY, więc tej zamiany nie da się zrobić.')
+    fireEvent.click(refused)
+    expect(within(panel).queryByRole('region', { name: 'Zamiana miejscami' })).not.toBeInTheDocument()
     expect(save).not.toHaveBeenCalled()
   })
 })

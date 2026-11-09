@@ -1,5 +1,5 @@
-import { CurrentDuty } from '../api'
-import { weekdays } from './dates'
+import { AssignmentRole, CurrentDuty } from '../api'
+import { addDays, warsawMoment, weekdays } from './dates'
 import { messages } from '../i18n/messages'
 
 /** When the coverage ends as a local Date, given the duty's day and window. */
@@ -30,4 +30,29 @@ export function formatUntil(end: Date | null, now: Date): string {
   const rest = minutes % 60
   const left = hours > 0 ? t.hoursMinutes(hours, rest) : t.minutes(rest)
   return t.untilWithLeft(when, left)
+}
+
+/** Clock window of a duty, mirroring backend coverage.py (PLAN.md §3). */
+export function coverageWindowText(day: { is_day_off: boolean }, role: AssignmentRole): string {
+  if (role === 'late_shift') return '11:00–19:00'
+  return day.is_day_off ? messages().schedule.allDay : '19:00–09:00'
+}
+
+/** Whether the duty of a day in a role is over, in Warsaw as backend
+ *  coverage.py says: 11–19 at 19:00, a day off at midnight, a working day's
+ *  night on-call at 09:00 the next morning. */
+export function coverageEnded(day: { service_date: string; is_day_off: boolean }, role: AssignmentRole, now = new Date()): boolean {
+  let end = `${addDays(day.service_date, 1)} 09:00`
+  if (role === 'late_shift') end = `${day.service_date} 19:00`
+  else if (day.is_day_off) end = `${addDays(day.service_date, 1)} 00:00`
+  return warsawMoment(now) >= end
+}
+
+/** What a correction of these roles of a day owes to time: the roles whose
+ *  cover has ended and mail nobody (`ended`), a reason once any has
+ *  (`historical`), no e-mail at all once all of them have (`silent`), as the
+ *  API decides it line by line. */
+export function correctionTiming(day: { service_date: string; is_day_off: boolean } | undefined, roles: AssignmentRole[]) {
+  const ended = day ? roles.filter((role) => coverageEnded(day, role)) : []
+  return { ended, historical: ended.length > 0, silent: ended.length > 0 && ended.length === roles.length }
 }

@@ -111,7 +111,7 @@ function SettingsForm({ saved }: Readonly<{ saved: ForwardingSettings }>) {
         aria-label={t.settings.title}
         onSubmit={(event) => { event.preventDefault(); save.mutate() }}
       >
-        <SectionHeading as="h3" title={t.settings.title} meta={t.settings.savedAt(formatMoment(saved.updated_at))} />
+        <SectionHeading title={t.settings.title} meta={t.settings.savedAt(formatMoment(saved.updated_at))} />
         <div className="frow">
           <Field label={t.settings.mode} id="forwarding-mode" hint={t.settings.modeHints[form.mode]}>
             {({ id, describedBy }) => (

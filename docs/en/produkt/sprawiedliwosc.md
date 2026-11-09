@@ -58,15 +58,16 @@ the currently available pool.
 
 The **Fairness** screen (`/sprawiedliwosc`) states the criterion and its
 result right in the subtitle: “12 months to 30 Sep · 5 people · criterion:
-nobody beyond ±2.0 pts from share” with a **MET** or **NOT MET** badge.
+nobody beyond ±2.0 pts from the fair share” with a **MET** or **NOT MET** badge.
 Below it a row of badges with the numbers the coordinator counts in their head
-anyway: the spread of each lens with a verdict, the average points per person
-and the average weekend days. Hovering over the badge of a lens that does not
+anyway: the spread of each lens with a verdict and the average weekend days. The
+screen gives no team average of points: each person is measured against their
+fair share, not the average. Hovering over the badge of a lens that does not
 meet the criterion names the highest and the lowest person.
 
 The **Team** section is a single table: for each person the deviation from
-share as a two-way bar (above share to the right, below to the left), then
-**Total** and each lens as `served / share` in the numeric columns.
+the fair share as a two-way bar (above it to the right, below to the left),
+then **Total** and each lens as `served / fair share` in the numeric columns.
 The links in the section header (**Total**, `PRIMARY`, `SECONDARY`, `11–19`,
 **Weekends**, **Holidays**) change only the sorting and which lens the bar
 shows. A role the person does not hold shows “does not hold this role” instead

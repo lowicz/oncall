@@ -12,8 +12,8 @@ const TODAY = '2026-09-10'
 
 /** Thursday's pair, Anna and Marek, as the API tells it to `you`: one of them or a coordinator. */
 const pairFor = (you: 'primary' | 'secondary' | 'coordinator', marekHasPhone = true): HandoverPair => ({
-  primary: { name: 'Anna Kowalska', is_you: you === 'primary', has_phone: true },
-  secondary: { name: 'Marek Nowak', is_you: you === 'secondary', has_phone: marekHasPhone },
+  primary: { name: 'Anna Kowalska', member_id: 'm1', is_you: you === 'primary', has_phone: true },
+  secondary: { name: 'Marek Nowak', member_id: 'm2', is_you: you === 'secondary', has_phone: marekHasPhone },
 })
 
 const publication = (over: Partial<PublishedSchedule> = {}): PublishedSchedule => ({
@@ -566,6 +566,16 @@ describe('DutyScreen and the on-call number', () => {
     renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
     expect(await screen.findByRole('button', { name: 'numer on-call u Ciebie' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Przekaż numer…' })).not.toHaveClass('btn-pri')
+  })
+
+  it('dials the receiver the pair names by id, not another person of the same name', async () => {
+    stub({ ...atAnna, pair: pairFor('primary') })
+    const namesake: CurrentDuty = { ...marek, role: 'late_shift', member_id: 'm9', contact_phone: '+48 700 000 000' }
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ current: [...publication().current, namesake, marek] }))
+    renderScreen(<DutyScreen role="member" displayName="Anna Kowalska" hasTeamMember />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Przekaż numer…' }))
+    const receiver = await screen.findByRole('link', { name: '+48\u00a0602\u00a0345\u00a0678' })
+    expect(receiver).toHaveAttribute('href', 'tel:+48602345678')
   })
 
   it('names the holder to a coordinator, who may act for the pair', async () => {

@@ -110,6 +110,7 @@ export const schedule = {
     region: 'Macierz grafiku',
     caption: (from: string, to: string) => `Grafik dyżurów od ${from} do ${to}. Osoby w wierszach, dni w kolumnach. Strzałkami przechodzisz po siatce, PageUp i PageDown przeskakują o tydzień.`,
     person: 'Osoba',
+    month: 'Miesiąc',
     noFullCoverage: 'brak pełnej obsady',
     you: 'Ty',
     outOfRotation: 'poza rotacją',
@@ -127,6 +128,8 @@ export const schedule = {
     outsideRange: 'Ten dzień jest poza opublikowanym zakresem grafiku.',
     outsideRangeCoordinator: 'Żeby go obsadzić, wygeneruj i opublikuj grafik obejmujący tę datę.',
     outsideRangeMember: 'Koordynator jeszcze nie opublikował grafiku na ten okres.',
+    pastImported: 'Dzień z importu historii, poza opublikowanym grafikiem.',
+    pastOutside: 'Ten dzień minął poza opublikowanym grafikiem.',
     pickPerson: 'Wybierz osobę',
     /** What the hint under the person picker says about the chosen person. */
     candidate: {
@@ -144,7 +147,6 @@ export const schedule = {
     unstaffed: 'brak obsady',
     changeRole: (role: string, who: string) => `${role}: ${who}. Zmień osobę`,
     staffRole: (role: string) => `${role}: brak obsady. Obsadź`,
-    change: 'Zmień…',
     staff: 'Obsadź…',
     events: 'Wydarzenia',
     delete: 'Usuń',
@@ -161,6 +163,8 @@ export const schedule = {
     emailBoth: 'E-mail o zmianie dostaną obie osoby.',
     emailOne: (name: string) => `E-mail o dyżurze dostanie ${name}.`,
     violationAudited: 'Naruszenie reguł zapisane w audycie.',
+    /** A duty whose cover has ended is tidied up, not announced: the server sends no e-mail. */
+    pastDayNoEmail: 'Nikt nie dostaje e-maila o zmianie dyżuru, który już się skończył.',
     openDay: 'Pokaż dzień',
     changedRoles: (day: string, name: string, roles: string) => `Zmieniono obsadę ${day}: ${name} ${roles}`,
     emailMany: (count: number) => `E-mail o zmianie ${pluralFormPl(count, ['dostanie', 'dostaną', 'dostanie'])} ${pluralPl(count, ['osoba', 'osoby', 'osób'])}.`,
@@ -193,7 +197,7 @@ export const schedule = {
     clean: 'Bez naruszeń reguł twardych po obu zmianach',
     takes: (roles: string) => `przejmuje ${roles}`,
     gives: (roles: string) => `oddaje ${roles}`,
-    reason: 'Powód korekty dnia, który minął (minimum 10 znaków)',
+    reason: 'Powód korekty dyżuru, który już się skończył (minimum 10 znaków)',
     saveRoles: (count: number) => `Zmień obsadę (${count} role)`,
     /** The 11–19 row says how it stands to the policy's coupling. */
     tag: {
@@ -211,12 +215,12 @@ export const schedule = {
     save: 'Zamień miejscami',
     withAnchor: (anchor: string) => `razem z ${anchor}`,
     unchanged: 'bez zmian',
-    carries: (anchor: string, to: string) => `Polityka wiąże 11–19 z ${anchor}, a ${to} ma do niej uprawnienia. Odznaczenie zostawia 11–19 bez zmian i pokaże regułę powiązania do potwierdzenia.`,
-    carriesInDraft: (anchor: string, to: string) => `Polityka wiąże 11–19 z ${anchor}, a ${to} ma do niej uprawnienia. Odznaczenie zostawia 11–19 bez zmian.`,
+    carries: (anchor: string) => `Odznaczenie zostawia 11–19 bez zmian i wymaga potwierdzenia reguły powiązania z ${anchor}.`,
+    carriesInDraft: 'Odznaczenie zostawia 11–19 bez zmian.',
     notEligible: (to: string) => `${to} nie ma uprawnień do 11–19, więc 11–19 zostaje bez zmian.`,
     refusals: {
-      notEligible: (to: string, role: string) => `${to} nie ma tego dnia uprawnień do ${role}, więc tej zamiany nie da się zapisać.`,
-      unavailable: (to: string, role: string) => `${to} ma tego dnia wpis niedostępności, więc nie przejmie ${role} i tej zamiany nie da się zapisać.`,
+      notEligible: (to: string, role: string) => `${to} nie ma tego dnia uprawnień do ${role}, więc tej zamiany nie da się zrobić.`,
+      unavailable: (to: string, role: string) => `${to} ma tego dnia wpis niedostępności, więc nie przejmie ${role} i tej zamiany nie da się zrobić.`,
     },
     breaksRules: 'Ta zamiana złamie reguły twarde',
     reason: 'Powód korekty (minimum 10 znaków)',

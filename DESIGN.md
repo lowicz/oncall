@@ -1,6 +1,6 @@
 ---
 name: On-call
-description: Sterownia dyżurów - ciemna, gęsta, z jednym błękitem działania i trzema kolorami ról.
+description: An on-call control room - dark, dense, with one action blue and three role colours.
 colors:
   night-navy: "#061228"
   control-navy: "#0B1F42"
@@ -20,6 +20,7 @@ colors:
   secondary-violet: "#B17EAD"
   secondary-text: "#D5A8D2"
   late-salmon: "#FFB196"
+  late-text: "#FFB196"
   role-ink: "#0B1F42"
   ok-green: "#6CD99D"
   ok-soft: "rgba(108, 217, 157, 0.14)"
@@ -172,7 +173,7 @@ components:
   toast:
     backgroundColor: "{colors.control-navy-3}"
     textColor: "{colors.ink}"
-    typography: "{typography.mono}"
+    typography: "{typography.label}"
     rounded: "{rounded.md}"
     padding: "9px 12px"
     width: "380px"
@@ -184,348 +185,410 @@ components:
 
 # Design System: On-call
 
-Zapis zastanego systemu wizualnego, odczytany z `frontend/src/tokens.css`
-i `frontend/src/styles.css` (tryb skanowania Impeccable, bez wywiadu z
-właścicielem). Wartości w nagłówku YAML są normatywne i odpowiadają
-ciemnemu motywowi domyślnemu; motyw jasny podmienia te same nazwy zmiennych
-(opis w sekcji Colors). Nazwy opisowe kolorów i „Gwiazda Północna" są
-propozycją autora przeglądu, opartą na komentarzach w arkuszach.
+A record of the existing visual system, read from `frontend/src/tokens.css`
+and `frontend/src/styles.css` (Impeccable scan mode, without an interview
+with the owner). The values in the YAML header are normative and match the
+default dark theme; the light theme swaps the same variable names
+(described under Colors). The descriptive colour names and the "North Star"
+are the reviewer's proposal, based on the comments in the stylesheets.
 
 ## Overview
 
-**Creative North Star: „Sterownia" (Control Room)**
+**Creative North Star: "Sterownia" (Control Room)**
 
-Arkusz stylów sam nazywa się „Control Room stylesheet" (`styles.css:2`) i
-to jest trafna metafora: ciemne, matowe granatowe tło, jeden pasek
-sygnalizacyjny u góry mówiący, kto ma dyżur teraz, i gęsta macierz dni jako
-główny instrument. Interfejs ma być czytany w sekundę przez osobę, która
-właśnie dostała telefon o awarii, i operowany w skupieniu przez
-koordynatora, który układa miesiąc. Nic nie jest ozdobą: kolor pojawia się
-tylko tam, gdzie niesie znaczenie (rola, stan, działanie, dziś).
+The stylesheet calls itself the "Control Room stylesheet" (`styles.css:2`),
+and the metaphor fits: a dark, matte navy background, one signal strip at
+the top saying who is on duty now, and a dense matrix of days as the main
+instrument. The interface has to be read in a second by a person who has
+just taken a call about an outage, and operated with focus by a
+coordinator who is laying out a month. Nothing is decoration: colour
+appears only where it carries meaning (role, state, action, today).
 
-Gęstość jest celowa: 14 px tekstu podstawowego, 12 px etykiet, komórka
-macierzy 35 px (29 px w trybie zwartym), panele z wewnętrznym odstępem
-12-14 px. Pigułkowe przyciski i nawigacja (promień 999 px) są jedynym
-miękkim elementem na tle prostokątnych paneli (12 px) i pól (8 px); łagodzą
-pulpit, nie zmieniając jego charakteru. Światło to wariant, nie drugi
-system: jasny motyw zachowuje te same nazwy, ten sam błękit działania i te
-same wypełnienia ról, zmienia tylko powierzchnie i atrament.
+The density is deliberate: 14 px body text, 12 px labels, a 35 px matrix
+cell (29 px in compact density), panels with 12-14 px inner spacing. Pill
+buttons and navigation (999 px radius) are the only soft element against
+rectangular panels (12 px) and fields (8 px); they soften the console
+without changing its character. Light is a variant, not a second system:
+the light theme keeps the same names, the same action blue and the same
+role fills, and changes only the surfaces and the ink.
 
 **Key Characteristics:**
-- ciemny granat domyślnie, biel jako wariant z tymi samymi tokenami;
-- jeden błękit działania (`#2870ED`) na pasku „Teraz", przycisku głównym i
-  aktywnej ikonie; drugi, jaśniejszy błękit sygnału (`#65B8FF`) na linkach,
-  zaznaczeniach i fokusie;
-- trzy stałe kolory ról: turkus `PRIMARY`, fiolet `SECONDARY`, łosoś `11–19`,
-  identyczne w obu motywach, zawsze z granatowym atramentem;
-- pigułki na wszystkim, co się klika (przyciski, nawigacja, chipy, odznaki),
-  prostokąty na wszystkim, co się czyta (panele, pola, okna, komórki);
-- Inter do tekstu, Geist Mono do dat, godzin, numerów i liczb w tabelach;
-- bez cieni w ciemnym motywie poza oknami nad treścią; głębia przez
-  trzy stopnie granatu (`s1`, `s2`, `s3`) i cienkie linie.
+- dark navy by default, white as a variant with the same tokens;
+- one action blue (`#2870ED`) on the "Teraz" (Now) strip, the primary
+  button and the active icon; a second, lighter signal blue (`#65B8FF`) on
+  links, selections and focus;
+- three fixed role colours: teal `PRIMARY`, violet `SECONDARY`, salmon
+  `11–19`, identical in both themes, always with navy ink;
+- pills on everything that is clicked (buttons, navigation, chips, badges),
+  rectangles on everything that is read (panels, fields, dialogs, cells);
+- Inter for text, Geist Mono for dates, times, numbers and figures in
+  tables;
+- no shadows in the dark theme except for overlays above the content; depth
+  comes from three steps of navy (`s1`, `s2`, `s3`) and thin lines.
 
 ## Colors
 
-Paleta to pięć stopni granatu, dwa błękity o różnych zadaniach, trzy
-kolory ról i cztery kolory stanu; każdy ma odpowiednik w motywie jasnym pod
-tą samą nazwą zmiennej.
+The palette is five steps of navy, two blues with different jobs, three
+role colours and four state colours; each has a light-theme counterpart
+under the same variable name.
 
 ### Primary
-- **Błękit działania** (`#2870ED`, `--act`): tło paska „Teraz", przycisk
-  główny, włączony segment przełącznika, ikona aktywnej pozycji nawigacji,
-  pigułka „dziś" w nagłówku macierzy. W jasnym motywie bez zmian: pasek i
-  szyna są granatowo-błękitne w obu motywach.
-- **Błękit sygnału** (`#65B8FF`, `--sig`; w jasnym `#064EA1`): linki,
-  podkreślenie aktywnej zakładki, obramowanie fokusu, zaznaczenie komórki,
-  wybrany wiersz, ramka „box-sig". Oddzielony od błękitu działania, żeby
-  tekst i wypełnienie zachowały kontrast każde na swoim tle.
+- **Action blue** (`#2870ED`, `--act`): the background of the "Teraz"
+  strip, the primary button, the selected segment of a segmented control,
+  the icon of the active navigation item, the "today" pill in the matrix
+  header. Unchanged in the light theme: the strip and the rail are
+  navy-and-blue in both themes.
+- **Signal blue** (`#65B8FF`, `--sig`; `#064EA1` in light): links, the
+  underline of the selected tab, the focus border, the cell selection, the
+  selected row, the "box-sig" frame, the Undo countdown bar. Kept apart from
+  the action blue so that text and fill each keep their contrast on their
+  own background.
 
-### Secondary (role)
-- **Turkus PRIMARY** (`#65CDCF`, `--p-fill`), **Fiolet SECONDARY**
-  (`#B17EAD`, `--sec-fill`), **Łosoś 11–19** (`#FFB196`, `--late-fill`):
-  wypełnienia znaczników ról w macierzy, chipów na pasku „Teraz" i kart
-  dyżuru; zawsze z **granatowym atramentem ról** (`#0B1F42`, `--role-ink`).
-  Jako kolor tekstu poza chipem rola przyjmuje wersję na dane tło (`--p`,
-  `--sec`, `--late`; w jasnym motywie ciemniejsze `#036A6D`, `#721C7A`,
-  `#B84800`). Na niebieskim pasku „Teraz" chip jest biały, a litera w kolorze
-  ciemnym roli (`--band-p`, `--band-sec`, `--band-late`).
+### Secondary (roles)
+- **PRIMARY teal** (`#65CDCF`, `--p-fill`), **SECONDARY violet**
+  (`#B17EAD`, `--sec-fill`), **11–19 salmon** (`#FFB196`, `--late-fill`):
+  fills of the role marks in the matrix, of the chips on the "Teraz" strip
+  and of the duty cards; always with the **navy role ink** (`#0B1F42`,
+  `--role-ink`). As a text colour outside a chip, a role takes its variant
+  for the given background (`--p`, `--sec`, `--late`; in the light theme the
+  darker `#036A6D`, `#721C7A`, `#B84800`), and 11–19 text on a surface
+  (the 11–19 tag, weekend dates) uses `--late-text` (`#A33F00` in light,
+  readable on `s3`). On the blue "Teraz" strip a chip is white and its
+  letter takes the dark role colour (`--band-p`, `--band-sec`,
+  `--band-late`).
 
-### Tertiary (stan)
-- **Zieleń OK** (`#6CD99D` / tło `rgba(108,217,157,.14)`): status
-  „Opublikowany", kryterium spełnione, „Chętnie wezmę".
-- **Łosoś ostrzeżenia** (`#FFB196`, kropka `#FF6130`): status ostrzegawczy,
-  przekroczenie udziału, kolizja dostępności; ten sam kolor co rola `11–19`,
-  rozróżniany kontekstem.
-- **Róż błędu** (`#EB4C79` / tło `rgba(235,76,121,.16)`): błędy, luki w
-  obsadzie, „Nie mogę", nazwa osoby z konfliktem.
-- **Czerwień niebezpieczeństwa** (`#BC3B51`, `--danger`): wyłącznie
-  wypełnienie przycisku niszczącego.
+### Tertiary (state)
+- **OK green** (`#6CD99D` / background `rgba(108,217,157,.14)`): the
+  "Opublikowany" (published) status, a criterion met, "Chętnie wezmę"
+  (happy to take it).
+- **Warning salmon** (`#FFB196`, dot `#FF6130`): a warning status, a share
+  exceeded, an availability conflict; the same colour as the `11–19` role,
+  told apart by context.
+- **Error pink** (`#EB4C79` / background `rgba(235,76,121,.16)`): errors,
+  gaps in staffing, "Nie mogę" (I can't), the name of a person in conflict.
+- **Danger red** (`#BC3B51`, `--danger`): only the fill of a destructive
+  button.
 
 ### Neutral
-- **Granat nocny** (`#061228`, `--bg`): tło strony.
-- **Granat sterowni** (`#0B1F42`, `--s1`): panele, pola, okna, szyna
-  nawigacji, atrament ról.
-- **Granat drugi i trzeci** (`#122A52` `--s2`, `#1B3765` `--s3`): tło
-  nagłówków macierzy, hover, odznaki, toasty, tor wskaźnika.
-- **Linie** (`rgba(163,181,201,.16)` i `.34`): obramowania paneli, komórek,
-  przycisków.
-- **Atrament** (`#F4F6FA`), **przygaszony** (`#A3B5C9`), **wyciszony**
-  (`#93ABC1`): tekst główny, pomocniczy, podpisy i placeholdery.
-- **Warianty tekstowe stanu**: błąd (`#FF8AAA`, `--bad-text`) i SECONDARY
-  (`#D5A8D2`, `--sec-text`) są jaśniejsze od kolorów kresek i wypełnień,
-  aby zachować kontrast co najmniej 4,5:1 na `s1`, `s2`, `s3` i podkładach.
-  Ostrzeżenie (`#FFB196`, `--warn-text`) barwi tytuł ramki `.box-warn`; w
-  jasnym motywie jest ciemniejsze od `--warn` (`#A33F00` zamiast `#B84800`).
-  Łosoś 11–19 należy tylko do roli: znacznik dnia wolnego (2X) jest
-  neutralny, tag „łamie reguły” ma ton błędu, a „oczekuje” ma jeden ton
-  propozycji na każdym ekranie.
-- **Podkłady dnia**: dziś (`rgba(101,184,255,.12)`), weekend
+- **Night navy** (`#061228`, `--bg`): the page background.
+- **Control navy** (`#0B1F42`, `--s1`): panels, fields, dialogs, the
+  navigation rail, the role ink.
+- **Second and third navy** (`#122A52` `--s2`, `#1B3765` `--s3`): matrix
+  header background, hover, badges, toasts, meter track.
+- **Lines** (`rgba(163,181,201,.16)` and `.34`): borders of panels, cells,
+  buttons.
+- **Ink** (`#F4F6FA`), **muted** (`#A3B5C9`), **dim** (`#93ABC1`): main
+  text, secondary text, captions and placeholders.
+- **Text variants of states**: error (`#FF8AAA`, `--bad-text`) and
+  SECONDARY (`#D5A8D2`, `--sec-text`) are lighter than the stroke and fill
+  colours, to keep a contrast of at least 4.5:1 on `s1`, `s2`, `s3` and the
+  day washes. Warning (`#FFB196`, `--warn-text`) colours the title of a
+  `.box-warn` frame; in the light theme it is darker than `--warn`
+  (`#A33F00` instead of `#B84800`). The 11–19 salmon belongs to the role
+  alone: the day-off mark (2X) is neutral, the "łamie reguły" (breaks rules)
+  tag has the error tone, and "oczekuje" (pending) has one proposal tone on
+  every screen.
+- **Day washes**: today (`rgba(101,184,255,.12)`), weekend
   (`rgba(163,181,201,.10)`).
-- Motyw jasny: tło `#F4F6FA`, panele `#FFFFFF`, atrament `#303030`,
-  nagłówki w granacie `#0B1F42` (`--hd`), linie `#E4EAF0`/`#A3B5C9`,
-  tekst przygaszony `#4B6592` i wyciszony `#4E6A88` (oba co najmniej 4,5:1
-  na `s3` i na podkładzie weekendu).
+- Light theme: background `#F4F6FA`, panels `#FFFFFF`, ink `#303030`,
+  headings in navy `#0B1F42` (`--hd`), lines `#E4EAF0`/`#A3B5C9`, muted text
+  `#4B6592` and dim text `#4E6A88` (both at least 4.5:1 on `s3` and on the
+  weekend wash).
 
 ### Named Rules
-**Reguła jednego błękitu działania.** `--act` występuje na jednym ekranie na
-pasku „Teraz", na jednym przycisku głównym i na włączonym segmencie; nigdy
-na tekście i nigdy jako tło sekcji.
-**Reguła stałych ról.** Wypełnienia ról nie zmieniają się między motywami
-ani ekranami; rola jest rozpoznawana po kolorze, zanim ktoś przeczyta
-literę.
-**Reguła zera heksów w komponentach.** Kolory istnieją tylko w `tokens.css`;
-`styles.css` i komponenty nazywają wyłącznie zmienne (`styles.css:7-8`,
+**The One Action Blue Rule.** On a screen, `--act` appears on the "Teraz"
+strip, on one primary button and on the selected segment; never on text
+and never as a section background.
+**The Fixed Roles Rule.** Role fills do not change between themes or
+screens; a role is recognised by its colour before anyone reads the letter.
+**The Zero Hex in Components Rule.** Colours exist only in `tokens.css`;
+`styles.css` and the components name variables only (`styles.css:7-8`,
 `AGENTS.md`).
 
 ## Typography
 
-**Display Font:** Inter Variable (z Inter, system-ui)
+**Display Font:** Inter Variable (with Inter, system-ui)
 **Body Font:** Inter Variable
-**Label/Mono Font:** Geist Mono Variable (z ui-monospace)
+**Label/Mono Font:** Geist Mono Variable (with ui-monospace)
 
-**Character:** jedna neutralna rodzina w trzech wagach (400, 600, 700) i
-jedno pismo stałej szerokości do wszystkiego, co jest datą, godziną,
-numerem telefonu, skrótem klawiszowym albo liczbą w kolumnie. Bez kursywy,
-bez wersalików rozstrzelonych; wersaliki tylko w nazwach ról `PRIMARY` i
-`SECONDARY`, które są słownikiem produktu, nie stylem.
+**Character:** one neutral family in three weights (400, 600, 700) and one
+monospace face for everything that is a date, a time, a phone number, a
+keyboard shortcut or a figure in a column. No italics, no letter-spaced
+capitals; capitals only in the role names `PRIMARY` and `SECONDARY`, which
+are product vocabulary, not style.
 
 ### Hierarchy
-- **Display** (700, 32/36 px): tytuł ekranu `.ph-title`, tytuł logowania,
-  „duża liczba" rozpiętości w panelu sprawiedliwości; na telefonie 24/28 px.
-- **Headline** (700, 24/28 px): nazwisko na karcie dyżuru `.dcard-name`.
-- **Title** (700, 20/24 px): główny nagłówek sekcji `.sech-title`, tytuł
-  okna i panelu bocznego.
-- **Section** (600, 16/24 px): nagłówek sekcji wewnątrz panelu i miesiąc.
-- **Body** (400, 14/21 px): tekst podstawowy, pola, przyciski (600), wiersze
-  list, komórki tabel.
-- **Label** (600, 12/16 px): etykiety pól, nagłówki tabel, chipy, odznaki,
-  kroki, sekcje szyny, wszystkie podpisy.
-- **Mono** (400, 12/16 px; w kolumnach liczbowych 14/21 px): daty i zakresy
-  pod nazwami, numery telefonów, meta sekcji, skróty `kbd`, toasty.
+- **Display** (700, 32/36 px): the screen title `.ph-title`, the sign-in
+  title, the "big number" of the spread in the fairness panel; 24/28 px on a
+  phone.
+- **Headline** (700, 24/28 px): the name on a duty card `.dcard-name`.
+- **Title** (700, 20/24 px): the main section heading `.sech-title`, the
+  title of a dialog and of a side panel.
+- **Section** (600, 16/24 px): a section heading inside a panel, and the
+  month.
+- **Body** (400, 14/21 px): body text, fields, buttons (600), list rows,
+  table cells.
+- **Label** (600, 12/16 px): field labels, table headers, chips, badges,
+  steps, rail sections, all captions; the toast title.
+- **Mono** (400, 12/16 px; 14/21 px in numeric columns): dates and ranges
+  under names, phone numbers, section meta, `kbd` shortcuts.
 
 ### Named Rules
-**Reguła skali tekstu.** Treść ma 14 px, wszystko pomocnicze 12 px,
-nagłówek sekcji i miesiąca 16 px, a tytuły 20, 24 albo 32 px.
-Nowy element wybiera jeden z tych stopni i nic nie schodzi poniżej 12 px.
-**Reguła mono dla danych.** Co jest datą, liczbą albo identyfikatorem,
-stoi w Geist Mono, żeby kolumny się wyrównywały, a oko odróżniało dane od
-opisu.
+**The Text Scale Rule.** Content is 14 px, everything secondary 12 px, a
+section or month heading 16 px, and titles 20, 24 or 32 px. A new element
+picks one of these steps and nothing goes below 12 px.
+**The Mono for Data Rule.** Whatever is a date, a number or an identifier
+is set in Geist Mono, so that columns align and the eye tells data from
+description.
 
 ## Layout
 
-Siatka powłoki: szyna nawigacji 232 px (`--rail-w`) przyklejona do lewej,
-treść `minmax(0, 1fr)`; na 901-1100 px szyna zwija się do 56 px (same
-ikony), poniżej 900 px znika na rzecz pięciu zakładek dolnych
-(`.tabs-bottom`) i niebieskiego paska górnego `.mob-top`. Pasek „Teraz"
-(`.now`) biegnie nad treścią przez całą szerokość i zawija narzędzia pod
-spód przy kontenerze węższym niż 1100 px.
+The shell grid: a 232 px navigation rail (`--rail-w`) stuck to the left,
+content `minmax(0, 1fr)`; at 901-1100 px the rail collapses to 56 px (icons
+only), below 900 px it gives way to five bottom tabs (`.tabs-bottom`) and
+the blue top bar `.mob-top`. The "Teraz" strip (`.now`) runs above the
+content across the full width and wraps its tools underneath in a
+container narrower than 1100 px.
 
-Strona: odstęp 24 px (telefon 16 px), sekcje w siatce o odstępie 20 px
-(telefon 12 px), tekst ciągły ograniczony do 860 px (`.page-narrow`).
-Podział dwukolumnowy `.split` daje treści `1fr` i panelowi bocznemu
-320/340/380 px, na telefonie jedna kolumna. Rytm odstępów: 2, 4, 6, 8, 10,
-12, 14, 16, 18, 20, 24, 48 px, z wyraźną przewagą 8-14 px wewnątrz
-komponentów.
+Page: 24 px gutter (16 px on a phone), sections in a grid with a 20 px gap
+(12 px on a phone), running text limited to 860 px (`.page-narrow`). The
+two-column `.split` gives the content `1fr` and the side panel
+320/340/380 px, one column on a phone. The spacing rhythm: 2, 4, 6, 8, 10,
+12, 14, 16, 18, 20, 24, 48 px, with a clear majority of 8-14 px inside
+components. A panel footer (`.panel-foot`) puts the reason a submit is
+blocked (`.foot-status`) and an unsaved-changes note (`.panel-foot-note`)
+on a full row of their own above the buttons, never squeezed beside them.
 
-Nakładki: okno modalne 540 px (małe 420, duże 760) wyśrodkowane; panel
-boczny 360 px (szeroki 420) od prawej, nie-modalny na biurku; na telefonie
-oba stają się arkuszami od dołu z promieniem 16 px u góry i uchwytem
-36×4 px. Toasty 380 px w prawym dolnym rogu, na telefonie tuż nad dolnymi zakładkami. Paleta
-poleceń 560 px, 12 vh od góry.
+Overlays: a modal dialog of 540 px (small 420, large 760), centred; a side
+panel of 360 px (wide 420) from the right, non-modal on a desktop; on a
+phone both become bottom sheets with a 16 px top radius and a 36×4 px
+handle. Toasts are 380 px in the bottom right corner, on a phone just above
+the bottom tabs. The command palette is 560 px, 12 vh from the top. On a
+phone the screen's one main action may sit in the thumb zone
+(`.thumb-action`: fixed at the bottom right above the tabs, with
+`--shadow-sm`, the page padded so it covers nothing).
 
-Macierz: tabela z przyklejoną kolumną nazwisk 170 px i przyklejonym
-dwuwierszowym nagłówkiem (miesiące 24 px, dni 40 px); komórki kwadratowe
-35 px (29 px zwarte), szersze przy krótszych zakresach (48 px do 14 dni);
-wiersz osoby 48 px; przewijanie w obrębie 70 vh.
+Matrix: a table with a sticky 170 px name column and a sticky two-row
+header (months 24 px, days 40 px); square cells of 35 px (29 px compact),
+wider for shorter ranges (48 px up to 14 days); a person's row 48 px;
+scrolling within 70 vh. The matrix frame (`.mx`) is as wide as its days,
+up to the container, so a short range does not leave half the panel empty.
 
 ## Elevation & Depth
 
-System jest w zasadzie płaski. W ciemnym motywie głębię dają trzy stopnie
-granatu (tło -> `s1` panel -> `s2` nagłówek/hover -> `s3` odznaka/toast)
-i linie o przezroczystości 16 % i 34 %; cień pojawia się tylko pod
-elementami, które naprawdę leżą nad treścią: okno modalne i paleta
-(`--shadow`: `0 30px 60px -30px rgba(2,8,24,.8)`), menu, popover, tooltip
-i toast (`--shadow-sm`: `0 10px 30px -12px rgba(2,8,24,.7)`), panel boczny
-(własny cień w lewo). W motywie jasnym białe panele tracą obramowanie i
-dostają jeden wspólny, delikatny cień (`0 2px 8px rgba(33,65,108,.08)`).
+The system is essentially flat. In the dark theme depth comes from three
+steps of navy (background -> `s1` panel -> `s2` header/hover -> `s3`
+badge/toast) and lines at 16 % and 34 % opacity; a shadow appears only
+under elements that really lie above the content: the modal dialog and the
+palette (`--shadow`: `0 30px 60px -30px rgba(2,8,24,.8)`), the menu,
+popover, tooltip, toast and the phone's thumb-zone action (`--shadow-sm`:
+`0 10px 30px -12px rgba(2,8,24,.7)`), the side panel (its own shadow to the
+left). In the light theme white panels lose their border and get one
+shared, subtle shadow (`0 2px 8px rgba(33,65,108,.08)`).
 
 ### Shadow Vocabulary
-- **Nad treścią** (`--shadow`): okno modalne, paleta poleceń.
-- **Obok treści** (`--shadow-sm`): menu, popover, tooltip, toast, białe
-  panele w jasnym motywie.
-- **Panel boczny** (`-30px 0 50px -40px rgba(0,0,0,.7)`): jedyny cień
-  skierowany w bok.
+- **Above the content** (`--shadow`): the modal dialog, the command palette.
+- **Beside the content** (`--shadow-sm`): menu, popover, tooltip, toast,
+  `.thumb-action`, white panels in the light theme.
+- **Side panel** (`-30px 0 50px -40px rgba(0,0,0,.7)`): the only shadow
+  cast sideways.
 
 ### Named Rules
-**Reguła płaskiego spoczynku.** Panel w ciemnym motywie nie ma cienia;
-ma linię. Cień oznacza „to leży nad stroną i zniknie".
-**Reguła wewnętrznej ramki.** Zaznaczenie i fokus w macierzy i kalendarzu
-to `box-shadow: inset 0 0 0 2px`, nie zewnętrzna poświata, żeby siatka nie
-drgała.
+**The Flat at Rest Rule.** A panel in the dark theme has no shadow; it has
+a line. A shadow means "this lies above the page and will go away".
+**The Inner Frame Rule.** Selection and focus in the matrix and the
+calendar are `box-shadow: inset 0 0 0 2px`, not an outer glow, so that the
+grid does not jitter.
 
 ## Shapes
 
-Dwa języki form: pigułka (999 px) dla wszystkiego interaktywnego i
-etykietowego (przyciski, przyciski ikonowe 40/32 px, przełącznik
-segmentowy, chipy, tagi, odznaki statusu, pozycje nawigacji, licznik przy
-nawigacji, wskaźnik obciążenia) oraz prostokąt o małym promieniu dla
-pojemników i pól: pola 8 px (`--r`), panele, okna, menu, popovery 12 px
-(`--r-lg`), wiersze decyzji 10 px, znaczniki ról i chipy ról 6 px,
-znaczniki dostępności 3 px, `kbd` 4 px, arkusze na telefonie 16 px u góry.
-Ramki są cienkie (1 px) w
-kolorze linii; stan „na" zmienia kolor ramki na sygnał (`--sig-line`),
-stan zły na róż. Kafelek dnia w kalendarzu dostępności to 40 px wysokości
-z promieniem 8 px. Awatar jest kołem. Wyróżnienie z lewej (3 px) jest
-sygnaturą ramek informacyjnych (`.box`).
+Two languages of form: the pill (999 px) for everything interactive and
+everything that labels (buttons, 40/32 px icon buttons, the segmented
+control, chips, tags, status badges, navigation items, the navigation
+counter, the load meter) and the rectangle with a small radius for
+containers and fields: fields 8 px (`--r`), panels, dialogs, menus,
+popovers 12 px (`--r-lg`), decision rows 10 px, role marks and role chips
+6 px, availability marks 3 px, `kbd` 4 px, phone sheets 16 px at the top.
+Borders are thin (1 px) in the line colour; an "on" state turns the border
+to the signal (`--sig-line`), a bad state to pink. A day tile in the
+availability calendar is 40 px tall with an 8 px radius. An avatar is a
+circle. A 3 px accent on the left is the signature of information frames
+(`.box`).
 
 ## Components
 
 ### Buttons
-- **Shape:** pigułka (999 px), minimalna wysokość 40 px, tekst 600 14/21 px,
-  odstęp 8×18 px; mała 32 px, 12/16 px, 5×14 px; ikona 24 px z ujemnym
-  marginesem, żeby nie podnosić przycisku.
-- **Dotyk:** przy `pointer: coarse` każdy przycisk i segment ma co najmniej
-  44 px wysokości, a przyciski ikonowe, „×" chipa filtra i kolory wydarzeń
-  44 px szerokości (jedna reguła na końcu `styles.css`).
-- **Domyślny:** tło `s1`, ramka `line2`, atrament główny; hover `s2`.
-- **Główny:** błękit działania, biały tekst, bez ramki; hover
+- **Shape:** pill (999 px), minimum height 40 px, text 600 14/21 px,
+  padding 8×18 px; small 32 px, 12/16 px, 5×14 px; a 24 px icon with a
+  negative margin so it does not make the button taller.
+- **Touch:** under `pointer: coarse` every button, tab and segment is at
+  least 44 px tall, and icon buttons, a filter chip's "×" and the event
+  colours 44 px wide (one rule at the end of `styles.css`).
+- **Default:** background `s1`, border `line2`, main ink; hover `s2`.
+- **Primary:** action blue, white text, no border; hover
   `brightness(.95)`.
-- **Niebezpieczny:** czerwień `--danger`, biały tekst; wyłącznie dla
-  czynności nieodwracalnych.
-- **Ghost:** bez tła i ramki, tekst przygaszony; hover tło `s2`.
-- **Ikonowy** (`.ib`): koło 40 px (32 px małe), ramka `line`, kolor
-  przygaszony; stan „on" w błękicie sygnału.
-- **Fokus:** wspólny `outline: 2px solid var(--focus)` z odsunięciem 2 px;
-  wyłączony: `opacity: .5`.
-- **Segmentowy** (`.seg`): pigułka z ramką, przyciski 32 px, włączony
-  w błękicie działania, warianty z tonem dostępności (róż, szary, zieleń) na
-  tle o 20 % krycia.
+- **Danger:** `--danger` red, white text; only for irreversible actions.
+- **Ghost:** no background or border, muted text; hover background `s2`.
+- **Icon** (`.ib`): a 40 px circle (32 px small), border `line`, muted
+  colour; "on" state in signal blue.
+- **Focus:** a shared `outline: 2px solid var(--focus)` with a 2 px offset;
+  disabled: `opacity: .5`.
+- **Blocked:** a control that cannot act yet stays focusable
+  (`aria-disabled`, the click guarded) and says why: in a panel footer the
+  reason is the `.foot-status` output the button is described by, elsewhere
+  a hint under the control.
+- **Segmented** (`.seg`): a bordered pill, 32 px buttons, the selected one
+  in action blue, variants with an availability tone (pink, grey, green) on
+  a 20 % opacity background; on a phone the inbox segments (`.seg-wrap`)
+  share one row in equal columns.
+- **Text link button** (`.link-btn`): signal blue; inside a frame, a footer
+  note or a section meta it is underlined so it reads as a link. A link that
+  opens a new tab (`.ext-link`) ends with the 1 em "external" icon and says
+  so in its accessible name.
 
 ### Chips
-- **Style:** pigułka 12/16 px 600, odstęp 5×12 px, tło `s1`, ramka `line2`,
-  kropka 8 px z lewej; tony `warn`, `bad`, `ok`, `sig` zmieniają kropkę i
-  ramkę.
-- **State:** chip-przycisk kończy się chevronem w błękicie sygnału, na
-  hover ciemnieje i podkreśla tekst, a dokąd prowadzi, mówi dymek otwierany
-  też fokusem; chip filtra
-  (`.filter-chip`) ma tło i ramkę sygnału i przycisk usunięcia.
-- **Odznaka statusu** (`.st`): pigułka z kropką, tło według stanu (szkic
-  `s3`, do akceptacji `sig-soft`, opublikowany `ok-bg`, ostrzeżenie,
-  błąd).
-- **Tag** (`.tag`): pigułka bez kropki, tło `s3`, tekst przygaszony.
+- **Style:** pill 12/16 px 600, padding 5×12 px, background `s1`, border
+  `line2`, an 8 px dot on the left; the `warn`, `bad`, `ok`, `sig` tones
+  change the dot and the border.
+- **State:** a chip button ends with a chevron in signal blue, darkens and
+  underlines its text on hover, and where it leads is said by a tooltip
+  that focus opens too; a filter chip (`.filter-chip`) has the signal
+  background and border and a remove button.
+- **Status badge** (`.st`): a pill with a dot, background by state (draft
+  `s3`, for approval `sig-soft`, published `ok-bg`, warning, error).
+- **Tag** (`.tag`): a pill without a dot, background `s3`, muted text; the
+  11–19 tag in `--late-text`.
 
 ### Cards / Containers
 - **Corner Style:** 12 px (`--r-lg`).
-- **Background:** `s1`, ramka 1 px `line`; w jasnym motywie biel bez ramki z
-  cieniem `--shadow-sm`.
-- **Shadow Strategy:** brak w spoczynku (sekcja Elevation).
-- **Internal Padding:** 12×14 px (`.panel-padded`); pasek narzędzi 8×10 px z
-  dolną linią.
-- **Karta dyżuru** (`.dcard`): jak panel, rola jako pigułka w nagłówku
-  karty (bez paska z boku), nazwisko 24/28 px, okno dyżuru w mono.
-- **Ramka informacyjna** (`.box`): lewy pasek 3 px, tło `s2`, tekst
-  12/16 px; tony `warn`, `bad`, `ok`, `sig` barwią pasek, tło i tytuł.
+- **Background:** `s1`, 1 px border `line`; in the light theme white
+  without a border, with the `--shadow-sm` shadow.
+- **Shadow Strategy:** none at rest (see Elevation).
+- **Internal Padding:** 12×14 px (`.panel-padded`); a toolbar 8×10 px with
+  a bottom line.
+- **Duty card** (`.dcard`): like a panel, the role as a pill in the card
+  header (no side stripe), the name 24/28 px, the duty window in mono.
+- **Information frame** (`.box`): a 3 px left stripe, background `s2`, text
+  12/16 px; the `warn`, `bad`, `ok`, `sig` tones colour the stripe, the
+  background and the title.
+- **Label and value rows** (`.roles-text`): rows whose labels are words
+  rather than role marks share one label column as wide as the longest
+  label (a subgrid), so a value never runs under its label.
 
 ### Inputs / Fields
-- **Style:** 40 px wysokości, ramka 1 px `line2`, promień 8 px, tło `s1`,
-  tekst 14/21 px; etykieta 600 12/16 px przygaszona nad polem, podpowiedź
-  wyciszona i błąd różowy pod polem (12/16 px); wymagane oznaczone różową
-  gwiazdką.
-- **Focus:** ramka w błękicie sygnału i poświata 3 px `sig-soft`, bez
-  outline.
-- **Error / Disabled:** `aria-invalid` daje różową ramkę; wyłączone
+- **Style:** 40 px tall, 1 px border `line2`, 8 px radius, background `s1`,
+  text 14/21 px; a muted 600 12/16 px label above the field, a dim hint and
+  a pink error under the field (12/16 px), both as wide as the field's row;
+  required fields marked with a pink asterisk.
+- **Focus:** a signal-blue border and a 3 px `sig-soft` glow, no outline.
+- **Error / Disabled:** `aria-invalid` gives a pink border; disabled
   `opacity: .6`.
-- **Natywne:** daty, miesiące i godziny w Geist Mono; `<select>` z własną
-  strzałką `.sel-wrap::after`; pole wyboru z `accent-color` sygnału.
+- **Native:** dates, months and times in Geist Mono; `<select>` with its own
+  arrow `.sel-wrap::after`; a checkbox with the signal `accent-color`.
 
 ### Navigation
-- **Szyna** (`.rail`): granat sterowni, 232 px, pozycje-pigułki 8×14 px
-  500; hover białe 8 %; aktywna biała z granatowym tekstem 600 i ikoną w
-  błękicie działania; licznik w łososiu z granatowym tekstem; nagłówki
-  sekcji 600 12 px przygaszone; stopka ze skrótami.
-- **Pasek „Teraz"** (`.now`): błękit działania, biały tekst, sloty z białą
-  linią 24 %, chipy ról białe, telefon w mono, wyszukiwarka jako pigułka z
-  białą ramką 40 %.
-- **Zakładki** (`.tab`, `.sech-link`): tekst 600 14 px, podkreślenie 1.5 px
-  przezroczyste, wybrana 2 px w błękicie sygnału; licznik w `s3`.
-- **Telefon:** pasek górny w błękicie działania, pięć zakładek dolnych
-  (ikona nad etykietą 12 px, aktywna biała), bezpieczny margines dolny.
+- **Rail** (`.rail`): control navy, 232 px, pill items 8×14 px 500; hover
+  white 8 %; the active item white with navy 600 text and an action-blue
+  icon; the counter in salmon with navy text; section headings 600 12 px
+  muted; a footer with shortcuts.
+- **"Teraz" strip** (`.now`): action blue, white text, slots with a 24 %
+  white line, white role chips, the phone in mono (on the strip without the
+  `+48` country code, which the `tel:` link keeps), the search as a pill
+  with a 40 % white border.
+- **Tabs** (`.tab`, `.sech-link`): text 600 14 px, at least 32 px tall, a
+  transparent 1.5 px underline, the selected one 2 px in signal blue; the
+  counter in `s3`.
+- **Phone:** the top bar in action blue, five bottom tabs (icon above a
+  12 px label, the active one white), a safe bottom margin.
 
 ### Overlays
-- **Okno** (`.dialog-popup`): 540 px, `s1`, ramka `line2`, 12 px, odstęp
-  16 px, tytuł 20/24 px (w oknie `danger` różowy), opis przygaszony,
-  akcje wyrównane do prawej; backdrop czerń 45 %.
-- **Panel boczny** (`.panel-popup`): 360 px od prawej, trzy strefy (nagłówek
-  18×20×12 px z linią, treść 16×20 px, stopka 12×20 px z linią); modalny ma
-  uchwyt.
-- **Toast** (`.toast`): `s3`, ramka `line2`, 8 px, 12/16 px, kropka stanu
-  z lewej, miejsce na przycisk z prawej; wjazd 8 px z zanikaniem 0,2 s.
+- **Dialog** (`.dialog-popup`): 540 px, `s1`, border `line2`, 12 px,
+  padding 16 px, title 20/24 px (pink in a `danger` dialog), muted
+  description, actions aligned right; a 45 % black backdrop.
+- **Side panel** (`.panel-popup`): 360 px from the right, three zones
+  (header 18×20×12 px with a line, content 16×20 px, footer 12×20 px with a
+  line); the modal one has a handle.
+- **Toast** (`.toast`): `s3`, border `line2`, 8 px, 12/16 px, a state dot on
+  the left, room for a button on the right; slides in 8 px with a 0.2 s
+  fade. A toast with "Cofnij" (Undo) draws what is left of the Undo window
+  as a 2 px signal-blue bar along its bottom edge that shrinks to nothing
+  (hidden from screen readers); a successful Undo is confirmed by a short
+  "Cofnięto" (Undone) toast.
 - **Popover / menu / tooltip:** `s1`/`s3`, 12 px (tooltip 6 px),
-  `--shadow-sm`, pozycje menu 8×10 px z podświetleniem `s2`.
+  `--shadow-sm`, menu items 8×10 px highlighted with `s2`.
 
-### Macierz dyżurów (komponent sygnaturowy)
-Tabela `table.m` o komórkach `--cell` (35 px, zwarte 29 px) z przyklejoną
-kolumną nazwisk 170 px i nagłówkiem dwuwierszowym; komórka to przycisk
-`.cell` bez ramki, hover `s2`, zaznaczenie wewnętrzną ramką 2 px w kolorze
-fokusu. Wewnątrz znaczniki ról `.rm` (32×20 px, w gęstości zwartej szerokość
-według treści od 22 px; 6 px, 700 12 px, wypełnienie roli, atrament
-granatowy) z kropką/rombem korekty, znacznik dostępności `.am` (22 px,
-3 px) i kropka wydarzenia 5 px w prawym górnym rogu. Weekend ma podkład
-szary 10 % (8 % w jasnym motywie), dziś błękitny 12 % i pigułkę z numerem
-dnia w błękicie działania, luka w obsadzie podkład różowy. W przyklejonym nagłówku każdy
-podkład leży na nieprzezroczystym `s2`. Początek tygodnia to lewa linia
-2 px.
+### Named Rules
+**The Confirm Only the Irreversible Rule.** Only an irreversible or
+destructive action asks for confirmation (a `ConfirmDialog`, a danger
+button); a reversible one happens at once and offers "Cofnij" in a toast;
+information is said inline, never in a modal.
+**The Server-Held Undo Window Rule.** The Undo window is held by the
+server, so the countdown bar does not pause: hovering or focusing the toast
+keeps the toast on screen, but at the end of the window "Cofnij" goes away
+and the toast says the change can no longer be undone. Pausing the
+countdown on hover was considered and rejected, because the bar would then
+promise time the server does not give.
+**The Next Step Rule.** The draft's decision panel leads with the step the
+draft needs: with hard rule violations the main action is "Popraw N
+problemów" (fix N problems), which opens the cell of the first one,
+followed by "Przekaż do akceptacji" (send for approval), as in mockup 03; a
+clean draft leads with "Opublikuj…" (publish).
+**The Past Day Rule.** A duty is past once its cover has ended, not at
+midnight of its day: a working day's night on-call at 09:00 the next
+morning, a day off's at midnight, 11-19 at 19:00 (`coverage.py`,
+`lib/coverage.ts`). Correcting a duty that has ended (for example one
+imported from history) needs a reason, asked in a field of the correction
+frame rather than in a separate dialog (this supersedes the dialog of
+mockup 04); each role is judged on its own, so one ended role is enough to
+ask. A duty that has ended mails nobody, while the roles still in force
+mail as usual; when every changed role has ended, the frame says plainly
+that no one is notified.
+
+### Duty matrix (signature component)
+The table `table.m` with `--cell` cells (35 px, compact 29 px), a sticky
+170 px name column and a two-row header; a cell is a borderless `.cell`
+button, hover `s2`, selection as a 2 px inner frame in the focus colour.
+Inside are the role marks `.rm` (32×20 px, in compact density as wide as
+their content from 22 px; 6 px, 700 12 px, the role fill, navy ink) with a
+correction dot or diamond, the availability mark `.am` (22 px, 3 px) and a
+5 px event dot in the top right corner. A weekend has a 10 % grey wash (8 %
+in the light theme), today a 12 % blue wash and the day-number pill in
+action blue, a gap in staffing a pink wash. In the sticky header every wash
+lies on an opaque `s2`. The start of a week is a 2 px left line.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** bierz każdy kolor ze zmiennej w `tokens.css` i każdy napis z
-  `src/i18n/pl/`; komponent nie zna heksa ani polskiego słowa.
-- **Do** używaj pigułki dla elementu, który się klika albo etykietuje, i
-  prostokąta 8/12 px dla pojemnika, który się czyta.
-- **Do** pisz daty, godziny, numery i liczby w kolumnach w Geist Mono,
-  formatem DD-MM-RRRR i przecinkiem dziesiętnym (`lib/dates.ts`,
-  `lib/numbers.ts`).
-- **Do** zachowuj skalę 12 px dla treści pomocniczej, 14 px dla treści,
-  16 px dla nagłówka sekcji i miesiąca oraz 20/24/32 px dla tytułów.
-- **Do** oznaczaj rolę kolorem wypełnienia z granatowym atramentem, w obu
-  motywach tak samo.
-- **Do** sygnalizuj stan kropką w pigułce (`.st`, `.chip`) albo lewym
-  paskiem 3 px (`.box`, `.list-row-warn`), nie zmianą całego tła
-  sekcji.
-- **Do** projektuj każdy ekran w trzech szerokościach: ≤900 px (zakładki
-  dolne, arkusze od dołu), 901-1100 px (szyna 56 px), >1100 px.
+- **Do** take every colour from a variable in `tokens.css` and every word
+  from `src/i18n/pl/` (and its English counterpart in `src/i18n/en/`); a
+  component knows no hex and no Polish word.
+- **Do** use a pill for an element that is clicked or that labels, and an
+  8/12 px rectangle for a container that is read.
+- **Do** write dates, times, numbers and figures in columns in Geist Mono,
+  as DD-MM-RRRR and with a decimal comma in Polish (`lib/dates.ts`,
+  `lib/numbers.ts`); phone numbers through `lib/phone.ts`.
+- **Do** keep the scale: 12 px for secondary content, 14 px for content,
+  16 px for a section or month heading and 20/24/32 px for titles.
+- **Do** mark a role with its fill colour and navy ink, the same in both
+  themes.
+- **Do** signal a state with a dot in a pill (`.st`, `.chip`) or a 3 px left
+  stripe (`.box`, `.list-row-warn`), not by changing the whole section
+  background.
+- **Do** design every screen at three widths: ≤900 px (bottom tabs, bottom
+  sheets), 901-1100 px (56 px rail), >1100 px.
 
 ### Don't:
-- **Don't** nie dodawaj cienia panelowi w spoczynku w ciemnym motywie; cień
-  jest zarezerwowany dla nakładek.
-- **Don't** nie używaj błękitu działania jako koloru tekstu ani tła sekcji;
-  tekstowy błękit to `--sig`.
-- **Don't** nie wprowadzaj drugiego akcentu, gradientów (poza radialnym tłem
-  logowania) ani ikon kolorowych; ikony są monochromatyczne 24 px.
-- **Don't** nie dodawaj biblioteki komponentów ani własnych selektorów dat;
-  pola są natywne (`AGENTS.md`).
-- **Don't** nie zapisuj liczb ani nazw dni w komponencie; wszystko przez
-  `lib/numbers.ts` i `lib/dates.ts`.
-- **Don't** nie różnicuj tego samego stanu różnymi kolorami na różnych
-  ekranach; `ok`/`warn`/`bad`/`sig` to cały słownik stanu.
+- **Don't** add a shadow to a panel at rest in the dark theme; shadow is
+  reserved for overlays.
+- **Don't** use the action blue as a text colour or a section background;
+  the text blue is `--sig`.
+- **Don't** introduce a second accent, gradients (apart from the radial
+  sign-in background) or coloured icons; icons are monochrome, 24 px.
+- **Don't** add a component library or custom date pickers; fields are
+  native (`AGENTS.md`).
+- **Don't** format numbers or name days inside a component; everything
+  goes through `lib/numbers.ts` and `lib/dates.ts`.
+- **Don't** give the same state different colours on different screens;
+  `ok`/`warn`/`bad`/`sig` is the whole state vocabulary.
+- **Don't** disable a control without saying why, or confirm in a dialog
+  what an Undo can take back.

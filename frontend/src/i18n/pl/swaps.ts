@@ -64,10 +64,13 @@ export const swaps = {
   stage: {
     waitingForYou: 'czeka na Ciebie',
     waitingFor: (name: string) => `czeka na: ${name}`,
-    acceptedWaitingForYou: (name: string) => `${name} zgodził(a) się · czeka na Ciebie`,
-    acceptedWaitingForCoordinator: (name: string) => `${name} zgodził(a) się · czeka na koordynatora`,
+    acceptedWaitingForYou: (name: string) => `${name} zgadza się · czeka na Ciebie`,
+    acceptedWaitingForCoordinator: (name: string) => `${name} zgadza się · czeka na koordynatora`,
     inSchedule: 'wpisana do grafiku',
     reason: (note: string) => `powód: „${note}”`,
+    /** The reasons the application records itself, said in the reader's language. */
+    undone: 'cofnięta zaraz po wysłaniu',
+    withdrawnByAuthor: 'wycofana przez autora',
   },
   /** A swap that breaks a hard rule: what the form, the sheet and the inbox call it. */
   rules: {
@@ -108,7 +111,7 @@ export const swaps = {
     gives: 'Oddaje',
     takes: 'Przejmuje',
     thatIsYou: 'to Ty',
-    agreed: 'zgodził(a) się',
+    agreed: 'zgadza się',
     duty: 'Dyżur',
     filed: 'Złożona',
     reasonFrom: (name: string) => `Powód od: ${name}`,
@@ -125,6 +128,7 @@ export const swaps = {
     withdraw: 'Wycofaj',
     reject: 'Odrzuć',
     confirmReject: 'Potwierdź odrzucenie',
+    cancelReject: 'Anuluj odrzucenie',
     accept: 'Akceptuj',
     approve: 'Zatwierdź i wpisz do grafiku',
   },
@@ -146,7 +150,7 @@ export const swaps = {
     step: 'Krok',
     stepDuty: '1 dyżur',
     stepCandidate: '2 zastępca',
-    stepReturn: '3 w zamian (opcjonalnie)',
+    stepReturn: '3 w zamian',
     stepSend: '4 wysłanie',
     myDuty: 'Mój dyżur',
     /** What the request gives of a day with two roles. */
@@ -175,9 +179,9 @@ export const swaps = {
     /** A candidate who may not hold 11-19 takes the on-call role of the whole duty alone. */
     takesOnly: (role: string) => `Przejmie tylko ${role}, nie pełni 11–19.`,
     splitsDaysOff: 'Dzieli blok dni wolnych.',
-    breaksRule: (message: string, days: string) => (days ? `Łamie regułę: ${message} (${days}).` : `Łamie regułę: ${message}.`),
-    aboveShare: (points: string) => `Ma już ${points} pkt powyżej udziału.`,
-    belowShare: (points: string) => `Ma ${points} pkt poniżej udziału.`,
+    breaksRule: (message: string) => `Łamie regułę: ${message}`,
+    aboveShare: (points: string) => `Ma już ${points} pkt powyżej sprawiedliwego udziału.`,
+    belowShare: (points: string) => `Ma ${points} pkt poniżej sprawiedliwego udziału.`,
     improvesBalance: 'Zamiana poprawia bilans.',
     /** The one number on a candidate's card: the balance against the share, "-0,5 pkt". */
     points: (points: string) => `${points} pkt`,
@@ -234,6 +238,8 @@ export const swaps = {
     /** Either side of an exchange: the day handed over and the day taken. */
     exchanges: (gives: string, takes: string) => `oddaje ${gives}, bierze ${takes}`,
     points: (before: string, after: string, change: string) => `punkty ${before} → ${after} (${change})`,
+    /** The summary line: the deviation from balance, summed over the roles the change moves. */
+    distance: 'Odchylenie',
     closer: 'bliżej równowagi',
     further: 'dalej od równowagi',
     unchanged: 'bez zmiany',

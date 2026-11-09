@@ -7,7 +7,8 @@ import { useNarrow } from '../hooks/useMediaQuery'
 import { messages, useMessages } from '../i18n'
 import { formatClock } from '../lib/dates'
 import { roleLabels } from '../lib/labels'
-import { undoable } from '../lib/undo'
+import { phoneText, telHref } from '../lib/phone'
+import { DEFAULT_UNDO_WINDOW_SECONDS, undoable } from '../lib/undo'
 import { Box, Button, Field, Input, Popover, Segmented, Sheet, StatusPill, useToast } from '../ui'
 
 /** Who looks at the day's pair: either side of it, a coordinator, or nobody who may act. */
@@ -20,7 +21,7 @@ const PILL_STATES = { confirmed: 'ok', switching: 'pending', failed: 'failed' } 
 /** "numer on-call · przełączam · do 13:40": where it rings, then its state or end. */
 function pillWords(now: HeldNumber, where: string) {
   const t = messages().duty.handover
-  if (now.status === 'failed') return `${where} · ${t.failed}`
+  if (now.status === 'failed') return `${where} · ${now.mode === 'dry_run' ? t.failedDryRun : t.failed}`
   const until = now.handover ? t.until(formatClock(now.handover.until)) : null
   return [where, now.status === 'switching' ? t.switching : null, until].filter(Boolean).join(' · ')
 }
@@ -35,7 +36,7 @@ export function NumberPill({ now, where }: Readonly<{ now: HeldNumber; where: st
   const statusLine = {
     confirmed: now.confirmed_at ? t.confirmed(formatClock(now.confirmed_at)) : null,
     switching: t.switching,
-    failed: t.failed,
+    failed: now.mode === 'dry_run' ? t.failedDryRun : t.failed,
   }[now.status]
   return (
     <Popover title={t.title} className="pop-handover" trigger={<StatusPill state={PILL_STATES[now.status]}>{pillWords(now, where)}</StatusPill>}>
@@ -102,7 +103,7 @@ function HandoverForm({ now, pair, receiverPhone, viewer, onDone, onCancel, bloc
       message: (handover) => ({ title: t.switchingToast(handover.to_name, formatClock(handover.until)) }),
       undoLabel: common.undo,
       onUndoError: () => toast.error(t.undoFailed),
-      windowSeconds: config.data?.undo_window_seconds ?? 10,
+      windowSeconds: config.data?.undo_window_seconds ?? DEFAULT_UNDO_WINDOW_SECONDS,
     }),
     onSuccess: () => {
       refresh()
@@ -120,7 +121,7 @@ function HandoverForm({ now, pair, receiverPhone, viewer, onDone, onCancel, bloc
     <form className="stack-sm handover-form" onSubmit={submit}>
       <p>
         {t.receiver} <b>{secondary.name}</b> · {roleLabels().secondary}
-        {receiverPhone && <> · <a className="mono handover-tel" href={`tel:${receiverPhone.replace(/\s+/g, '')}`}>{receiverPhone.replaceAll(' ', ' ')}</a></>}
+        {receiverPhone && <> · <a className="mono handover-tel" href={telHref(receiverPhone)}>{phoneText(receiverPhone)}</a></>}
       </p>
       <Field label={t.duration} hint={t.latestHint(latestClock)}>
         {({ labelId, describedBy }) => (

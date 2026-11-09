@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AssignmentRole, DraftSchedule, LateShiftAnchor, api } from '../api'
 import { useMessages } from '../i18n'
-import { RoleSwap, Roster, draftSwapLines, roleSwapOf, staffChanges, swapHolders, swapRefused } from '../lib/calendar'
+import { RoleSwap, Roster, draftSwapLines, roleSwapOf, staffChanges, swapHolders } from '../lib/calendar'
 import { formatShortDate } from '../lib/dates'
 import { useUndoable } from './useUndoable'
 import { Box, Button, useToast } from '../ui'
-import { problemCounts } from '../components/DraftProblems'
+import { problemCounts } from '../lib/draftProblems'
 import { RoleSwapPreview, RoleSwapTrigger } from '../components/RoleSwapPreview'
 
 const FRAME_ID = 'draft-role-swap-frame'
@@ -102,19 +102,14 @@ export function useDraftRoleSwap({ draft, roster, serviceDate, anchor, onSaved, 
     </section>
   )
 
-  const blocked = swapRefused(swap)
   const footer = frame && (
     <>
       <Button variant="ghost" disabled={save.isPending} onClick={close}>{common.cancel}</Button>
       <span className="sp" />
-      {/* Focusable while refused, so the rows above say why. */}
       <Button
         variant="primary"
         loading={save.isPending}
-        aria-disabled={blocked || undefined}
-        onClick={() => {
-          if (!blocked) save.mutate({ swap, serviceDate: serviceDate!, carry })
-        }}
+        onClick={() => save.mutate({ swap, serviceDate: serviceDate!, carry })}
       >
         {t.save}
       </Button>

@@ -3,13 +3,11 @@
 import uuid
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
-from oncall.domain.clock import business_today
 from oncall.domain.forwarding.models import NumberHandover
 from oncall.domain.overrides.models import BatchOverrideKind, CorrectionImpact, DutyOverridden
 from oncall.domain.vocabulary import AssignmentRole
-from oncall.i18n import translate
 from oncall.presentation.assignments import AssignmentResponse
 from oncall.presentation.forwarding import HandoverResponse
 from oncall.presentation.rules import RuleViolationResponse, rule_violation_responses
@@ -29,12 +27,6 @@ class DirectOverrideRequest(BaseModel):
     #: Required when the correction breaks a hard rule: the coordinator saw
     #: the violations (`/override/check`) and goes ahead knowingly.
     acknowledge_rule_violations: bool = False
-
-    @model_validator(mode="after")
-    def historical_reason_required(self) -> DirectOverrideRequest:
-        if self.service_date < business_today() and len((self.reason or "").strip()) < 10:
-            raise ValueError(translate("overrides.historical_correction_needs_reason"))
-        return self
 
 
 class OverrideCheckResponse(BaseModel):

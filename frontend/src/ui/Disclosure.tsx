@@ -18,7 +18,7 @@ export function Disclosure({ title, meta, children, className }: {
   const id = useId()
   return (
     <div className={cx('panel details', open && 'details-open', className)}>
-      <button type="button" className="details-summary" aria-expanded={open} aria-controls={id} onClick={() => setOpen((current) => !current)}>
+      <button type="button" className="details-summary" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen((current) => !current)}>
         <Icon name={open ? 'chevron-down' : 'chevron-right'} size={14} />
         <span>{title}</span>
         {/* The space keeps the accessible name from running the two together; a flex row does not draw it. */}

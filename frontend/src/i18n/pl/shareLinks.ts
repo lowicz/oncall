@@ -1,3 +1,5 @@
+import { pluralPl } from '../../lib/plural'
+
 /** Share links: one-time links that open a read-only view of the published schedule. */
 export const shareLinks = {
   title: 'Udostępnienia',
@@ -15,7 +17,7 @@ export const shareLinks = {
     scheduleFrom: 'Grafik od',
     scheduleTo: 'Grafik do',
     validity: 'Ważność linku',
-    days: (count: number) => `${count} dni`,
+    days: (count: number) => pluralPl(count, ['dzień', 'dni', 'dni']),
     create: 'Utwórz link',
   },
   created: (expiresAt: string) => `Jednorazowy link, ważny do ${expiresAt}. Przekaż go odbiorcy; nie pokażemy go ponownie.`,

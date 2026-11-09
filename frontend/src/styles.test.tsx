@@ -20,6 +20,48 @@ describe('shared interaction styles', () => {
     expect(toasts.bottom).toBe('calc(72px + env(safe-area-inset-bottom))')
   })
 
+  it('keeps a screen\'s main action above the bottom tabs and the inbox on one row on a phone', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<><button className="thumb-action" /><div className="seg seg-wrap seg-inbox"><button /></div></>)
+    const action = getComputedStyle(container.querySelector('.thumb-action')!)
+    expect([action.position, action.bottom]).toEqual(['fixed', 'calc(80px + env(safe-area-inset-bottom))'])
+    const seg = getComputedStyle(container.querySelector('.seg-inbox')!)
+    expect([seg.display, seg.gridAutoFlow]).toEqual(['grid', 'column'])
+    // A label too long for its share of the row wraps inside its button.
+    const button = getComputedStyle(container.querySelector('.seg-inbox button')!)
+    expect(button.whiteSpace).toBe('normal')
+    // Its count may drop under the label: glued to the last word, it made
+    // the row wider than a 360 px screen and pushed the page past its gutter.
+    expect([button.display, button.flexWrap]).toEqual(['inline-flex', 'wrap'])
+  })
+
+  it('lets any other wrapping choice flow onto further rows on a phone', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<div className="seg seg-wrap" />)
+    const seg = getComputedStyle(container.querySelector('.seg-wrap')!)
+    expect([seg.display, seg.flexWrap]).toEqual(['inline-flex', 'wrap'])
+  })
+
+  it('keeps the matrix panel as wide as its days, never wider than the page', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="mx panel" />)
+    const mx = getComputedStyle(container.querySelector('.mx')!)
+    expect([mx.width, mx.maxWidth]).toEqual(['fit-content', '100%'])
+  })
+
+  it('puts the unsaved note of a panel on a row of its own above the buttons', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="panel-foot"><span className="panel-foot-note" /></div>)
+    const note = getComputedStyle(container.querySelector('.panel-foot-note')!)
+    expect([note.flexBasis, note.order]).toEqual(['100%', '-1'])
+  })
+
+  it('gives a stated reason not to send a row of its own over the footer buttons', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="panel-foot"><output className="foot-status">Wybierz dyżur.</output></div>)
+    expect(getComputedStyle(container.querySelector('.foot-status')!).flexBasis).toBe('100%')
+  })
+
   it('puts a list row\'s actions under its text on a phone', () => {
     loadRealMediaQuery('(max-width: 900px)')
     const { container } = render(<div className="list-row"><div className="list-main" /><div className="list-aside" /></div>)
@@ -86,6 +128,8 @@ describe('shared interaction styles', () => {
         <span className="role-r role-r-s">SECONDARY</span>
         <button type="button" className="avail-day avail-day-na">7</button>
         <button type="button" className="now-search">Szukaj</button>
+        <span className="tag tag-late">powiązana z SECONDARY</span>
+        <button type="button" className="tab">Rotacja</button>
       </>,
     )
     const style = (selector: string) => getComputedStyle(container.querySelector(selector)!)
@@ -96,6 +140,16 @@ describe('shared interaction styles', () => {
     expect(style('.role-r-s').color).toBe('var(--sec-text)')
     expect(style('.avail-day-na').color).toBe('var(--fg)')
     expect(style('.now-search').backgroundColor).toBe('rgba(0, 0, 0, 0)')
+    expect(style('.tag-late').color).toBe('var(--late-text)')
+    // A tab is as tall as the other small controls; a coarse pointer raises every button to 44 px.
+    expect(style('.tab').minHeight).toBe('32px')
+  })
+
+  it('sizes the label column of the swap sheet to its longest word, the same in every row', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="roles roles-text"><div className="role-row" /></div>)
+    expect(getComputedStyle(container.querySelector('.roles')!).gridTemplateColumns).toBe('max-content minmax(0, 1fr) auto')
+    expect(getComputedStyle(container.querySelector('.role-row')!).gridTemplateColumns).toBe('subgrid')
   })
 
   it('reveals the skip link when it receives keyboard focus', () => {

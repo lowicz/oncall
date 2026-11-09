@@ -50,7 +50,7 @@ export const mine = {
       unavailable: 'nie mogę',
       prefer_not: 'wolę nie',
       prefer: 'chętnie',
-      clear: 'Wyczyść zaznaczenie',
+      clear: 'Gumka (usuwa wpis z dnia)',
     },
     previousMonth: 'Poprzedni miesiąc',
     nextMonth: 'Następny miesiąc',
@@ -58,7 +58,7 @@ export const mine = {
     pickDescription: 'Twoje konto nie jest w rotacji. Wskaż osobę, w imieniu której chcesz zgłosić dostępność.',
     howTo: 'Kliknij dzień albo przeciągnij po kilku. Zapisujemy od razu.',
     /** Said on a device with a keyboard and a mouse only; a phone has no Shift. */
-    howToShift: 'Shift+klik zaznacza zakres.',
+    howToShift: 'Shift+klik albo Shift+Enter zaznacza zakres.',
     /** The phone, where the first tap starts a range and the second closes it. */
     howToTouch: 'Dotknij pierwszego i ostatniego dnia zakresu (jeden dzień: dwa razy ten sam). Zapisujemy od razu.',
     legend: {
@@ -122,7 +122,7 @@ export const mine = {
     aboveShare: (points: string) => `Masz o ${points} pkt więcej niż Twój sprawiedliwy udział.`,
     belowShare: (points: string) => `Masz o ${points} pkt mniej niż Twój sprawiedliwy udział.`,
     atShare: 'Masz dokładnie tyle punktów, ile wynosi Twój sprawiedliwy udział.',
-    norm: (points: string) => `Norma to ±${points} pkt od udziału należnego.`,
+    norm: (points: string) => `Norma to ±${points} pkt od sprawiedliwego udziału.`,
     generatorEvensOut: 'Generator wyrówna to w kolejnym zakresie.',
     generatorFewer: 'Generator da Ci mniej dyżurów w kolejnym zakresie.',
     generatorMore: 'Generator da Ci więcej dyżurów w kolejnym zakresie.',
@@ -168,7 +168,7 @@ export const mine = {
   phone: {
     heading: 'Mój telefon',
     label: 'Numer telefonu',
-    hint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby na pasku „Teraz” i na karcie dyżurnego.',
+    hint: 'Format: +48 i dziewięć cyfr (same cyfry uzupełnimy prefiksem). Widzą go zalogowane osoby i odbiorcy linków udostępnienia na pasku „Teraz” i na karcie dyżurnego.',
     fix: 'Popraw numer: +48 i dziewięć cyfr.',
     required: 'Wymagany dla osób w rotacji.',
     save: 'Zapisz numer',
