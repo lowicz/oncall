@@ -772,7 +772,7 @@ describe('GeneratorPanel swap approval switch', () => {
     expect(toggle).toBeChecked()
     // The swap policy has its own heading: it does not shape the generation.
     expect(screen.getByRole('heading', { name: 'Polityka zamian' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Zapisz' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Zapisz' })).not.toBeInTheDocument()
 
     fireEvent.click(toggle)
     expect(toggle).not.toBeChecked()
@@ -780,10 +780,11 @@ describe('GeneratorPanel swap approval switch', () => {
     await waitFor(() => expect(save).toHaveBeenCalled())
     expect(save.mock.calls[0][0]).toMatchObject({ coordinator_swap_approval_required: false })
     // The stored value comes back off, so the form is clean again.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Zapisz' })).toBeDisabled())
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Zapisz' })).not.toBeInTheDocument())
     expect(screen.getByRole('checkbox', { name: /Zamiana dyżuru wymaga zatwierdzenia koordynatora/ })).not.toBeChecked()
+    // One confirmation: the toast, with no second word in the drawer.
     expect(screen.getByText('Zapisano ustawienia generowania')).toBeInTheDocument()
-    expect(screen.getByText('Zapisano.')).toHaveAttribute('role', 'status')
+    expect(screen.queryByText('Zapisano.')).not.toBeInTheDocument()
   })
 })
 
@@ -804,14 +805,14 @@ describe('GeneratorPanel solver time budget', () => {
     expect(save.mock.calls[0][0]).toMatchObject({ solve_seconds: 45 })
   })
 
-  it('keeps the save button off while the budget matches what is stored', async () => {
+  it('offers only generation while the settings match what is stored', async () => {
     stub([])
     renderScreen(<GeneratorPanel />)
     fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
     await screen.findByRole('spinbutton', { name: /Budżet czasu na przebieg/ })
-    expect(
-      screen.getByRole('button', { name: 'Zapisz' }),
-    ).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Zapisz' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Przywróć zapisane' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Generuj' })).toBeEnabled()
   })
 
   it('names the whole-run ceiling next to the per-pass budget', async () => {
@@ -1319,28 +1320,24 @@ describe('GeneratorPanel settings drawer', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Ustawienia' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Zmień ustawienia i generuj…' }))
-    const from = await screen.findByLabelText(/^Od/, { selector: '#settings-from' })
-    expect(from).toHaveValue('2026-09-17')
-    expect(from).toBeDisabled()
-    expect(screen.getByText('Zakres otwartego szkicu; nowy zakres zaczniesz z listy szkiców.')).toBeInTheDocument()
+    // The range is said, not edited: it is set in one place.
+    expect(await screen.findByText('Generowanie obejmie 17 – 18 wrz. To zakres otwartego szkicu; nowy zakres zaczniesz z listy szkiców.')).toBeInTheDocument()
+    expect(document.querySelector('#settings-from')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Generuj' }))
     await waitFor(() => expect(generate).toHaveBeenCalledWith({ starts_on: '2026-09-17', ends_on: '2026-09-18' }, expect.anything()))
   })
 
-  it('edits the range from the drawer and generates it', async () => {
+  it('generates from the drawer the range set in the new draft form', async () => {
     stub([])
     const generate = vi.spyOn(api, 'generateSchedule').mockReturnValue(new Promise(() => {}))
     renderScreen(<GeneratorPanel />)
     await waitFor(() => expect(document.querySelector('#generator-from')).toHaveValue('2026-09-21'))
+    fireEvent.change(document.querySelector('#generator-from')!, { target: { value: '2026-09-28' } })
+    fireEvent.change(document.querySelector('#generator-to')!, { target: { value: '2026-10-25' } })
 
     fireEvent.click(screen.getByRole('button', { name: /Ustawienia generatora/ }))
-    const from = await screen.findByLabelText(/^Od/, { selector: '#settings-from' })
-    expect(screen.getByText('Maks. 35 dni na jedno generowanie.')).toBeInTheDocument()
-    fireEvent.change(from, { target: { value: '2026-09-28' } })
-    fireEvent.change(screen.getByLabelText(/^Do/, { selector: '#settings-to' }), { target: { value: '2026-10-25' } })
-    expect(document.querySelector('#generator-from')).toHaveValue('2026-09-28')
-    expect(document.querySelector('#generator-to')).toHaveValue('2026-10-25')
+    expect(await screen.findByText('Generowanie obejmie 28 wrz – 25 paź. Zakres zmienisz w formularzu „Nowy szkic”.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Generuj' }))
     await waitFor(() => expect(generate).toHaveBeenCalledWith({ starts_on: '2026-09-28', ends_on: '2026-10-25' }, expect.anything()))
@@ -1456,7 +1453,7 @@ describe('GeneratorPanel settings drawer', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Ustawienia generatora/ }))
     const mode = await screen.findByRole('combobox', { name: /Tryb rotacji/ })
     await waitFor(() => expect(mode).toBeEnabled())
-    expect(screen.getByRole('button', { name: 'Przywróć zapisane' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Przywróć zapisane' })).not.toBeInTheDocument()
 
     fireEvent.change(mode, { target: { value: 'weekly' } })
     fireEvent.change(screen.getByRole('combobox', { name: /Powiązanie 11–19/ }), { target: { value: 'independent' } })
@@ -1488,7 +1485,8 @@ describe('GeneratorPanel settings drawer', () => {
     expect(save.mock.calls[0][0]).toMatchObject({ fairness_weight: 5 })
 
     finish({ ...policy, fairness_weight: 5 })
-    expect(await screen.findByText('Zapisano.')).toBeInTheDocument()
+    expect(await screen.findByText('Zapisano ustawienia generowania')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zapisz' })).not.toBeInTheDocument()
   })
 
   it('stores changed settings and generates the open draft range in one step', async () => {

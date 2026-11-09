@@ -696,11 +696,14 @@ export function GeneratorPanel() {
         meta={settingsDirty && <StatusBadge tone="warn">{t.settings.unsaved}</StatusBadge>}
         footer={(
           <>
-            <IconButton icon="undo" label={t.settings.restore} disabled={!settingsDirty} onClick={() => setSettings(settingsOf(policy.data!))} />
+            {/* Restoring and saving alone exist only for a change; untouched, the drawer only generates. */}
+            {settingsDirty && <IconButton icon="undo" label={t.settings.restore} onClick={() => setSettings(settingsOf(policy.data!))} />}
             <span className="sp" />
-            <Button type="submit" form="generator-settings" disabled={savePolicy.isPending || policy.isLoading || !settingsDirty}>
-              {t.settings.save}
-            </Button>
+            {settingsDirty && (
+              <Button type="submit" form="generator-settings" disabled={savePolicy.isPending}>
+                {t.settings.save}
+              </Button>
+            )}
             <Button
               variant="primary"
               icon="wand"
@@ -715,10 +718,12 @@ export function GeneratorPanel() {
         )}
       >
         <form id="generator-settings" className="stack-sm" onSubmit={(event) => { event.preventDefault(); savePolicy.mutate(settings) }} aria-label={t.settings.form}>
-          <div className="frow">
-            <DateField id="settings-from" label={t.form.from} value={result?.starts_on ?? range.starts_on} onChange={(value) => setRange({ ...range, starts_on: value })} disabled={Boolean(result)} />
-            <DateField id="settings-to" label={t.form.to} value={result?.ends_on ?? range.ends_on} onChange={(value) => setRange({ ...range, ends_on: value })} disabled={Boolean(result)} hint={result ? t.settings.rangeOfOpenDraft : t.settings.maxDays} />
-          </div>
+          {/* The range is set on the page, once; the drawer only says which one it generates. */}
+          <p className="small muted">
+            {t.settings.range(formatRange((result ?? range).starts_on, (result ?? range).ends_on))}
+            {' '}
+            {result ? t.settings.rangeOfOpenDraft : t.settings.rangeOfForm}
+          </p>
           <Box tone="muted">
             {t.settings.globalNote}
             {' '}
@@ -726,22 +731,21 @@ export function GeneratorPanel() {
               <div className="small">{t.settings.weightsHelp}</div>
             </Popover>
           </Box>
-          <div className="frow">
-            <Field label={t.settings.rotationMode} id="policy-rotation-mode" hint={t.settings.rotationModeHint}>
-              {({ id, describedBy }) => (
-                <Select id={id} name="rotation_mode" value={settings.rotation_mode} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, rotation_mode: event.target.value as RotationMode })}>
-                  {Object.entries(rotationLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </Select>
-              )}
-            </Field>
-            <Field label={t.settings.lateShiftAnchor} id="policy-late-shift-anchor" hint={t.settings.lateShiftAnchorHint}>
-              {({ id, describedBy }) => (
-                <Select id={id} name="late_shift_anchor" value={settings.late_shift_anchor} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, late_shift_anchor: event.target.value as LateShiftAnchor })}>
-                  {Object.entries(lateShiftAnchorLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </Select>
-              )}
-            </Field>
-          </div>
+          {/* One under the other: side by side the 11–19 choice is cut off. */}
+          <Field label={t.settings.rotationMode} id="policy-rotation-mode" hint={t.settings.rotationModeHint}>
+            {({ id, describedBy }) => (
+              <Select id={id} name="rotation_mode" value={settings.rotation_mode} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, rotation_mode: event.target.value as RotationMode })}>
+                {Object.entries(rotationLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+            )}
+          </Field>
+          <Field label={t.settings.lateShiftAnchor} id="policy-late-shift-anchor" hint={t.settings.lateShiftAnchorHint}>
+            {({ id, describedBy }) => (
+              <Select id={id} name="late_shift_anchor" value={settings.late_shift_anchor} disabled={policy.isLoading} aria-describedby={describedBy} onChange={(event) => setSettings({ ...settings, late_shift_anchor: event.target.value as LateShiftAnchor })}>
+                {Object.entries(lateShiftAnchorLabels()).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </Select>
+            )}
+          </Field>
           {settings.rotation_mode === 'weekly' && (
             <Box tone="warn" title={t.settings.weeklyTitle}>
               {t.settings.weeklyBody}
@@ -767,7 +771,6 @@ export function GeneratorPanel() {
             disabled={policy.isLoading}
             onChange={(event) => setSettings({ ...settings, coordinator_swap_approval_required: event.target.checked })}
           />
-          {savePolicy.isSuccess && !settingsDirty && <span className="small muted" role="status">{t.settings.saved}</span>}
         </form>
       </Panel>
       {result && (

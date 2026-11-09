@@ -704,8 +704,8 @@ p.problems-foot { margin: 0; border-top: 1px solid var(--line); }
 .link-btn:hover { color: var(--sig); }
 .link-btn small { display: block; color: var(--muted); font: 12px/16px var(--mono); margin-top: 2px; }
 /* Inside a sentence the action reads as a link: the first gap, a clash, the unsaved-changes note. */
-.sech-meta .link-btn, .list-main small .link-btn, .panel-foot-note .link-btn { color: var(--sig); text-decoration: underline; text-underline-offset: 3px; }
-.sech-meta .link-btn:hover, .list-main small .link-btn:hover, .panel-foot-note .link-btn:hover { color: var(--fg); }
+.sech-meta .link-btn, .list-main small .link-btn, .panel-foot-note .link-btn, .box .link-btn { color: var(--sig); text-decoration: underline; text-underline-offset: 3px; }
+.sech-meta .link-btn:hover, .list-main small .link-btn:hover, .panel-foot-note .link-btn:hover, .box .link-btn:hover { color: var(--fg); }
 .details-summary { width: 100%; cursor: pointer; padding: 10px 14px; font: 600 14px/21px var(--font); display: flex; align-items: center; gap: 8px; background: none; border: 0; color: var(--fg); text-align: left; border-radius: var(--r-md); }
 .details-summary:hover { background: var(--s2); }
 .details-summary .icon { color: var(--muted); }

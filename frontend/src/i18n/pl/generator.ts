@@ -180,8 +180,10 @@ export const generator = {
     saveAndGenerate: 'Zapisz i generuj',
     generate: 'Generuj',
     form: 'Ustawienia generowania',
-    rangeOfOpenDraft: 'Zakres otwartego szkicu; nowy zakres zaczniesz z listy szkiców.',
-    maxDays: 'Maks. 35 dni na jedno generowanie.',
+    /** The one range a generation from the drawer covers, set on the page. */
+    range: (range: string) => `Generowanie obejmie ${range}.`,
+    rangeOfOpenDraft: 'To zakres otwartego szkicu; nowy zakres zaczniesz z listy szkiców.',
+    rangeOfForm: 'Zakres zmienisz w formularzu „Nowy szkic”.',
     globalNote: 'Ustawienia dotyczą całego zespołu i działają od następnego generowania.',
     weightsHelpLink: 'Jak działają wagi',
     weightsHelp: 'Wagi zmieniają priorytet reguł miękkich. Nie wyłączą kwalifikacji, niedostępności ani wymaganego pokrycia. Liczy się tylko stosunek wag: 6 / 4 / 2 działa tak samo jak 3 / 2 / 1. Waga 0 wyłącza daną regułę w całości.',
@@ -205,7 +207,6 @@ export const generator = {
     solveSecondsHint: (total: number) => `Jedno generowanie wykonuje kilka przebiegów, więc górny limit całego generowania to około ${total} s. Dłuższy budżet nie poprawia rozpiętości powyżej wartości domyślnej - podnoś go dla dłuższych zakresów.`,
     startingPointsTitle: 'Punkty startowe',
     startingPointsBody: 'Solver wyrównuje wobec 12 miesięcy historii, także zaimportowanej. Weekendy i bloki świąteczne są regułą twardą: cały blok trafia do jednej osoby w danej roli; podział bloku jest możliwy tylko korektą albo zamianą po publikacji.',
-    saved: 'Zapisano.',
   },
   toast: {
     proposed: (range: string) => `Przekazano do akceptacji: ${range}`,

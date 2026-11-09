@@ -198,14 +198,15 @@ breaks shows in the problems table. **Swap places** saves both roles (and
 
 ## Generator settings
 
-The **Generator settings** button opens a side panel with the **From** /
-**To** range and the solver settings. It is the one place where you change
-them; they are saved **globally for the whole team** and apply from the next
-generation. The footer has one main button: without changes **Generate**
-starts a generation right away with the range from the panel, and with
-unsaved changes **Save and generate** saves them and generates in one click.
-**Save** only saves, and the arrow icon (**Restore saved**) reverts the
-unsaved changes. The **How the weights work** link explains how the weights
+The **Generator settings** button opens a side panel with the solver
+settings. It is the one place where you change them; they are saved
+**globally for the whole team** and apply from the next generation. The panel
+does not edit the range, it only states it (“The generation covers …”): the
+range from the **New draft** form or the range of the open draft. The footer
+has one main button: without changes **Generate** starts a generation right
+away, and with unsaved changes **Save and generate** saves them and generates
+in one click. Only with changes do **Save**, which only saves, and the arrow
+icon (**Restore saved**), which reverts them, appear. The **How the weights work** link explains how the weights
 behave. Under a separate **Swap policy** heading is the switch for
 the coordinator's approval of swaps; it does not affect generation.
 Closing the panel, going to another screen, reloading, or opening another draft with unsaved settings requires a decision whether to discard them.

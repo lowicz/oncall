@@ -189,14 +189,15 @@ korektą. Każda korekta, także zamiana:
 
 ## Ustawienia generatora
 
-Przycisk **Ustawienia generatora** otwiera panel boczny z zakresem **Od** /
-**Do** i ustawieniami solvera. To jedyne miejsce, w którym je zmieniasz;
-zapisują się **globalnie dla całego zespołu** i obowiązują od następnego
-generowania. Stopka ma jeden przycisk główny: bez zmian **Generuj** uruchamia
-generowanie od razu z zakresem z panelu, a przy niezapisanych zmianach
-**Zapisz i generuj** zapisuje je i generuje jednym kliknięciem. **Zapisz**
-tylko zapisuje, a ikona strzałki (**Przywróć zapisane**) cofa niezapisane
-zmiany. Zasady działania wag wyjaśnia link **Jak działają wagi**. Pod osobnym
+Przycisk **Ustawienia generatora** otwiera panel boczny z ustawieniami
+solvera. To jedyne miejsce, w którym je zmieniasz; zapisują się **globalnie
+dla całego zespołu** i obowiązują od następnego generowania. Zakresu panel nie
+edytuje, tylko go podaje („Generowanie obejmie …”): to zakres z formularza
+**Nowy szkic** albo zakres otwartego szkicu. Stopka ma jeden przycisk główny:
+bez zmian **Generuj** uruchamia generowanie od razu, a przy niezapisanych
+zmianach **Zapisz i generuj** zapisuje je i generuje jednym kliknięciem. Dopiero
+przy zmianach pojawiają się **Zapisz**, które tylko zapisuje, i ikona strzałki
+(**Przywróć zapisane**), która je cofa. Zasady działania wag wyjaśnia link **Jak działają wagi**. Pod osobnym
 nagłówkiem **Polityka zamian** jest przełącznik zatwierdzania zamian przez
 koordynatora; nie wpływa na generowanie.
 Zamknięcie panelu, przejście na inny ekran, odświeżenie albo otwarcie innego szkicu przy niezapisanych ustawieniach wymaga decyzji, czy je odrzucić.
