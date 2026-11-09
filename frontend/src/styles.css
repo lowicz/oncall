@@ -413,6 +413,8 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .panel-foot-note .link-btn { margin-left: 6px; }
 /* What keeps the footer's action from running, on its left: it also spaces the buttons to the right. */
 .foot-status { flex: 1; min-width: 0; color: var(--muted); font-size: 12px; line-height: 16px; }
+/* Said, it takes a row of its own over the buttons rather than squeezing beside them. */
+.panel-foot .foot-status:not(:empty) { flex-basis: 100%; }
 /* A step bar inside a panel has a third of the page width: tighter links, smaller type. */
 .panel-body .steps { gap: 6px; }
 .panel-body .step { gap: 6px; }
@@ -591,7 +593,7 @@ button.rank-c:hover:not(:disabled):not([aria-disabled='true']) { background: var
 /* How a selected row's day is taken: under the row, kept apart from the next one. */
 .rank-sub { padding: 0 0 6px 12px; }
 /* The facts of the picked card, hung under it. */
-.rank-detail { margin: -8px 0 0; padding: 0 12px 8px; font-size: 12px; line-height: 16px; color: var(--muted); border: 1px solid var(--sig-line); border-top: 0; border-radius: 0 0 10px 10px; background: var(--s1); }
+.rank-detail { margin: -6px 0 0; padding: 8px 12px; font-size: 12px; line-height: 16px; color: var(--muted); border: 1px solid var(--sig-line); border-top: 0; border-radius: 0 0 10px 10px; background: var(--s1); }
 /* Blocked but still focusable, so its reason is read: muted, not faded. */
 button.rank-c.rank-blocked { cursor: not-allowed; }
 .rank-blocked .rank-no, .rank-blocked .rank-nm { color: var(--muted); }
@@ -782,6 +784,13 @@ table.report-table td.key { font-weight: 600; }
   .mx { max-height: none; }
   .pal-popup { top: 8px; max-height: 85vh; }
   .dcard-acts .btn { flex: 1 1 auto; }
+  /* A screen's main action waits above the bottom tabs, in the thumb's reach;
+     the page leaves room under its last row for it. */
+  .thumb-action { position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 15; box-shadow: var(--shadow-sm); }
+  .page:has(.thumb-action) { padding-bottom: 96px; }
+  /* The inbox's choices stay on one row, as equal columns. */
+  .seg-wrap { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; border-radius: 999px; }
+  .seg-wrap button { padding-left: 4px; padding-right: 4px; }
   /* The month stays in view while the calendar scrolls: the heading dissolves
      into the section, so the month row can stick under the top bar. */
   .avail-head, .avail-head .sech-ctl { display: contents; }

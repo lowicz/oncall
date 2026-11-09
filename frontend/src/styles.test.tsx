@@ -20,6 +20,21 @@ describe('shared interaction styles', () => {
     expect(toasts.bottom).toBe('calc(72px + env(safe-area-inset-bottom))')
   })
 
+  it('keeps a screen\'s main action above the bottom tabs and the inbox on one row on a phone', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<><button className="thumb-action" /><div className="seg seg-wrap" /></>)
+    const action = getComputedStyle(container.querySelector('.thumb-action')!)
+    expect([action.position, action.bottom]).toEqual(['fixed', 'calc(80px + env(safe-area-inset-bottom))'])
+    const seg = getComputedStyle(container.querySelector('.seg-wrap')!)
+    expect([seg.display, seg.gridAutoFlow]).toEqual(['grid', 'column'])
+  })
+
+  it('gives a stated reason not to send a row of its own over the footer buttons', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="panel-foot"><output className="foot-status">Wybierz dyżur.</output></div>)
+    expect(getComputedStyle(container.querySelector('.foot-status')!).flexBasis).toBe('100%')
+  })
+
   it('puts a list row\'s actions under its text on a phone', () => {
     loadRealMediaQuery('(max-width: 900px)')
     const { container } = render(<div className="list-row"><div className="list-main" /><div className="list-aside" /></div>)

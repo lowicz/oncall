@@ -66,15 +66,16 @@ the same place:
 as long as the reason is empty, and “Cancel rejection”, which goes back to
 the decision and clears the field. Both sides see the reason, it
 stays with the request and in the audit. **Withdrawing** your own request needs
-no reason; if you give none, “wycofane przez autora” (withdrawn by the author)
-stays with the request.
+no reason; if you give none, the request in the **Closed** inbox carries the
+note “withdrawn by the author” instead of a reason.
 
 ## Filing a request
 
-The **Request a swap…** button in the screen header opens the form in a panel;
+The **Request a swap…** button in the screen header (on a phone above the
+bottom bar, within the thumb's reach) opens the form in a panel;
 the same button on the My duties screen and in the schedule's day panel opens
-it with the duty already chosen. The form leads through four steps: duty, replacement, in return
-(optional) and sending. Once the replacement is picked the bar moves straight
+it with the duty already chosen. The form leads through four steps: duty, replacement, in return and
+sending; the “in return” step is optional. Once the replacement is picked the bar moves straight
 on to sending, as “Nothing, I only give the duty away” is already chosen.
 Once a request has been started, closing the panel, going to another screen, or reloading requires a decision whether to discard the entered data.
 
@@ -128,8 +129,8 @@ Once a request has been started, closing the panel, going to another screen, or 
    published schedule; with a hard rule - another person or another duty in
    return. The screen confirms the sending with the message
    “Sent to: …” with an **Undo** button and moves to the **Sent** inbox.
-   “Undo” within 10 seconds withdraws the request with the reason “cofnięte
-   zaraz po wysłaniu” (undone right after sending). The message to the replacement waits for the end of
+   “Undo” within 10 seconds withdraws the request; in the **Closed** inbox it
+   carries the note “undone right after sending”. The message to the replacement waits for the end of
    that time, so a request withdrawn in time sends the replacement no message
    at all.
 

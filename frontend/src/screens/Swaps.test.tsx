@@ -183,7 +183,7 @@ describe('SwapPanel inbox', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Zdecyduj/ }))
     expect(inbox(/^Do zatwierdzenia/)).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByText('Piotr zgodził(a) się · czeka na Ciebie')).toBeInTheDocument()
+    expect(screen.getByText('Piotr zgadza się · czeka na Ciebie')).toBeInTheDocument()
     // A coordinator without a rotation slot has no request to file.
     expect(screen.queryByRole('button', { name: 'Poproś o zamianę…' })).not.toBeInTheDocument()
 
@@ -262,6 +262,23 @@ describe('SwapPanel inbox', () => {
     expect(screen.getByRole('radio', { name: 'Wysłane: 0 spraw' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'W toku: 2 sprawy' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Zamknięte' })).toBeInTheDocument()
+  })
+
+  it('says a reason the application recorded itself as a status, not as a quoted reason', async () => {
+    stub([
+      swap({ id: '1', status: 'cancelled', decision_note: 'cofnięte zaraz po wysłaniu' }),
+      swap({ id: '2', status: 'cancelled', decision_note: 'wycofane przez autora' }),
+    ])
+    renderScreen(<SwapPanel displayName="Piotr Zieliński" role="admin" hasTeamMember />)
+
+    await screen.findByText('Nikt Cię o nic nie prosi')
+    fireEvent.click(inbox(/^Zamknięte/))
+    expect(await screen.findByText('cofnięta zaraz po wysłaniu')).toBeInTheDocument()
+    expect(screen.getByText('wycofana przez autora')).toBeInTheDocument()
+    expect(screen.queryByText(/powód:/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: /Podgląd/ })[0])
+    const sheet = await screen.findByRole('dialog', { name: /^Zamiana ·/ })
+    expect(within(sheet).getByText('cofnięta zaraz po wysłaniu')).toBeInTheDocument()
   })
 
   it('keeps settled requests under "Zamknięte" with no decisions left', async () => {
@@ -825,7 +842,8 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
     expect(sendButton()).toHaveAccessibleDescription('Wybierz zastępcę, żeby wysłać.')
     fireEvent.click(option)
     expect(screen.getByText(
-      'Łamie regułę: Więcej niż 3 dyżury on-call w okresie 7 dni. (14-09-2099, 15-09-2099, 18-09-2099, 19-09-2099). Ma już dyżur tego dnia.',
+      // The card names the rule; its days are in the box below once the candidate is picked.
+      'Łamie regułę: Więcej niż 3 dyżury on-call w okresie 7 dni. Ma już dyżur tego dnia.',
     )).toBeInTheDocument()
 
     const box = (await screen.findByText('Ta zamiana łamie reguły grafiku')).parentElement as HTMLElement
@@ -946,7 +964,7 @@ describe('SwapPanel candidate rules (BLK6-01)', () => {
       focusManager.setFocused(true)
     })
 
-    await waitFor(() => expect(screen.getAllByText(/16-09-2099/)).toHaveLength(2))
+    await waitFor(() => expect(screen.getByText(/16-09-2099/)).toBeInTheDocument())
     expect(screen.getByRole('checkbox', { name: 'Rozumiem i świadomie łamię te reguły' })).not.toBeChecked()
     expect(sendButton()).toBeDisabled()
   })
@@ -962,7 +980,7 @@ describe('SwapPanel stages and sheets', () => {
 
     await screen.findByText('Nikt Cię o nic nie prosi')
     fireEvent.click(inbox(/^W toku/))
-    expect(await screen.findByText('Ola zgodził(a) się · czeka na koordynatora')).toBeInTheDocument()
+    expect(await screen.findByText('Ola zgadza się · czeka na koordynatora')).toBeInTheDocument()
 
     fireEvent.click(inbox(/^Zamknięte/))
     const row = await screen.findByRole('row', { name: /wt 15 wrz/ })
@@ -1572,7 +1590,7 @@ describe('SwapPanel exchange: the "in return" step', () => {
     expect(search).toHaveBeenCalledWith('2099-09-14', 'primary', 'p1', undefined)
     // The optional step is settled with the replacement: sending is next.
     expect(steps().map((item) => [item.textContent, item.getAttribute('aria-current')])).toEqual([
-      ['1 dyżur', null], ['2 zastępca', null], ['3 w zamian (opcjonalnie)', null], ['4 wysłanie', 'step'],
+      ['1 dyżur', null], ['2 zastępca', null], ['3 w zamian', null], ['4 wysłanie', 'step'],
     ])
     act(() => offer(RETURNS))
 

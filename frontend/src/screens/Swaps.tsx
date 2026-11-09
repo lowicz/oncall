@@ -219,7 +219,8 @@ function CandidateFacts({ option, breaks, deviation, benefit, takesOnly }: {
 }) {
   const t = useMessages().swaps.compose
   const facts = [
-    ...breaks.map((violation) => t.breaksRule(violation.message, violation.days.map(formatDate).join(', '))),
+    // The rule alone: its days are listed in full once the candidate is picked.
+    ...breaks.map((violation) => t.breaksRule(violation.message)),
     option.on_duty_that_day && t.onDutyThatDay,
     takesOnly && t.takesOnly(roleLabels()[takesOnly]),
     option.warning_violations?.some((violation) => violation.rule === 'day_off_block') && t.splitsDaysOff,
@@ -255,12 +256,20 @@ function SwapSteps({ status, approvalRequired }: { status: SwapStatus; approvalR
   )
 }
 
+/** A reason the application wrote itself, which is recorded in Polish, in the reader's language. */
+function recordedNote(note: string | null | undefined): string | undefined {
+  const t = messages().swaps.stage
+  if (note === UNDONE_RIGHT_AFTER_SENDING) return t.undone
+  if (note === WITHDRAWN_BY_AUTHOR) return t.withdrawnByAuthor
+  return undefined
+}
+
 /** Who acts next, under the status in the inbox table. */
 function stageDetail(item: SwapRequest, viewer: SwapViewer): string {
   const t = messages().swaps.stage
   const me = (name: string) => name === viewer.displayName
   if (item.status === 'approved') return t.inSchedule
-  if (!isOpen(item)) return item.decision_note ? t.reason(item.decision_note) : ''
+  if (!isOpen(item)) return recordedNote(item.decision_note) ?? (item.decision_note ? t.reason(item.decision_note) : '')
   if (item.status === 'pending_replacement') return me(item.replacement_name) ? t.waitingForYou : t.waitingFor(item.replacement_name)
   return canCoordinate(viewer.role)
     ? t.acceptedWaitingForYou(firstName(item.replacement_name))
@@ -396,7 +405,7 @@ function SwapSheet({ item, viewer, approvalRequired, error, rejecting, reason, o
         <div className="kv-row"><dt>{t.filed}</dt><dd className="mono">{formatDayShort(item.created_at.slice(0, 10))}</dd></div>
       </dl>
       {item.note && <Box title={t.reasonFrom(item.requester_name)}>{t.quoted(item.note)}</Box>}
-      {item.decision_note && <Box tone={item.status === 'rejected' ? 'bad' : 'muted'} title={t.decisionReason}>{t.quoted(item.decision_note)}</Box>}
+      {item.decision_note && <Box tone={item.status === 'rejected' ? 'bad' : 'muted'} title={t.decisionReason}>{recordedNote(item.decision_note) ?? t.quoted(item.decision_note)}</Box>}
       <ViolationList violations={brokenRules(item)} title={item.status === 'approved' ? rules.broken : rules.breaks} me={viewer.displayName}>
         {mustDecide && (
           <>
@@ -766,7 +775,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         title={t.swaps.title}
         sub={subtitle}
         actions={hasTeamMember && (
-          <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>{t.swaps.newSwap}</Button>
+          <Button variant="primary" icon="plus" className="thumb-action" onClick={() => setComposing(true)}>{t.swaps.newSwap}</Button>
         )}
       />
       {swapsError && <ErrorState error={swapsError} onRetry={() => { openSwaps.refetch(); closedSwaps.refetch() }} />}
