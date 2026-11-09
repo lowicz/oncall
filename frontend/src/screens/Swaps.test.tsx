@@ -233,6 +233,21 @@ describe('SwapPanel inbox', () => {
     expect(screen.getByText('łamie reguły')).toHaveClass('tag', 'tag-bad')
   })
 
+  it('moves the requester\'s own request to "W toku" once the replacement agrees', async () => {
+    stub([
+      swap({ id: '1', requester_name: 'Anna Kowalska' }),
+      swap({ id: '2', service_date: '2026-09-15', requester_name: 'Anna Kowalska', replacement_name: 'Ola Wiśniewska', status: 'pending_coordinator' }),
+    ])
+    renderScreen(<SwapPanel displayName="Anna Kowalska" role="member" hasTeamMember />)
+
+    expect(await screen.findByText('0 czeka na Twoją decyzję · 1 czeka na drugą stronę · 1 czeka na koordynatora · 0 zamkniętych')).toBeInTheDocument()
+    expect(inbox(/^Wysłane/)).toHaveAccessibleName('Wysłane: 1 sprawa')
+    expect(inbox(/^W toku/)).toHaveAccessibleName('W toku: 1 sprawa')
+    fireEvent.click(inbox(/^W toku/))
+    expect(await screen.findByText('Oczekuje na koordynatora')).toBeInTheDocument()
+    expect(screen.queryByText('Oczekuje na zastępcę')).not.toBeInTheDocument()
+  })
+
   it('names each filter with its count spelled out for screen readers', async () => {
     stub([
       swap({ id: '1' }),
@@ -242,7 +257,7 @@ describe('SwapPanel inbox', () => {
     ])
     renderScreen(<SwapPanel displayName="Piotr Zieliński" role="member" hasTeamMember />)
 
-    await screen.findByText('1 czeka na Twoją decyzję · 2 czekają na drugą stronę · 1 zamknięta')
+    await screen.findByText('1 czeka na Twoją decyzję · 1 czeka na drugą stronę · 1 czeka na koordynatora · 1 zamknięta')
     expect(screen.getByRole('radio', { name: 'Do mnie: 1 sprawa' })).toHaveTextContent('Do mnie1')
     expect(screen.getByRole('radio', { name: 'Wysłane: 0 spraw' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'W toku: 2 sprawy' })).toBeInTheDocument()

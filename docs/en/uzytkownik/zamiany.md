@@ -12,8 +12,8 @@ filter - how many there are:
 | Filter | What it contains |
 | --- | --- |
 | **To me** | requests in which it is you who is to accept or decline the replacement |
-| **Sent** | your own, still open requests |
-| **For approval** (for a team member: **In progress**) | the remaining open requests; for a coordinator the counter covers only requests accepted by the replacement and waiting for their approval. When swap approval is switched off (see [Coordinator approval](#coordinator-approval)), a coordinator also sees the ordinary **In progress** here |
+| **Sent** | your own requests waiting for the replacement to agree |
+| **For approval** (for a team member: **In progress**) | the remaining open requests, including yours once the replacement has agreed and they wait for the coordinator; for a coordinator the counter covers only requests accepted by the replacement and waiting for their approval. When swap approval is switched off (see [Coordinator approval](#coordinator-approval)), a coordinator also sees the ordinary **In progress** here |
 | **Closed** | approved, rejected and withdrawn, including those the application closed [after their date](#date-passed) |
 
 The screen opens on the inbox in which something is waiting for you; the

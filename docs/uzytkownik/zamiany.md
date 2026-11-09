@@ -11,8 +11,8 @@ mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jes
 | Filtr | Co zawiera |
 | --- | --- |
 | **Do mnie** | wnioski, w których to Ty masz przyjąć albo odrzucić zastępstwo |
-| **Wysłane** | Twoje własne, jeszcze otwarte prośby |
-| **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie. Gdy zatwierdzanie zamian jest wyłączone (patrz [Zatwierdzenie koordynatora](#zatwierdzenie-koordynatora)), także koordynator widzi tu zwykłe **W toku** |
+| **Wysłane** | Twoje własne prośby, które czekają na zgodę zastępcy |
+| **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski, także Twoje po zgodzie zastępcy, gdy czekają na koordynatora; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie. Gdy zatwierdzanie zamian jest wyłączone (patrz [Zatwierdzenie koordynatora](#zatwierdzenie-koordynatora)), także koordynator widzi tu zwykłe **W toku** |
 | **Zamknięte** | zatwierdzone, odrzucone i wycofane, także zamknięte przez aplikację [po terminie](#termin-minął) |
 
 Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres

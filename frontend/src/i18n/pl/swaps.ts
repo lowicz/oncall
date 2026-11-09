@@ -11,6 +11,7 @@ export const swaps = {
   summary: {
     awaitingMe: (count: number) => `${pluralPl(count, ['czeka', 'czekają', 'czeka'])} na Twoją decyzję`,
     awaitingOthers: (count: number) => `${pluralPl(count, ['czeka', 'czekają', 'czeka'])} na drugą stronę`,
+    awaitingCoordinator: (count: number) => `${pluralPl(count, ['czeka', 'czekają', 'czeka'])} na koordynatora`,
     /** `more`: only the newest closed requests are loaded, so the count is a floor. */
     closed: (count: number, more = false) => (more ? `${count}+ zamkniętych` : pluralPl(count, ['zamknięta', 'zamknięte', 'zamkniętych'])),
   },

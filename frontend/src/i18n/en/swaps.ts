@@ -6,6 +6,7 @@ export const swaps: Messages['swaps'] = {
   summary: {
     awaitingMe: (count: number) => `${count} awaiting your decision`,
     awaitingOthers: (count: number) => `${count} awaiting the other side`,
+    awaitingCoordinator: (count: number) => `${count} awaiting the coordinator`,
     closed: (count: number, more = false) => `${count}${more ? '+' : ''} closed`,
   },
   newSwap: 'New swap',
