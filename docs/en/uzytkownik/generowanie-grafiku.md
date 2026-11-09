@@ -17,7 +17,7 @@ Check three things - correcting them after generation costs more:
 ## New draft
 
 The generator's start page has a **New draft** form with the **From** and
-**To** fields and the **Create draft** button, and below it the **Drafts**
+**To** fields and the **Generate the next range** button, and below it the **Drafts**
 list. The **Generator settings** button in the header opens a side panel with
 the settings (described below).
 
@@ -69,8 +69,9 @@ The list is read-only - add and edit events on the **Events** screen.
 ## Proposal
 
 An open draft is a separate page. The title is the range, and next to it one
-state pill with the version: “Draft · v2”, “For approval · v3” after
-submission, “Published · v4” after publication. Below the title are the
+state pill. Only a draft has a number (“Draft · v2”, it grows with every
+correction); after submission the pill says “For approval”, after publication
+“Published”, because a publication is named by its date, not by a number. Below the title are the
 number of assignments and days and the rotation mode. The header actions are
 **Generate a new draft** and the **⋯** (**More**) menu with **Generator
 settings**. **Generate a new draft** creates another draft for the same range
@@ -88,7 +89,7 @@ Above the matrix there is **one decision panel**:
   before and after the draft,
 - **one main action**: **Fix *N* problems** opens the first clashing cell
   (then **Publish…**), on a clean draft **Publish…**, and on a proposal
-  **Publish v*N*…** next to **Back to draft** (a proposal with a duty on an
+  **Publish…** next to **Back to draft** (a proposal with a duty on an
   “Unavailable” day has only **Back to draft**). Next to **Publish…** the **⋯**
   menu (**Other actions**) has **Submit for approval** for teams where a second person
   checks the draft.
@@ -119,9 +120,14 @@ Under the matrix there are four tabs:
   warnings, gaps before the draft and a note that the draft is out of date.
   The **By person** / **By rule** switch groups the rows, **Hard only** hides
   the soft warnings, and the **Fix** button on a row opens the right cell of
-  the matrix. A duty on an “Unavailable” day blocks the publication, and a
-  broken hard rule needs consent in the publication window. The table footer
-  lists the hard rules and leads to their full description.
+  the matrix: for a duty on an “Unavailable” day that duty, for a broken hard
+  rule the person's duty on the first day the rule concerns. Rows about the
+  whole draft (solver warnings, gaps, the draft being out of date) have no
+  single cell, so they have no button. A duty on an “Unavailable” day blocks
+  the publication, and a broken hard rule needs consent in the publication
+  window. The table footer lists the hard rules and leads to their full
+  description. On a phone the table becomes a list of cards: the kind, the
+  person with the day and role, the detail, and the button under it.
 - **Fairness** - the points spread as a single number with the value from
   before the draft and a **better** / **worse** badge, the verdict under it,
   then the acceptance criterion in every role, on weekends and on holidays and
@@ -147,19 +153,20 @@ Under the matrix there are four tabs:
 
 ### Manual cell correction
 
-Click a cell; the day panel (titled “Insert: *person* · *day*”) opens on the
-cell's role. The **Roles to change** group works as in the day inspector of the
+Click a cell; the day panel (titled “Insert: *person* · *day*”) opens on every
+role of the cell, e.g. SECONDARY and `11–19` together. The **Roles to change** group works as in the day inspector of the
 published schedule: PRIMARY and SECONDARY exclude each other, and `11–19` is
 ticked from the start when the `11–19` coupling binds it to the ticked role and
 its current holder has both; a day off has no `11–19`. The person in the
 clicked row takes the ticked roles. Under the group a preview shows, role by
 role, who holds it now and who will after the correction, then that person's
 balance in each role; **Assign in the draft** saves it, with two roles
-**Assign in the draft (2 roles)**. A panel titled “*person* · *day*” has
-nothing to insert and the button is off: the person already holds those
-roles, is marked “unavailable” or cannot take one of them - then the reason
-stands under the group, e.g. no eligibility for `11–19` or the other on-call
-that day. What is ticked stays, so untick a role or click another person's
+**Assign in the draft (2 roles)**. When there is nothing to insert, the
+button is off and the reason stands under the group: the person already holds
+those roles (then click the cell of the person who should take them over, or
+use **Swap places…**), cannot take one of them, e.g. no eligibility for
+`11–19` or the other on-call that day, or is marked “unavailable”, which the
+frame above the group says. What is ticked stays, so untick a role or click another person's
 cell. A correction can also fill a role the solver left empty: click any empty
 cell of a day marked as a gap, and the panel opens on the empty role and shows
 “unstaffed → *person*”.
@@ -230,17 +237,17 @@ Draft ──► For approval ──► Published
 
 1. **Publish…** on a clean draft submits it for approval in the background,
    checks the effects of the publication and only then opens the “Publishing
-   the draft v*N* · *range*” sheet. Closing the sheet without publishing
+   the draft · *range*” sheet. Closing the sheet without publishing
    (**Back to the draft**) or moving to another draft or screen takes the submission
    back, so the draft stays as it was. A failed submission or check shows in
    the decision panel, and the draft returns to where it was before the
    click. **Submit for approval** in the **⋯** menu freezes the
    content of the draft without publishing it, and the title changes to
-   “Proposal”; **Publish v*N*…** in the decision panel then publishes the
-   proposal in the “Publishing the proposal v*N* · *range*” sheet.
+   “Proposal”; **Publish…** in the decision panel then publishes the
+   proposal in the “Publishing the proposal · *range*” sheet.
 2. The sheet checks the publication again each time it opens, and while
    open it checks again when you return to the browser tab; while it is
-   checking it says so next to the buttons and **Publish v*N*** waits. The
+   checking it says so next to the buttons and **Publish** waits. The
    sheet holds: one sentence of effect (how many assignments become the
    schedule, an e-mail to the team, the ICS feeds updated, undone
    only by a new publication), the same **What the publication changes**
@@ -252,12 +259,12 @@ Draft ──► For approval ──► Published
    their own frame with a checkbox (“I understand and knowingly break these
    rules”, “I understand that these days stay unstaffed”). Next to the buttons
    the sheet says what is still missing (“To settle: 1 conflict, 2
-   consents.”), and **Publish v*N*** works only when nothing is.
+   consents.”), and **Publish** works only when nothing is.
    **Back to the proposal** closes a sheet opened from a proposal without
    changes. Publication checks the full
    coverage of the range; missing staffing on any day stops the operation.
 3. The schedule becomes visible to everyone, notifications go out, and the
-   ICS feeds get updates. The “Published v*N* · *range*” notification says
+   ICS feeds get updates. The “Published *range*” notification says
    the same and has an **Open schedule** button.
 
 Submitting for approval from the **⋯** menu and returning to the draft end

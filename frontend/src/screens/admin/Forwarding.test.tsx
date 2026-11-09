@@ -256,7 +256,7 @@ describe('ForwardingPanel and a number handover', () => {
 
     expect(await screen.findByText('Przekazanie')).toBeInTheDocument()
     expect(row('Przekazanie')).toHaveTextContent('Anna Kowalska → Marek Nowak · do 13:40 · zlecone przez: Anna Kowalska, 11:40')
-    fireEvent.click(within(row('Przekazanie')).getByRole('button', { name: 'Zakończ' }))
+    fireEvent.click(within(row('Przekazanie')).getByRole('button', { name: 'Zakończ przekazanie' }))
 
     expect(await screen.findByText('Zakończono przekazanie numeru; numer on-call znów odbiera Anna Kowalska')).toBeInTheDocument()
     expect(end).toHaveBeenCalledWith('h1')
@@ -272,7 +272,7 @@ describe('ForwardingPanel and a number handover', () => {
 
     expect(await screen.findByText('Przekazanie')).toBeInTheDocument()
     expect(row('Przekazanie')).not.toHaveTextContent('zlecone')
-    fireEvent.click(within(row('Przekazanie')).getByRole('button', { name: 'Zakończ' }))
+    fireEvent.click(within(row('Przekazanie')).getByRole('button', { name: 'Zakończ przekazanie' }))
     expect(await screen.findByText('To przekazanie numeru on-call już się zakończyło')).toBeInTheDocument()
   })
 })

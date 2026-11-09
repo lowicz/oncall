@@ -240,7 +240,7 @@ describe('MonthlyReportsPanel download', () => {
     renderScreen(<MonthlyReportsPanel />)
     await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pobierz CSV' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Eksportuj CSV' }))
     const pending = await screen.findByRole('button', { name: /Przygotowuję…/ })
     expect(pending).toBeDisabled()
     expect(report).toHaveBeenCalledWith('2026-08')
@@ -259,7 +259,7 @@ describe('MonthlyReportsPanel download', () => {
     renderScreen(<MonthlyReportsPanel />)
     await screen.findByRole('table', { name: 'Raport za sierpień 2026' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pobierz CSV' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Eksportuj CSV' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Brak opublikowanego grafiku')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()

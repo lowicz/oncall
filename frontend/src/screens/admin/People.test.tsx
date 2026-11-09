@@ -410,15 +410,18 @@ describe('PeoplePanel person panel', () => {
     expect(await screen.findByRole('dialog', { name: /Ewa Maj/ })).toBeInTheDocument()
   })
 
-  it('discards unsaved changes from the footer without asking', async () => {
+  it('discards unsaved changes from the footer without asking, keeping the person open', async () => {
     mockData()
     renderScreen(<PeoplePanel />)
     const dialog = await openRow('anna')
-    fireEvent.change(within(dialog).getByLabelText('E-mail'), {
-      target: { value: 'new@example.com' },
-    })
+    const email = within(dialog).getByLabelText('E-mail')
+    const saved = (email as HTMLInputElement).value
+    fireEvent.change(email, { target: { value: 'new@example.com' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Odrzuć zmiany' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: /Anna Kowalska/ })).not.toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: /Anna Kowalska/ })).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('E-mail')).toHaveValue(saved)
+    expect(within(dialog).queryByRole('button', { name: 'Odrzuć zmiany' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('heading', { name: /Anna Kowalska/ })).toHaveFocus()
     expect(screen.queryByRole('dialog', { name: 'Odrzucić niezapisane zmiany?' })).not.toBeInTheDocument()
   })
 
@@ -830,7 +833,7 @@ describe('PeoplePanel table states and export', () => {
 
     fireEvent.change(search, { target: { value: 'nikt taki' } })
     expect(screen.getByText('Brak kont dla wybranego filtra')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Eksport CSV' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Eksportuj CSV' })).toBeDisabled()
   })
 
   it('shows why the accounts could not be loaded', async () => {
@@ -854,7 +857,7 @@ describe('PeoplePanel table states and export', () => {
     renderScreen(<PeoplePanel />)
     await rowOf('anna')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Eksport CSV' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Eksportuj CSV' }))
 
     expect(click).toHaveBeenCalledTimes(1)
     await vi.waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:people'))
@@ -879,7 +882,7 @@ describe('PeoplePanel new account form', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Nowe konto' }))
     const dialog = await screen.findByRole('dialog', { name: 'Nowe konto lokalne' })
     expect(await within(dialog).findByText('Konta AD logują się loginem domenowym.')).toBeInTheDocument()
-    expect(within(dialog).getByText('Klucz dowiązania z AD: zgodny z employeeNumber.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Same cyfry, np. 001234. Klucz dowiązania z AD: zgodny z employeeNumber.')).toBeInTheDocument()
     expect(within(dialog).getByText(/Przy pierwszym logowaniu LDAP z tym numerem pracownika/)).toBeInTheDocument()
 
     fireEvent.change(within(dialog).getByLabelText(/^Imię/), { target: { value: 'Ewa' } })
@@ -891,7 +894,13 @@ describe('PeoplePanel new account form', () => {
     fireEvent.change(within(dialog).getByLabelText('E-mail'), { target: { value: '' } })
     fireEvent.change(within(dialog).getByLabelText(/^Telefon/), { target: { value: '' } })
     fireEvent.change(within(dialog).getByLabelText('Numer pracownika'), { target: { value: '' } })
-    fireEvent.change(within(dialog).getByLabelText('Numer pracownika'), { target: { value: '0042' } })
+    // A wrong format is said under the field, in Polish, and holds the account back.
+    fireEvent.change(within(dialog).getByLabelText(/^Numer pracownika/), { target: { value: 'T-001' } })
+    const personnel = within(dialog).getByLabelText(/^Numer pracownika/)
+    expect(personnel).toHaveAttribute('aria-invalid', 'true')
+    expect(personnel).toHaveAccessibleDescription('Numer pracownika to same cyfry, np. 001234.')
+    expect(within(dialog).getByRole('button', { name: 'Utwórz konto' })).toBeDisabled()
+    fireEvent.change(personnel, { target: { value: '0042' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Utwórz konto' }))
 
     expect(await within(dialog).findByText(/activate\?token=secret/)).toBeInTheDocument()
@@ -1173,19 +1182,19 @@ function rotationServer(initial: TeamMember) {
   vi.spyOn(api, 'team').mockImplementation(async () => [state])
   const membership = vi.spyOn(api, 'updateTeamMember').mockImplementation(async ({ input }) => {
     const next = { ...state, ...input }
-    if (!state.eligibility.every((period) => inside(next, period))) throw new Error('Okresy eligibility muszą mieścić się w okresie członkostwa w rotacji')
+    if (!state.eligibility.every((period) => inside(next, period))) throw new Error('Okresy kwalifikacji muszą mieścić się w okresie członkostwa w rotacji')
     state = next
     return state
   })
   const periods = vi.spyOn(api, 'updateEligibility').mockImplementation(async ({ id, input }) => {
     const next = { ...state.eligibility.find((period) => period.id === id)!, ...input }
-    if (!inside(state, next)) throw new Error('Okres eligibility musi mieścić się w okresie członkostwa w rotacji')
+    if (!inside(state, next)) throw new Error('Okres kwalifikacji musi mieścić się w okresie członkostwa w rotacji')
     state = { ...state, eligibility: state.eligibility.map((period) => (period.id === id ? next : period)) }
     return next
   })
   const created = vi.spyOn(api, 'createEligibility').mockImplementation(async ({ input }) => {
     const next = { id: `e${state.eligibility.length + 10}`, ...input, ends_on: input.ends_on ?? null }
-    if (!inside(state, next)) throw new Error('Okres eligibility musi mieścić się w okresie członkostwa w rotacji')
+    if (!inside(state, next)) throw new Error('Okres kwalifikacji musi mieścić się w okresie członkostwa w rotacji')
     state = { ...state, eligibility: [...state.eligibility, next] }
     return next
   })

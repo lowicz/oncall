@@ -71,6 +71,8 @@ export const people: Messages['people'] = {
     usernameLocked: 'The username cannot be changed.',
     personnelNumber: 'Personnel number',
     personnelNumberLdapHint: 'The AD linking key: matches employeeNumber.',
+    personnelNumberHint: 'Digits only, e.g. 001234.',
+    personnelNumberFix: 'A personnel number is digits only, e.g. 001234.',
     email: 'E-mail',
     phone: 'Phone · on the “Now” strip',
     phoneNewHint: 'Format: +48 and nine digits. Required for people in the rotation; signed-in people can see it.',

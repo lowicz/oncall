@@ -52,6 +52,7 @@ export const labels: Messages['labels'] = {
     noDuty: 'no duty',
   },
   overrideWord: 'Correction',
+  eligibilityWord: 'eligibility',
   auditActions: {
     'auth.login': 'Sign-in',
     'auth.login_failed': 'Failed sign-in',
@@ -111,5 +112,7 @@ export const labels: Messages['labels'] = {
     'forwarding.password_rotated': 'WCO password changed',
     'forwarding.password_revealed': 'WCO password revealed',
     'forwarding.test': 'Number forwarding checked',
+    'forwarding.handover_started': 'On-call number handed over',
+    'forwarding.handover_ended': 'Number handover ended',
   },
 }

@@ -5,7 +5,7 @@ export const reports: Messages['reports'] = {
   subtitle: 'A CSV for HR: each person\'s duty days (primary and secondary together) on workdays and on weekends and holidays, with the split by role and the points (1X/2X). 11-19 shifts are not duty days; a holiday on a Saturday or Sunday counts as a weekend.',
   month: 'Report month',
   preparing: 'Preparing…',
-  downloadCsv: 'Download CSV',
+  downloadCsv: 'Export CSV',
   downloaded: 'The report has been downloaded.',
   fileName: (month: string) => `oncall-${month}.csv`,
   loadingPreview: 'Loading preview…',

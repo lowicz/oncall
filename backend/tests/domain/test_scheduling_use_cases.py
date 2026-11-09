@@ -946,7 +946,7 @@ async def test_a_change_to_somebody_now_unavailable_is_lost_and_cannot_be_forced
     with pytest.raises(errors.ChangeResolutionInvalid) as invalid:
         await _change_resolved(world, proposal)
 
-    reason = "Zastępca nie ma eligibility albo jest niedostępny"
+    reason = "Zastępca nie ma kwalifikacji albo jest niedostępny"
     assert [(item.previous_assignee_name, item.reason) for item in preview.lost_changes] == [
         ("Ela", reason)
     ]

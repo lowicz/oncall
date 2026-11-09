@@ -41,6 +41,9 @@ class PublishedScheduleResponse(BaseModel):
     is_published: bool = False
     id: uuid.UUID | None
     version: int | None
+    #: When the schedule in force today was published; screens name a
+    #: publication by this date, never by the schedule's version.
+    published_at: datetime | None = None
     starts_on: date | None
     ends_on: date | None
     assignments: list[AssignmentResponse]

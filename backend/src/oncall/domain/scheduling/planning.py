@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from oncall.domain.scheduling.errors import IncompleteSchedule, SamePersonOnBothOnCallRoles
 from oncall.domain.scheduling.models import CoveredSpan, Schedule, SuggestedRange, VariantMetrics
 from oncall.domain.vocabulary import ONCALL_ROLES, AssignmentRole
-from oncall.rules import exempt_days, oncall_rest_violations, summarise
+from oncall.rules import RuleViolation, exempt_days, merged, oncall_rest_violations
 from oncall.workdays import is_working_day, polish_holidays
 
 
@@ -40,24 +40,29 @@ def is_covered(day: date, spans: list[CoveredSpan]) -> bool:
 
 
 def suggested_start(today: date, spans: list[CoveredSpan]) -> date:
-    """First safe uncovered day, without splitting a day-off block."""
-    earliest_start = today + timedelta(days=1) if is_covered(today, spans) else today
-    candidate = first_uncovered(earliest_start, spans)
-    holidays = polish_holidays(candidate - timedelta(days=7), candidate + timedelta(days=7))
-    if is_working_day(candidate, holidays):
-        return candidate
-    block_start = candidate
-    while not is_working_day(block_start - timedelta(days=1), holidays):
-        block_start -= timedelta(days=1)
-    block_end = candidate
-    while not is_working_day(block_end + timedelta(days=1), holidays):
-        block_end += timedelta(days=1)
-    block_days = [
-        block_start + timedelta(days=offset) for offset in range((block_end - block_start).days + 1)
-    ]
-    if any(is_covered(day, spans) for day in block_days):
-        return block_end + timedelta(days=1)
-    return max(today, block_start)
+    """First safe uncovered day, without splitting a day-off block.
+
+    A partly covered block is skipped whole, and the search goes on from the
+    day after it, which may itself be covered already."""
+    candidate = today + timedelta(days=1) if is_covered(today, spans) else today
+    while True:
+        candidate = first_uncovered(candidate, spans)
+        holidays = polish_holidays(candidate - timedelta(days=7), candidate + timedelta(days=7))
+        if is_working_day(candidate, holidays):
+            return candidate
+        block_start = candidate
+        while not is_working_day(block_start - timedelta(days=1), holidays):
+            block_start -= timedelta(days=1)
+        block_end = candidate
+        while not is_working_day(block_end + timedelta(days=1), holidays):
+            block_end += timedelta(days=1)
+        block_days = [
+            block_start + timedelta(days=offset)
+            for offset in range((block_end - block_start).days + 1)
+        ]
+        if not any(is_covered(day, spans) for day in block_days):
+            return max(today, block_start)
+        candidate = block_end + timedelta(days=1)
 
 
 def suggested_range(today: date, spans: list[CoveredSpan]) -> SuggestedRange:
@@ -72,7 +77,7 @@ def suggested_range(today: date, spans: list[CoveredSpan]) -> SuggestedRange:
     return SuggestedRange(first_uncovered=start, starts_on=start, ends_on=range_end(start))
 
 
-def member_rest_warnings(schedule: Schedule, member_id: uuid.UUID) -> list[str]:
+def member_rest_warnings(schedule: Schedule, member_id: uuid.UUID) -> list[RuleViolation]:
     """Thin wrapper over `rules.oncall_rest_violations`, so the draft warnings
     and the post-publication blocks can never drift apart."""
     name = next(
@@ -90,17 +95,17 @@ def member_rest_warnings(schedule: Schedule, member_id: uuid.UUID) -> list[str]:
     days = sorted({item.service_date for item in schedule.assignments})
     # The mode the schedule was generated under, not today's policy: a roster
     # is judged by the rules it was built to satisfy.
-    return summarise(
+    return merged(
         oncall_rest_violations(
             name, oncall_days, exempt_days(days, holidays), mode=schedule.rotation_mode
         )
     )
 
 
-def rule_warnings(schedule: Schedule) -> list[str]:
-    """Hard rules the schedule breaks as it stands, one sentence per person
-    and rule, people taken in the order a set of their ids yields them."""
-    warnings: list[str] = []
+def rule_warnings(schedule: Schedule) -> list[RuleViolation]:
+    """Hard rules the schedule breaks as it stands, one per person and rule,
+    people taken in the order a set of their ids yields them."""
+    warnings: list[RuleViolation] = []
     for member_id in {item.member_id for item in schedule.assignments if item.member_id}:
         for warning in member_rest_warnings(schedule, member_id):
             if warning not in warnings:

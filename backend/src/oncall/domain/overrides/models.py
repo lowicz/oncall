@@ -99,6 +99,9 @@ class DutyOverridden:
     service_date: date
     role: AssignmentRole
     assignee_name: str
+    #: False when the change handed the slot back to whom it was published
+    #: with, so it no longer reads as a correction.
+    is_override: bool
     #: Hard rules the correction knowingly broke.
     violations: tuple[RuleViolation, ...]
 

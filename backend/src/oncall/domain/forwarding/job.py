@@ -201,13 +201,20 @@ async def target_of(
         if not await contacts.roster_published():
             return None
         return ForwardingTarget(day, None, None, None)
+    # A duty written without an id (imported before the person joined the
+    # team) is theirs by name, as everywhere else.
+    holder = (
+        duty.member_id
+        if duty.member_id is not None
+        else await contacts.member_named(duty.assignee_name)
+    )
     if handover is not None:
         number = await contacts.phone(handover.to_member_id)
         if number is not None:
             receiver = Receiver(handover.to_member_id, handover.to_name)
-            return ForwardingTarget(day, duty.member_id, duty.assignee_name, number, receiver)
-    number = await contacts.phone(duty.member_id) if duty.member_id is not None else None
-    return ForwardingTarget(day, duty.member_id, duty.assignee_name, number)
+            return ForwardingTarget(day, holder, duty.assignee_name, number, receiver)
+    number = await contacts.phone(holder) if holder is not None else None
+    return ForwardingTarget(day, holder, duty.assignee_name, number)
 
 
 async def desired_target(

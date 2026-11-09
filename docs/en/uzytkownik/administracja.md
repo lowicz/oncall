@@ -109,14 +109,17 @@ question; this person's sessions end only once the new password is set). Like
 every link to an account, pass the new link on to the person through a secure channel; the
 application does not send it.
 
-The personnel number matters with a directory (LDAP / AD): it must match
+The personnel number is digits only; the screen points out any other
+character under the field at once and does not save it. The number matters
+with a directory (LDAP / AD): it must match
 `employeeNumber` for the local account to link automatically on the first
 sign-in from the directory. In [SSO sign-in](../wdrozenie/sso.md) it picks the
 account Keycloak lets the person into.
 
 The panel keeps track of unsaved changes: the **Save** button gives their count.
 Trying to close it (Esc or the cross), open another person, go to another screen, or reload requires a decision whether to discard the entered changes.
-The **Discard changes** button in the footer drops them at once, without asking.
+The **Discard changes** button in the footer drops them at once, without asking;
+the panel stays open with the person's saved details.
 Every save ends with a notification in the corner of the screen that says what was saved (“Saved: phone”); so do creating an account and adding to the rotation.
 A role change and disabling or enabling the account save without an extra question, and the notification (“Role changed: Jan Kowalski → Coordinator”) has an **Undo** button that puts the previous role and account state back for a few seconds.
 
@@ -141,7 +144,9 @@ on” field or, when it is empty, today's; without duties the dialog only closes
 the qualifications and saves the exit date. A person who has not entered the
 rotation yet has no such button, and an exit date before the entry date stops
 the dialog before it saves anything: the dialog asks for a different date in
-the “Exit on” field.
+the “Exit on” field. A duty saved without a link to an account (for example
+imported from history before the person joined) counts as theirs when it
+carries their name.
 
 In the dialog the **The same replacement for all** field puts one person into
 every duty that person can take; each row can then be changed on its own. Next
@@ -205,6 +210,10 @@ once, without a question. The “Deleted “…”” notification has an **Undo
 button that brings the event back for a few seconds, with the same name,
 colour and whole date range.
 
+**Add** and **Save** confirm the change with a notification naming the event
+and its dates (“Added “…””, “Saved “…””). Its **Undo** deletes the added event
+or brings back the name, colour and dates it had before the edit.
+
 ## History import (`/import`, coordinator)
 
 1. Download the CSV template from the page or use `examples/history.csv`.
@@ -222,9 +231,9 @@ on a Saturday, Sunday or holiday will be rejected with the row number given.
 The import feeds the history from which the fairness report and the
 generator compute.
 
-**Undo import** next to an earlier import removes its duties from the history
+**Withdraw import…** next to an earlier import removes its duties from the history
 for good, so it first asks in a dialog with the number of rows that will
-leave the balance (“Undo the import “history 2025”? 312 rows will leave the
+leave the balance (“Withdraw the import “history 2025”? 312 rows will leave the
 balance.”). This cannot be reversed; the data come back only by importing
 the file again.
 
@@ -235,7 +244,7 @@ the file again.
    are the duty days (primary and secondary together): on working days, on
    weekends and holidays, and in total. 11-19 shifts are not duty days and
    have their own column.
-3. “Download CSV”.
+3. “Export CSV”.
 
 The screen warns if the published schedule does not cover the whole month,
 and says how many days it covers. When the table does not fit on the screen
@@ -335,7 +344,7 @@ numeru" and "Zmieniono hasło WCO".
 
 While the number is handed over, the card starts with a **Handover** row: who
 gave the number, who receives it, until when, and who started the handover
-and when. **End** ends it at once, without asking, and the number returns to
+and when. **End the handover** ends it at once, without asking, and the number returns to
 the person on PRIMARY.
 
 ### Switching the number by hand

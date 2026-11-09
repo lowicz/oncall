@@ -33,10 +33,11 @@ export const historyImport = {
     title: 'Wcześniejsze importy',
     loading: 'Wczytywanie importów…',
     empty: 'Brak wcześniejszych importów',
-    undo: 'Cofnij import',
+    undo: 'Wycofaj import…',
   },
   revokeDialog: {
-    title: (name: string) => `Cofnąć import „${name}”?`,
+    title: (name: string) => `Wycofać import „${name}”?`,
+    confirm: 'Wycofaj import',
     description: (rows: number) =>
       `${pluralPl(rows, ['wiersz', 'wiersze', 'wierszy'])} ${pluralFormPl(rows, ['zniknie', 'znikną', 'zniknie'])} z bilansu. Tej operacji nie da się cofnąć.`,
   },

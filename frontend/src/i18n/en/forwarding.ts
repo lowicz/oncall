@@ -77,7 +77,7 @@ export const forwarding: Messages['forwarding'] = {
     handover: 'Handover',
     handoverValue: (from: string, to: string, until: string) => `${from} → ${to} · until ${until}`,
     handoverStartedBy: (name: string, at: string) => ` · started by ${name}, ${at}`,
-    endHandover: 'End',
+    endHandover: 'End the handover',
     handoverEnded: (name: string) => `Handover ended; ${name} answers the on-call number again`,
   },
   reveal: {

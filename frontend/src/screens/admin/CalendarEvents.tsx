@@ -14,7 +14,9 @@ export function CalendarEventsPanel() {
   const t = useMessages()
   const today = warsawDate()
   const [range, setRange] = useState({ starts_on: today, ends_on: addDays(today, 89) })
-  const [editingId, setEditingId] = useState<string | null>(null)
+  // The event as it was when its editing began: what an Undo of the edit writes back.
+  const [editing, setEditing] = useState<CalendarEvent | null>(null)
+  const editingId = editing?.id ?? null
   const [form, setForm] = useState<CalendarEventInput>(emptyInput)
   const queryClient = useQueryClient()
   const queryKey = ['calendar-events', range.starts_on, range.ends_on]
@@ -23,12 +25,26 @@ export function CalendarEventsPanel() {
     queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
     queryClient.invalidateQueries({ queryKey: ['calendar'] })
   }
-  const reset = () => { setEditingId(null); setForm(emptyInput()) }
+  const reset = () => { setEditing(null); setForm(emptyInput()) }
+  const undoable = useUndoable()
+  // Adding is undone by deleting the new event, editing by writing back what
+  // the event had before.
   const save = useMutation({
-    mutationFn: () => (editingId ? api.updateCalendarEvent({ id: editingId, ...form }) : api.createCalendarEvent(form)),
+    mutationFn: ({ previous, input }: { previous: CalendarEvent | null; input: CalendarEventInput }) => undoable({
+      execute: () => (previous ? api.updateCalendarEvent({ id: previous.id, ...input }) : api.createCalendarEvent(input)),
+      undo: async (saved) => {
+        await (previous
+          ? api.updateCalendarEvent({ id: saved.id, starts_on: previous.starts_on, ends_on: previous.ends_on, title: previous.title, color: previous.color })
+          : api.deleteCalendarEvent(saved.id))
+        refresh()
+      },
+      message: (saved) => ({
+        title: previous ? t.calendarEvents.toast.updated(saved.title) : t.calendarEvents.toast.added(saved.title),
+        description: eventDates(saved),
+      }),
+    }),
     onSuccess: () => { reset(); refresh() },
   })
-  const undoable = useUndoable()
   // Deleting is undone by creating the event again with what it had.
   const remove = useMutation({
     mutationFn: (event: CalendarEvent) => undoable({
@@ -45,7 +61,7 @@ export function CalendarEventsPanel() {
     },
   })
   const edit = (event: CalendarEvent) => {
-    setEditingId(event.id)
+    setEditing(event)
     setForm({ starts_on: event.starts_on, ends_on: event.ends_on, title: event.title, color: event.color })
   }
   const error = events.error ?? save.error ?? remove.error
@@ -89,7 +105,10 @@ export function CalendarEventsPanel() {
         <form
           className="panel panel-padded stack-sm"
           aria-label={editingId ? t.calendarEvents.form.editing : t.calendarEvents.form.newEvent}
-          onSubmit={(event) => { event.preventDefault(); if (form.title.trim()) save.mutate() }}
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (form.title.trim()) save.mutate({ previous: editing, input: form })
+          }}
         >
           <SectionHeading as="h3" title={editingId ? t.calendarEvents.form.editEvent : t.calendarEvents.form.newEvent} />
           <Field label={t.calendarEvents.form.name} id="event-title" required>

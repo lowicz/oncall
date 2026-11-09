@@ -20,7 +20,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import axe from 'axe-core'
 import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api'
 import { renderScreen } from './render'
-import { api } from '../api'
+import { ApiError, api } from '../api'
 import type {
   AdminUser,
   AuditEvent,
@@ -150,6 +150,7 @@ const publication = (over: Partial<PublishedSchedule> = {}): PublishedSchedule =
   is_published: true,
   id: 's1',
   version: 7,
+  published_at: '2026-08-28T15:00:00Z',
   starts_on: '2026-09-01',
   ends_on: '2026-10-03',
   assignments: [
@@ -490,6 +491,8 @@ describe('the Polish interface', () => {
   })
 
   it('a share link that no longer works', async () => {
+    // Opened by someone with no session here, so nothing is asked first.
+    vi.spyOn(api, 'me').mockRejectedValue(new ApiError('Brak sesji', 401))
     renderScreen(
       <Routes><Route path="/share/:token" element={<ShareExchange />} /></Routes>,
       { route: '/share/expired-token' },
@@ -674,7 +677,7 @@ describe('the Polish interface', () => {
     // reads the report again, so the settled state is the second answer.
     await waitFor(() => expect(api.fairness).toHaveBeenCalledWith('2026-10-03'))
     await screen.findByText('niespełnione')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Eksport CSV' })).toBeEnabled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Eksportuj CSV' })).toBeEnabled())
     await snapshotOf('fairness')
   })
 
@@ -709,7 +712,7 @@ describe('the Polish interface', () => {
       rest_violations: [{ rule: 'three_in_seven', message: 'Więcej niż 3 dyżury on-call w okresie 7 dni.', member_name: 'Ola Wiśniewska', days: ['2026-10-06'] }],
     })
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
-    fireEvent.click(await screen.findByRole('button', { name: 'Publikuj v2…' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Opublikuj…' }))
     await screen.findByRole('checkbox', { name: 'Rozumiem, że te dni zostają bez obsady' })
     await waitFor(() => expect(api.draftFairnessImpact).toHaveBeenCalled())
     await snapshotOf('generator-publish')

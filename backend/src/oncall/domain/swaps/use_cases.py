@@ -266,22 +266,13 @@ async def list_replacement_options(
     if query.service_date < (today or business_today()):
         return []
     requester = await _member_for(query.actor, ports.team)
-    conflicting_member_id = None
-    conflicting_assignee_name = None
-    publication = await ports.roster.latest_publication_covering(query.service_date)
-    opposite = OPPOSITE_ONCALL.get(query.role)
-    if publication is not None and opposite is not None:
-        conflicting = await ports.roster.duty(publication.id, (query.service_date, opposite))
-        if conflicting is not None:
-            conflicting_member_id = conflicting.member_id
-            conflicting_assignee_name = conflicting.assignee_name
     colleagues = await ports.team.colleagues_of(requester.id)
+    # Whoever holds the other on-call role that day stays on the list,
+    # blocked with the reason below, rather than missing from it.
     offered = [
         member
         for member in colleagues
         if member.has_account
-        and member.id != conflicting_member_id
-        and (conflicting_member_id is not None or member.display_name != conflicting_assignee_name)
         and member.is_eligible(query.role, query.service_date)
         and not member.is_unavailable(query.service_date)
     ]
@@ -300,9 +291,9 @@ async def list_replacement_options(
         if not all(member.is_eligible(role, day) for day, role in moves):
             continue
         blocking, to_acknowledge, warnings = roster.tiers(moves, [], requester, member)
-        # A coupled swap can hand the candidate a second on-call role the
-        # clicked-slot filter never saw; `request_swap` refuses that, so the
-        # option must say so rather than be offered and then refused.
+        # The candidate would hold both on-call roles of a day, the clicked
+        # one or a coupled one; `request_swap` refuses that, so the option
+        # says so rather than be offered and then refused.
         if takes_second_oncall(roster.duties, moves, member):
             blocking.append(
                 RuleViolation("double_oncall", member.display_name, (query.service_date,))

@@ -281,7 +281,7 @@ async def test_swap_journal_records_the_rules_acknowledged_at_each_step(db, peop
     names = {"requester_name": "Bartek", "replacement_name": "Anna"}
     broken = [RuleViolation("three_in_seven", "Anna", (DAY,))]
     detail = [{"rule": "three_in_seven", "member_name": "Anna", "days": [DAY.isoformat()]}]
-    suffix = " · świadome naruszenie reguł: three_in_seven"
+    suffix = " · świadome naruszenie reguł: więcej niż 3 dyżury on-call w okresie 7 dni"
 
     await journal.requested(stored, **names, warnings=[], violations=broken)
     await journal.accepted(stored, **names, violations=broken)
@@ -383,7 +383,10 @@ async def test_override_journal_records_moves_and_rule_ids(db, people) -> None:
     await db.commit()
 
     event = await db.scalar(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
-    assert event.summary.endswith("świadome naruszenie reguł: max_consecutive, three_in_seven")
+    assert event.summary.endswith(
+        "świadome naruszenie reguł: więcej niż 3 kolejne dni dyżuru on-call; "
+        + "więcej niż 3 dyżury on-call w okresie 7 dni"
+    )
     assert event.details["moves"] == [
         {"service_date": DAY.isoformat(), "role": "primary", "previous_assignee_name": "Bartek"}
     ]

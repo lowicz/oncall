@@ -91,6 +91,7 @@ async def test_two_roles_for_one_person_are_one_correction_and_undo_takes_the_ma
 
     saved = await client.post("/api/v1/calendar/override/batch", json=_body(schedule, lines))
     assert saved.status_code == 200, saved.text
+    assert [item["is_override"] for item in saved.json()] == [True, True]
     assert await _holders(db, schedule_id, today) == {
         AssignmentRole.primary: "Jan Wiśniewski",
         AssignmentRole.secondary: "Marek Nowak",
@@ -101,8 +102,8 @@ async def test_two_roles_for_one_person_are_one_correction_and_undo_takes_the_ma
         await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
     ).all()
     assert audit.summary == (
-        f"Override {today} · secondary: Anna Kowalska → Marek Nowak, "
-        "late_shift: Jan Wiśniewski → Marek Nowak"
+        f"Korekta {today} · SECONDARY: Anna Kowalska → Marek Nowak, "
+        "11–19: Jan Wiśniewski → Marek Nowak"
     )
     assert audit.details["service_date"] == today.isoformat()
     assert audit.details["historical"] is False
@@ -134,11 +135,25 @@ async def test_two_roles_for_one_person_are_one_correction_and_undo_takes_the_ma
         ),
     )
     assert undone.status_code == 200, undone.text
+    # The reply says what was saved: the slots are no longer corrections.
+    assert [item["is_override"] for item in undone.json()] == [False, False]
     assert await _holders(db, schedule_id, today) == {
         AssignmentRole.primary: "Jan Wiśniewski",
         AssignmentRole.secondary: "Anna Kowalska",
         AssignmentRole.late_shift: "Jan Wiśniewski",
     }
+    # Back with the people it was published with, the day reads as published:
+    # no correction mark and no displaced holder left behind.
+    for row in await db.scalars(
+        select(Assignment).where(
+            Assignment.schedule_id == schedule_id, Assignment.service_date == today
+        )
+    ):
+        assert (row.is_override, row.original_assignee_name, row.original_member_id) == (
+            False,
+            None,
+            None,
+        ), row.role
     rows = (await db.scalars(select(NotificationOutbox))).all()
     assert rows
     assert all(row.cancelled_at is not None for row in rows)
@@ -213,8 +228,8 @@ async def test_an_unstaffed_slot_is_filled_and_counted_for_the_taker_only(
         await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
     ).all()
     assert audit.summary == (
-        f"Override {today} · late_shift: brak obsady → Marek Nowak"
-        " · świadome naruszenie reguł: late_shift_anchor"
+        f"Korekta {today} · 11–19: brak obsady → Marek Nowak"
+        " · świadome naruszenie reguł: zmiana 11–19 i rola kotwicząca są u różnych osób"
     )
 
 

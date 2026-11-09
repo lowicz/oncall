@@ -60,7 +60,7 @@ def test_two_people_under_one_name_share_a_single_warning() -> None:
     warnings = rule_warnings(schedule)
 
     assert len(warnings) == len(set(warnings)) == 2
-    assert all(item.startswith("Anna: ") for item in warnings)
+    assert all(item.member_name == "Anna" for item in warnings)
 
 
 def test_the_right_count_of_slots_in_the_wrong_roles_is_incomplete() -> None:

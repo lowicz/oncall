@@ -3,6 +3,39 @@ import { describe, expect, it } from 'vitest'
 import { loadRealMediaQuery, loadRealStylesheet } from './test/stylesheet'
 
 describe('shared interaction styles', () => {
+  it('never cuts the time on the "Teraz" strip, giving it a row of its own instead', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="now-slot"><span className="now-until">do pon 00:00 · 2 h 1 min</span></div>)
+    const until = getComputedStyle(container.querySelector('.now-until')!)
+    expect(until.textOverflow).not.toBe('ellipsis')
+    expect(until.flexShrink).toBe('0')
+    expect(getComputedStyle(container.querySelector('.now-slot')!).flexWrap).toBe('wrap')
+  })
+
+  it('raises toasts on a phone above the bottom tabs, within the thumb\'s reach', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<><div className="toasts" /><nav className="tabs-bottom" /></>)
+    const toasts = getComputedStyle(container.querySelector('.toasts')!)
+    expect(toasts.top).toBe('auto')
+    expect(toasts.bottom).toBe('calc(72px + env(safe-area-inset-bottom))')
+  })
+
+  it('puts a list row\'s actions under its text on a phone', () => {
+    loadRealMediaQuery('(max-width: 900px)')
+    const { container } = render(<div className="list-row"><div className="list-main" /><div className="list-aside" /></div>)
+    expect(getComputedStyle(container.querySelector('.list-row')!).gridTemplateColumns).toBe('minmax(0, 1fr)')
+    expect(getComputedStyle(container.querySelector('.list-aside')!).justifyContent).toBe('flex-start')
+  })
+
+  it('keeps a panel\'s close button on the first line of a long title', () => {
+    loadRealStylesheet()
+    const { container } = render(<div className="panel-head"><div className="panel-heading" /><button className="panel-close" /></div>)
+    expect(getComputedStyle(container.querySelector('.panel-head')!).flexWrap).not.toBe('wrap')
+    const heading = getComputedStyle(container.querySelector('.panel-heading')!)
+    expect(heading.flexWrap).toBe('wrap')
+    expect(heading.minWidth).toBe('0px')
+  })
+
   it('gives every button a 44 px coarse-pointer target', () => {
     loadRealMediaQuery('(pointer: coarse)')
     const { container } = render(

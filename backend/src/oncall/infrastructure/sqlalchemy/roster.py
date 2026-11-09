@@ -38,6 +38,15 @@ def record_origin(row: Assignment) -> None:
     row.original_assignee_name = row.assignee_name if row.assignee_name else UNSTAFFED
 
 
+def _back_to_origin(row: Assignment, to: Member) -> bool:
+    """Whether the slot goes back to whoever held it before its first manual
+    change, matched as `Duty.held_by` matches: by id, or by name for a row
+    that had none."""
+    if row.original_member_id is not None:
+        return row.original_member_id == to.id
+    return row.original_assignee_name == to.display_name
+
+
 def _from_assignment(row: Assignment) -> Duty:
     return Duty(
         service_date=row.service_date,
@@ -60,6 +69,7 @@ def _from_effective(item: EffectiveAssignment) -> Duty:
         schedule_id=item.schedule_id,
         schedule_version=item.schedule_version,
         schedule_status=item.schedule_status,
+        published_at=item.published_at,
         original=item.original,
     )
 
@@ -150,7 +160,12 @@ class SqlAlchemyPublishedRoster:
             # Identity travels with the slot; the name is only the label.
             row.assignee_name = to.display_name
             row.member_id = to.id
-            row.is_override = True
+            row.is_override = not _back_to_origin(row, to)
+            if not row.is_override:
+                # An Undo, or any change, that hands the slot back to whom it
+                # was published with leaves no correction behind.
+                row.original_member_id = None
+                row.original_assignee_name = None
 
 
 class SqlAlchemyRosterPolicy:

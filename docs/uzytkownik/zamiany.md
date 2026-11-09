@@ -11,8 +11,8 @@ mówią, na kogo dana sprawa czeka, a licznik przy każdym filtrze - ile ich jes
 | Filtr | Co zawiera |
 | --- | --- |
 | **Do mnie** | wnioski, w których to Ty masz przyjąć albo odrzucić zastępstwo |
-| **Wysłane** | Twoje własne, jeszcze otwarte prośby |
-| **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie. Gdy zatwierdzanie zamian jest wyłączone (patrz [Zatwierdzenie koordynatora](#zatwierdzenie-koordynatora)), także koordynator widzi tu zwykłe **W toku** |
+| **Wysłane** | Twoje własne prośby, które czekają na zgodę zastępcy |
+| **Do zatwierdzenia** (u członka zespołu: **W toku**) | pozostałe otwarte wnioski, także Twoje po zgodzie zastępcy, gdy czekają na koordynatora; u koordynatora licznik obejmuje tylko wnioski przyjęte przez zastępcę, czekające na jego zatwierdzenie. Gdy zatwierdzanie zamian jest wyłączone (patrz [Zatwierdzenie koordynatora](#zatwierdzenie-koordynatora)), także koordynator widzi tu zwykłe **W toku** |
 | **Zamknięte** | zatwierdzone, odrzucone i wycofane, także zamknięte przez aplikację [po terminie](#termin-minął) |
 
 Ekran otwiera się na skrzynce, w której coś na Ciebie czeka; adres
@@ -46,10 +46,10 @@ które zamiana łamie, i ostrzeżenia. Przy [wymianie](#wymiana-dyżur-za-dyżur
 zamiast dwóch osób pokazuje dwa dyżury: oddawany i brany w zamian. Decyzję
 podejmujesz w tym samym miejscu:
 
-- **Zastępca** klika „Akceptuję” albo „Odrzuć”. Przy wyłączonym zatwierdzaniu
+- **Zastępca** klika „Akceptuj” albo „Odrzuć”. Przy wyłączonym zatwierdzaniu
   arkusz zapowiada, że akceptacja od razu wpisze zamianę do grafiku, a
   potwierdzenie mówi to samo („Przyjęto. Zamiana wpisana do grafiku.”, z
-  przyciskiem **Otwórz dzień**). Gdy zatwierdzanie jest włączone, potwierdzenie
+  przyciskiem **Pokaż dzień**). Gdy zatwierdzanie jest włączone, potwierdzenie
   brzmi „Przyjęto. Czeka na zatwierdzenie koordynatora.”.
 - **Koordynator lub administrator** klika „Zatwierdź i wpisz do grafiku” albo
   „Odrzuć” - tylko gdy zatwierdzanie zamian jest włączone.
@@ -63,8 +63,9 @@ nie podasz, przy wniosku zostaje „wycofane przez autora”.
 
 ## Zgłoszenie prośby
 
-Przycisk **Nowa zamiana** w nagłówku ekranu otwiera formularz w panelu; przycisk
-**Poproś o zamianę** na ekranie Moje dyżury otwiera go z wybranym dyżurem.
+Przycisk **Poproś o zamianę…** w nagłówku ekranu otwiera formularz w panelu; ten
+sam przycisk na ekranie Moje dyżury i w panelu dnia grafiku otwiera go z
+wybranym dyżurem.
 Formularz prowadzi przez cztery kroki: dyżur, zastępca, w zamian (opcjonalnie) i
 wysłanie. Po wybraniu zastępcy pasek przechodzi od razu do wysłania, bo
 „Nic, tylko oddaję dyżur” jest już wybrane.
@@ -238,7 +239,7 @@ Jak to przebiega:
    zamian, także innego wyboru **Biorę**, cofa zaznaczenie.
 2. **Zastępca** widzi tę samą listę w arkuszu decyzji - przy własnym nazwisku
    z dopiskiem „(Ty)”, bo to najczęściej jego odpoczynek zamiana skraca.
-   „Akceptuję” działa dopiero po zaznaczeniu potwierdzenia.
+   „Akceptuj” działa dopiero po zaznaczeniu potwierdzenia.
 3. **Koordynator** - gdy zatwierdzanie zamian jest włączone - potwierdza
    naruszenie tak samo, zanim kliknie „Zatwierdź i wpisz do grafiku”. Przy
    wyłączonym zatwierdzaniu zamianę wpisuje do grafiku akceptacja zastępcy, a
@@ -277,7 +278,7 @@ opisano wyżej.
 
 Po jego **wyłączeniu**:
 
-- zamianę załatwia sama akceptacja zastępcy: „Akceptuję” od razu wpisuje ją do
+- zamianę załatwia sama akceptacja zastępcy: „Akceptuj” od razu wpisuje ją do
   grafiku, z tymi samymi sprawdzeniami reguł twardych, jakie wykonuje
   zatwierdzenie (jeśli w międzyczasie slot zmienił właściciela, prośba jest
   anulowana); zamianę łamiącą reguły zastępca potwierdza sam, a wiadomość do

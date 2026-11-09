@@ -12,7 +12,7 @@ import { useMessages } from '../i18n/messages'
  * matrix without closing it); Escape closes it. On a phone it is a modal
  * bottom sheet with a backdrop.
  */
-export function Panel({ open, onClose, title, meta, children, footer, className, wide, finalFocus }: {
+export function Panel({ open, onClose, title, meta, children, footer, className, wide, finalFocus, titleRef: givenTitleRef }: {
   open: boolean
   /** The panel has no trigger: the page opens it through `open`, so the only
    *  change it ever asks for is to close (Escape, the close button, a tap on
@@ -25,12 +25,16 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
   footer?: ReactNode
   className?: string
   wide?: boolean
-  /** Where focus goes on closing when what opened the panel is gone, a menu item. */
-  finalFocus?: RefObject<HTMLElement | null>
+  /** Where focus goes on closing when what opened the panel is gone, a menu
+   *  item; a function decides at the moment of closing (`true` is the opener). */
+  finalFocus?: RefObject<HTMLElement | null> | (() => HTMLElement | null | boolean)
+  /** The title, focusable, for a screen that moves focus back to the panel's top. */
+  titleRef?: RefObject<HTMLHeadingElement | null>
 }) {
   const narrow = useNarrow()
   const t = useMessages()
-  const titleRef = useRef<HTMLHeadingElement>(null)
+  const ownTitleRef = useRef<HTMLHeadingElement>(null)
+  const titleRef = givenTitleRef ?? ownTitleRef
   return (
     <BaseDialog.Root
       open={open}
@@ -42,8 +46,11 @@ export function Panel({ open, onClose, title, meta, children, footer, className,
         {narrow && <BaseDialog.Backdrop className="dialog-backdrop" />}
         <BaseDialog.Popup initialFocus={titleRef} finalFocus={finalFocus} className={cx('panel-popup', narrow && 'panel-modal', wide && 'panel-wide', className)}>
           <div className="panel-head">
-            <BaseDialog.Title ref={titleRef} tabIndex={-1} className="panel-title">{title}</BaseDialog.Title>
-            {meta && <div className="panel-meta">{meta}</div>}
+            {/* The title and its badges wrap together; the close button keeps the first line. */}
+            <div className="panel-heading">
+              <BaseDialog.Title ref={titleRef} tabIndex={-1} className="panel-title">{title}</BaseDialog.Title>
+              {meta && <div className="panel-meta">{meta}</div>}
+            </div>
             <BaseDialog.Close render={<IconButton label={t.common.closePanel} icon="x" size="sm" className="panel-close" />} />
           </div>
           <div className="panel-body">{children}</div>

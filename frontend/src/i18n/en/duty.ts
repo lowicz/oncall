@@ -32,7 +32,7 @@ export const duty: Messages['duty'] = {
     next: (role: string) => `Next ${role}:`,
     nobody: 'nobody covers this role',
   },
-  published: (until: string, version: number | null) => `Published schedule until ${until}${version ? ` · version ${version}` : ''}`,
+  published: (until: string, publishedOn: string | null) => `Published schedule until ${until}${publishedOn ? ` · publication of ${publishedOn}` : ''}`,
   notPublished: 'The schedule for this period is not published',
   todayIs: (what: string) => `today is ${what}, 2X rate`,
   todayHoliday: (name: string) => `a holiday: ${name}`,

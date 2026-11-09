@@ -8,16 +8,18 @@ import { Box, Checkbox, cx } from '../ui'
  * A decision the user has to take knowingly: a frame with a checkbox that the
  * caller makes gate its action button, so consent lives where the facts are.
  */
-export function AcknowledgeBox({ title, label, checked, onChange, disabled, children }: Readonly<{
+export function AcknowledgeBox({ title, label, checked, onChange, disabled, children, role }: Readonly<{
   title: ReactNode
   label: ReactNode
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
   children?: ReactNode
+  /** `alert` when the box appears after a choice rather than with the form. */
+  role?: 'alert'
 }>) {
   return (
-    <Box tone="bad" title={title}>
+    <Box tone="bad" title={title} role={role}>
       {children}
       <Checkbox label={label} checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
     </Box>
@@ -67,7 +69,10 @@ export function DecisionFrame({
   return (
     <div className="decision">
       {violations?.length ? (
+        // It replaces the rule line after a change of person, so it is
+        // announced the moment it appears.
         <AcknowledgeBox
+          role="alert"
           title={violationsTitle}
           label={t.acknowledge}
           checked={acknowledged}

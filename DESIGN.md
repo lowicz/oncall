@@ -350,7 +350,7 @@ komponentów.
 Nakładki: okno modalne 540 px (małe 420, duże 760) wyśrodkowane; panel
 boczny 360 px (szeroki 420) od prawej, nie-modalny na biurku; na telefonie
 oba stają się arkuszami od dołu z promieniem 16 px u góry i uchwytem
-36×4 px. Toasty 380 px w prawym dolnym rogu, na telefonie u góry. Paleta
+36×4 px. Toasty 380 px w prawym dolnym rogu, na telefonie tuż nad dolnymi zakładkami. Paleta
 poleceń 560 px, 12 vh od góry.
 
 Macierz: tabela z przyklejoną kolumną nazwisk 170 px i przyklejonym

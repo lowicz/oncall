@@ -19,7 +19,7 @@ interface ToastOptions {
 export type ToastApi = ReturnType<typeof useToast>
 
 /**
- * Transient confirmations at the bottom right (top on a phone): "Zapisano",
+ * Transient confirmations at the bottom right (above the tabs on a phone): "Zapisano",
  * "Wysłano do Marka". Errors of a form stay next to the form; a toast is only
  * for what happened in the background or was already done. Polite live
  * region so a screen reader reads it after the current utterance.
@@ -51,7 +51,10 @@ function ToastList() {
             <BaseToast.Description className="toast-desc" />
           </BaseToast.Content>
           {toast.actionProps && <BaseToast.Action className="btn btn-ghost btn-sm" />}
-          <BaseToast.Close className="ib ib-sm" aria-label={t.common.closeNotification}><Icon name="x" /></BaseToast.Close>
+          {/* Base UI hides the button from assistive technology while the stack
+              is collapsed, yet leaves it in the tab order: a focusable element
+              no screen reader can name. It stays exposed instead. */}
+          <BaseToast.Close className="ib ib-sm" aria-label={t.common.closeNotification} aria-hidden={false}><Icon name="x" /></BaseToast.Close>
         </BaseToast.Root>
       ))}
     </>

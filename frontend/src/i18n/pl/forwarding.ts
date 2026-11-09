@@ -81,7 +81,7 @@ export const forwarding = {
     handoverValue: (from: string, to: string, until: string) => `${from} → ${to} · do ${until}`,
     /** " · zlecone przez: Anna Kowalska, 11:40", appended when the starter is known. */
     handoverStartedBy: (name: string, at: string) => ` · zlecone przez: ${name}, ${at}`,
-    endHandover: 'Zakończ',
+    endHandover: 'Zakończ przekazanie',
     handoverEnded: (name: string) => `Zakończono przekazanie numeru; numer on-call znów odbiera ${name}`,
   },
   reveal: {

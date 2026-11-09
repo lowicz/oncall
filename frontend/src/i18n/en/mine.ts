@@ -8,7 +8,7 @@ export const mine: Messages['mine'] = {
   next: 'next:',
   noDutyIn60Days: 'none in the next 60 days',
   exportIcs: 'ICS subscription',
-  proposeSwap: 'Propose a swap',
+  proposeSwap: 'Request a swap…',
   duties: {
     heading: 'Upcoming duties',
     meta: (count: number) => `next 60 days · ${count}`,
@@ -17,7 +17,7 @@ export const mine: Messages['mine'] = {
     emptyTitle: 'No upcoming duties',
     emptyDescription: 'You have no duty assigned in the next 60 days.',
     details: 'Details',
-    swap: 'Swap',
+    swap: 'Request a swap…',
     ongoing: 'ongoing',
     /** The duty a colleague holds on the same day, spelled out in full. */
     partnerRoles: { primary: 'Primary', secondary: 'Secondary', late_shift: '11–19' },
@@ -68,6 +68,7 @@ export const mine: Messages['mine'] = {
     noteHint: 'Optional · visible to coordinators and administrators.',
     range: {
       from: (day: string) => `Range: from ${day}`,
+      entry: (kind: string, note: string) => `This day: “${kind}”, reason: ${note}.`,
       closeToSave: (kind: string) => `Tap the last day to save “${kind}” for the whole range.`,
       closeToClear: 'Tap the last day to clear the whole range.',
     },
@@ -85,7 +86,7 @@ export const mine: Messages['mine'] = {
         ? 'The entry does not lift the duty. Change who covers that day in the schedule.'
         : 'The entry does not lift the duties. Change who covers those days in the schedule.'),
       requestSwap: (day: string) => `Request a swap · ${day}`,
-      openDay: (day: string) => `Open the day · ${day}`,
+      openDay: (day: string) => `Show day · ${day}`,
     },
     onBehalfBefore: 'Filing on behalf of:',
     onBehalfAfter: 'they will be notified and can remove the entry.',

@@ -25,5 +25,7 @@ export const calendarEvents = {
   },
   toast: {
     deleted: (title: string) => `Usunięto „${title}”`,
+    added: (title: string) => `Dodano „${title}”`,
+    updated: (title: string) => `Zapisano „${title}”`,
   },
 }

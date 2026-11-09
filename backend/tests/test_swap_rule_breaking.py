@@ -51,7 +51,7 @@ BROKEN_LINE = (
     "Bartosz Nowak: Więcej niż 3 dyżury on-call w okresie 7 dni. "
     "Dni: 06-10-2026, 07-10-2026, 10-10-2026, 11-10-2026."
 )
-SUFFIX = " · świadome naruszenie reguł: three_in_seven"
+SUFFIX = " · świadome naruszenie reguł: więcej niż 3 dyżury on-call w okresie 7 dni"
 ACKNOWLEDGE = {"acknowledge_rule_violations": True}
 
 
@@ -134,6 +134,10 @@ async def test_the_candidate_a_rest_rule_stands_against_can_be_asked(client, tea
         )
     ).json()
 
+    # Ewa holds the 6th's PRIMARY: listed for the reason she cannot take it.
+    ewa = next(option for option in options if option["display_name"] == "Ewa Lewandowska")
+    assert ewa["blocking_violations"][0]["rule"] == "same_day_oncall"
+    options = [option for option in options if option is not ewa]
     by_name = {option["display_name"]: option for option in options}
     assert by_name["Bartosz Nowak"]["rule_violations"] == [BROKEN]
     assert {

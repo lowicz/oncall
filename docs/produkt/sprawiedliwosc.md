@@ -74,7 +74,7 @@ roli”; niski wynik osoby, która weszła do rotacji w trakcie okna, ma dopisek
 Strzałka na końcu wiersza rozwija osobę: punkty miesiąc po miesiącu jako
 słupki na tle jej średniej miesięcznej, liczby w słowach, odchylenie na każdej
 soczewce, lista dyżurów składających się na wynik i to, co zrobi z tym
-generator. **Eksport CSV** zapisuje tabelę; **Stan na dzień** przesuwa koniec
+generator. **Eksportuj CSV** zapisuje tabelę; **Stan na dzień** przesuwa koniec
 okna - domyślnie na koniec ostatniej publikacji, więc liczą się też dyżury
 już zaplanowane.
 

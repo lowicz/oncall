@@ -204,11 +204,12 @@ sprawdza próbny alarm `./deploy/backup/oncall-backup.sh alert --test`, patrz
 
 ## Retencja danych
 
-Pięć tabel rośnie z każdym użyciem aplikacji i nic poza retencją z nich nie
+Sześć tabel rośnie z każdym użyciem aplikacji i nic poza retencją z nich nie
 usuwa: dziennik audytu (`audit_events`), kolejka e-maili z pełną treścią
 każdej wiadomości (`notification_outbox`), uruchomienia generatora
-(`schedule_runs`), sesje (`sessions`) i jednorazowe linki aktywacyjne oraz
-resetu hasła (`account_tokens`). Proces roboczy (`worker`) raz na
+(`schedule_runs`), sesje (`sessions`), jednorazowe linki aktywacyjne oraz
+resetu hasła (`account_tokens`) i zapamiętany stan zakresów dostępności do
+cofnięcia zapisu (`availability_range_snapshots`). Proces roboczy (`worker`) raz na
 `ONCALL_RETENTION_INTERVAL_SECONDS` (domyślnie godzinę) usuwa wiersze starsze
 niż skonfigurowany czas, od najstarszych, w paczkach po
 `ONCALL_RETENTION_BATCH_SIZE` (domyślnie 1000) wierszy, każda w osobnej
@@ -228,6 +229,7 @@ To nie retencja: wniosek zostaje w bazie jako zamknięty.
 | e-maile wysłane, nieudane, pominięte i anulowane (`ONCALL_RETENTION_OUTBOX_DAYS`) | 90 dni | wiadomości oczekujących i w trakcie wysyłki, niezależnie od wieku |
 | zakończone uruchomienia generatora (`ONCALL_RETENTION_RUNS_DAYS`) | 30 dni | uruchomień w kolejce i w toku |
 | wygasłe sesje oraz linki aktywacyjne i resetu hasła | dzień po wygaśnięciu, bez ustawienia | sesji i linków jeszcze ważnych |
+| stan zakresów dostępności do cofnięcia zapisu | dzień po zapisie, bez ustawienia | niczego; „Cofnij” działa przez kilka sekund |
 
 `0` w dowolnej zmiennej `*_DAYS` wyłącza usuwanie tej kategorii. Retencja
 jest włączona domyślnie, także po aktualizacji z wydania, które jej nie miało:
@@ -244,7 +246,7 @@ zmniejsza plików na dysku: retencja zatrzymuje wzrost, a nie cofa go. Rozmiar
 tabel pokazuje zapytanie:
 
 ```bash
-docker compose exec db psql -U oncall -d oncall -c "select relname, pg_size_pretty(pg_total_relation_size(oid)) from pg_class where relname in ('audit_events', 'notification_outbox', 'schedule_runs', 'sessions', 'account_tokens')"
+docker compose exec db psql -U oncall -d oncall -c "select relname, pg_size_pretty(pg_total_relation_size(oid)) from pg_class where relname in ('audit_events', 'notification_outbox', 'schedule_runs', 'sessions', 'account_tokens', 'availability_range_snapshots')"
 ```
 
 Miejsce zajęte przez lata bez retencji oddaje jednorazowo, w oknie

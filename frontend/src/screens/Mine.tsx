@@ -27,8 +27,7 @@ import { useGridNavigation } from '../hooks/useGridNavigation'
 import { useNarrow } from '../hooks/useMediaQuery'
 import { usePublicConfig } from '../hooks/usePublicConfig'
 import { useUrlParams } from '../hooks/useUrlParams'
-import { undoable } from '../lib/undo'
-import { inOrder } from '../lib/sequence'
+import { newUndoId, undoable } from '../lib/undo'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { CopyButton } from '../components/CopyButton'
 import { coverageWindowText } from '../components/CalendarMatrix'
@@ -216,6 +215,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
     return map
   }, [duties])
   const entryFor = (date: string) => entries.find((entry) => entry.starts_on <= date && entry.ends_on >= date)
+  const pickedEntry = pick && entryFor(pick.anchor)
   const paint = (a: string, b: string) => {
     const [startsOn, endsOn] = a <= b ? [a, b] : [b, a]
     lastPainted.current = endsOn
@@ -328,6 +328,8 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
       </div>
       {pick && (
         <Box tone="sig" role="status" title={range.from(formatShortDate(pick.anchor))}>
+          {/* A phone has no hover, so the reason of the day touched first is said here. */}
+          {pickedEntry?.note && <div>{range.entry(brushes[pickedEntry.kind], pickedEntry.note)}</div>}
           {brush === 'clear' ? range.closeToClear : range.closeToSave(brushes[brush])}
           <div className="row avail-box-actions">
             <Button size="sm" onClick={() => setPick(null)}>{words.common.cancel}</Button>
@@ -381,7 +383,8 @@ function optimisticRange(
 const PAINT_KEY = ['availability', 'paint']
 
 /** One range written with one brush; `before` is what the range held when it
- *  was painted, which its Undo writes back. */
+ *  was painted, which its Undo draws until the server has put it back, and
+ *  `undoId` names the save to the server for that Undo. */
 interface PaintCommand {
   member: string
   startsOn: string
@@ -389,6 +392,13 @@ interface PaintCommand {
   brush: Brush
   note: string | undefined
   before: AvailabilityEntry[]
+  undoId: string
+}
+
+/** An Undo in flight: the paint it reverts and how the range is drawn meanwhile. */
+interface PaintUndo {
+  command: PaintCommand
+  steps: PaintCommand[]
 }
 
 const applyPaint = (list: AvailabilityEntry[], command: PaintCommand) => (
@@ -396,14 +406,14 @@ const applyPaint = (list: AvailabilityEntry[], command: PaintCommand) => (
 )
 
 /**
- * The writes that undo a paint: clear the painted range, then write back the
- * part of every entry it touched that lies inside the range, with its kind and
- * reason. Days outside the range are never written, so a later paint there
- * stays as it is.
+ * How an Undo of a paint draws while the server puts the range back: the
+ * painted range cleared, then the part of every entry it touched that lies
+ * inside the range, with its kind and reason. Days outside the range are
+ * never drawn over, as the server never writes them.
  */
 function undoSteps(command: PaintCommand): PaintCommand[] {
   return [
-    { member: command.member, startsOn: command.startsOn, endsOn: command.endsOn, brush: 'clear', note: undefined, before: [] },
+    { ...command, brush: 'clear', note: undefined, before: [] },
     ...command.before.map((entry) => ({
       member: command.member,
       startsOn: entry.starts_on > command.startsOn ? entry.starts_on : command.startsOn,
@@ -411,6 +421,7 @@ function undoSteps(command: PaintCommand): PaintCommand[] {
       brush: entry.kind,
       note: entry.note ?? undefined,
       before: [],
+      undoId: command.undoId,
     })),
   ]
 }
@@ -493,6 +504,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
       starts_on: command.startsOn,
       ends_on: command.endsOn,
       note: command.note,
+      undo_id: command.undoId,
     }
     return command.member ? api.replaceMemberAvailabilityRange(command.member, input) : api.replaceAvailabilityRange(input)
   }
@@ -503,13 +515,14 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
     queryClient.invalidateQueries({ queryKey: ['calendar'] }),
   ])
   // One scope runs the paints and the Undos one after another in the order
-  // they were made; an Undo runs its steps in order and stops at the first
-  // that fails.
-  const restore = useMutation<void, Error, PaintCommand[]>({
+  // they were made; an Undo is one request that puts the whole range back.
+  const restore = useMutation<void, Error, PaintUndo>({
     mutationKey: PAINT_KEY,
     scope: { id: 'availability-paint' },
-    mutationFn: (steps) => inOrder(steps, save),
-    onSettled: (_result, _error, steps) => reload(steps[0]),
+    mutationFn: ({ command }) => (command.member
+      ? api.undoMemberAvailabilityRange(command.member, command.undoId)
+      : api.undoAvailabilityRange(command.undoId)),
+    onSettled: (_result, _error, { command }) => reload(command),
   })
   const paint = useMutation<AvailabilityEntry | null, Error, PaintCommand>({
     mutationKey: PAINT_KEY,
@@ -518,7 +531,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
       const range = rangeText(command.startsOn, command.endsOn)
       return undoable({
         execute: () => save(command),
-        undo: () => restore.mutateAsync(undoSteps(command)),
+        undo: () => restore.mutateAsync({ command, steps: undoSteps(command) }),
         toast,
         message: () => ({
           title: command.brush === 'clear' ? t.cleared(range) : t.saved(range, t.brushes[command.brush]),
@@ -537,7 +550,10 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
   // server returned; one that fails is no longer pending and drops out by itself.
   const pending = useMutationState({
     filters: { mutationKey: PAINT_KEY, status: 'pending' },
-    select: (mutation) => mutation.state.variables as PaintCommand | PaintCommand[],
+    select: (mutation) => {
+      const variables = mutation.state.variables as PaintCommand | PaintUndo
+      return 'steps' in variables ? variables.steps : [variables]
+    },
   })
   const shown = pending.flat().filter((command) => command.member === member).reduce(applyPaint, entries.data ?? [])
   const collisions = dutyCollisions(duties, shown, today)
@@ -612,6 +628,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
               brush,
               note: note.trim() || undefined,
               before: shown.filter((entry) => entry.starts_on <= endsOn && entry.ends_on >= startsOn),
+              undoId: newUndoId(),
             })}
           />
           <span className="muted small">
@@ -935,12 +952,16 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
   const [checked, setChecked] = useState(false)
   const value = draft ?? me.data?.phone ?? ''
   const typed = value.trim()
+  // The save button falls idle once the number is stored, so focus goes
+  // back to the number it saved.
+  const field = useRef<HTMLInputElement>(null)
   const save = useMutation({
     mutationFn: () => api.updateMyPhone(typed || null),
     onSuccess: (updated) => {
       queryClient.setQueryData(meKey, updated)
       setDraft(null)
       toast.success(t.saved)
+      field.current?.focus()
     },
   })
   // No verdict on a value that has not arrived yet.
@@ -952,7 +973,7 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
       <form className="stack-sm" onSubmit={(event) => { event.preventDefault(); setChecked(true); save.mutate() }}>
         <Field label={t.label} id="my-phone" hint={t.hint} error={error}>
           {({ id, describedBy, invalid }) => (
-            <Input id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onBlur={() => setChecked(true)} onChange={(event) => { setChecked(false); setDraft(event.target.value) }} />
+            <Input ref={field} id={id} name="phone" type="tel" autoComplete="tel" autoCapitalize="off" spellCheck={false} mono invalid={invalid} value={value} aria-describedby={describedBy} disabled={!me.data} onBlur={() => setChecked(true)} onChange={(event) => { setChecked(false); setDraft(event.target.value) }} />
           )}
         </Field>
         {save.error && <Box tone="bad" role="alert" focus title={save.error.message} />}

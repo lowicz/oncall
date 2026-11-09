@@ -19,6 +19,7 @@ from oncall.domain.scheduling.models import RunState
 from oncall.domain.vocabulary import AccountTokenKind, UserRole
 from oncall.infrastructure.sqlalchemy.access_models import AccountToken, Session
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.availability_model import AvailabilityRangeSnapshot
 from oncall.infrastructure.sqlalchemy.notification_models import (
     NotificationChannel,
     NotificationOutbox,
@@ -27,7 +28,7 @@ from oncall.infrastructure.sqlalchemy.notification_models import (
 from oncall.infrastructure.sqlalchemy.scheduling_models import ScheduleRun
 from oncall.retention import RetentionPolicy, prune_expired
 from oncall.worker import retention_cycle
-from tests.conftest import create_user
+from tests.conftest import create_member, create_user
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
 DAY = timedelta(days=1)
@@ -222,6 +223,30 @@ async def test_expired_sessions_and_links_go_and_live_ones_stay(db, db_factory) 
     assert await _count(db, AccountToken) == 1
 
 
+async def test_range_snapshots_go_a_day_after_their_stroke(db, db_factory) -> None:
+    user = await create_user(db, "anna")
+    member = await create_member(db, user, display_name="Anna")
+
+    def snapshot(age: timedelta) -> AvailabilityRangeSnapshot:
+        return AvailabilityRangeSnapshot(
+            id=uuid.uuid4(),
+            member_id=member.id,
+            actor_user_id=user.id,
+            starts_on=date(2026, 9, 1),
+            ends_on=date(2026, 9, 1),
+            entries=[],
+            created_at=NOW - age,
+        )
+
+    db.add_all([snapshot(2 * DAY), snapshot(DAY / 2)])
+    await db.commit()
+
+    report = await prune_expired(db_factory, POLICY, now=NOW)
+
+    assert report.deleted["snapshots"] == 1
+    assert await _count(db, AvailabilityRangeSnapshot) == 1
+
+
 async def test_a_zero_age_keeps_a_table_for_ever(db, db_factory) -> None:
     db.add_all([_audit("auth.login", 3000 * DAY), _audit("swap.created", 3000 * DAY)])
     await db.commit()
@@ -247,6 +272,7 @@ async def test_a_zero_age_keeps_a_table_for_ever(db, db_factory) -> None:
         "runs": 0,
         "sessions": 0,
         "tokens": 0,
+        "snapshots": 0,
     }
     assert await _count(db, AuditEvent) == 2
 
@@ -316,9 +342,10 @@ async def test_every_batch_is_its_own_unit_of_work(db, db_factory, monkeypatch) 
 
     await prune_expired(db_factory, policy, now=NOW)
 
-    # Three batches of logins (2, 2, 1) and one for each of the two rules that
-    # take no age and matched nothing: a unit of work per batch, nothing wider.
-    assert commits == 3 + 2
+    # Three batches of logins (2, 2, 1) and one for each of the three rules
+    # that take no age and matched nothing: a unit of work per batch, nothing
+    # wider.
+    assert commits == 3 + 3
 
 
 async def test_the_worker_reports_every_pass_even_an_empty_one(
@@ -341,6 +368,7 @@ async def test_the_worker_reports_every_pass_even_an_empty_one(
         "runs": "0",
         "sessions": "0",
         "tokens": "0",
+        "snapshots": "0",
         "capped": "0",
     }
 

@@ -137,7 +137,7 @@ export function HistoryImportPanel() {
         open={Boolean(toRevoke)}
         title={toRevoke ? t.revokeDialog.title(toRevoke.name) : ''}
         description={toRevoke && t.revokeDialog.description(toRevoke.rows)}
-        confirmLabel={t.previous.undo}
+        confirmLabel={t.revokeDialog.confirm}
         confirmColor="error"
         pending={revoke.isPending}
         error={revoke.error ? revoke.error.message : null}

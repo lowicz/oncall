@@ -36,6 +36,7 @@ export const common: Messages['common'] = {
   },
   reasonTooShort: (minLength: number) => `Enter at least ${minLength} characters`,
   httpError: (status: number) => `HTTP error ${status}`,
+  networkError: 'Cannot reach the server. Check the network and try again.',
   imageReadFailed: 'Could not read the image',
   generatorFailed: 'The generator ended with an error',
   logoutFailed: (status: number) => `Could not sign out (${status})`,

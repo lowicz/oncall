@@ -703,7 +703,7 @@ async def test_two_overlapping_eligibility_grants_store_one_period(pg, monkeypat
         item.text for item in responses
     ]
     refused = next(item for item in responses if item.status_code == 409)
-    assert refused.json()["detail"] == "Okres eligibility nakłada się na istniejący okres tej roli"
+    assert refused.json()["detail"] == "Okres kwalifikacji nakłada się na istniejący okres tej roli"
     periods = await pg.scalar(
         select(func.count()).select_from(Eligibility).where(Eligibility.member_id == member.id)
     )

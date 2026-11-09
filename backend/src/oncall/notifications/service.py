@@ -116,7 +116,8 @@ async def cancel_notifications(
     sent (a retry, a claimed batch, a disabled channel), so the caller tells
     everyone else about the inverse. The business change and audit trail are
     untouched. A cancellation only marks the queued side effect so the worker
-    and outbox metrics ignore it.
+    and outbox metrics ignore it, and frees its de-duplication key: the same
+    news made again after the Undo is news again.
     """
     cancelled_at = now or utc_now()
     result = await db.execute(
@@ -126,7 +127,7 @@ async def cancel_notifications(
             NotificationOutbox.cancelled_at.is_(None),
             NotificationOutbox.context["undo_key"].as_string() == undo_key,
         )
-        .values(cancelled_at=cancelled_at)
+        .values(cancelled_at=cancelled_at, dedup_key=None)
         .returning(NotificationOutbox.context["member"].as_string())
     )
     return set(result.scalars())

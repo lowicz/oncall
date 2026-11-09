@@ -56,6 +56,19 @@ class AvailabilityRangeReplacement:
     ends_on: date
     kind: AvailabilityKind | None
     note: str | None = None
+    #: The client's name for this stroke; with it the range's previous
+    #: entries are kept for an Undo, and the stroke's e-mails wait for the
+    #: Undo window.
+    undo_id: uuid.UUID | None = None
+
+
+@dataclass(frozen=True)
+class AvailabilityRangeUndo:
+    """Put back what one stroke, named by its `undo_id`, replaced."""
+
+    actor: Actor
+    member: MemberRef
+    undo_id: uuid.UUID
 
 
 @dataclass(frozen=True)
@@ -102,6 +115,20 @@ class AvailabilityEntry:
         if self.created_by_user_id is None or self.created_by_user_id == member.user_id:
             return None
         return self.created_by_name
+
+
+@dataclass(frozen=True)
+class RangeSnapshot:
+    """What a painted range held before the stroke: the parts of the entries
+    inside it, each with its author and reason. Only the account that painted
+    may restore it, and only once."""
+
+    id: uuid.UUID
+    member_id: uuid.UUID
+    actor_user_id: uuid.UUID
+    starts_on: date
+    ends_on: date
+    entries: tuple[NewAvailabilityEntry, ...]
 
 
 @dataclass(frozen=True)

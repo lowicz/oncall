@@ -65,7 +65,7 @@ async def test_rows_are_checked_against_membership_eligibility_and_the_calendar(
         (4, "role"),
         (5, "service_date"),
     ]
-    assert problems[1].message == "Osoba nie ma eligibility do roli SECONDARY w tym dniu"
+    assert problems[1].message == "Osoba nie ma kwalifikacji do roli SECONDARY w tym dniu"
 
 
 async def test_an_import_is_stored_under_roster_names_or_refused_whole() -> None:

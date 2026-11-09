@@ -15,7 +15,8 @@ export const generator = {
   },
   header: {
     generating: (range: string) => `Generuję ${range}`,
-    statusPill: (status: string, version: number) => `${status} · v${version}`,
+    /** Only a draft shows its number: a publication is named by its date elsewhere. */
+    statusPill: (status: string, version: number | null) => version ? `${status} · v${version}` : status,
     summary: (assignments: number, days: number, rotation: string) =>
       `${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])} w ${pluralPl(days, ['dniu', 'dniach', 'dniach'])} · ${rotation}`,
     /** The solver's verdict in words; the engine's own status code is in `solverDetails`. */
@@ -60,7 +61,7 @@ export const generator = {
     to: 'Do',
     queued: 'W kolejce…',
     generating: 'Generuję…',
-    create: 'Utwórz szkic',
+    create: 'Generuj kolejny zakres',
     savedSettings: (rotation: string, anchor: string) => `Zapisane ustawienia: ${rotation} · 11–19: ${anchor}`,
     unsavedNote: ' · masz niezapisane zmiany w ustawieniach',
     splitLonger: '. Dłuższy okres podziel na kolejne, zachodzące po sobie szkice.',
@@ -111,7 +112,6 @@ export const generator = {
     publishDraft: 'Opublikuj…',
     more: 'Inne akcje',
     propose: 'Przekaż do akceptacji',
-    publish: (version: number) => `Publikuj v${version}…`,
     backToDraft: 'Wróć do szkicu',
     effects: {
       title: 'Co zmieni publikacja',
@@ -209,20 +209,20 @@ export const generator = {
   toast: {
     proposed: (range: string) => `Przekazano do akceptacji: ${range}`,
     withdrawn: (range: string) => `Cofnięto do szkicu: ${range}`,
-    published: (version: number, range: string) => `Opublikowano v${version} · ${range}`,
+    published: (range: string) => `Opublikowano ${range}`,
     publishedDescription: 'E-maile i kanały ICS zaktualizowane.',
     openSchedule: 'Otwórz grafik',
     settingsSaved: 'Zapisano ustawienia generowania',
   },
   publish: {
-    title: (isProposal: boolean, version: number, range: string) => `Publikuję ${isProposal ? 'propozycję' : 'szkic'} v${version} · ${range}`,
+    title: (isProposal: boolean, range: string) => `Publikuję ${isProposal ? 'propozycję' : 'szkic'} · ${range}`,
     effect: (assignments: number, days: number) =>
       `${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])} w ${pluralPl(days, ['dniu', 'dniach', 'dniach'])} ${pluralFormPl(assignments, ['stanie', 'staną', 'stanie'])} się opublikowanym grafikiem. Zespół dostanie e-mail, kanały ICS zaktualizują się od razu. Publikację można cofnąć tylko nową publikacją.`,
     back: (fromDraft: boolean): string => fromDraft ? 'Wróć do szkicu' : 'Wróć do propozycji',
     publishing: 'Publikuję…',
     failed: 'Nie udało się opublikować',
     failedNext: (fromDraft: boolean) => `Wróć do ${fromDraft ? 'szkicu' : 'propozycji'}, sprawdź zmiany i opublikuj ponownie.`,
-    publishVersion: (version: number) => `Publikuj v${version}`,
+    publishNow: 'Opublikuj',
     pending: (conflicts: number, consents: number) =>
       `Do rozstrzygnięcia: ${[conflicts > 0 && pluralPl(conflicts, ['konflikt', 'konflikty', 'konfliktów']), consents > 0 && pluralPl(consents, ['zgoda', 'zgody', 'zgód'])].filter(Boolean).join(', ')}.`,
     ready: 'Gotowe do publikacji.',
@@ -268,6 +268,7 @@ export const generator = {
     noAssignment: 'brak',
     notEligible: (name: string, roles: string) => `${name} nie ma uprawnień do ${roles}. Odznacz ${roles} albo kliknij komórkę innej osoby.`,
     holds: (name: string, roles: string) => `${name} ma już ${roles}. Odznacz ${roles} albo kliknij komórkę innej osoby.`,
+    holdsAll: (name: string) => `${name} ma już te role tego dnia. Kliknij komórkę osoby, która ma je przejąć, albo zamień ich miejscami.`,
     cannot: (name: string, reason: string) => `${name} ${reason}.`,
     nobodyHoldsRole: (name: string) => `Nikt nie ma tej roli tego dnia. ${name} dostanie dyżur, nikt go nie straci.`,
     gapDay: 'luka w obsadzie',

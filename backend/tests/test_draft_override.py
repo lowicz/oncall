@@ -156,6 +156,9 @@ async def test_draft_override_warns_about_rest_rule_violation(client, db) -> Non
     # A warning without a name and a date says only that something is wrong.
     assert all(ola.display_name in item["message"] for item in warnings), warnings
     assert all("Dni: " in item["message"] for item in warnings), warnings
+    # The problems table opens the day from the name and the days, not the sentence.
+    assert {item["member_name"] for item in warnings} == {ola.display_name}
+    assert all(str(monday) in item["days"] for item in warnings), warnings
 
 
 async def test_a_correction_reports_every_rule_the_draft_breaks(client, db) -> None:

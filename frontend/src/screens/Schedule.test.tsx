@@ -14,6 +14,7 @@ const publication = (over: Partial<PublishedSchedule> = {}): PublishedSchedule =
   is_published: true,
   id: 's1',
   version: 7,
+  published_at: '2026-09-02T20:30:00Z',
   starts_on: '2026-09-14',
   ends_on: '2026-10-03',
   assignments: [],
@@ -73,7 +74,7 @@ describe('ScheduleScreen header', () => {
     renderSchedule('/grafik')
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Grafik' })).toBeInTheDocument()
-    expect(await screen.findByText(/Opublikowany 14 wrz – 3 paź \(wersja 7\) · propozycja 4 – 31 paź czeka na publikację/)).toBeInTheDocument()
+    expect(await screen.findByText(/Opublikowany 14 wrz – 3 paź \(publikacja z 2 wrz\) · propozycja 4 – 31 paź czeka na publikację/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Otwórz propozycję/ })).toHaveAttribute('href', '/generator?szkic=d8')
   })
 

@@ -277,6 +277,11 @@ class SqlAlchemyForwardingConfiguration:
             .where(TeamMember.id == member_id)
         )
 
+    async def member_named(self, display_name: str) -> uuid.UUID | None:
+        return await self._session.scalar(
+            select(TeamMember.id).where(TeamMember.display_name == display_name)
+        )
+
     async def stage_pending(
         self,
         attempt: ForwardingAttempt,

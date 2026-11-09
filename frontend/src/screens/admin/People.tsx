@@ -756,6 +756,13 @@ export function PeoplePanel() {
     saveAll.mutate(selectedRow)
   }
   const requestClose = () => unsavedChanges.requestAction(closeDetails)
+  // Back to what is saved, in the same panel; the link goes with the
+  // changes, so focus goes to the panel's title.
+  const panelTitle = useRef<HTMLHeadingElement>(null)
+  const discardChanges = (row: Row) => {
+    applyDetails(row, tab)
+    panelTitle.current?.focus()
+  }
   const error = users.error || team.error || createRotation.error
   const ldapFieldsLocked = selectedRow?.user.auth_source === 'ldap'
   const selectedState = rotationState(selectedRow?.member, today)
@@ -765,6 +772,10 @@ export function PeoplePanel() {
     downloadBlob(t.csv.fileName(today), new Blob([`\uFEFF${csvOf(rows, today, now)}`], { type: 'text/csv;charset=utf-8' }))
   }
   const roleOptions = roles.map((role) => ({ value: role, label: accountRoleLabels()[role] }))
+  // Digits only, as the server requires; said under the field in the
+  // interface language rather than by the browser's own bubble.
+  const personnelError = (value: string | null | undefined) => (value && !/^\d+$/.test(value) ? t.fields.personnelNumberFix : undefined)
+  const personnelHint = branding.ldapEnabled ? `${t.fields.personnelNumberHint} ${t.fields.personnelNumberLdapHint}` : t.fields.personnelNumberHint
   const newName = newForm.first_name.trim() || t.newAccountPanel.thisPerson
   // The phone sits beside the e-mail, or with the entry date once the person
   // joins the rotation, where the strip "Teraz" needs it.
@@ -899,7 +910,7 @@ export function PeoplePanel() {
               form="new-account-form"
               variant="primary"
               loading={createAccount.isPending}
-              disabled={!newForm.username.trim() || !newForm.first_name.trim() || (newRotation.on && (!newForm.phone || !newRotation.from))}
+              disabled={!newForm.username.trim() || !newForm.first_name.trim() || Boolean(personnelError(newForm.personnel_number)) || (newRotation.on && (!newForm.phone || !newRotation.from))}
             >
               {t.newAccountPanel.create}
             </Button>
@@ -941,8 +952,8 @@ export function PeoplePanel() {
               <Field label={t.fields.username} id="new-username" required hint={branding.ldapEnabled ? t.fields.usernameLdapHint : undefined}>
                 {({ id, describedBy }) => <Input id={id} name="username" mono autoComplete="off" autoCapitalize="none" spellCheck={false} value={newForm.username} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, username: e.target.value })} required />}
               </Field>
-              <Field label={t.fields.personnelNumber} id="new-personnel-number" hint={branding.ldapEnabled ? t.fields.personnelNumberLdapHint : undefined}>
-                {({ id, describedBy }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} inputMode="numeric" pattern="[0-9]*" value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
+              <Field label={t.fields.personnelNumber} id="new-personnel-number" hint={personnelHint} error={personnelError(newForm.personnel_number)}>
+                {({ id, describedBy, invalid }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} inputMode="numeric" invalid={invalid} value={newForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setNewForm({ ...newForm, personnel_number: e.target.value || null })} />}
               </Field>
             </div>
             <div className="frow">
@@ -1017,6 +1028,7 @@ export function PeoplePanel() {
       <Panel
         open={Boolean(selectedRow)}
         onClose={requestClose}
+        titleRef={panelTitle}
         wide
         title={selectedRow ? (
           <span className="row">
@@ -1047,7 +1059,7 @@ export function PeoplePanel() {
               <span className="panel-foot-note small muted">
                 {t.details.unsaved(pendingChanges.join(' · '))}
                 {/* Named for its effect, so it needs no dialog; closing by Escape or the corner button still asks. */}
-                <button type="button" className="link-btn" onClick={closeDetails}>{t.details.discard}</button>
+                <button type="button" className="link-btn" onClick={() => discardChanges(selectedRow)}>{t.details.discard}</button>
               </span>
             ) : (
               <>
@@ -1055,7 +1067,7 @@ export function PeoplePanel() {
                 <Button size="sm" onClick={requestClose}>{m.common.close}</Button>
               </>
             )}
-            <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending || exitChecking || earlyRoles.length > 0 || entryBlockers.length > 0} loading={saveAll.isPending}>
+            <Button size="sm" type="submit" form="person-form" variant="primary" disabled={!dirty || saveAll.isPending || exitChecking || earlyRoles.length > 0 || entryBlockers.length > 0 || Boolean(personnelError(accountForm.personnel_number))} loading={saveAll.isPending}>
               {saveAll.isPending ? m.common.saving : dirty ? t.details.saveCount(pendingChanges.length) : t.details.save}
             </Button>
           </>
@@ -1093,8 +1105,8 @@ export function PeoplePanel() {
                   <Field label={t.fields.username} id="acc-username" hint={t.fields.usernameLocked}>
                     {({ id, describedBy }) => <Input id={id} name="username" mono autoComplete="off" autoCapitalize="none" spellCheck={false} disabled value={selectedRow.user.username} aria-describedby={describedBy} readOnly />}
                   </Field>
-                  <Field label={t.fields.personnelNumber} id="acc-personnel-number">
-                    {({ id }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={ldapFieldsLocked} inputMode="numeric" pattern="[0-9]*" value={accountForm.personnel_number ?? ''} onChange={(e) => setAccountForm({ ...accountForm, personnel_number: e.target.value || null })} />}
+                  <Field label={t.fields.personnelNumber} id="acc-personnel-number" hint={t.fields.personnelNumberHint} error={personnelError(accountForm.personnel_number)}>
+                    {({ id, describedBy, invalid }) => <Input id={id} name="personnel_number" mono autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={ldapFieldsLocked} inputMode="numeric" invalid={invalid} value={accountForm.personnel_number ?? ''} aria-describedby={describedBy} onChange={(e) => setAccountForm({ ...accountForm, personnel_number: e.target.value || null })} />}
                   </Field>
                 </div>
                 <div className="frow">

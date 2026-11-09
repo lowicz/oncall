@@ -89,6 +89,7 @@ MESSAGES: dict[str, str] = {
     "availability.already_exists": "This availability entry already exists",
     "availability.overlaps": "The range overlaps an existing availability entry",
     "availability.entry_not_found": "Entry not found",
+    "availability.undo_not_found": "This change can no longer be undone",
     "availability.on_duty_warning": (
         "You are on duty during this time. Reporting it does not take the duty away; "
         "ask for a swap or contact the coordinator."

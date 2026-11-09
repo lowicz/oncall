@@ -9,7 +9,13 @@ from typing import Any
 from oncall.domain.accounts import Account as Account
 from oncall.domain.roster import Slot
 from oncall.domain.team import Actor
-from oncall.domain.vocabulary import AccountTokenKind, AssignmentRole, AuthSource, UserRole
+from oncall.domain.vocabulary import (
+    ROLE_LABELS,
+    AccountTokenKind,
+    AssignmentRole,
+    AuthSource,
+    UserRole,
+)
 
 #: The fields of an account that describe the person. For a directory (LDAP)
 #: account they come from AD and are never edited here.
@@ -181,7 +187,7 @@ class EligibilityRevocation:
 
 
 def slot_list(slots: list[Slot]) -> str:
-    return ", ".join(f"{day.isoformat()} ({role.value})" for day, role in slots)
+    return ", ".join(f"{day.isoformat()} ({ROLE_LABELS[role]})" for day, role in slots)
 
 
 #: The audit action a successful login writes. Browsing leaves it out unless

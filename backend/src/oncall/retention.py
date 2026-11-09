@@ -1,8 +1,9 @@
 """Retention: what the worker deletes, how old it must be, and in what batches.
 
-Five tables grow with use and are read only for a while: the audit trail,
-the notification outbox, finished generation runs, and the sessions and
-account links that have expired. Nothing else in the application ever
+Six tables grow with use and are read only for a while: the audit trail,
+the notification outbox, finished generation runs, the sessions and account
+links that have expired, and what painted availability ranges held for an
+Undo that is long past. Nothing else in the application ever
 deletes a row of theirs, so without this module a deployment's database
 grows for as long as it is used.
 
@@ -38,6 +39,7 @@ from oncall.database import SqlAlchemyUnitOfWork
 from oncall.domain.scheduling.models import RunState
 from oncall.infrastructure.sqlalchemy.access_models import AccountToken, Session
 from oncall.infrastructure.sqlalchemy.audit_model import AuditEvent
+from oncall.infrastructure.sqlalchemy.availability_model import AvailabilityRangeSnapshot
 from oncall.infrastructure.sqlalchemy.notification_models import (
     NotificationOutbox,
     NotificationStatus,
@@ -75,7 +77,14 @@ FINISHED_RUNS = (RunState.completed, RunState.failed)
 EXPIRY_GRACE_DAYS = 1
 
 #: A mapped row one of the rules deletes.
-Pruned = AuditEvent | NotificationOutbox | ScheduleRun | Session | AccountToken
+Pruned = (
+    AuditEvent
+    | NotificationOutbox
+    | ScheduleRun
+    | Session
+    | AccountToken
+    | AvailabilityRangeSnapshot
+)
 
 IdSelect = Select[uuid.UUID]
 
@@ -136,6 +145,14 @@ def _expired_tokens(cutoff: datetime) -> IdSelect:
     )
 
 
+def _expired_snapshots(cutoff: datetime) -> IdSelect:
+    return (
+        select(AvailabilityRangeSnapshot.id)
+        .where(AvailabilityRangeSnapshot.created_at < cutoff)
+        .order_by(AvailabilityRangeSnapshot.created_at)
+    )
+
+
 @dataclass(frozen=True)
 class Rule:
     """One table's retention: its name in the metrics record, the age in days
@@ -183,6 +200,8 @@ class RetentionPolicy:
             Rule("runs", self.runs_days, ScheduleRun, _expired_runs),
             Rule("sessions", EXPIRY_GRACE_DAYS, Session, _expired_sessions),
             Rule("tokens", EXPIRY_GRACE_DAYS, AccountToken, _expired_tokens),
+            # An Undo comes within seconds; a day keeps the cutoff far behind it.
+            Rule("snapshots", EXPIRY_GRACE_DAYS, AvailabilityRangeSnapshot, _expired_snapshots),
         )
 
 

@@ -20,6 +20,23 @@ async function refusal(call: () => Promise<unknown>): Promise<ApiError> {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('API errors', () => {
+  it('says in the interface language that the server cannot be reached', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+    for (const call of [
+      () => api.publicConfig(),
+      () => api.ownAvatar('/api/v1/auth/me/photo'),
+      () => api.monthlyReport('2026-09'),
+    ]) {
+      await expect(call()).rejects.toThrow('Brak połączenia z serwerem. Sprawdź sieć i spróbuj ponownie.')
+    }
+  })
+
+  it('lets a cancelled request keep its own error', async () => {
+    const aborted = new DOMException('The operation was aborted.', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(aborted)))
+    await expect(api.publicConfig()).rejects.toBe(aborted)
+  })
+
   it('shows the message the server gives for a rejected field', async () => {
     vi.stubGlobal('fetch', answer(422, {
       detail: [{ loc: ['body', 'username'], msg: 'Login nie może zawierać spacji', type: 'value_error' }],
@@ -166,6 +183,7 @@ const CASES: Case[] = [
   send('replaceAvailabilityRange', () => api.replaceAvailabilityRange({ ...availabilityInput, kind: null }),
     'PUT', '/api/v1/availability/me/range', { ...availabilityInput, kind: null }),
   send('deleteAvailability', () => api.deleteAvailability('a1'), 'DELETE', '/api/v1/availability/me/a1'),
+  send('undoAvailabilityRange', () => api.undoAvailabilityRange('u1'), 'POST', '/api/v1/availability/me/range/undo/u1'),
   get('memberAvailability', () => api.memberAvailability('m1'), '/api/v1/availability/members/m1'),
   send('createMemberAvailability', () => api.createMemberAvailability('m1', availabilityInput),
     'POST', '/api/v1/availability/members/m1', availabilityInput),
@@ -173,6 +191,8 @@ const CASES: Case[] = [
     'PUT', '/api/v1/availability/members/m1/range', availabilityInput),
   send('deleteMemberAvailability', () => api.deleteMemberAvailability('m1', 'a1'),
     'DELETE', '/api/v1/availability/members/m1/a1'),
+  send('undoMemberAvailabilityRange', () => api.undoMemberAvailabilityRange('m1', 'u1'),
+    'POST', '/api/v1/availability/members/m1/range/undo/u1'),
   send('commitHistory', () => api.commitHistory({
     filename: 'h.csv', valid: true, errors: [],
     rows: [{ service_date: '2026-01-05', role: 'primary', assignee_name: 'Jan' }],

@@ -16,7 +16,7 @@ Sprawdź trzy rzeczy - po wygenerowaniu poprawianie ich kosztuje więcej:
 ## Nowy szkic
 
 Strona startowa generatora ma formularz **Nowy szkic** z polami **Od** i
-**Do** oraz przyciskiem **Utwórz szkic**, a pod nim listę **Szkice**.
+**Do** oraz przyciskiem **Generuj kolejny zakres**, a pod nim listę **Szkice**.
 Przycisk **Ustawienia generatora** w nagłówku otwiera panel boczny z
 ustawieniami (opisany niżej).
 
@@ -66,8 +66,9 @@ Lista jest tylko do odczytu - wydarzenia dodaje się i zmienia na ekranie **Wyda
 ## Propozycja
 
 Otwarty szkic to osobna strona. Tytułem jest zakres, a obok niego jedna
-pigułka stanu z wersją: „Szkic · v2”, „Do akceptacji · v3” po przekazaniu,
-„Opublikowany · v4” po publikacji. Pod tytułem są liczba przydziałów i dni
+pigułka stanu. Numer ma tylko szkic („Szkic · v2”, rośnie z każdą korektą);
+po przekazaniu pigułka mówi „Do akceptacji”, po publikacji „Opublikowany”, bo
+publikację nazywa jej data, nie numer. Pod tytułem są liczba przydziałów i dni
 oraz tryb rotacji. Akcje w nagłówku to **Generuj nowy szkic** i menu **⋯**
 (**Więcej**) z **Ustawieniami generatora**. **Generuj nowy szkic** tworzy
 kolejny szkic dla tego samego zakresu i otwiera go; otwarty grafik, z
@@ -84,7 +85,7 @@ Nad macierzą jest **jeden panel decyzji**:
   i po szkicu,
 - **jedna akcja główna**: **Popraw *N* problemy** otwiera pierwszą kolidującą
   komórkę (potem **Opublikuj…**), w poprawnym szkicu **Opublikuj…**, a w
-  propozycji **Publikuj v*N*…** obok **Wróć do szkicu** (propozycja z
+  propozycji **Opublikuj…** obok **Wróć do szkicu** (propozycja z
   dyżurem w dniu „nie mogę” ma tylko **Wróć do szkicu**). Obok
   **Opublikuj…** menu **⋯** (**Inne akcje**) ma **Przekaż do akceptacji** dla
   zespołów, w których szkic sprawdza druga osoba.
@@ -114,10 +115,14 @@ Pod macierzą cztery zakładki:
   w dniu „nie mogę”, złamane reguły twarde, ostrzeżenia solvera, luki przed
   szkicem i informacja, że szkic jest nieaktualny. Przełącznik **Wg osoby** /
   **Wg reguły** grupuje wiersze, **Tylko twarde** ukrywa ostrzeżenia miękkie,
-  a przycisk **Popraw** przy wierszu otwiera właściwą komórkę macierzy. Dyżur
-  w dniu „nie mogę” blokuje publikację, a złamana reguła twarda wymaga zgody
-  w oknie publikacji. Stopka tabeli wylicza reguły twarde i prowadzi do ich
-  pełnego opisu.
+  a przycisk **Popraw** przy wierszu otwiera właściwą komórkę macierzy: przy
+  dyżurze w dniu „nie mogę” ten dyżur, przy złamanej regule twardej dyżur
+  tej osoby w pierwszym dniu, którego reguła dotyczy. Wiersze całego szkicu
+  (ostrzeżenia solvera, luki, nieaktualność) nie mają jednej komórki, więc nie
+  mają przycisku. Dyżur w dniu „nie mogę” blokuje publikację, a złamana reguła
+  twarda wymaga zgody w oknie publikacji. Stopka tabeli wylicza reguły twarde
+  i prowadzi do ich pełnego opisu. Na telefonie tabela staje się listą kart:
+  rodzaj, osoba z dniem i rolą, szczegół, a pod nim przycisk.
 - **Sprawiedliwość** - rozrzut punktów jako jedna liczba z wartością sprzed
   szkicu i znacznikiem **lepiej** / **gorzej**, pod nią werdykt, dalej
   kryterium odbioru w każdej roli, w weekendy i święta oraz tabela osób z
@@ -142,17 +147,18 @@ Pod macierzą cztery zakładki:
 ### Ręczna korekta komórki
 
 Kliknij komórkę, a panel dnia (tytuł „Wstaw: *osoba* · *dzień*”) otworzy się
-na roli z tej komórki. Grupa **Role do zmiany** działa jak w inspektorze dnia
+na wszystkich rolach z tej komórki, np. na SECONDARY i `11–19` razem. Grupa **Role do zmiany** działa jak w inspektorze dnia
 opublikowanego grafiku: PRIMARY i SECONDARY wykluczają się, a `11–19` jest
 zaznaczona od razu, gdy powiązanie `11–19` wiąże ją z zaznaczoną rolą i jej
 obecna osoba ma obie; w dzień wolny `11–19` nie ma. Zaznaczone role dostaje
 osoba z klikniętego wiersza. Pod grupą podgląd pokazuje rola po roli, kto ma
 ją teraz i kto po korekcie, a niżej bilans tej osoby w każdej roli; zapisuje
 **Przypisz w szkicu**, przy dwóch rolach **Przypisz w szkicu (2 role)**. Gdy
-nie ma czego wstawić, panel ma tytuł „*osoba* · *dzień*”, a przycisk jest
-wyłączony: osoba już ma te role, zaznaczyła „nie mogę” albo nie może objąć
-którejś z nich - wtedy powód stoi pod grupą, np. brak uprawnień do `11–19`
-albo drugi on-call tego dnia. Zaznaczenie zostaje, więc odznacz rolę albo
+nie ma czego wstawić, przycisk jest wyłączony, a powód stoi pod grupą: osoba
+już ma te role (wtedy kliknij komórkę osoby, która ma je przejąć, albo użyj
+**Zamień miejscami…**), nie może objąć którejś z nich, np. brak uprawnień do
+`11–19` albo drugi on-call tego dnia, albo zaznaczyła „nie mogę”, o czym mówi
+ramka nad grupą. Zaznaczenie zostaje, więc odznacz rolę albo
 kliknij komórkę innej osoby. Korekta może też obsadzić rolę, którą solver
 zostawił pustą: kliknij dowolną pustą komórkę dnia oznaczonego jako luka, a
 panel otworzy się na pustej roli i pokaże „brak obsady → *osoba*”.
@@ -221,17 +227,17 @@ Szkic ──► Do akceptacji ──► Opublikowany
 
 1. **Opublikuj…** w poprawnym szkicu przekazuje go do akceptacji w tle,
    sprawdza skutki publikacji i dopiero wtedy otwiera arkusz „Publikuję szkic
-   v*N* · *zakres*”. Zamknięcie arkusza bez publikacji (**Wróć do szkicu**)
+   · *zakres*”. Zamknięcie arkusza bez publikacji (**Wróć do szkicu**)
    albo przejście do innego szkicu lub ekranu cofa przekazanie, więc szkic zostaje taki,
    jak był. Błąd przekazania albo sprawdzenia pojawia się w panelu decyzji, a
    szkic wraca do stanu sprzed kliknięcia.
    **Przekaż do akceptacji** z menu **⋯** zamraża treść szkicu bez
    publikacji, a tytuł zmienia się na „Propozycja”; propozycję publikuje
-   potem **Publikuj v*N*…** w panelu decyzji, w arkuszu „Publikuję propozycję
-   v*N* · *zakres*”.
+   potem **Opublikuj…** w panelu decyzji, w arkuszu „Publikuję propozycję
+   · *zakres*”.
 2. Arkusz za każdym otwarciem sprawdza publikację od nowa, a otwarty
    ponawia sprawdzenie po powrocie do karty przeglądarki;
-   dopóki sprawdza, mówi to obok przycisków, a **Publikuj v*N*** czeka.
+   dopóki sprawdza, mówi to obok przycisków, a **Opublikuj** czeka.
    Arkusz zawiera: jedno zdanie skutku (ile przydziałów stanie się grafikiem,
    e-mail do zespołu, aktualizacja kanałów ICS, cofnięcie tylko nową
    publikacją), tę samą ramkę **Co zmieni publikacja** co strona propozycji
@@ -242,13 +248,13 @@ Szkic ──► Do akceptacji ──► Opublikowany
    odpoczynku i luka przed grafikiem mają każde własną ramkę z polem wyboru
    („Rozumiem i świadomie łamię te reguły”, „Rozumiem, że te dni zostają bez
    obsady”). Obok przycisków arkusz mówi, czego jeszcze brakuje („Do
-   rozstrzygnięcia: 1 konflikt, 2 zgody.”), a **Publikuj v*N*** działa dopiero,
+   rozstrzygnięcia: 1 konflikt, 2 zgody.”), a **Opublikuj** działa dopiero,
    gdy niczego nie brakuje. **Wróć do propozycji** zamyka arkusz otwarty z
    propozycji bez zmian.
    Publikacja sprawdza pełne pokrycie zakresu; brak obsady któregokolwiek
    dnia zatrzymuje operację.
 3. Grafik staje się widoczny dla wszystkich, rozchodzą się powiadomienia, a
-   kanały ICS dostają aktualizacje. Powiadomienie „Opublikowano v*N* ·
+   kanały ICS dostają aktualizacje. Powiadomienie „Opublikowano
    *zakres*” mówi to samo i ma przycisk **Otwórz grafik**.
 
 Przekazanie do akceptacji z menu **⋯** i powrót do szkicu też kończą się

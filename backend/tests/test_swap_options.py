@@ -66,9 +66,16 @@ async def test_options_flag_a_candidate_who_already_has_a_duty_that_day(client, 
     assert response.status_code == 200, response.text
     by_name = {item["display_name"]: item for item in response.json()}
 
-    # Marek holds secondary that day, so he is excluded from a primary swap
-    # altogether; Ola holds 11-19, which does not exclude her but does stack.
-    assert "Marek Opt" not in by_name, by_name
+    # Marek holds secondary that day, so a primary swap to him is blocked,
+    # with the reason, rather than hidden; Ola holds 11-19, which does not
+    # block her but does stack.
+    marek = by_name["Marek Opt"]
+    assert marek["blocking_violations"][0]["rule"] == "same_day_oncall"
+    assert marek["blocking_violations"][0]["message"] == (
+        "Ta sama osoba ma oba dyżury on-call tego dnia."
+    )
+    assert marek["on_duty_that_day"] is True
+    assert by_name["Ola Opt"]["blocking_violations"] == [], by_name
     assert by_name["Ola Opt"]["on_duty_that_day"] is True, by_name
     assert by_name["Piotr Opt"]["on_duty_that_day"] is False, by_name
 

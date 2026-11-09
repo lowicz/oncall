@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import replace
 from datetime import date, timedelta
 
@@ -8,19 +9,23 @@ from oncall.domain.availability.errors import (
     AvailabilityOverlaps,
     AvailabilityRangeReversed,
     AvailabilityRangeTooLong,
+    AvailabilityUndoNotFound,
     TeamMemberNotFound,
 )
 from oncall.domain.availability.models import (
     MAX_ENTRY_DAYS,
     AvailabilityDeclaration,
     AvailabilityDeclared,
+    AvailabilityEntry,
     AvailabilityQuery,
     AvailabilityRangeReplacement,
+    AvailabilityRangeUndo,
     AvailabilityWithdrawal,
     MemberAvailability,
     MemberById,
     MemberRef,
     NewAvailabilityEntry,
+    RangeSnapshot,
 )
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.clock import business_today
@@ -65,6 +70,7 @@ async def declare_availability(
     ports: AvailabilityWritePorts,
     *,
     today: date | None = None,
+    undo_id: uuid.UUID | None = None,
 ) -> AvailabilityDeclared:
     """One write path for a member's own entry and a coordinator's entry on
     their behalf, so the rules cannot drift between the two."""
@@ -103,6 +109,7 @@ async def declare_availability(
         entry=new_entry,
         on_behalf=on_behalf,
         duty_conflicts=duty_conflicts,
+        undo_id=undo_id,
     )
     warning: str | None = None
     if duty_conflicts:
@@ -120,6 +127,47 @@ async def declare_availability(
     )
 
 
+def _inside(entry: AvailabilityEntry, starts_on: date, ends_on: date) -> NewAvailabilityEntry:
+    """The part of the entry within the range, with its author and note."""
+    return NewAvailabilityEntry(
+        member_id=entry.member_id,
+        created_by_user_id=entry.created_by_user_id,
+        kind=entry.kind,
+        starts_on=max(entry.starts_on, starts_on),
+        ends_on=min(entry.ends_on, ends_on),
+        note=entry.note,
+    )
+
+
+async def _cut_range(
+    member: Member,
+    starts_on: date,
+    ends_on: date,
+    *,
+    on_behalf: bool,
+    ports: AvailabilityWritePorts,
+) -> list[AvailabilityEntry]:
+    """Remove the range's days from the member's entries and answer with the
+    entries it touched. The pieces kept outside the range, elapsed ones
+    included, are the days that did not change: they keep their author and
+    note and are not announced again."""
+    overlapping = await ports.ledger.overlapping_entries(member.id, starts_on, ends_on)
+    for entry in overlapping:
+        withdrawn_days = replace(
+            entry, starts_on=max(entry.starts_on, starts_on), ends_on=min(entry.ends_on, ends_on)
+        )
+        await ports.journal.withdrawn(member=member, entry=withdrawn_days, on_behalf=on_behalf)
+        await ports.ledger.remove(entry.id)
+        pieces = (
+            (entry.starts_on, starts_on - timedelta(days=1)),
+            (ends_on + timedelta(days=1), entry.ends_on),
+        )
+        for piece_starts_on, piece_ends_on in pieces:
+            if piece_starts_on <= piece_ends_on:
+                await ports.ledger.record(_inside(entry, piece_starts_on, piece_ends_on))
+    return overlapping
+
+
 async def replace_availability_range(
     replacement: AvailabilityRangeReplacement,
     ports: AvailabilityWritePorts,
@@ -129,43 +177,32 @@ async def replace_availability_range(
     """Replace one date range as a single unit-of-work operation.
 
     Existing entries are cut around the range, then an optional new entry is
-    painted into it and returned. The pieces kept outside the range, elapsed
-    ones included, are the days that did not change: they keep their author
-    and note and are not announced again. The HTTP unit of work commits every staged
-    withdrawal and declaration together, or rolls all of them back on any
-    failure.
+    painted into it and returned. A stroke with an `undo_id` keeps what the
+    range held, for `undo_availability_range`. The HTTP unit of work commits
+    every staged withdrawal and declaration together, or rolls all of them
+    back on any failure.
     """
     today = today or business_today()
     _validate_range(replacement.starts_on, replacement.ends_on, today)
     member = await _resolve(replacement.member, replacement.actor, ports.team)
     on_behalf = member.user_id != replacement.actor.user_id
-    overlapping = await ports.ledger.overlapping_entries(
-        member.id, replacement.starts_on, replacement.ends_on
+    overlapping = await _cut_range(
+        member, replacement.starts_on, replacement.ends_on, on_behalf=on_behalf, ports=ports
     )
-    for entry in overlapping:
-        withdrawn_days = replace(
-            entry,
-            starts_on=max(entry.starts_on, replacement.starts_on),
-            ends_on=min(entry.ends_on, replacement.ends_on),
+    if replacement.undo_id is not None:
+        await ports.snapshots.keep(
+            RangeSnapshot(
+                id=replacement.undo_id,
+                member_id=member.id,
+                actor_user_id=replacement.actor.user_id,
+                starts_on=replacement.starts_on,
+                ends_on=replacement.ends_on,
+                entries=tuple(
+                    _inside(entry, replacement.starts_on, replacement.ends_on)
+                    for entry in overlapping
+                ),
+            )
         )
-        await ports.journal.withdrawn(member=member, entry=withdrawn_days, on_behalf=on_behalf)
-        await ports.ledger.remove(entry.id)
-        pieces = (
-            (entry.starts_on, replacement.starts_on - timedelta(days=1)),
-            (replacement.ends_on + timedelta(days=1), entry.ends_on),
-        )
-        for starts_on, ends_on in pieces:
-            if starts_on <= ends_on:
-                await ports.ledger.record(
-                    NewAvailabilityEntry(
-                        member_id=member.id,
-                        created_by_user_id=entry.created_by_user_id,
-                        kind=entry.kind,
-                        starts_on=starts_on,
-                        ends_on=ends_on,
-                        note=entry.note,
-                    )
-                )
     if replacement.kind is None:
         return None
     return await declare_availability(
@@ -179,7 +216,27 @@ async def replace_availability_range(
         ),
         ports,
         today=today,
+        undo_id=replacement.undo_id,
     )
+
+
+async def undo_availability_range(
+    undo: AvailabilityRangeUndo, ports: AvailabilityWritePorts
+) -> None:
+    """Put a stroke's range back as it was, in one unit of work: whatever the
+    range holds now is cut out and the kept entries return with their own
+    author and reason. Days outside the range are left as they are, and the
+    stroke's e-mails still waiting are withdrawn."""
+    member = await _resolve(undo.member, undo.actor, ports.team)
+    on_behalf = member.user_id != undo.actor.user_id
+    snapshot = await ports.snapshots.take(undo.undo_id, member.id, undo.actor.user_id)
+    if snapshot is None:
+        raise AvailabilityUndoNotFound()
+    await _cut_range(member, snapshot.starts_on, snapshot.ends_on, on_behalf=on_behalf, ports=ports)
+    for entry in snapshot.entries:
+        await ports.ledger.record(entry)
+        await ports.journal.restored(member=member, entry=entry, on_behalf=on_behalf)
+    await ports.journal.undone(undo.undo_id)
 
 
 async def withdraw_availability(

@@ -174,7 +174,7 @@ describe('ScheduleScreen default range', () => {
 const startStaffChange = async (cellName: RegExp, replacement: string) => {
   const cells = await screen.findAllByRole('button', { name: cellName })
   fireEvent.click(cells[0])
-  fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę…' }))
   const picker = await screen.findByRole('combobox', { name: /^Osoba na / })
   const option = await screen.findByRole('option', { name: replacement })
   fireEvent.change(picker, { target: { value: option.getAttribute('value') } })
@@ -196,7 +196,7 @@ const expectReady = (button: HTMLElement) => expect(button).not.toHaveAttribute(
 const confirmHandOver = async () => {
   const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
   fireEvent.click(annaCells[0])
-  fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę…' }))
   fireEvent.change(await screen.findByRole('combobox', { name: /^Osoba na / }), { target: { value: 'm2' } })
   return saveButton()
 }
@@ -238,8 +238,9 @@ describe('CalendarMatrix override decision frame', () => {
 
     await startStaffChange(/Anna Kowalska.*SECONDARY/, 'Marek Nowak')
 
-    // No confirmation dialog: the rules sit in the panel under the chosen person.
-    expect(await screen.findByText(/Ta korekta złamie reguły twarde/)).toBeInTheDocument()
+    // No confirmation dialog: the rules sit in the panel under the chosen
+    // person, announced the moment they appear.
+    expect((await screen.findByText(/Ta korekta złamie reguły twarde/)).closest('[role="alert"]')).toHaveTextContent(/Więcej niż 3 dyżury/)
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
     expect(screen.getByText(/Więcej niż 3 dyżury on-call w okresie 7 dni/)).toBeInTheDocument()
     expect(screen.getByText(/Naruszenie trafi do dziennika audytu/)).toBeInTheDocument()
@@ -297,8 +298,9 @@ describe('CalendarMatrix override decision frame', () => {
     expect(override.mock.calls[0][0]).toMatchObject({ acknowledge_rule_violations: false })
     expect(await screen.findByText(/Ta korekta złamie reguły twarde/)).toBeInTheDocument()
     expect(check).toHaveBeenCalledTimes(2)
-    // The refusal is announced and focused in the frame.
-    const refusal = screen.getByRole('alert')
+    // The refusal is announced and focused in the frame, beside the rules it found.
+    const [rules, refusal] = screen.getAllByRole('alert')
+    expect(rules).toHaveTextContent('Ta korekta złamie reguły twarde')
     expect(refusal).toHaveTextContent('Korekta złamie reguły twarde grafiku')
     expect(refusal).toHaveFocus()
     expect(screen.getByRole('checkbox', { name: ACKNOWLEDGE })).not.toBeChecked()
@@ -395,7 +397,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     // Click Anna's own primary cell - the very move the old UI trapped.
     const annaCells = await screen.findAllByRole('button', { name: /Anna Kowalska.*PRIMARY/ })
     fireEvent.click(annaCells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę…' }))
     const picker = await screen.findByRole('combobox', { name: /^Osoba na / })
     // Anna is the current holder, so she is offered but disabled with a reason.
     expect(screen.getByRole('option', { name: /Anna Kowalska · już pełni tę rolę/ })).toBeDisabled()
@@ -417,7 +419,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
 
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska/ })
     fireEvent.click(cells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę…' }))
 
     expect(await screen.findByText('Wybierz osobę, która ma objąć tę rolę.')).toBeInTheDocument()
     expectBlocked(saveButton())
@@ -446,7 +448,7 @@ describe('CalendarMatrix staffing change (MED6-03)', () => {
     // Anna's 11-19 cell on the day off - selectedRole becomes 'late_shift'.
     const cells = await screen.findAllByRole('button', { name: /Anna Kowalska.*11–19/ })
     fireEvent.click(cells[0])
-    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Zmień osobę…' }))
     // The group opens on PRIMARY rather than a role the day does not have.
     expect(await screen.findByRole('checkbox', { name: 'PRIMARY' })).toBeChecked()
     expect(screen.queryByRole('checkbox', { name: /^11–19/ })).not.toBeInTheDocument()
@@ -544,7 +546,7 @@ describe('CalendarMatrix hard unavailability', () => {
     fireEvent.click(cells[0])
     // The day drawer names the unavailability as day context.
     expect(await screen.findByText(/Marek Nowak: Nie mogę - Urlop/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Zmień osobę' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Zmień osobę…' }))
     await screen.findByRole('combobox', { name: /^Osoba na / })
     expect(screen.getByRole('option', { name: /Marek Nowak · niedostępna tego dnia/ })).toBeDisabled()
     expect(check).not.toHaveBeenCalled()
@@ -940,7 +942,7 @@ describe('CalendarMatrix day inspector', () => {
     renderScreen(<><CalendarMatrix role="member" displayName="Marek Nowak" range={WEEK_OF_TODAY} /><Location /></>)
     const dialog = await open(/^Anna Kowalska, pt 11-09-2026/)
     // The day is Marek's even from Anna's row: the swap is for his role.
-    fireEvent.click(within(dialog).getByRole('link', { name: 'Poproś o zamianę' }))
+    fireEvent.click(within(dialog).getByRole('link', { name: 'Poproś o zamianę…' }))
     expect(screen.getByTestId('path')).toHaveTextContent('/zamiany?data=2026-09-11&rola=secondary')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
@@ -955,7 +957,7 @@ describe('CalendarMatrix day inspector', () => {
     }))
     renderScreen(<CalendarMatrix role="viewer" displayName="Marek Nowak" range={WEEK_OF_TODAY} />)
     const dialog = await open(/^Ola Wiśniewska, pt 11-09-2026/)
-    expect(within(dialog).queryByRole('link', { name: 'Poproś o zamianę' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('link', { name: 'Poproś o zamianę…' })).not.toBeInTheDocument()
     expect(within(dialog).getByText('11:00–19:00 · korekta')).toBeInTheDocument()
     expect(within(dialog).getByText('nieznana osoba: Wolę nie - stary wpis')).toBeInTheDocument()
     expect(within(dialog).getByText('Ola Wiśniewska: Chętnie wezmę')).toBeInTheDocument()
@@ -1070,7 +1072,7 @@ describe('CalendarMatrix staffing form', () => {
     expect(within(dialog).getByRole('button', { name: '11–19: brak obsady. Obsadź' })).toHaveClass('role-row-sel')
     expect(within(dialog).getByRole('button', { name: '11–19: brak obsady. Obsadź' })).not.toHaveAttribute('aria-expanded')
     // The footer opens the form again on the role it was opened on.
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Zmień osobę' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Zmień osobę…' }))
     expect(within(dialog).getByRole('checkbox', { name: '11–19 · brak obsady' })).toBeChecked()
   })
 
@@ -1136,7 +1138,7 @@ describe('CalendarMatrix staffing form', () => {
     expect(await screen.findByText('Obsadzono 11–19 11 wrz: Ola Wiśniewska')).toBeInTheDocument()
     expect(screen.getByText('E-mail o dyżurze dostanie Ola Wiśniewska.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Otwórz dzień' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż dzień' }))
     const reopened = await screen.findByRole('dialog', { name: /^pt 11-09-2026/ })
     expect(within(reopened).getByRole('button', { name: '11–19: brak obsady. Obsadź' })).toHaveClass('role-row-sel')
   })
@@ -1220,7 +1222,7 @@ describe('CalendarMatrix day correction', () => {
     // The role row reads the same words to a screen reader.
     expect(within(dialog).getByRole('button', { name: `PRIMARY: Anna Kowalska. Zmień osobę. ${COLLISION}` })).toBeInTheDocument()
 
-    fireEvent.click(within(frame as HTMLElement).getByRole('button', { name: 'Zmień osobę' }))
+    fireEvent.click(within(frame as HTMLElement).getByRole('button', { name: 'Zmień osobę…' }))
     expect(await within(dialog).findByRole('checkbox', { name: 'PRIMARY' })).toBeChecked()
     // The form takes the panel's attention: the frame waits until it closes.
     expect(within(dialog).queryByText(COLLISION, { selector: 'b' })).not.toBeInTheDocument()
@@ -1232,7 +1234,7 @@ describe('CalendarMatrix day correction', () => {
     await waitFor(() => expect(save).toHaveBeenCalled())
     expect(await screen.findByText('Zmieniono obsadę 11 wrz · PRIMARY: Anna Kowalska → Ola Wiśniewska')).toBeInTheDocument()
     expect(screen.getByText('E-mail o zmianie dostaną obie osoby.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Otwórz dzień' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pokaż dzień' })).toBeInTheDocument()
   })
 
   it('names the conflict without a reason or an exit where there is none to give', async () => {
@@ -1682,7 +1684,7 @@ describe('CalendarMatrix roles to change (P7)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zmień obsadę (2 role)' }))
 
     expect(await screen.findByText('E-mail o zmianie dostaną 3 osoby.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Otwórz dzień' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pokaż dzień' })).toBeInTheDocument()
   })
 })
 

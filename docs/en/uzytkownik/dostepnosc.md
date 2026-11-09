@@ -4,7 +4,7 @@ The **My duties** screen (`/moje`) answers a team member's three questions, in t
 order: when am I on duty, what have I filed, how do I compare with the team.
 The title of the screen is “My duties”, and under it: who, in which account
 role, how many duties in the last 90 days and when the next one is. On the
-right are two actions: **ICS subscription** and **Propose a swap**
+right are two actions: **ICS subscription** and **Request a swap…**
 (opens Swaps with your nearest duty already selected).
 
 On a wide screen the left column holds the duties and the availability
@@ -19,7 +19,7 @@ The list of duties in the next 60 days, one row per day: the day and the role
 and underneath the coverage window, the rate (`1X` or `2X`) and who else is
 on duty that day (`Secondary: Marek`). A duty under way today is highlighted and has a
 **Details** button (opens that day on the Schedule); every other one has a
-**Swap** button, which opens the Swaps screen with that duty already selected.
+**Request a swap…** button, which opens the Swaps screen with that duty already selected.
 A day that collides with a filed “Unavailable” has an amber edge and the note
 **clash**; clicking it scrolls to the availability calendar opened on that
 day's month. The **Schedule** link in the section
@@ -55,21 +55,25 @@ so refreshing the page keeps the same calendar.
   leave”) when one was given.
 - The message has an **Undo** button, active for 10 seconds. Undo returns the
   marked days to how they were before the save: the entries that were there
-  come back on those days, with their mode and reason, and days outside the
-  selection stay as they are. If Undo fails, the message
+  come back on those days, with their mode, reason and author, and days
+  outside the selection stay as they are. The e-mails about the save (to the
+  person a coordinator saves for, and to coordinators about a duty) go out
+  only once the Undo window closes, and not at all after an Undo. If Undo
+  fails, the message
   says so and **Undo** can be clicked again.
 
 Under the calendar there is one sentence about the gestures and a **Legend**
 link that explains the dot, the outline and the letters. Days already filed
 carry the colour of the mode and a letter (`U` - unavailable, `P` - prefer
 not, `W` - willing); a day with a reason has a small note icon in its corner,
-and the reason itself is shown when you hover over the day. A dot in the
+and the reason itself is shown when you hover over the day; on a phone the
+first tap on a day with a reason shows it in the “Range: from…” frame. A dot in the
 corner of a day is your duty. Past days cannot be selected.
 
 If “unavailable” lands on a day with a duty, the day gets an amber outline and
 a frame appears under the calendar, for example “You have a PRIMARY duty on 9
 Mar and are filing “unavailable””. The entry does not take the duty away, so
-the frame has a **Request a swap** button for each such day, which opens the
+the frame has a **Request a swap…** button for each such day, which opens the
 Swaps screen with that duty already chosen. The frame covers every upcoming
 collision in the month shown and disappears when there is none.
 
@@ -104,8 +108,7 @@ too, as `osoba=`):
 
 If “unavailable” lands on that person's duty, the frame under the calendar
 says so by name, for example “Beata Lis has a PRIMARY duty on 9 Mar and the
-entry is “unavailable””. Instead of **Request a swap** it has an **Open the
-day** button for each such day, which opens that day in the schedule, where
+entry is “unavailable””. Instead of **Request a swap…** it has a **Show day** button for each such day, which opens that day in the schedule, where
 the cover can be changed.
 
 If your own account is not in the rotation, picking a person is mandatory -

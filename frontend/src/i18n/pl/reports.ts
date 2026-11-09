@@ -4,7 +4,7 @@ export const reports = {
   subtitle: 'CSV dla kadr: dni dyżurowe każdej osoby (primary i secondary razem) w dni robocze oraz w weekendy i święta, z podziałem na role i punktami (1X/2X). Zmiany 11-19 nie są dniami dyżurowymi; święto w sobotę lub niedzielę liczy się jako weekend.',
   month: 'Miesiąc rozliczenia',
   preparing: 'Przygotowuję…',
-  downloadCsv: 'Pobierz CSV',
+  downloadCsv: 'Eksportuj CSV',
   downloaded: 'Raport został pobrany.',
   /** The name of the downloaded file; `month` is "2026-08". */
   fileName: (month: string) => `oncall-${month}.csv`,

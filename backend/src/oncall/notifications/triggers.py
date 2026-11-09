@@ -61,6 +61,19 @@ def _swap_undo_key(swap_id: uuid.UUID) -> str:
     return f"swap-requested:{swap_id}"
 
 
+def availability_undo_key(undo_id: uuid.UUID) -> str:
+    """A painted range's mails, which its Undo in time cancels."""
+    return f"availability-range:{undo_id}"
+
+
+def _held(undo_id: uuid.UUID | None) -> tuple[dict, datetime | None]:
+    """The context and delay of a stroke's mail: with an Undo it waits for
+    the window, without one it goes at once."""
+    if undo_id is None:
+        return {}, None
+    return {"undo_key": availability_undo_key(undo_id)}, utc_now() + UNDO_WINDOW
+
+
 def _message(recipient: str, rendered: RenderedEmail, context: dict) -> NotificationMessage:
     return NotificationMessage(
         channel="email",
@@ -585,8 +598,10 @@ async def notify_availability_duty_conflict(
     *,
     member_name: str,
     duties: list[tuple[date, AssignmentRole]],
+    undo_id: uuid.UUID | None = None,
 ) -> None:
     settings = get_settings()
+    held, send_after = _held(undo_id)
     coordinators = (
         await db.scalars(
             select(User).where(
@@ -612,9 +627,11 @@ async def notify_availability_duty_conflict(
                     "event": "availability_duty_conflict",
                     "member": member_name,
                     "starts_on": first_day.isoformat(),
+                    **held,
                 },
             ),
             dedup_key=f"availability-duty:{member_name}:{first_day}:{coordinator.id}",
+            send_after=send_after,
         )
 
 
@@ -627,9 +644,11 @@ async def notify_availability_created_on_behalf(
     starts_on: date,
     ends_on: date,
     note: str | None,
+    undo_id: uuid.UUID | None = None,
 ) -> None:
     """Tell the member that a coordinator filed availability in their name."""
     settings = get_settings()
+    held, send_after = _held(undo_id)
     emails = await _emails_for_names(db, [member_name])
     await _enqueue_for(
         db,
@@ -646,7 +665,9 @@ async def notify_availability_created_on_behalf(
         context={
             "event": "availability_created_on_behalf",
             "starts_on": starts_on.isoformat(),
+            **held,
         },
+        send_after=send_after,
     )
 
 

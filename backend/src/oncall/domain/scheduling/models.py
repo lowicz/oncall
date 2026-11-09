@@ -239,7 +239,7 @@ class ScheduleView:
     """
 
     schedule: Schedule
-    rule_warnings: tuple[str, ...]
+    rule_warnings: tuple[RuleViolation, ...]
     unavailability_conflicts: tuple[UnavailabilityConflict, ...]
     uncovered_before: tuple[date, ...]
     stale_changes_count: int

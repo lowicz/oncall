@@ -34,3 +34,8 @@ class AvailabilityOverlaps(DomainError):
 class AvailabilityEntryNotFound(DomainError):
     def __init__(self) -> None:
         super().__init__("availability.entry_not_found")
+
+
+class AvailabilityUndoNotFound(DomainError):
+    def __init__(self) -> None:
+        super().__init__("availability.undo_not_found")

@@ -105,5 +105,12 @@ bar. Such a session:
 - expires together with the link,
 - stops working immediately once the link is revoked.
 
+A browser holds one session, so the preview session replaces an account
+signed in there before, in every tab. When someone signed in to an account
+opens the link, the screen says so first and offers **Stay signed in** or
+**Open the preview and sign out**; to have both at once, open the link in a
+private window or another browser. A link opened during another preview
+replaces it without asking.
+
 The permanent form of access remains a named `viewer` account; the temporary
 link is the exception.

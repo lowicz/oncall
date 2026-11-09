@@ -120,6 +120,8 @@ export interface PublishedSchedule {
   is_published: boolean
   id: string | null
   version: number | null
+  /** When the schedule in force today was published: its name on screen. */
+  published_at?: string | null
   starts_on: string | null
   ends_on: string | null
   assignments: Assignment[]
@@ -230,6 +232,8 @@ export interface AvailabilityRangeInput {
   starts_on: string
   ends_on: string
   note?: string
+  /** Names the save for its Undo; the server keeps what the range held. */
+  undo_id?: string
 }
 
 export interface HistoryImportRow {
@@ -309,6 +313,9 @@ export interface ScheduleWarning {
   /** 'solver' - what CP-SAT gave up; 'rules' - a hard rule the schedule breaks. */
   source: 'solver' | 'rules'
   message: string
+  /** Who breaks the rule and on which days; only a 'rules' warning has them. */
+  member_name?: string | null
+  days?: string[]
 }
 
 export interface UnavailabilityConflict {
@@ -879,8 +886,23 @@ function asDataUrl(blob: Blob): Promise<string> {
  */
 const languageHeader = () => ({ 'Accept-Language': readLanguage() })
 
+/**
+ * `fetch` that says in the interface language when the server cannot be
+ * reached: the browser rejects with its own `TypeError` ("Failed to fetch")
+ * before any response exists, so `parseError` never sees it. A cancelled
+ * request keeps its `AbortError`, which the query client relies on.
+ */
+async function reach(input: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init)
+  } catch (error) {
+    if (error instanceof TypeError) throw new Error(messages().common.networkError, { cause: error })
+    throw error
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await reach(path, {
     ...init,
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...languageHeader(), ...init?.headers },
@@ -929,7 +951,7 @@ export const api = {
    *  the directory holds none for them. A directory that cannot answer is an
    *  error, so the caller keeps its fallback either way. */
   ownAvatar: async (url: string): Promise<string | null> => {
-    const response = await fetch(url, { credentials: 'include', headers: languageHeader() })
+    const response = await reach(url, { credentials: 'include', headers: languageHeader() })
     if (response.status === 404) return null
     if (!response.ok) {
       const body = await response.json().catch(() => null)
@@ -945,7 +967,7 @@ export const api = {
     }),
   logout: async () => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
-    const response = await fetch('/api/v1/auth/logout', {
+    const response = await reach('/api/v1/auth/logout', {
       method: 'POST',
       credentials: 'include',
       headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
@@ -993,6 +1015,8 @@ export const api = {
     send<AvailabilityEntry>('POST', '/api/v1/availability/me', input),
   replaceAvailabilityRange: (input: AvailabilityRangeInput) =>
     send<AvailabilityEntry | null>('PUT', '/api/v1/availability/me/range', input),
+  undoAvailabilityRange: (undoId: string) =>
+    send<void>('POST', `/api/v1/availability/me/range/undo/${undoId}`),
   deleteAvailability: (id: string) => send<void>('DELETE', `/api/v1/availability/me/${id}`),
   memberAvailability: (memberId: string) =>
     request<AvailabilityEntry[]>(`/api/v1/availability/members/${memberId}`),
@@ -1000,13 +1024,15 @@ export const api = {
     send<AvailabilityEntry>('POST', `/api/v1/availability/members/${memberId}`, input),
   replaceMemberAvailabilityRange: (memberId: string, input: AvailabilityRangeInput) =>
     send<AvailabilityEntry | null>('PUT', `/api/v1/availability/members/${memberId}/range`, input),
+  undoMemberAvailabilityRange: (memberId: string, undoId: string) =>
+    send<void>('POST', `/api/v1/availability/members/${memberId}/range/undo/${undoId}`),
   deleteMemberAvailability: (memberId: string, id: string) =>
     send<void>('DELETE', `/api/v1/availability/members/${memberId}/${id}`),
   previewHistory: async (file: File) => {
     const { csrf_token } = await request<{ csrf_token: string }>('/api/v1/auth/csrf')
     const form = new FormData()
     form.append('file', file)
-    const response = await fetch('/api/v1/history/preview', {
+    const response = await reach('/api/v1/history/preview', {
       method: 'POST',
       credentials: 'include',
       headers: { 'X-CSRF-Token': csrf_token, ...languageHeader() },
@@ -1182,7 +1208,7 @@ export const api = {
       `/api/v1/fairness/duties?member_id=${encodeURIComponent(memberId)}${asOf ? `&as_of=${asOf}` : ''}`,
     ),
   monthlyReport: async (month: string) => {
-    const response = await fetch(
+    const response = await reach(
       `/api/v1/reports/monthly.csv?month=${encodeURIComponent(month)}`,
       { credentials: 'include', headers: languageHeader() },
     )

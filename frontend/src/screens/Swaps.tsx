@@ -1,4 +1,4 @@
-import { Fragment, ReactNode, useCallback, useEffect, useState } from 'react'
+import { Fragment, ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, AssignmentRole, RuleViolation, SwapImpact, SwapImpactMember, SwapOption, SwapRequest, SwapReturnOption, SwapScope, SwapSlot, SwapStatus, UserRole, api } from '../api'
@@ -87,10 +87,12 @@ const CLOSED_PAGE = 50
 // ponytail: open requests in one request at the API's cap; page them too if a team ever keeps 200 open.
 const OPEN_LIMIT = 200
 
+/** "Wysłane" holds what still waits for the replacement; once they agree,
+ *  the request is "W toku" for the requester as for the replacement. */
 function inboxOf(item: SwapRequest, me: string): Inbox {
   if (!isOpen(item)) return 'zamkniete'
   if (item.status === 'pending_replacement' && item.replacement_name === me) return 'do-mnie'
-  if (item.requester_name === me) return 'moje'
+  if (item.status === 'pending_replacement' && item.requester_name === me) return 'moje'
   return 'w-toku'
 }
 
@@ -480,6 +482,10 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const [reason, setReason] = useState('')
   const [rejecting, setRejecting] = useState(false)
   const openSheet = (id: string | null) => { setOpenId(id); setReason(''); setRejecting(false); setSheetAcknowledgedFor(null) }
+  // A decision moves the request to another inbox, so the row that opened
+  // the sheet is gone when it closes: focus goes to the inbox heading instead.
+  const inboxHeading = useRef<HTMLHeadingElement>(null)
+  const decided = useRef(false)
   const openSwaps = useQuery({ queryKey: ['swaps', 'open'], queryFn: () => api.swaps({ status: OPEN_STATUSES, limit: OPEN_LIMIT }) })
   const closedSwaps = useInfiniteQuery({
     queryKey: ['swaps', 'closed'],
@@ -650,6 +656,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   }, [sent, resetCreate, setInbox])
   const settle = (notify: (result: SwapRequest) => void) => ({
     onSuccess: (result: SwapRequest) => {
+      decided.current = true
       openSheet(null)
       refresh()
       notify(result)
@@ -680,7 +687,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const awaitingApproval = items.filter((item) => inboxOf(item, displayName) === 'w-toku' && needsMyDecision(item, viewer)).length
   const badges: Record<Inbox, number> = { ...counts, 'w-toku': approver ? awaitingApproval : counts['w-toku'] }
   const actionable = items.filter((item) => needsMyDecision(item, viewer)).length
-  const otherOpen = items.filter((item) => isOpen(item) && !needsMyDecision(item, viewer)).length
+  const waiting = items.filter((item) => isOpen(item) && !needsMyDecision(item, viewer))
+  const awaitingCoordinator = waiting.filter((item) => item.status === 'pending_coordinator').length
+  const otherOpen = waiting.length - awaitingCoordinator
   // The address names the inbox; without one, open where something waits.
   const requested = searchParams.get('skrzynka')
   const inbox: Inbox = isInbox(requested)
@@ -743,8 +752,9 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
   const subtitle = swapsLoaded && [
     t.swaps.summary.awaitingMe(actionable),
     t.swaps.summary.awaitingOthers(otherOpen),
+    awaitingCoordinator > 0 && t.swaps.summary.awaitingCoordinator(awaitingCoordinator),
     t.swaps.summary.closed(counts.zamkniete, closedSwaps.hasNextPage),
-  ].join(' · ')
+  ].filter(Boolean).join(' · ')
 
   return (
     <div className="page">
@@ -761,6 +771,7 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
         <>
           <SectionHeading
             title={t.swaps.inbox.heading}
+            headingRef={inboxHeading}
             controls={(
               <Segmented<Inbox>
                 label={t.swaps.inbox.heading}
@@ -886,6 +897,11 @@ export function SwapPanel({ displayName, role, hasTeamMember }: {
       <Panel
         open={Boolean(openItem)}
         onClose={() => openSheet(null)}
+        finalFocus={() => {
+          if (!decided.current) return true
+          decided.current = false
+          return inboxHeading.current
+        }}
         title={openItem ? sheetTitle(openItem) : ''}
         // Wide enough for both names of an exchange row and the approval's three buttons.
         wide

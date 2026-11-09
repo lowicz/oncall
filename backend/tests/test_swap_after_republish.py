@@ -75,7 +75,9 @@ async def test_the_person_actually_on_duty_can_swap_the_republished_slot(
             "schedule_id": str(month.id),
             "service_date": target.isoformat(),
             "role": "primary",
-            "replacement_member_id": options[0]["member_id"],
+            "replacement_member_id": next(
+                option["member_id"] for option in options if not option["blocking_violations"]
+            ),
         },
     )
     assert response.status_code == 201, response.text

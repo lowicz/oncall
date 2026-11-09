@@ -12,8 +12,8 @@ filter - how many there are:
 | Filter | What it contains |
 | --- | --- |
 | **To me** | requests in which it is you who is to accept or decline the replacement |
-| **Sent** | your own, still open requests |
-| **For approval** (for a team member: **In progress**) | the remaining open requests; for a coordinator the counter covers only requests accepted by the replacement and waiting for their approval. When swap approval is switched off (see [Coordinator approval](#coordinator-approval)), a coordinator also sees the ordinary **In progress** here |
+| **Sent** | your own requests waiting for the replacement to agree |
+| **For approval** (for a team member: **In progress**) | the remaining open requests, including yours once the replacement has agreed and they wait for the coordinator; for a coordinator the counter covers only requests accepted by the replacement and waiting for their approval. When swap approval is switched off (see [Coordinator approval](#coordinator-approval)), a coordinator also sees the ordinary **In progress** here |
 | **Closed** | approved, rejected and withdrawn, including those the application closed [after their date](#date-passed) |
 
 The screen opens on the inbox in which something is waiting for you; the
@@ -53,7 +53,7 @@ the same place:
 - The **replacement** clicks “Accept” or “Reject”. With approval switched off,
   the sheet announces that acceptance will write the swap into the schedule
   right away, and the confirmation says the same (“Accepted. The swap is
-  written into the schedule.”, with an **Open the day** button). With approval
+  written into the schedule.”, with a **Show day** button). With approval
   switched on, the confirmation reads “Accepted. Waiting for the coordinator to
   approve.”.
 - A **coordinator or administrator** clicks “Approve and write into the
@@ -70,9 +70,9 @@ stays with the request.
 
 ## Filing a request
 
-The **New swap** button in the screen header opens the form in a panel; the
-**Request a swap** button on the My duties screen opens it with the duty
-already chosen. The form leads through four steps: duty, replacement, in return
+The **Request a swap…** button in the screen header opens the form in a panel;
+the same button on the My duties screen and in the schedule's day panel opens
+it with the duty already chosen. The form leads through four steps: duty, replacement, in return
 (optional) and sending. Once the replacement is picked the bar moves straight
 on to sending, as “Nothing, I only give the duty away” is already chosen.
 Once a request has been started, closing the panel, going to another screen, or reloading requires a decision whether to discard the entered data.

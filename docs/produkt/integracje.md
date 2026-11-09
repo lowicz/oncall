@@ -196,7 +196,7 @@ Połączenie z WCO jest zawsze weryfikowane; firmowe CA dochodzi z pliku
 `ONCALL_CA_FILE` ([Uruchomienie](../wdrozenie/uruchomienie.md#plik-ca)).
 Historia jest w audycie pod akcjami `forwarding.*` (przełączono,
 niepowodzenie, pominięto, zmiana hasła, odsłonięcie hasła, sprawdzenie
-połączenia, zmiana ustawień), a bieżący stan pokazuje ekran administratora.
+połączenia, zmiana ustawień, przekazanie numeru i jego zakończenie), a bieżący stan pokazuje ekran administratora.
 Wpisy audytu podlegają retencji, dlatego stan potrzebny na zawsze leży na
 własnych wierszach. Gdy automat zawiedzie, administrator odsłania hasło WCO
 i przełącza numer sam: [Ręczne przełączenie
@@ -284,6 +284,9 @@ Treść zawiera `starts_on`, `ends_on`, opcjonalne `note` i `kind`: `unavailable
 Serwer przycina zachodzące wpisy do części poza zakresem i zapisuje usunięcia, zachowane części oraz nowy wpis w jednej transakcji.
 Zachowane części, także te sprzed dzisiaj, zachowują autora i notatkę i nie wysyłają ponownie powiadomień; powiadomienia i audyt dotyczą tylko zmienionych dni.
 Błąd dowolnej części wycofuje całą operację.
+Treść może też nieść `undo_id`, identyfikator UUID nadany przez klienta: serwer zapamiętuje wtedy, co zakres zawierał, a e-maile tego zapisu czekają na koniec okna „Cofnij” (`undo_window_seconds`).
+`POST /api/v1/availability/me/range/undo/{undo_id}` (dla koordynatora `POST /api/v1/availability/members/{member_id}/range/undo/{undo_id}`) jednym żądaniem przywraca zakres do stanu sprzed zapisu: wpisy wracają z autorem i notatką, dni poza zakresem zostają bez zmian, a e-maile zapisu, które jeszcze czekają, nie wychodzą.
+Cofnąć może tylko konto, które zapisało zakres, i tylko raz; w innym razie odpowiedź to `404`.
 Dotychczasowe punkty `POST` i `DELETE` pozostają dostępne dla starszych klientów.
 
 Przed korektą grafiku klient może pobrać naruszenia reguł twardych bez zmiany danych.
@@ -336,7 +339,7 @@ roboczego, więc warto je zbierać.
 | `outbox` | `eligible`, `oldest_eligible_seconds`, `retrying`, `attempts_max`, `waiting`, `dead` |
 | `generation` | `run`, `outcome`, `queued_seconds`, `run_seconds` |
 | `generation_abandoned` | `runs` - ile uruchomień zwolniono po procesie, który zginął (ostrzeżenie) |
-| `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens` - ile wierszy usunął przebieg; `capped` - ile tabel doszło do limitu paczek i ma jeszcze zaległość; `seconds` |
+| `retention` | `audit`, `logins`, `outbox`, `runs`, `sessions`, `tokens`, `snapshots` - ile wierszy usunął przebieg; `capped` - ile tabel doszło do limitu paczek i ma jeszcze zaległość; `seconds` |
 | `forwarding` | `outcome` (`applied`, `unchanged`, `failed`, `skipped_no_primary`, `skipped_no_phone`, `dry_run`), `rotated` - `1`, gdy przebieg zmienił wygasłe hasło Orange WCO; `seconds`, `attempts` - kolejne nieudane próby; przebieg, który nic nie zrobił, nie emituje rekordu |
 
 `queue` i `outbox` są próbkowane na zegarze (`ONCALL_METRICS_INTERVAL_SECONDS`,

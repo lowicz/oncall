@@ -82,7 +82,8 @@ small, .small { font-size: 12px; line-height: 16px; }
 .now-who-none { font-weight: 500; }
 .now-tel { font: 12px/16px var(--mono); color: inherit; text-decoration: none; flex: 0 0 auto; }
 .now-tel:hover { text-decoration: underline; }
-.now-until { margin-left: auto; font: 12px/16px var(--mono); overflow: hidden; text-overflow: ellipsis; min-width: 8ch; flex: 1 1 0; text-align: right; }
+/* Never cut: when the slot is too narrow for the time, it takes a row of its own. */
+.now-until { margin-left: auto; font: 12px/16px var(--mono); flex: 1 0 auto; text-align: right; }
 .now-gap::before, .now-stale::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn-dot); box-shadow: 0 0 0 1.5px var(--band-ink); margin-right: 6px; vertical-align: middle; }
 /* A real gap outweighs the name beside it: bold, with the alarm dot. */
 .now-gap::before { background: var(--bad-dot); }
@@ -395,12 +396,13 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .panel-modal { z-index: 41; }
 .panel-modal .panel-head { position: relative; padding-top: 24px; }
 .panel-modal .panel-head::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; border-radius: 2px; background: var(--line2); }
-.panel-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+.panel-head { display: flex; align-items: flex-start; gap: 8px; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+.panel-heading { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .panel-title { font: 700 20px/24px var(--font); }
 /* The title takes focus only so a screen reader starts there; it is not a control, so it draws no ring. */
 .panel-title:focus-visible { outline: none; }
 .panel-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.panel-close { margin-left: auto; }
+.panel-close { margin-top: -4px; }
 .panel-body { padding: 16px 20px; overflow: auto; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
 .panel-foot { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--line); padding: 12px 20px; }
 .panel-foot .sp { flex: 1; }
@@ -642,6 +644,9 @@ button.rank-c.rank-blocked { cursor: not-allowed; }
 .problems-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .problems-cell small { flex-basis: 100%; font: 12px/16px var(--mono); }
 .problems-foot { text-align: center; padding: 10px; }
+.problems-list { margin: 0; padding: 0; list-style: none; }
+.problems-list .list-main small { display: inline; margin: 0; }
+p.problems-foot { margin: 0; border-top: 1px solid var(--line); }
 .ml-auto { margin-left: auto; }
 .progress { height: 6px; border-radius: 3px; background: var(--s3); overflow: hidden; }
 .progress i { display: block; width: 100%; height: 100%; background: var(--sig); transform-origin: left; transition: transform 0.4s; }
@@ -751,7 +756,11 @@ table.report-table td.key { font-weight: 600; }
   .dialog-popup { top: auto; left: 0; right: 0; bottom: 0; transform: none; width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; border-left: 0; border-right: 0; border-bottom: 0; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
   .panel-popup { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-height: 88vh; border-left: 0; border-top: 1px solid var(--line2); border-radius: 16px 16px 0 0; }
   .panel-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
-  .toasts { top: calc(12px + env(safe-area-inset-top)); bottom: auto; left: 12px; right: 12px; width: auto; }
+  /* In the thumb's reach, just above the bottom tabs, where the action was taken. */
+  .toasts { bottom: calc(72px + env(safe-area-inset-bottom)); left: 12px; right: 12px; width: auto; }
+  /* A row's actions go under its text, which keeps the full width. */
+  .list-row { grid-template-columns: minmax(0, 1fr); }
+  .list-aside { justify-content: flex-start; }
   .tabs-bottom { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; background: var(--rail-bg); padding: 6px 4px calc(8px + env(safe-area-inset-bottom)); z-index: 20; }
   .tab-link { display: grid; justify-items: center; gap: 2px; font: 600 12px/16px var(--font); color: var(--rail-muted); text-decoration: none; padding: 2px 0; position: relative; }
   .tab-link.active { color: var(--rail-active); }

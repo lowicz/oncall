@@ -263,3 +263,38 @@ async def test_a_rename_between_a_correction_and_a_republish_keeps_the_carry(
             None,
         )
     ]
+
+
+@pytest.mark.anyio
+async def test_a_correction_undone_replies_that_the_slot_is_no_correction(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """The Undo of a correction is the inverse correction; its reply carries
+    the flag the slot was saved with, not a correction mark."""
+    members = await _team(db)
+    await create_user(db, "koord", role=UserRole.coordinator)
+    published = await _published_week(db, members)
+    start = published.starts_on
+    await login(client, "koord")
+
+    replies = []
+    for version, name in (
+        (published.version, "Ola Wiśniewska"),
+        (published.version + 1, "Anna Kowalska"),
+    ):
+        reply = await client.post(
+            "/api/v1/calendar/override",
+            json={
+                "schedule_id": str(published.id),
+                "expected_version": version,
+                "service_date": start.isoformat(),
+                "role": "primary",
+                "replacement_member_id": str(members[name].id),
+                "acknowledge_rule_violations": True,
+            },
+        )
+        assert reply.status_code == 200, reply.text
+        replies.append(reply.json()["is_override"])
+
+    assert replies == [True, False]
+    assert (await _slot(db, published.id, start, AssignmentRole.primary)).is_override is False
