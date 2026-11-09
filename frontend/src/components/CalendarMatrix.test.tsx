@@ -1772,6 +1772,25 @@ describe('CalendarMatrix roles to change (P7)', () => {
     expect(within(form).queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('counts in the toast only the people whose duty still mails', async () => {
+    vi.setSystemTime(new Date('2026-09-11T20:00:00+02:00'))
+    policy('secondary')
+    vi.spyOn(api, 'calendar').mockResolvedValue(friday('m1'))
+    vi.spyOn(api, 'batchOverrideCheck').mockResolvedValue(checked())
+    vi.spyOn(api, 'batchOverride').mockResolvedValue([])
+    render()
+    const form = await openRow(/^SECONDARY: Marek Nowak/)
+    fireEvent.click(check(form, /^11–19/))
+    fireEvent.change(within(form).getByRole('combobox', { name: 'Osoba na SECONDARY i 11–19' }), { target: { value: 'm3' } })
+    fireEvent.change(await within(form).findByRole('textbox'), { target: { value: 'Zmiana po dniu pracy' } })
+    const save = screen.getByRole('button', { name: 'Zmień obsadę (2 role)' })
+    await waitFor(() => expectReady(save))
+    fireEvent.click(save)
+
+    // Anna's 11–19 ended at 19:00: only Marek and Ola, of the night's SECONDARY, hear of it.
+    expect(await screen.findByText('E-maile do obu osób wyjdą po zamknięciu „Cofnij”.')).toBeInTheDocument()
+  })
+
   it('names three people in the toast of a change Undo cannot take back', async () => {
     policy('secondary')
     vi.spyOn(api, 'calendar').mockResolvedValue(friday('m1', {

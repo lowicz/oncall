@@ -26,14 +26,14 @@ describe('correctionTiming', () => {
   it('asks a reason once any role has ended and stays silent only once all have', () => {
     // The pinned clock: Thursday 10-09-2026, 09:00 in Warsaw.
     const thursday = { service_date: '2026-09-10', is_day_off: false }
-    expect(correctionTiming(thursday, ['primary', 'late_shift'])).toEqual({ historical: false, silent: false })
-    expect(correctionTiming(WEDNESDAY, ['primary', 'late_shift'])).toEqual({ historical: true, silent: true })
-    expect(correctionTiming(undefined, ['primary'])).toEqual({ historical: false, silent: false })
+    expect(correctionTiming(thursday, ['primary', 'late_shift'])).toEqual({ ended: [], historical: false, silent: false })
+    expect(correctionTiming(WEDNESDAY, ['primary', 'late_shift'])).toEqual({ ended: ['primary', 'late_shift'], historical: true, silent: true })
+    expect(correctionTiming(undefined, ['primary'])).toEqual({ ended: [], historical: false, silent: false })
   })
 
   it('mails the duties still in force when only some have ended', () => {
     vi.setSystemTime(at('2026-09-10T20:00:00'))
     const thursday = { service_date: '2026-09-10', is_day_off: false }
-    expect(correctionTiming(thursday, ['primary', 'late_shift'])).toEqual({ historical: true, silent: false })
+    expect(correctionTiming(thursday, ['primary', 'late_shift'])).toEqual({ ended: ['late_shift'], historical: true, silent: false })
   })
 })

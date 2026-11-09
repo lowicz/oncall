@@ -139,7 +139,7 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
   const [reason, setReason] = useState('')
 
   const { late, roles, candidates, chosen, ref, changes, lines, ready } = selection({ data, serviceDate, link, onCall, lateChoice, memberId, open })
-  const { historical, silent } = correctionTiming(day, roles)
+  const { ended, historical, silent } = correctionTiming(day, roles)
 
   const check = useQuery({
     queryKey: ['staff-change-check', ref?.schedule_id, ref?.schedule_version, lines],
@@ -175,7 +175,8 @@ export function useStaffChange({ data, serviceDate, coordinates, onSaved, onOpen
       const name = chosen!.display_name
       const given = historical ? reason.trim() : undefined
       const acknowledge = (violations?.length ?? 0) > 0 && acknowledged
-      const people = new Set([...changes.flatMap((item) => (item.from ? [item.from] : [])), name]).size
+      const mailed = changes.filter((item) => !ended.includes(item.role))
+      const people = new Set([...mailed.flatMap((item) => (item.from ? [item.from] : [])), name]).size
       const title = savedTitle(changes, roles, date, name)
       const audited = acknowledge ? schedule.toast.violationAudited : ''
       const execute = () => api.batchOverride({

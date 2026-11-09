@@ -48,10 +48,11 @@ export function coverageEnded(day: { service_date: string; is_day_off: boolean }
   return warsawMoment(now) >= end
 }
 
-/** What a correction of these roles of a day owes to time: a reason once any
- *  role's cover has ended (`historical`), no e-mail once all of them have
- *  (`silent`), as the API decides it line by line. */
+/** What a correction of these roles of a day owes to time: the roles whose
+ *  cover has ended and mail nobody (`ended`), a reason once any has
+ *  (`historical`), no e-mail at all once all of them have (`silent`), as the
+ *  API decides it line by line. */
 export function correctionTiming(day: { service_date: string; is_day_off: boolean } | undefined, roles: AssignmentRole[]) {
-  const ended = day ? roles.filter((role) => coverageEnded(day, role)).length : 0
-  return { historical: ended > 0, silent: ended > 0 && ended === roles.length }
+  const ended = day ? roles.filter((role) => coverageEnded(day, role)) : []
+  return { ended, historical: ended.length > 0, silent: ended.length > 0 && ended.length === roles.length }
 }
