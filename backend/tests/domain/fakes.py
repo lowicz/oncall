@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-from oncall.domain.availability.models import AvailabilityEntry
+from oncall.domain.availability.models import AvailabilityEntry, RangeSnapshot
 from oncall.domain.availability.ports import AvailabilityReadPorts, AvailabilityWritePorts
 from oncall.domain.overrides.ports import OverridePorts
 from oncall.domain.roster import Duty, ScheduleRef, Slot, SlotOrigin
@@ -285,6 +285,27 @@ class FakeSwapRequests:
         return items[offset : offset + limit]
 
 
+class FakeSnapshots:
+    """Range snapshots kept in memory, taken once by the account that painted."""
+
+    def __init__(self) -> None:
+        self.kept: dict[uuid.UUID, RangeSnapshot] = {}
+
+    async def keep(self, snapshot: RangeSnapshot) -> None:
+        self.kept[snapshot.id] = snapshot
+
+    async def take(
+        self, undo_id: uuid.UUID, member_id: uuid.UUID, actor_user_id: uuid.UUID
+    ) -> RangeSnapshot | None:
+        snapshot = self.kept.get(undo_id)
+        if snapshot is None or (snapshot.member_id, snapshot.actor_user_id) != (
+            member_id,
+            actor_user_id,
+        ):
+            return None
+        return self.kept.pop(undo_id)
+
+
 class FakeJournal:
     """Records every journal call as (event, keyword arguments)."""
 
@@ -374,6 +395,7 @@ class World:
     requests: FakeSwapRequests = field(default_factory=FakeSwapRequests)
     journal: FakeJournal = field(default_factory=FakeJournal)
     ledger: FakeLedger = field(default_factory=FakeLedger)
+    snapshots: FakeSnapshots = field(default_factory=FakeSnapshots)
 
     @property
     def swaps(self) -> SwapPorts:
@@ -393,7 +415,11 @@ class World:
     @property
     def availability_writes(self) -> AvailabilityWritePorts:
         return AvailabilityWritePorts(
-            team=self.team, roster=self.roster, ledger=self.ledger, journal=self.journal
+            team=self.team,
+            roster=self.roster,
+            ledger=self.ledger,
+            journal=self.journal,
+            snapshots=self.snapshots,
         )
 
     @property

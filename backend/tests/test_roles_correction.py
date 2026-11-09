@@ -139,6 +139,18 @@ async def test_two_roles_for_one_person_are_one_correction_and_undo_takes_the_ma
         AssignmentRole.secondary: "Anna Kowalska",
         AssignmentRole.late_shift: "Jan Wiśniewski",
     }
+    # Back with the people it was published with, the day reads as published:
+    # no correction mark and no displaced holder left behind.
+    for row in await db.scalars(
+        select(Assignment).where(
+            Assignment.schedule_id == schedule_id, Assignment.service_date == today
+        )
+    ):
+        assert (row.is_override, row.original_assignee_name, row.original_member_id) == (
+            False,
+            None,
+            None,
+        ), row.role
     rows = (await db.scalars(select(NotificationOutbox))).all()
     assert rows
     assert all(row.cancelled_at is not None for row in rows)
