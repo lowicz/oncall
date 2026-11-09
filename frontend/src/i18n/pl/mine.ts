@@ -50,7 +50,7 @@ export const mine = {
       unavailable: 'nie mogę',
       prefer_not: 'wolę nie',
       prefer: 'chętnie',
-      clear: 'Wyczyść zaznaczenie',
+      clear: 'Gumka (usuwa wpis z dnia)',
     },
     previousMonth: 'Poprzedni miesiąc',
     nextMonth: 'Następny miesiąc',
@@ -58,7 +58,7 @@ export const mine = {
     pickDescription: 'Twoje konto nie jest w rotacji. Wskaż osobę, w imieniu której chcesz zgłosić dostępność.',
     howTo: 'Kliknij dzień albo przeciągnij po kilku. Zapisujemy od razu.',
     /** Said on a device with a keyboard and a mouse only; a phone has no Shift. */
-    howToShift: 'Shift+klik zaznacza zakres.',
+    howToShift: 'Shift+klik albo Shift+Enter zaznacza zakres.',
     /** The phone, where the first tap starts a range and the second closes it. */
     howToTouch: 'Dotknij pierwszego i ostatniego dnia zakresu (jeden dzień: dwa razy ten sam). Zapisujemy od razu.',
     legend: {

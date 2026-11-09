@@ -28,3 +28,12 @@ export function phoneText(phone: string): string {
   if (groups) return ['+48', ...groups.slice(1)].join('\u00a0')
   return phone.trim().replace(/\s+/g, '\u00a0')
 }
+
+/**
+ * The same without the country code of a Polish number (`602 345 678`), for
+ * the "Teraz" strip: with it the number no longer fits beside the name and the
+ * strip grows a row. The `tel:` address keeps the code.
+ */
+export function phoneTextNational(phone: string): string {
+  return phoneText(phone).replace(/^\+48\u00a0/, '')
+}

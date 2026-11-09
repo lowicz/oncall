@@ -15,7 +15,7 @@ import {
 } from '../api'
 import { messages, useMessages } from '../i18n'
 import { meKey } from '../session'
-import { isPolishPhone } from '../lib/phone'
+import { isPolishPhone, phoneText } from '../lib/phone'
 import { availabilityLabels, firstName, roleLabels, swapStatusLabels } from '../lib/labels'
 import { roleLabels as accountRoleLabels } from '../lib/nav'
 import { DEVIATION_SCALE, deviationWords, monthlyTotals, totalBalance } from '../lib/fairness'
@@ -176,7 +176,7 @@ function DutyList({ duties, today, collides, onShowCollision }: {
  * before it is committed. On a phone, where a drag scrolls the page, the
  * first tap starts a range and the second closes and saves it.
  */
-function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, narrow, onPaint }: {
+function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, narrow, onPaint, onStepMonth }: {
   month: string
   entries: AvailabilityEntry[]
   duties: Duty[]
@@ -185,6 +185,8 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
   disabled: boolean
   narrow: boolean
   onPaint: (startsOn: string, endsOn: string) => void
+  /** PageUp and PageDown turn the month, as in a date picker. */
+  onStepMonth: (months: number) => void
 }) {
   const words = useMessages()
   const t = words.mine.calendar
@@ -238,6 +240,29 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
     // change of the drag so the commit always sees the current range.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag])
+  // The day PageUp or PageDown left for: the same day of the next or the
+  // previous month (its last day, if shorter), focused once that month shows;
+  // a passed one hands the focus to the first day still open.
+  const turnedTo = useRef<string | null>(null)
+  useEffect(() => {
+    const date = turnedTo.current
+    if (!date?.startsWith(month)) return
+    turnedTo.current = null
+    const cells = weeks.flatMap((week, row) => week.map((cell, col) => ({ date: cell.date, row, col })))
+    const target = cells.find((cell) => cell.date === date && date >= today) ?? cells.find((cell) => cell.date && cell.date >= today)
+    if (target) grid.focusCell(target.row, target.col)
+    // Runs on a turn of the month only; the grid and the weeks belong to it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month])
+  const turnMonth = (event: React.KeyboardEvent, date: string) => {
+    event.preventDefault()
+    const months = event.key === 'PageUp' ? -1 : 1
+    const next = shiftMonth(month, months)
+    // A month wholly passed has no day to land on.
+    if (monthDays(next).at(-1)! < today) return
+    turnedTo.current = monthDays(next)[Math.min(Number(date.slice(8)), monthDays(next).length) - 1]
+    onStepMonth(months)
+  }
   const selection = drag ?? pick
   const previewRange = selection
     ? [selection.anchor, selection.hover].sort((a, b) => a.localeCompare(b))
@@ -287,6 +312,7 @@ function AvailabilityCalendar({ month, entries, duties, brush, today, disabled, 
                   )}
                   disabled={past}
                   {...grid.cellProps(rowIndex, colIndex)}
+                  onKeyDown={(event) => (event.key === 'PageUp' || event.key === 'PageDown' ? turnMonth(event, date) : grid.cellProps(rowIndex, colIndex).onKeyDown(event))}
                   onPointerDown={(event) => {
                     if (disabled || narrow || event.button !== 0) return
                     // Shift+click closes a range from the last painted day.
@@ -596,18 +622,24 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
         <div className="panel panel-padded stack-sm">
           {entries.error && <ErrorState error={entries.error} onRetry={() => entries.refetch()} />}
           <div className="avail-brush-row">
-            <Segmented<Brush>
-              size="sm"
-              label={t.brush}
-              value={brush}
-              onChange={setBrush}
-              options={[
-                { value: 'unavailable', label: t.brushes.unavailable, tone: 'na' },
-                { value: 'prefer_not', label: t.brushes.prefer_not, tone: 'wn' },
-                { value: 'prefer', label: t.brushes.prefer, tone: 'ch' },
-              ]}
-            />
-            <IconButton size="sm" icon="eraser" label={t.brushes.clear} active={brush === 'clear'} onClick={() => setBrush('clear')} />
+            <div className="field">
+              <span className="field-label" id="avail-brush-label">{t.brush}</span>
+              <div className="row">
+                <Segmented<Brush>
+                  size="sm"
+                  label={t.brush}
+                  labelId="avail-brush-label"
+                  value={brush}
+                  onChange={setBrush}
+                  options={[
+                    { value: 'unavailable', label: t.brushes.unavailable, tone: 'na' },
+                    { value: 'prefer_not', label: t.brushes.prefer_not, tone: 'wn' },
+                    { value: 'prefer', label: t.brushes.prefer, tone: 'ch' },
+                  ]}
+                />
+                <IconButton size="sm" icon="eraser" label={t.brushes.clear} active={brush === 'clear'} onClick={() => setBrush('clear')} />
+              </div>
+            </div>
             <Field label={t.note} id="availability-note" hint={t.noteHint} className="avail-note">
               {({ id, describedBy }) => <Input id={id} name={id} value={note} onChange={(event) => setNote(event.target.value)} aria-describedby={describedBy} />}
             </Field>
@@ -621,6 +653,7 @@ function AvailabilitySection({ role, hasTeamMember, displayName, month, onStepMo
             today={today}
             disabled={resolving || entries.isLoading}
             narrow={narrow}
+            onStepMonth={onStepMonth}
             onPaint={(startsOn, endsOn) => paint.mutate({
               member,
               startsOn,
@@ -950,7 +983,8 @@ function PhoneSection({ inRotation }: { inRotation: boolean }) {
   const [draft, setDraft] = useState<string | null>(null)
   // Judged once the field is left or saved, never while it is being typed.
   const [checked, setChecked] = useState(false)
-  const value = draft ?? me.data?.phone ?? ''
+  // The stored number grouped as it is printed, with spaces one can edit.
+  const value = draft ?? (me.data?.phone ? phoneText(me.data.phone).replace(/\u00a0/g, ' ') : '')
   const typed = value.trim()
   // The save button falls idle once the number is stored, so focus goes
   // back to the number it saved.

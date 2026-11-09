@@ -32,8 +32,8 @@ W nagłówku sekcji jest nazwa miesiąca jako nagłówek kalendarza, ze
 strzałkami zmieniającymi miesiąc po obu stronach. Na telefonie wiersz z
 miesiącem zostaje przyklejony pod górnym paskiem, gdy przewijasz kalendarz.
 Nad kalendarzem wybierasz, jak zaznaczasz (**Zaznaczam jako**): **nie mogę**,
-**wolę nie** albo **chętnie**. Obok jest przycisk gumki **Wyczyść
-zaznaczenie** i pole **Powód do kolejnych wpisów**: najpierw wybierasz, co i
+**wolę nie** albo **chętnie**. Obok jest gumka (**Gumka (usuwa wpis z
+dnia)**), czwarty tryb zaznaczania, i pole **Powód do kolejnych wpisów**: najpierw wybierasz, co i
 dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie strony
 (`/moje?miesiac=2026-10`), więc odświeżenie zostawia ten sam kalendarz.
 
@@ -46,9 +46,10 @@ dlaczego, potem zaznaczasz dni. Miesiąc jest w adresie strony
   Jeden dzień to dwa dotknięcia tego samego dnia.
 - Z klawiatury kalendarz to jeden przystanek klawisza Tab. Strzałki
   przechodzą między dniami (w górę i w dół o tydzień), Home i End na początek
-  i koniec tygodnia, a Enter lub Spacja zapisują dzień wybranym trybem; z
+  i koniec tygodnia, PageUp i PageDown zmieniają miesiąc (na ten sam dzień
+  albo ostatni dzień krótszego miesiąca), a Enter lub Spacja zapisują dzień wybranym trybem; z
   Shift domykają zakres od ostatnio zapisanego dnia.
-- Gumka (**Wyczyść zaznaczenie**) usuwa zgłoszenie z zaznaczonych dni. Jeżeli wpis obejmował
+- Gumka usuwa zgłoszenie z zaznaczonych dni. Jeżeli wpis obejmował
   więcej dni, pozostałe zostają.
 - Zapis jest natychmiastowy; potwierdza go jeden komunikat na cały zakres,
   na przykład „Zapisano: 12 – 16 paź „nie mogę”” z powodem pod spodem

@@ -32,8 +32,8 @@ The section header has the month's name as the calendar's heading, with
 arrows that change the month on either side. On a phone the month row stays
 pinned under the top bar while you scroll the calendar. Above the calendar you
 choose how you mark (**Mark as**): **unavailable**, **prefer not** or
-**willing**. Next to it are the eraser button **Clear the marking** and the
-**Reason for the next entries** field: first you choose what and why, then you
+**willing**. Next to it are the eraser (**Eraser (removes the day's
+entry)**), a fourth marking mode, and the **Reason for the next entries** field: first you choose what and why, then you
 mark the days. The month is part of the page address (`/moje?miesiac=2026-10`),
 so refreshing the page keeps the same calendar.
 
@@ -46,9 +46,10 @@ so refreshing the page keeps the same calendar.
   is two taps on the same day.
 - From the keyboard the calendar is a single Tab stop. The arrow keys move
   between days (up and down by a week), Home and End to the start and end of
-  the week, and Enter or Space save the day with the chosen mode; with Shift
+  the week, PageUp and PageDown change the month (to the same day or the last
+  day of a shorter month), and Enter or Space save the day with the chosen mode; with Shift
   they close the range from the last saved day.
-- The eraser (**Clear the marking**) removes the entry from the selected days. If the entry
+- The eraser removes the entry from the selected days. If the entry
   covered more days, the rest remain.
 - Saving is immediate; one message confirms the whole range, for example
   “Saved: 12 – 16 Oct “unavailable”” with the reason under it (“reason:
