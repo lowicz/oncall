@@ -201,7 +201,7 @@ The connection to WCO is always verified; a corporate CA is added from the
 `ONCALL_CA_FILE` file ([Getting started](../wdrozenie/uruchomienie.md#ca-file)).
 The history is in the audit trail under the `forwarding.*` actions
 (switched, failed, skipped, password change, password reveal, connection
-check, settings change), and the administrator's screen shows the current
+check, settings change, number handover and its end), and the administrator's screen shows the current
 state. Audit entries are subject to retention, which is why state needed
 for ever sits on rows of its own. When the automation fails, an
 administrator reveals the WCO password and switches the number themselves:

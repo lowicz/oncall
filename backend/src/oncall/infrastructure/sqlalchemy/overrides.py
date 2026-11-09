@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from oncall.audit import record_audit
 from oncall.domain.overrides.models import AssignmentChange, BatchOverrideKind, OverrideMove
+from oncall.domain.vocabulary import ROLE_LABELS
+from oncall.i18n import translate
 from oncall.infrastructure.sqlalchemy.access_models import User
 from oncall.notifications import triggers
 from oncall.notifications.templates import format_date, swapped_holders
@@ -21,11 +23,19 @@ def _moves_detail(moves: list[OverrideMove]) -> list[dict]:
     ]
 
 
+def _rule_name(rule: str) -> str:
+    """The rule's sentence from the Polish catalog as a list item: no
+    capital, no full stop."""
+    sentence = translate(f"rules.{rule}", "pl").rstrip(".")
+    return sentence[:1].lower() + sentence[1:]
+
+
 def acknowledged_suffix(violations: list[RuleViolation]) -> str:
     """The audit summary names the hard rules a correction or a swap broke;
     the use cases let one through only with an acknowledgement."""
-    rule_ids = sorted({violation.rule for violation in violations})
-    return f" · świadome naruszenie reguł: {', '.join(rule_ids)}" if rule_ids else ""
+    rules = sorted({violation.rule for violation in violations})
+    names = "; ".join(_rule_name(rule) for rule in rules)
+    return f" · świadome naruszenie reguł: {names}" if rules else ""
 
 
 def violations_detail(violations: list[RuleViolation]) -> list[dict]:
@@ -57,7 +67,7 @@ class SqlAlchemyOverrideJournal:
         await triggers.notify_assignment_overridden(self._session, changes=changes)
         service_date, role = changes[0][:2]
         handed = ", ".join(
-            f"{changed.value}: {previous_name} → {new_name}"
+            f"{ROLE_LABELS[changed]}: {previous_name} → {new_name}"
             for _, changed, previous_name, new_name in changes
         )
         record_audit(
@@ -66,7 +76,7 @@ class SqlAlchemyOverrideJournal:
             action="schedule.override",
             entity_type="schedule",
             entity_id=schedule_id,
-            summary=f"Override {service_date} · {handed}" + acknowledged_suffix(violations),
+            summary=f"Korekta {service_date} · {handed}" + acknowledged_suffix(violations),
             details={
                 "service_date": service_date.isoformat(),
                 "role": role.value,

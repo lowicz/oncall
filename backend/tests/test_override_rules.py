@@ -157,7 +157,7 @@ async def test_acknowledged_override_returns_violations_and_audits_the_rule(
     details = events[0].details
     assert "three_in_seven" in {item["rule"] for item in details["rule_violations"]}
     assert "świadome naruszenie reguł: " in events[0].summary
-    assert "three_in_seven" in events[0].summary
+    assert "więcej niż 3 dyżury on-call w okresie 7 dni" in events[0].summary
 
 
 @pytest.mark.anyio
@@ -326,7 +326,7 @@ async def test_batch_override_reports_violations_created_by_the_whole_batch(
     )
     assert event is not None
     assert "świadome naruszenie reguł: " in event.summary
-    assert "same_day_oncall" in event.summary
+    assert "ta sama osoba ma oba dyżury on-call tego dnia" in event.summary
 
 
 @pytest.mark.anyio

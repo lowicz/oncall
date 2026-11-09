@@ -51,7 +51,7 @@ BROKEN_LINE = (
     "Bartosz Nowak: Więcej niż 3 dyżury on-call w okresie 7 dni. "
     "Dni: 06-10-2026, 07-10-2026, 10-10-2026, 11-10-2026."
 )
-SUFFIX = " · świadome naruszenie reguł: three_in_seven"
+SUFFIX = " · świadome naruszenie reguł: więcej niż 3 dyżury on-call w okresie 7 dni"
 ACKNOWLEDGE = {"acknowledge_rule_violations": True}
 
 

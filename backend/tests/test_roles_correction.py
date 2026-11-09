@@ -101,8 +101,8 @@ async def test_two_roles_for_one_person_are_one_correction_and_undo_takes_the_ma
         await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
     ).all()
     assert audit.summary == (
-        f"Override {today} · secondary: Anna Kowalska → Marek Nowak, "
-        "late_shift: Jan Wiśniewski → Marek Nowak"
+        f"Korekta {today} · SECONDARY: Anna Kowalska → Marek Nowak, "
+        "11–19: Jan Wiśniewski → Marek Nowak"
     )
     assert audit.details["service_date"] == today.isoformat()
     assert audit.details["historical"] is False
@@ -213,8 +213,8 @@ async def test_an_unstaffed_slot_is_filled_and_counted_for_the_taker_only(
         await db.scalars(select(AuditEvent).where(AuditEvent.action == "schedule.override"))
     ).all()
     assert audit.summary == (
-        f"Override {today} · late_shift: brak obsady → Marek Nowak"
-        " · świadome naruszenie reguł: late_shift_anchor"
+        f"Korekta {today} · 11–19: brak obsady → Marek Nowak"
+        " · świadome naruszenie reguł: zmiana 11–19 i rola kotwicząca są u różnych osób"
     )
 
 

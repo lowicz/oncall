@@ -420,7 +420,7 @@ async def test_eligibility_periods(client, db, admin) -> None:
         "ends_on": (TODAY + timedelta(days=20)).isoformat(),
     }
     assert (await _audit(db, "admin.eligibility_created")).summary == (
-        f"Nadano Ola Nowak eligibility primary od {TODAY}"
+        f"Nadano Ola Nowak kwalifikację PRIMARY od {TODAY}"
     )
     overlap = "Okres eligibility nakłada się na istniejący okres tej roli"
     assert_error(await grant(20, 30), 409, overlap)
@@ -475,14 +475,14 @@ async def test_eligibility_periods(client, db, admin) -> None:
     assert changed.json()["starts_on"] == (TODAY + timedelta(days=1)).isoformat()
     event = await _audit(db, "admin.eligibility_updated")
     assert (event.summary, event.details) == (
-        "Zaktualizowano eligibility primary: Ola Nowak",
+        "Zaktualizowano kwalifikację PRIMARY: Ola Nowak",
         {"fields": ["starts_on"]},
     )
     second_url = f"/api/v1/admin/eligibility/{second.json()['id']}"
     assert (await client.delete(second_url)).status_code == 204
     event = await _audit(db, "admin.eligibility_deleted")
     assert (event.summary, event.details) == (
-        "Usunięto eligibility primary: Ola Nowak",
+        "Usunięto kwalifikację PRIMARY: Ola Nowak",
         {
             "starts_on": (TODAY + timedelta(days=21)).isoformat(),
             "ends_on": (TODAY + timedelta(days=40)).isoformat(),

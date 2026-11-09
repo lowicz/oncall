@@ -196,7 +196,7 @@ Połączenie z WCO jest zawsze weryfikowane; firmowe CA dochodzi z pliku
 `ONCALL_CA_FILE` ([Uruchomienie](../wdrozenie/uruchomienie.md#plik-ca)).
 Historia jest w audycie pod akcjami `forwarding.*` (przełączono,
 niepowodzenie, pominięto, zmiana hasła, odsłonięcie hasła, sprawdzenie
-połączenia, zmiana ustawień), a bieżący stan pokazuje ekran administratora.
+połączenia, zmiana ustawień, przekazanie numeru i jego zakończenie), a bieżący stan pokazuje ekran administratora.
 Wpisy audytu podlegają retencji, dlatego stan potrzebny na zawsze leży na
 własnych wierszach. Gdy automat zawiedzie, administrator odsłania hasło WCO
 i przełącza numer sam: [Ręczne przełączenie

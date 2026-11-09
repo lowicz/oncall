@@ -55,9 +55,10 @@ export const scheduleStatusLabels = (): Record<DraftSchedule['status'], string> 
 export const auditActionLabel = (action: string): string =>
   (messages().labels.auditActions as Record<string, string>)[action] ?? action
 
-/** The audit trail persists a few summaries with an English word or a raw role
- *  code baked in (`schedule.override`'s "Override …: primary" style text);
- *  this only cleans up what is rendered, the stored history is unchanged. */
+/** Older entries of the audit trail carry an English word or a raw role code
+ *  baked into the summary (`schedule.override`'s "Override …: primary",
+ *  `admin.eligibility_*`'s "eligibility"); this only cleans up what is
+ *  rendered, the stored history is unchanged. */
 export function humanizeAuditSummary(summary: string): string {
   const t = messages().labels
   return summary
@@ -65,6 +66,7 @@ export function humanizeAuditSummary(summary: string): string {
     .replace(/\bprimary\b/g, t.roles.primary)
     .replace(/\bsecondary\b/g, t.roles.secondary)
     .replace(/\blate_shift\b/g, t.roles.late_shift)
+    .replace(/\beligibility\b/g, t.eligibilityWord)
 }
 
 /** "Anna" from "Anna Kowalska": how a sentence names a teammate. */

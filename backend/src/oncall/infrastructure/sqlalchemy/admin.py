@@ -29,6 +29,7 @@ from oncall.domain.admin.models import (
 from oncall.domain.clock import as_utc, business_day_start
 from oncall.domain.roster import Slot
 from oncall.domain.vocabulary import (
+    ROLE_LABELS,
     AccountTokenKind,
     AssignmentRole,
     AuthSource,
@@ -529,7 +530,7 @@ class SqlAlchemyAdminJournal:
             entity_type="eligibility",
             entity_id=period.id,
             summary=(
-                f"Nadano {member.display_name} eligibility {period.role.value} "
+                f"Nadano {member.display_name} kwalifikację {ROLE_LABELS[period.role]} "
                 f"od {period.starts_on}"
             ),
         )
@@ -541,7 +542,9 @@ class SqlAlchemyAdminJournal:
             action="admin.eligibility_updated",
             entity_type="eligibility",
             entity_id=period.id,
-            summary=f"Zaktualizowano eligibility {period.role.value}: {member.display_name}",
+            summary=(
+                f"Zaktualizowano kwalifikację {ROLE_LABELS[period.role]}: {member.display_name}"
+            ),
             details={"fields": fields},
         )
 
@@ -550,6 +553,6 @@ class SqlAlchemyAdminJournal:
             action="admin.eligibility_deleted",
             entity_type="eligibility",
             entity_id=period.id,
-            summary=f"Usunięto eligibility {period.role.value}: {member.display_name}",
+            summary=f"Usunięto kwalifikację {ROLE_LABELS[period.role]}: {member.display_name}",
             details={"starts_on": period.starts_on.isoformat(), "ends_on": str(period.ends_on)},
         )

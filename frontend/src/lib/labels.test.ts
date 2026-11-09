@@ -17,5 +17,14 @@ describe('audit trail readability (QA7-L16)', () => {
     expect(humanizeAuditSummary('Override 2026-09-14 · primary: Anna → Marek')).toBe(
       'Korekta 2026-09-14 · PRIMARY: Anna → Marek',
     )
+    expect(humanizeAuditSummary('Usunięto eligibility late_shift: Tomasz Testowy')).toBe(
+      'Usunięto kwalifikację 11–19: Tomasz Testowy',
+    )
+  })
+
+  it('names the eligibility and number handover actions in Polish', () => {
+    expect(auditActionLabel('admin.eligibility_deleted')).toBe('Usunięto kwalifikację')
+    expect(auditActionLabel('forwarding.handover_started')).toBe('Przekazano numer on-call')
+    expect(auditActionLabel('forwarding.handover_ended')).toBe('Zakończono przekazanie numeru')
   })
 })

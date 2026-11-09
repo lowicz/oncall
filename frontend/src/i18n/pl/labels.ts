@@ -54,6 +54,7 @@ export const labels = {
   },
   /** The word the audit trail stores for a coordinator's correction. */
   overrideWord: 'Korekta',
+  eligibilityWord: 'kwalifikację',
   auditActions: {
     'auth.login': 'Logowanie',
     'auth.login_failed': 'Nieudane logowanie',
@@ -84,9 +85,9 @@ export const labels = {
     'admin.activation_link_issued': 'Wygenerowano link aktywacyjny',
     'admin.team_member_created': 'Dodano do rotacji',
     'admin.team_member_updated': 'Zmieniono rotację',
-    'admin.eligibility_created': 'Dodano eligibility',
-    'admin.eligibility_updated': 'Zmieniono eligibility',
-    'admin.eligibility_deleted': 'Usunięto eligibility',
+    'admin.eligibility_created': 'Dodano kwalifikację',
+    'admin.eligibility_updated': 'Zmieniono kwalifikację',
+    'admin.eligibility_deleted': 'Usunięto kwalifikację',
     'auth.login_attempt': 'Próba logowania',
     'auth.throttled': 'Zablokowano logowanie (zbyt wiele prób)',
     'auth.ldap_linked': 'Powiązano z LDAP',
@@ -113,5 +114,7 @@ export const labels = {
     'forwarding.password_rotated': 'Zmieniono hasło WCO',
     'forwarding.password_revealed': 'Odsłonięto hasło WCO',
     'forwarding.test': 'Sprawdzono przełączanie numeru',
+    'forwarding.handover_started': 'Przekazano numer on-call',
+    'forwarding.handover_ended': 'Zakończono przekazanie numeru',
   },
 }
