@@ -20,7 +20,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import axe from 'axe-core'
 import { computeAccessibleDescription, computeAccessibleName } from 'dom-accessibility-api'
 import { renderScreen } from './render'
-import { api } from '../api'
+import { ApiError, api } from '../api'
 import type {
   AdminUser,
   AuditEvent,
@@ -490,6 +490,8 @@ describe('the Polish interface', () => {
   })
 
   it('a share link that no longer works', async () => {
+    // Opened by someone with no session here, so nothing is asked first.
+    vi.spyOn(api, 'me').mockRejectedValue(new ApiError('Brak sesji', 401))
     renderScreen(
       <Routes><Route path="/share/:token" element={<ShareExchange />} /></Routes>,
       { route: '/share/expired-token' },

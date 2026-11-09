@@ -622,6 +622,10 @@ button.rank-c.rank-blocked { cursor: not-allowed; }
 .avail-day-ch { background: var(--ch-bg); color: var(--ch); }
 .avail-day-today { box-shadow: inset 0 0 0 2px var(--sig-line); }
 .avail-day-conflict { box-shadow: 0 0 0 2px var(--warn); }
+/* A press always lands on the day itself: the letter and note icon it would
+   otherwise hit leave the cell when the range preview starts, and a press on
+   a removed node fires no click, so the second tap of a range did nothing. */
+.avail-day > * { pointer-events: none; }
 .avail-day small { display: block; font-size: 12px; line-height: 16px; text-align: center; opacity: 0.9; }
 .avail-day .dot { position: absolute; left: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; }
 .avail-day .avail-day-note { position: absolute; right: 3px; top: 3px; width: 10px; height: 10px; opacity: 0.8; }

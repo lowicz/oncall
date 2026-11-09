@@ -263,6 +263,7 @@ export const people = {
     /** The reason the batch correction is filed with; the audit trail keeps it. */
     reason: (name: string) => `Zakończenie rotacji ${name}`,
     rewriteAndEnd: (count: number) => count === 0 ? 'Zakończ rotację' : `Przepisz ${pluralPl(count, ['dyżur', 'dyżury', 'dyżurów'])} i zakończ rotację`,
+    exitBeforeEntry: (exit: string, entry: string) => `Data wyjścia ${exit} jest przed wejściem do rotacji ${entry}. Zmień datę w polu „Wyjście do”.`,
     searchingDuties: 'Szukam przyszłych dyżurów…',
     refusalTitle: 'Przepisanie złamie reguły twarde',
     refusalNext: 'Wybierz innych zastępców albo potwierdź świadome naruszenie; trafi ono do dziennika audytu.',
