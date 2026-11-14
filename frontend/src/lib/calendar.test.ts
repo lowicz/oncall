@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CalendarData } from '../api'
 import {
+  assignmentsByCell,
   availabilityDutyConflicts,
   coverageGaps,
   hasDutyInRange,
@@ -39,6 +40,18 @@ const data = (over: Partial<CalendarData> = {}): CalendarData => ({
   assignments: [],
   availability: [],
   ...over,
+})
+
+describe('assignmentsByCell', () => {
+  it('lists the roles of one cell in role order whatever order the payload came in', () => {
+    const cells = assignmentsByCell([
+      assignment('2026-09-14', 'late_shift', 'Anna Kowalska'),
+      assignment('2026-09-14', 'primary', 'Marek Nowak'),
+      assignment('2026-09-14', 'secondary', 'Anna Kowalska'),
+    ])
+    expect(cells.get('2026-09-14|Anna Kowalska')!.map((item) => item.role)).toEqual(['secondary', 'late_shift'])
+    expect(cells.get('2026-09-14|Marek Nowak')!.map((item) => item.role)).toEqual(['primary'])
+  })
 })
 
 describe('coverageGaps', () => {

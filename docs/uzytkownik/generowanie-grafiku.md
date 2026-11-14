@@ -48,9 +48,9 @@ postępu pokazuje:
 
 - etapy **dane**, **solver**, **sprawiedliwość**, **propozycja** oraz status
   (`W kolejce…` albo `Generuję…`),
-- licznik sekund oraz czas **jednej próby** i łączny limit generowania -
-  trudny grafik wymaga kilku prób, więc licznik przekraczający czas
-  pojedynczej próby nie jest usterką,
+- licznik sekund pracy solvera (bez czasu w kolejce) oraz czas **jednej
+  próby** i łączny limit generowania - trudny grafik wymaga kilku prób, więc
+  licznik przekraczający czas pojedynczej próby nie jest usterką,
 - ostrzeżenie, jeśli przed początkiem szkicu zostają dni bez obsady.
 
 Po odświeżeniu strony podgląd trwającego generowania wznawia się sam - **nie

@@ -80,6 +80,16 @@ describe.each([
     }
   })
 
+  it('keeps the availability marks readable in weekend and today cells of the matrix', () => {
+    const panel = rgb(token(theme, 's1'))
+    for (const cell of ['wknd', 'today']) {
+      const background = composite(rgba(token(theme, cell)), panel)
+      for (const [text, fill] of [['bad-text', 'na-bg'], ['wn', 'wn-bg'], ['ch', 'ch-bg']]) {
+        expect(contrast(rgb(token(theme, text)), composite(rgba(token(theme, fill)), background))).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
   it('keeps text on the action band readable without a translucent field', () => {
     expect(contrast(rgb(token(theme, 'band-ink')), rgb(token(theme, 'act')))).toBeGreaterThanOrEqual(4.5)
   })

@@ -40,6 +40,7 @@ export const auth = {
     unauthorized: 'Jeśli konto zostało wyłączone, skontaktuj się z administratorem.',
     conflict: 'Konto wymaga poprawki po stronie administratora - skontaktuj się z nim.',
     throttled: 'Odczekaj chwilę i spróbuj ponownie.',
+    throttledFor: (seconds: number) => `Odczekaj ${Math.ceil(seconds / 60)} min i spróbuj ponownie.`,
     other: 'Spróbuj ponownie za chwilę. Jeśli problem się powtarza, powiadom administratora.',
   },
   activateAccount: 'Aktywuj konto',

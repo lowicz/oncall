@@ -22,11 +22,15 @@ const ROLE_ORDER: AssignmentRole[] = ['primary', 'secondary', 'late_shift']
  * "call" button, who is next. The 11–19 shift does not exist on days off
  * (PLAN.md §3), so an empty card there says "not applicable", not "somebody
  * forgot to staff it". The card of the reader's own role in the day's pair
- * (the PRIMARY's for anyone else) says where the on-call number rings.
+ * (the PRIMARY's for anyone else) says where the on-call number rings. A
+ * card showing the reader's own duty has no contact buttons: there is nobody
+ * to reach.
  */
-export function DutyCard({ duty, role, todayDayOff, holidayName, numberRow }: {
+export function DutyCard({ duty, role, viewerName, todayDayOff, holidayName, numberRow }: {
   duty?: CurrentDuty
   role: AssignmentRole
+  /** The reader's name in the rotation; absent for someone outside it. */
+  viewerName?: string
   todayDayOff?: boolean
   holidayName?: string | null
   numberRow?: ReactNode
@@ -55,7 +59,7 @@ export function DutyCard({ duty, role, todayDayOff, holidayName, numberRow }: {
             {duty.is_day_off ? t.allDay : `${duty.coverage_starts_at} → ${duty.coverage_ends_at}`}
             {' · '}{formatDayShort(duty.service_date)}
           </div>
-          {(phone || duty.contact_email) && (
+          {(phone || duty.contact_email) && duty.assignee_name !== viewerName && (
             <div className="dcard-acts">
               {contactPhone && phone && (
                 <AnchorButton href={`tel:${phone}`} size="sm" icon="phone" variant={role === 'primary' ? 'primary' : undefined}>
@@ -171,6 +175,7 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
   const byRole = (value: AssignmentRole) => current.find((item) => item.role === value)
   const primary = byRole('primary')
   const secondary = byRole('secondary')
+  const viewerName = hasTeamMember ? displayName : undefined
   const held = heldNumber(useForwardingNow().data)
   // The pair of the duty day the number belongs to, which before the
   // reminder hour is yesterday's, not the calendar day's `current`.
@@ -244,11 +249,12 @@ export function DutyScreen({ role, displayName, hasTeamMember, share = null }: {
       {narrow && schedule.data && numberRow && !rowOnCard && <div className="row">{numberRow}</div>}
       {narrow && schedule.data && (
         <div className="dcards">
-          <DutyCard role="primary" duty={primary} numberRow={rowOnCard && rowRole === 'primary' && numberRow} />
-          <DutyCard role="secondary" duty={secondary} numberRow={rowOnCard && rowRole === 'secondary' && numberRow} />
+          <DutyCard role="primary" duty={primary} viewerName={viewerName} numberRow={rowOnCard && rowRole === 'primary' && numberRow} />
+          <DutyCard role="secondary" duty={secondary} viewerName={viewerName} numberRow={rowOnCard && rowRole === 'secondary' && numberRow} />
           <DutyCard
             role="late_shift"
             duty={byRole('late_shift')}
+            viewerName={viewerName}
             todayDayOff={schedule.data.today_is_day_off}
             holidayName={schedule.data.today_holiday_name}
           />

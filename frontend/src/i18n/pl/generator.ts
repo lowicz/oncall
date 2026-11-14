@@ -78,7 +78,7 @@ export const generator = {
     open: 'Otwórz',
     delete: (startsOn: string, endsOn: string) => `Usuń szkic ${startsOn} - ${endsOn}`,
     summary: (startsOn: string, endsOn: string, rotation: string, version: number, assignments: number) =>
-      `${startsOn} – ${endsOn} · ${rotation} · v${version} · ${assignments} przydziałów`,
+      `${startsOn} – ${endsOn} · ${rotation} · v${version} · ${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])}`,
     createdOn: (date: string) => ` · utworzony ${date}`,
     showFewer: 'Pokaż mniej',
     showAll: (count: number) => `Pokaż wszystkie (${count})`,

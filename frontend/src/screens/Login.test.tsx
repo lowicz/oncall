@@ -95,6 +95,12 @@ describe('Login', () => {
     expect(alert).not.toHaveTextContent('wyłączone')
   })
 
+  it('names the wait the server asked for, since an early retry lengthens the lock', async () => {
+    const throttled = new ApiError('Zbyt wiele prób logowania', 429)
+    throttled.retryAfter = 120
+    expect(await signInRefusedWith(throttled)).toHaveTextContent('Odczekaj 2 min i spróbuj ponownie.')
+  })
+
   it('falls back to the generic hint when the request failed without an answer', async () => {
     const alert = await signInRefusedWith(new TypeError('Failed to fetch'))
     expect(alert).toHaveTextContent('Spróbuj ponownie za chwilę.')

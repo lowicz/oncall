@@ -84,6 +84,13 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
   }, [query, access, people, navigate, onOpenChange, setThemeMode, onLogout, t, language])
 
   const clamped = Math.min(active, Math.max(0, items.length - 1))
+  // The arrows can move the selection past the edge of the list; Enter must
+  // never run a row out of sight. The list item, so a group's first row
+  // brings its heading along.
+  const activeId = items[clamped]?.id
+  useEffect(() => {
+    document.getElementById(`pal-${activeId}`)?.closest('li')?.scrollIntoView({ block: 'nearest' })
+  }, [activeId])
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'ArrowDown') { event.preventDefault(); setActive((current) => Math.min(current + 1, items.length - 1)) }

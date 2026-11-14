@@ -169,6 +169,10 @@ small, .small { font-size: 12px; line-height: 16px; }
 /* A three-way choice in a side panel, which a phone leaves 320 px wide. */
 .seg-tight button { padding-left: 10px; padding-right: 10px; }
 .seg button:focus-visible { outline-offset: -2px; }
+/* A ring drawn on the action fill takes that fill's ink: the focus colour is too close to it to show.
+   On the chosen segment it also moves in from the edge, where a light page would swallow it. */
+.now, .mob-top { --focus: var(--band-ink); }
+.seg button.on:not([data-tone]):focus-visible { --focus: var(--act-ink); outline-offset: -4px; }
 
 .chip { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/16px var(--font); padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line2); background: var(--s1); white-space: nowrap; color: var(--fg); max-width: 100%; }
 /* A chip wider than a phone wraps its words instead of pushing the page sideways. */
@@ -236,7 +240,6 @@ small, .small { font-size: 12px; line-height: 16px; }
 .in-mono { font-family: var(--mono); }
 .in:disabled { opacity: 0.6; }
 .in[type='date'], .in[type='month'], .in[type='time'] { font-family: var(--mono); font-size: 14px; line-height: 21px; }
-:root:not([data-theme='light']) .in::-webkit-calendar-picker-indicator { filter: invert(0.8); }
 /* Edge/IE draw their own password reveal button inside the field; where the
    app already renders its own toggle next to the field, hide the native one
    so only one reveal control shows. Unsupported elsewhere, so harmless. */
@@ -462,9 +465,9 @@ table.lg th .th-help { margin-left: 4px; vertical-align: middle; color: var(--mu
 .tabs-list { display: flex; gap: 12px; position: relative; flex-wrap: wrap; }
 .tab { background: none; border: 0; padding: 0 0 4px; font: 600 14px/21px var(--font); color: var(--muted); border-bottom: 1.5px solid transparent; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
 .tab:hover { color: var(--fg); }
-.tab[data-selected] { color: var(--fg); border-bottom-color: var(--sig); border-bottom-width: 2px; }
+.tab[data-active] { color: var(--fg); border-bottom-color: var(--sig); border-bottom-width: 2px; }
 .tab-count { font: 600 12px/16px var(--label); font-variant-numeric: tabular-nums; background: var(--s3); color: var(--muted); padding: 3px 5px; border-radius: 4px; }
-.tab[data-selected] .tab-count { color: var(--fg); }
+.tab[data-active] .tab-count { color: var(--fg); }
 .tabs-indicator { display: none; }
 .toasts { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 60; display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); }
 /* A save in a side panel toasts while the panel stays open: lift the toasts above its footer, so its buttons stay reachable. */
@@ -804,7 +807,9 @@ table.report-table td.key { font-weight: 600; }
 @media (min-width: 901px) and (max-width: 1100px) {
   .app { grid-template-columns: 56px minmax(0, 1fr); }
   .rail { padding: 12px 6px; }
-  .brand-text, .nav-link span, .nav-sec, .rail-foot { display: none; }
+  .brand-text, .nav-sec, .rail-foot { display: none; }
+  /* Out of sight, not out of the tree: the label is the link's only name. */
+  .nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .nav-link { justify-content: center; padding: 8px; position: relative; }
   .nav-cnt { position: absolute; margin: 0; transform: translate(14px, -10px); }
 }
@@ -812,7 +817,7 @@ table.report-table td.key { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   .dialog-backdrop, .toast, .progress i { transition: none; }
   .scroll-area-frame::after { transition: none; }
-  .spinner, .sk { animation: none; }
+  .spinner, .sk, .toast-countdown { animation: none; }
 }
 @media (pointer: coarse) {
   .only-pointer { display: none; }

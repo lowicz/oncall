@@ -107,10 +107,14 @@ describe('CommandPalette', () => {
     const options = screen.getAllByRole('option')
     expect(options[0]).toHaveAttribute('aria-selected', 'true')
 
+    // The list is longer than its window: the selection is kept in view.
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     expect(options[2]).toHaveAttribute('aria-selected', 'true')
     expect(input).toHaveAttribute('aria-activedescendant', options[2].id)
+    expect(scroll.mock.contexts.at(-1)).toBe(options[2].closest('li'))
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest' })
     fireEvent.keyDown(input, { key: 'ArrowUp' })
     expect(options[1]).toHaveAttribute('aria-selected', 'true')
     // Any other key only types.

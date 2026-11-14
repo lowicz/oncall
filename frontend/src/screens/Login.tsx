@@ -13,10 +13,11 @@ import { meKey } from '../session'
  *  password can mean a disabled account; a directory outage or a conflict
  *  has its own remedy, and suggesting a disabled account there misleads. */
 function loginHint(error: Error, hints: Messages['auth']['hints']): string {
-  const status = error instanceof ApiError ? error.status : 0
-  if (status === 401) return hints.unauthorized
-  if (status === 409) return hints.conflict
-  if (status === 429) return hints.throttled
+  if (!(error instanceof ApiError)) return hints.other
+  if (error.status === 401) return hints.unauthorized
+  if (error.status === 409) return hints.conflict
+  // An early retry lengthens the lock, so the wait is named when the server names it.
+  if (error.status === 429) return error.retryAfter ? hints.throttledFor(error.retryAfter) : hints.throttled
   return hints.other
 }
 

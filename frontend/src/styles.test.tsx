@@ -101,7 +101,7 @@ describe('shared interaction styles', () => {
       <>
         <span className="spinner" />
         <span className="sk" />
-        <div className="toast" />
+        <div className="toast"><span className="toast-countdown" /></div>
         <div className="progress"><i /></div>
       </>,
     )
@@ -109,11 +109,39 @@ describe('shared interaction styles', () => {
     const skeleton = container.querySelector('.sk')!
     expect(getComputedStyle(spinner).animationName).toBe('none')
     expect(getComputedStyle(skeleton).animationName).toBe('none')
+    expect(getComputedStyle(container.querySelector('.toast-countdown')!).animationName).toBe('none')
     expect(getComputedStyle(spinner).display).toBe('inline-block')
     expect(getComputedStyle(skeleton).display).toBe('block')
     for (const moving of [container.querySelector('.toast')!, container.querySelector('.progress i')!]) {
       expect(getComputedStyle(moving).transition).toBe('none')
     }
+  })
+
+  it('underlines the tab Base UI marks as active', () => {
+    loadRealStylesheet()
+    const { container } = render(<><button className="tab" data-active="" /><button className="tab" /></>)
+    const [active, idle] = Array.from(container.querySelectorAll('.tab'), (tab) => getComputedStyle(tab).borderBottomWidth)
+    expect([active, idle]).toEqual(['2px', '1.5px'])
+  })
+
+  it('keeps the names of the rail links in the tree when the rail collapses to icons', () => {
+    loadRealMediaQuery('(min-width: 901px) and (max-width: 1100px)')
+    const { container } = render(<a className="nav-link"><span className="nav-label">Grafik</span><span className="nav-cnt">3</span></a>)
+    const label = getComputedStyle(container.querySelector('.nav-label')!)
+    // Clipped to nothing rather than `display: none`, which would unname the link.
+    expect([label.display, label.position, label.width, label.overflow]).toEqual(['inline', 'absolute', '1px', 'hidden'])
+    expect(getComputedStyle(container.querySelector('.nav-cnt')!).display).not.toBe('none')
+  })
+
+  it('draws the focus ring on an action fill in that fill\'s ink', () => {
+    loadRealStylesheet()
+    const { container } = render(<><div className="now" /><header className="mob-top" /><div className="seg"><button className="on" /></div></>)
+    const focus = (selector: string) => getComputedStyle(container.querySelector(selector)!).getPropertyValue('--focus')
+    expect([focus('.now'), focus('.mob-top')]).toEqual(['var(--band-ink)', 'var(--band-ink)'])
+    // The chosen segment draws it inside the fill, off the edge a light page would swallow.
+    const chosen = container.querySelector<HTMLElement>('.seg .on')!
+    chosen.focus()
+    expect([focus('.seg .on'), getComputedStyle(chosen).outlineOffset]).toEqual(['var(--act-ink)', '-4px'])
   })
 
   it('draws state text with the readable text tokens', () => {

@@ -401,7 +401,7 @@ describe('DraftScheduleMatrix inspector', () => {
     expect(screen.queryByRole('button', { name: 'Cofnij' })).not.toBeInTheDocument()
   })
 
-  it('counts the problems the corrected draft still has', async () => {
+  it('counts the problems still blocking the corrected draft, as the "Popraw" button does', async () => {
     vi.spyOn(api, 'calendar').mockResolvedValue(calendar)
     vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
     vi.spyOn(api, 'overrideDraft').mockResolvedValue({
@@ -411,6 +411,8 @@ describe('DraftScheduleMatrix inspector', () => {
         { service_date: '2026-09-21', role: 'primary', assignee_name: 'Marek Nowak' },
         { service_date: '2026-09-21', role: 'primary', assignee_name: 'Anna Kowalska' },
       ],
+      // Advice, not a blocker: it is not among the problems left to fix.
+      stale_changes_count: 1,
     })
     renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
 

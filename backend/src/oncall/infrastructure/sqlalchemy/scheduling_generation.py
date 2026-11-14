@@ -8,7 +8,7 @@ from sqlalchemy import CursorResult, Update, case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from oncall.domain.clock import as_utc
+from oncall.domain.clock import as_utc, utc_now
 from oncall.domain.scheduling.models import (
     ACTIVE_RUN_STATES,
     GenerationRun,
@@ -43,6 +43,7 @@ def _to_run(row: ScheduleRun) -> GenerationRun:
         error=row.error,
         conflicts=tuple(row.conflicts) if row.conflicts is not None else None,
         created_at=row.created_at,
+        started_at=as_utc(row.started_at) if row.started_at else None,
         updated_at=row.updated_at,
     )
 
@@ -202,6 +203,7 @@ class SqlAlchemyRunClaims:
             return None
         row.status = RunState.running
         row.progress = progress
+        row.started_at = utc_now()
         await self._session.flush()
         return _to_run(row)
 

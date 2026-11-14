@@ -220,6 +220,7 @@ def queued_run(
         error=None,
         conflicts=None,
         created_at=_clock[0],
+        started_at=None if status == "queued" else _clock[0],
         updated_at=_clock[0] + took if took is not None else _clock[0],
     )
 
