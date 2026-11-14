@@ -42,7 +42,7 @@ duties.
 On a phone the screen replaces the “On duty now” strip with three cards -
 `PRIMARY`, `SECONDARY` and `11–19` - with the name, the coverage window, the
 **Call**, **SMS** and **E-mail** buttons (when the contact details are filled
-in) and who takes the role next. On a Saturday, Sunday or holiday the `11–19`
+in; your own card has none) and who takes the role next. On a Saturday, Sunday or holiday the `11–19`
 card shows that this shift is **not applicable** - it is not a gap in the
 staffing. Under the cards a team member sees their next duty, and the schedule
 is a list of days.

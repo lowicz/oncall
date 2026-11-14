@@ -27,6 +27,13 @@ export function groupByKey<T>(items: readonly T[], key: (item: T) => string): Ma
   return groups
 }
 
+/** Each person's duties of a day under `date|name`, in role order whatever
+ *  order the payload came in, so every cell prints its marks the same way. */
+export function assignmentsByCell<T extends Pick<Assignment, 'service_date' | 'assignee_name' | 'role'>>(assignments: readonly T[]): Map<string, T[]> {
+  const inRoleOrder = [...assignments].sort((a, b) => ALL_ROLES.indexOf(a.role) - ALL_ROLES.indexOf(b.role))
+  return groupByKey(inRoleOrder, (item) => `${item.service_date}|${item.assignee_name}`)
+}
+
 /** The availability entry covering each person's day among `days`, keyed
  *  `member_id|service_date` (a person's entries never overlap). */
 export function availabilityByDay<T extends { member_id: string; starts_on: string; ends_on: string }>(

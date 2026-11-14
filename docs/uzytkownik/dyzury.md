@@ -39,8 +39,8 @@ z dyżurami.
 
 Na telefonie ekran zamienia pasek „Dyżur teraz” na trzy karty - `PRIMARY`,
 `SECONDARY` i `11–19` - z nazwiskiem, oknem pokrycia, przyciskami **Zadzwoń**,
-**SMS** i **E-mail** (gdy dane kontaktowe są uzupełnione) oraz informacją, kto
-obejmuje rolę jako następny. Karta `11–19` w sobotę, niedzielę lub święto
+**SMS** i **E-mail** (gdy dane kontaktowe są uzupełnione; na własnej karcie
+ich nie ma) oraz informacją, kto obejmuje rolę jako następny. Karta `11–19` w sobotę, niedzielę lub święto
 pokazuje, że ta zmiana **nie występuje** - to nie jest luka w obsadzie. Pod
 kartami członek zespołu widzi swój najbliższy dyżur, a grafik jest listą dni.
 

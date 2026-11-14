@@ -82,12 +82,14 @@ export function ScheduleScreen({ role, displayName, hasTeamMember = false }: {
   const weeks = weeksBetween(range.starts_on, range.ends_on)
 
   const publication = published.data?.is_published ? published.data : null
-  // The proposal waiting for the coordinator, named in the subtitle and
-  // opened by the primary action; a plain draft is mentioned but not pushed.
-  const pending = drafts.data?.find((item) => item.status === 'proposed') ?? drafts.data?.find((item) => item.status === 'draft')
+  const lastPublishedEnd = published.data?.last_published_ends_on
+  // The proposal waiting for the coordinator, else the draft of days not yet
+  // published, named in the subtitle and opened by the primary action. A
+  // draft left over a range that has been published since waits for nothing.
+  const pending = drafts.data?.find((item) => item.status === 'proposed')
+    ?? drafts.data?.find((item) => item.status === 'draft' && !(lastPublishedEnd && item.ends_on <= lastPublishedEnd))
   // Once the last published day has passed nothing ahead is published, so the
   // generator link falls back to its own suggested range from today.
-  const lastPublishedEnd = published.data?.last_published_ends_on
   const expiredOn = lastPublishedEnd && lastPublishedEnd < today ? lastPublishedEnd : null
   const generatorHref = publication?.ends_on
     ? `/generator?od=${addDays(publication.ends_on, 1)}&do=${addDays(publication.ends_on, 28)}`

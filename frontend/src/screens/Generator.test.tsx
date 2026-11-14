@@ -57,12 +57,15 @@ const draft = (over: Partial<DraftSchedule> & { id: string }): DraftSchedule => 
 })
 
 const run = (over: Partial<ScheduleRun> & { id: string }): ScheduleRun => ({
+  starts_on: '2026-11-28',
+  ends_on: '2027-01-01',
   status: 'running',
   progress: 30,
   schedule_id: null,
   error: null,
   conflicts: null,
-  created_at: new Date(Date.now() - 12_000).toISOString(),
+  created_at: new Date(Date.now() - 64_000).toISOString(),
+  started_at: new Date(Date.now() - 12_000).toISOString(),
   solve_seconds: 15,
   queue_position: 0,
   estimated_start_seconds: null,
@@ -727,6 +730,21 @@ describe('GeneratorPanel resuming a generation', () => {
     // Not „budżet do 15 s": a hard model is solved several times over, so the
     // counter legitimately passes the number next to it.
     expect(await screen.findByText(/jedna próba trwa do 15 s/)).toBeInTheDocument()
+    // Counted from the claim (12 s ago), not from the request (64 s ago).
+    expect(screen.getByText('solver 12 s / 15 s')).toBeInTheDocument()
+  })
+
+  it('counts nothing while the run still waits in the queue', async () => {
+    const queued = run({ id: 'r1', status: 'queued', started_at: null, queue_position: 1 })
+    stub([], [queued])
+    vi.spyOn(api, 'followRun').mockImplementation((_id, onProgress) => {
+      onProgress?.(queued)
+      return new Promise(() => {})
+    })
+    renderScreen(<GeneratorPanel />)
+
+    expect(await screen.findByText(/nie uruchamiaj go drugi raz/)).toBeInTheDocument()
+    expect(screen.queryByText(/jedna próba trwa do/)).not.toBeInTheDocument()
   })
 
   it('leaves the form alone when nothing is running', async () => {
@@ -1190,7 +1208,7 @@ describe('GeneratorPanel lifecycle actions', () => {
     await waitFor(() => expect(inline).toHaveFocus())
   })
 
-  it('titles a resumed generation with the open draft range', async () => {
+  it('titles a resumed generation with the range of the run, not of the open draft', async () => {
     stub([summary({ id: 'd1' })], [run({ id: 'r1' })])
     vi.spyOn(api, 'schedule').mockResolvedValue(draft({ id: 'd1' }))
     vi.spyOn(api, 'followRun').mockImplementation((_id, onProgress) => {
@@ -1199,7 +1217,7 @@ describe('GeneratorPanel lifecycle actions', () => {
     })
     renderScreen(<GeneratorPanel />, { route: '/generator?szkic=d1' })
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Generuję 17 – 18 wrz' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Generuję 28 lis 2026 – 1 sty 2027' })).toBeInTheDocument()
     expect(screen.getByText(/nie uruchamiaj go drugi raz/)).toBeInTheDocument()
   })
 })

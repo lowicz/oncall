@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AssignmentRole, CalendarData, DraftSchedule, api } from '../api'
 import { useMessages } from '../i18n'
 import { availabilityLabels, cellLabel } from '../lib/labels'
-import { REQUIRED_ROLES, Roster, availabilityByDay, groupByKey, monthGroups, startsWeek } from '../lib/calendar'
+import { REQUIRED_ROLES, Roster, assignmentsByCell, availabilityByDay, monthGroups, startsWeek } from '../lib/calendar'
 import { formatDate, formatWeekday, warsawDate } from '../lib/dates'
 import { useDraftRoleSwap } from '../hooks/useDraftRoleSwap'
 import { useDraftStaffChange } from '../hooks/useDraftStaffChange'
@@ -74,7 +74,7 @@ export function DraftScheduleMatrix({ result, onChange, focus }: {
   const grid = useGridNavigation(members.length, days.length)
   // Every cell looks its duties and availability up instead of searching the payload.
   const cellAssignments = useMemo(
-    () => groupByKey(result.assignments, (item) => `${item.service_date}|${item.assignee_name}`),
+    () => assignmentsByCell(result.assignments),
     [result.assignments],
   )
   const cellAvailability = useMemo(() => availabilityByDay(metadata.data?.availability ?? [], days), [metadata.data, days])

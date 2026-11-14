@@ -421,12 +421,16 @@ export interface ScheduleSummary {
 
 export interface ScheduleRun {
   id: string
+  starts_on: string
+  ends_on: string
   status: 'queued' | 'running' | 'completed' | 'failed'
   progress: number
   schedule_id: string | null
   error: string | null
   conflicts: string[] | null
   created_at: string
+  /** When a worker took the run off the queue; null while it waits there. */
+  started_at: string | null
   /** Solver time budget for this run, in seconds. */
   solve_seconds: number
   /** Active runs claimed before this one; 0 once running, null once finished. */
@@ -817,6 +821,8 @@ export class ApiError extends Error {
   status: number
   violations: RuleViolation[]
   nextStep: string | null
+  /** Seconds the server asked the caller to wait (`Retry-After`), when it said. */
+  retryAfter: number | null = null
   constructor(
     message: string,
     status: number,
@@ -910,7 +916,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    throw parseError(body, response.status)
+    const error = parseError(body, response.status)
+    const retryAfter = Number(response.headers.get('Retry-After'))
+    if (retryAfter > 0) error.retryAfter = retryAfter
+    throw error
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>

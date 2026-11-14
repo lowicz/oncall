@@ -20,6 +20,16 @@ async function refusal(call: () => Promise<unknown>): Promise<ApiError> {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('API errors', () => {
+  it('carries the wait a throttled sign-in was told, and none when the server names none', async () => {
+    const throttled = () => new Response(JSON.stringify({ detail: 'Zbyt wiele prób logowania' }), { status: 429, headers: { 'Retry-After': '120' } })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(throttled())))
+    const error = await refusal(() => api.login('jan', 'sekret'))
+    expect([error.status, error.retryAfter]).toEqual([429, 120])
+
+    vi.stubGlobal('fetch', answer(429, { detail: 'Zbyt wiele prób logowania' }))
+    expect((await refusal(() => api.login('jan', 'sekret'))).retryAfter).toBeNull()
+  })
+
   it('says in the interface language that the server cannot be reached', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
     for (const call of [

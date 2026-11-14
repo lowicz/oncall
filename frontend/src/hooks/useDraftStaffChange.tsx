@@ -124,7 +124,7 @@ export function useDraftStaffChange({ draft, roster, selected, unavailable, anch
       }
       const message = (value: DraftSchedule) => ({
         title: assignedTitle(changes, serviceDate, next.display_name),
-        description: t.remainingProblems(problemCounts(value).total),
+        description: t.remainingProblems(problemCounts(value).hard),
       })
       if (changes.some((item) => !item.restoreTo)) {
         const value = await api.overrideDraft(input)

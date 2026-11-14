@@ -284,6 +284,8 @@ class GenerationRun:
     error: str | None
     conflicts: tuple[str, ...] | None
     created_at: datetime
+    #: When a lane claimed the run; None while it is queued.
+    started_at: datetime | None
     updated_at: datetime | None
 
 

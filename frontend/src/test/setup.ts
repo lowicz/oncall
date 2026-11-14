@@ -39,6 +39,10 @@ if (!window.matchMedia) {
   })
 }
 
+// jsdom lays nothing out, so it has no `scrollIntoView` either; a component
+// that keeps its selection in view calls it, and a test that cares spies on it.
+Element.prototype.scrollIntoView ??= () => {}
+
 // The jsdom build vitest 3 loads here exposes no `localStorage` on the test
 // window; the theme and density preferences are stored there, so give tests an
 // in-memory store with the same surface and clear it between tests.

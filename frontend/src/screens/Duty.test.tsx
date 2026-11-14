@@ -291,13 +291,26 @@ describe('DutyScreen on a phone', () => {
     expect(primary).toHaveClass('dcard')
     expect(within(screen.getByRole('article', { name: 'SECONDARY' })).getByText('SECONDARY')).toHaveClass('lbl', 'lbl-s')
     expect(within(primary).getByText('Anna Kowalska')).toBeInTheDocument()
-    expect(within(primary).getByRole('link', { name: /Zadzwoń \+48 601 220 118/ })).toHaveAttribute('href', 'tel:+48601220118')
-    expect(within(primary).getByRole('link', { name: 'SMS' })).toHaveAttribute('href', 'sms:+48601220118')
+    // Her own card: there is nobody to call, text or write to.
+    expect(within(primary).queryByRole('link')).not.toBeInTheDocument()
     expect(within(primary).getByText(/Następny PRIMARY:/)).toHaveTextContent('Marek Nowak, jutro')
     expect(screen.getByRole('article', { name: '11–19' })).toHaveTextContent('nikt nie odbierze tej roli')
     expect(screen.getByText(/Twój następny dyżur:/)).toHaveTextContent('sob 12 wrz · SECONDARY')
     // The phone reads the schedule as a list.
     expect(await screen.findByRole('list', { name: 'Grafik dzień po dniu' })).toBeInTheDocument()
+  })
+
+  it('puts the call buttons on the card of somebody else on duty', async () => {
+    pretendNarrow(true)
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication())
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'swaps').mockResolvedValue([])
+    renderScreen(<DutyScreen role="member" displayName="Marek Nowak" hasTeamMember />)
+
+    const primary = await screen.findByRole('article', { name: 'PRIMARY' })
+    expect(within(primary).getByRole('link', { name: /Zadzwoń \+48 601 220 118/ })).toHaveAttribute('href', 'tel:+48601220118')
+    expect(within(primary).getByRole('link', { name: 'SMS' })).toHaveAttribute('href', 'sms:+48601220118')
+    expect(within(primary).getByRole('link', { name: 'E-mail' })).toHaveAttribute('href', 'mailto:anna@example.com')
   })
 
   it('opens the matrix the URL names instead of the day list a phone starts with', async () => {

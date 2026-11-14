@@ -127,6 +127,8 @@ class ScheduleRun(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now()
     )
+    #: When a lane took the run off the queue; null while it waits there.
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, server_default=func.now()
     )

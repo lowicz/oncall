@@ -51,7 +51,8 @@ progress panel shows:
 
 - the stages **data**, **solver**, **fairness**, **proposal** and the status
   (`Queued…` or `Generating…`),
-- a seconds counter together with the time of **one attempt** and the total
+- a counter of the seconds the solver has worked (the wait in the queue is not
+  counted) together with the time of **one attempt** and the total
   generation limit - a hard schedule needs several attempts, so a counter
   exceeding the time of a single attempt is not a defect,
 - a warning if unstaffed days remain before the draft starts.

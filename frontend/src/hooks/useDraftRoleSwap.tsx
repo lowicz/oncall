@@ -51,7 +51,7 @@ export function useDraftRoleSwap({ draft, roster, serviceDate, anchor, onSaved, 
       const input = { id: draft.id, expected_version: draft.version, service_date: serviceDate, assignments: draftSwapLines(swap, carry) }
       const message = (value: DraftSchedule) => ({
         title: t.toast(formatShortDate(serviceDate), swapHolders(swap, carry, true)),
-        description: generator.matrix.remainingProblems(problemCounts(value).total),
+        description: generator.matrix.remainingProblems(problemCounts(value).hard),
       })
       const moved: AssignmentRole[] = ['primary', 'secondary', ...(carry ? ['late_shift' as const] : [])]
       if (staffChanges(roster!, serviceDate, moved).some((item) => !item.restoreTo)) {

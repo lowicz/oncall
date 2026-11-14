@@ -51,7 +51,8 @@ same address; after signing in you return to the screen that was open.
 
 **Too many sign-in attempts**
 Signing in is temporarily blocked (“Sign-in blocked (too many attempts)” in
-the audit). Wait a while and try again.
+the audit). The sign-in screen says how many minutes to wait - an earlier
+attempt lengthens the block.
 
 ## Date fields
 

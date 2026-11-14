@@ -49,7 +49,7 @@ function RailLink({ path, label, icon, badge }: { path: string; label: string; i
   return (
     <NavLink to={path} end={path === '/'} className={({ isActive }) => cx('nav-link', isActive && 'active')}>
       <Icon name={icon} />
-      <span>{label}</span>
+      <span className="nav-label">{label}</span>
       {badge ? <><span className="nav-cnt" aria-hidden="true">{badge}</span><span className="sr-only">{t.shell.pendingDecisions(badge)}</span></> : null}
     </NavLink>
   )

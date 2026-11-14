@@ -39,6 +39,7 @@ export const auth: Messages['auth'] = {
     unauthorized: 'If the account has been disabled, contact the administrator.',
     conflict: 'The account needs a fix on the administrator side - contact them.',
     throttled: 'Wait a moment and try again.',
+    throttledFor: (seconds: number) => `Wait ${Math.ceil(seconds / 60)} min and try again.`,
     other: 'Try again in a moment. If the problem persists, notify the administrator.',
   },
   activateAccount: 'Activate account',

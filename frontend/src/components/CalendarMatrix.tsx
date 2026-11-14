@@ -9,7 +9,7 @@ import {
   availabilityByDay,
   availabilityDutyConflicts,
   coverageGaps,
-  groupByKey,
+  assignmentsByCell,
   hasDutyInRange,
   memberGroup,
   memberGroupLabels,
@@ -209,7 +209,7 @@ export function CalendarMatrix({
   // What the cells and the inspector read, looked up instead of searched for
   // in every cell of every render.
   const cellAssignments = useMemo(
-    () => groupByKey(data?.assignments ?? [], (item) => `${item.service_date}|${item.assignee_name}`),
+    () => assignmentsByCell(data?.assignments ?? []),
     [data],
   )
   const slots = useMemo(() => new Map((data?.assignments ?? []).map((item) => [`${item.service_date}|${item.role}`, item])), [data])

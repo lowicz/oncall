@@ -279,16 +279,17 @@ export function GeneratorPanel() {
   }, [activeRuns.data, generating])
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
-    if (!generating || !runProgress?.created_at) {
+    // From the claim, not the request: the wait in the queue is not solver time.
+    if (!generating || !runProgress?.started_at) {
       setElapsed(0)
       return
     }
-    const began = Date.parse(runProgress.created_at)
+    const began = Date.parse(runProgress.started_at)
     const tick = () => setElapsed(Math.max(0, Math.round((Date.now() - began) / 1000)))
     tick()
     const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
-  }, [generating, runProgress?.created_at])
+  }, [generating, runProgress?.started_at])
   const settle = (value: DraftSchedule) => {
     if (shownId.current === value.id) setResult(value)
     invalidateDrafts()
@@ -376,8 +377,8 @@ export function GeneratorPanel() {
   const counts = result ? problemCounts(result) : { hard: 0, soft: 0, total: 0 }
   const days = result ? new Set(result.assignments.map((item) => item.service_date)).size : 0
   // The range being generated: what the running request asked for, else the
-  // draft whose interrupted run is being rejoined.
-  const generatingRange = generating ? (generate.isPending ? generate.variables : result ?? range) : null
+  // range of the run being rejoined.
+  const generatingRange = generate.isPending ? generate.variables : resume.isPending ? runProgress : null
   // A new draft over the open one's range: the open one stays as it was,
   // corrections and all, so say where it went.
   const generateRange = () => result
@@ -465,7 +466,7 @@ export function GeneratorPanel() {
       {/* The budget is per solver pass, and a hard model is solved several
           times over, so the counter can pass the budget without a defect.
           Outside the live region: it changes every second. */}
-      {runProgress?.solve_seconds !== undefined && (
+      {runProgress?.started_at && (
         <div className="small muted mono" aria-live="off">
           {t.progress.budgetLine(elapsed, Math.round(runProgress.solve_seconds))}
           {policy.data?.time_budget_seconds !== undefined && t.progress.budgetTotal(Math.round(policy.data.time_budget_seconds))}.
@@ -523,7 +524,7 @@ export function GeneratorPanel() {
     <div className="page">
       {result ? (
         <PageHeader
-          title={generating && generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : (
+          title={generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : (
             <>
               {formatRange(result.starts_on, result.ends_on)}
               {' '}
@@ -546,7 +547,7 @@ export function GeneratorPanel() {
         />
       ) : (
         <PageHeader
-          title={generating && generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : nav.screens.generator}
+          title={generatingRange ? t.header.generating(formatRange(generatingRange.starts_on, generatingRange.ends_on)) : nav.screens.generator}
           sub={generating
             ? (runProgress?.status === 'queued' ? t.header.queuedSub : t.header.solverSub)
             : t.header.draftSub}

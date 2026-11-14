@@ -107,10 +107,14 @@ describe('CommandPalette', () => {
     const options = screen.getAllByRole('option')
     expect(options[0]).toHaveAttribute('aria-selected', 'true')
 
+    // The list is longer than its window: the selection is kept in view.
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     expect(options[2]).toHaveAttribute('aria-selected', 'true')
     expect(input).toHaveAttribute('aria-activedescendant', options[2].id)
+    expect(scroll.mock.contexts.at(-1)).toBe(options[2].closest('li'))
+    expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest' })
     fireEvent.keyDown(input, { key: 'ArrowUp' })
     expect(options[1]).toHaveAttribute('aria-selected', 'true')
     // Any other key only types.
@@ -118,7 +122,11 @@ describe('CommandPalette', () => {
     expect(options[1]).toHaveAttribute('aria-selected', 'true')
 
     const fairness = screen.getByRole('option', { name: /Sprawiedliwość/ })
-    fireEvent.mouseEnter(fairness)
+    // Scrolling the list under a pointer that stays still makes the browser
+    // send it over another row; the keyboard's choice stays.
+    fireEvent.mouseOver(fairness)
+    expect(options[1]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.mouseMove(fairness)
     expect(fairness).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(screen.getByTestId('path')).toHaveTextContent('/sprawiedliwosc')

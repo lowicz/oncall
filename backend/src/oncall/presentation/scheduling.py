@@ -217,12 +217,15 @@ class DraftOverrideRequest(BaseModel):
 
 class RunResponse(TypedDict):
     id: uuid.UUID
+    starts_on: date
+    ends_on: date
     status: str
     progress: int
     schedule_id: uuid.UUID | None
     error: str | None
     conflicts: list[str] | None
     created_at: datetime
+    started_at: datetime | None
     solve_seconds: float
     queue_position: int | None
     estimated_start_seconds: int | None
@@ -236,12 +239,15 @@ def run_response(view: RunView) -> RunResponse:
     run = view.run
     return {
         "id": run.id,
+        "starts_on": run.starts_on,
+        "ends_on": run.ends_on,
         "status": run.status,
         "progress": run.progress,
         "schedule_id": run.schedule_id,
         "error": run.error,
         "conflicts": list(run.conflicts) if run.conflicts is not None else None,
         "created_at": run.created_at,
+        "started_at": run.started_at,
         "solve_seconds": view.solve_seconds,
         "queue_position": view.queue_position,
         "estimated_start_seconds": view.estimated_start_seconds,

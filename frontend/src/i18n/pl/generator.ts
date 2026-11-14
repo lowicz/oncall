@@ -78,7 +78,7 @@ export const generator = {
     open: 'Otwórz',
     delete: (startsOn: string, endsOn: string) => `Usuń szkic ${startsOn} - ${endsOn}`,
     summary: (startsOn: string, endsOn: string, rotation: string, version: number, assignments: number) =>
-      `${startsOn} – ${endsOn} · ${rotation} · v${version} · ${assignments} przydziałów`,
+      `${startsOn} – ${endsOn} · ${rotation} · v${version} · ${pluralPl(assignments, ['przydział', 'przydziały', 'przydziałów'])}`,
     createdOn: (date: string) => ` · utworzony ${date}`,
     showFewer: 'Pokaż mniej',
     showAll: (count: number) => `Pokaż wszystkie (${count})`,
@@ -262,7 +262,7 @@ export const generator = {
     assignRoles: (count: number) => `Przypisz w szkicu (${count} role)`,
     assigned: (day: string, role: string, previous: string, next: string) => `Przypisano w szkicu ${day} · ${role}: ${previous} → ${next}`,
     assignedRoles: (day: string, name: string, roles: string) => `Przypisano w szkicu ${day}: ${name} na ${roles}`,
-    remainingProblems: (count: number) => count === 0 ? 'brak problemów w szkicu' : `zostało: ${pluralPl(count, ['problem', 'problemy', 'problemów'])}`,
+    remainingProblems: (count: number) => count === 0 ? 'nic nie blokuje szkicu' : `zostało: ${pluralPl(count, ['problem', 'problemy', 'problemów'])}`,
     noLateShift: 'Dzień wolny / 2X - zmiana 11–19 nie występuje.',
     availabilityTitle: (name: string, kind: string) => `${name}: ${kind}`,
     willBeRejected: 'Przydział zostanie odrzucony.',

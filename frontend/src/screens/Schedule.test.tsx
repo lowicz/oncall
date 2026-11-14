@@ -347,6 +347,29 @@ describe('ScheduleScreen default range and header states', () => {
     expect(screen.queryByRole('link', { name: 'Generuj kolejny zakres' })).not.toBeInTheDocument()
   })
 
+  it('does not call for a decision on a draft left over days published since', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ last_published_ends_on: '2026-10-03' }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([
+      { ...proposal, id: 'd7', status: 'draft', starts_on: '2026-09-14', ends_on: '2026-10-03' },
+    ])
+    renderSchedule('/grafik')
+
+    expect(await screen.findByText('Opublikowany 14 wrz – 3 paź (publikacja z 2 wrz)')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Generuj kolejny zakres' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Otwórz propozycję/ })).not.toBeInTheDocument()
+  })
+
+  it('still names a draft that reaches past the published days', async () => {
+    vi.spyOn(api, 'publishedSchedule').mockResolvedValue(publication({ last_published_ends_on: '2026-10-03' }))
+    vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
+    vi.spyOn(api, 'draftSchedules').mockResolvedValue([{ ...proposal, id: 'd9', status: 'draft' }])
+    renderSchedule('/grafik')
+
+    expect(await screen.findByText(/szkic 4 – 31 paź czeka na akceptację/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Otwórz propozycję/ })).toHaveAttribute('href', '/generator?szkic=d9')
+  })
+
   it('warns a member about an ended publication without the generator path', async () => {
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(ended)
     vi.spyOn(api, 'calendar').mockImplementation(async (a, b) => calendar(a, b))
