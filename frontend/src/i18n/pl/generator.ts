@@ -262,7 +262,7 @@ export const generator = {
     assignRoles: (count: number) => `Przypisz w szkicu (${count} role)`,
     assigned: (day: string, role: string, previous: string, next: string) => `Przypisano w szkicu ${day} · ${role}: ${previous} → ${next}`,
     assignedRoles: (day: string, name: string, roles: string) => `Przypisano w szkicu ${day}: ${name} na ${roles}`,
-    remainingProblems: (count: number) => count === 0 ? 'brak problemów w szkicu' : `zostało: ${pluralPl(count, ['problem', 'problemy', 'problemów'])}`,
+    remainingProblems: (count: number) => count === 0 ? 'nic nie blokuje szkicu' : `zostało: ${pluralPl(count, ['problem', 'problemy', 'problemów'])}`,
     noLateShift: 'Dzień wolny / 2X - zmiana 11–19 nie występuje.',
     availabilityTitle: (name: string, kind: string) => `${name}: ${kind}`,
     willBeRejected: 'Przydział zostanie odrzucony.',

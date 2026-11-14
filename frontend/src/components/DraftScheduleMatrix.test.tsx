@@ -366,7 +366,7 @@ describe('DraftScheduleMatrix inspector', () => {
     await waitFor(() => expect(onChange).toHaveBeenCalledWith(next))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /Marek Nowak · 21-09-2026$/ })).not.toBeInTheDocument())
     expect(await screen.findByText('Przypisano w szkicu 21 wrz · PRIMARY: Anna Kowalska → Marek Nowak')).toBeInTheDocument()
-    expect(screen.getByText('brak problemów w szkicu')).toBeInTheDocument()
+    expect(screen.getByText('nic nie blokuje szkicu')).toBeInTheDocument()
 
     // Undo is the same correction back to the person it replaced, on the new version.
     const restored = { ...draft, version: 3 }
@@ -420,6 +420,19 @@ describe('DraftScheduleMatrix inspector', () => {
     fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Przypisz w szkicu' }))
 
     expect(await screen.findByText('zostało: 2 problemy')).toBeInTheDocument()
+  })
+
+  it('says nothing blocks the corrected draft while advice is still listed, not that the draft has no problems', async () => {
+    vi.spyOn(api, 'calendar').mockResolvedValue(calendar)
+    vi.spyOn(api, 'draftFairnessImpact').mockResolvedValue(impact)
+    vi.spyOn(api, 'overrideDraft').mockResolvedValue({ ...draft, version: 2, stale_changes_count: 1 })
+    renderScreen(<DraftScheduleMatrix result={draft} onChange={() => {}} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Marek Nowak, pon 21-09-2026/ }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Przypisz w szkicu' }))
+
+    expect(await screen.findByText('nic nie blokuje szkicu')).toBeInTheDocument()
+    expect(screen.queryByText(/brak problemów/)).not.toBeInTheDocument()
   })
 
   it('corrects away from somebody no longer in the range, without Undo', async () => {
@@ -706,7 +719,7 @@ describe('DraftScheduleMatrix roles and role swap', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Zamień miejscami' }))
 
     expect(await screen.findByText('Zamieniono miejscami 21 wrz: Marek Nowak PRIMARY, Anna Kowalska SECONDARY i 11–19')).toBeInTheDocument()
-    expect(screen.getByText('brak problemów w szkicu')).toBeInTheDocument()
+    expect(screen.getByText('nic nie blokuje szkicu')).toBeInTheDocument()
     expect(save).toHaveBeenCalledWith({
       id: 'd1',
       expected_version: 1,

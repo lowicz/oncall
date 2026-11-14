@@ -252,7 +252,7 @@ export const generator: Messages['generator'] = {
     assignRoles: (count: number) => `Assign in the draft (${count} roles)`,
     assigned: (day: string, role: string, previous: string, next: string) => `Assigned in the draft ${day} · ${role}: ${previous} → ${next}`,
     assignedRoles: (day: string, name: string, roles: string) => `Assigned in the draft ${day}: ${name} on ${roles}`,
-    remainingProblems: (count: number) => count === 0 ? 'no problems left in the draft' : `left: ${pluralEn(count, ['problem', 'problems'])}`,
+    remainingProblems: (count: number) => count === 0 ? 'nothing blocks the draft' : `left: ${pluralEn(count, ['problem', 'problems'])}`,
     noLateShift: 'Day off / 2X - there is no 11–19 shift.',
     availabilityTitle: (name: string, kind: string) => `${name}: ${kind}`,
     willBeRejected: 'The assignment will be rejected.',
