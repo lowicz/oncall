@@ -90,6 +90,13 @@ describe.each([
     }
   })
 
+  it('keeps the focus ring drawn on the action fill visible (WCAG 1.4.11)', () => {
+    const fill = rgb(token(theme, 'act'))
+    for (const ink of ['band-ink', 'act-ink']) {
+      expect(contrast(rgb(token(theme, ink)), fill)).toBeGreaterThanOrEqual(3)
+    }
+  })
+
   it('keeps text on the action band readable without a translucent field', () => {
     expect(contrast(rgb(token(theme, 'band-ink')), rgb(token(theme, 'act')))).toBeGreaterThanOrEqual(4.5)
   })

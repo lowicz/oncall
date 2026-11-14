@@ -1,6 +1,7 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { loadRealMediaQuery, loadRealStylesheet } from './test/stylesheet'
+import { Tabs } from './ui/Tabs'
 
 describe('shared interaction styles', () => {
   it('never cuts the time on the "Teraz" strip, giving it a row of its own instead', () => {
@@ -117,11 +118,12 @@ describe('shared interaction styles', () => {
     }
   })
 
-  it('underlines the tab Base UI marks as active', () => {
+  it('underlines the selected tab', () => {
     loadRealStylesheet()
-    const { container } = render(<><button className="tab" data-active="" /><button className="tab" /></>)
-    const [active, idle] = Array.from(container.querySelectorAll('.tab'), (tab) => getComputedStyle(tab).borderBottomWidth)
-    expect([active, idle]).toEqual(['2px', '1.5px'])
+    render(<Tabs value="rotation" onChange={() => {}} label="Widok" items={[{ value: 'rotation', label: 'Rotacja' }, { value: 'people', label: 'Osoby' }]} />)
+    const width = (name: string) => getComputedStyle(screen.getByRole('tab', { name })).borderBottomWidth
+    expect(screen.getByRole('tab', { name: 'Rotacja' })).toHaveAttribute('aria-selected', 'true')
+    expect([width('Rotacja'), width('Osoby')]).toEqual(['2px', '1.5px'])
   })
 
   it('keeps the names of the rail links in the tree when the rail collapses to icons', () => {
