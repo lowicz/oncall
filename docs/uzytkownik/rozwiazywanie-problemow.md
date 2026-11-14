@@ -52,7 +52,8 @@ zalogowaniu wracasz na ekran, który był otwarty.
 
 **Zbyt wiele prób logowania**
 Logowanie jest chwilowo zablokowane („Zablokowano logowanie (zbyt wiele prób)”
-w audycie). Odczekaj i spróbuj ponownie.
+w audycie). Ekran logowania podaje, ile minut odczekać - wcześniejsza próba
+wydłuża blokadę.
 
 ## Pola dat
 
