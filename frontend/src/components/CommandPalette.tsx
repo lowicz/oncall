@@ -134,7 +134,9 @@ export function CommandPalette({ open, onOpenChange, access, onLogout }: {
                     role="option"
                     aria-selected={index === clamped}
                     className={cx('pal-it')}
-                    onMouseEnter={() => setActive(index)}
+                    // A move, not an enter: the list scrolling under a still
+                    // pointer must not take the keyboard's selection away.
+                    onMouseMove={() => setActive(index)}
                     onClick={item.run}
                   >
                     <Icon name={item.icon} />

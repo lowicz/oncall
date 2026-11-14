@@ -122,7 +122,11 @@ describe('CommandPalette', () => {
     expect(options[1]).toHaveAttribute('aria-selected', 'true')
 
     const fairness = screen.getByRole('option', { name: /Sprawiedliwość/ })
-    fireEvent.mouseEnter(fairness)
+    // Scrolling the list under a pointer that stays still makes the browser
+    // send it over another row; the keyboard's choice stays.
+    fireEvent.mouseOver(fairness)
+    expect(options[1]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.mouseMove(fairness)
     expect(fairness).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(screen.getByTestId('path')).toHaveTextContent('/sprawiedliwosc')
