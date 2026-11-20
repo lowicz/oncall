@@ -26,8 +26,8 @@ dependencies = [
   "ortools==9.15.6755",
   "pydantic-settings==2.16.3",
   "pyjwt[crypto]==2.15.1",
-  "python-multipart==0.0.33",
-  "sqlalchemy[asyncio]==2.1.8",
+  "python-multipart==0.0.34",
+  "sqlalchemy[asyncio]==2.1.9",
   "uvicorn[standard]==0.54.0",
 ]
 
