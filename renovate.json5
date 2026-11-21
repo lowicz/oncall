@@ -102,13 +102,13 @@
   ignorePaths: ['archive/**'],
   enabledManagers: ['github-actions', 'npm', 'pep621', 'dockerfile', 'docker-compose', 'custom.regex'],
   customDatasources: {
-    // The nginx releases published as `nginxinc/nginx-unprivileged:<version>-alpine`,
+    // The nginx releases published as `nginx/nginx-unprivileged:<version>-alpine`,
     // with the date each tag was pushed, for the nginx custom manager below. One
     // anonymous page of Docker Hub's tag list: the 100 most recently pushed
     // tags with `-alpine` in the name hold the newest releases, which is all
     // an update needs; the pinned release itself need not be among them.
     'nginx-unprivileged': {
-      defaultRegistryUrlTemplate: 'https://hub.docker.com/v2/repositories/nginxinc/nginx-unprivileged/tags?page_size=100&ordering=last_updated&name=-alpine',
+      defaultRegistryUrlTemplate: 'https://hub.docker.com/v2/repositories/nginx/nginx-unprivileged/tags?page_size=100&ordering=last_updated&name=-alpine',
       transformTemplates: [
         '{"releases": [results[$contains(name, /^[0-9]+\\.[0-9]+\\.[0-9]+-alpine$/)].{"version": $substringBefore(name, "-alpine"), "releaseTimestamp": tag_last_pushed}], "sourceUrl": "https://github.com/nginx/docker-nginx-unprivileged"}',
       ],
@@ -230,8 +230,8 @@
       // "nginx-unprivileged" datasource above reads the dates directly.
       customType: 'regex',
       managerFilePatterns: ['/^frontend/Dockerfile$/'],
-      matchStrings: ['FROM nginxinc/nginx-unprivileged:(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-alpine\\s'],
-      depNameTemplate: 'nginxinc/nginx-unprivileged',
+      matchStrings: ['FROM nginx/nginx-unprivileged:(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-alpine\\s'],
+      depNameTemplate: 'nginx/nginx-unprivileged',
       datasourceTemplate: 'custom.nginx-unprivileged',
       versioningTemplate: 'semver',
     },
@@ -275,7 +275,7 @@
     {
       // The nginx base image, read by its own manager, in the same weekly pull
       // request as the other base images.
-      matchDepNames: ['nginxinc/nginx-unprivileged'],
+      matchDepNames: ['nginx/nginx-unprivileged'],
       groupName: 'container base images',
       matchUpdateTypes: ['minor', 'patch'],
     },
@@ -292,7 +292,7 @@
       // rule. The nginx line would be an undated second copy of the nginx
       // custom manager's dependency.
       matchManagers: ['dockerfile'],
-      matchDepNames: ['ghcr.io/astral-sh/uv', 'node', 'python', 'nginxinc/nginx-unprivileged'],
+      matchDepNames: ['ghcr.io/astral-sh/uv', 'node', 'python', 'nginx/nginx-unprivileged'],
       enabled: false,
     },
     {
