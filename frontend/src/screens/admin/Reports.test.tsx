@@ -137,8 +137,7 @@ describe('MonthlyReportsPanel', () => {
     // than asserting a class name: table.lg gives numeric cells (.n) a larger
     // font-size for body readability, and that rule used to also catch this
     // header cell, so its rowspan-2 box centered on a taller line than
-    // "Osoba"'s (jsdom can't resolve the `font` shorthand's var(--mono) that
-    // "Osoba" relies on, so it is compared against the 12px literal instead).
+    // "Osoba"'s.
     loadRealStylesheet()
 
     vi.spyOn(api, 'monthlyReportPreview').mockResolvedValue(preview)
@@ -149,6 +148,7 @@ describe('MonthlyReportsPanel', () => {
     const [dataCell] = within(table).getAllByRole('cell', { name: '5' })
 
     expect(getComputedStyle(lateShift).fontSize).toBe('12px')
+    expect(getComputedStyle(within(table).getByRole('columnheader', { name: 'Osoba' })).fontSize).toBe('12px')
     expect(getComputedStyle(dataCell).fontSize).toBe('14px')
   })
 

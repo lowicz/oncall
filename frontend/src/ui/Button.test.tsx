@@ -51,8 +51,9 @@ describe('Button', () => {
     render(<Button loading>Publikuj</Button>)
     const spinner = screen.getByRole('button', { name: 'Publikuj' }).querySelector('.spinner')!
     const painted = getComputedStyle(spinner)
-    expect([painted.width, painted.height, painted.display]).toEqual(['12px', '12px', 'inline-block'])
-    expect(painted.animation).toContain('spin ')
+    // A flex item of the button, so its inline-block computes to block.
+    expect([painted.width, painted.height, painted.display]).toEqual(['12px', '12px', 'block'])
+    expect(painted.animationName).toBe('spin')
   })
 
   it('can be disabled without spinning', () => {

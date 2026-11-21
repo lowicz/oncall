@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderScreen } from '../test/render'
-import { loadRealStylesheet } from '../test/stylesheet'
+import { loadRealStylesheet, tokenColor } from '../test/stylesheet'
 import { NowStrip } from './NowStrip'
 import { coverageEnd, formatUntil } from '../lib/coverage'
 import { api } from '../api'
@@ -64,8 +64,7 @@ describe('NowStrip', () => {
 
   it('sets the role chips white on the header band and leaves them filled everywhere else', async () => {
     // The real stylesheet, so the header rule has to win the cascade over the
-    // shared chip fill; use the longhand because jsdom expands shorthand custom
-    // properties to transparent instead of preserving the unresolved token.
+    // shared chip fill.
     loadRealStylesheet()
     vi.spyOn(api, 'publishedSchedule').mockResolvedValue(schedule([
       duty({}),
@@ -81,10 +80,10 @@ describe('NowStrip', () => {
       return [style.getPropertyValue('background-color'), style.getPropertyValue('color')]
     }
     const chip = (label: string) => paint(within(strip).getByText(label, { selector: '.lbl' }))
-    expect(chip('PRIMARY')).toEqual(['var(--band-chip)', 'var(--band-p)'])
-    expect(chip('SECONDARY')).toEqual(['var(--band-chip)', 'var(--band-sec)'])
-    expect(chip('11–19')).toEqual(['var(--band-chip)', 'var(--band-late)'])
-    expect(paint(screen.getByText('P'))).toEqual(['var(--p-fill)', 'var(--role-ink)'])
+    expect(chip('PRIMARY')).toEqual([tokenColor('--band-chip'), tokenColor('--band-p')])
+    expect(chip('SECONDARY')).toEqual([tokenColor('--band-chip'), tokenColor('--band-sec')])
+    expect(chip('11–19')).toEqual([tokenColor('--band-chip'), tokenColor('--band-late')])
+    expect(paint(screen.getByText('P'))).toEqual([tokenColor('--p-fill'), tokenColor('--role-ink')])
   })
 
   it('names the end of the duty with the weekday abbreviation every screen uses', () => {
