@@ -252,7 +252,7 @@ razem z tagiem, a Docker użyłby digestu starego obrazu mimo nowego tagu.
 Dokładne digesty obrazów bazowych każdego wydania zapisuje jego provenance.
 
 Obraz bazowy serwera `web` wskazuje jedno wydanie nginx: w `frontend/Dockerfile`
-stoi `nginxinc/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, nigdy tag
+stoi `nginx/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, nigdy tag
 pływający taki jak `1.31-alpine`. Każde budowanie tego samego commita zaczyna
 się więc od nginx, który zbudowało CI pull requesta, a nowy nginx trafia do
 wydania tylko przez przejrzany pull request Renovate, nie po cichu przy
