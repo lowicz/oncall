@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { loadRealMediaQuery, loadRealStylesheet } from './test/stylesheet'
+import { loadRealMediaQuery, loadRealStylesheet, SAFE_AREA_INSET, tokenColor } from './test/stylesheet'
 import { Tabs } from './ui/Tabs'
 
 describe('shared interaction styles', () => {
@@ -18,14 +18,14 @@ describe('shared interaction styles', () => {
     const { container } = render(<><div className="toasts" /><nav className="tabs-bottom" /></>)
     const toasts = getComputedStyle(container.querySelector('.toasts')!)
     expect(toasts.top).toBe('auto')
-    expect(toasts.bottom).toBe('calc(72px + env(safe-area-inset-bottom))')
+    expect(toasts.bottom).toBe(`${72 + SAFE_AREA_INSET}px`)
   })
 
   it('keeps a screen\'s main action above the bottom tabs and the inbox on one row on a phone', () => {
     loadRealMediaQuery('(max-width: 900px)')
     const { container } = render(<><button className="thumb-action" /><div className="seg seg-wrap seg-inbox"><button /></div></>)
     const action = getComputedStyle(container.querySelector('.thumb-action')!)
-    expect([action.position, action.bottom]).toEqual(['fixed', 'calc(80px + env(safe-area-inset-bottom))'])
+    expect([action.position, action.bottom]).toEqual(['fixed', `${80 + SAFE_AREA_INSET}px`])
     const seg = getComputedStyle(container.querySelector('.seg-inbox')!)
     expect([seg.display, seg.gridAutoFlow]).toEqual(['grid', 'column'])
     // A label too long for its share of the row wraps inside its button.
@@ -33,7 +33,8 @@ describe('shared interaction styles', () => {
     expect(button.whiteSpace).toBe('normal')
     // Its count may drop under the label: glued to the last word, it made
     // the row wider than a 360 px screen and pushed the page past its gutter.
-    expect([button.display, button.flexWrap]).toEqual(['inline-flex', 'wrap'])
+    // A grid item, so its inline-flex computes to flex.
+    expect([button.display, button.flexWrap]).toEqual(['flex', 'wrap'])
   })
 
   it('lets any other wrapping choice flow onto further rows on a phone', () => {
@@ -66,7 +67,7 @@ describe('shared interaction styles', () => {
   it('puts a list row\'s actions under its text on a phone', () => {
     loadRealMediaQuery('(max-width: 900px)')
     const { container } = render(<div className="list-row"><div className="list-main" /><div className="list-aside" /></div>)
-    expect(getComputedStyle(container.querySelector('.list-row')!).gridTemplateColumns).toBe('minmax(0, 1fr)')
+    expect(getComputedStyle(container.querySelector('.list-row')!).gridTemplateColumns).toBe('minmax(0px, 1fr)')
     expect(getComputedStyle(container.querySelector('.list-aside')!).justifyContent).toBe('flex-start')
   })
 
@@ -123,15 +124,17 @@ describe('shared interaction styles', () => {
     render(<Tabs value="rotation" onChange={() => {}} label="Widok" items={[{ value: 'rotation', label: 'Rotacja' }, { value: 'people', label: 'Osoby' }]} />)
     const width = (name: string) => getComputedStyle(screen.getByRole('tab', { name })).borderBottomWidth
     expect(screen.getByRole('tab', { name: 'Rotacja' })).toHaveAttribute('aria-selected', 'true')
-    expect([width('Rotacja'), width('Osoby')]).toEqual(['2px', '1.5px'])
+    // The 1.5 px hairline of an unselected tab snaps to one device pixel.
+    expect([width('Rotacja'), width('Osoby')]).toEqual(['2px', '1px'])
   })
 
   it('keeps the names of the rail links in the tree when the rail collapses to icons', () => {
     loadRealMediaQuery('(min-width: 901px) and (max-width: 1100px)')
     const { container } = render(<a className="nav-link"><span className="nav-label">Grafik</span><span className="nav-cnt">3</span></a>)
     const label = getComputedStyle(container.querySelector('.nav-label')!)
-    // Clipped to nothing rather than `display: none`, which would unname the link.
-    expect([label.display, label.position, label.width, label.overflow]).toEqual(['inline', 'absolute', '1px', 'hidden'])
+    // Clipped to nothing rather than `display: none`, which would unname the link;
+    // absolute positioning makes the inline label a block.
+    expect([label.display, label.position, label.width, label.overflow]).toEqual(['block', 'absolute', '1px', 'hidden'])
     expect(getComputedStyle(container.querySelector('.nav-cnt')!).display).not.toBe('none')
   })
 
@@ -139,11 +142,12 @@ describe('shared interaction styles', () => {
     loadRealStylesheet()
     const { container } = render(<><div className="now" /><header className="mob-top" /><div className="seg"><button className="on" /></div></>)
     const focus = (selector: string) => getComputedStyle(container.querySelector(selector)!).getPropertyValue('--focus')
-    expect([focus('.now'), focus('.mob-top')]).toEqual(['var(--band-ink)', 'var(--band-ink)'])
+    const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name)
+    expect([focus('.now'), focus('.mob-top')]).toEqual([token('--band-ink'), token('--band-ink')])
     // The chosen segment draws it inside the fill, off the edge a light page would swallow.
     const chosen = container.querySelector<HTMLElement>('.seg .on')!
     chosen.focus()
-    expect([focus('.seg .on'), getComputedStyle(chosen).outlineOffset]).toEqual(['var(--act-ink)', '-4px'])
+    expect([focus('.seg .on'), getComputedStyle(chosen).outlineOffset]).toEqual([token('--act-ink'), '-4px'])
   })
 
   it('draws state text with the readable text tokens', () => {
@@ -164,13 +168,13 @@ describe('shared interaction styles', () => {
     )
     const style = (selector: string) => getComputedStyle(container.querySelector(selector)!)
     for (const selector of ['.box-bad > b', '.tag-bad', '.rank-fact-bad', '.btn-bad']) {
-      expect(style(selector).color).toBe('var(--bad-text)')
+      expect(style(selector).color).toBe(tokenColor('--bad-text'))
     }
-    expect(style('.box-warn > b').color).toBe('var(--warn-text)')
-    expect(style('.role-r-s').color).toBe('var(--sec-text)')
-    expect(style('.avail-day-na').color).toBe('var(--fg)')
+    expect(style('.box-warn > b').color).toBe(tokenColor('--warn-text'))
+    expect(style('.role-r-s').color).toBe(tokenColor('--sec-text'))
+    expect(style('.avail-day-na').color).toBe(tokenColor('--fg'))
     expect(style('.now-search').backgroundColor).toBe('rgba(0, 0, 0, 0)')
-    expect(style('.tag-late').color).toBe('var(--late-text)')
+    expect(style('.tag-late').color).toBe(tokenColor('--late-text'))
     // A tab is as tall as the other small controls; a coarse pointer raises every button to 44 px.
     expect(style('.tab').minHeight).toBe('32px')
   })
@@ -178,7 +182,7 @@ describe('shared interaction styles', () => {
   it('sizes the label column of the swap sheet to its longest word, the same in every row', () => {
     loadRealStylesheet()
     const { container } = render(<div className="roles roles-text"><div className="role-row" /></div>)
-    expect(getComputedStyle(container.querySelector('.roles')!).gridTemplateColumns).toBe('max-content minmax(0, 1fr) auto')
+    expect(getComputedStyle(container.querySelector('.roles')!).gridTemplateColumns).toBe('max-content minmax(0px, 1fr) auto')
     expect(getComputedStyle(container.querySelector('.role-row')!).gridTemplateColumns).toBe('subgrid')
   })
 

@@ -209,8 +209,8 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - `src/test/setup.ts` pins the clock to a fixed instant. Screens hide actions
   for dates already past, so fixtures written as concrete dates need it.
   A test asserting a computed style loads the real stylesheet through
-  `loadRealStylesheet()` (`src/test/stylesheet.ts`); jsdom resolves no
-  `var()`, so assert literal values.
+  `loadRealStylesheet()` (`src/test/stylesheet.ts`), which also loads the
+  tokens, so jsdom resolves `var()`; compare a token colour with `tokenColor()`.
 - TypeScript 7 ships no JavaScript API, so `frontend/package.json` runs it
   side by side with TypeScript 6 as Microsoft documents: the `typecheck`
   script runs TypeScript 7's compiler by its package path

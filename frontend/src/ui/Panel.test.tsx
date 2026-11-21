@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { loadRealStylesheet } from '../test/stylesheet'
+import { loadRealStylesheet, tokenColor } from '../test/stylesheet'
 import { Panel } from './Panel'
 
 const viewport = vi.hoisted(() => ({ narrow: true }))
@@ -30,7 +30,7 @@ describe('Panel title', () => {
     render(<Panel open onClose={vi.fn()} title="Details"><button>Select candidate</button></Panel>)
     const title = screen.getByRole('heading', { name: 'Details' })
     await waitFor(() => expect(title).toHaveFocus())
-    // A keyboard user sees where focus landed; jsdom resolves no var(), so the colour reads as currentcolor.
-    expect(getComputedStyle(title).outline).toBe('2px solid currentcolor')
+    // A keyboard user sees where focus landed.
+    expect(getComputedStyle(title).outline).toBe(`2px solid ${tokenColor('--focus')}`)
   })
 })

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expectNoAxeViolations } from '../test/axe'
-import { loadRealStylesheet } from '../test/stylesheet'
+import { loadRealStylesheet, SAFE_AREA_INSET } from '../test/stylesheet'
 import { Sheet } from './Sheet'
 
 function Handover({ onClose }: { onClose?: () => void }) {
@@ -74,7 +74,7 @@ describe('Sheet', () => {
     loadRealStylesheet()
     const { sheet } = await openSheet()
     const style = getComputedStyle(sheet)
-    expect(style.paddingBottom).toBe('calc(20px + env(safe-area-inset-bottom))')
+    expect(style.paddingBottom).toBe(`${20 + SAFE_AREA_INSET}px`)
     expect(style.getPropertyValue('overscroll-behavior')).toBe('contain')
     for (const button of screen.getAllByRole('button')) {
       if (sheet.contains(button)) expect(getComputedStyle(button).minHeight).toBe('44px')

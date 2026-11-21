@@ -172,7 +172,7 @@ describe('DraftScheduleMatrix grid', () => {
 
     const eventCell = within(region).getByRole('button', { name: 'Anna Kowalska, pon 12-10-2026, wydarzenia: Migracja, brak dyżuru' })
     expect(eventCell).toHaveClass('cell-ev')
-    expect(eventCell).toHaveStyle('--ev: var(--ev-blue)')
+    expect(eventCell.style.getPropertyValue('--ev')).toBe('var(--ev-blue)')
     fireEvent.click(eventCell)
     const eventPanel = await screen.findByRole('dialog', { name: 'Wstaw: Anna Kowalska · 12-10-2026' })
     expect(within(eventPanel).getByText('Wydarzenia')).toBeInTheDocument()
