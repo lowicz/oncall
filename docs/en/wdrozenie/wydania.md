@@ -262,7 +262,7 @@ exact digests of the base images of every release are recorded in its
 provenance.
 
 The base image of the `web` server names one nginx release: `frontend/Dockerfile`
-has `nginxinc/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, never a
+has `nginx/nginx-unprivileged:<major>.<minor>.<patch>-alpine`, never a
 floating tag such as `1.31-alpine`. Every build of the same commit therefore
 starts from the nginx the pull request's CI built, and a new nginx reaches a
 release only through a reviewed Renovate pull request, not silently at the next

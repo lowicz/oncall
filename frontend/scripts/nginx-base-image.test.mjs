@@ -1,6 +1,6 @@
 /**
  * The web image starts from one nginx release,
- * `nginxinc/nginx-unprivileged:<major>.<minor>.<patch>-alpine` (Dockerfile), and
+ * `nginx/nginx-unprivileged:<major>.<minor>.<patch>-alpine` (Dockerfile), and
  * Renovate keeps it current through the nginx custom manager and the
  * `nginx-unprivileged` datasource in renovate.json5. These checks run offline
  * against the same files Renovate reads: the Dockerfile names exactly one such
@@ -18,19 +18,19 @@ const read = (name) => readFileSync(resolve(process.cwd(), name), 'utf8')
 const dockerfile = read('Dockerfile')
 const renovate = JSON5.parse(read('../renovate.json5'))
 
-const IMAGE = 'nginxinc/nginx-unprivileged'
+const IMAGE = 'nginx/nginx-unprivileged'
 const DOCKERFILE_PATH = 'frontend/Dockerfile'
 const EXACT_RELEASE = /^:\d+\.\d+\.\d+-alpine$/
 
 // What follows the image name on each FROM line that uses it: `:<tag>`,
 // `@<digest>`, both, or nothing (Docker's implicit `latest`).
 function nginxReferences(text) {
-  const from = /^FROM\s+(?:--\S+\s+)*(?:docker\.io\/)?nginxinc\/nginx-unprivileged(\S*)/gm
+  const from = /^FROM\s+(?:--\S+\s+)*(?:docker\.io\/)?nginx\/nginx-unprivileged(\S*)/gm
   return [...text.matchAll(from)].map((match) => match[1])
 }
 
 function withNginxReference(reference) {
-  return dockerfile.replace(/(^FROM\s+nginxinc\/nginx-unprivileged)\S*/m, `$1${reference}`)
+  return dockerfile.replace(/(^FROM\s+nginx\/nginx-unprivileged)\S*/m, `$1${reference}`)
 }
 
 // Renovate reads a `/.../` managerFilePatterns entry as a regular expression.

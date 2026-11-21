@@ -407,7 +407,7 @@ jobs:
         env:
           IMAGE: oncall-${{ matrix.name }}:ci
         run: |
-          pinned=$(sed -En 's/^FROM nginxinc\/nginx-unprivileged:([0-9]+\.[0-9]+\.[0-9]+)-alpine([[:space:]].*)?$/\1/p' frontend/Dockerfile)
+          pinned=$(sed -En 's/^FROM nginx\/nginx-unprivileged:([0-9]+\.[0-9]+\.[0-9]+)-alpine([[:space:]].*)?$/\1/p' frontend/Dockerfile)
           running=$(docker run --rm --entrypoint nginx "$IMAGE" -v 2>&1 | sed -n 's|^nginx version: nginx/||p')
           if [ -z "$pinned" ] || [ "$running" != "$pinned" ]; then
             echo "::error::$IMAGE runs nginx '$running', frontend/Dockerfile pins '$pinned'"
